@@ -18,7 +18,7 @@ def test_mcp_server():
     
     # Start the MCP server
     server_proc = subprocess.Popen(
-        [sys.executable, "mcp/standalone_vfs_mcp_server.py"],
+        [sys.executable, "ipfs_kit_py/mcp/servers/unified_mcp_server.py"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

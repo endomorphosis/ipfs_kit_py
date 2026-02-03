@@ -42,7 +42,7 @@ def _read_json_line(process: subprocess.Popen, *, timeout_s: float = 5.0):
 
 def test_mcp_server():
     """Test the MCP server directly."""
-    server_path = os.path.join("mcp", "enhanced_mcp_server_with_daemon_mgmt.py")
+    server_path = os.path.join("ipfs_kit_py", "mcp", "servers", "unified_mcp_server.py")
     
     if not os.path.exists(server_path):
         pytest.skip(f"MCP server not found at {server_path}")

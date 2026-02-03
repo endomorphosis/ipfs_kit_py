@@ -28,7 +28,7 @@ def run_mcp_server_integration_test() -> bool:
     
     server_cmd = [
         sys.executable,
-        str((repo_root / "mcp" / "ipfs_kit" / "mcp" / "enhanced_mcp_server_with_daemon_mgmt.py").resolve()),
+        str((repo_root / "ipfs_kit_py" / "mcp" / "servers" / "unified_mcp_server.py").resolve()),
     ]
     
     proc = None

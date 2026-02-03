@@ -52,7 +52,7 @@ def check_vfs_implementation():
     
     # Check MCP server with VFS integration
     mcp_files = [
-        str((REPO_ROOT / "mcp" / "enhanced_mcp_server_with_daemon_mgmt.py").resolve()),
+        str((REPO_ROOT / "ipfs_kit_py" / "mcp" / "servers" / "unified_mcp_server.py").resolve()),
         str((REPO_ROOT / "final_mcp_server_enhanced.py").resolve()),
         str((REPO_ROOT / "mcp" / "consolidated_final_mcp_server.py").resolve()),
     ]
@@ -137,7 +137,7 @@ def check_mcp_tools():
     print("\n🔍 Checking MCP VFS Tools")
     print("=" * 50)
     
-    mcp_file = REPO_ROOT / "mcp" / "enhanced_mcp_server_with_daemon_mgmt.py"
+    mcp_file = REPO_ROOT / "ipfs_kit_py" / "mcp" / "servers" / "unified_mcp_server.py"
     if mcp_file.exists():
         with open(mcp_file, 'r') as f:
             content = f.read()

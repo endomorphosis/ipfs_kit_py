@@ -148,7 +148,33 @@ class FastCLI:
         ah_config.add_argument("--set", nargs=2, metavar=('KEY', 'VALUE'), help="Set configuration value")
         ah_config.add_argument("--get", metavar='KEY', help="Get configuration value")
         
+        # Integrate unified CLI commands
+        self._add_unified_commands(sub)
+        
         return parser
+    
+    def _add_unified_commands(self, subparsers):
+        """Add unified CLI commands from unified_cli_dispatcher."""
+        try:
+            from ipfs_kit_py.unified_cli_dispatcher import UnifiedCLIDispatcher
+            unified = UnifiedCLIDispatcher()
+            
+            # Add bucket commands
+            unified._add_bucket_commands(subparsers)
+            # Add VFS commands
+            unified._add_vfs_commands(subparsers)
+            # Add WAL commands
+            unified._add_wal_commands(subparsers)
+            # Add pin commands
+            unified._add_pin_commands(subparsers)
+            # Add backend commands (but not daemon, already exists)
+            unified._add_backend_commands(subparsers)
+            # Add journal commands
+            unified._add_journal_commands(subparsers)
+            # Add state commands
+            unified._add_state_commands(subparsers)
+        except ImportError as e:
+            logger.debug(f"Could not load unified CLI commands: {e}")
 
     async def run(self) -> None:
         args = self.parser.parse_args()
@@ -179,7 +205,20 @@ class FastCLI:
                 pass
         
         # Handle both mcp_action and daemon_action
-        if args.command == "mcp":
+        unified_commands = {"bucket", "vfs", "wal", "pin", "backend", "journal", "state"}
+        
+        if args.command in unified_commands:
+            # Route to unified CLI dispatcher
+            try:
+                from ipfs_kit_py.unified_cli_dispatcher import UnifiedCLIDispatcher
+                dispatcher = UnifiedCLIDispatcher()
+                await dispatcher.dispatch(args)
+                return
+            except ImportError as e:
+                logger.error(f"Failed to load unified CLI dispatcher: {e}")
+                print(f"❌ Command '{args.command}' is not available")
+                sys.exit(2)
+        elif args.command == "mcp":
             sub_action = getattr(args, "mcp_action", None)
             handler = getattr(self, f"handle_mcp_{sub_action}", None) if sub_action else None
         elif args.command == "daemon":

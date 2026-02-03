@@ -19,6 +19,16 @@ Key features:
 - Debug endpoints for troubleshooting
 """
 
+import warnings
+warnings.warn(
+    "This MCP server is deprecated. Use ipfs_kit_py.mcp.servers.unified_mcp_server instead. "
+    "See docs/MCP_SERVER_MIGRATION_GUIDE.md for migration instructions. "
+    "This module will be removed in approximately 6 months.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
+
 import sys
 import os
 import json

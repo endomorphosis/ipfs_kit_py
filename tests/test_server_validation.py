@@ -21,7 +21,7 @@ def run_server_import() -> bool:
     """Run MCP server import checks and return success."""
     try:
         print("Testing server import...")
-        from ipfs_kit_py.mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
+        from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
         print("✓ Server module imported successfully")
         return True
     except Exception as e:
@@ -33,8 +33,8 @@ def run_server_instantiation():
     """Run server instantiation and return the instance (or None on failure)."""
     try:
         print("\nTesting server instantiation...")
-        from ipfs_kit_py.mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
-        server = EnhancedMCPServerWithDaemonMgmt()
+        from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
+        server = create_mcp_server()
         print("✓ Server instantiated successfully")
         return server
     except Exception as e:

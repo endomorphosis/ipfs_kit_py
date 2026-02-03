@@ -18,7 +18,7 @@ def run_mcp_notifications_test() -> bool:
     print("🧪 Testing MCP Server with notifications...")
     
     # Start the MCP server
-    server_path = Path("mcp/ipfs_kit/mcp/enhanced_mcp_server_with_daemon_mgmt.py")
+    server_path = Path("ipfs_kit_py/mcp/servers/unified_mcp_server.py")
     server_cmd = [sys.executable, str(server_path)]
     
     try:

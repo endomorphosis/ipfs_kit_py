@@ -24,7 +24,7 @@ async def test_mcp_server_with_vfs():
     
     # Start the MCP server as a subprocess
     repo_root = Path(__file__).resolve().parents[1]
-    server_path = repo_root / "mcp" / "enhanced_mcp_server_with_daemon_mgmt.py"
+    server_path = repo_root / "ipfs_kit_py" / "mcp" / "servers" / "unified_mcp_server.py"
     
     if not server_path.exists():
         print(f"❌ MCP server not found at {server_path}")

@@ -3,10 +3,32 @@
 Enhanced Unified MCP Server with Full Backend Observability
 ===========================================================
 
+⚠️  DEPRECATION WARNING ⚠️
+This MCP server implementation is DEPRECATED and will be removed in a future version.
+
+Please migrate to the unified canonical MCP server:
+    from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
+
+See docs/MCP_SERVER_MIGRATION_GUIDE.md for migration instructions.
+
+Deprecation timeline: This file will be removed approximately 6 months from now.
+
+---
+
 A comprehensive MCP server that provides health monitoring and observability
 for all filesystem backends including parquet, arrow, ipfs, ipfs-cluster,
 ipfs-cluster-follow, storacha, s3, lotus, synapse, and huggingface.
 """
+
+import warnings
+warnings.warn(
+    "enhanced_unified_mcp_server.py is deprecated. "
+    "Use ipfs_kit_py.mcp.servers.unified_mcp_server instead. "
+    "See docs/MCP_SERVER_MIGRATION_GUIDE.md for details. "
+    "This module will be removed in approximately 6 months.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import sys
 import json

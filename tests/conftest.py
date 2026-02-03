@@ -416,11 +416,9 @@ def pytest_pyfunc_call(pyfuncitem):  # noqa: ANN001
 @pytest.fixture(scope="session")
 def server():
     """Provide a shared MCP server instance for validation tests."""
-    from ipfs_kit_py.mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import (
-        EnhancedMCPServerWithDaemonMgmt,
-    )
+    from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
 
-    return EnhancedMCPServerWithDaemonMgmt()
+    return create_mcp_server()
 
 
 @pytest.fixture(scope="session")

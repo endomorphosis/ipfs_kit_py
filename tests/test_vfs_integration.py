@@ -118,7 +118,7 @@ def run_mcp_vfs_tools() -> bool:
             print(f"\nTest {i+1}: {request['params']['name']}")
             
             # Run the MCP server with the test request
-            cmd = [sys.executable, "mcp/enhanced_mcp_server_with_daemon_mgmt.py"]
+            cmd = [sys.executable, "ipfs_kit_py/mcp/servers/unified_mcp_server.py"]
             process = subprocess.Popen(
                 cmd,
                 stdin=subprocess.PIPE,

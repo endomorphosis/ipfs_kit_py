@@ -17,7 +17,7 @@ sys.path.insert(0, str(repo_root))
 pytestmark = pytest.mark.anyio
 
 try:
-    from mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
+    from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
     
     print("Testing IPFS Kit Integration with corrected daemon management...")
     
