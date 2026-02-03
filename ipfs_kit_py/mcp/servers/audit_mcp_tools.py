@@ -714,27 +714,27 @@ def audit_track_vfs(
             operation_details["path"] = path
         
         # Log VFS operation
-            if hasattr(audit_logger, "log_event"):
-                event = AuditEvent(
-                    event_type=AuditEventType.DATA,
-                    action=operation,
-                    user_id=user_id,
-                    resource_id=bucket_id,
-                    resource_type="vfs_bucket",
-                    status="success",
-                    details=operation_details
-                )
-                audit_logger.log_event(event)
-            else:
-                event = audit_logger.log(
-                    event_type=AuditEventType.DATA,
-                    action=operation,
-                    user_id=user_id,
-                    resource_id=bucket_id,
-                    resource_type="vfs_bucket",
-                    status="success",
-                    details=operation_details
-                )
+        if hasattr(audit_logger, "log_event"):
+            event = AuditEvent(
+                event_type=AuditEventType.DATA,
+                action=operation,
+                user_id=user_id,
+                resource_id=bucket_id,
+                resource_type="vfs_bucket",
+                status="success",
+                details=operation_details
+            )
+            audit_logger.log_event(event)
+        else:
+            event = audit_logger.log(
+                event_type=AuditEventType.DATA,
+                action=operation,
+                user_id=user_id,
+                resource_id=bucket_id,
+                resource_type="vfs_bucket",
+                status="success",
+                details=operation_details
+            )
         
         return {
             "success": True,

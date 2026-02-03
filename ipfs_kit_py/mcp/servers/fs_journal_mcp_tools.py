@@ -337,7 +337,9 @@ def journal_mkdir(path: str, parents: bool = False) -> Dict[str, Any]:
         Dictionary with operation status
     """
     try:
-        journal = get_journal() or _get_journal()
+        journal = get_journal()
+        if journal is None:
+            return {"success": False, "error": "Journal not enabled"}
         
         entry_id = journal.record_operation(
             operation_type=JournalOperationType.CREATE,
@@ -371,7 +373,9 @@ def journal_write(path: str, content: str) -> Dict[str, Any]:
         Dictionary with operation status
     """
     try:
-        journal = get_journal() or _get_journal()
+        journal = get_journal()
+        if journal is None:
+            return {"success": False, "error": "Journal not enabled"}
         
         entry_id = journal.record_operation(
             operation_type=JournalOperationType.WRITE,
@@ -404,9 +408,13 @@ def journal_read(path: str) -> Dict[str, Any]:
         Dictionary with file content
     """
     try:
-        journal = get_journal() or _get_journal()
+        journal = get_journal()
+        if journal is None:
+            return {"success": False, "error": "Journal not enabled"}
         
-        if hasattr(journal, 'fs_state') and path in journal.fs_state:
+        if hasattr(journal, 'read_file') and callable(journal.read_file):
+            content = journal.read_file(path)
+        elif isinstance(getattr(journal, 'fs_state', None), dict) and path in journal.fs_state:
             content = journal.fs_state[path].get('content', '')
         else:
             content = ""
@@ -437,7 +445,9 @@ def journal_rm(path: str, recursive: bool = False) -> Dict[str, Any]:
         Dictionary with operation status
     """
     try:
-        journal = get_journal() or _get_journal()
+        journal = get_journal()
+        if journal is None:
+            return {"success": False, "error": "Journal not enabled"}
         
         entry_id = journal.record_operation(
             operation_type=JournalOperationType.DELETE,
@@ -476,7 +486,9 @@ def journal_mv(
         Dictionary with operation status
     """
     try:
-        journal = get_journal() or _get_journal()
+        journal = get_journal()
+        if journal is None:
+            return {"success": False, "error": "Journal not enabled"}
         
         src_path = src_path or source
         dest_path = dest_path or destination
@@ -514,20 +526,26 @@ def journal_ls(path: str = "/") -> Dict[str, Any]:
         Dictionary with directory contents
     """
     try:
-        journal = get_journal() or _get_journal()
+        journal = get_journal()
+        if journal is None:
+            return {"success": False, "error": "Journal not enabled"}
         
-        entries = []
-        if hasattr(journal, 'fs_state'):
-            for entry_path, entry_data in journal.fs_state.items():
-                if entry_path.startswith(path.rstrip('/') + '/'):
-                    relative_path = entry_path[len(path.rstrip('/') + '/'):] 
-                    if '/' not in relative_path:
-                        entries.append({
-                            "name": relative_path,
-                            "path": entry_path,
-                            "type": entry_data.get('type', 'file'),
-                            "size": entry_data.get('size', 0)
-                        })
+        if hasattr(journal, 'list_directory') and callable(journal.list_directory):
+            entries = journal.list_directory(path)
+        else:
+            entries = []
+            fs_state = getattr(journal, 'fs_state', None)
+            if isinstance(fs_state, dict):
+                for entry_path, entry_data in fs_state.items():
+                    if entry_path.startswith(path.rstrip('/') + '/'):
+                        relative_path = entry_path[len(path.rstrip('/') + '/'):] 
+                        if '/' not in relative_path:
+                            entries.append({
+                                "name": relative_path,
+                                "path": entry_path,
+                                "type": entry_data.get('type', 'file'),
+                                "size": entry_data.get('size', 0)
+                            })
         
         return {
             "success": True,

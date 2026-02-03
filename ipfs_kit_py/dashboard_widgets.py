@@ -236,8 +236,14 @@ class HealthWidget(Widget):
         
         # Determine health status
         services = health.get('services', {})
-        unhealthy = [name for name, info in services.items() 
-                     if info.get('status') != 'healthy']
+        unhealthy = []
+        for name, info in services.items():
+            if isinstance(info, dict):
+                status = info.get('status')
+            else:
+                status = info
+            if status != 'healthy':
+                unhealthy.append(name)
         
         error_rate = health.get('error_rate', 0)
         
