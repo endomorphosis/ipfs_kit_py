@@ -43,10 +43,10 @@ for binary in required_binaries:
 # Test 3: MCP server functionality
 print("\n3. Testing MCP server:")
 try:
-    from ipfs_kit_py.mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
+    from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
     print("✓ MCP server imported successfully")
     
-    server = EnhancedMCPServerWithDaemonMgmt()
+    server = create_mcp_server()
     print("✓ MCP server instance created")
     
     # Test tool registration

@@ -420,7 +420,7 @@ def server():
         EnhancedMCPServerWithDaemonMgmt,
     )
 
-    return EnhancedMCPServerWithDaemonMgmt()
+    return create_mcp_server()
 
 
 @pytest.fixture(scope="session")

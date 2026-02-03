@@ -11,7 +11,7 @@ def setup_test_environment(tmp_path_factory):
 
     with mock.patch.dict(os.environ, {"HOME": str(home_dir)}):
         # Import after HOME is patched so any Path.home() usage is isolated.
-        from mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
+        from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
 
         test_ipfs_kit_path = Path.home() / ".ipfs_kit"
         test_ipfs_kit_path.mkdir(parents=True, exist_ok=True)
@@ -53,8 +53,8 @@ def setup_test_environment(tmp_path_factory):
         os.environ["HOME"] = old_home
 
 def test_get_all_configs():
-    from mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
-    server = EnhancedMCPServerWithDaemonMgmt()
+    from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
+    server = create_mcp_server()
     configs = server.get_all_configs()
     assert "bucket" in configs
     assert configs["bucket"]["test_key"] == "test_value"
@@ -62,29 +62,29 @@ def test_get_all_configs():
     assert configs["daemon"]["daemon_port"] == 5001
 
 def test_get_pin_metadata():
-    from mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
-    server = EnhancedMCPServerWithDaemonMgmt()
+    from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
+    server = create_mcp_server()
     pin_metadata = server.get_pin_metadata()
     assert len(pin_metadata) == 2
     assert pin_metadata[0]["cid"] == "QmTestPin1"
 
 def test_get_program_state_data():
-    from mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
-    server = EnhancedMCPServerWithDaemonMgmt()
+    from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
+    server = create_mcp_server()
     program_state = server.get_program_state_data()
     assert "test_state" in program_state
     assert program_state["test_state"]["state_key"] == "state_value2" # Should get the last entry
 
 def test_get_bucket_registry():
-    from mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
-    server = EnhancedMCPServerWithDaemonMgmt()
+    from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
+    server = create_mcp_server()
     bucket_registry = server.get_bucket_registry()
     assert len(bucket_registry) == 2
     assert bucket_registry[0]["name"] == "bucket1"
 
 def test_get_backend_status_data():
-    from mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
-    server = EnhancedMCPServerWithDaemonMgmt()
+    from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
+    server = create_mcp_server()
     backend_status = server.get_backend_status_data()
     assert "bucket" in backend_status
     assert backend_status["bucket"]["configured"] == True

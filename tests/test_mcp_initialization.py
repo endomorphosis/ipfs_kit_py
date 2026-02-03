@@ -24,10 +24,10 @@ async def test_mcp_initialization_flow():
     
     try:
         # Import the server
-        from ipfs_kit_py.mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
+        from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
         
         print("1. Creating MCP server instance...")
-        server = EnhancedMCPServerWithDaemonMgmt()
+        server = create_mcp_server()
         print("   ✓ Server created")
         
         # Check daemon status after server instantiation
@@ -113,7 +113,7 @@ async def test_daemon_startup_improvements():
     print("\n=== Daemon Startup Improvement Analysis ===")
     
     try:
-        from ipfs_kit_py.mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
+        from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
         
         print("Testing daemon startup timing...")
         

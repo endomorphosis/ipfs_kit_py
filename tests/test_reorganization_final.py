@@ -23,7 +23,7 @@ def run_enhanced_server() -> bool:
         current_dir = Path(__file__).parent
         sys.path.insert(0, str(current_dir))
         
-        from mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
+        from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
         
         # Initialize the integration
         try:

@@ -48,12 +48,12 @@ def test_vfs_tools_availability():
     
     # Import the MCP server
     try:
-        from mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
+        from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
     except Exception as e:
         pytest.skip(f"MCP server not available: {e}")
 
     # Create server instance
-    server = EnhancedMCPServerWithDaemonMgmt()
+    server = create_mcp_server()
 
     # Check that all expected VFS tools are registered
     available_tools = list(server.tools.keys())
@@ -80,11 +80,11 @@ def test_vfs_tool_schemas():
     print("-" * 40)
     
     try:
-        from mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
+        from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
     except Exception as e:
         pytest.skip(f"MCP server not available: {e}")
 
-    server = EnhancedMCPServerWithDaemonMgmt()
+    server = create_mcp_server()
 
     schema_issues = []
 
@@ -200,11 +200,11 @@ def test_vfs_tool_execution():
     print("-" * 40)
     
     try:
-        from mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
+        from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
     except Exception as e:
         pytest.skip(f"MCP server not available: {e}")
 
-    server = EnhancedMCPServerWithDaemonMgmt()
+    server = create_mcp_server()
 
     # Test that execute_tool method exists
     if not hasattr(server, 'execute_tool'):

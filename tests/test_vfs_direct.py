@@ -74,7 +74,7 @@ def run_vfs_direct() -> bool:
     
     # Test importing the MCP server parts that handle VFS
     try:
-        from mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
+        from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
         print("✓ MCP server VFS integration imported successfully")
         
         # Test creating the integration

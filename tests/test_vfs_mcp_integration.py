@@ -179,7 +179,7 @@ class MCPVFSIntegrationTest:
         """Test VFS operations through MCP interface."""
         try:
             # Import the MCP server components
-            from mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
+            from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
             
             # Create integration instance
             integration = IPFSKitIntegration()
