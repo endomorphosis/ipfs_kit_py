@@ -84,22 +84,19 @@ def test_ipfs_build_methods():
         if hasattr(installer, 'build_ipfs_from_source'):
             print("✓ build_ipfs_from_source method exists")
         else:
-            print("✗ build_ipfs_from_source method not found")
-            return False
+            pytest.fail("build_ipfs_from_source method not found")
         
         # Check for Go installation method
         if hasattr(installer, '_install_go'):
             print("✓ _install_go method exists")
         else:
-            print("✗ _install_go method not found")
-            return False
+            pytest.fail("_install_go method not found")
         
         # Check for PATH helper
         if hasattr(installer, '_add_to_user_path'):
             print("✓ _add_to_user_path method exists")
         else:
-            print("✗ _add_to_user_path method not found")
-            return False
+            pytest.fail("_add_to_user_path method not found")
         
         # Check version methods
         current_version = installer.get_installed_kubo_version()
@@ -109,13 +106,13 @@ def test_ipfs_build_methods():
         print(f"  Latest IPFS version: {latest_version}")
         
         print("\n✓ IPFS build-from-source functionality verified")
-        return True
+        assert True
         
     except Exception as e:
         print(f"\n✗ Error testing IPFS build functionality: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        pytest.fail(str(e))
 
 def test_lotus_build_methods():
     """Test Lotus build-from-source methods."""
@@ -133,15 +130,13 @@ def test_lotus_build_methods():
         if hasattr(installer, 'build_lotus_from_source'):
             print("✓ build_lotus_from_source method exists")
         else:
-            print("✗ build_lotus_from_source method not found")
-            return False
+            pytest.fail("build_lotus_from_source method not found")
         
         # Check for Go installation method
         if hasattr(installer, '_install_go_for_build'):
             print("✓ _install_go_for_build method exists")
         else:
-            print("✗ _install_go_for_build method not found")
-            return False
+            pytest.fail("_install_go_for_build method not found")
         
         # Check installation status
         installation = installer.check_existing_installation()
@@ -152,13 +147,13 @@ def test_lotus_build_methods():
             print("  Lotus not currently installed")
         
         print("\n✓ Lotus build-from-source functionality verified")
-        return True
+        assert True
         
     except Exception as e:
         print(f"\n✗ Error testing Lotus build functionality: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        pytest.fail(str(e))
 
 def main():
     """Main test function."""

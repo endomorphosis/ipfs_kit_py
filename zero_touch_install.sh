@@ -27,11 +27,15 @@ INSTALL_LIBMAGIC="auto"   # auto|yes|no
 INSTALL_IPFS="auto"       # auto|yes|no
 INSTALL_LASSIE="auto"     # auto|yes|no
 INSTALL_LOTUS="auto"      # auto|yes|no
+INSTALL_GO="auto"         # auto|yes|no (install Go into ./bin for source-build fallbacks)
+INSTALL_JQ="auto"         # auto|yes|no (install jq into ./bin; useful for Lotus/source builds)
 ALLOW_UNSUPPORTED_PYTHON="0"
 ALLOW_UNSUPPORTED_PLATFORM="1"  # proceed with Python-only best-effort when OS/arch unsupported
 
 NODE_VERSION="20.11.1"   # LTS-ish; pinned for reproducibility
 UV_VERSION="0.5.13"      # pinned; used only when Python>=3.12 not available
+GO_VERSION="1.24.1"      # pinned; used for source-build fallbacks (Lotus/Lassie/Kubo)
+JQ_VERSION="1.7.1"       # pinned; tiny but commonly assumed by build/deploy scripts
 
 log() { printf "%s\n" "$*"; }
 err() { printf "%s\n" "$*" >&2; }
@@ -52,6 +56,8 @@ Options:
   --ipfs <auto|yes|no>            Install IPFS/Kubo binaries into ./bin (default: auto)
   --lassie <auto|yes|no>          Install Lassie binary into ./bin (default: auto)
   --lotus <auto|yes|no>           Install Lotus binaries into ./bin (default: auto)
+  --go <auto|yes|no>              Install Go toolchain into ./bin (default: auto)
+  --jq <auto|yes|no>              Install jq into ./bin (default: auto)
   --allow-unsupported-python      Proceed even if Python < 3.12 (best-effort)
   -h, --help                      Show this help
 
@@ -80,6 +86,8 @@ parse_args() {
       --ipfs) INSTALL_IPFS="${2:-}"; shift 2 ;;
       --lassie) INSTALL_LASSIE="${2:-}"; shift 2 ;;
       --lotus) INSTALL_LOTUS="${2:-}"; shift 2 ;;
+      --go) INSTALL_GO="${2:-}"; shift 2 ;;
+      --jq) INSTALL_JQ="${2:-}"; shift 2 ;;
       --allow-unsupported-python) ALLOW_UNSUPPORTED_PYTHON="1"; shift 1 ;;
       -h|--help) usage; exit 0 ;;
       *) err "Unknown option: $1"; usage; exit 2 ;;
@@ -98,6 +106,8 @@ parse_args() {
   case "$INSTALL_IPFS" in auto|yes|no) : ;; *) err "Invalid --ipfs: $INSTALL_IPFS"; exit 2 ;; esac
   case "$INSTALL_LASSIE" in auto|yes|no) : ;; *) err "Invalid --lassie: $INSTALL_LASSIE"; exit 2 ;; esac
   case "$INSTALL_LOTUS" in auto|yes|no) : ;; *) err "Invalid --lotus: $INSTALL_LOTUS"; exit 2 ;; esac
+  case "$INSTALL_GO" in auto|yes|no) : ;; *) err "Invalid --go: $INSTALL_GO"; exit 2 ;; esac
+  case "$INSTALL_JQ" in auto|yes|no) : ;; *) err "Invalid --jq: $INSTALL_JQ"; exit 2 ;; esac
 }
 
 ensure_dirs() {
@@ -157,10 +167,22 @@ detect_platform() {
     fi
   fi
 
+  WSL="0"
+  if [[ "$OS" == "linux" && -r /proc/version ]]; then
+    if grep -qi microsoft /proc/version 2>/dev/null; then
+      WSL="1"
+    fi
+  fi
+
+  local extra=""
+  if [[ "$WSL" == "1" ]]; then
+    extra=" WSL=1"
+  fi
+
   if [[ -n "${DISTRO_ID}" ]]; then
-    log "Detected platform: OS=$OS ARCH=$ARCH LIBC=$LIBC DISTRO=${DISTRO_ID}-${DISTRO_VERSION_ID} (uname -m=$ARCH_RAW)"
+    log "Detected platform: OS=$OS ARCH=$ARCH LIBC=$LIBC DISTRO=${DISTRO_ID}-${DISTRO_VERSION_ID}${extra} (uname -m=$ARCH_RAW)"
   else
-    log "Detected platform: OS=$OS ARCH=$ARCH LIBC=$LIBC (uname -m=$ARCH_RAW)"
+    log "Detected platform: OS=$OS ARCH=$ARCH LIBC=$LIBC${extra} (uname -m=$ARCH_RAW)"
   fi
 }
 
@@ -413,7 +435,118 @@ export PLAYWRIGHT_BROWSERS_PATH="${CACHE_DIR}/ms-playwright"
 
 # Keep IPFS repo project-local (avoid mutating ~/.ipfs)
 export IPFS_PATH="${IPFS_REPO_DIR}"
+
+# Go toolchain (when installed locally by zero-touch)
+if [ -x "${BIN_DIR}/go" ]; then
+  export GOPATH="${CACHE_DIR}/go-path"
+  export GOMODCACHE="${CACHE_DIR}/go-path/pkg/mod"
+  export GOCACHE="${CACHE_DIR}/go-build-cache"
+fi
 EOF
+}
+
+ensure_go_local() {
+  if have_cmd go; then
+    return 0
+  fi
+
+  local go_os="$OS"
+  local go_arch=""
+  case "$ARCH" in
+    x86_64) go_arch="amd64" ;;
+    arm64) go_arch="arm64" ;;
+    *)
+      err "WARNING: Go auto-install unsupported on this architecture (${ARCH_RAW}); skipping"
+      return 0
+      ;;
+  esac
+
+  case "$go_os" in
+    linux|darwin) : ;;
+    *)
+      err "WARNING: Go auto-install unsupported on this OS (${OS_RAW}); skipping"
+      return 0
+      ;;
+  esac
+
+  local dest="${CACHE_DIR}/go-${GO_VERSION}-${go_os}-${go_arch}"
+  local tarball="${CACHE_DIR}/go${GO_VERSION}.${go_os}-${go_arch}.tar.gz"
+  local url="https://go.dev/dl/go${GO_VERSION}.${go_os}-${go_arch}.tar.gz"
+
+  if [[ ! -x "${dest}/go/bin/go" ]]; then
+    log "Installing Go locally (go${GO_VERSION})..."
+    mkdir -p "$dest"
+    download "$url" "$tarball"
+    rm -rf "${dest}/go"
+    extract_tar_gz "$tarball" "$dest"
+  fi
+
+  if [[ -x "${dest}/go/bin/go" ]]; then
+    ln -sf "${dest}/go/bin/go" "${BIN_DIR}/go"
+    ln -sf "${dest}/go/bin/gofmt" "${BIN_DIR}/gofmt" || true
+  else
+    err "WARNING: Go install did not produce expected binary; skipping"
+  fi
+}
+
+warn_missing_toolchain_for_source_builds() {
+  # We can't reliably build a full C toolchain without sudo; surface actionable warnings early.
+  local missing=0
+  for cmd in git make gcc pkg-config; do
+    if ! have_cmd "$cmd"; then
+      err "WARNING: Missing '$cmd' on PATH. Some source-build fallbacks may not work without it."
+      missing=1
+    fi
+  done
+  return $missing
+}
+
+ensure_jq_local() {
+  if have_cmd jq; then
+    return 0
+  fi
+
+  local jq_os=""
+  local jq_arch=""
+
+  case "$OS" in
+    linux) jq_os="linux" ;;
+    darwin) jq_os="macos" ;;
+    *)
+      err "WARNING: jq auto-install unsupported on this OS (${OS_RAW}); skipping"
+      return 0
+      ;;
+  esac
+
+  case "$ARCH" in
+    x86_64) jq_arch="amd64" ;;
+    arm64) jq_arch="arm64" ;;
+    *)
+      err "WARNING: jq auto-install unsupported on this architecture (${ARCH_RAW}); skipping"
+      return 0
+      ;;
+  esac
+
+  local url="https://github.com/jqlang/jq/releases/download/jq-${JQ_VERSION}/jq-${jq_os}-${jq_arch}"
+  local tmp="${CACHE_DIR}/jq-${JQ_VERSION}-${jq_os}-${jq_arch}"
+
+  log "Installing jq locally (jq-${JQ_VERSION})..."
+  set +e
+  download "$url" "$tmp"
+  local dl_rc=$?
+  set -e
+  if [[ $dl_rc -ne 0 ]]; then
+    err "WARNING: jq download failed (${url}); continuing"
+    return 0
+  fi
+
+  cp "$tmp" "${BIN_DIR}/jq"
+  chmod +x "${BIN_DIR}/jq"
+
+  if ! "${BIN_DIR}/jq" --version >/dev/null 2>&1; then
+    err "WARNING: Installed jq does not appear runnable; removing and continuing"
+    rm -f "${BIN_DIR}/jq"
+  fi
 }
 
 install_python_deps() {
@@ -608,6 +741,29 @@ install_native_tools() {
     if [[ "$PROFILE" == "full" ]]; then do_lotus="yes"; else do_lotus="no"; fi
   fi
 
+  # Go is only needed for source-build fallbacks. Auto-install it when Lotus is
+  # requested and Go isn't already available.
+  local do_go="$INSTALL_GO"
+  if [[ "$do_go" == "auto" ]]; then
+    if [[ "$do_lotus" == "yes" ]]; then do_go="yes"; else do_go="no"; fi
+  fi
+  if [[ "$do_go" == "yes" ]]; then
+    set +e
+    ensure_go_local
+    set -e
+  fi
+
+  # jq is a small utility often assumed by deployment/source-build scripts.
+  local do_jq="$INSTALL_JQ"
+  if [[ "$do_jq" == "auto" ]]; then
+    if [[ "$do_lotus" == "yes" || "$PROFILE" == "full" ]]; then do_jq="yes"; else do_jq="no"; fi
+  fi
+  if [[ "$do_jq" == "yes" ]]; then
+    set +e
+    ensure_jq_local
+    set -e
+  fi
+
   if [[ "$do_ipfs" == "yes" ]]; then
     log "Installing IPFS/Kubo binaries into ./bin (no sudo)"
     mkdir -p "${IPFS_REPO_DIR}"
@@ -668,6 +824,9 @@ PY
   fi
 
   if [[ "$do_lotus" == "yes" ]]; then
+    set +e
+    warn_missing_toolchain_for_source_builds || true
+    set -e
     log "Installing Lotus into ./bin (best-effort; may use sudo if available)"
     set +e
     python - <<PY

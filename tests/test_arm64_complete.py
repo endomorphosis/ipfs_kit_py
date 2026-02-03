@@ -36,10 +36,8 @@ def test_platform_detection():
     expected_dist = "linux arm64"
     if dist == expected_dist:
         print("✅ Platform detection PASSED - correctly detected ARM64")
-        return True
     else:
-        print(f"❌ Platform detection FAILED - expected '{expected_dist}', got '{dist}'")
-        return False
+        pytest.fail(f"Platform detection FAILED - expected '{expected_dist}', got '{dist}'")
 
 def test_ipfs_urls():
     """Test IPFS URL accessibility and version handling"""
@@ -73,18 +71,15 @@ def test_ipfs_urls():
             
             if response.status_code == 200:
                 print("✅ IPFS URL test PASSED - URLs are accessible")
-                return True
             else:
-                print("❌ IPFS URL test FAILED - URLs not accessible")
-                return False
+                pytest.fail("IPFS URL test FAILED - URLs not accessible")
         else:
-            print(f"❌ IPFS URL test FAILED - No URL defined for {dist}")
-            return False
+            pytest.fail(f"IPFS URL test FAILED - No URL defined for {dist}")
             
     except Exception as e:
         print(f"❌ IPFS URL test FAILED - Exception: {e}")
         traceback.print_exc()
-        return False
+        pytest.fail(str(e))
 
 def test_build_from_source_availability():
     """Test that build-from-source methods are available"""
@@ -96,24 +91,21 @@ def test_build_from_source_availability():
         # Check if build_ipfs_from_source method exists
         if hasattr(installer, 'build_ipfs_from_source'):
             print("✅ build_ipfs_from_source method available")
-            
-            # Check if _install_go method exists
-            if hasattr(installer, '_install_go'):
-                print("✅ _install_go method available")
-            else:
-                print("❌ _install_go method missing")
-                return False
-                
-            print("✅ Build from source test PASSED")
-            return True
         else:
-            print("❌ Build from source test FAILED - build_ipfs_from_source method missing")
-            return False
+            pytest.fail("Build from source test FAILED - build_ipfs_from_source method missing")
+
+        # Check if _install_go method exists
+        if hasattr(installer, '_install_go'):
+            print("✅ _install_go method available")
+        else:
+            pytest.fail("Build from source test FAILED - _install_go method missing")
+
+        print("✅ Build from source test PASSED")
             
     except Exception as e:
         print(f"❌ Build from source test FAILED - Exception: {e}")
         traceback.print_exc()
-        return False
+        pytest.fail(str(e))
 
 def test_system_requirements():
     """Test system requirements for ARM64 builds"""
@@ -140,10 +132,8 @@ def test_system_requirements():
     
     if not missing_tools:
         print("✅ System requirements test PASSED")
-        return True
     else:
-        print(f"❌ System requirements test FAILED - Missing tools: {missing_tools}")
-        return False
+        pytest.fail(f"System requirements test FAILED - Missing tools: {missing_tools}")
 
 def main():
     """Run all tests"""
