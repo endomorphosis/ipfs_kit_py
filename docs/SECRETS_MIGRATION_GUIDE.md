@@ -4,7 +4,7 @@
 
 This guide provides step-by-step instructions for migrating from the legacy XOR encryption to production-grade AES-256-GCM encryption in the ipfs_kit_py secrets manager.
 
-##  Why Migrate?
+## Why Migrate?
 
 ### Security Comparison
 

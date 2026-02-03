@@ -802,10 +802,3 @@ class EnhancedSecretManager:
             })
         
         return info
-        return {
-            'total_secrets': total_secrets,
-            'expired_secrets': expired,
-            'secrets_needing_rotation': needs_rotation,
-            'services': len(set(m.service for m in self.metadata.values())),
-            'total_accesses': sum(m.access_count for m in self.metadata.values()),
-        }
