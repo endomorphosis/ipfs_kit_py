@@ -112,7 +112,7 @@ def migrate_secrets(storage_path="~/.ipfs_kit/secrets", dry_run=False):
     print("   This will:")
     print("   • Keep all secrets accessible")
     print("   • Upgrade encryption from XOR to AES-256-GCM")
-    print("   • Take approximately 2-3ms per secret")
+    print("   • Performance varies by system (typically 2-5ms per secret)")
     print()
     
     response = input("   Continue with migration? [y/N]: ")

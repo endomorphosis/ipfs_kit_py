@@ -105,7 +105,7 @@ class TestAESEncryption(unittest.TestCase):
         encrypted = self.aes.encrypt(plaintext)
         
         # Try to decrypt with different key
-        wrong_key_aes = AESEncryption(b"wrong-master-key-32-bytes-lng!!")
+        wrong_key_aes = AESEncryption(b"wrong-master-key-32-bytes-long!")
         
         with self.assertRaises(Exception) as context:
             wrong_key_aes.decrypt(encrypted)
