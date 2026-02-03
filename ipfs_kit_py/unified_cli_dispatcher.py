@@ -48,6 +48,7 @@ class UnifiedCLIDispatcher:
         self._add_backend_commands(subparsers)
         self._add_journal_commands(subparsers)
         self._add_state_commands(subparsers)
+        self._add_audit_commands(subparsers)
         self._add_daemon_commands(subparsers)
         
         return parser
@@ -271,6 +272,74 @@ class UnifiedCLIDispatcher:
         reset = state_sub.add_parser("reset", help="Reset state")
         reset.add_argument("--confirm", action="store_true", help="Confirm reset")
     
+    def _add_audit_commands(self, subparsers):
+        """Add audit logging and querying commands."""
+        audit = subparsers.add_parser(
+            "audit",
+            help="Audit logging and querying operations"
+        )
+        audit_sub = audit.add_subparsers(dest="audit_action")
+        
+        # View audit events
+        view = audit_sub.add_parser("view", help="View recent audit events")
+        view.add_argument("--limit", type=int, default=100, help="Maximum number of events")
+        view.add_argument("--event-type", help="Filter by event type")
+        view.add_argument("--action", help="Filter by action")
+        view.add_argument("--user-id", help="Filter by user ID")
+        view.add_argument("--status", help="Filter by status")
+        view.add_argument("--hours", type=int, default=24, help="Show events from last N hours")
+        view.add_argument("--json", action="store_true", help="Output as JSON")
+        
+        # Query audit events
+        query = audit_sub.add_parser("query", help="Query audit log with advanced filtering")
+        query.add_argument("--start-time", help="Start time (ISO format)")
+        query.add_argument("--end-time", help="End time (ISO format)")
+        query.add_argument("--event-types", help="Comma-separated list of event types")
+        query.add_argument("--users", help="Comma-separated list of user IDs")
+        query.add_argument("--resources", help="Comma-separated list of resource IDs")
+        query.add_argument("--statuses", help="Comma-separated list of statuses")
+        query.add_argument("--limit", type=int, default=1000, help="Maximum number of results")
+        query.add_argument("--json", action="store_true", help="Output as JSON")
+        
+        # Export audit logs
+        export = audit_sub.add_parser("export", help="Export audit logs to file")
+        export.add_argument("--format", default="json", choices=["json", "jsonl", "csv"], help="Export format")
+        export.add_argument("--output", "-o", help="Output file path")
+        export.add_argument("--event-type", help="Filter by event type")
+        export.add_argument("--hours", type=int, default=24, help="Export events from last N hours")
+        
+        # Generate audit reports
+        report = audit_sub.add_parser("report", help="Generate audit reports")
+        report.add_argument("--type", default="summary", 
+                          choices=["summary", "security", "compliance", "user_activity"],
+                          help="Report type")
+        report.add_argument("--hours", type=int, default=24, help="Report for last N hours")
+        report.add_argument("--group-by", help="Group results by field")
+        
+        # Audit statistics
+        stats = audit_sub.add_parser("stats", help="Get audit statistics")
+        stats.add_argument("--hours", type=int, default=24, help="Statistics for last N hours")
+        stats.add_argument("--json", action="store_true", help="Output as JSON")
+        
+        # Track operations
+        track = audit_sub.add_parser("track", help="Track operation in audit log")
+        track.add_argument("resource_type", choices=["backend", "vfs"], help="Resource type")
+        track.add_argument("resource_id", help="Resource ID")
+        track.add_argument("operation", help="Operation performed")
+        track.add_argument("--user-id", help="User ID")
+        track.add_argument("--path", help="Path (for VFS operations)")
+        track.add_argument("--details", help="Additional details (JSON string)")
+        
+        # Integrity check
+        audit_sub.add_parser("integrity", help="Check audit log integrity")
+        
+        # Retention policy
+        retention = audit_sub.add_parser("retention", help="Manage retention policy")
+        retention.add_argument("action", choices=["get", "set"], help="Action to perform")
+        retention.add_argument("--retention-days", type=int, help="Retention period in days")
+        retention.add_argument("--auto-cleanup", type=lambda x: x.lower() == 'true', 
+                             help="Enable auto-cleanup (true/false)")
+    
     def _add_daemon_commands(self, subparsers):
         """Add daemon management commands."""
         daemon = subparsers.add_parser(
@@ -334,6 +403,12 @@ class UnifiedCLIDispatcher:
             elif command == "journal":
                 from ipfs_kit_py import fs_journal_cli
                 return await fs_journal_cli.handle_cli_command(args)
+            elif command == "audit":
+                from ipfs_kit_py import audit_cli
+                # Call audit CLI directly (it's synchronous)
+                import sys
+                sys.argv = ["audit_cli.py", action] + [str(v) for k, v in vars(args).items() if k not in ['command', 'audit_action'] and v is not None]
+                return audit_cli.main()
             elif command == "state":
                 from ipfs_kit_py import state_cli
                 return await state_cli.handle_cli_command(args)
