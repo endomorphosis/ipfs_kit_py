@@ -12,11 +12,17 @@ import requests
 import json
 import sys
 import platform
+import os
 import pytest
 from pathlib import Path
 
 
 def _skip_if_not_arm64():
+    # These are heavy integration tests intended to be run explicitly.
+    # Default behavior in CI/dev runs is to skip to avoid requiring a working
+    # Docker daemon and long image builds.
+    if os.environ.get("IPFS_KIT_RUN_DOCKER_TESTS", "0") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_DOCKER_TESTS=1 to enable Docker integration tests")
     if platform.machine() != "aarch64":
         pytest.skip("ARM64 Docker tests require aarch64 host")
 

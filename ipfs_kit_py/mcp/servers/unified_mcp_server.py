@@ -337,6 +337,73 @@ class UnifiedMCPServer:
         """Get information about a specific tool."""
         return self.tools.get(tool_name)
 
+    def get_all_configs(self) -> Dict[str, Any]:
+        """Load known config files from the server's data directory."""
+        try:
+            import yaml
+        except Exception as e:  # pragma: no cover
+            logger.warning(f"PyYAML not available: {e}")
+            return {}
+
+        configs: Dict[str, Any] = {}
+
+        bucket_config_path = self.data_dir / "bucket_config.yaml"
+        if bucket_config_path.exists():
+            with bucket_config_path.open("r", encoding="utf-8") as f:
+                configs["bucket"] = yaml.safe_load(f) or {}
+
+        daemon_config_path = self.data_dir / "daemon_config.yaml"
+        if daemon_config_path.exists():
+            with daemon_config_path.open("r", encoding="utf-8") as f:
+                configs["daemon"] = yaml.safe_load(f) or {}
+
+        return configs
+
+    def get_pin_metadata(self) -> List[Dict[str, Any]]:
+        """Load pin metadata records from parquet storage."""
+        parquet_path = self.data_dir / "pin_metadata" / "parquet_storage" / "pins.parquet"
+        if not parquet_path.exists():
+            return []
+
+        import pandas as pd
+
+        df = pd.read_parquet(parquet_path, engine="pyarrow")
+        return df.to_dict(orient="records")
+
+    def get_program_state_data(self) -> Dict[str, Dict[str, Any]]:
+        """Load program state parquet files; returns last row per file."""
+        state_dir = self.data_dir / "program_state" / "parquet"
+        if not state_dir.exists():
+            return {}
+
+        import pandas as pd
+
+        result: Dict[str, Dict[str, Any]] = {}
+        for parquet_path in sorted(state_dir.glob("*.parquet")):
+            df = pd.read_parquet(parquet_path, engine="pyarrow")
+            if len(df) == 0:
+                continue
+            result[parquet_path.stem] = df.iloc[-1].to_dict()
+        return result
+
+    def get_bucket_registry(self) -> List[Dict[str, Any]]:
+        """Load bucket registry records from parquet storage."""
+        parquet_path = self.data_dir / "bucket_index" / "bucket_registry.parquet"
+        if not parquet_path.exists():
+            return []
+
+        import pandas as pd
+
+        df = pd.read_parquet(parquet_path, engine="pyarrow")
+        return df.to_dict(orient="records")
+
+    def get_backend_status_data(self) -> Dict[str, Dict[str, Any]]:
+        """Return minimal backend/config status data used by tests."""
+        return {
+            "bucket": {"configured": (self.data_dir / "bucket_config.yaml").exists()},
+            "daemon": {"configured": (self.data_dir / "daemon_config.yaml").exists()},
+        }
+
 
 def create_mcp_server(
     host: str = "127.0.0.1",
