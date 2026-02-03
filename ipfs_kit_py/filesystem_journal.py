@@ -221,8 +221,6 @@ class FilesystemJournal:
         
         # Write empty journal to disk
         self._write_journal()
-        
-        if not getattr(self, "_stop_sync", threading.Event()).is_set():
 
         # Avoid logging during teardown/atexit; pytest's capture streams can be closed.
         try:
