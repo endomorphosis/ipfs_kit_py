@@ -2,11 +2,29 @@
 """
 Enhanced Secrets Management with Rotation and Validation
 
+SECURITY WARNING:
+================
+The default encryption implementation uses a simple XOR cipher for basic
+obfuscation. This does NOT provide strong security and should NOT be used
+for production secrets without upgrading to proper encryption.
+
+For production use, you MUST either:
+1. Replace _encrypt/_decrypt with AES-256-GCM encryption
+2. Use the system keyring backend (recommended when available)
+3. Use an external secrets management system (HashiCorp Vault, AWS Secrets Manager)
+
+The XOR cipher is suitable only for:
+- Development and testing environments
+- Non-sensitive data obfuscation
+- Defense in depth alongside other security measures
+
+See the _encrypt() method documentation for upgrade instructions.
+
 Provides improved security for credential management through:
 - Automatic secret rotation
 - Secret validation before use
 - Audit logging for credential access
-- Enhanced encryption for file-based storage
+- Enhanced encryption for file-based storage (REQUIRES UPGRADE FOR PRODUCTION)
 - Secret expiration tracking
 """
 
@@ -276,7 +294,24 @@ class EnhancedSecretManager:
             return hashlib.sha256(b"ipfs_kit_default_key").digest()
     
     def _encrypt(self, data: str) -> str:
-        """Encrypt data using XOR cipher (simple encryption)."""
+        """
+        Encrypt data using XOR cipher.
+        
+        WARNING: This is a simple XOR cipher for basic obfuscation only.
+        It does NOT provide strong security and can be easily broken.
+        
+        For production use, this MUST be replaced with proper encryption:
+        - Use AES-256-GCM from cryptography library
+        - Use Fernet from cryptography.fernet
+        - Use a proper key derivation function (PBKDF2, Argon2)
+        
+        Current implementation is suitable only for:
+        - Development environments
+        - Non-sensitive data obfuscation
+        - Defense in depth (not primary security)
+        
+        DO NOT use this for production secrets without upgrading!
+        """
         # Note: In production, use proper encryption like AES
         data_bytes = data.encode()
         key_bytes = self.encryption_key
@@ -288,7 +323,12 @@ class EnhancedSecretManager:
         return base64.b64encode(bytes(encrypted)).decode()
     
     def _decrypt(self, encrypted_data: str) -> str:
-        """Decrypt data using XOR cipher."""
+        """
+        Decrypt data using XOR cipher.
+        
+        WARNING: See _encrypt() for security considerations.
+        This provides only basic obfuscation, not strong security.
+        """
         encrypted_bytes = base64.b64decode(encrypted_data.encode())
         key_bytes = self.encryption_key
         

@@ -185,8 +185,11 @@ class TestRetryStrategy(unittest.TestCase):
         with self.assertRaises(RetryExhaustedError):
             strategy.execute(failing_op)
         
-        # Callback should be called before each retry (all 3 attempts have callback)
-        # Attempt 1 fails -> callback, Attempt 2 fails -> callback, Attempt 3 fails -> callback  
+        # Callback is invoked after each failed attempt
+        # With 3 max_attempts, we get callbacks for all 3 failed attempts
+        # Attempt 1 fails -> on_retry(1, exc)
+        # Attempt 2 fails -> on_retry(2, exc)
+        # Attempt 3 fails -> on_retry(3, exc) -> then raise RetryExhaustedError
         self.assertEqual(len(callback_calls), 3)
     
     def test_retryable_exceptions(self):
