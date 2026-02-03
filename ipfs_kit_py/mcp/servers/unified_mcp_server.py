@@ -11,6 +11,7 @@ Use this file for all MCP server needs.
 Consolidates:
 - Journal tools (12)
 - Audit tools (9)
+- Audit Analytics tools (10) - Phase 8
 - WAL tools (8)
 - Pin tools (8)
 - Backend tools (8)
@@ -18,7 +19,7 @@ Consolidates:
 - VFS Versioning tools (~8)
 - Secrets tools (8)
 
-Total: 70+ MCP tools registered in one place.
+Total: 80+ MCP tools registered in one place.
 
 Usage:
     from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
@@ -98,6 +99,13 @@ class UnifiedMCPServer:
             self._register_module_tools(audit_mcp_tools, "Audit")
         except ImportError as e:
             logger.warning(f"Could not import audit tools: {e}")
+        
+        # Import and register Audit Analytics tools (10 tools) - Phase 8
+        try:
+            from ipfs_kit_py.mcp.servers import audit_analytics_mcp_tools
+            self._register_module_tools(audit_analytics_mcp_tools, "Audit Analytics")
+        except ImportError as e:
+            logger.warning(f"Could not import audit analytics tools: {e}")
         
         # Import and register WAL tools (8 tools)
         try:
