@@ -29,9 +29,9 @@ pytestmark = pytest.mark.anyio
 
 async def test_tool_via_mcp():
     """Test tools directly via MCP."""
-    from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
+    from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server, IPFSKitIntegration
     
-    integration = IPFSKitIntegration()
+    integration = IPFSKitIntegration(auto_start_daemons=False, auto_start_lotus_daemon=False)
     
     results = {}
     
