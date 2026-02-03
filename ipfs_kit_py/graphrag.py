@@ -158,8 +158,174 @@ class GraphRAGSearchEngine:
         # In a real scenario, you would combine with other search types
         return vector_results
     
-    async def graph_search(self, query: str, **kwargs) -> Dict[str, Any]:
-        return {"success": False, "error": "Graph search not fully implemented."}
+    async def graph_search(self, query: str, max_depth: int = 2, **kwargs) -> Dict[str, Any]:
+        """Perform graph-based search using knowledge graph."""
+        if not self.knowledge_graph or not HAS_NETWORKX:
+            return {"success": False, "error": "Graph search dependencies not available."}
+        
+        try:
+            # Find nodes matching query
+            matching_nodes = []
+            for node, data in self.knowledge_graph.nodes(data=True):
+                if query.lower() in str(data.get('path', '')).lower():
+                    matching_nodes.append(node)
+            
+            # Traverse graph to find related content
+            results = []
+            for node in matching_nodes:
+                # Get neighbors within max_depth
+                neighbors = nx.single_source_shortest_path_length(
+                    self.knowledge_graph, node, cutoff=max_depth
+                )
+                
+                for neighbor, distance in neighbors.items():
+                    node_data = self.knowledge_graph.nodes[neighbor]
+                    results.append({
+                        "cid": neighbor,
+                        "path": node_data.get('path', ''),
+                        "distance": distance,
+                        "relevance": 1.0 / (distance + 1)
+                    })
+            
+            # Sort by relevance
+            results.sort(key=lambda x: x['relevance'], reverse=True)
+            return {"success": True, "results": results[:kwargs.get('limit', 10)]}
+        except Exception as e:
+            logger.error(f"Graph search error: {e}")
+            return {"success": False, "error": str(e)}
 
     async def sparql_search(self, query: str, **kwargs) -> Dict[str, Any]:
-        return {"success": False, "error": "SPARQL search not fully implemented."}
+        """Execute SPARQL query on RDF graph."""
+        if not self.rdf_graph or not HAS_RDFLIB:
+            return {"success": False, "error": "SPARQL search dependencies not available."}
+        
+        try:
+            # Execute SPARQL query
+            results = self.rdf_graph.query(query)
+            
+            # Convert results to JSON-serializable format
+            formatted_results = []
+            for row in results:
+                formatted_results.append({
+                    str(var): str(row[var]) for var in results.vars
+                })
+            
+            return {"success": True, "results": formatted_results}
+        except Exception as e:
+            logger.error(f"SPARQL search error: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def add_relationship(self, source_cid: str, target_cid: str, 
+                              relationship_type: str = "references") -> Dict[str, Any]:
+        """Add a relationship between two content items."""
+        try:
+            # Add to database
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "INSERT INTO content_relationships (source_cid, target_cid, relationship_type) VALUES (?, ?, ?)",
+                    (source_cid, target_cid, relationship_type)
+                )
+                conn.commit()
+            
+            # Add to knowledge graph
+            if self.knowledge_graph is not None:
+                self.knowledge_graph.add_edge(source_cid, target_cid, type=relationship_type)
+            
+            # Add to RDF graph
+            if self.rdf_graph is not None:
+                from rdflib import URIRef, Literal
+                from rdflib.namespace import RDF
+                
+                source = URIRef(f"ipfs://{source_cid}")
+                target = URIRef(f"ipfs://{target_cid}")
+                predicate = URIRef(f"http://ipfs-kit.org/vocab/{relationship_type}")
+                
+                self.rdf_graph.add((source, predicate, target))
+            
+            return {"success": True, "relationship": {
+                "source": source_cid,
+                "target": target_cid,
+                "type": relationship_type
+            }}
+        except Exception as e:
+            logger.error(f"Error adding relationship: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def extract_entities(self, content: str) -> Dict[str, Any]:
+        """Extract entities from content (basic implementation)."""
+        try:
+            # Basic entity extraction using simple heuristics
+            # In production, use spaCy or similar NLP library
+            entities = {
+                "files": [],
+                "cids": [],
+                "paths": [],
+                "keywords": []
+            }
+            
+            import re
+            
+            # Extract CID patterns
+            cid_pattern = r'\b(Qm[1-9A-HJ-NP-Za-km-z]{44}|bafy[0-9a-z]{53})\b'
+            entities["cids"] = list(set(re.findall(cid_pattern, content)))
+            
+            # Extract file paths
+            path_pattern = r'\/[a-zA-Z0-9_\-\/\.]+\.[a-z]{2,4}'
+            entities["paths"] = list(set(re.findall(path_pattern, content)))
+            
+            # Extract keywords (simple: capitalized words and acronyms)
+            keyword_pattern = r'\b[A-Z][A-Za-z]+\b|\b[A-Z]{2,}\b'
+            entities["keywords"] = list(set(re.findall(keyword_pattern, content)))[:20]
+            
+            return {"success": True, "entities": entities}
+        except Exception as e:
+            logger.error(f"Entity extraction error: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Get statistics about the search index."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                # Count documents
+                cursor.execute("SELECT COUNT(*) FROM content_index")
+                document_count = cursor.fetchone()[0]
+                
+                # Count relationships
+                cursor.execute("SELECT COUNT(*) FROM content_relationships")
+                relationship_count = cursor.fetchone()[0]
+                
+                # Get content types distribution
+                cursor.execute("SELECT content_type, COUNT(*) FROM content_index GROUP BY content_type")
+                content_types = dict(cursor.fetchall())
+            
+            # Graph statistics
+            graph_stats = {}
+            if self.knowledge_graph:
+                graph_stats = {
+                    "nodes": self.knowledge_graph.number_of_nodes(),
+                    "edges": self.knowledge_graph.number_of_edges(),
+                }
+            
+            # RDF statistics
+            rdf_stats = {}
+            if self.rdf_graph:
+                rdf_stats = {
+                    "triples": len(self.rdf_graph)
+                }
+            
+            return {
+                "success": True,
+                "stats": {
+                    "document_count": document_count,
+                    "relationship_count": relationship_count,
+                    "content_types": content_types,
+                    "knowledge_graph": graph_stats,
+                    "rdf_graph": rdf_stats
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error getting stats: {e}")
+            return {"success": False, "error": str(e)}

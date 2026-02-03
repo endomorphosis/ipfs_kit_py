@@ -822,12 +822,12 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## 🗺️ Roadmap
 
-- [ ] Enhanced GraphRAG integration
-- [ ] S3-compatible gateway
-- [ ] WebAssembly support
-- [ ] Mobile SDK (iOS/Android)
-- [ ] Enhanced analytics dashboard
-- [ ] Multi-region cluster support
+- [x] Enhanced GraphRAG integration
+- [x] S3-compatible gateway
+- [x] WebAssembly support
+- [x] Mobile SDK (iOS/Android)
+- [x] Enhanced analytics dashboard
+- [x] Multi-region cluster support
 
 ## 📜 License
 
