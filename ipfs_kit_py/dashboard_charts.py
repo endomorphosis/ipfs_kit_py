@@ -55,6 +55,10 @@ class ChartSeries:
     color: Optional[str] = None
     style: Optional[Dict] = None
 
+    @property
+    def data(self) -> List[DataPoint]:
+        return self.data_points
+
 
 @dataclass
 class ChartData:
@@ -424,6 +428,17 @@ class ChartGenerator:
             'timestamp': chart_data.timestamp.isoformat(),
             'series': []
         }
+
+        if chart_data.config:
+            data_dict['config'] = {
+                'chart_id': chart_data.config.chart_id,
+                'chart_type': chart_data.config.chart_type,
+                'title': chart_data.config.title,
+                'x_label': chart_data.config.x_label,
+                'y_label': chart_data.config.y_label,
+                'colors': chart_data.config.colors,
+                'options': chart_data.config.options
+            }
         
         for series in chart_data.series:
             series_dict = {
@@ -536,9 +551,9 @@ class RealTimeChartManager:
         if len(buffer) > self.max_points:
             buffer.pop(0)
     
-    def get_chart_data(self, chart_id: str) -> Optional[ChartData]:
-        """Get current chart data"""
-        return self.charts.get(chart_id)
+    def get_chart_data(self, chart_id: str) -> Dict[str, List[DataPoint]]:
+        """Get current chart buffer data."""
+        return self.buffers.get(chart_id, {})
     
     def update_chart(
         self,

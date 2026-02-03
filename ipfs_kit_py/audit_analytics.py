@@ -134,7 +134,7 @@ class AuditAnalytics:
                    f"min_patterns={self.min_pattern_occurrences}")
     
     def analyze_patterns(self, 
-                        timeframe: Optional[int] = None, 
+                        timeframe: Optional[Union[int, timedelta]] = None, 
                         event_types: Optional[List[str]] = None) -> List[Pattern]:
         """
         Identify patterns in audit events.
@@ -146,8 +146,14 @@ class AuditAnalytics:
         Returns:
             List of detected patterns
         """
-        timeframe = timeframe or self.analysis_window_hours
-        start_time = time.time() - (timeframe * 3600)
+        if timeframe is None:
+            timeframe_hours = self.analysis_window_hours
+        elif isinstance(timeframe, timedelta):
+            timeframe_hours = timeframe.total_seconds() / 3600
+        else:
+            timeframe_hours = timeframe
+
+        start_time = time.time() - (timeframe_hours * 3600)
         
         # Get events from audit logger
         events = self._get_events_since(start_time, event_types)
@@ -223,7 +229,8 @@ class AuditAnalytics:
         return anomalies
     
     def calculate_compliance_score(self, 
-                                   policy_rules: Dict[str, Any]) -> ComplianceScore:
+                                   policy_rules: Union[Dict[str, Any], List[Any]],
+                                   events: Optional[List[Any]] = None) -> ComplianceScore:
         """
         Calculate compliance score based on policy rules.
         
@@ -240,11 +247,17 @@ class AuditAnalytics:
         Returns:
             ComplianceScore object
         """
-        events = self._get_events_since(time.time() - (24 * 3600))
+        normalized_score = False
+        if isinstance(policy_rules, list):
+            events_list = policy_rules
+            policy_rules = events or {}
+            normalized_score = True
+        else:
+            events_list = events if events is not None else self._get_events_since(time.time() - (24 * 3600))
         
-        if not events:
+        if not events_list:
             return ComplianceScore(
-                score=100.0,
+                score=1.0 if normalized_score else 100.0,
                 total_events=0,
                 compliant_events=0,
                 non_compliant_events=0
@@ -254,7 +267,7 @@ class AuditAnalytics:
         compliant = 0
         non_compliant = 0
         
-        for event in events:
+        for event in events_list:
             event_data = event if isinstance(event, dict) else event.to_dict()
             is_compliant, violation = self._check_event_compliance(event_data, policy_rules)
             
@@ -265,8 +278,11 @@ class AuditAnalytics:
                 if violation:
                     violations.append(violation)
         
-        total = len(events)
-        score = (compliant / total * 100) if total > 0 else 100.0
+        total = len(events_list)
+        if normalized_score:
+            score = (compliant / total) if total > 0 else 1.0
+        else:
+            score = (compliant / total * 100) if total > 0 else 100.0
         
         recommendations = self._generate_recommendations(violations, policy_rules)
         
@@ -278,10 +294,14 @@ class AuditAnalytics:
             policy_violations=violations[:20],  # Limit to 20 samples
             recommendations=recommendations
         )
+
+    def get_compliance_score(self, policy_rules: Dict[str, Any]) -> ComplianceScore:
+        """Compatibility wrapper for compliance scoring."""
+        return self.calculate_compliance_score(policy_rules)
     
     def generate_statistics(self, 
                            group_by: str = 'event_type',
-                           timeframe: Optional[int] = None) -> Dict[str, Any]:
+                           timeframe: Optional[Union[int, timedelta]] = None) -> Dict[str, Any]:
         """
         Generate statistical summaries of audit events.
         
@@ -292,8 +312,13 @@ class AuditAnalytics:
         Returns:
             Dict with statistical summaries
         """
-        timeframe = timeframe or 24
-        start_time = time.time() - (timeframe * 3600)
+        if timeframe is None:
+            timeframe_hours = 24
+        elif isinstance(timeframe, timedelta):
+            timeframe_hours = timeframe.total_seconds() / 3600
+        else:
+            timeframe_hours = timeframe
+        start_time = time.time() - (timeframe_hours * 3600)
         events = self._get_events_since(start_time)
         
         if not events:
@@ -309,7 +334,7 @@ class AuditAnalytics:
         # Generate statistics for each group
         stats = {
             "total_events": len(events),
-            "timeframe_hours": timeframe,
+            "timeframe_hours": timeframe_hours,
             "group_by": group_by,
             "groups": {}
         }
@@ -328,7 +353,8 @@ class AuditAnalytics:
     def analyze_trends(self, 
                       metric: str = 'event_count', 
                       period: str = 'hourly',
-                      days: int = 7) -> Dict[str, Any]:
+                      days: int = 7,
+                      lookback_days: Optional[int] = None) -> List[Dict[str, Any]]:
         """
         Analyze trends over time.
         
@@ -340,11 +366,12 @@ class AuditAnalytics:
         Returns:
             Dict with trend analysis
         """
+        days = lookback_days or days
         start_time = time.time() - (days * 24 * 3600)
         events = self._get_events_since(start_time)
         
         if not events:
-            return {"error": "No events found"}
+            return []
         
         # Calculate period size in seconds
         period_seconds = 3600 if period == 'hourly' else 86400
@@ -353,7 +380,7 @@ class AuditAnalytics:
         periods = defaultdict(list)
         for event in events:
             event_data = event if isinstance(event, dict) else event.to_dict()
-            timestamp = event_data.get('timestamp', 0)
+            timestamp = self._normalize_timestamp(event_data.get('timestamp', 0))
             period_key = int(timestamp / period_seconds) * period_seconds
             periods[period_key].append(event_data)
         
@@ -368,45 +395,40 @@ class AuditAnalytics:
                 "event_count": len(period_events)
             })
         
-        # Calculate trend direction
-        if len(trend_data) >= 2:
-            values = [p["value"] for p in trend_data]
-            trend_direction = "increasing" if values[-1] > values[0] else "decreasing"
-            
-            if len(values) > 1:
-                avg_change = (values[-1] - values[0]) / len(values)
-            else:
-                avg_change = 0
-        else:
-            trend_direction = "stable"
-            avg_change = 0
-        
-        return {
-            "metric": metric,
-            "period": period,
-            "days_analyzed": days,
-            "data_points": len(trend_data),
-            "trend_direction": trend_direction,
-            "average_change": avg_change,
-            "data": trend_data
-        }
+        return trend_data
     
     # Helper methods
     
     def _get_events_since(self, 
-                         start_time: float, 
+                         start_time: Union[float, datetime, timedelta], 
                          event_types: Optional[List[str]] = None) -> List[Any]:
         """Get events since a specific time"""
         try:
+            if isinstance(start_time, timedelta):
+                start_ts = time.time() - start_time.total_seconds()
+            elif isinstance(start_time, datetime):
+                start_ts = start_time.timestamp()
+            else:
+                start_ts = float(start_time)
+
             # Query audit logger for events
             events = self.audit_logger.query_events(
-                start_time=start_time,
+                start_time=start_ts,
                 event_types=event_types
             )
             return events
         except Exception as e:
             logger.error(f"Error querying events: {e}")
             return []
+
+    def _normalize_timestamp(self, value: Any) -> float:
+        """Normalize timestamp to float epoch seconds."""
+        if isinstance(value, datetime):
+            return value.timestamp()
+        try:
+            return float(value)
+        except Exception:
+            return 0.0
     
     def _detect_failed_auth_pattern(self, events: List[Any]) -> Optional[Pattern]:
         """Detect repeated failed authentication attempts"""
@@ -426,8 +448,8 @@ class AuditAnalytics:
                     pattern_type="repeated_failed_auth",
                     description=f"Repeated failed authentication attempts detected",
                     occurrences=len(failed_auth),
-                    first_seen=min(e.get('timestamp', 0) for e in failed_auth),
-                    last_seen=max(e.get('timestamp', 0) for e in failed_auth),
+                    first_seen=min(self._normalize_timestamp(e.get('timestamp', 0)) for e in failed_auth),
+                    last_seen=max(self._normalize_timestamp(e.get('timestamp', 0)) for e in failed_auth),
                     confidence=min(1.0, len(affected) / 5.0),
                     affected_users=affected,
                     sample_events=failed_auth[:3]
@@ -439,7 +461,7 @@ class AuditAnalytics:
         unusual_events = []
         for event in events:
             event_data = event if isinstance(event, dict) else event.to_dict()
-            timestamp = event_data.get('timestamp', 0)
+            timestamp = self._normalize_timestamp(event_data.get('timestamp', 0))
             hour = datetime.fromtimestamp(timestamp).hour
             
             # Define unusual hours (10 PM to 6 AM)
@@ -451,8 +473,8 @@ class AuditAnalytics:
                 pattern_type="unusual_access_time",
                 description="Access during unusual hours (10 PM - 6 AM)",
                 occurrences=len(unusual_events),
-                first_seen=min(e.get('timestamp', 0) for e in unusual_events),
-                last_seen=max(e.get('timestamp', 0) for e in unusual_events),
+                first_seen=min(self._normalize_timestamp(e.get('timestamp', 0)) for e in unusual_events),
+                last_seen=max(self._normalize_timestamp(e.get('timestamp', 0)) for e in unusual_events),
                 confidence=min(1.0, len(unusual_events) / 10.0),
                 affected_users=list(set(e.get('user_id') for e in unusual_events if e.get('user_id'))),
                 sample_events=unusual_events[:3]

@@ -34,7 +34,7 @@ Usage:
 """
 
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -232,6 +232,97 @@ class UnifiedMCPServer:
         
         logger.warning("Server run() method is a placeholder. Implement actual server logic.")
         logger.info("Server initialized successfully. Ready to handle MCP requests.")
+
+    def get_all_configs(self) -> Dict[str, Any]:
+        """Load bucket and daemon configs from the data directory."""
+        configs: Dict[str, Any] = {}
+
+        try:
+            import yaml
+        except Exception:
+            yaml = None
+
+        for name, filename in ("bucket", "bucket_config.yaml"), ("daemon", "daemon_config.yaml"):
+            config_path = self.data_dir / filename
+            if not config_path.exists():
+                configs[name] = {}
+                continue
+
+            if yaml is None:
+                configs[name] = {}
+                continue
+
+            try:
+                configs[name] = yaml.safe_load(config_path.read_text()) or {}
+            except Exception:
+                configs[name] = {}
+
+        return configs
+
+    def get_pin_metadata(self) -> List[Dict[str, Any]]:
+        """Return pin metadata records from parquet storage."""
+        try:
+            import pandas as pd
+        except Exception:
+            return []
+
+        metadata_path = self.data_dir / "pin_metadata" / "parquet_storage" / "pins.parquet"
+        if not metadata_path.exists():
+            return []
+
+        try:
+            df = pd.read_parquet(metadata_path)
+            return df.to_dict(orient="records")
+        except Exception:
+            return []
+
+    def get_program_state_data(self) -> Dict[str, Dict[str, Any]]:
+        """Return latest program state entries per parquet file."""
+        try:
+            import pandas as pd
+        except Exception:
+            return {}
+
+        state_dir = self.data_dir / "program_state" / "parquet"
+        if not state_dir.exists():
+            return {}
+
+        results: Dict[str, Dict[str, Any]] = {}
+        for parquet_path in state_dir.glob("*.parquet"):
+            try:
+                df = pd.read_parquet(parquet_path)
+                if df.empty:
+                    continue
+                results[parquet_path.stem] = df.iloc[-1].to_dict()
+            except Exception:
+                continue
+
+        return results
+
+    def get_bucket_registry(self) -> List[Dict[str, Any]]:
+        """Return bucket registry entries from parquet storage."""
+        try:
+            import pandas as pd
+        except Exception:
+            return []
+
+        registry_path = self.data_dir / "bucket_index" / "bucket_registry.parquet"
+        if not registry_path.exists():
+            return []
+
+        try:
+            df = pd.read_parquet(registry_path)
+            return df.to_dict(orient="records")
+        except Exception:
+            return []
+
+    def get_backend_status_data(self) -> Dict[str, Dict[str, Any]]:
+        """Return minimal backend status based on config presence."""
+        configs = self.get_all_configs()
+        return {
+            "bucket": {"configured": bool(configs.get("bucket"))},
+            "daemon": {"configured": bool(configs.get("daemon"))}
+        }
     
     def stop(self):
         """Stop the MCP server."""

@@ -289,6 +289,9 @@ def statistics_cli(args):
         sys.exit(1)
 
 
+stats_cli = statistics_cli
+
+
 def trends_cli(args):
     """CLI handler for trend analysis"""
     result = audit_analytics_analyze_trends(
@@ -344,6 +347,19 @@ def report_cli(args):
     else:
         print(f"Error: {result.get('error', 'Unknown error')}", file=sys.stderr)
         sys.exit(1)
+
+
+# Command aliases for test discovery
+patterns = patterns_cli
+anomalies = anomalies_cli
+correlate = correlate_cli
+timeline = timeline_cli
+causation = causation_cli
+impact = impact_cli
+compliance = compliance_cli
+stats = stats_cli
+trends = trends_cli
+report = report_cli
 
 
 def create_parser():

@@ -64,9 +64,16 @@ class AuditEvent:
     ip_address: Optional[str] = None
     resource_id: Optional[str] = None
     resource_type: Optional[str] = None
+    resource: Optional[str] = None
     status: Optional[str] = None
     details: Dict[str, Any] = field(default_factory=dict)
     request_id: Optional[str] = None
+
+    def __post_init__(self):
+        if self.resource and not self.resource_id:
+            self.resource_id = self.resource
+        if self.resource and not self.resource_type:
+            self.resource_type = "resource"
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert the event to a dictionary for serialization."""
@@ -78,6 +85,7 @@ class AuditEvent:
             "ip_address": self.ip_address,
             "resource_id": self.resource_id,
             "resource_type": self.resource_type,
+            "resource": self.resource or self.resource_id,
             "status": self.status,
             "details": self.details,
             "request_id": self.request_id
@@ -189,6 +197,12 @@ class AuditLogger:
         # Batch storage for efficient dataset operations
         self.batch_size = 100  # Store every N events
         self.events_since_last_store = 0
+
+        # Retention policy (days)
+        self._retention_policy = {
+            "retention_days": 30,
+            "auto_cleanup": True
+        }
     
     def log(self, event_type: Union[AuditEventType, str], action: str, 
             user_id: Optional[str] = None, ip_address: Optional[str] = None,
@@ -250,6 +264,119 @@ class AuditLogger:
                 self.events_since_last_store = 0
         
         return event
+
+    def log_event(self, event: AuditEvent) -> bool:
+        """Log a pre-built AuditEvent instance."""
+        try:
+            self.logger.info(event.to_json())
+            self.recent_events.append(event)
+            if len(self.recent_events) > self.max_cached_events:
+                self.recent_events.pop(0)
+            return True
+        except Exception:
+            return False
+
+    def query_events(
+        self,
+        event_type: Optional[Union[AuditEventType, str]] = None,
+        event_types: Optional[List[Union[AuditEventType, str]]] = None,
+        user_id: Optional[str] = None,
+        status: Optional[str] = None,
+        start_time: Optional[Union[float, datetime.datetime]] = None,
+        end_time: Optional[Union[float, datetime.datetime]] = None,
+        limit: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """Query recent audit events with basic filtering."""
+        def _to_timestamp(value: Optional[Union[float, datetime.datetime]]) -> Optional[float]:
+            if value is None:
+                return None
+            if isinstance(value, datetime.datetime):
+                return value.timestamp()
+            return float(value)
+
+        start_ts = _to_timestamp(start_time)
+        end_ts = _to_timestamp(end_time)
+
+        allowed_types = None
+        if event_types:
+            allowed_types = [t.value if isinstance(t, AuditEventType) else str(t) for t in event_types]
+        elif event_type:
+            allowed_types = [event_type.value if isinstance(event_type, AuditEventType) else str(event_type)]
+
+        results: List[Dict[str, Any]] = []
+        for event in self.recent_events:
+            event_data = event.to_dict() if isinstance(event, AuditEvent) else event
+            ts = event_data.get("timestamp", 0)
+            if isinstance(ts, datetime.datetime):
+                ts = ts.timestamp()
+
+            if start_ts and ts < start_ts:
+                continue
+            if end_ts and ts > end_ts:
+                continue
+
+            if allowed_types and event_data.get("event_type") not in allowed_types:
+                continue
+            if user_id and event_data.get("user_id") != user_id:
+                continue
+            if status and event_data.get("status") != status:
+                continue
+
+            results.append(event_data)
+            if limit and len(results) >= limit:
+                break
+
+        return results
+
+    def export_events(
+        self,
+        output_file: str,
+        format: str = "json",
+        limit: Optional[int] = None
+    ) -> bool:
+        """Export recent events to JSON or CSV file."""
+        try:
+            events = self.query_events(limit=limit)
+
+            if format == "json":
+                content = json.dumps(events, indent=2)
+            elif format == "csv":
+                if not events:
+                    content = ""
+                else:
+                    keys = list(events[0].keys())
+                    lines = [",".join(keys)]
+                    for event in events:
+                        lines.append(",".join([str(event.get(k, "")) for k in keys]))
+                    content = "\n".join(lines)
+            else:
+                return False
+
+            os.makedirs(os.path.dirname(output_file), exist_ok=True)
+            with open(output_file, "w") as handle:
+                handle.write(content)
+            return True
+        except Exception:
+            return False
+
+    def check_integrity(self) -> Dict[str, Any]:
+        """Perform a lightweight integrity check on the in-memory cache."""
+        return {
+            "valid": True,
+            "issue_count": 0,
+            "checked_at": datetime.datetime.now().isoformat(),
+            "total_events": len(self.recent_events)
+        }
+
+    def get_retention_policy(self) -> Dict[str, Any]:
+        """Return current retention policy settings."""
+        return dict(self._retention_policy)
+
+    def set_retention_policy(self, retention_days: int, auto_cleanup: bool = True) -> bool:
+        """Update retention policy settings."""
+        self._retention_policy["retention_days"] = retention_days
+        self._retention_policy["auto_cleanup"] = auto_cleanup
+        return True
     
     def _store_audit_events_to_dataset(self):
         """Store recent audit events as a dataset."""

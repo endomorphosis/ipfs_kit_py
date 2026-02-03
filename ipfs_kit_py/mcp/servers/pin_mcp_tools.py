@@ -30,7 +30,7 @@ PIN_MCP_TOOLS = [
                 "recursive": {
                     "type": "boolean",
                     "description": "Whether to pin recursively (default: true)",
-                    "default": true
+                    "default": True
                 }
             },
             "required": ["cid_or_file"]
@@ -72,7 +72,7 @@ PIN_MCP_TOOLS = [
                 "recursive": {
                     "type": "boolean",
                     "description": "Whether to unpin recursively",
-                    "default": true
+                    "default": True
                 }
             },
             "required": ["cid"]
@@ -140,7 +140,7 @@ PIN_MCP_TOOLS = [
                 "unpin_old": {
                     "type": "boolean",
                     "description": "Whether to unpin the old CID",
-                    "default": true
+                    "default": True
                 }
             },
             "required": ["old_cid", "new_cid"]

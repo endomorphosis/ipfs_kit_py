@@ -285,6 +285,19 @@ def summary_cli(args):
         sys.exit(1)
 
 
+# Command aliases for test discovery
+cache_stats = cache_stats_cli
+cache_clear = cache_clear_cli
+cache_invalidate = cache_invalidate_cli
+metrics = metrics_cli
+bottlenecks = bottlenecks_cli
+resources = resources_cli
+baseline = baseline_cli
+monitor_stats = monitor_stats_cli
+batch_stats = batch_stats_cli
+summary = summary_cli
+
+
 def create_parser():
     """Create argument parser for performance CLI"""
     parser = argparse.ArgumentParser(

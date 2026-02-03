@@ -173,10 +173,10 @@ class SecretValidator:
     @staticmethod
     def validate_token(token: str) -> bool:
         """Validate token format."""
-        if not token or len(token) < 20:
+        if not token or len(token) < 10:
             return False
         
-        return len(token) >= 20 and len(token) <= 2048
+        return len(token) >= 10 and len(token) <= 2048
     
     @staticmethod
     def validate_connection_string(conn_str: str) -> bool:

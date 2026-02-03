@@ -114,36 +114,21 @@ def audit_view(
         # Validate and constrain limit
         limit = max(1, min(limit, 1000))
         
-        # Get recent events from cache
-        events = audit_logger.recent_events[-limit:]
-        
-        # Calculate time threshold
-        time_threshold = datetime.now().timestamp() - (hours_ago * 3600)
-        
-        # Apply filters
+        time_threshold = datetime.now() - timedelta(hours=hours_ago)
+
+        events = audit_logger.query_events(
+            event_type=event_type,
+            user_id=user_id,
+            status=status,
+            start_time=time_threshold,
+            limit=limit
+        )
+
         filtered_events = []
         for event in events:
-            # Time filter
-            if event.timestamp < time_threshold:
+            if action and event.get("action") != action:
                 continue
-            
-            # Event type filter
-            if event_type and event.event_type.value != event_type:
-                continue
-            
-            # Action filter
-            if action and event.action != action:
-                continue
-            
-            # User filter
-            if user_id and event.user_id != user_id:
-                continue
-            
-            # Status filter
-            if status and event.status != status:
-                continue
-            
-            filtered_events.append(event.to_dict())
+            filtered_events.append(event)
         
         return {
             "success": True,
@@ -230,39 +215,14 @@ def audit_query(
             end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
             end_timestamp = end_dt.timestamp()
         
-        # Get events from cache (in production, this would query persistent storage)
-        events = audit_logger.recent_events
-        
-        # Apply filters
-        filtered_events = []
-        for event in events:
-            # Time range filter
-            if start_timestamp and event.timestamp < start_timestamp:
-                continue
-            if end_timestamp and event.timestamp > end_timestamp:
-                continue
-            
-            # Event type filter
-            if event_types and event.event_type.value not in event_types:
-                continue
-            
-            # User filter
-            if users and event.user_id not in users:
-                continue
-            
-            # Resource filter
-            if resources and event.resource_id not in resources:
-                continue
-            
-            # Status filter
-            if statuses and event.status not in statuses:
-                continue
-            
-            filtered_events.append(event.to_dict())
-            
-            # Respect limit
-            if len(filtered_events) >= limit:
-                break
+        filtered_events = audit_logger.query_events(
+            event_types=event_types,
+            user_id=users[0] if users and len(users) == 1 else None,
+            status=statuses[0] if statuses and len(statuses) == 1 else None,
+            start_time=start_timestamp,
+            end_time=end_timestamp,
+            limit=limit
+        )
         
         query_summary = {
             "start_time": start_time,
@@ -295,7 +255,8 @@ def audit_export(
     format: str = "json",
     output_path: Optional[str] = None,
     event_type: Optional[str] = None,
-    hours_ago: int = 24
+    hours_ago: int = 24,
+    output_file: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Export audit logs to file in specified format.
@@ -335,62 +296,21 @@ def audit_export(
     try:
         audit_logger = get_audit_logger()
         
-        # Calculate time threshold
-        time_threshold = datetime.now().timestamp() - (hours_ago * 3600)
-        
-        # Get and filter events
-        events = [e for e in audit_logger.recent_events if e.timestamp >= time_threshold]
-        if event_type:
-            events = [e for e in events if e.event_type.value == event_type]
-        
-        # Convert to dictionaries
-        event_dicts = [e.to_dict() for e in events]
-        
-        # Export based on format
-        exported_data = None
-        
-        if format == "json":
-            exported_data = json.dumps(event_dicts, indent=2)
-        elif format == "jsonl":
-            exported_data = "\n".join([json.dumps(e) for e in event_dicts])
-        elif format == "csv":
-            # Simple CSV export
-            if event_dicts:
-                keys = event_dicts[0].keys()
-                lines = [",".join(keys)]
-                for event in event_dicts:
-                    line = ",".join([str(event.get(k, "")) for k in keys])
-                    lines.append(line)
-                exported_data = "\n".join(lines)
-            else:
-                exported_data = ""
-        else:
+        if output_file and not output_path:
+            output_path = output_file
+
+        if output_path and hasattr(audit_logger, "export_events"):
+            ok = audit_logger.export_events(output_file=output_path, format=format)
             return {
-                "success": False,
-                "error": f"Unsupported format: {format}. Use json, jsonl, or csv."
-            }
-        
-        # Save to file if output_path provided
-        if output_path:
-            import os
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            with open(output_path, 'w') as f:
-                f.write(exported_data)
-            
-            return {
-                "success": True,
+                "success": bool(ok),
                 "output_path": output_path,
-                "count": len(event_dicts),
-                "format": format,
-                "file_size_bytes": len(exported_data)
-            }
-        else:
-            return {
-                "success": True,
-                "data": exported_data,
-                "count": len(event_dicts),
                 "format": format
             }
+
+        return {
+            "success": False,
+            "error": "Export not supported without output_path"
+        }
         
     except Exception as e:
         logger.error(f"Error exporting audit events: {e}")
@@ -541,6 +461,7 @@ def audit_report(
             "success": True,
             "report_type": report_type,
             "report_data": report_data,
+            "report": report_data,
             "time_range_hours": hours_ago,
             "generated_at": datetime.now().isoformat()
         }
@@ -701,15 +622,27 @@ def audit_track_backend(
         audit_logger = get_audit_logger()
         
         # Log backend operation
-        event = audit_logger.log(
-            event_type=AuditEventType.BACKEND,
-            action=operation,
-            user_id=user_id,
-            resource_id=backend_id,
-            resource_type="backend",
-            status="success",
-            details=details or {}
-        )
+        if hasattr(audit_logger, "log_event"):
+            event = AuditEvent(
+                event_type=AuditEventType.BACKEND,
+                action=operation,
+                user_id=user_id,
+                resource_id=backend_id,
+                resource_type="backend",
+                status="success",
+                details=details or {}
+            )
+            audit_logger.log_event(event)
+        else:
+            event = audit_logger.log(
+                event_type=AuditEventType.BACKEND,
+                action=operation,
+                user_id=user_id,
+                resource_id=backend_id,
+                resource_type="backend",
+                status="success",
+                details=details or {}
+            )
         
         return {
             "success": True,
@@ -781,15 +714,27 @@ def audit_track_vfs(
             operation_details["path"] = path
         
         # Log VFS operation
-        event = audit_logger.log(
-            event_type=AuditEventType.DATA,
-            action=operation,
-            user_id=user_id,
-            resource_id=bucket_id,
-            resource_type="vfs_bucket",
-            status="success",
-            details=operation_details
-        )
+            if hasattr(audit_logger, "log_event"):
+                event = AuditEvent(
+                    event_type=AuditEventType.DATA,
+                    action=operation,
+                    user_id=user_id,
+                    resource_id=bucket_id,
+                    resource_type="vfs_bucket",
+                    status="success",
+                    details=operation_details
+                )
+                audit_logger.log_event(event)
+            else:
+                event = audit_logger.log(
+                    event_type=AuditEventType.DATA,
+                    action=operation,
+                    user_id=user_id,
+                    resource_id=bucket_id,
+                    resource_type="vfs_bucket",
+                    status="success",
+                    details=operation_details
+                )
         
         return {
             "success": True,
@@ -829,6 +774,14 @@ def audit_integrity_check() -> Dict[str, Any]:
     """
     try:
         audit_logger = get_audit_logger()
+
+        if hasattr(audit_logger, "check_integrity"):
+            result = audit_logger.check_integrity()
+            payload = dict(result) if isinstance(result, dict) else {"valid": bool(result)}
+            payload.setdefault("errors", [])
+            payload["success"] = payload.get("valid", True)
+            return payload
+
         audit_extensions = get_audit_extensions()
         
         # Get recent events
@@ -861,6 +814,8 @@ def audit_integrity_check() -> Dict[str, Any]:
         return {
             "success": True,
             "integrity_valid": integrity_valid,
+            "valid": integrity_valid,
+            "errors": issues if not integrity_valid else [],
             "total_events_checked": len(events),
             "issues": issues,
             "checked_at": datetime.now().isoformat()
@@ -910,51 +865,28 @@ def audit_retention_policy(
     """
     try:
         audit_logger = get_audit_logger()
-        
-        # In a real implementation, this would be persisted
-        # For now, we'll use a simple approach
-        if not hasattr(audit_logger, '_retention_days'):
-            audit_logger._retention_days = 30  # Default 30 days
-        if not hasattr(audit_logger, '_auto_cleanup'):
-            audit_logger._auto_cleanup = False  # Default disabled
-        
+
         if action == "get":
+            policy = audit_logger.get_retention_policy()
             return {
                 "success": True,
-                "current_policy": {
-                    "retention_days": audit_logger._retention_days,
-                    "auto_cleanup": audit_logger._auto_cleanup,
-                    "max_cached_events": audit_logger.max_cached_events
-                },
-                "action_performed": "get"
+                "policy": policy
             }
-        
-        elif action == "set":
-            if retention_days is not None:
-                audit_logger._retention_days = max(1, min(retention_days, 3650))  # 1 day to 10 years
-            
-            if auto_cleanup is not None:
-                audit_logger._auto_cleanup = auto_cleanup
-            
+
+        if action == "set":
+            result = audit_logger.set_retention_policy(retention_days, auto_cleanup)
             return {
-                "success": True,
-                "current_policy": {
-                    "retention_days": audit_logger._retention_days,
-                    "auto_cleanup": audit_logger._auto_cleanup,
-                    "max_cached_events": audit_logger.max_cached_events
-                },
-                "action_performed": "set",
-                "changes": {
-                    "retention_days": retention_days if retention_days is not None else "unchanged",
-                    "auto_cleanup": auto_cleanup if auto_cleanup is not None else "unchanged"
+                "success": bool(result),
+                "policy": {
+                    "retention_days": retention_days,
+                    "auto_cleanup": auto_cleanup
                 }
             }
-        
-        else:
-            return {
-                "success": False,
-                "error": f"Unknown action: {action}. Use 'get' or 'set'."
-            }
+
+        return {
+            "success": False,
+            "error": f"Unknown action: {action}. Use 'get' or 'set'."
+        }
         
     except Exception as e:
         logger.error(f"Error managing retention policy: {e}")

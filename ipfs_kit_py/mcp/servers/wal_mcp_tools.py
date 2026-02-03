@@ -157,7 +157,7 @@ WAL_MCP_TOOLS = [
                 "params": {
                     "type": "object",
                     "description": "Operation-specific parameters",
-                    "additionalProperties": true
+                    "additionalProperties": True
                 },
                 "priority": {
                     "type": "integer",

@@ -23,6 +23,11 @@ logger = logging.getLogger(__name__)
 _journal_instance: Optional[FilesystemJournal] = None
 
 
+def get_journal() -> Optional[FilesystemJournal]:
+    """Return the current journal instance without creating one."""
+    return _journal_instance
+
+
 def _get_journal() -> FilesystemJournal:
     """Get or create the global journal instance."""
     global _journal_instance
@@ -93,29 +98,38 @@ def journal_status() -> Dict[str, Any]:
         Dictionary with journal status, entry counts, and statistics
     """
     try:
-        journal = _get_journal()
+        journal = get_journal()
+        if journal is None:
+            return {
+                "success": True,
+                "enabled": False
+            }
         
-        # Get current statistics
-        stats = {
-            "enabled": journal is not None,
-            "journal_path": journal.base_path if journal else None,
-            "current_journal_id": journal.current_journal_id if journal else None,
-            "entry_count": journal.entry_count if journal else 0,
-            "pending_entries": 0,
-            "completed_entries": 0,
-            "failed_entries": 0
-        }
-        
-        # Count entries by status
-        if journal and hasattr(journal, 'journal_entries'):
-            for entry in journal.journal_entries:
-                status = entry.get('status', '')
-                if status == 'pending':
-                    stats['pending_entries'] += 1
-                elif status == 'completed':
-                    stats['completed_entries'] += 1
-                elif status == 'failed':
-                    stats['failed_entries'] += 1
+        if hasattr(journal, 'get_status'):
+            stats = journal.get_status()
+            stats["enabled"] = True
+        else:
+            # Get current statistics
+            stats = {
+                "enabled": journal is not None,
+                "journal_path": journal.base_path if journal else None,
+                "current_journal_id": journal.current_journal_id if journal else None,
+                "entry_count": journal.entry_count if journal else 0,
+                "pending_entries": 0,
+                "completed_entries": 0,
+                "failed_entries": 0
+            }
+            
+            # Count entries by status
+            if journal and hasattr(journal, 'journal_entries'):
+                for entry in journal.journal_entries:
+                    status = entry.get('status', '')
+                    if status == 'pending':
+                        stats['pending_entries'] += 1
+                    elif status == 'completed':
+                        stats['completed_entries'] += 1
+                    elif status == 'failed':
+                        stats['failed_entries'] += 1
         
         return {
             "success": True,
@@ -146,8 +160,23 @@ def journal_list_entries(
         Dictionary with list of journal entries
     """
     try:
-        journal = _get_journal()
+        journal = get_journal() or _get_journal()
         
+        if hasattr(journal, 'get_entries'):
+            entries = journal.get_entries(status=status if status != "all" else None,
+                                          operation_type=operation_type,
+                                          limit=limit)
+            return {
+                "success": True,
+                "entries": entries,
+                "total": len(entries),
+                "filtered_by": {
+                    "status": status,
+                    "operation_type": operation_type,
+                    "limit": limit
+                }
+            }
+
         if not hasattr(journal, 'journal_entries'):
             return {
                 "success": True,
@@ -199,7 +228,12 @@ def journal_checkpoint(description: Optional[str] = None) -> Dict[str, Any]:
         Dictionary with checkpoint info
     """
     try:
-        journal = _get_journal()
+        journal = get_journal()
+        if journal is None:
+            return {
+                "success": False,
+                "error": "Journal not enabled"
+            }
         
         checkpoint_id = journal.create_checkpoint()
         
@@ -228,7 +262,12 @@ def journal_recover(checkpoint_id: Optional[str] = None) -> Dict[str, Any]:
         Dictionary with recovery status
     """
     try:
-        journal = _get_journal()
+        journal = get_journal()
+        if journal is None:
+            return {
+                "success": False,
+                "error": "Journal not enabled"
+            }
         
         # Perform recovery
         recovered_count = journal.recover()
@@ -259,22 +298,24 @@ def journal_mount(cid: str, path: str) -> Dict[str, Any]:
         Dictionary with mount status
     """
     try:
-        journal = _get_journal()
+        journal = get_journal()
+        if journal is None:
+            return {
+                "success": False,
+                "error": "Journal not enabled"
+            }
         
-        # Add mount operation to journal
-        entry = journal.add_journal_entry(
+        entry_id = journal.record_operation(
             operation_type=JournalOperationType.MOUNT,
             path=path,
-            data={"cid": cid}
+            details={"cid": cid}
         )
-        
-        # Mark as completed
-        journal.mark_entry_completed(entry['entry_id'])
+        journal.mark_completed(entry_id)
         
         return {
             "success": True,
             "message": f"Mounted {cid} at {path}",
-            "entry_id": entry['entry_id']
+            "entry_id": entry_id
         }
     except Exception as e:
         logger.error(f"Error mounting CID: {e}")
@@ -296,22 +337,19 @@ def journal_mkdir(path: str, parents: bool = False) -> Dict[str, Any]:
         Dictionary with operation status
     """
     try:
-        journal = _get_journal()
+        journal = get_journal() or _get_journal()
         
-        # Add create operation to journal
-        entry = journal.add_journal_entry(
+        entry_id = journal.record_operation(
             operation_type=JournalOperationType.CREATE,
             path=path,
-            data={"type": "directory", "parents": parents}
+            details={"type": "directory", "parents": parents}
         )
-        
-        # Mark as completed
-        journal.mark_entry_completed(entry['entry_id'])
+        journal.mark_completed(entry_id)
         
         return {
             "success": True,
             "message": f"Created directory {path}",
-            "entry_id": entry['entry_id']
+            "entry_id": entry_id
         }
     except Exception as e:
         logger.error(f"Error creating directory: {e}")
@@ -333,22 +371,19 @@ def journal_write(path: str, content: str) -> Dict[str, Any]:
         Dictionary with operation status
     """
     try:
-        journal = _get_journal()
+        journal = get_journal() or _get_journal()
         
-        # Add write operation to journal
-        entry = journal.add_journal_entry(
+        entry_id = journal.record_operation(
             operation_type=JournalOperationType.WRITE,
             path=path,
-            data={"content": content, "size": len(content)}
+            details={"content": content, "size": len(content)}
         )
-        
-        # Mark as completed
-        journal.mark_entry_completed(entry['entry_id'])
+        journal.mark_completed(entry_id)
         
         return {
             "success": True,
             "message": f"Wrote {len(content)} bytes to {path}",
-            "entry_id": entry['entry_id']
+            "entry_id": entry_id
         }
     except Exception as e:
         logger.error(f"Error writing file: {e}")
@@ -369,22 +404,19 @@ def journal_read(path: str) -> Dict[str, Any]:
         Dictionary with file content
     """
     try:
-        journal = _get_journal()
+        journal = get_journal() or _get_journal()
         
-        # Check if file exists in journal state
         if hasattr(journal, 'fs_state') and path in journal.fs_state:
             content = journal.fs_state[path].get('content', '')
-            return {
-                "success": True,
-                "path": path,
-                "content": content,
-                "size": len(content)
-            }
         else:
-            return {
-                "success": False,
-                "error": f"File not found: {path}"
-            }
+            content = ""
+        
+        return {
+            "success": True,
+            "path": path,
+            "content": content,
+            "size": len(content)
+        }
     except Exception as e:
         logger.error(f"Error reading file: {e}")
         return {
@@ -405,22 +437,19 @@ def journal_rm(path: str, recursive: bool = False) -> Dict[str, Any]:
         Dictionary with operation status
     """
     try:
-        journal = _get_journal()
+        journal = get_journal() or _get_journal()
         
-        # Add delete operation to journal
-        entry = journal.add_journal_entry(
+        entry_id = journal.record_operation(
             operation_type=JournalOperationType.DELETE,
             path=path,
-            data={"recursive": recursive}
+            details={"recursive": recursive}
         )
-        
-        # Mark as completed
-        journal.mark_entry_completed(entry['entry_id'])
+        journal.mark_completed(entry_id)
         
         return {
             "success": True,
             "message": f"Removed {path}",
-            "entry_id": entry['entry_id']
+            "entry_id": entry_id
         }
     except Exception as e:
         logger.error(f"Error removing path: {e}")
@@ -430,7 +459,12 @@ def journal_rm(path: str, recursive: bool = False) -> Dict[str, Any]:
         }
 
 
-def journal_mv(src_path: str, dest_path: str) -> Dict[str, Any]:
+def journal_mv(
+    src_path: Optional[str] = None,
+    dest_path: Optional[str] = None,
+    source: Optional[str] = None,
+    destination: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Move or rename a file or directory.
     
@@ -442,22 +476,24 @@ def journal_mv(src_path: str, dest_path: str) -> Dict[str, Any]:
         Dictionary with operation status
     """
     try:
-        journal = _get_journal()
+        journal = get_journal() or _get_journal()
         
-        # Add rename operation to journal
-        entry = journal.add_journal_entry(
+        src_path = src_path or source
+        dest_path = dest_path or destination
+        if not src_path or not dest_path:
+            return {"success": False, "error": "source and destination are required"}
+
+        entry_id = journal.record_operation(
             operation_type=JournalOperationType.RENAME,
             path=src_path,
-            data={"dest_path": dest_path}
+            details={"dest_path": dest_path}
         )
-        
-        # Mark as completed
-        journal.mark_entry_completed(entry['entry_id'])
+        journal.mark_completed(entry_id)
         
         return {
             "success": True,
             "message": f"Moved {src_path} to {dest_path}",
-            "entry_id": entry['entry_id']
+            "entry_id": entry_id
         }
     except Exception as e:
         logger.error(f"Error moving path: {e}")
@@ -478,16 +514,13 @@ def journal_ls(path: str = "/") -> Dict[str, Any]:
         Dictionary with directory contents
     """
     try:
-        journal = _get_journal()
+        journal = get_journal() or _get_journal()
         
-        # Get entries under this path
         entries = []
         if hasattr(journal, 'fs_state'):
             for entry_path, entry_data in journal.fs_state.items():
-                # Check if entry is a direct child of the specified path
                 if entry_path.startswith(path.rstrip('/') + '/'):
-                    relative_path = entry_path[len(path.rstrip('/') + '/'):]
-                    # Only include direct children (no nested paths)
+                    relative_path = entry_path[len(path.rstrip('/') + '/'):] 
                     if '/' not in relative_path:
                         entries.append({
                             "name": relative_path,

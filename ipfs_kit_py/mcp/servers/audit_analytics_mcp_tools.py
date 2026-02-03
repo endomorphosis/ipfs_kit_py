@@ -69,6 +69,11 @@ def get_analytics_engine() -> AuditAnalytics:
     return _analytics_engine
 
 
+def get_audit_analytics() -> AuditAnalytics:
+    """Compatibility alias for analytics engine retrieval."""
+    return get_analytics_engine()
+
+
 def get_correlator() -> EventCorrelator:
     """Get or create correlator instance"""
     global _correlator
@@ -88,7 +93,9 @@ def get_visualizer() -> AuditVisualizer:
 def audit_analytics_get_patterns(
     timeframe_hours: int = 24,
     event_types: Optional[List[str]] = None,
-    min_confidence: float = 0.5
+    min_confidence: float = 0.5,
+    hours: Optional[int] = None,
+    confidence: Optional[float] = None
 ) -> Dict[str, Any]:
     """
     Get identified patterns in audit events
@@ -102,7 +109,12 @@ def audit_analytics_get_patterns(
         Dictionary with patterns found
     """
     try:
-        analytics = get_analytics_engine()
+        analytics = get_audit_analytics()
+
+        if hours is not None:
+            timeframe_hours = hours
+        if confidence is not None:
+            min_confidence = confidence
         
         # Analyze patterns
         patterns = analytics.analyze_patterns(
@@ -147,7 +159,8 @@ def audit_analytics_get_patterns(
 def audit_analytics_detect_anomalies(
     threshold: float = 2.0,
     lookback_days: int = 7,
-    min_deviation: float = 1.5
+    min_deviation: float = 1.5,
+    days: Optional[int] = None
 ) -> Dict[str, Any]:
     """
     Detect anomalous behavior in audit events
@@ -161,7 +174,10 @@ def audit_analytics_detect_anomalies(
         Dictionary with anomalies found
     """
     try:
-        analytics = get_analytics_engine()
+        analytics = get_audit_analytics()
+
+        if days is not None:
+            lookback_days = days
         
         # Detect anomalies
         anomalies = analytics.detect_anomalies(
@@ -428,8 +444,9 @@ def audit_analytics_assess_impact(
 
 
 def audit_analytics_get_compliance_score(
-    policy_rules: List[Dict[str, Any]],
-    time_range_days: int = 30
+    policy_rules: Optional[List[Dict[str, Any]]] = None,
+    time_range_days: int = 30,
+    policy: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
     Calculate compliance score based on policies
@@ -442,32 +459,29 @@ def audit_analytics_get_compliance_score(
         Dictionary with compliance metrics
     """
     try:
-        analytics = get_analytics_engine()
-        visualizer = get_visualizer()
-        
-        # Get recent events
-        cutoff = datetime.now() - timedelta(days=time_range_days)
-        events = _audit_logger.query_events(start_time=cutoff)
-        
-        # Generate compliance dashboard
-        dashboard = visualizer.generate_compliance_dashboard(
-            events=events,
-            policy_rules=policy_rules,
-            time_range_days=time_range_days
-        )
-        
+        analytics = get_audit_analytics()
+        if policy is not None:
+            policy_rules = policy
+        if policy_rules is None:
+            policy_rules = {}
+
+        score = analytics.get_compliance_score(policy_rules)
         result = {
             'success': True,
-            'overall_score': dashboard.overall_score,
-            'compliance_percentage': dashboard.overall_score * 100,
-            'policy_scores': dashboard.policy_scores,
-            'total_violations': len(dashboard.violations),
-            'violations': dashboard.violations[:20],  # Limit to 20
-            'recommendations': dashboard.recommendations,
-            'summary': dashboard.summary
+            'overall_score': score.score,
+            'compliance_percentage': score.score * 100,
+            'policy_scores': {},
+            'total_violations': len(score.policy_violations),
+            'violations': score.policy_violations[:20],
+            'recommendations': score.recommendations,
+            'summary': {
+                'total_events': score.total_events,
+                'compliant_events': score.compliant_events,
+                'non_compliant_events': score.non_compliant_events
+            }
         }
         
-        logger.info(f"Compliance score: {dashboard.overall_score:.2%}")
+        logger.info(f"Compliance score: {score.score:.2%}")
         return result
         
     except Exception as e:

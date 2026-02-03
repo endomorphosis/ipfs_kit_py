@@ -203,7 +203,7 @@ class HealthWidget(Widget):
     - Response times
     """
     
-    def __init__(self, config: WidgetConfig, health_checker: Optional[Callable] = None):
+    def __init__(self, config: WidgetConfig, health_checker: Optional[Callable] = None, health_provider: Optional[Callable] = None):
         """
         Initialize health widget
         
@@ -212,6 +212,10 @@ class HealthWidget(Widget):
             health_checker: Function that returns health metrics
         """
         super().__init__(config)
+        if health_provider is not None and health_checker is None:
+            health_checker = health_provider
+        if health_checker is not None and not callable(health_checker):
+            health_checker = None
         self.health_checker = health_checker or self._default_health_checker
     
     def _default_health_checker(self) -> Dict[str, Any]:
@@ -510,6 +514,7 @@ class WidgetManager:
     def __init__(self):
         """Initialize widget manager"""
         self.widgets: Dict[str, Widget] = {}
+        self._widgets = self.widgets
         self.widget_types: Dict[str, type] = {
             'status': StatusWidget,
             'health': HealthWidget,

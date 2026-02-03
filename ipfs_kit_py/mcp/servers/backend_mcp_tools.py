@@ -40,7 +40,7 @@ BACKEND_MCP_TOOLS = [
                         "bucket": {"type": "string", "description": "Bucket name"},
                         "region": {"type": "string", "description": "Region"}
                     },
-                    "additionalProperties": true
+                    "additionalProperties": True
                 }
             },
             "required": ["name", "backend_type"]
@@ -55,7 +55,7 @@ BACKEND_MCP_TOOLS = [
                 "include_disabled": {
                     "type": "boolean",
                     "description": "Include disabled backends",
-                    "default": true
+                    "default": True
                 }
             },
             "required": []
@@ -74,7 +74,7 @@ BACKEND_MCP_TOOLS = [
                 "include_sensitive": {
                     "type": "boolean",
                     "description": "Include sensitive configuration values",
-                    "default": false
+                    "default": False
                 }
             },
             "required": ["name"]
@@ -93,7 +93,7 @@ BACKEND_MCP_TOOLS = [
                 "config": {
                     "type": "object",
                     "description": "Configuration values to update",
-                    "additionalProperties": true
+                    "additionalProperties": True
                 },
                 "enabled": {
                     "type": "boolean",
@@ -116,7 +116,7 @@ BACKEND_MCP_TOOLS = [
                 "force": {
                     "type": "boolean",
                     "description": "Force delete even if backend has active pins",
-                    "default": false
+                    "default": False
                 }
             },
             "required": ["name"]

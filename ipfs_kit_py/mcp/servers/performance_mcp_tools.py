@@ -154,7 +154,8 @@ def performance_invalidate_cache(pattern: str) -> Dict[str, Any]:
 
 def performance_get_metrics(
     operation_name: Optional[str] = None,
-    timeframe: str = '1h'
+    timeframe: str = '1h',
+    operation: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Get performance metrics
@@ -168,6 +169,9 @@ def performance_get_metrics(
     """
     try:
         monitor = get_performance_monitor()
+        if operation is not None:
+            operation_name = operation
+
         metrics = monitor.get_metrics(
             operation_name=operation_name,
             timeframe=timeframe

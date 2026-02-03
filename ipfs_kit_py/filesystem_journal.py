@@ -339,6 +339,59 @@ class FilesystemJournal:
                     self._write_journal()
         
         return entry
+
+    def record_operation(
+        self,
+        operation_type: Union[str, JournalOperationType],
+        path: str,
+        details: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """Compatibility wrapper to record an operation and return entry ID."""
+        entry = self.add_journal_entry(
+            operation_type=operation_type,
+            path=path,
+            data=details or {},
+            metadata=metadata
+        )
+        return entry.get("entry_id")
+
+    def mark_completed(self, entry_id: str) -> bool:
+        """Mark a journal entry as completed."""
+        return self.update_entry_status(entry_id, JournalEntryStatus.COMPLETED)
+
+    def mark_failed(self, entry_id: str, reason: Optional[str] = None) -> bool:
+        """Mark a journal entry as failed."""
+        result = {"reason": reason} if reason else None
+        return self.update_entry_status(entry_id, JournalEntryStatus.FAILED, result=result)
+
+    def mark_entry_completed(self, entry_id: str) -> bool:
+        """Alias for mark_completed used by MCP tools."""
+        return self.mark_completed(entry_id)
+
+    def mark_entry_failed(self, entry_id: str, reason: Optional[str] = None) -> bool:
+        """Alias for mark_failed used by MCP tools."""
+        return self.mark_failed(entry_id, reason=reason)
+
+    def get_pending_operations(self) -> List[Dict[str, Any]]:
+        """Compatibility wrapper for pending entries."""
+        return self.get_pending_journal_entries()
+
+    def get_entries(
+        self,
+        status: Optional[str] = None,
+        operation_type: Optional[str] = None,
+        limit: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """Get journal entries with optional filtering."""
+        entries = list(self.journal_entries)
+        if status:
+            entries = [e for e in entries if e.get("status") == status]
+        if operation_type:
+            entries = [e for e in entries if e.get("operation_type") == operation_type]
+        if limit:
+            entries = entries[:limit]
+        return entries
     
     def update_entry_status(
         self,
@@ -477,7 +530,7 @@ class FilesystemJournal:
             
             return True
     
-    def create_checkpoint(self) -> bool:
+    def create_checkpoint(self, description: Optional[str] = None) -> Union[str, bool]:
         """
         Create a checkpoint of the current filesystem state.
         
@@ -498,7 +551,8 @@ class FilesystemJournal:
                 checkpoint_data = {
                     "timestamp": time.time(),
                     "fs_state": self.fs_state.copy(),
-                    "checksum": self._calculate_state_checksum()
+                    "checksum": self._calculate_state_checksum(),
+                    "description": description
                 }
                 
                 # Create checkpoint ID
@@ -520,7 +574,7 @@ class FilesystemJournal:
                 self.add_journal_entry(
                     operation_type=JournalOperationType.CHECKPOINT,
                     path="checkpoint",
-                    data={"checkpoint_id": checkpoint_id},
+                    data={"checkpoint_id": checkpoint_id, "description": description},
                     status=JournalEntryStatus.COMPLETED
                 )
                 
@@ -531,11 +585,70 @@ class FilesystemJournal:
                 self._cleanup_old_files()
                 
                 logger.info(f"Created checkpoint {checkpoint_id}")
-                return True
+                return checkpoint_id
                 
             except Exception as e:
                 logger.error(f"Error creating checkpoint: {e}")
                 return False
+
+    def list_checkpoints(self) -> List[Dict[str, Any]]:
+        """List available checkpoints."""
+        checkpoints = []
+        try:
+            for filename in sorted(os.listdir(self.checkpoint_dir)):
+                if filename.startswith("checkpoint_") and filename.endswith(".json"):
+                    checkpoint_id = filename.replace(".json", "")
+                    checkpoints.append({
+                        "checkpoint_id": checkpoint_id,
+                        "path": os.path.join(self.checkpoint_dir, filename)
+                    })
+        except Exception:
+            pass
+        return checkpoints
+
+    def get_status(self) -> Dict[str, Any]:
+        """Return journal status summary."""
+        entries = list(self.journal_entries)
+        if not entries:
+            try:
+                journal_files = [f for f in os.listdir(self.journal_dir)
+                                if f.startswith("journal_") and f.endswith(".json")]
+                if journal_files:
+                    journal_files.sort(reverse=True)
+                    for filename in journal_files:
+                        with open(os.path.join(self.journal_dir, filename), "r") as handle:
+                            file_entries = json.load(handle)
+                        if file_entries:
+                            entries = file_entries
+                            break
+            except Exception:
+                entries = []
+
+        pending = len([e for e in entries if e.get("status") == JournalEntryStatus.PENDING.value])
+        completed = len([e for e in entries if e.get("status") == JournalEntryStatus.COMPLETED.value])
+        failed = len([e for e in entries if e.get("status") == JournalEntryStatus.FAILED.value])
+        return {
+            "total_entries": len(entries),
+            "pending_entries": pending,
+            "completed_entries": completed,
+            "failed_entries": failed
+        }
+
+    def cleanup(self, keep_days: int = 30) -> Dict[str, Any]:
+        """Cleanup old completed/failed entries."""
+        cutoff = time.time() - (keep_days * 86400)
+        before = len(self.journal_entries)
+        self.journal_entries = [
+            e for e in self.journal_entries
+            if not (
+                e.get("status") in {JournalEntryStatus.COMPLETED.value, JournalEntryStatus.FAILED.value}
+                and e.get("timestamp", time.time()) < cutoff
+            )
+        ]
+        removed = before - len(self.journal_entries)
+        self.entry_count = len(self.journal_entries)
+        self._write_journal()
+        return {"removed": removed, "remaining": len(self.journal_entries)}
     
     def _cleanup_old_files(self):
         """Clean up old checkpoint and journal files."""
