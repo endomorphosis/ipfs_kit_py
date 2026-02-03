@@ -19,7 +19,7 @@ IPFS_REPO_DIR="${CACHE_DIR}/ipfs-repo"
 
 PROFILE="dev"            # core|api|dev|full
 EXTRAS=""                # comma-separated extras override
-INSTALL_SOURCE="local"   # local|github-main
+INSTALL_SOURCE="github-main"   # local|github-main
 INSTALL_NODE="auto"       # auto|yes|no
 INSTALL_PLAYWRIGHT="auto" # auto|yes|no
 ALLOW_SUDO="no"           # yes|no (default: no; zero-touch should not require sudo)
@@ -29,6 +29,7 @@ INSTALL_LASSIE="auto"     # auto|yes|no
 INSTALL_LOTUS="auto"      # auto|yes|no
 INSTALL_GO="auto"         # auto|yes|no (install Go into ./bin for source-build fallbacks)
 INSTALL_JQ="auto"         # auto|yes|no (install jq into ./bin; useful for Lotus/source builds)
+INSTALL_IPLD="auto"       # auto|yes|no (install vendored IPLD python pkgs from ./docs)
 ALLOW_UNSUPPORTED_PYTHON="0"
 ALLOW_UNSUPPORTED_PLATFORM="1"  # proceed with Python-only best-effort when OS/arch unsupported
 
@@ -47,7 +48,7 @@ Usage: ./zero_touch_install.sh [options]
 Options:
   --profile <core|api|dev|full>   Install profile (default: dev)
   --extras <comma,separated>      Explicit extras to install (overrides --profile)
-  --source <local|github-main>    Install ipfs_kit_py from local checkout or GitHub main (default: local)
+  --source <local|github-main>    Install ipfs_kit_py from local checkout or endomorphosis/ipfs_kit_py@main (default: github-main)
   --node <auto|yes|no>            Ensure Node.js is available (default: auto)
   --playwright <auto|yes|no>      Install Playwright deps + browsers (default: auto)
   --sudo <yes|no>                 Allow using sudo for system deps (default: no)
@@ -58,6 +59,7 @@ Options:
   --lotus <auto|yes|no>           Install Lotus binaries into ./bin (default: auto)
   --go <auto|yes|no>              Install Go toolchain into ./bin (default: auto)
   --jq <auto|yes|no>              Install jq into ./bin (default: auto)
+  --ipld <auto|yes|no>            Install vendored IPLD python pkgs from ./docs (default: auto)
   --allow-unsupported-python      Proceed even if Python < 3.12 (best-effort)
   -h, --help                      Show this help
 
@@ -88,6 +90,7 @@ parse_args() {
       --lotus) INSTALL_LOTUS="${2:-}"; shift 2 ;;
       --go) INSTALL_GO="${2:-}"; shift 2 ;;
       --jq) INSTALL_JQ="${2:-}"; shift 2 ;;
+      --ipld) INSTALL_IPLD="${2:-}"; shift 2 ;;
       --allow-unsupported-python) ALLOW_UNSUPPORTED_PYTHON="1"; shift 1 ;;
       -h|--help) usage; exit 0 ;;
       *) err "Unknown option: $1"; usage; exit 2 ;;
@@ -108,6 +111,7 @@ parse_args() {
   case "$INSTALL_LOTUS" in auto|yes|no) : ;; *) err "Invalid --lotus: $INSTALL_LOTUS"; exit 2 ;; esac
   case "$INSTALL_GO" in auto|yes|no) : ;; *) err "Invalid --go: $INSTALL_GO"; exit 2 ;; esac
   case "$INSTALL_JQ" in auto|yes|no) : ;; *) err "Invalid --jq: $INSTALL_JQ"; exit 2 ;; esac
+  case "$INSTALL_IPLD" in auto|yes|no) : ;; *) err "Invalid --ipld: $INSTALL_IPLD"; exit 2 ;; esac
 }
 
 ensure_dirs() {
@@ -451,6 +455,18 @@ write_env_sh() {
 # Source this to use locally installed tools
 export PATH="${BIN_DIR}:\$PATH"
 
+# Vendored IPLD python packages (pure python, shipped in ./docs).
+# This avoids needing git/network/build backends for ipld_unixfs in minimal environments.
+if [ -d "${ROOT_DIR}/docs/py-ipld-car" ]; then
+  export PYTHONPATH="${ROOT_DIR}/docs/py-ipld-car:\${PYTHONPATH:-}"
+fi
+if [ -d "${ROOT_DIR}/docs/py-ipld-dag-pb" ]; then
+  export PYTHONPATH="${ROOT_DIR}/docs/py-ipld-dag-pb:\${PYTHONPATH:-}"
+fi
+if [ -d "${ROOT_DIR}/docs/py-ipld-unixfs" ]; then
+  export PYTHONPATH="${ROOT_DIR}/docs/py-ipld-unixfs:\${PYTHONPATH:-}"
+fi
+
 # Local native deps (best-effort)
 if [ -d "${LOCAL_DEPS_DIR}/libmagic/lib" ]; then
   export LD_LIBRARY_PATH="${LOCAL_DEPS_DIR}/libmagic/lib:\${LD_LIBRARY_PATH:-}"
@@ -664,6 +680,20 @@ install_python_deps() {
       eval "${pinned_source_cmd}" >/dev/null 2>&1
       set -e
     fi
+  fi
+}
+
+install_vendored_ipld_packages() {
+  # Make vendored IPLD packages available via env.sh (PYTHONPATH).
+  # Avoid PEP517 installs here to keep zero-touch resilient in offline/minimal environments.
+  local any_present=0
+  for p in "${ROOT_DIR}/docs/py-ipld-car" "${ROOT_DIR}/docs/py-ipld-dag-pb" "${ROOT_DIR}/docs/py-ipld-unixfs"; do
+    if [[ -d "$p" ]]; then any_present=1; fi
+  done
+  if [[ $any_present -eq 1 ]]; then
+    log "Enabled vendored IPLD packages via PYTHONPATH in ./bin/env.sh"
+  else
+    err "WARNING: Vendored IPLD packages not found under ./docs; skipping"
   fi
 }
 
@@ -938,6 +968,16 @@ main() {
 
   create_venv
   install_python_deps
+
+  # Optional: install vendored IPLD packages so tests can import ipld_car/ipld_dag_pb/ipld_unixfs
+  # without git/network. Default to yes for dev/full profiles.
+  local do_ipld="$INSTALL_IPLD"
+  if [[ "$do_ipld" == "auto" ]]; then
+    if [[ "$PROFILE" == "dev" || "$PROFILE" == "full" ]]; then do_ipld="yes"; else do_ipld="no"; fi
+  fi
+  if [[ "$do_ipld" == "yes" ]]; then
+    install_vendored_ipld_packages
+  fi
 
   # Native daemons/CLIs (optional)
   install_native_tools

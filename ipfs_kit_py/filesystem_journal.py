@@ -223,6 +223,13 @@ class FilesystemJournal:
         self._write_journal()
         
         if not getattr(self, "_stop_sync", threading.Event()).is_set():
+
+        # Avoid logging during teardown/atexit; pytest's capture streams can be closed.
+        try:
+            safe_to_log = (not sys.is_finalizing()) and (not getattr(self, "_stop_sync", threading.Event()).is_set())
+        except Exception:
+            safe_to_log = False
+        if safe_to_log:
             logger.info(f"Created new journal at {self.current_journal_path}")
     
     def _write_journal(self):
@@ -258,12 +265,23 @@ class FilesystemJournal:
             daemon=True
         )
         self._sync_thread.start()
-        logger.info("Journal sync thread started")
+        try:
+            if not sys.is_finalizing():
+                logger.info("Journal sync thread started")
+        except Exception:
+            pass
     
     def _sync_loop(self):
         """Main sync loop for background thread."""
         while not self._stop_sync.is_set():
             try:
+                # Exit promptly during interpreter shutdown to avoid noisy logging errors.
+                try:
+                    if sys.is_finalizing():
+                        break
+                except Exception:
+                    pass
+
                 # Check if it's time to sync
                 current_time = time.time()
                 
@@ -275,9 +293,16 @@ class FilesystemJournal:
                     # Create checkpoint if needed
                     if (current_time - self.last_checkpoint_time >= self.checkpoint_interval or
                         self.entry_count >= self.max_journal_size):
+                        # Stop may have been requested mid-iteration.
+                        if self._stop_sync.is_set():
+                            break
                         self.create_checkpoint()
             except Exception as e:
-                logger.error(f"Error in journal sync loop: {e}")
+                try:
+                    if (not self._stop_sync.is_set()) and (not sys.is_finalizing()):
+                        logger.error(f"Error in journal sync loop: {e}")
+                except Exception:
+                    pass
             
             # Wait for next sync check
             self._stop_sync.wait(1.0)  # Check more frequently than sync_interval
@@ -544,7 +569,11 @@ class FilesystemJournal:
         with self._lock:
             # Can't create checkpoint during transaction
             if self.in_transaction:
-                logger.warning("Cannot create checkpoint during transaction")
+                try:
+                    if (not getattr(self, "_stop_sync", threading.Event()).is_set()) and (not sys.is_finalizing()):
+                        logger.warning("Cannot create checkpoint during transaction")
+                except Exception:
+                    pass
                 return False
             
             try:
@@ -585,12 +614,19 @@ class FilesystemJournal:
                 # Clean up old checkpoints and journals
                 self._cleanup_old_files()
                 
-                if not getattr(self, "_stop_sync", threading.Event()).is_set():
-                    logger.info(f"Created checkpoint {checkpoint_id}")
+                try:
+                    if (not getattr(self, "_stop_sync", threading.Event()).is_set()) and (not sys.is_finalizing()):
+                        logger.info(f"Created checkpoint {checkpoint_id}")
+                except Exception:
+                    pass
                 return checkpoint_id
                 
             except Exception as e:
-                logger.error(f"Error creating checkpoint: {e}")
+                try:
+                    if (not getattr(self, "_stop_sync", threading.Event()).is_set()) and (not sys.is_finalizing()):
+                        logger.error(f"Error creating checkpoint: {e}")
+                except Exception:
+                    pass
                 return False
 
     def list_checkpoints(self) -> List[Dict[str, Any]]:

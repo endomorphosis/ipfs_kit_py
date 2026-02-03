@@ -24,7 +24,7 @@ LOCAL_DEPS_DIR="${BIN_DIR}/deps"
 
 PROFILE="dev"            # core|api|dev|full
 EXTRAS=""                # comma-separated extras override
-INSTALL_SOURCE="local"   # local|github-main
+INSTALL_SOURCE="github-main"   # local|github-main
 INSTALL_NODE="auto"       # auto|yes|no
 INSTALL_PLAYWRIGHT="auto" # auto|yes|no
 ALLOW_SUDO="no"           # yes|no (default: no; zero-touch should not require sudo)
@@ -48,7 +48,7 @@ Usage: ./zero_touch_install.sh [options]
 Options:
   --profile <core|api|dev|full>   Install profile (default: dev)
   --extras <comma,separated>      Explicit extras to install (overrides --profile)
-  --source <local|github-main>    Install ipfs_kit_py from local checkout or GitHub main (default: local)
+  --source <local|github-main>    Install ipfs_kit_py from local checkout or endomorphosis/ipfs_kit_py@main (default: github-main)
   --node <auto|yes|no>            Ensure Node.js is available (default: auto)
   --playwright <auto|yes|no>      Install Playwright deps + browsers (default: auto)
   --sudo <yes|no>                 Allow using sudo for system deps (default: no)

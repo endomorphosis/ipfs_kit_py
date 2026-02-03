@@ -24,6 +24,7 @@ Options:
   --lassie <auto|yes|no>          Install Lassie binary into ./bin (default: auto)
   --lotus <auto|yes|no>           Install Lotus binaries into ./bin (default: auto)
   --jq <auto|yes|no>              Install jq into ./bin (default: auto)
+  --ipld <auto|yes|no>            Install vendored IPLD python pkgs from ./docs (default: auto)
   --allow-unsupported-python      Proceed even if Python < 3.12 (best-effort)
   -h, --help                      Show this help
 
