@@ -26,6 +26,7 @@ Usage:
 
 import logging
 import os
+import sys
 from typing import Dict, List, Any, Optional, Union
 from pathlib import Path
 import json
@@ -39,16 +40,47 @@ logger = logging.getLogger(__name__)
 # NOTE: The published `ipfs_datasets_py` package does not necessarily expose a
 # `DatasetManager` symbol. We treat the dependency as available if the package
 # itself imports, and keep our own manager abstraction (`IPFSDatasetsManager`).
-try:
-    import ipfs_datasets_py  # noqa: F401
+IPFS_DATASETS_AVAILABLE = False
+IPFSDatasetManager = None
+_ipfs_datasets_py = None
 
-    IPFS_DATASETS_AVAILABLE = True
-    IPFSDatasetManager = None
-    logger.info("ipfs_datasets_py is available for dataset operations")
-except Exception:
-    IPFS_DATASETS_AVAILABLE = False
-    IPFSDatasetManager = None
-    logger.info("ipfs_datasets_py not available - using fallback implementations")
+def _should_skip_datasets_import() -> bool:
+    if os.environ.get("IPFS_KIT_FAST_INIT") == "1":
+        return True
+    if os.environ.get("IPFS_KIT_SKIP_DATASETS") == "1":
+        return True
+    pytest_env_markers = (
+        "PYTEST_CURRENT_TEST",
+        "PYTEST_ADDOPTS",
+        "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+        "PYTEST_VERSION",
+        "PYTEST_XDIST_WORKER",
+    )
+    if any(os.environ.get(key) for key in pytest_env_markers):
+        return True
+    argv = sys.argv or []
+    if any(flag in argv for flag in ("-h", "--help")):
+        return True
+    return False
+
+def _ensure_ipfs_datasets_loaded() -> None:
+    global IPFS_DATASETS_AVAILABLE, IPFSDatasetManager, _ipfs_datasets_py
+    if _ipfs_datasets_py is not None or IPFS_DATASETS_AVAILABLE:
+        return
+    if _should_skip_datasets_import():
+        IPFS_DATASETS_AVAILABLE = False
+        return
+    try:
+        import ipfs_datasets_py as _datasets  # noqa: F401
+
+        _ipfs_datasets_py = _datasets
+        IPFS_DATASETS_AVAILABLE = True
+        IPFSDatasetManager = None
+        logger.info("ipfs_datasets_py is available for dataset operations")
+    except Exception:
+        IPFS_DATASETS_AVAILABLE = False
+        IPFSDatasetManager = None
+        logger.info("ipfs_datasets_py not available - using fallback implementations")
 
 
 class DatasetIPFSBackend:
@@ -71,6 +103,7 @@ class DatasetIPFSBackend:
             base_path: Base directory for local dataset storage
             enable_distributed: Enable distributed operations (requires ipfs_datasets_py)
         """
+        _ensure_ipfs_datasets_loaded()
         self.ipfs_client = ipfs_client
         self.base_path = Path(os.path.expanduser(base_path))
         self.enable_distributed = enable_distributed and IPFS_DATASETS_AVAILABLE

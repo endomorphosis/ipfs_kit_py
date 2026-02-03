@@ -65,17 +65,19 @@ class ServiceManager:
     pids: List[int] = []
     logs: List[str] = []
 
-    def __init__(self):
+    def __init__(self, start_monitoring: bool = True):
         self.services: Dict[str, ServiceConfig] = {}
         self.processes: Dict[str, subprocess.Popen] = {}
         self.monitoring_threads: Dict[str, threading.Thread] = {}
         self.service_status: Dict[str, ServiceStatus] = {}
         self.restart_attempts: Dict[str, int] = {}
-        self.monitoring_active = True
+        self.monitoring_active = start_monitoring
+        self.monitor_thread: Optional[threading.Thread] = None
         
-        # Start monitoring thread
-        self.monitor_thread = threading.Thread(target=self._monitor_services, daemon=True)
-        self.monitor_thread.start()
+        # Start monitoring thread if enabled
+        if start_monitoring:
+            self.monitor_thread = threading.Thread(target=self._monitor_services, daemon=True)
+            self.monitor_thread.start()
     
     def register_service(self, config: ServiceConfig) -> bool:
         """Register a service for management"""
@@ -396,15 +398,15 @@ class ServiceManager:
             self.stop_service(service_name)
         
         # Wait for monitor thread
-        if self.monitor_thread.is_alive():
+        if self.monitor_thread and self.monitor_thread.is_alive():
             self.monitor_thread.join(timeout=5)
 
 # IPFS-specific service management
 class IPFSServiceManager(ServiceManager):
     """Specialized service manager for IPFS"""
     
-    def __init__(self):
-        super().__init__()
+    def __init__(self, start_monitoring: bool = True):
+        super().__init__(start_monitoring=start_monitoring)
         self._register_ipfs_service()
     
     def _register_ipfs_service(self):
@@ -444,5 +446,27 @@ class IPFSServiceManager(ServiceManager):
 
 # Global service manager instances
 import os
-service_manager = ServiceManager()
-ipfs_manager = IPFSServiceManager()
+import sys
+
+def _should_disable_monitoring() -> bool:
+    if os.environ.get("IPFS_KIT_FAST_INIT") == "1":
+        return True
+    if os.environ.get("IPFS_KIT_DISABLE_SERVICE_MANAGER") == "1":
+        return True
+    pytest_env_markers = (
+        "PYTEST_CURRENT_TEST",
+        "PYTEST_ADDOPTS",
+        "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+        "PYTEST_VERSION",
+        "PYTEST_XDIST_WORKER",
+    )
+    if any(os.environ.get(key) for key in pytest_env_markers):
+        return True
+    argv = sys.argv or []
+    if any(flag in argv for flag in ("-h", "--help")):
+        return True
+    return False
+
+_disable_monitoring = _should_disable_monitoring()
+service_manager = ServiceManager(start_monitoring=not _disable_monitoring)
+ipfs_manager = IPFSServiceManager(start_monitoring=not _disable_monitoring)

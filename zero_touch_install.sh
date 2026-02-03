@@ -184,6 +184,44 @@ detect_platform() {
   else
     log "Detected platform: OS=$OS ARCH=$ARCH LIBC=$LIBC${extra} (uname -m=$ARCH_RAW)"
   fi
+
+  PLATFORM_TAG="${OS}-${ARCH}-${LIBC}"
+}
+
+supports_kubo() {
+  case "$OS" in
+    linux)
+      case "$ARCH" in x86_64|arm64|arm|x86) return 0 ;; *) return 1 ;; esac
+      ;;
+    darwin)
+      case "$ARCH" in x86_64|arm64) return 0 ;; *) return 1 ;; esac
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+supports_lassie() {
+  case "$OS" in
+    linux)
+      case "$ARCH" in x86_64|arm64) return 0 ;; *) return 1 ;; esac
+      ;;
+    darwin)
+      case "$ARCH" in x86_64|arm64) return 0 ;; *) return 1 ;; esac
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+supports_lotus() {
+  case "$OS" in
+    linux)
+      case "$ARCH" in x86_64|arm64) return 0 ;; *) return 1 ;; esac
+      ;;
+    darwin)
+      case "$ARCH" in x86_64|arm64) return 0 ;; *) return 1 ;; esac
+      ;;
+    *) return 1 ;;
+  esac
 }
 
 have_cmd() { command -v "$1" >/dev/null 2>&1; }
@@ -442,6 +480,11 @@ if [ -x "${BIN_DIR}/go" ]; then
   export GOMODCACHE="${CACHE_DIR}/go-path/pkg/mod"
   export GOCACHE="${CACHE_DIR}/go-build-cache"
 fi
+# Platform metadata (used by installer helpers)
+export IPFS_KIT_PLATFORM_OS="${OS}"
+export IPFS_KIT_PLATFORM_ARCH="${ARCH}"
+export IPFS_KIT_PLATFORM_LIBC="${LIBC}"
+export IPFS_KIT_PLATFORM_TAG="${PLATFORM_TAG}"
 EOF
 }
 
@@ -765,11 +808,17 @@ install_native_tools() {
   fi
 
   if [[ "$do_ipfs" == "yes" ]]; then
-    log "Installing IPFS/Kubo binaries into ./bin (no sudo)"
-    mkdir -p "${IPFS_REPO_DIR}"
-    export IPFS_PATH="${IPFS_REPO_DIR}"
-    set +e
-    python - <<PY
+    if ! supports_kubo; then
+      err "WARNING: Kubo/IPFS binaries not available for OS=$OS ARCH=$ARCH; skipping"
+    else
+      log "Installing IPFS/Kubo binaries into ./bin (no sudo)"
+      mkdir -p "${IPFS_REPO_DIR}"
+      export IPFS_PATH="${IPFS_REPO_DIR}"
+      export IPFS_KIT_PLATFORM_OS="$OS"
+      export IPFS_KIT_PLATFORM_ARCH="$ARCH"
+      export IPFS_KIT_PLATFORM_LIBC="$LIBC"
+      set +e
+      python - <<PY
 from ipfs_kit_py.install_ipfs import install_ipfs
 
 inst = install_ipfs(metadata={"bin_dir": r"${BIN_DIR}", "ipfs_path": r"${IPFS_REPO_DIR}"})
@@ -785,41 +834,46 @@ try:
 except Exception as e:
     print(f"WARNING: ipfs-cluster-follow install failed: {e}")
 PY
-    local rc=$?
-    set -e
-    if [[ $rc -ne 0 ]]; then
-      err "WARNING: IPFS/Kubo install failed; continuing"
-    fi
+      local rc=$?
+      set -e
+      if [[ $rc -ne 0 ]]; then
+        err "WARNING: IPFS/Kubo install failed; continuing"
+      fi
 
-    # Initialize a project-local repo so IPFS CLI commands don't error out with
-    # "no IPFS repo found". This does NOT start a daemon and never touches ~/.ipfs.
-    if have_cmd ipfs; then
-      if [[ ! -f "${IPFS_REPO_DIR}/config" ]]; then
-        log "Initializing project-local IPFS repo at ${IPFS_REPO_DIR}"
-        set +e
-        IPFS_PATH="${IPFS_REPO_DIR}" ipfs init >/dev/null 2>&1
-        local init_rc=$?
-        set -e
-        if [[ $init_rc -ne 0 ]]; then
-          err "WARNING: ipfs init failed (repo may need manual init): IPFS_PATH=${IPFS_REPO_DIR} ipfs init"
+      # Initialize a project-local repo so IPFS CLI commands don't error out with
+      # "no IPFS repo found". This does NOT start a daemon and never touches ~/.ipfs.
+      if have_cmd ipfs; then
+        if [[ ! -f "${IPFS_REPO_DIR}/config" ]]; then
+          log "Initializing project-local IPFS repo at ${IPFS_REPO_DIR}"
+          set +e
+          IPFS_PATH="${IPFS_REPO_DIR}" ipfs init >/dev/null 2>&1
+          local init_rc=$?
+          set -e
+          if [[ $init_rc -ne 0 ]]; then
+            err "WARNING: ipfs init failed (repo may need manual init): IPFS_PATH=${IPFS_REPO_DIR} ipfs init"
+          fi
         fi
       fi
     fi
   fi
 
   if [[ "$do_lassie" == "yes" ]]; then
-    log "Installing Lassie into ./bin (no sudo)"
-    set +e
-    python - <<PY
+    if ! supports_lassie; then
+      err "WARNING: Lassie binaries not available for OS=$OS ARCH=$ARCH; skipping"
+    else
+      log "Installing Lassie into ./bin (no sudo)"
+      set +e
+      python - <<PY
 from ipfs_kit_py.install_lassie import install_lassie
 
 inst = install_lassie(metadata={"bin_dir": r"${BIN_DIR}"})
 inst.install_lassie_daemon()
 PY
-    local rc=$?
-    set -e
-    if [[ $rc -ne 0 ]]; then
-      err "WARNING: Lassie install failed; continuing"
+      local rc=$?
+      set -e
+      if [[ $rc -ne 0 ]]; then
+        err "WARNING: Lassie install failed; continuing"
+      fi
     fi
   fi
 
@@ -830,6 +884,12 @@ PY
     log "Installing Lotus into ./bin (best-effort; may use sudo if available)"
     set +e
     python - <<PY
+    if ! supports_lotus; then
+      err "WARNING: Lotus binaries not available for OS=$OS ARCH=$ARCH; skipping"
+    else
+      log "Installing Lotus into ./bin (best-effort; may use sudo if available)"
+      set +e
+      python - <<PY
 from ipfs_kit_py.install_lotus import install_lotus
 
 inst = install_lotus(metadata={
@@ -841,10 +901,11 @@ inst = install_lotus(metadata={
 })
 inst.install_lotus_daemon()
 PY
-    local rc=$?
-    set -e
-    if [[ $rc -ne 0 ]]; then
-      err "WARNING: Lotus install failed; continuing"
+      local rc=$?
+      set -e
+      if [[ $rc -ne 0 ]]; then
+        err "WARNING: Lotus install failed; continuing"
+      fi
     fi
   fi
 }
@@ -911,7 +972,6 @@ main() {
   if [[ "$do_pw" == "yes" ]]; then
     install_playwright_browsers
   fi
-
   log ""
   log "✅ Zero-touch install complete"
   log "- Venv: ${VENV_DIR}"

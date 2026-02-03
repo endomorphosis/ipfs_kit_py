@@ -11,13 +11,22 @@ from .error_capture import CapturedError
 
 logger = logging.getLogger(__name__)
 
-# Try to import GHCache for caching GitHub API calls
-try:
-    from ipfs_kit_py.gh_cache import GHCache
-    HAS_GH_CACHE = True
-except ImportError:
-    HAS_GH_CACHE = False
-    logger.debug("GHCache not available - GitHub API caching disabled")
+HAS_GH_CACHE = False
+_GH_CACHE_CLS = None
+
+def _load_gh_cache():
+    global HAS_GH_CACHE, _GH_CACHE_CLS
+    if _GH_CACHE_CLS is not None:
+        return _GH_CACHE_CLS
+    try:
+        from ipfs_kit_py.gh_cache import GHCache
+        _GH_CACHE_CLS = GHCache
+        HAS_GH_CACHE = True
+        return _GH_CACHE_CLS
+    except ImportError:
+        HAS_GH_CACHE = False
+        logger.debug("GHCache not available - GitHub API caching disabled")
+        return None
 
 
 class GitHubIssueCreator:
@@ -33,7 +42,10 @@ class GitHubIssueCreator:
         """
         self.config = config
         self.api_base = "https://api.github.com"
-        self.enable_cache = enable_cache and HAS_GH_CACHE
+        gh_cache_cls = None
+        if enable_cache and os.environ.get("IPFS_KIT_FAST_INIT") != "1":
+            gh_cache_cls = _load_gh_cache()
+        self.enable_cache = enable_cache and gh_cache_cls is not None
         
         # Initialize cache if available
         if self.enable_cache:
@@ -42,7 +54,7 @@ class GitHubIssueCreator:
                 enable_ipfs = os.environ.get('GH_CACHE_IPFS', '0') == '1'
                 enable_p2p = os.environ.get('GH_CACHE_P2P', '0') == '1'
                 
-                self.cache = GHCache(enable_ipfs=enable_ipfs, enable_p2p=enable_p2p)
+                self.cache = gh_cache_cls(enable_ipfs=enable_ipfs, enable_p2p=enable_p2p)
                 logger.info(f"GitHub API caching enabled (IPFS: {enable_ipfs}, P2P: {enable_p2p})")
             except Exception as e:
                 logger.warning(f"Failed to initialize GitHub cache: {e}")

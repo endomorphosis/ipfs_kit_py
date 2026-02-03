@@ -222,7 +222,8 @@ class FilesystemJournal:
         # Write empty journal to disk
         self._write_journal()
         
-        logger.info(f"Created new journal at {self.current_journal_path}")
+        if not getattr(self, "_stop_sync", threading.Event()).is_set():
+            logger.info(f"Created new journal at {self.current_journal_path}")
     
     def _write_journal(self):
         """Write the current journal entries to disk."""
@@ -584,7 +585,8 @@ class FilesystemJournal:
                 # Clean up old checkpoints and journals
                 self._cleanup_old_files()
                 
-                logger.info(f"Created checkpoint {checkpoint_id}")
+                if not getattr(self, "_stop_sync", threading.Event()).is_set():
+                    logger.info(f"Created checkpoint {checkpoint_id}")
                 return checkpoint_id
                 
             except Exception as e:
