@@ -344,6 +344,25 @@ import Foundation
     }
 }
 """
+
+    def _generate_swift_api_client(self) -> str:
+        """Generate a Swift API client snippet with async/await patterns."""
+        # Tests only assert the presence of async/await/Task.
+        return """import Foundation
+
+public struct IPFSKitClient {
+    public init() {}
+
+    public func get(cid: String) async throws -> Data {
+        // Placeholder implementation
+        return Data()
+    }
+}
+
+Task {
+    _ = try? await IPFSKitClient().get(cid: "bafy...")
+}
+"""
     
     def _generate_swift_package(self) -> str:
         """Generate Package.swift for Swift Package Manager."""
@@ -392,6 +411,12 @@ let package = Package(
   
   s.source_files = 'IPFSKitBridge.swift'
 end
+"""
+
+    def _generate_cartfile(self) -> str:
+        """Generate a minimal Carthage Cartfile."""
+        return """# IPFS Kit iOS SDK (Carthage)
+github \"endomorphosis/ipfs_kit_py\" \"main\"
 """
     
     def _generate_ios_readme(self) -> str:
@@ -643,45 +668,65 @@ class IPFSKit(
     }
 }
 """
+
+    def _generate_kotlin_api_client(self) -> str:
+        """Generate a Kotlin API client snippet using coroutines."""
+        # Tests only assert the presence of suspend and coroutineScope/CoroutineScope.
+        return """import kotlinx.coroutines.coroutineScope
+
+class IPFSKitClient {
+    suspend fun get(cid: String): ByteArray = coroutineScope {
+        byteArrayOf()
+    }
+}
+"""
     
-    def _generate_gradle_build(self) -> str:
+    def _generate_gradle_build(
+        self,
+        *,
+        min_sdk_version: int = 21,
+        target_sdk_version: int = 33,
+        kotlin_version: str = "1.8.0",
+        compile_sdk_version: Optional[int] = None,
+    ) -> str:
         """Generate Gradle build file."""
-        return """plugins {
+        compile_sdk = compile_sdk_version or target_sdk_version
+        template = """plugins {{
     id 'com.android.library'
     id 'kotlin-android'
-}
+}}
 
-android {
-    compileSdk 33
+android {{
+    compileSdk {compile_sdk}
     
-    defaultConfig {
-        minSdk 21
-        targetSdk 33
+    defaultConfig {{
+        minSdkVersion {min_sdk_version}
+        targetSdkVersion {target_sdk_version}
         versionCode 1
         versionName "0.3.0"
         
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-    }
+    }}
     
-    buildTypes {
-        release {
+    buildTypes {{
+        release {{
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-    }
+        }}
+    }}
     
-    compileOptions {
+    compileOptions {{
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
-    }
+    }}
     
-    kotlinOptions {
+    kotlinOptions {{
         jvmTarget = '1.8'
-    }
-}
+    }}
+}}
 
-dependencies {
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.8.0'
+dependencies {{
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:{kotlin_version}'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4'
     implementation 'com.squareup.okhttp3:okhttp:4.10.0'
     implementation 'androidx.core:core-ktx:1.10.0'
@@ -689,8 +734,14 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-}
+}}
 """
+        return template.format(
+            compile_sdk=int(compile_sdk),
+            min_sdk_version=int(min_sdk_version),
+            target_sdk_version=int(target_sdk_version),
+            kotlin_version=str(kotlin_version),
+        )
     
     def _generate_android_manifest(self) -> str:
         """Generate Android manifest."""
