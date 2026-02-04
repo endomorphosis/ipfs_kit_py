@@ -102,6 +102,30 @@ class UnifiedMCPServer:
         "system_health",
     ]
 
+    @staticmethod
+    def _make_default_tool(tool_name: str) -> Dict[str, Any]:
+        """Create a minimal MCP tool descriptor.
+
+        Some tests validate that tools expose at least `name`, `description`,
+        and an `inputSchema` with a `type` and `properties`.
+        """
+        if tool_name.startswith("vfs_"):
+            description = f"VFS operation: {tool_name}"
+        elif tool_name.startswith("ipfs_"):
+            description = f"IPFS operation: {tool_name}"
+        else:
+            description = f"Tool: {tool_name}"
+
+        return {
+            "name": tool_name,
+            "description": description,
+            "inputSchema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": True,
+            },
+        }
+
     def __init__(
         self,
         host: str = "127.0.0.1",
@@ -136,7 +160,9 @@ class UnifiedMCPServer:
         logging.basicConfig(level=log_level)
         
         # Tool registry
-        self.tools: Dict[str, Any] = {name: {"name": name} for name in self.DEFAULT_TOOL_NAMES}
+        self.tools: Dict[str, Any] = {
+            name: self._make_default_tool(name) for name in self.DEFAULT_TOOL_NAMES
+        }
         
         # Register all MCP tools
         self._register_all_tools()
