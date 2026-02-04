@@ -28,158 +28,103 @@ logger = logging.getLogger(__name__)
 
 def test_extended_daemon_config_manager():
     """Test that the extended daemon configuration manager works properly."""
-    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
-        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run extended daemon config tests")
     logger.info("Testing extended daemon configuration manager...")
-    
-    success = True
-    
+
     try:
         # Import the daemon configuration manager
         from ipfs_kit_py.daemon_config_manager import DaemonConfigManager
+        import json
+        import tempfile
         
-        # Create instance
-        manager = DaemonConfigManager()
-        logger.info("✓ DaemonConfigManager imported and instantiated successfully")
-        
-        # Check that all expected services are covered
-        expected_services = [
-            'ipfs', 'lotus', 'lassie', 
-            'ipfs_cluster_service', 'ipfs_cluster_follow', 'ipfs_cluster_ctl',
-            's3', 'huggingface', 'storacha'
-        ]
-        
-        # Test configuration checking for all services
-        logger.info("🔧 Testing configuration checking for all services...")
-        config_results = manager.check_and_configure_all_daemons()
-        
-        # Check that all expected services are in the results
-        missing_services = []
-        for service in expected_services:
-            if service not in config_results:
-                missing_services.append(service)
-        
-        if missing_services:
-            logger.error(f"❌ Missing services in configuration results: {missing_services}")
-            success = False
-        else:
-            logger.info("✅ All expected services are covered in configuration results")
-        
-        # Report on each service's configuration status
-        logger.info("\n📊 Configuration Status Report:")
-        for service in expected_services:
-            if service in config_results:
-                result = config_results[service]
-                if result.get("success", False) or result.get("already_configured", False):
-                    logger.info(f"  ✅ {service}: Configured successfully")
-                else:
-                    error_msg = result.get("error", "Unknown error")
-                    logger.warning(f"  ⚠️  {service}: {error_msg}")
-            else:
-                logger.error(f"  ❌ {service}: Not found in results")
-        
-        # Test overall success
-        overall_success = config_results.get("overall_success", False)
-        logger.info(f"\n🎯 Overall configuration success: {overall_success}")
-        
-        # Test validation
-        logger.info("\n🔍 Testing configuration validation...")
-        validation_results = manager.validate_daemon_configs()
-        
-        overall_valid = validation_results.get("overall_valid", False)
-        logger.info(f"🎯 Overall configuration validation: {overall_valid}")
-        
-        # Test configuration update functionality
-        logger.info("\n🔄 Testing configuration update functionality...")
-        
-        # Test updating IPFS config
-        update_result = manager.update_daemon_config("ipfs", {"test_key": "test_value"})
-        if update_result.get("success", False):
-            logger.info("✅ Configuration update test passed")
-        else:
-            logger.warning(f"⚠️  Configuration update test: {update_result.get('error', 'Unknown error')}")
-        
-        return success
+        # Use a temp repo so we never touch ~/.ipfs
+        with tempfile.TemporaryDirectory() as temp_dir:
+            manager = DaemonConfigManager()
+            manager.ipfs_path = str(Path(temp_dir) / ".ipfs")
+            manager.lotus_path = str(Path(temp_dir) / ".lotus")
+
+            ipfs_dir = Path(manager.ipfs_path)
+            ipfs_dir.mkdir(parents=True, exist_ok=True)
+            (ipfs_dir / "config").write_text(
+                json.dumps({"Identity": {}, "Addresses": {}, "Discovery": {}}, indent=2),
+                encoding="utf-8",
+            )
+            logger.info("✓ DaemonConfigManager imported and instantiated successfully")
+
+            # Current manager only tracks these daemon types.
+            expected_services = {"ipfs", "lotus", "cluster"}
+
+            logger.info("🔧 Testing configuration checking...")
+            config_results = manager.check_and_configure_all_daemons()
+            assert config_results.get("success") is True
+            assert config_results.get("all_configured") is True
+
+            daemon_results = config_results.get("daemon_results") or {}
+            assert set(daemon_results.keys()) >= expected_services
+
+            logger.info("✅ Extended daemon configuration manager checks passed")
+            assert True
         
     except Exception as e:
         logger.error(f"❌ Error testing extended daemon configuration manager: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
-        return False
+        pytest.fail(f"Error testing extended daemon configuration manager: {e}")
 
 def test_enhanced_mcp_server():
     """Test that the enhanced MCP server with configuration management works."""
-    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
-        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run enhanced MCP server config tests")
     logger.info("Testing enhanced MCP server with configuration management...")
     
     try:
-        # Import the enhanced MCP server
-        from ipfs_kit_py.mcp.enhanced_mcp_server_with_config import EnhancedMCPServerWithConfig
-        
-        # Create instance
-        server = EnhancedMCPServerWithConfig()
-        logger.info("✓ EnhancedMCPServerWithConfig imported and instantiated successfully")
-        
-        # Check that it has the expected attributes
-        expected_attributes = ['daemon_config_manager', 'config_status', 'startup_errors']
-        
-        for attr in expected_attributes:
-            if hasattr(server, attr):
-                logger.info(f"✅ Server has expected attribute: {attr}")
-            else:
-                logger.warning(f"⚠️  Server missing expected attribute: {attr}")
-        
-        return True
+        from ipfs_kit_py.mcp.enhanced_mcp_server_with_config import InMemoryClusterState, create_app
+
+        state = InMemoryClusterState(node_id="test-node", role="master")
+        payload = state.health_payload()
+        assert payload["status"] == "healthy"
+        assert payload["node_info"]["id"] == "test-node"
+
+        app = create_app(state)
+        # Basic sanity: FastAPI app has routes registered
+        assert hasattr(app, "routes")
+        assert len(app.routes) > 0
+
+        logger.info("✅ Lightweight MCP server module import/sanity passed")
+        assert True
         
     except Exception as e:
         logger.error(f"❌ Error testing enhanced MCP server: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
-        return False
+        pytest.fail(f"Error testing enhanced MCP server: {e}")
 
 def test_service_specific_configurations():
     """Test that service-specific configurations work correctly."""
-    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
-        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run service-specific config tests")
     logger.info("Testing service-specific configurations...")
     
     try:
         from ipfs_kit_py.daemon_config_manager import DaemonConfigManager
+        import json
+        import tempfile
         
-        manager = DaemonConfigManager()
-        
-        # Test individual service configurations
-        services_to_test = [
-            ('ipfs', 'IPFS'),
-            ('lotus', 'Lotus'),
-            ('lassie', 'Lassie'),
-            ('s3', 'S3'),
-            ('huggingface', 'HuggingFace'),
-            ('storacha', 'Storacha')
-        ]
-        
-        for service_key, service_name in services_to_test:
-            logger.info(f"Testing {service_name} configuration...")
-            
-            # Test individual configuration method
-            method_name = f"check_and_configure_{service_key}"
-            if hasattr(manager, method_name):
-                method = getattr(manager, method_name)
-                result = method()
-                
-                if result.get("success", False) or result.get("already_configured", False):
-                    logger.info(f"  ✅ {service_name} configuration: Success")
-                else:
-                    error_msg = result.get("error", "Unknown error")
-                    logger.warning(f"  ⚠️  {service_name} configuration: {error_msg}")
-            else:
-                logger.error(f"  ❌ {service_name}: Configuration method not found")
-        
-        return True
+        with tempfile.TemporaryDirectory() as temp_dir:
+            manager = DaemonConfigManager()
+            manager.ipfs_path = str(Path(temp_dir) / ".ipfs")
+
+            ipfs_dir = Path(manager.ipfs_path)
+            ipfs_dir.mkdir(parents=True, exist_ok=True)
+            (ipfs_dir / "config").write_text(
+                json.dumps({"Identity": {}, "Addresses": {}, "Discovery": {}}, indent=2),
+                encoding="utf-8",
+            )
+
+            for daemon_type in ("ipfs", "lotus", "cluster"):
+                logger.info(f"Checking {daemon_type} configuration...")
+                result = manager.check_daemon_configuration(daemon_type)
+                assert set(result.keys()) >= {"configured", "path_exists", "config_exists", "valid_config", "errors"}
+
+        assert True
         
     except Exception as e:
         logger.error(f"❌ Error testing service-specific configurations: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
-        return False
+        pytest.fail(f"Error testing service-specific configurations: {e}")
 
 def main():
     """Run all tests for the extended configuration management."""
@@ -201,6 +146,7 @@ def main():
         
         try:
             result = test_func()
+            result = True if result is None else bool(result)
             results[test_name] = result
             
             if result:
