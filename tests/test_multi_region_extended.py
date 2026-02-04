@@ -330,14 +330,18 @@ class TestMultiRegionClusterExtended:
         
         # Mock timeout
         async def mock_timeout(*args, **kwargs):
-            await asyncio.sleep(10)  # Simulate long delay
+            await anyio.sleep(10)  # Simulate long delay
             return (False, 10.0)
         
         cluster._check_endpoint = mock_timeout
         
-        # Should handle timeout gracefully
-        with pytest.raises(asyncio.TimeoutError):
-            await asyncio.wait_for(cluster.health_check("us-west-1"), timeout=0.1)
+        # Should handle timeout gracefully - use anyio timeout with proper exception handling
+        try:
+            with anyio.fail_after(0.1):
+                await cluster.health_check("us-west-1")
+            assert False, "Should have timed out"
+        except TimeoutError:
+            pass  # Expected timeout, test passes
     
     def test_latency_zone_grouping(self):
         """Test grouping regions by latency zone."""
