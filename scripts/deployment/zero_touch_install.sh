@@ -297,7 +297,12 @@ PY
     datasets_freeze="$(python -m pip freeze 2>/dev/null | grep -E '^ipfs_datasets_py(==| @ )' | head -n 1 || true)"
     if [[ -z "${datasets_freeze}" || "${datasets_freeze}" != *"github.com/endomorphosis/ipfs_datasets_py"* ]]; then
       log "Ensuring ipfs_datasets_py is installed from endomorphosis/ipfs_datasets_py@main"
-      python -m pip install "ipfs_datasets_py @ https://github.com/endomorphosis/ipfs_datasets_py/archive/refs/heads/main.zip" || true
+      if have_cmd git; then
+        python -m pip install --upgrade --force-reinstall "ipfs_datasets_py @ git+https://github.com/endomorphosis/ipfs_datasets_py.git@main" || \
+          python -m pip install --upgrade --force-reinstall "ipfs_datasets_py @ https://github.com/endomorphosis/ipfs_datasets_py/archive/refs/heads/main.zip" || true
+      else
+        python -m pip install --upgrade --force-reinstall "ipfs_datasets_py @ https://github.com/endomorphosis/ipfs_datasets_py/archive/refs/heads/main.zip" || true
+      fi
     fi
   fi
 
@@ -306,7 +311,12 @@ PY
     accel_freeze="$(python -m pip freeze 2>/dev/null | grep -E '^ipfs_accelerate_py(==| @ )' | head -n 1 || true)"
     if [[ -z "${accel_freeze}" || "${accel_freeze}" != *"github.com/endomorphosis/ipfs_accelerate_py"* ]]; then
       log "Ensuring ipfs_accelerate_py is installed from endomorphosis/ipfs_accelerate_py@main"
-      python -m pip install "ipfs_accelerate_py @ https://github.com/endomorphosis/ipfs_accelerate_py/archive/refs/heads/main.zip" || true
+      if have_cmd git; then
+        python -m pip install --upgrade --force-reinstall "ipfs_accelerate_py @ git+https://github.com/endomorphosis/ipfs_accelerate_py.git@main" || \
+          python -m pip install --upgrade --force-reinstall "ipfs_accelerate_py @ https://github.com/endomorphosis/ipfs_accelerate_py/archive/refs/heads/main.zip" || true
+      else
+        python -m pip install --upgrade --force-reinstall "ipfs_accelerate_py @ https://github.com/endomorphosis/ipfs_accelerate_py/archive/refs/heads/main.zip" || true
+      fi
     fi
   fi
 
