@@ -701,6 +701,9 @@ install_vendored_ipld_packages() {
     log "Enabled vendored IPLD packages via PYTHONPATH in ./bin/env.sh"
   else
     err "WARNING: Vendored IPLD packages not found under ./docs; skipping"
+  fi
+}
+
 pip_install_best_effort() {
   local spec="$1"
   local label="$2"

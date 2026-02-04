@@ -108,7 +108,7 @@ echo ""
 
 echo -e "${YELLOW}ℹ️ To monitor a fresh installation:${NC}"
 echo "   python3 scripts/ci/monitor_first_install.py \\"
-echo "     --command \"pip install ipfs-kit-py\""
+echo "     --command \"pip install 'ipfs_kit_py @ git+https://github.com/endomorphosis/ipfs_kit_py@main'\""
 echo ""
 
 echo -e "${YELLOW}ℹ️ To monitor local development installation:${NC}"
