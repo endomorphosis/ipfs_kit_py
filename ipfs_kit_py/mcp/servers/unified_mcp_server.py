@@ -37,6 +37,9 @@ import json
 import logging
 from typing import Optional, Dict, Any, List
 from pathlib import Path
+import sys
+
+import anyio
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +166,9 @@ class UnifiedMCPServer:
         self.tools: Dict[str, Any] = {
             name: self._make_default_tool(name) for name in self.DEFAULT_TOOL_NAMES
         }
+
+        # Small compatibility surface for tests expecting an integration object.
+        self.ipfs_integration = _UnifiedIPFSIntegration()
         
         # Register all MCP tools
         self._register_all_tools()
@@ -470,6 +476,66 @@ class UnifiedMCPServer:
         payload = {"success": True, "tool": name, "arguments": arguments}
         return {"content": [{"type": "text", "text": json.dumps(payload)}], "isError": False}
 
+    async def execute_tool(self, tool_name: str, arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Compatibility shim for tests that call server.execute_tool()."""
+        resp = await self.handle_tools_call({"name": tool_name, "arguments": arguments or {}})
+        return resp
+
+    async def run_stdio(self) -> None:
+        """Minimal JSON-RPC stdio loop (test-oriented).
+
+        Supports: initialize, tools/list, tools/call, notifications/initialized.
+        """
+
+        async def _readline() -> str:
+            return await anyio.to_thread.run_sync(sys.stdin.readline)
+
+        while True:
+            line = await _readline()
+            if not line:
+                return
+            line = line.strip()
+            if not line:
+                continue
+
+            try:
+                msg = json.loads(line)
+            except Exception:
+                continue
+
+            method = msg.get("method")
+            msg_id = msg.get("id")
+            params = msg.get("params")
+
+            # Notifications have no id and require no response.
+            if method == "notifications/initialized":
+                continue
+
+            try:
+                if method == "initialize":
+                    result = await self.handle_initialize(params)
+                    response = {"jsonrpc": "2.0", "id": msg_id, "result": result}
+                elif method == "tools/list":
+                    result = await self.handle_tools_list(params)
+                    response = {"jsonrpc": "2.0", "id": msg_id, "result": result}
+                elif method == "tools/call":
+                    result = await self.handle_tools_call(params or {})
+                    response = {"jsonrpc": "2.0", "id": msg_id, "result": result}
+                else:
+                    response = {
+                        "jsonrpc": "2.0",
+                        "id": msg_id,
+                        "error": {"code": -32601, "message": f"Method not found: {method}"},
+                    }
+            except Exception as e:
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": msg_id,
+                    "error": {"code": -32000, "message": str(e)},
+                }
+
+            print(json.dumps(response), flush=True)
+
     def cleanup(self):
         """Clean up resources for tests."""
         return None
@@ -580,6 +646,25 @@ def create_mcp_server(
     )
 
 
+class _UnifiedIPFSIntegration:
+    """Minimal integration shim used by VFS MCP tests."""
+
+    def __init__(self):
+        self.vfs_enabled = True
+
+    async def execute_vfs_operation(self, operation: str, **kwargs) -> Dict[str, Any]:
+        # Avoid hard dependencies; delegate to ipfs_fsspec if present.
+        try:
+            import ipfs_kit_py.ipfs_fsspec as ipfs_fsspec
+
+            func = getattr(ipfs_fsspec, operation, None)
+            if func is None:
+                return {"success": False, "error": f"Unknown VFS op: {operation}"}
+            return await func(**kwargs)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+
 class IPFSKitIntegration:
     """Small compatibility wrapper used by several test harnesses.
 
@@ -632,7 +717,12 @@ def main():
         data_dir=args.data_dir,
         debug=args.debug
     )
-    
+
+    # If launched with stdin piped (like the test harness), run stdio JSON-RPC.
+    if not sys.stdin.isatty():
+        anyio.run(server.run_stdio)
+        return
+
     try:
         server.run()
     except KeyboardInterrupt:
