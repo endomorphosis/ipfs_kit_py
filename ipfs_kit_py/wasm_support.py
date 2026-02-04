@@ -8,6 +8,7 @@ and edge computing applications.
 
 import logging
 import importlib
+from collections.abc import Coroutine
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,47 @@ class _AwaitableValue:
 
     def __repr__(self):
         return repr(self.value)
+
+
+class _CoroutineValue(Coroutine):
+    """A minimal coroutine object that immediately yields a value.
+
+    AnyIO's TaskGroup requires functions passed to `start_soon()` to return a
+    *coroutine object* (not just an awaitable). Some tests also call registry
+    methods synchronously; returning real `async def` coroutines there would
+    produce "coroutine was never awaited" warnings.
+
+    This object satisfies both: it's recognized as a coroutine, but does not
+    allocate a real coroutine frame.
+    """
+
+    def __init__(self, value):
+        self._value = value
+        self._done = False
+
+    def __await__(self):
+        if False:  # pragma: no cover
+            yield None
+        return self._value
+
+    def send(self, value):
+        self._done = True
+        raise StopIteration(self._value)
+
+    def throw(self, typ, val=None, tb=None):
+        self._done = True
+        if val is None:
+            raise typ
+        raise typ(val).with_traceback(tb)
+
+    def close(self):
+        self._done = True
+
+    def __bool__(self):
+        return bool(self._value)
+
+    def __repr__(self):
+        return repr(self._value)
 
 # Check for WASM dependencies
 try:
@@ -466,8 +508,9 @@ class WasmModuleRegistry:
         self.ipfs_api = ipfs_api
         self.modules = {}
         logger.info("WASM module registry initialized")
-    def register_module(self, name: str, cid: str, 
-                             metadata: Optional[Dict[str, Any]] = None) -> bool:
+    async def register_module(
+        self, name: str, cid: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> bool:
         """
         Register a WASM module.
         
@@ -487,10 +530,10 @@ class WasmModuleRegistry:
             }
             
             logger.info(f"Registered WASM module {name} at {cid}")
-            return _AwaitableValue(True)
+            return True
         except Exception as e:
             logger.error(f"Error registering module {name}: {e}")
-            return _AwaitableValue(False)
+            return False
     def get_module(self, name: str) -> Optional[Dict[str, Any]]:
         """
         Get module information.

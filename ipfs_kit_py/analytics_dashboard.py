@@ -130,16 +130,19 @@ class AnalyticsCollector:
         lifetime_bytes = int(self.total_bytes)
         lifetime_errors = int(self.total_errors)
 
-        # Cap reported totals for very high-volume runs, but keep small-window
-        # collectors reporting full lifetime totals (some coverage tests expect this).
-        cap = max(int(self.window_size), 1000)
-        reported_ops = lifetime_ops if lifetime_ops <= cap else cap
-        reported_errors = lifetime_errors if lifetime_errors <= reported_ops else reported_ops
+        # Window totals are based on the in-memory deques.
+        window_total_operations = int(len(self.operations))
+        window_total_bytes = int(
+            sum(int(op.get("bytes") or 0) for op in self.operations)
+        )
+        window_total_errors = int(
+            sum(1 for op in self.operations if not op.get("success", True))
+        )
 
-        # Calculate rates
-        ops_per_second = reported_ops / uptime if uptime > 0 else 0
-        bytes_per_second = lifetime_bytes / uptime if uptime > 0 else 0
-        error_rate = reported_errors / reported_ops if reported_ops > 0 else 0
+        # Calculate rates (use lifetime counters; tests generally assert lifetime totals).
+        ops_per_second = lifetime_ops / uptime if uptime > 0 else 0.0
+        bytes_per_second = lifetime_bytes / uptime if uptime > 0 else 0.0
+        error_rate = lifetime_errors / lifetime_ops if lifetime_ops > 0 else 0.0
 
         # Calculate latency statistics
         latency_stats: Dict[str, float] = {}
@@ -163,22 +166,22 @@ class AnalyticsCollector:
 
         return {
             "uptime": uptime,
-            "total_operations": total_operations,
-            "total_bytes": total_bytes,
-            "total_errors": total_errors,
+            "total_operations": lifetime_ops,
+            "total_bytes": lifetime_bytes,
+            "total_errors": lifetime_errors,
             "window_total_operations": window_total_operations,
             "window_total_bytes": window_total_bytes,
             "window_total_errors": window_total_errors,
-            "lifetime_total_operations": int(self.total_operations),
-            "lifetime_total_bytes": int(self.total_bytes),
-            "lifetime_total_errors": int(self.total_errors),
+            "lifetime_total_operations": lifetime_ops,
+            "lifetime_total_bytes": lifetime_bytes,
+            "lifetime_total_errors": lifetime_errors,
             "ops_per_second": ops_per_second,
             "bytes_per_second": bytes_per_second,
             "error_rate": error_rate,
             "latency": latency_stats,
             **flat_latency,
-            "operation_counts": dict(operation_counts),
-            "error_counts": dict(error_counts),
+            "operation_counts": dict(self.operation_counts),
+            "error_counts": dict(self.error_counts),
             "top_peers": self._get_top_peers(5),
         }
 
