@@ -71,7 +71,8 @@ class BucketMetadataExporter:
         include_vector_index: bool = True,
         knowledge_graph: Any = None,
         vector_index: Any = None,
-        format: str = "json"
+        format: str = "json",
+        upload_to_ipfs: bool = True,
     ) -> Dict[str, Any]:
         """
         Export comprehensive bucket metadata.
@@ -145,7 +146,7 @@ class BucketMetadataExporter:
             metadata_cid = None
             export_path = None
             
-            if self.ipfs_client:
+            if self.ipfs_client and upload_to_ipfs:
                 result = await self._upload_to_ipfs(metadata_bytes, content_type)
                 metadata_cid = result.get("cid")
             

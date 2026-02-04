@@ -119,8 +119,15 @@ class WasmIPFSBridge:
             else:
                 raise Exception("IPFS API missing cat/get")
         except Exception as e:
+            msg = str(e).lower()
+            # Invalid CID / missing content should be non-fatal (tests expect None).
+            if "invalid cid" in msg or ("cid" in msg and "invalid" in msg) or "not found" in msg:
+                logger.error(f"Failed to fetch WASM module {cid}: {e}")
+                return None
+
+            # Connection / transport failures should surface as exceptions.
             logger.error(f"Failed to fetch WASM module {cid}: {e}")
-            return None
+            raise
 
         # Empty/invalid module bytes should surface as errors.
         if not wasm_bytes:

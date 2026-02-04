@@ -350,6 +350,7 @@ class MultiRegionCluster:
         results: Dict[str, Any] = {}
         replicated: List[str] = []
         overall_success = True
+        found_any_region = False
 
         for region_id in region_ids:
             region = self.regions.get(region_id)
@@ -359,6 +360,8 @@ class MultiRegionCluster:
                 results[region_id] = {"success": False, "error": f"Region {region_id} not found"}
                 overall_success = False
                 continue
+
+            found_any_region = True
 
             try:
                 region_result = await self._replicate_to_region(cid, region)
@@ -370,6 +373,9 @@ class MultiRegionCluster:
             except Exception as e:
                 results[region.region_id] = {"success": False, "error": str(e)}
                 overall_success = False
+
+        if not found_any_region:
+            raise Exception("No valid target regions")
 
         payload: Dict[str, Any] = {"success": overall_success, "cid": cid, "regions": replicated, "results": results}
 
