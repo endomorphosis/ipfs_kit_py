@@ -251,14 +251,16 @@ class TestImprovedGraphRAG:
         
         with tempfile.TemporaryDirectory() as tmpdir:
             engine = GraphRAGSearchEngine(workspace_dir=tmpdir)
-            
-            if engine.knowledge_graph:
-                engine.knowledge_graph.add_node("QmTest1", path="/test/file.txt")
-                
-                result = await engine.graph_search("test", max_depth=3)
-                
-                assert result["success"] == True
-                assert "results" in result
+
+            if engine.knowledge_graph is None:
+                pytest.skip("NetworkX not available")
+
+            engine.knowledge_graph.add_node("QmTest1", path="/test/file.txt")
+
+            result = await engine.graph_search("test", max_depth=3)
+
+            assert result["success"] == True
+            assert "results" in result
     
     @pytest.mark.anyio
     async def test_graph_search_no_graph(self):
@@ -282,6 +284,7 @@ class TestImprovedGraphRAG:
         with tempfile.TemporaryDirectory() as tmpdir:
             engine = GraphRAGSearchEngine(workspace_dir=tmpdir)
             
+            # rdflib.Graph is falsy when empty, so only treat None as unavailable.
             if engine.rdf_graph is None:
                 pytest.skip("RDFLib not available")
             

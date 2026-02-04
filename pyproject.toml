@@ -181,6 +181,7 @@ dev = [
     "twine>=4.0.2",
     "playwright>=1.30.0",
     "pytest-playwright>=0.4.0",
+    "rdflib>=7.0.0",
 ]
 full = [
     # Core functionality

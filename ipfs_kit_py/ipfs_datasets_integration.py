@@ -31,6 +31,7 @@ from typing import Dict, List, Any, Optional, Union
 from pathlib import Path
 import json
 import datetime
+import importlib.util
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -78,11 +79,17 @@ def _ensure_ipfs_datasets_loaded() -> None:
         IPFS_DATASETS_AVAILABLE = False
         return
     try:
-        import ipfs_datasets_py as _datasets  # noqa: F401
+        spec = importlib.util.find_spec("ipfs_datasets_py")
+        if spec is None:
+            IPFS_DATASETS_AVAILABLE = False
+            IPFSDatasetManager = None
+            logger.info("ipfs_datasets_py not available - using fallback implementations")
+            return
 
-        _ipfs_datasets_py = _datasets
+        # Mark available without importing, to avoid heavy side effects at import time.
         IPFS_DATASETS_AVAILABLE = True
         IPFSDatasetManager = None
+        _ipfs_datasets_py = None
         logger.info("ipfs_datasets_py is available for dataset operations")
     except Exception:
         IPFS_DATASETS_AVAILABLE = False

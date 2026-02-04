@@ -459,7 +459,7 @@ write_env_sh() {
 # Source this to use locally installed tools
 
 # Prefer the project-local virtualenv when present.
-# This ensures `python`/`pytest` resolve to ./.venv and see all installed deps.
+# This ensures python/pytest resolve to ./.venv and see all installed deps.
 if [ -d "${VENV_DIR}/bin" ]; then
   export VIRTUAL_ENV="${VENV_DIR}"
   export PATH="${VENV_DIR}/bin:${BIN_DIR}:\$PATH"

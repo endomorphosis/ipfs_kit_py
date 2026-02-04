@@ -632,6 +632,7 @@ class GraphRAGSearchEngine:
         if not query or not str(query).strip():
             return [] if self._legacy_path_api else {"success": True, "results": []}
 
+        # rdflib.Graph is falsy when empty; only None means unavailable.
         if self.rdf_graph is None or not HAS_RDFLIB:
             return [] if self._legacy_path_api else {"success": False, "error": "SPARQL search dependencies not available."}
         
@@ -965,7 +966,7 @@ class GraphRAGSearchEngine:
             
             # Graph statistics
             graph_stats = {}
-            if self.knowledge_graph:
+            if self.knowledge_graph is not None:
                 graph_stats = {
                     "nodes": self.knowledge_graph.number_of_nodes(),
                     "edges": self.knowledge_graph.number_of_edges(),
@@ -974,7 +975,7 @@ class GraphRAGSearchEngine:
             
             # RDF statistics
             rdf_stats = {}
-            if self.rdf_graph:
+            if self.rdf_graph is not None:
                 rdf_stats = {
                     "triples": len(self.rdf_graph)
                 }

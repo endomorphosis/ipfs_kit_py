@@ -36,6 +36,7 @@ duckdb>=0.10.0
 numpy>=1.20.0
 matplotlib>=3.7.0
 networkx>=3.0
+rdflib>=7.0.0
 
 # IPLD support
 ipld-car>=0.0.1
