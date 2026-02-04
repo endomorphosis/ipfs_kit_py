@@ -1,12 +1,12 @@
 {
   "operations": {
     "add": {
-      "count": 2,
-      "success": 2,
+      "count": 3,
+      "success": 3,
       "failed": 0,
 <<<<<<< Updated upstream
       "response_times": [
-        0.0002810955047607422
+        0.00028061866760253906
       ]
 =======
       "response_times": []
@@ -45,8 +45,8 @@
   },
   "throughput": {
     "uploads": {
-      "bytes": 58,
-      "operations": 2
+      "bytes": 87,
+      "operations": 3
     },
     "downloads": {
       "bytes": 0,
@@ -64,6 +64,7 @@
     "success_rate": 100.0,
     "avg_response_time": 0.0002810955047607422
   },
+<<<<<<< Updated upstream
   "last_updated": 1770195820.589798
 =======
     "operations": 1,
@@ -76,5 +77,8 @@
     "avg_response_time": 0
   },
   "last_updated": 1770195635.3224685
+>>>>>>> Stashed changes
+=======
+  "last_updated": 1770196404.0978382
 >>>>>>> Stashed changes
 }
