@@ -72,7 +72,7 @@ class BucketMetadataExporter:
         knowledge_graph: Any = None,
         vector_index: Any = None,
         format: str = "json",
-        upload_to_ipfs: bool = True,
+        upload_to_ipfs: bool = False,
     ) -> Dict[str, Any]:
         """
         Export comprehensive bucket metadata.
@@ -88,7 +88,7 @@ class BucketMetadataExporter:
             Dict with export results including metadata CID
         """
         try:
-            logger.info(f"Exporting metadata for bucket: {bucket.name}")
+            logger.info(f"Exporting metadata for bucket: {self._safe_attr(bucket, 'name', 'unknown')}")
 
             bucket_name = self._safe_attr(bucket, "name", "unknown")
             bucket_type = self._safe_attr(bucket, "bucket_type", "standard")
