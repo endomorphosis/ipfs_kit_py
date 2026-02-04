@@ -444,6 +444,10 @@ class S3Gateway:
             logger.error(f"Error getting object: {e}")
             return None
 
+    async def _read_object(self, bucket: str, key: str) -> Optional[bytes]:
+        """Back-compat alias used by some tests."""
+        return await self._get_object(bucket, key)
+
     async def _get_object_from_ipfs(self, cid: str) -> Optional[bytes]:
         """Fetch raw object bytes from IPFS by CID (test helper)."""
         if self.ipfs_api is None:

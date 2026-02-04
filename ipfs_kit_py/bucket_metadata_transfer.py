@@ -371,6 +371,16 @@ class BucketMetadataImporter:
             if not metadata:
                 return {"success": False, "error": "Failed to fetch metadata from IPFS"}
             
+            # Allow callers to override missing fields for import convenience
+            bucket_info = metadata.get("bucket_info")
+            if not isinstance(bucket_info, dict):
+                bucket_info = {}
+                metadata["bucket_info"] = bucket_info
+            if new_bucket_name and "name" not in bucket_info:
+                bucket_info["name"] = new_bucket_name
+            if "type" not in bucket_info:
+                bucket_info["type"] = "general"
+
             # Validate metadata structure
             if not self._validate_metadata(metadata):
                 return {"success": False, "error": "Invalid metadata structure"}
@@ -454,7 +464,18 @@ class BucketMetadataImporter:
                 logger.error(f"Missing required field: {field}")
                 return False
         
-        # bucket_info may be minimal; defaults are applied during import.
+        # Validate bucket_info
+        bucket_info = metadata.get("bucket_info", {})
+        if not isinstance(bucket_info, dict):
+            logger.error("bucket_info must be a dict")
+            return False
+
+        required_bucket_fields = ["name", "type"]
+        for field in required_bucket_fields:
+            if field not in bucket_info:
+                logger.error(f"Missing required bucket_info field: {field}")
+                return False
+
         return True
     
     async def _create_bucket_from_metadata(self, bucket_name: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
