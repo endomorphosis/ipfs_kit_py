@@ -72,7 +72,7 @@ class BucketMetadataExporter:
         knowledge_graph: Any = None,
         vector_index: Any = None,
         format: str = "json",
-        upload_to_ipfs: bool = False,
+        upload_to_ipfs: bool = True,
     ) -> Dict[str, Any]:
         """
         Export comprehensive bucket metadata.
@@ -142,13 +142,17 @@ class BucketMetadataExporter:
                 metadata_bytes = json.dumps(metadata, indent=2).encode('utf-8')
                 content_type = "application/json"
             
-            # Upload to IPFS when requested and a client is available
+            # Upload to IPFS by default when a client is available (many callers/tests
+            # expect a CID to be returned without having to opt in).
             metadata_cid = None
             export_path = None
             
             if self.ipfs_client and upload_to_ipfs:
-                result = await self._upload_to_ipfs(metadata_bytes, content_type)
-                metadata_cid = result.get("cid")
+                try:
+                    result = await self._upload_to_ipfs(metadata_bytes, content_type)
+                    metadata_cid = result.get("cid")
+                except Exception as e:
+                    logger.warning(f"IPFS upload failed; continuing with local export: {e}")
             
             # Always save to local file as backup
             storage_path = self._safe_attr(bucket, "storage_path", None)
@@ -157,7 +161,8 @@ class BucketMetadataExporter:
             else:
                 storage_path = Path(storage_path)
 
-            export_path = storage_path / f"metadata_export_{int(time.time())}.json"
+            ext = "cbor" if (format == "cbor" and HAS_CBOR) else "json"
+            export_path = storage_path / f"metadata_export_{int(time.time())}.{ext}"
             export_path.parent.mkdir(parents=True, exist_ok=True)
             with open(export_path, 'wb') as f:
                 f.write(metadata_bytes)
