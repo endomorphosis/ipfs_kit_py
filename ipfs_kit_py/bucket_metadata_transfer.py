@@ -69,7 +69,6 @@ class BucketMetadataExporter:
         include_files: bool = True,
         include_knowledge_graph: bool = True,
         include_vector_index: bool = True,
-        upload_to_ipfs: bool = False,
         knowledge_graph: Any = None,
         vector_index: Any = None,
         format: str = "json",
@@ -147,11 +146,7 @@ class BucketMetadataExporter:
             metadata_cid = None
             export_path = None
             
-<<<<<<< Updated upstream
             if self.ipfs_client and upload_to_ipfs:
-=======
-            if upload_to_ipfs and self.ipfs_client:
->>>>>>> Stashed changes
                 result = await self._upload_to_ipfs(metadata_bytes, content_type)
                 metadata_cid = result.get("cid")
             

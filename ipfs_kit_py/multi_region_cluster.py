@@ -374,7 +374,7 @@ class MultiRegionCluster:
                 results[region.region_id] = {"success": False, "error": str(e)}
                 overall_success = False
 
-        if not found_any_region:
+        if region_ids and not found_any_region:
             raise Exception("No valid target regions")
 
         payload: Dict[str, Any] = {"success": overall_success, "cid": cid, "regions": replicated, "results": results}
