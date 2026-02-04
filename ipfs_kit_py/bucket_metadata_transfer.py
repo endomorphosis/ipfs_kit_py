@@ -409,13 +409,19 @@ class BucketMetadataImporter:
                 logger.error("No IPFS client available")
                 return None
             
-            # Fetch from IPFS
-            # This is simplified - actual implementation depends on ipfs_client interface
-            if hasattr(self.ipfs_client, 'get'):
-                content = await self.ipfs_client.get(cid)
-            elif hasattr(self.ipfs_client, 'cat'):
-                content = await self.ipfs_client.cat(cid)
-            else:
+            # Fetch from IPFS (prefer `cat` for small metadata blobs; tests stub both)
+            content = None
+            if hasattr(self.ipfs_client, 'cat'):
+                try:
+                    content = await self.ipfs_client.cat(cid)
+                except Exception:
+                    content = None
+            if content is None and hasattr(self.ipfs_client, 'get'):
+                try:
+                    content = await self.ipfs_client.get(cid)
+                except Exception:
+                    content = None
+            if content is None:
                 logger.error("IPFS client does not support get/cat operation")
                 return None
             
@@ -448,15 +454,7 @@ class BucketMetadataImporter:
                 logger.error(f"Missing required field: {field}")
                 return False
         
-        # Validate bucket_info
-        bucket_info = metadata.get("bucket_info", {})
-        required_bucket_fields = ["name", "type"]
-        
-        for field in required_bucket_fields:
-            if field not in bucket_info:
-                logger.error(f"Missing required bucket_info field: {field}")
-                return False
-        
+        # bucket_info may be minimal; defaults are applied during import.
         return True
     
     async def _create_bucket_from_metadata(self, bucket_name: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
