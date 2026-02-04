@@ -71,6 +71,29 @@ def _pick_free_local_port() -> int:
         return int(s.getsockname()[1])
 
 
+def _multiaddr_to_http_url(multiaddr: str) -> str | None:
+    """Convert a basic multiaddr like /ip4/127.0.0.1/tcp/5001 to http://127.0.0.1:5001.
+
+    Supports ip4/ip6/dns4/dns6 + tcp.
+    """
+    parts = [p for p in (multiaddr or "").strip().split("/") if p]
+    host: str | None = None
+    port: int | None = None
+
+    for i, proto in enumerate(parts):
+        if proto in {"ip4", "dns4", "dns", "dnsaddr", "dns6", "ip6"} and i + 1 < len(parts):
+            host = parts[i + 1]
+        if proto == "tcp" and i + 1 < len(parts):
+            with suppress(Exception):
+                port = int(parts[i + 1])
+
+    if not host or not port:
+        return None
+    if ":" in host and not host.startswith("["):
+        host = f"[{host}]"
+    return f"http://{host}:{port}"
+
+
 def _configure_ipfs_repo_ports(ipfs_repo: Path, *, force: bool = False) -> None:
     """Avoid port collisions with any already-running daemon.
 
@@ -447,6 +470,38 @@ def anyio_backend():
 def tools(server):
     """Provide the tool list from the shared MCP server."""
     return list(getattr(server, "tools", {}).keys())
+
+
+@pytest.fixture(scope="session")
+def ipfs_api_v0_url() -> str:
+    """Return the IPFS HTTP API base URL (ending in /api/v0).
+
+    The test harness may rebind the API port away from 5001 to avoid
+    collisions, so tests should not hardcode localhost:5001.
+    """
+    override = os.environ.get("IPFS_API_URL") or os.environ.get("IPFS_NODE_URL")
+    if override:
+        return override.rstrip("/")
+
+    # Best-effort bootstrap to reduce "connection refused" skips in integration
+    # smoke tests that talk to the daemon over HTTP.
+    with suppress(Exception):
+        ipfs_repo = _ensure_project_ipfs_path()
+        _ensure_ipfs_repo_initialized(ipfs_repo)
+        _configure_ipfs_repo_ports(ipfs_repo)
+        _ensure_ipfs_daemon_running(ipfs_repo)
+
+    ipfs_path = os.environ.get("IPFS_PATH")
+    if ipfs_path:
+        api_file = Path(ipfs_path) / "api"
+        if api_file.exists():
+            with suppress(Exception):
+                multiaddr = api_file.read_text(encoding="utf-8").strip()
+                base = _multiaddr_to_http_url(multiaddr)
+                if base:
+                    return f"{base}/api/v0"
+
+    return "http://127.0.0.1:5001/api/v0"
 
 
 @pytest.fixture

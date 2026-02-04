@@ -29,12 +29,12 @@ def test_ipfs_connection():
         print(f"❌ IPFS connection test failed: {e}")
         pytest.skip(f"ipfs connection unavailable: {e}")
 
-def test_ipfs_api_direct():
+def test_ipfs_api_direct(ipfs_api_v0_url):
     """Test if IPFS API is accessible directly via HTTP."""
     _skip_if_no_ipfs()
     try:
         import requests
-        response = requests.get('http://localhost:5001/api/v0/id', timeout=3)
+        response = requests.post(f"{ipfs_api_v0_url}/id", timeout=5)
         if response.status_code == 200:
             print("✅ IPFS API is accessible via HTTP")
             return None

@@ -26,13 +26,13 @@ def test_direct_ipfs():
         logger.debug(f"Direct IPFS test failed: {e}")
         pytest.skip(f"Direct IPFS test failed: {e}")
 
-def test_ipfs_api_direct():
+def test_ipfs_api_direct(ipfs_api_v0_url):
     """Test if IPFS API is accessible directly via HTTP."""
     if shutil.which("ipfs") is None:
         pytest.skip("ipfs CLI not available in this environment")
     try:
         import requests
-        response = requests.get('http://localhost:5001/api/v0/id', timeout=3)
+        response = requests.post(f"{ipfs_api_v0_url}/id", timeout=5)
         if response.status_code != 200:
             pytest.skip("IPFS API not reachable")
         assert response.status_code == 200
