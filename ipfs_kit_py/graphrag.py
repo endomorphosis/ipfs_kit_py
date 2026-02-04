@@ -446,6 +446,7 @@ class GraphRAGSearchEngine:
         return result
 
 
+
     async def text_search(self, query: str, limit: int = 10) -> Dict[str, Any]:
         """Perform a simple SQL LIKE text search.
 
@@ -459,24 +460,12 @@ class GraphRAGSearchEngine:
             return {"success": True, "results": []}
 
         try:
-<<<<<<< Updated upstream
             where = " OR ".join(["LOWER(content) LIKE ?"] * len(terms))
             params = [f"%{t}%" for t in terms]
-=======
-            tokens = [t for t in str(query).strip().split() if t]
-            # Multi-word queries should match terms, not only the exact phrase.
-            # Use AND semantics to keep results relevant.
-            if not tokens:
-                return {"success": True, "results": []}
-
->>>>>>> Stashed changes
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-
-                where_clauses = " AND ".join(["content LIKE ?" for _ in tokens])
-                params = [f"%{t}%" for t in tokens]
                 cursor.execute(
-                    f"SELECT cid, path, content FROM content_index WHERE {where_clauses} LIMIT ?",
+                    f"SELECT cid, path, content FROM content_index WHERE {where} LIMIT ?",
                     (*params, limit),
                 )
                 rows = cursor.fetchall()
