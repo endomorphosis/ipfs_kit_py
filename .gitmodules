@@ -46,3 +46,7 @@
 [submodule "ipfs_datasets_py"]
 	path = ipfs_datasets_py
 	url = https://github.com/endomorphosis/ipfs_datasets_py.git
+
+[submodule "docs/mcp-python-sdk"]
+	path = docs/mcp-python-sdk
+	url = https://github.com/modelcontextprotocol/python-sdk.git
