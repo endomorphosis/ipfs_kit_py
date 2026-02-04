@@ -149,6 +149,18 @@
 			"type": "shell",
 			"command": "pytest",
 			"args": [
+				},
+				{
+					"label": "pytest-full-first-fail-log",
+					"type": "shell",
+					"command": "bash",
+					"args": [
+						"-lc",
+						"cd /home/barberb/ipfs_kit_py && source ./bin/env.sh && mkdir -p .cache && (./.venv/bin/python -m pytest -q --maxfail=1) 2>&1 | tee .cache/pytest_first_fail.log"
+					],
+					"isBackground": false,
+					"problemMatcher": [],
+					"group": "test"
 				"--maxfail=1",
 				"-x",
 				"-vv",
@@ -165,7 +177,7 @@
 			"command": "bash",
 			"args": [
 				"-lc",
-				"\"pytest --maxfail=1 -x -vv -p no:warnings > /tmp/pytest_first_fail.log 2>&1\""
+				"cd /home/barberb/ipfs_kit_py && source ./bin/env.sh && mkdir -p .cache && (./.venv/bin/python -m pytest -q --maxfail=1) 2>&1 | tee .cache/pytest_first_fail.log"
 			],
 			"isBackground": false,
 			"problemMatcher": [],
