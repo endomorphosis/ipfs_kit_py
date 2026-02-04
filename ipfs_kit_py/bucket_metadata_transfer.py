@@ -123,12 +123,12 @@ class BucketMetadataExporter:
             # Export knowledge graph
             knowledge_graph = knowledge_graph if knowledge_graph is not None else self._safe_attr(bucket, "knowledge_graph", None)
             if include_knowledge_graph and knowledge_graph:
-                metadata["knowledge_graph"] = await self._export_knowledge_graph(bucket)
+                metadata["knowledge_graph"] = await self._export_knowledge_graph(bucket, knowledge_graph=knowledge_graph)
             
             # Export vector index metadata
             vector_index = vector_index if vector_index is not None else self._safe_attr(bucket, "vector_index", None)
             if include_vector_index and vector_index:
-                metadata["vector_index"] = await self._export_vector_index(bucket)
+                metadata["vector_index"] = await self._export_vector_index(bucket, vector_index=vector_index)
             
             # Export statistics
             metadata["statistics"] = await self._export_statistics(bucket)
@@ -241,26 +241,28 @@ class BucketMetadataExporter:
                 manifest[rel] = {}
         return manifest
     
-    async def _export_knowledge_graph(self, bucket) -> Dict[str, Any]:
+    async def _export_knowledge_graph(self, bucket, *, knowledge_graph: Any = None) -> Dict[str, Any]:
         """Export knowledge graph structure."""
         try:
-            if not bucket.knowledge_graph:
+            kg = knowledge_graph if knowledge_graph is not None else self._safe_attr(bucket, "knowledge_graph", None)
+            if not kg:
                 return {"error": "No knowledge graph available"}
-            
-            # Export graph structure
-            kg = bucket.knowledge_graph
-            
-            # Get nodes and edges data
-            nodes = []
-            edges = []
-            
-            # This is a placeholder - actual implementation depends on
-            # the IPLDGraphDB structure
+
+            nodes = getattr(kg, "nodes", None)
+            edges = getattr(kg, "edges", None)
+            if nodes is None and isinstance(kg, dict):
+                nodes = kg.get("nodes")
+            if edges is None and isinstance(kg, dict):
+                edges = kg.get("edges")
+
+            nodes = nodes if isinstance(nodes, list) else []
+            edges = edges if isinstance(edges, list) else []
+
             graph_data = {
-                "node_count": 0,
-                "edge_count": 0,
+                "node_count": len(nodes),
+                "edge_count": len(edges),
                 "nodes": nodes,
-                "edges": edges
+                "edges": edges,
             }
             
             return graph_data
@@ -269,18 +271,19 @@ class BucketMetadataExporter:
             logger.error(f"Error exporting knowledge graph: {e}")
             return {"error": str(e)}
     
-    async def _export_vector_index(self, bucket) -> Dict[str, Any]:
+    async def _export_vector_index(self, bucket, *, vector_index: Any = None) -> Dict[str, Any]:
         """Export vector index metadata (not the actual vectors, just metadata)."""
         try:
-            if not bucket.vector_index:
+            vi = vector_index if vector_index is not None else self._safe_attr(bucket, "vector_index", None)
+            if not vi:
                 return {"error": "No vector index available"}
             
             # Export index metadata (not full vectors to save space)
             index_meta = {
-                "dimension": bucket.vector_index.get("dimension", 0),
-                "count": bucket.vector_index.get("count", 0),
-                "model": bucket.vector_index.get("model", "unknown"),
-                "indexed_at": bucket.vector_index.get("indexed_at")
+                "dimension": vi.get("dimension", 0) if isinstance(vi, dict) else getattr(vi, "dimension", 0),
+                "count": vi.get("count", 0) if isinstance(vi, dict) else getattr(vi, "count", 0),
+                "model": vi.get("model", "unknown") if isinstance(vi, dict) else getattr(vi, "model", "unknown"),
+                "indexed_at": vi.get("indexed_at") if isinstance(vi, dict) else getattr(vi, "indexed_at", None),
             }
             
             return index_meta
