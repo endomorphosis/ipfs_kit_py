@@ -197,6 +197,18 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "test"
+		},
+		{
+			"label": "pytest maxfail1 (env.sh)",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"source ./bin/env.sh && pytest -q --maxfail=1"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
 		}
 	]
 }

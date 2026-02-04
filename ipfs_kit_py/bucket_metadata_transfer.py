@@ -69,6 +69,7 @@ class BucketMetadataExporter:
         include_files: bool = True,
         include_knowledge_graph: bool = True,
         include_vector_index: bool = True,
+        upload_to_ipfs: bool = False,
         knowledge_graph: Any = None,
         vector_index: Any = None,
         format: str = "json",
@@ -142,11 +143,15 @@ class BucketMetadataExporter:
                 metadata_bytes = json.dumps(metadata, indent=2).encode('utf-8')
                 content_type = "application/json"
             
-            # Upload to IPFS if client available
+            # Upload to IPFS when requested and a client is available
             metadata_cid = None
             export_path = None
             
+<<<<<<< Updated upstream
             if self.ipfs_client and upload_to_ipfs:
+=======
+            if upload_to_ipfs and self.ipfs_client:
+>>>>>>> Stashed changes
                 result = await self._upload_to_ipfs(metadata_bytes, content_type)
                 metadata_cid = result.get("cid")
             
@@ -165,7 +170,7 @@ class BucketMetadataExporter:
             if not self.ipfs_client:
                 logger.warning("No IPFS client available, saved to local file only")
             
-            return {
+            result_payload: Dict[str, Any] = {
                 "success": True,
                 "metadata_cid": metadata_cid,
                 "export_path": str(export_path) if not metadata_cid else None,
@@ -177,6 +182,15 @@ class BucketMetadataExporter:
                     "vector_index": include_vector_index
                 }
             }
+
+            # Some test suites expect a top-level file manifest summary.
+            files_manifest = metadata.get("files") if include_files else None
+            if isinstance(files_manifest, dict):
+                result_payload["files"] = files_manifest
+                if "file_count" in files_manifest:
+                    result_payload["file_count"] = files_manifest.get("file_count")
+
+            return result_payload
             
         except Exception as e:
             logger.error(f"Error exporting bucket metadata: {e}")
