@@ -88,6 +88,11 @@ class GraphRAGSearchEngine:
         # expect list-oriented results for some APIs.
         self._legacy_path_api = db_path is not None or cache_file is not None
 
+        # When running in "phase6 compat" mode, prefer an isolated on-disk
+        # workspace so tests don't share/accumulate state via ~/.ipfs_mcp_search.
+        if workspace_dir is None and db_path is None and enable_caching is False:
+            workspace_dir = tempfile.mkdtemp(prefix="ipfs_kit_graphrag_")
+
         if workspace_dir is None and db_path is not None:
             workspace_dir = os.path.dirname(os.path.abspath(db_path)) or "."
 
@@ -103,6 +108,9 @@ class GraphRAGSearchEngine:
 
         self.db_path = db_path or os.path.join(self.workspace_dir, "search_index.db")
         self._init_database()
+
+        # Some test suites expect a persistent `conn` attribute.
+        self.conn = sqlite3.connect(self.db_path)
         
         self.embeddings_model = self._init_vector_search()
         self.knowledge_graph = self._init_knowledge_graph()
@@ -150,6 +158,26 @@ class GraphRAGSearchEngine:
                         "FROM content_relationships WHERE source_cid = ?",
                         (source_cid,),
                     )
+                rows = cursor.fetchall()
+            return [
+                {"source": s, "target": t, "type": rt, "confidence": float(c)}
+                for s, t, rt, c in rows
+            ]
+        except Exception:
+            return []
+
+    def get_relationships_by_type(self, relationship_type: str) -> List[Dict[str, Any]]:
+        """Return all relationships filtered by relationship type."""
+        if not relationship_type:
+            return []
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT source_cid, target_cid, relationship_type, confidence "
+                    "FROM content_relationships WHERE relationship_type = ?",
+                    (relationship_type,),
+                )
                 rows = cursor.fetchall()
             return [
                 {"source": s, "target": t, "type": rt, "confidence": float(c)}
@@ -689,9 +717,21 @@ class GraphRAGSearchEngine:
             versions = 0
         stats.update({"indexed_items": indexed, "relationships": rels, "versions": versions})
 
+        cache_snapshot = {
+            "hits": int(stats.get("cache_hits", 0)),
+            "misses": int(stats.get("cache_misses", 0)),
+            "size": len(self.embedding_cache) if isinstance(getattr(self, "embedding_cache", None), dict) else 0,
+        }
+
         # Preserve the flat keys expected by phase6 tests while also exposing a
-        # nested `stats` dict expected by some comprehensive coverage tests.
-        snapshot: Dict[str, Any] = {"indexed_items": indexed, "relationships": rels, "stats": stats}
+        # nested structure expected by some comprehensive coverage tests.
+        snapshot: Dict[str, Any] = {
+            "indexed_items": indexed,
+            "relationships": rels,
+            "stats": stats,
+            "cache": cache_snapshot,
+            "embedding_cache": cache_snapshot,
+        }
         snapshot.update(stats)
         return snapshot
     
