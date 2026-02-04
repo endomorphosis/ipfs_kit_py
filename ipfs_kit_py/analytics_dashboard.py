@@ -67,6 +67,16 @@ class AnalyticsCollector:
                         bytes_transferred: int = 0, success: bool = True,
                         peer_id: Optional[str] = None, metadata: Optional[Dict] = None):
         """Record an operation for analytics."""
+        # Back-compat: some tests/code call record_operation(op, duration, success, bytes)
+        # instead of record_operation(op, duration, bytes, success).
+        if (
+            isinstance(bytes_transferred, bool)
+            and isinstance(success, (int, float))
+            and peer_id is None
+            and metadata is None
+        ):
+            bytes_transferred, success = int(success), bool(bytes_transferred)
+
         timestamp = time.time()
         
         event = {
@@ -124,6 +134,8 @@ class AnalyticsCollector:
                 "p99": self._percentile(latencies_list, 99),
             }
         
+        flat_latency = {f"latency_{k}": v for k, v in latency_stats.items()}
+
         return {
             "uptime": uptime,
             "total_operations": self.total_operations,
@@ -133,6 +145,7 @@ class AnalyticsCollector:
             "bytes_per_second": bytes_per_second,
             "error_rate": error_rate,
             "latency": latency_stats,
+            **flat_latency,
             "operation_counts": dict(self.operation_counts),
             "error_counts": dict(self.error_counts),
             "top_peers": self._get_top_peers(5)

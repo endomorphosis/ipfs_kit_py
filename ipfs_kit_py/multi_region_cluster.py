@@ -327,14 +327,29 @@ class MultiRegionCluster:
                 results[region.region_id] = {"success": False, "error": str(e)}
                 overall_success = False
 
-        return {"success": overall_success, "cid": cid, "regions": replicated, "results": results}
+        payload: Dict[str, Any] = {"success": overall_success, "cid": cid, "regions": replicated, "results": results}
+
+        if not overall_success:
+            failed_regions = [region_id for region_id, region_result in results.items() if not region_result.get("success")]
+            if failed_regions:
+                payload["failed"] = failed_regions
+                payload["errors"] = {
+                    region_id: results[region_id].get("error", "replication failed")
+                    for region_id in failed_regions
+                }
+
+        return payload
 
     async def replicate_to_all_regions(self, cid: str) -> Dict[str, Any]:
         """Replicate content to all registered regions."""
         return await self.replicate_content(cid, list(self.regions.keys()))
 
-    async def handle_failover(self, failed_region_id: str) -> Dict[str, Any]:
-        """Phase-6 compatibility failover helper."""
+    async def handle_failover(self, failed_region_id: str, cid: Optional[str] = None) -> Dict[str, Any]:
+        """Phase-6 compatibility failover helper.
+
+        Some callers pass a CID as a second positional argument; it is optional
+        and does not change the selection logic here.
+        """
         failed_region = self.regions.get(failed_region_id)
         if failed_region is not None:
             failed_region.status = "unhealthy"
@@ -604,9 +619,19 @@ class MultiRegionCluster:
         try:
             # This would use IPFS cluster pin to specific nodes in the region
             logger.info(f"Replicating {cid} to region {region.name}")
-            
-            # Simulate replication
-            await anyio.sleep(0.1)
+
+            # Best-effort real pin when available (tests may inject failures here)
+            if self.ipfs_api is not None and hasattr(self.ipfs_api, "pin"):
+                pin_fn = getattr(self.ipfs_api, "pin")
+                try:
+                    result = pin_fn(cid)
+                    if hasattr(result, "__await__"):
+                        await result
+                except Exception as e:
+                    return {"success": False, "error": str(e), "region": region.name, "cid": cid, "endpoints": region.endpoints}
+            else:
+                # Simulate replication
+                await anyio.sleep(0.1)
             
             return {
                 "success": True,
