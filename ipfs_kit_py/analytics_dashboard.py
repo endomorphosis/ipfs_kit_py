@@ -137,6 +137,29 @@ class AnalyticsCollector:
             "error_counts": dict(self.error_counts),
             "top_peers": self._get_top_peers(5)
         }
+
+    def get_latency_stats(self) -> Dict[str, float]:
+        """Return basic latency stats over the current window."""
+        if not self.latencies:
+            return {"min": 0.0, "max": 0.0, "mean": 0.0}
+        latencies_list = list(self.latencies)
+        return {
+            "min": float(min(latencies_list)),
+            "max": float(max(latencies_list)),
+            "mean": float(sum(latencies_list) / len(latencies_list)),
+        }
+
+    def get_error_rate(self) -> float:
+        """Return error rate over the current operations window."""
+        if not self.operations:
+            return 0.0
+        ops = list(self.operations)
+        failures = sum(1 for op in ops if not op.get("success", True))
+        return failures / len(ops)
+
+    def get_peer_stats(self) -> Dict[str, Dict[str, int]]:
+        """Return per-peer request/byte counters."""
+        return {peer_id: dict(stats) for peer_id, stats in self.peer_stats.items()}
     
     def _percentile(self, data: List[float], percentile: int) -> float:
         """Calculate percentile of data."""

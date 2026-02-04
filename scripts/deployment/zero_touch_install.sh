@@ -10,115 +10,11 @@ cd "$REPO_DIR"
 
 exec ./zero_touch_install.sh "$@"
 
-usage() {
-  cat <<'EOF'
-Usage: ./zero_touch_install.sh [options]
+# Legacy implementation intentionally disabled.
+# This file is a compatibility wrapper; the repo-root installer is the single source of truth.
+exit 0
 
-Options:
-  --profile <core|api|dev|full>   Install profile (default: dev)
-  --extras <comma,separated>      Explicit extras to install (overrides --profile)
-  --node <auto|yes|no>            Ensure Node.js is available (default: auto)
-  --playwright <auto|yes|no>      Install Playwright deps + browsers (default: auto)
-  --libmagic <auto|yes|no>        Build/install libmagic locally if needed (default: auto)
-  --ipfs <auto|yes|no>            Install IPFS/Kubo binaries into ./bin (default: auto)
-  --lassie <auto|yes|no>          Install Lassie binary into ./bin (default: auto)
-  --lotus <auto|yes|no>           Install Lotus binaries into ./bin (default: auto)
-  --jq <auto|yes|no>              Install jq into ./bin (default: auto)
-  --ipld <auto|yes|no>            Install vendored IPLD python pkgs from ./docs (default: auto)
-  --allow-unsupported-python      Proceed even if Python < 3.12 (best-effort)
-  -h, --help                      Show this help
-
-What it does (no sudo):
-  - Creates ./bin, ./.cache, ./.venv
-  - Ensures Python venv + pip deps for chosen profile
-  - Optionally installs Node (downloaded to ./.cache, symlinked into ./bin)
-  - Optionally installs Playwright (npm install + browsers into ./.cache)
-
-Environment outputs:
-  - Writes ./bin/env.sh that you can source to set PATH and library paths
-EOF
-}
-
-parse_args() {
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --profile) PROFILE="${2:-}"; shift 2 ;;
-      --extras) EXTRAS="${2:-}"; shift 2 ;;
-      --node) INSTALL_NODE="${2:-}"; shift 2 ;;
-      --playwright) INSTALL_PLAYWRIGHT="${2:-}"; shift 2 ;;
-      --libmagic) INSTALL_LIBMAGIC="${2:-}"; shift 2 ;;
-      --ipfs) INSTALL_IPFS="${2:-}"; shift 2 ;;
-      --lassie) INSTALL_LASSIE="${2:-}"; shift 2 ;;
-      --lotus) INSTALL_LOTUS="${2:-}"; shift 2 ;;
-      --allow-unsupported-python) ALLOW_UNSUPPORTED_PYTHON="1"; shift 1 ;;
-      -h|--help) usage; exit 0 ;;
-      *) err "Unknown option: $1"; usage; exit 2 ;;
-    esac
-  done
-
-  case "$PROFILE" in
-    core|api|dev|full) : ;;
-    *) err "Invalid --profile: $PROFILE"; exit 2 ;;
-  esac
-  case "$INSTALL_NODE" in auto|yes|no) : ;; *) err "Invalid --node: $INSTALL_NODE"; exit 2 ;; esac
-  case "$INSTALL_PLAYWRIGHT" in auto|yes|no) : ;; *) err "Invalid --playwright: $INSTALL_PLAYWRIGHT"; exit 2 ;; esac
-  case "$INSTALL_LIBMAGIC" in auto|yes|no) : ;; *) err "Invalid --libmagic: $INSTALL_LIBMAGIC"; exit 2 ;; esac
-  case "$INSTALL_IPFS" in auto|yes|no) : ;; *) err "Invalid --ipfs: $INSTALL_IPFS"; exit 2 ;; esac
-  case "$INSTALL_LASSIE" in auto|yes|no) : ;; *) err "Invalid --lassie: $INSTALL_LASSIE"; exit 2 ;; esac
-  case "$INSTALL_LOTUS" in auto|yes|no) : ;; *) err "Invalid --lotus: $INSTALL_LOTUS"; exit 2 ;; esac
-}
-
-ensure_dirs() {
-  mkdir -p "$BIN_DIR" "$CACHE_DIR" "$LOCAL_DEPS_DIR"
-}
-
-detect_platform() {
-  OS_RAW="$(uname -s)"
-  ARCH_RAW="$(uname -m)"
-
-  OS="$(echo "$OS_RAW" | tr '[:upper:]' '[:lower:]')"
-  case "$OS" in
-    linux*) OS="linux" ;;
-    darwin*) OS="darwin" ;;
-    *) err "Unsupported OS: $OS_RAW"; exit 1 ;;
-  esac
-
-  case "$ARCH_RAW" in
-    x86_64|amd64) ARCH="x86_64"; NODE_ARCH="x64" ;;
-    aarch64|arm64) ARCH="arm64"; NODE_ARCH="arm64" ;;
-    *) err "Unsupported architecture: $ARCH_RAW"; exit 1 ;;
-  esac
-
-  log "Detected platform: OS=$OS ARCH=$ARCH (uname -m=$ARCH_RAW)"
-}
-
-have_cmd() { command -v "$1" >/dev/null 2>&1; }
-
-sudo_available() {
-  if have_cmd sudo && sudo -n true >/dev/null 2>&1; then
-    return 0
-  fi
-  return 1
-}
-
-python_version_ok() {
-  # expects $1 as python executable
-  local py="$1"
-  "$py" - <<'PY' >/dev/null 2>&1
-import sys
-raise SystemExit(0 if sys.version_info >= (3, 12) else 1)
-PY
-}
-
-pick_python() {
-  if have_cmd python3.12 && python_version_ok python3.12; then
-    PYTHON_EXE="python3.12"
-    return 0
-  fi
-  if have_cmd python3 && python_version_ok python3; then
-    PYTHON_EXE="python3"
-    return 0
-  fi
+: <<'LEGACY'
   if have_cmd python && python_version_ok python; then
     PYTHON_EXE="python"
     return 0
@@ -582,3 +478,5 @@ main() {
 }
 
 main "$@"
+
+LEGACY

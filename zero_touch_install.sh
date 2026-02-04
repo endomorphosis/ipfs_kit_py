@@ -667,6 +667,13 @@ install_python_deps() {
     pinned_source_cmd="python -m pip install -e '${spec}'"
   fi
 
+  # Ensure WASM runtime is present for dev/full test coverage.
+  # Some environments can end up with stale editable metadata where newly-added
+  # optional deps don't get pulled in on re-run; this keeps zero-touch resilient.
+  if [[ "${PROFILE}" == "dev" || "${PROFILE}" == "full" || "${EXTRAS}" == *"dev"* ]]; then
+    python -c 'import wasmtime' >/dev/null 2>&1 || pip_install_best_effort "wasmtime" "wasmtime"
+  fi
+
   # Some parts of the repo still expect requirements.txt; install as a best-effort add-on
   # but avoid hard-failing the whole run when optional/heavy wheels are unavailable.
   if [[ -f "${ROOT_DIR}/requirements.txt" ]]; then
@@ -718,15 +725,41 @@ pip_install_best_effort() {
   return 0
 }
 
+github_main_url() {
+  # Usage: github_main_url <owner> <repo>
+  # Prefer VCS installs when git is available; otherwise fall back to a branch zip.
+  local owner="$1"
+  local repo="$2"
+  if have_cmd git; then
+    echo "git+https://github.com/${owner}/${repo}.git@main"
+  else
+    echo "https://github.com/${owner}/${repo}/archive/refs/heads/main.zip"
+  fi
+}
+
+pip_install_from_github_main_best_effort() {
+  # Usage: pip_install_from_github_main_best_effort <pip_name> <owner> <repo>
+  local pip_name="$1"
+  local owner="$2"
+  local repo="$3"
+  local url
+  url="$(github_main_url "$owner" "$repo")"
+  pip_install_best_effort "${pip_name} @ ${url}" "${pip_name} (@main)"
+}
+
 ensure_optional_python_deps() {
   activate_venv
 
   local want_datasets="no"
+  local want_accelerate="no"
   local want_ipld_unixfs="no"
 
   if [[ -n "${EXTRAS}" ]]; then
     if [[ ",${EXTRAS}," == *",ipfs_datasets,"* ]]; then
       want_datasets="yes"
+    fi
+    if [[ ",${EXTRAS}," == *",ipfs_accelerate,"* ]]; then
+      want_accelerate="yes"
     fi
     if [[ ",${EXTRAS}," == *",ipld-github,"* ]]; then
       want_ipld_unixfs="yes"
@@ -740,7 +773,24 @@ ensure_optional_python_deps() {
     esac
   fi
 
+  # Full installs commonly expect acceleration support when present.
+  if [[ "$PROFILE" == "full" ]]; then
+    want_accelerate="yes"
+  fi
+
   if [[ "${want_datasets}" == "yes" ]]; then
+    local datasets_freeze
+    datasets_freeze="$(python -m pip freeze 2>/dev/null | grep -E '^ipfs_datasets_py(==| @ )' | head -n 1 || true)"
+
+    local need_datasets_install="0"
+    if [[ -z "${datasets_freeze}" ]]; then
+      need_datasets_install="1"
+    elif [[ "${datasets_freeze}" != *"github.com/endomorphosis/ipfs_datasets_py"* ]]; then
+      # Present but not sourced from the GitHub repo; override it.
+      need_datasets_install="1"
+    fi
+
+    # Also treat import failures as a reason to reinstall.
     if ! python - <<'PY' >/dev/null 2>&1
 try:
     import ipfs_datasets_py  # noqa: F401
@@ -748,10 +798,39 @@ except Exception:
     raise SystemExit(1)
 PY
     then
-      err "Optional dependency missing: ipfs_datasets_py. Attempting GitHub zip install."
-      pip_install_best_effort \
-        "ipfs_datasets_py @ https://github.com/endomorphosis/ipfs_datasets_py/archive/refs/heads/main.zip" \
-        "ipfs_datasets_py"
+      need_datasets_install="1"
+    fi
+
+    if [[ "${need_datasets_install}" == "1" ]]; then
+      log "Ensuring ipfs_datasets_py is installed from endomorphosis/ipfs_datasets_py@main"
+      pip_install_from_github_main_best_effort "ipfs_datasets_py" "endomorphosis" "ipfs_datasets_py"
+    fi
+  fi
+
+  if [[ "${want_accelerate}" == "yes" ]]; then
+    local accel_freeze
+    accel_freeze="$(python -m pip freeze 2>/dev/null | grep -E '^ipfs_accelerate_py(==| @ )' | head -n 1 || true)"
+
+    local need_accel_install="0"
+    if [[ -z "${accel_freeze}" ]]; then
+      need_accel_install="1"
+    elif [[ "${accel_freeze}" != *"github.com/endomorphosis/ipfs_accelerate_py"* ]]; then
+      need_accel_install="1"
+    fi
+
+    if ! python - <<'PY' >/dev/null 2>&1
+try:
+    import ipfs_accelerate_py  # noqa: F401
+except Exception:
+    raise SystemExit(1)
+PY
+    then
+      need_accel_install="1"
+    fi
+
+    if [[ "${need_accel_install}" == "1" ]]; then
+      log "Ensuring ipfs_accelerate_py is installed from endomorphosis/ipfs_accelerate_py@main"
+      pip_install_from_github_main_best_effort "ipfs_accelerate_py" "endomorphosis" "ipfs_accelerate_py"
     fi
   fi
 

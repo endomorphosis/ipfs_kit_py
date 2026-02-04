@@ -27,6 +27,13 @@ import aiohttp
 import json
 import socket
 
+# Allow tests to import sibling helper modules like `test_phase6_fixtures.py`.
+# This is safe because it adds the *tests directory* (not the package dir)
+# and avoids exposing internal subpackages as top-level imports.
+_TESTS_DIR = Path(__file__).resolve().parent
+if str(_TESTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_TESTS_DIR))
+
 collect_ignore = ["unit/test_graphrag_features.py"]
 
 
