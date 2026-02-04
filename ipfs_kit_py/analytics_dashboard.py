@@ -5,7 +5,7 @@ Enhanced Analytics Dashboard for IPFS Kit
 Provides real-time monitoring, metrics visualization, and cluster analytics.
 """
 
-import asyncio
+import anyio
 import logging
 import time
 from collections import defaultdict, deque
@@ -404,10 +404,10 @@ class AnalyticsDashboard:
                 dashboard_data = self.get_dashboard_data()
                 logger.info(f"Dashboard update: {dashboard_data['metrics']['ops_per_second']:.2f} ops/s")
                 
-                await asyncio.sleep(self.refresh_interval)
+                await anyio.sleep(self.refresh_interval)
             except Exception as e:
                 logger.error(f"Error in monitoring loop: {e}")
-                await asyncio.sleep(self.refresh_interval)
+                await anyio.sleep(self.refresh_interval)
     
     def stop_monitoring(self):
         """Stop real-time monitoring."""

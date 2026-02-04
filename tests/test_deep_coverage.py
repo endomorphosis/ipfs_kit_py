@@ -63,7 +63,7 @@ def test_s3_gateway_error_response():
     assert response.status_code == 404
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_s3_gateway_bucket_operations():
     """Test S3 bucket operation methods."""
     from ipfs_kit_py.s3_gateway import S3Gateway
@@ -82,7 +82,7 @@ async def test_s3_gateway_bucket_operations():
     assert buckets[0]["name"] == "bucket1"
 
 
-@pytest.mark.asyncio  
+@pytest.mark.anyio  
 async def test_s3_gateway_object_operations():
     """Test S3 object operation methods."""
     pytest.importorskip("fastapi")
@@ -98,7 +98,7 @@ async def test_s3_gateway_object_operations():
     assert content == b"file content"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_s3_gateway_metadata_operations():
     """Test S3 metadata operations."""
     pytest.importorskip("fastapi")
@@ -123,7 +123,7 @@ async def test_s3_gateway_metadata_operations():
 # WASM Support Deep Coverage Tests
 # ============================================================================
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_wasm_module_registry():
     """Test WASM module registry functionality."""
     from ipfs_kit_py.wasm_support import WasmModuleRegistry
@@ -173,7 +173,7 @@ def test_wasm_js_bindings_generation():
     assert "class" in js_code or "async" in js_code  # Has JS structure
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_wasm_error_handling():
     """Test WASM error handling."""
     from ipfs_kit_py.wasm_support import WasmIPFSBridge
@@ -187,7 +187,7 @@ async def test_wasm_error_handling():
     assert result is None  # Method returns None on error, doesn't raise
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_wasm_module_storage():
     """Test WASM module storage to IPFS."""
     from ipfs_kit_py.wasm_support import WasmIPFSBridge
@@ -233,7 +233,7 @@ def test_graphrag_cache_operations():
         assert loaded_cache["test_content_hash"] == [0.1, 0.2, 0.3, 0.4, 0.5]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_graphrag_entity_extraction_variations():
     """Test entity extraction with different content types."""
     from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -256,7 +256,7 @@ async def test_graphrag_entity_extraction_variations():
             assert len(entities) > 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_graphrag_relationship_operations():
     """Test relationship operations."""
     from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -320,7 +320,7 @@ def test_graphrag_statistics_methods():
         assert stats["cache"]["hit_rate"] == 0.75
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_graphrag_version_tracking():
     """Test content version history tracking."""
     from ipfs_kit_py.graphrag import GraphRAGSearchEngine

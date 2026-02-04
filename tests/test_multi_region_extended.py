@@ -4,7 +4,7 @@ Extended tests for Multi-Region Cluster - Fixed to match actual API.
 """
 
 import pytest
-import asyncio
+import anyio
 from unittest.mock import Mock, AsyncMock, MagicMock, patch
 
 
@@ -72,7 +72,7 @@ class TestMultiRegionClusterExtended:
         assert "us-east-1" in cluster.regions
         assert "eu-west-1" in cluster.regions
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_health_check_single_region(self):
         """Test health check on a single region."""
         from ipfs_kit_py.multi_region_cluster import MultiRegionCluster
@@ -88,7 +88,7 @@ class TestMultiRegionClusterExtended:
         assert result is not None
         assert "us-west-1" in result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_health_check_all_regions(self):
         """Test health check on all regions."""
         from ipfs_kit_py.multi_region_cluster import MultiRegionCluster
@@ -145,7 +145,7 @@ class TestMultiRegionClusterExtended:
         
         assert result is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_replicate_to_regions(self):
         """Test replicating content to regions."""
         from ipfs_kit_py.multi_region_cluster import MultiRegionCluster, Region, RegionStatus
@@ -175,7 +175,7 @@ class TestMultiRegionClusterExtended:
         assert "regions" in result
         assert len(result["regions"]) == 2
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_get_closest_region(self):
         """Test getting closest region."""
         from ipfs_kit_py.multi_region_cluster import MultiRegionCluster, Region, RegionStatus
@@ -193,7 +193,7 @@ class TestMultiRegionClusterExtended:
         assert result is not None
         assert result.name == "us-west-1"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_failover(self):
         """Test failover handling."""
         from ipfs_kit_py.multi_region_cluster import MultiRegionCluster, Region, RegionStatus
@@ -320,7 +320,7 @@ class TestMultiRegionClusterExtended:
         region = cluster.regions["us-west-1"]
         assert len(region.endpoints) == 3
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_health_check_timeout(self):
         """Test health check timeout handling."""
         from ipfs_kit_py.multi_region_cluster import MultiRegionCluster
@@ -359,7 +359,7 @@ class TestMultiRegionClusterExtended:
         assert zones["us-west"] == 2
         assert zones["us-east"] == 1
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_start_stop_monitoring(self):
         """Test starting and stopping monitoring."""
         from ipfs_kit_py.multi_region_cluster import MultiRegionCluster

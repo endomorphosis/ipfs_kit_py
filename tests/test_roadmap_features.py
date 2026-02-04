@@ -4,7 +4,7 @@ Tests for roadmap features: GraphRAG, S3 Gateway, WASM, Mobile SDK, Analytics, M
 """
 
 import pytest
-import asyncio
+import anyio
 from unittest.mock import Mock, AsyncMock, MagicMock
 
 
@@ -16,7 +16,7 @@ class TestGraphRAGEnhancements:
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
         assert GraphRAGSearchEngine is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_graphrag_initialization(self):
         """Test GraphRAG search engine initialization."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -25,7 +25,7 @@ class TestGraphRAGEnhancements:
         assert engine is not None
         assert engine.workspace_dir is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_add_relationship(self):
         """Test adding relationships between content."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -37,7 +37,7 @@ class TestGraphRAGEnhancements:
         assert result["success"] == True
         assert result["relationship"]["type"] == "references"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_extract_entities(self):
         """Test entity extraction from content."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -137,7 +137,7 @@ class TestWASMSupport:
         registry = WasmModuleRegistry()
         assert registry is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_register_wasm_module(self):
         """Test registering a WASM module."""
         from ipfs_kit_py.wasm_support import WasmModuleRegistry
@@ -367,7 +367,7 @@ class TestMultiRegionCluster:
         assert selected is not None
         assert selected.name == "us-west-1"  # Lower latency
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_health_check(self):
         """Test health check."""
         from ipfs_kit_py.multi_region_cluster import MultiRegionCluster
@@ -379,7 +379,7 @@ class TestMultiRegionCluster:
         
         assert "us-west-1" in results
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_failover(self):
         """Test region failover."""
         from ipfs_kit_py.multi_region_cluster import MultiRegionCluster

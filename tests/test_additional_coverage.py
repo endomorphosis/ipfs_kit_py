@@ -83,7 +83,7 @@ def test_s3_gateway_list_to_xml():
     assert "200" in xml
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_s3_gateway_vfs_bucket_listing():
     """Test VFS bucket listing."""
     from ipfs_kit_py.s3_gateway import S3Gateway
@@ -102,7 +102,7 @@ async def test_s3_gateway_vfs_bucket_listing():
     assert buckets[0]["name"] == "bucket1"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_s3_gateway_object_read():
     """Test object reading from VFS."""
     from ipfs_kit_py.s3_gateway import S3Gateway
@@ -118,7 +118,7 @@ async def test_s3_gateway_object_read():
     mock_vfs.vfs_read.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_s3_gateway_object_metadata():
     """Test object metadata retrieval."""
     from ipfs_kit_py.s3_gateway import S3Gateway
@@ -141,7 +141,7 @@ async def test_s3_gateway_object_metadata():
 # WASM Support Additional Coverage
 # ============================================================================
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_wasm_bridge_initialization():
     """Test WasmIPFSBridge initialization."""
     from ipfs_kit_py.wasm_support import WasmIPFSBridge
@@ -173,7 +173,7 @@ def test_wasm_module_registry_list():
     assert modules[0]["name"] in ["module1", "module2"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_wasm_module_registry_registration():
     """Test module registration with metadata."""
     from ipfs_kit_py.wasm_support import WasmModuleRegistry
@@ -211,7 +211,7 @@ def test_wasm_js_bindings_structure():
 # GraphRAG Additional Coverage
 # ============================================================================
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_graphrag_empty_content_handling():
     """Test GraphRAG with empty content."""
     from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -224,7 +224,7 @@ async def test_graphrag_empty_content_handling():
         assert result["success"] == True  # Should handle gracefully
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_graphrag_special_characters():
     """Test GraphRAG with special characters in content."""
     from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -256,7 +256,7 @@ def test_graphrag_cache_hit_miss_tracking():
         assert cache_stats["hit_rate"] > 0.8
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_graphrag_relationship_confidence():
     """Test relationship with confidence scores."""
     from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -273,7 +273,7 @@ async def test_graphrag_relationship_confidence():
         assert result["success"] == True
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_graphrag_bulk_operations_empty():
     """Test bulk indexing with empty list."""
     from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -286,7 +286,7 @@ async def test_graphrag_bulk_operations_empty():
         assert result["indexed_count"] == 0  # Key is 'indexed_count'
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_graphrag_multiple_versions():
     """Test version tracking with multiple updates."""
     from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -422,7 +422,7 @@ def test_multi_region_add_multiple_regions():
     assert "eu-west-1" in cluster.regions
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_multi_region_health_check_all():
     """Test health check for all regions."""
     from ipfs_kit_py.multi_region_cluster import MultiRegionCluster
@@ -458,7 +458,7 @@ def test_multi_region_routing_strategies():
     assert best.name == "low-latency"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_multi_region_failover_scenarios():
     """Test failover between regions."""
     from ipfs_kit_py.multi_region_cluster import MultiRegionCluster, RegionStatus
@@ -502,7 +502,7 @@ def test_multi_region_statistics():
     assert stats["regions_by_status"].get("healthy", 0) == 2
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_multi_region_content_replication():
     """Test content replication across regions."""
     from ipfs_kit_py.multi_region_cluster import MultiRegionCluster

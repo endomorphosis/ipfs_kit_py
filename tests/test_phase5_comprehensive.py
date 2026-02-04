@@ -4,7 +4,7 @@ Comprehensive Phase 5 Test Coverage
 Enhanced testing for S3 Gateway, Bucket Metadata Transfer, and WASM Support
 """
 
-import asyncio
+import anyio
 import json
 import tempfile
 import pytest
@@ -95,7 +95,7 @@ class TestS3GatewayEnhanced:
         assert "test-bucket" in xml_output
         assert "file.txt" in xml_output
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_s3_gateway_vfs_bucket_retrieval(self):
         """Test retrieving VFS buckets for S3 listing."""
         pytest.importorskip("fastapi")
@@ -113,7 +113,7 @@ class TestS3GatewayEnhanced:
             assert len(buckets) == 2
             assert buckets[0]["name"] == "bucket1"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_s3_gateway_object_read_operation(self):
         """Test S3 object read operation from IPFS."""
         pytest.importorskip("fastapi")
@@ -127,7 +127,7 @@ class TestS3GatewayEnhanced:
             content = await gateway._read_object("bucket", "key")
             assert content == b"file content"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_s3_gateway_bucket_operations(self):
         """Test S3 bucket creation and deletion."""
         pytest.importorskip("fastapi")
@@ -148,7 +148,7 @@ class TestS3GatewayEnhanced:
 class TestBucketMetadataTransferEnhanced:
     """Enhanced Bucket Metadata Transfer test coverage."""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_metadata_exporter_initialization(self):
         """Test metadata exporter initialization."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataExporter
@@ -158,7 +158,7 @@ class TestBucketMetadataTransferEnhanced:
         assert exporter.ipfs_client is not None
         assert hasattr(exporter, 'export_bucket_metadata')
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_metadata_importer_initialization(self):
         """Test metadata importer initialization."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataImporter
@@ -169,7 +169,7 @@ class TestBucketMetadataTransferEnhanced:
         assert importer.bucket_manager is not None
         assert hasattr(importer, 'import_bucket_metadata')
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_metadata_export_structure(self):
         """Test basic metadata export structure."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataExporter
@@ -198,7 +198,7 @@ class TestBucketMetadataTransferEnhanced:
                 # Result should contain basic info
                 assert result is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_metadata_export_json_format(self):
         """Test metadata export in JSON format."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataExporter
@@ -224,7 +224,7 @@ class TestBucketMetadataTransferEnhanced:
                 
                 assert result is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_cbor_format_available(self):
         """Test CBOR format availability check."""
         from ipfs_kit_py.bucket_metadata_transfer import HAS_CBOR
@@ -232,7 +232,7 @@ class TestBucketMetadataTransferEnhanced:
         # CBOR may or may not be available
         assert isinstance(HAS_CBOR, bool)
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_metadata_export_selective_components(self):
         """Test selective component export."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataExporter
@@ -260,7 +260,7 @@ class TestBucketMetadataTransferEnhanced:
             
             assert result is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_metadata_import_from_cid(self):
         """Test metadata import from CID."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataImporter
@@ -288,7 +288,7 @@ class TestBucketMetadataTransferEnhanced:
             
             assert result is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_metadata_json_serialization(self):
         """Test JSON serialization of metadata."""
         import json
@@ -309,7 +309,7 @@ class TestBucketMetadataTransferEnhanced:
         decoded = json.loads(json_str)
         assert decoded["version"] == "1.0"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_metadata_export_error_handling(self):
         """Test error handling in metadata export."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataExporter
@@ -329,7 +329,7 @@ class TestBucketMetadataTransferEnhanced:
             # Expected to handle errors
             assert True
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_metadata_import_validation(self):
         """Test metadata validation during import."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataImporter
@@ -387,7 +387,7 @@ class TestWasmSupportEnhanced:
         assert isinstance(js_code, str)
         assert "test-module" in js_code or "ipfs" in js_code.lower()
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_wasm_module_registry_operations(self):
         """Test module registry basic operations."""
         from ipfs_kit_py.wasm_support import WasmModuleRegistry
@@ -417,7 +417,7 @@ class TestWasmSupportEnhanced:
         assert "function" in js_code or "const" in js_code or "func1" in js_code
         assert len(js_code) > 10
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_wasm_module_storage_structure(self):
         """Test WASM module storage to IPFS."""
         from ipfs_kit_py.wasm_support import WasmIPFSBridge
@@ -454,7 +454,7 @@ class TestWasmSupportEnhanced:
 class TestEdgeCasesAndErrors:
     """Test edge cases and error scenarios across all features."""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_graphrag_with_empty_workspace(self):
         """Test GraphRAG with empty workspace directory."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -467,7 +467,7 @@ class TestEdgeCasesAndErrors:
             stats = engine.get_stats()
             assert stats is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_graphrag_empty_content_handling(self):
         """Test GraphRAG with empty content strings."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -481,7 +481,7 @@ class TestEdgeCasesAndErrors:
             # Should handle gracefully
             assert result is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_analytics_with_zero_operations(self):
         """Test analytics with no operations recorded."""
         from ipfs_kit_py.analytics_dashboard import AnalyticsCollector
@@ -494,7 +494,7 @@ class TestEdgeCasesAndErrors:
         # Should return empty or default metrics
         assert metrics is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_analytics_chart_methods(self):
         """Test analytics chart generation methods."""
         from ipfs_kit_py.analytics_dashboard import AnalyticsDashboard
@@ -505,7 +505,7 @@ class TestEdgeCasesAndErrors:
         # Check method exists
         assert hasattr(dashboard, 'generate_charts')
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_multi_region_with_single_region(self):
         """Test multi-region cluster with only one region."""
         from ipfs_kit_py.multi_region_cluster import MultiRegionCluster
@@ -526,7 +526,7 @@ class TestEdgeCasesAndErrors:
         # Should work with single region
         assert stats is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_multi_region_failover_operation(self):
         """Test multi-region failover functionality."""
         from ipfs_kit_py.multi_region_cluster import MultiRegionCluster
@@ -540,7 +540,7 @@ class TestEdgeCasesAndErrors:
         # Test failover method exists
         assert hasattr(cluster, 'failover')
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_s3_gateway_without_ipfs(self):
         """Test S3 gateway behavior without IPFS API."""
         pytest.importorskip("fastapi")
@@ -551,7 +551,7 @@ class TestEdgeCasesAndErrors:
         # Gateway should initialize but operations may fail
         assert gateway.ipfs_api is None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_graphrag_bulk_operations_empty_list(self):
         """Test bulk indexing with empty list."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -566,7 +566,7 @@ class TestEdgeCasesAndErrors:
             # Should handle empty list gracefully
             assert result is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_analytics_extreme_window_size(self):
         """Test analytics with large window size."""
         from ipfs_kit_py.analytics_dashboard import AnalyticsCollector
@@ -582,7 +582,7 @@ class TestEdgeCasesAndErrors:
         # Should handle large window
         assert metrics is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_multi_region_health_check(self):
         """Test multi-region health check functionality."""
         from ipfs_kit_py.multi_region_cluster import MultiRegionCluster
@@ -598,7 +598,7 @@ class TestEdgeCasesAndErrors:
         # Should return health status
         assert health is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_bucket_export_error_handling(self):
         """Test bucket export with invalid bucket."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataExporter
@@ -616,7 +616,7 @@ class TestEdgeCasesAndErrors:
             # Expected to handle errors
             assert True
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_graphrag_special_characters(self):
         """Test GraphRAG with special characters in content."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -636,7 +636,7 @@ class TestEdgeCasesAndErrors:
             # Should handle special characters
             assert result is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_analytics_concurrent_operations(self):
         """Test analytics with concurrent operation recording."""
         from ipfs_kit_py.analytics_dashboard import AnalyticsCollector
@@ -652,7 +652,7 @@ class TestEdgeCasesAndErrors:
         # Should handle concurrent recording
         assert metrics is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_multi_region_routing_strategies(self):
         """Test different routing strategies."""
         from ipfs_kit_py.multi_region_cluster import MultiRegionCluster
@@ -669,7 +669,7 @@ class TestEdgeCasesAndErrors:
         # Should select a region
         assert region is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_wasm_module_registry_list(self):
         """Test listing modules in WASM registry."""
         from ipfs_kit_py.wasm_support import WasmModuleRegistry

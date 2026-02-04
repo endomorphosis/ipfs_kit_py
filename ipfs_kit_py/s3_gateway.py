@@ -6,7 +6,7 @@ Provides an S3-compatible HTTP API for accessing IPFS content,
 allowing tools and applications that work with S3 to work with IPFS.
 """
 
-import asyncio
+import anyio
 import hashlib
 import hmac
 import logging

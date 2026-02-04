@@ -4,7 +4,7 @@ Tests for improved GraphRAG and bucket metadata export/import functionality.
 """
 
 import pytest
-import asyncio
+import anyio
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, AsyncMock, MagicMock, patch
@@ -31,7 +31,7 @@ class TestImprovedGraphRAG:
             engine = GraphRAGSearchEngine(workspace_dir=tmpdir, enable_caching=False)
             assert engine.enable_caching == False
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_bulk_indexing(self):
         """Test bulk content indexing."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -52,7 +52,7 @@ class TestImprovedGraphRAG:
             assert result["indexed_count"] == 3
             assert result["total_items"] == 3
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_bulk_indexing_with_errors(self):
         """Test bulk indexing with some failing items."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -71,7 +71,7 @@ class TestImprovedGraphRAG:
             assert result["success"] == True
             assert len(result["errors"]) > 0
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_entity_extraction_with_spacy(self):
         """Test enhanced entity extraction."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -87,7 +87,7 @@ class TestImprovedGraphRAG:
             # Should extract CIDs and paths at minimum
             assert len(result["entities"]["cids"]) > 0 or len(result["entities"]["paths"]) > 0
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_entity_extraction_fallback(self):
         """Test entity extraction without spaCy (regex fallback)."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -103,7 +103,7 @@ class TestImprovedGraphRAG:
             assert result["success"] == True
             assert len(result["entities"]["paths"]) > 0  # Should at least find paths
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_relationship_with_confidence(self):
         """Test adding relationships with confidence scores."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -120,7 +120,7 @@ class TestImprovedGraphRAG:
             assert result["success"] == True
             assert result["relationship"]["confidence"] == 0.85
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_infer_relationships(self):
         """Test relationship inference based on similarity."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -142,7 +142,7 @@ class TestImprovedGraphRAG:
             assert result["success"] == True
             assert "inferred_count" in result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_infer_relationships_no_embeddings(self):
         """Test relationship inference without embeddings model."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -189,7 +189,7 @@ class TestImprovedGraphRAG:
             assert result["success"] == False
             assert "error" in result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_improved_hybrid_search(self):
         """Test improved hybrid search combining multiple methods."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -211,7 +211,7 @@ class TestImprovedGraphRAG:
             assert "results" in result
             assert "search_types_used" in result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_vector_search(self):
         """Test vector search directly."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -229,7 +229,7 @@ class TestImprovedGraphRAG:
             assert result["success"] == True
             assert "results" in result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_vector_search_no_model(self):
         """Test vector search without embeddings model."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -243,7 +243,7 @@ class TestImprovedGraphRAG:
             assert result["success"] == False
             assert "error" in result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_graph_search(self):
         """Test graph search directly."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -259,7 +259,7 @@ class TestImprovedGraphRAG:
                 assert result["success"] == True
                 assert "results" in result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_graph_search_no_graph(self):
         """Test graph search without knowledge graph."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -273,7 +273,7 @@ class TestImprovedGraphRAG:
             assert result["success"] == False
             assert "error" in result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_sparql_search(self):
         """Test SPARQL search directly."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -290,7 +290,7 @@ class TestImprovedGraphRAG:
             assert result["success"] == True
             assert "results" in result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_sparql_search_no_rdf(self):
         """Test SPARQL search without RDF graph."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -319,7 +319,7 @@ class TestImprovedGraphRAG:
             assert "hit_rate" in stats["stats"]["cache"]
             assert "version_stats" in stats["stats"]
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_index_content_with_version_update(self):
         """Test updating existing content increments version."""
         from ipfs_kit_py.graphrag import GraphRAGSearchEngine
@@ -398,7 +398,7 @@ class TestBucketMetadataExportImport:
         assert importer.ipfs_client == mock_ipfs
         assert importer.bucket_manager == mock_manager
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_export_bucket_metadata(self):
         """Test exporting bucket metadata."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataExporter
@@ -428,7 +428,7 @@ class TestBucketMetadataExportImport:
             assert result["success"] == True
             assert "size_bytes" in result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_export_with_files(self):
         """Test exporting with file manifest."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataExporter
@@ -462,7 +462,7 @@ class TestBucketMetadataExportImport:
             # Check that export path was created
             assert result.get("export_path") is not None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_export_with_ipfs_client(self):
         """Test exporting with IPFS client."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataExporter
@@ -494,7 +494,7 @@ class TestBucketMetadataExportImport:
             assert result["success"] == True
             assert "metadata_cid" in result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_export_cbor_format(self):
         """Test exporting in CBOR format."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataExporter
@@ -521,7 +521,7 @@ class TestBucketMetadataExportImport:
             # Should succeed or return appropriate error if cbor2 not installed
             assert "success" in result
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_export_file_manifest(self):
         """Test file manifest export functionality."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataExporter
@@ -540,7 +540,7 @@ class TestBucketMetadataExportImport:
             assert "file_count" in manifest
             assert manifest["file_count"] > 0
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_export_statistics(self):
         """Test statistics export."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataExporter
@@ -557,7 +557,7 @@ class TestBucketMetadataExportImport:
             assert "created_at" in stats
             assert "root_cid" in stats
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_import_bucket_metadata_validation(self):
         """Test metadata validation during import."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataImporter
@@ -592,7 +592,7 @@ class TestBucketMetadataExportImport:
         }
         assert importer._validate_metadata(invalid_metadata2) == False
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_import_from_json(self):
         """Test JSON parsing from bytes."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataImporter
@@ -609,7 +609,7 @@ class TestBucketMetadataExportImport:
         importer = BucketMetadataImporter()
         assert importer._validate_metadata(metadata_dict) == True
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_import_without_ipfs_client(self):
         """Test importing without IPFS client."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataImporter
@@ -619,7 +619,7 @@ class TestBucketMetadataExportImport:
         
         assert metadata is None
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_create_bucket_from_metadata(self):
         """Test bucket creation from metadata."""
         from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataImporter

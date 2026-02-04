@@ -6,7 +6,7 @@ This module provides comprehensive bucket metadata export and import functionali
 allowing users to share bucket configurations and data via IPFS CIDs.
 """
 
-import asyncio
+import anyio
 import json
 import logging
 import time

@@ -6,7 +6,7 @@ Enables deployment and management of IPFS clusters across multiple
 geographic regions with intelligent routing and failover.
 """
 
-import asyncio
+import anyio
 import logging
 import time
 from dataclasses import dataclass
@@ -187,7 +187,7 @@ class MultiRegionCluster:
             
             # Perform health check (e.g., ping IPFS API)
             # This is a simplified implementation
-            await asyncio.sleep(0.01)  # Simulate network check
+            await anyio.sleep(0.01)  # Simulate network check
             
             latency = (time.time() - start_time) * 1000  # Convert to ms
             
@@ -322,7 +322,7 @@ class MultiRegionCluster:
             logger.info(f"Replicating {cid} to region {region.name}")
             
             # Simulate replication
-            await asyncio.sleep(0.1)
+            await anyio.sleep(0.1)
             
             return {
                 "success": True,
@@ -423,10 +423,10 @@ class MultiRegionCluster:
         while self.is_monitoring:
             try:
                 await self.health_check()
-                await asyncio.sleep(self.health_check_interval)
+                await anyio.sleep(self.health_check_interval)
             except Exception as e:
                 logger.error(f"Error in monitoring loop: {e}")
-                await asyncio.sleep(self.health_check_interval)
+                await anyio.sleep(self.health_check_interval)
     
     def stop_monitoring(self):
         """Stop monitoring regions."""
