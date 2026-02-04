@@ -25,11 +25,12 @@ def run_enhanced_daemon_manager() -> bool:
         from ipfs_kit_py.enhanced_daemon_manager import EnhancedDaemonManager
 
         # Deterministic smoke test: ensure the class exists and has core entrypoints.
-        daemon_manager = EnhancedDaemonManager(None)
+        daemon_manager = EnhancedDaemonManager()
         required = {
-            "find_existing_ipfs_processes",
-            "ensure_daemon_running_comprehensive",
-            "get_daemon_status_summary",
+            "start_daemon",
+            "stop_daemon",
+            "start_background_indexing",
+            "stop_background_indexing",
         }
         missing = [name for name in required if not hasattr(daemon_manager, name)]
         assert not missing, f"EnhancedDaemonManager missing methods: {missing}"
@@ -59,7 +60,7 @@ def run_mcp_tools() -> bool:
         from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
 
         server = create_mcp_server(auto_start_daemons=False, auto_start_lotus_daemon=False)
-        tool_names: Set[str] = {tool.get("name") for tool in server.tools}
+        tool_names: Set[str] = set(server.tools.keys())
         expected = {"ipfs_id", "ipfs_version", "ipfs_add", "ipfs_cat"}
         assert expected.issubset(tool_names)
         return True

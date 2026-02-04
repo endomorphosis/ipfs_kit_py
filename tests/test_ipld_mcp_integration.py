@@ -11,7 +11,7 @@ def test_unified_server_exposes_ipld_tools():
 	from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
 
 	server = create_mcp_server(auto_start_daemons=False, auto_start_lotus_daemon=False)
-	tool_names = {tool.get("name") for tool in server.tools}
+	tool_names = set(server.tools.keys())
 
 	# IPLD-ish operations should be present even if execution requires a daemon.
 	assert "ipfs_dag_get" in tool_names

@@ -17,7 +17,7 @@ def test_unified_server_import_and_tool_registry():
 
 	# Tool registry should exist even when daemons are not started.
 	assert hasattr(server, "tools")
-	assert isinstance(server.tools, list)
+	assert isinstance(server.tools, dict)
 	assert len(server.tools) > 0
 
 
