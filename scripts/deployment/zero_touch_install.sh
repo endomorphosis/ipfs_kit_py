@@ -162,7 +162,15 @@ build_libmagic_local() {
 write_env_sh() {
   cat > "${BIN_DIR}/env.sh" <<EOF
 # Source this to use locally installed tools
-export PATH="${BIN_DIR}:\$PATH"
+
+# Prefer the project-local virtualenv when present.
+# This ensures `python`/`pytest` resolve to ./.venv and see all installed deps.
+if [ -d "${VENV_DIR}/bin" ]; then
+  export VIRTUAL_ENV="${VENV_DIR}"
+  export PATH="${VENV_DIR}/bin:${BIN_DIR}:\$PATH"
+else
+  export PATH="${BIN_DIR}:\$PATH"
+fi
 
 # Local native deps (best-effort)
 if [ -d "${LOCAL_DEPS_DIR}/libmagic/lib" ]; then

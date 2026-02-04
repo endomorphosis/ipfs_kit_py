@@ -12,6 +12,20 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
+
+class _AwaitableList(list):
+    """A list that can also be awaited to get itself.
+
+    This is a pragmatic compatibility shim for tests that sometimes call
+    `registry.list_modules()` synchronously and sometimes `await registry.list_modules()`.
+    """
+
+    def __await__(self):
+        async def _coro():
+            return self
+
+        return _coro().__await__()
+
 # Check for WASM dependencies
 try:
     import wasmtime
@@ -395,23 +409,16 @@ class WasmModuleRegistry:
         """
         return self.modules.get(name)
 
-    async def list_modules(self) -> List[Dict[str, Any]]:
+    def list_modules(self) -> List[Dict[str, Any]]:
         """
         List all registered modules.
         
         Returns:
             List of module metadata
         """
-        return [
-            {"name": name, **info}
-            for name, info in self.modules.items()
-        ]
-
-    def list_modules_sync(self) -> List[Dict[str, Any]]:
-        return [
-            {"name": name, **info}
-            for name, info in self.modules.items()
-        ]
+        return _AwaitableList(
+            [{"name": name, **info} for name, info in self.modules.items()]
+        )
 
     async def unregister_module(self, name: str) -> bool:
         if name not in self.modules:
@@ -427,7 +434,7 @@ class WasmJSBindings:
     """
     
     @staticmethod
-    def generate_js_bindings(module_info: Any, functions: Optional[List[str]] = None) -> str:
+    def generate_js_bindings(module_info: Any = None, functions: Optional[List[str]] = None, **kwargs) -> str:
         """
         Generate JavaScript wrapper for WASM module.
         
@@ -438,6 +445,11 @@ class WasmJSBindings:
         Returns:
             JavaScript code for browser
         """
+        # Back-compat keyword args: generate_js_bindings(module_name="X", functions=[...])
+        if module_info is None and ("module_name" in kwargs or "functions" in kwargs):
+            module_info = kwargs.get("module_name")
+            functions = kwargs.get("functions", functions)
+
         if isinstance(module_info, dict):
             module_name = str(module_info.get("name") or "WasmModule")
             functions = list(module_info.get("functions") or [])

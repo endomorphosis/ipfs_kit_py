@@ -43,12 +43,13 @@ class S3Gateway:
     to interact with IPFS content.
     """
     
-    def __init__(self, ipfs_api=None, host: str = "0.0.0.0", port: int = 9000):
+    def __init__(self, ipfs_api=None, vfs=None, host: str = "0.0.0.0", port: int = 9000):
         """Initialize S3 gateway."""
         if not HAS_FASTAPI:
             raise ImportError("FastAPI is required for S3 gateway. Install with: pip install fastapi uvicorn")
         
         self.ipfs_api = ipfs_api
+        self.vfs = vfs
         self.host = host
         self.port = port
         self.app = FastAPI(title="IPFS S3 Gateway", version="1.0.0")
@@ -274,6 +275,18 @@ class S3Gateway:
         except Exception as e:
             logger.error(f"Error getting object: {e}")
             return None
+
+    async def _get_object_from_ipfs(self, cid: str) -> Optional[bytes]:
+        """Fetch raw object bytes from IPFS by CID (test helper)."""
+        if self.ipfs_api is None:
+            return None
+        try:
+            if hasattr(self.ipfs_api, "cat"):
+                return await self.ipfs_api.cat(cid)
+        except Exception as e:
+            logger.error(f"Error fetching CID {cid} from IPFS: {e}")
+            return None
+        return None
     
     async def _put_object(self, bucket: str, path: str, content: bytes) -> Dict[str, Any]:
         """Put object content."""
@@ -304,6 +317,20 @@ class S3Gateway:
         except Exception as e:
             logger.error(f"Error deleting object: {e}")
             return False
+
+    async def _get_vfs_bucket_objects(self, bucket: str) -> List[Any]:
+        """List objects in a bucket via the optional VFS adapter (test helper)."""
+        if self.vfs is None:
+            return []
+        try:
+            if hasattr(self.vfs, "list_bucket"):
+                return await self.vfs.list_bucket(bucket)
+            if hasattr(self.vfs, "list_objects"):
+                return await self.vfs.list_objects(bucket)
+        except Exception as e:
+            logger.error(f"Error listing VFS bucket {bucket}: {e}")
+            return []
+        return []
     
     async def _get_object_metadata(self, bucket: str, path: str) -> Optional[Dict[str, Any]]:
         """Get object metadata."""
@@ -320,15 +347,17 @@ class S3Gateway:
             logger.error(f"Error getting object metadata: {e}")
             return None
     
-    def _dict_to_xml(self, data: Dict[str, Any]) -> str:
+    def _dict_to_xml(self, data: Dict[str, Any], root_name: Optional[str] = None) -> str:
         """Convert dict to XML string."""
-        def dict_to_xml_recursive(d, root_name=None):
-            xml = []
+
+        def dict_to_xml_recursive(d: Dict[str, Any], wrap_name: Optional[str] = None) -> str:
+            xml: List[str] = []
+            if wrap_name:
+                xml.append(f"<{wrap_name}>")
+
             for key, value in d.items():
                 if isinstance(value, dict):
-                    xml.append(f"<{key}>")
-                    xml.append(dict_to_xml_recursive(value))
-                    xml.append(f"</{key}>")
+                    xml.append(dict_to_xml_recursive(value, key))
                 elif isinstance(value, list):
                     for item in value:
                         if isinstance(item, dict):
@@ -337,25 +366,42 @@ class S3Gateway:
                             xml.append(f"<{key}>{item}</{key}>")
                 else:
                     xml.append(f"<{key}>{value}</{key}>")
+
+            if wrap_name:
+                xml.append(f"</{wrap_name}>")
             return "".join(xml)
-        
+
         xml_header = '<?xml version="1.0" encoding="UTF-8"?>'
-        xml_body = dict_to_xml_recursive(data)
+        xml_body = dict_to_xml_recursive(data, root_name)
         return xml_header + xml_body
     
     def _error_response(self, code: str, message: str) -> Response:
         """Create S3 error response."""
-        error_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Error>
-    <Code>{code}</Code>
-    <Message>{message}</Message>
-    <RequestId>{int(time.time())}</RequestId>
-</Error>"""
+        error_xml = self._create_error_response(code, message)
         
         return Response(
             content=error_xml,
             status_code=400 if code != "InternalError" else 500,
             media_type="application/xml"
+        )
+
+    def _create_error_response(
+        self,
+        code: str,
+        message: str,
+        resource: str = "",
+        request_id: Optional[str] = None,
+    ) -> str:
+        """Create an S3-style XML error document as a string."""
+        req_id = request_id or str(int(time.time()))
+        resource_xml = f"\n    <Resource>{resource}</Resource>" if resource else ""
+        return (
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<Error>\n"
+            f"    <Code>{code}</Code>\n"
+            f"    <Message>{message}</Message>{resource_xml}\n"
+            f"    <RequestId>{req_id}</RequestId>\n"
+            "</Error>"
         )
     
     def run(self):
