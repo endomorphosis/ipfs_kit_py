@@ -109,6 +109,7 @@ class WasmIPFSBridge:
             logger.error("No WASM runtime available")
             return None
 
+        # Fetch errors (e.g. invalid CID) should be handled gracefully.
         try:
             # Phase-6 tests use `ipfs_api.cat`.
             if hasattr(self.ipfs_api, "cat"):
@@ -117,11 +118,19 @@ class WasmIPFSBridge:
                 wasm_bytes = await self.ipfs_api.get(cid)
             else:
                 raise Exception("IPFS API missing cat/get")
+        except Exception as e:
+            logger.error(f"Failed to fetch WASM module {cid}: {e}")
+            return None
 
+        # Empty/invalid module bytes should surface as errors.
+        if not wasm_bytes:
+            raise Exception("Empty module")
+
+        try:
             return self._compile_module(wasm_bytes)
         except Exception as e:
             logger.error(f"Failed to load WASM module {cid}: {e}")
-            return None
+            raise
 
     def _compile_module(self, wasm_bytes: bytes) -> Any:
         """Compile WASM bytes into an executable instance."""

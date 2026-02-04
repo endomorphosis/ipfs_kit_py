@@ -8,6 +8,7 @@ geographic regions with intelligent routing and failover.
 
 import anyio
 import logging
+import math
 import time
 from dataclasses import dataclass, replace
 from enum import Enum
@@ -226,6 +227,22 @@ class MultiRegionCluster:
         if region is None:
             return {"success": False, "error": f"Region {region_id} not found"}
 
+        # If the caller has imposed a very short external deadline (e.g. via
+        # anyio.fail_after) and no explicit timeout is provided, don't report a
+        # potentially misleading healthy state.
+        if timeout is None:
+            try:
+                deadline = anyio.current_effective_deadline()
+                remaining = float(deadline) - float(anyio.current_time())
+            except Exception:
+                remaining = math.inf
+
+            # Heuristic: below this, we won't have enough time for meaningful checks.
+            if remaining != math.inf and remaining < 0.2:
+                region.last_health_check = time.time()
+                region.status = "unhealthy"
+                return {"success": False, "region": region_id, "error": "health check deadline too short"}
+
         async def _run_check() -> Dict[str, Any]:
             # Tests may attach a custom coroutine for health checks.
             custom = getattr(region, "_check_health", None)
@@ -255,6 +272,7 @@ class MultiRegionCluster:
 
             return {"success": True, "region": region_id, "healthy_endpoints": healthy}
 
+        cancelled_exc = anyio.get_cancelled_exc_class()
         try:
             if timeout is not None:
                 with anyio.fail_after(timeout):
@@ -264,6 +282,11 @@ class MultiRegionCluster:
             region.last_health_check = time.time()
             region.status = "unhealthy"
             return {"success": False, "region": region_id, "error": "health check timeout"}
+        except cancelled_exc:
+            # External timeout/cancellation should still mark the region unhealthy.
+            region.last_health_check = time.time()
+            region.status = "unhealthy"
+            raise
 
     async def check_all_regions_health(self) -> Dict[str, Any]:
         results: Dict[str, Any] = {}
