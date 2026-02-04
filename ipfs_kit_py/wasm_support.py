@@ -26,6 +26,39 @@ class _AwaitableList(list):
 
         return _coro().__await__()
 
+
+class _AwaitableDict(dict):
+    """A dict that can also be awaited to get itself."""
+
+    def __await__(self):
+        async def _coro():
+            return self
+
+        return _coro().__await__()
+
+
+class _AwaitableValue:
+    """A value container that can be awaited to yield its value.
+
+    Useful to support both synchronous and `await` call sites without creating
+    coroutine objects (which would warn if not awaited).
+    """
+
+    def __init__(self, value):
+        self.value = value
+
+    def __await__(self):
+        async def _coro():
+            return self.value
+
+        return _coro().__await__()
+
+    def __bool__(self):
+        return bool(self.value)
+
+    def __repr__(self):
+        return repr(self.value)
+
 # Check for WASM dependencies
 try:
     import wasmtime
@@ -433,8 +466,7 @@ class WasmModuleRegistry:
         self.ipfs_api = ipfs_api
         self.modules = {}
         logger.info("WASM module registry initialized")
-    
-    async def register_module(self, name: str, cid: str, 
+    def register_module(self, name: str, cid: str, 
                              metadata: Optional[Dict[str, Any]] = None) -> bool:
         """
         Register a WASM module.
@@ -455,12 +487,11 @@ class WasmModuleRegistry:
             }
             
             logger.info(f"Registered WASM module {name} at {cid}")
-            return True
+            return _AwaitableValue(True)
         except Exception as e:
             logger.error(f"Error registering module {name}: {e}")
-            return False
-    
-    async def get_module(self, name: str) -> Optional[Dict[str, Any]]:
+            return _AwaitableValue(False)
+    def get_module(self, name: str) -> Optional[Dict[str, Any]]:
         """
         Get module information.
         
@@ -470,8 +501,10 @@ class WasmModuleRegistry:
         Returns:
             Module metadata
         """
-        return self.modules.get(name)
-
+        info = self.modules.get(name)
+        if info is None:
+            return _AwaitableValue(None)
+        return _AwaitableDict(dict(info))
     def list_modules(self) -> List[Dict[str, Any]]:
         """
         List all registered modules.

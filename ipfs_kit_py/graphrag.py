@@ -344,8 +344,7 @@ class GraphRAGSearchEngine:
             return {"success": True, "cid": cid, "version": existing[0] + 1 if existing else 1}
         except Exception as e:
             logger.error(f"Error indexing content {cid}: {e}")
-            return {"success": False, "error": str(e)}
-    
+            return _AwaitableDict({"success": False, "error": str(e)})
     async def bulk_index_content(self, items: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Bulk index multiple content items for efficiency.
@@ -805,9 +804,12 @@ class GraphRAGSearchEngine:
         except Exception as e:
             logger.error(f"Error inferring relationships: {e}")
             return {"success": False, "error": str(e)}
-    
-    async def extract_entities(self, content: str) -> Dict[str, Any]:
-        """Extract entities from content using NLP or regex fallback."""
+    def extract_entities(self, content: str) -> Dict[str, Any]:
+        """Extract entities from content using NLP or regex fallback.
+
+        Returns an awaitable dict for compatibility: some callers use `await`
+        while others call it synchronously.
+        """
         try:
             entities = {
                 "files": [],
@@ -857,7 +859,7 @@ class GraphRAGSearchEngine:
             for key in entities:
                 entities[key] = list(set(entities[key]))
             
-            return {"success": True, "entities": entities}
+            return _AwaitableDict({"success": True, "entities": entities})
         except Exception as e:
             logger.error(f"Entity extraction error: {e}")
             return {"success": False, "error": str(e)}
