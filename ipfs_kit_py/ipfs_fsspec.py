@@ -13,10 +13,22 @@ import io
 import tempfile
 from typing import Dict, List, Any, Optional, Union, Tuple, Callable, BinaryIO
 
-# Import fsspec
-import fsspec
-from fsspec.spec import AbstractFileSystem
-from fsspec.callbacks import DEFAULT_CALLBACK # Import DEFAULT_CALLBACK
+# Import fsspec (optional).
+try:
+    import fsspec  # type: ignore
+    from fsspec.spec import AbstractFileSystem  # type: ignore
+    from fsspec.callbacks import DEFAULT_CALLBACK  # type: ignore
+except Exception:  # pragma: no cover
+    from ipfs_kit_py._vendor import fsspec as fsspec  # type: ignore
+    from ipfs_kit_py._vendor.fsspec import callbacks as _callbacks  # type: ignore
+    from ipfs_kit_py._vendor.fsspec import spec as _spec  # type: ignore
+
+    # Maintain expected attribute access patterns (e.g. `fsspec.spec.AbstractBufferedFile`).
+    fsspec.spec = _spec  # type: ignore[attr-defined]
+    fsspec.callbacks = _callbacks  # type: ignore[attr-defined]
+
+    AbstractFileSystem = _spec.AbstractFileSystem
+    DEFAULT_CALLBACK = _callbacks.DEFAULT_CALLBACK
 
 logger = logging.getLogger(__name__)
 

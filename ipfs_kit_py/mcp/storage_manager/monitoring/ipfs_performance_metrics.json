@@ -4,9 +4,7 @@
       "count": 3,
       "success": 3,
       "failed": 0,
-      "response_times": [
-        0.00024366378784179688
-      ]
+      "response_times": []
     },
     "get": {
       "count": 0,
@@ -50,14 +48,14 @@
     }
   },
   "last_hour": {
-    "operations": 2,
+    "operations": 3,
     "success_rate": 100.0,
     "avg_response_time": 0
   },
   "total": {
-    "operations": 2,
+    "operations": 3,
     "success_rate": 100.0,
     "avg_response_time": 0
   },
-  "last_updated": 1770188995.0122542
+  "last_updated": 1770189514.644699
 }
