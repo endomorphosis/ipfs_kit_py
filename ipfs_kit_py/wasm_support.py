@@ -103,19 +103,25 @@ class WasmIPFSBridge:
             Compiled WASM module instance
         """
         if self.ipfs_api is None:
-            raise Exception("IPFS API not initialized")
+            logger.error("IPFS API not initialized")
+            return None
         if not getattr(self, "runtime_available", False):
-            raise Exception("No WASM runtime available")
+            logger.error("No WASM runtime available")
+            return None
 
-        # Phase-6 tests use `ipfs_api.cat`.
-        if hasattr(self.ipfs_api, "cat"):
-            wasm_bytes = await self.ipfs_api.cat(cid)
-        elif hasattr(self.ipfs_api, "get"):
-            wasm_bytes = await self.ipfs_api.get(cid)
-        else:
-            raise Exception("IPFS API missing cat/get")
+        try:
+            # Phase-6 tests use `ipfs_api.cat`.
+            if hasattr(self.ipfs_api, "cat"):
+                wasm_bytes = await self.ipfs_api.cat(cid)
+            elif hasattr(self.ipfs_api, "get"):
+                wasm_bytes = await self.ipfs_api.get(cid)
+            else:
+                raise Exception("IPFS API missing cat/get")
 
-        return self._compile_module(wasm_bytes)
+            return self._compile_module(wasm_bytes)
+        except Exception as e:
+            logger.error(f"Failed to load WASM module {cid}: {e}")
+            return None
 
     def _compile_module(self, wasm_bytes: bytes) -> Any:
         """Compile WASM bytes into an executable instance."""
