@@ -8,13 +8,16 @@ and edge computing applications.
 
 import logging
 import importlib
+import asyncio
 from collections.abc import Coroutine
+from string import Template
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class _AwaitableList(list):
+    _is_coroutine = asyncio.coroutines._is_coroutine
     """A list that can also be awaited to get itself.
 
     This is a pragmatic compatibility shim for tests that sometimes call
@@ -29,6 +32,7 @@ class _AwaitableList(list):
 
 
 class _AwaitableDict(dict):
+    _is_coroutine = asyncio.coroutines._is_coroutine
     """A dict that can also be awaited to get itself."""
 
     def __await__(self):
@@ -39,6 +43,7 @@ class _AwaitableDict(dict):
 
 
 class _AwaitableValue:
+    _is_coroutine = asyncio.coroutines._is_coroutine
     """A value container that can be awaited to yield its value.
 
     Useful to support both synchronous and `await` call sites without creating
@@ -100,6 +105,7 @@ class _CoroutineValue(Coroutine):
 
     def __repr__(self):
         return repr(self._value)
+
 
 # Check for WASM dependencies
 try:
@@ -508,6 +514,7 @@ class WasmModuleRegistry:
         self.ipfs_api = ipfs_api
         self.modules = {}
         logger.info("WASM module registry initialized")
+
     async def register_module(
         self, name: str, cid: str, metadata: Optional[Dict[str, Any]] = None
     ) -> bool:
@@ -534,7 +541,8 @@ class WasmModuleRegistry:
         except Exception as e:
             logger.error(f"Error registering module {name}: {e}")
             return False
-    def get_module(self, name: str) -> Optional[Dict[str, Any]]:
+
+    async def get_module(self, name: str) -> Optional[Dict[str, Any]]:
         """
         Get module information.
         
@@ -544,10 +552,8 @@ class WasmModuleRegistry:
         Returns:
             Module metadata
         """
-        info = self.modules.get(name)
-        if info is None:
-            return _AwaitableValue(None)
-        return _AwaitableDict(dict(info))
+        return self.modules.get(name)
+
     def list_modules(self) -> List[Dict[str, Any]]:
         """
         List all registered modules.
@@ -596,58 +602,66 @@ class WasmJSBindings:
             module_name = str(module_info)
             functions = list(functions or [])
 
-        js_code = f"""// Generated JavaScript bindings for {module_name}
-class {module_name}WASM {{
-    constructor() {{
+        # Use Template to avoid f-string brace escaping issues in JS source.
+        js_code = Template(
+            """// Generated JavaScript bindings for $module_name
+class ${module_name}WASM {
+    constructor() {
         this.module = null;
         this.instance = null;
-    }}
+    }
     
-    async load(wasmUrl) {{
+    async load(wasmUrl) {
         const response = await fetch(wasmUrl);
         const buffer = await response.arrayBuffer();
         
         const wasmModule = await WebAssembly.compile(buffer);
-        this.instance = await WebAssembly.instantiate(wasmModule, {{
-            ipfs: {{
+        this.instance = await WebAssembly.instantiate(wasmModule, {
+            ipfs: {
                 add: (ptr, len) => this._ipfsAdd(ptr, len),
                 get: (ptr, len) => this._ipfsGet(ptr, len)
-            }}
-        }});
+            }
+        });
         
         this.module = this.instance.exports;
-    }}
+    }
     
-    _ipfsAdd(ptr, len) {{
+    _ipfsAdd(ptr, len) {
         // IPFS add implementation
         console.log('IPFS add called');
         return 0;
-    }}
+    }
     
-    _ipfsGet(ptr, len) {{
+    _ipfsGet(ptr, len) {
         // IPFS get implementation
         console.log('IPFS get called');
         return 0;
-    }}
+    }
 """
+        ).substitute(module_name=module_name)
         
         # Add wrapper for each function
-        for func in functions:
-            js_code += f"""
-    {func}(...args) {{
-        if (!this.module) {{
+        wrapper_tmpl = Template(
+            """
+    $func(...args) {
+        if (!this.module) {
             throw new Error('WASM module not loaded');
-        }}
-        return this.module.{func}(...args);
-    }}
+        }
+        return this.module.$func(...args);
+    }
 """
+        )
+        for func in functions:
+            js_code += wrapper_tmpl.substitute(func=str(func))
         
-        js_code += """
-}
+        js_code += Template(
+            """
+    }
 
-// Export for use
-export default {module_name}WASM;
-"""
+    // Export for use
+    export default ${module_name}WASM;
+    """
+        ).substitute(module_name=module_name)
         
         return js_code
 
@@ -682,3 +696,4 @@ def create_wasm_bridge(ipfs_api=None, runtime: str = "wasmtime") -> WasmIPFSBrid
 def create_wasm_registry(ipfs_api=None) -> WasmModuleRegistry:
     """Create WASM module registry instance."""
     return WasmModuleRegistry(ipfs_api=ipfs_api)
+
