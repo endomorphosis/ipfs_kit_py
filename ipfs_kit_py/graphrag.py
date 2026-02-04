@@ -184,6 +184,18 @@ class GraphRAGSearchEngine:
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_path ON content_index(path)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_rel_source ON content_relationships(source_cid)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_rel_target ON content_relationships(target_cid)')
+            
+            # Lightweight migrations for older DBs used in prior test runs.
+            # (CREATE TABLE IF NOT EXISTS does not add columns to existing tables.)
+            def ensure_column(table: str, column: str, ddl: str) -> None:
+                cursor.execute(f"PRAGMA table_info({table})")
+                cols = {row[1] for row in cursor.fetchall()}
+                if column not in cols:
+                    cursor.execute(f"ALTER TABLE {table} ADD COLUMN {ddl}")
+
+            ensure_column("content_index", "version", "version INTEGER DEFAULT 1")
+            ensure_column("content_relationships", "confidence", "confidence REAL DEFAULT 1.0")
+
             conn.commit()
 
     def _init_vector_search(self):

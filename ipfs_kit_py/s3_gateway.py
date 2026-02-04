@@ -333,7 +333,9 @@ class S3Gateway:
                 result = self.ipfs_api.list_buckets()
                 if inspect.isawaitable(result):
                     result = await result
-                return result or []
+                if isinstance(result, list):
+                    return result
+                return []
 
             # Prefer IPFS Files API if available (tests mock this shape)
             files = getattr(self.ipfs_api, "files", None)
@@ -445,7 +447,7 @@ class S3Gateway:
             return None
 
     async def _read_object(self, bucket: str, key: str) -> Optional[bytes]:
-        """Back-compat alias used by some tests."""
+        """Compatibility wrapper expected by some tests."""
         return await self._get_object(bucket, key)
 
     async def _get_object_from_ipfs(self, cid: str) -> Optional[bytes]:
