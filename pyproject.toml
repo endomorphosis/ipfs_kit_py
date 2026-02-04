@@ -38,6 +38,7 @@ dependencies = [
     "psutil>=5.9.0",
     "pyyaml>=6.0",
     "networkx>=3.0",
+    "jsonpatch>=1.33",
     "base58>=2.1.1",
     "multiaddr>=0.0.9",  # For libp2p multiaddress support
     "python-magic>=0.4.27", # For file type detection
