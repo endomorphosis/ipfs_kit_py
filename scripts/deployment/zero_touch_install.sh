@@ -274,6 +274,42 @@ PY
     fi
   fi
 
+  # Ensure the key endomorphosis packages are sourced from GitHub main (not PyPI)
+  # so dev/full installs consistently exercise the latest integration code.
+  local want_datasets="no"
+  local want_accelerate="no"
+  if [[ -n "${EXTRAS}" ]]; then
+    if [[ ",${EXTRAS}," == *",ipfs_datasets,"* ]]; then
+      want_datasets="yes"
+    fi
+    if [[ ",${EXTRAS}," == *",ipfs_accelerate,"* ]]; then
+      want_accelerate="yes"
+    fi
+  else
+    case "${PROFILE}" in
+      dev) want_datasets="yes" ;;
+      full) want_datasets="yes"; want_accelerate="yes" ;;
+    esac
+  fi
+
+  if [[ "${want_datasets}" == "yes" ]]; then
+    local datasets_freeze
+    datasets_freeze="$(python -m pip freeze 2>/dev/null | grep -E '^ipfs_datasets_py(==| @ )' | head -n 1 || true)"
+    if [[ -z "${datasets_freeze}" || "${datasets_freeze}" != *"github.com/endomorphosis/ipfs_datasets_py"* ]]; then
+      log "Ensuring ipfs_datasets_py is installed from endomorphosis/ipfs_datasets_py@main"
+      python -m pip install "ipfs_datasets_py @ https://github.com/endomorphosis/ipfs_datasets_py/archive/refs/heads/main.zip" || true
+    fi
+  fi
+
+  if [[ "${want_accelerate}" == "yes" ]]; then
+    local accel_freeze
+    accel_freeze="$(python -m pip freeze 2>/dev/null | grep -E '^ipfs_accelerate_py(==| @ )' | head -n 1 || true)"
+    if [[ -z "${accel_freeze}" || "${accel_freeze}" != *"github.com/endomorphosis/ipfs_accelerate_py"* ]]; then
+      log "Ensuring ipfs_accelerate_py is installed from endomorphosis/ipfs_accelerate_py@main"
+      python -m pip install "ipfs_accelerate_py @ https://github.com/endomorphosis/ipfs_accelerate_py/archive/refs/heads/main.zip" || true
+    fi
+  fi
+
   log "Installing test dependencies (pytest-anyio, pytest-asyncio, pytest-cov)"
   python -m pip install --upgrade pytest pytest-anyio pytest-asyncio pytest-cov
 }
