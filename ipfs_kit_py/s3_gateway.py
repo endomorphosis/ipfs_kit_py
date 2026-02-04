@@ -9,6 +9,7 @@ allowing tools and applications that work with S3 to work with IPFS.
 import anyio
 import hashlib
 import hmac
+import inspect
 import logging
 import time
 from datetime import datetime
@@ -327,20 +328,25 @@ class S3Gateway:
             return []
         
         try:
+            # Prefer an explicit high-level API when available.
+            if hasattr(self.ipfs_api, 'list_buckets'):
+                result = self.ipfs_api.list_buckets()
+                if inspect.isawaitable(result):
+                    result = await result
+                return result or []
+
             # Prefer IPFS Files API if available (tests mock this shape)
             files = getattr(self.ipfs_api, "files", None)
             if files is not None and hasattr(files, "ls"):
-                result = await files.ls("/")
+                result = files.ls("/")
+                if inspect.isawaitable(result):
+                    result = await result
                 entries = result.get("Entries", []) if isinstance(result, dict) else []
                 buckets: List[Dict[str, Any]] = []
                 for entry in entries:
                     if entry.get("Type") == 1 or entry.get("Type") == "directory":
                         buckets.append({"name": entry.get("Name", "")})
                 return buckets
-
-            # Fallback to higher-level API
-            if hasattr(self.ipfs_api, 'list_buckets'):
-                return await self.ipfs_api.list_buckets()
             return []
         except Exception as e:
             logger.error(f"Error getting VFS buckets: {e}")
@@ -352,7 +358,10 @@ class S3Gateway:
             return False
         files = getattr(self.ipfs_api, "files", None)
         if files is not None and hasattr(files, "mkdir"):
-            return bool(await files.mkdir(f"/{bucket}", parents=True))
+            result = files.mkdir(f"/{bucket}", parents=True)
+            if inspect.isawaitable(result):
+                result = await result
+            return bool(result)
         return True
 
     async def _delete_vfs_bucket(self, bucket: str) -> bool:
@@ -361,7 +370,10 @@ class S3Gateway:
             return False
         files = getattr(self.ipfs_api, "files", None)
         if files is not None and hasattr(files, "rm"):
-            return bool(await files.rm(f"/{bucket}", recursive=True))
+            result = files.rm(f"/{bucket}", recursive=True)
+            if inspect.isawaitable(result):
+                result = await result
+            return bool(result)
         return True
 
     async def _bucket_exists(self, bucket: str) -> bool:
@@ -371,7 +383,9 @@ class S3Gateway:
         files = getattr(self.ipfs_api, "files", None)
         if files is not None and hasattr(files, "stat"):
             try:
-                await files.stat(f"/{bucket}")
+                result = files.stat(f"/{bucket}")
+                if inspect.isawaitable(result):
+                    await result
                 return True
             except Exception:
                 return False
@@ -436,7 +450,10 @@ class S3Gateway:
             return None
         try:
             if hasattr(self.ipfs_api, "cat"):
-                return await self.ipfs_api.cat(cid)
+                result = self.ipfs_api.cat(cid)
+                if inspect.isawaitable(result):
+                    result = await result
+                return result
         except Exception as e:
             logger.error(f"Error fetching CID {cid} from IPFS: {e}")
             return None
@@ -478,9 +495,15 @@ class S3Gateway:
             return []
         try:
             if hasattr(self.vfs, "list_bucket"):
-                return await self.vfs.list_bucket(bucket)
+                result = self.vfs.list_bucket(bucket)
+                if inspect.isawaitable(result):
+                    result = await result
+                return list(result) if result is not None else []
             if hasattr(self.vfs, "list_objects"):
-                return await self.vfs.list_objects(bucket)
+                result = self.vfs.list_objects(bucket)
+                if inspect.isawaitable(result):
+                    result = await result
+                return list(result) if result is not None else []
         except Exception as e:
             logger.error(f"Error listing VFS bucket {bucket}: {e}")
             return []
@@ -509,7 +532,9 @@ class S3Gateway:
         - Attribute keys prefixed with '@' (e.g. {'@xmlns': '...'} )
         - Lists (repeated elements)
 
-        Returns a string-like value that also tolerates `bytes in xml` membership checks.
+        Note: Some test suites assert both `"<Tag>" in xml` and `b"<Tag>" in xml`.
+        Returning an `_XMLStr` (a `str` subclass) keeps FastAPI happy while tolerating
+        bytes containment checks.
         """
 
         def xml_escape(val: Any) -> str:
@@ -527,7 +552,7 @@ class S3Gateway:
                 attrs: List[str] = []
                 children: List[str] = []
                 for k, v in value.items():
-                    if isinstance(k, str) and k.startswith("@"): 
+                    if isinstance(k, str) and k.startswith("@"):
                         attrs.append(f" {k[1:]}=\"{xml_escape(v)}\"")
                     elif isinstance(v, list):
                         children.append("".join(render_element(str(k), item) for item in v))
@@ -544,7 +569,7 @@ class S3Gateway:
             attrs: List[str] = []
             children: List[str] = []
             for k, v in d.items():
-                if isinstance(k, str) and k.startswith("@"): 
+                if isinstance(k, str) and k.startswith("@"):
                     attrs.append(f" {k[1:]}=\"{xml_escape(v)}\"")
                 elif isinstance(v, list):
                     children.append("".join(render_element(str(k), item) for item in v))
@@ -558,13 +583,12 @@ class S3Gateway:
             return _XMLStr(xml_header)
 
         if root_name:
-            body = render_wrapped(root_name, data)
-            return _XMLStr(xml_header + body)
+            return _XMLStr(xml_header + render_wrapped(root_name, data))
 
         # If the dict already has a single root element, emit that.
         if len(data) == 1:
             (only_key, only_val), = data.items()
-            if isinstance(only_key, str) and only_key.startswith("@"): 
+            if isinstance(only_key, str) and only_key.startswith("@"):
                 # No natural root to attach attributes to; emit header only.
                 return _XMLStr(xml_header)
             return _XMLStr(xml_header + render_element(str(only_key), only_val))
@@ -572,7 +596,7 @@ class S3Gateway:
         # Multiple top-level keys: emit them sequentially.
         body_parts: List[str] = []
         for k, v in data.items():
-            if isinstance(k, str) and k.startswith("@"): 
+            if isinstance(k, str) and k.startswith("@"):
                 continue
             body_parts.append(render_element(str(k), v))
         return _XMLStr(xml_header + "".join(body_parts))
@@ -581,6 +605,7 @@ class S3Gateway:
     def _generate_error_response(self, code: str, message: str, resource: str = "") -> bytes:
         return self._create_error_response(code, message, resource).encode("utf-8")
     
+
     def _error_response(self, code: str, message: str) -> Response:
         """Create S3 error response."""
         status_by_code = {
