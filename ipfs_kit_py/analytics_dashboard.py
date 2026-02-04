@@ -91,7 +91,14 @@ class AnalyticsCollector:
         }
         
         self.operations.append(event)
-        self.latencies.append(duration)
+
+        # Be resilient to malformed duration inputs (None/strings/bools/NaN).
+        # We keep the raw duration in the event for debugging, but only numeric
+        # values participate in latency aggregation.
+        if isinstance(duration, (int, float)) and not isinstance(duration, bool):
+            duration_value = float(duration)
+            if duration_value == duration_value:  # filter NaN
+                self.latencies.append(duration_value)
         
         if bytes_transferred > 0:
             self.bandwidth.append({
@@ -125,15 +132,20 @@ class AnalyticsCollector:
         # Calculate latency statistics
         latency_stats = {}
         if self.latencies:
-            latencies_list = list(self.latencies)
-            latency_stats = {
-                "min": min(latencies_list),
-                "max": max(latencies_list),
-                "mean": sum(latencies_list) / len(latencies_list),
-                "p50": self._percentile(latencies_list, 50),
-                "p95": self._percentile(latencies_list, 95),
-                "p99": self._percentile(latencies_list, 99),
-            }
+            latencies_list = [
+                float(v)
+                for v in self.latencies
+                if isinstance(v, (int, float)) and not isinstance(v, bool) and float(v) == float(v)
+            ]
+            if latencies_list:
+                latency_stats = {
+                    "min": min(latencies_list),
+                    "max": max(latencies_list),
+                    "mean": sum(latencies_list) / len(latencies_list),
+                    "p50": self._percentile(latencies_list, 50),
+                    "p95": self._percentile(latencies_list, 95),
+                    "p99": self._percentile(latencies_list, 99),
+                }
         
         flat_latency = {f"latency_{k}": v for k, v in latency_stats.items()}
 
@@ -155,12 +167,23 @@ class AnalyticsCollector:
     def get_latency_stats(self) -> Dict[str, float]:
         """Return basic latency stats over the current window."""
         if not self.latencies:
-            return {"min": 0.0, "max": 0.0, "mean": 0.0}
-        latencies_list = list(self.latencies)
+            return {"min": 0.0, "max": 0.0, "mean": 0.0, "p50": 0.0, "p95": 0.0, "p99": 0.0}
+
+        latencies_list = [
+            float(v)
+            for v in self.latencies
+            if isinstance(v, (int, float)) and not isinstance(v, bool) and float(v) == float(v)
+        ]
+        if not latencies_list:
+            return {"min": 0.0, "max": 0.0, "mean": 0.0, "p50": 0.0, "p95": 0.0, "p99": 0.0}
+
         return {
             "min": float(min(latencies_list)),
             "max": float(max(latencies_list)),
             "mean": float(sum(latencies_list) / len(latencies_list)),
+            "p50": float(self._percentile(latencies_list, 50)),
+            "p95": float(self._percentile(latencies_list, 95)),
+            "p99": float(self._percentile(latencies_list, 99)),
         }
 
     def get_error_rate(self) -> float:
@@ -176,6 +199,13 @@ class AnalyticsCollector:
     def get_peer_stats(self) -> Dict[str, Any]:
         """Return peer statistics collected so far."""
         return {peer_id: dict(stats) for peer_id, stats in self.peer_stats.items()}
+
+    def get_operation_breakdown(self) -> Dict[str, int]:
+        """Return a breakdown of operations by type.
+
+        Compatibility helper used by some higher-level analytics tests.
+        """
+        return {str(op_type): int(count) for op_type, count in self.operation_counts.items()}
     
     def _percentile(self, data: List[float], percentile: int) -> float:
         """Calculate percentile of data."""
@@ -317,6 +347,51 @@ class AnalyticsDashboard:
             logger.error(f"Error generating charts: {e}")
         
         return charts
+
+    def generate_latency_chart(self, latencies: List[float], output_path: Optional[str] = None) -> Optional[str]:
+        """Public helper for generating a latency chart from a list of values.
+
+        This is a small compatibility wrapper used by some tests and legacy callers.
+
+        Args:
+            latencies: List of latency values in seconds.
+            output_path: Optional full path to write the PNG to.
+
+        Returns:
+            The written file path, or None if chart generation is unavailable or no data was provided.
+        """
+        if not HAS_MATPLOTLIB or not HAS_NUMPY:
+            return None
+
+        cleaned = [
+            float(v)
+            for v in (latencies or [])
+            if isinstance(v, (int, float)) and not isinstance(v, bool) and float(v) == float(v)
+        ]
+        if not cleaned:
+            return None
+
+        plt.figure(figsize=(12, 6))
+
+        plt.subplot(1, 2, 1)
+        plt.hist(cleaned, bins=50, edgecolor='black', alpha=0.7)
+        plt.xlabel("Latency (seconds)")
+        plt.ylabel("Frequency")
+        plt.title("Latency Distribution")
+        plt.grid(True, alpha=0.3)
+
+        plt.subplot(1, 2, 2)
+        plt.boxplot(cleaned, vert=True)
+        plt.ylabel("Latency (seconds)")
+        plt.title("Latency Box Plot")
+        plt.grid(True, alpha=0.3)
+
+        if not output_path:
+            output_path = f"/tmp/latency_chart_{int(time.time())}.png"
+
+        plt.savefig(output_path, dpi=100, bbox_inches='tight')
+        plt.close()
+        return output_path
     
     def _generate_operations_chart(self, output_dir: str) -> str:
         """Generate operations over time chart."""
