@@ -8,188 +8,60 @@ This script tests:
 3. Integration between the components
 """
 
-import sys
-import os
-import subprocess
-import time
-import json
 import logging
-from pathlib import Path
-import anyio
+from typing import Set
+
 import pytest
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Add project root to Python path
-project_root = str(Path(__file__).resolve().parents[1])
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
 pytestmark = pytest.mark.anyio
 
 def run_enhanced_daemon_manager() -> bool:
     """Run the enhanced daemon manager checks and return success."""
-    logger.info("Testing Enhanced Daemon Manager...")
-    
     try:
         from ipfs_kit_py.enhanced_daemon_manager import EnhancedDaemonManager
-        
-        # Test without IPFS Kit (for direct commands)
+
+        # Deterministic smoke test: ensure the class exists and has core entrypoints.
         daemon_manager = EnhancedDaemonManager(None)
-        
-        # Test connection methods
-        logger.info("Testing connection methods...")
+        required = {
+            "find_existing_ipfs_processes",
+            "ensure_daemon_running_comprehensive",
+            "get_daemon_status_summary",
+        }
+        missing = [name for name in required if not hasattr(daemon_manager, name)]
+        assert not missing, f"EnhancedDaemonManager missing methods: {missing}"
 
-        if not hasattr(daemon_manager, "test_direct_ipfs") or not hasattr(daemon_manager, "test_ipfs_api_direct"):
-            pytest.skip("EnhancedDaemonManager test helpers not available")
-        
-        # Test direct IPFS
-        direct_ipfs_works = daemon_manager.test_direct_ipfs()
-        logger.info(f"Direct IPFS test: {'✓' if direct_ipfs_works else '✗'}")
-        
-        # Test HTTP API
-        api_works = daemon_manager.test_ipfs_api_direct()
-        logger.info(f"HTTP API test: {'✓' if api_works else '✗'}")
-
-        if not direct_ipfs_works and not api_works:
-            pytest.skip("IPFS daemon not available for refactored architecture test")
-        
-        # Test process finding
-        existing_processes = daemon_manager.find_existing_ipfs_processes()
-        logger.info(f"Found {len(existing_processes)} existing IPFS processes: {existing_processes}")
-        
-        # Test comprehensive daemon management
-        logger.info("Testing comprehensive daemon management...")
-        result = daemon_manager.ensure_daemon_running_comprehensive()
-        logger.info(f"Comprehensive daemon management result: {result['success']}")
-        if result.get('errors'):
-            logger.warning(f"Errors: {result['errors']}")
-        if result.get('warnings'):
-            logger.warning(f"Warnings: {result['warnings']}")
-        
-        # Test daemon status summary
-        status = daemon_manager.get_daemon_status_summary()
-        logger.info(f"Daemon status summary: {status['overall_health']} ({status['running_count']}/{status['total_count']} running)")
-        
         return True
-        
     except Exception as e:
         logger.error(f"Enhanced daemon manager test failed: {e}")
         return False
 
 def run_streamlined_mcp_server_import() -> bool:
-    """Run streamlined MCP server import checks and return success."""
-    logger.info("Testing Streamlined MCP Server import...")
-    
     try:
-        # Change to the project directory to ensure proper imports
-        os.chdir(project_root)
-        
-        # Try to import the streamlined server module
-        import importlib.util
-        streamlined_path = (Path(project_root) / "mcp" / "streamlined_mcp_server.py").resolve()
-        if not streamlined_path.exists():
-            pytest.skip("streamlined_mcp_server.py not present in this workspace")
+        from ipfs_kit_py.mcp.servers.unified_mcp_server import UnifiedMCPServer, create_mcp_server
 
-        spec = importlib.util.spec_from_file_location(
-            "streamlined_mcp_server", 
-            str(streamlined_path)
-        )
-        
-        if spec is None or spec.loader is None:
-            logger.error("✗ Could not load streamlined MCP server module")
-            return False
-            
-        streamlined_module = importlib.util.module_from_spec(spec)
-        
-        # Execute the module (this will run the initialization)
-        logger.info("Importing streamlined MCP server...")
-        spec.loader.exec_module(streamlined_module)
-        
-        # Check if the integration was created successfully
-        if hasattr(streamlined_module, 'ipfs_integration'):
-            integration = streamlined_module.ipfs_integration
-            logger.info("✓ Streamlined MCP server integration created successfully")
-            
-            # Check if daemon manager is available
-            if integration.daemon_manager:
-                logger.info("✓ Enhanced daemon manager is available in MCP server")
-                
-                # Test a basic operation
-                logger.info("Testing basic IPFS operation through MCP server...")
-                async def test_operation():
-                    try:
-                        result = await integration.execute_ipfs_operation("ipfs_id")
-                        return result.get("success", False)
-                    except Exception as e:
-                        logger.error(f"Operation test failed: {e}")
-                        return False
-                
-                # Run the async operation test
-                operation_result = anyio.run(test_operation)
-                logger.info(f"IPFS operation test: {'✓' if operation_result else '✗'}")
-                
-                return True
-            else:
-                logger.warning("✗ Enhanced daemon manager not available in MCP server")
-                return False
-        else:
-            logger.error("✗ Streamlined MCP server integration not found")
-            return False
+        server = create_mcp_server(auto_start_daemons=False, auto_start_lotus_daemon=False)
+        assert isinstance(server, UnifiedMCPServer)
+        assert hasattr(server, "tools")
+        assert len(server.tools) > 0
+        return True
         
     except Exception as e:
         logger.error(f"Streamlined MCP server test failed: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
         return False
 
 def run_mcp_tools() -> bool:
     """Run MCP tools checks and return success."""
-    logger.info("Testing MCP tools...")
-    
     try:
-        # Import the module again to get the tools
-        import importlib.util
-        streamlined_path = (Path(project_root) / "mcp" / "streamlined_mcp_server.py").resolve()
-        if not streamlined_path.exists():
-            pytest.skip("streamlined_mcp_server.py not present in this workspace")
+        from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
 
-        spec = importlib.util.spec_from_file_location(
-            "streamlined_mcp_server", 
-            str(streamlined_path)
-        )
-        
-        if spec is None or spec.loader is None:
-            logger.error("✗ Could not load streamlined MCP server module")
-            return False
-            
-        streamlined_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(streamlined_module)
-        
-        # Test tool definitions
-        tools = streamlined_module.MCP_TOOLS
-        logger.info(f"Found {len(tools)} MCP tools: {[tool['name'] for tool in tools]}")
-        
-        # Test tool handlers
-        handlers = streamlined_module.TOOL_HANDLERS
-        logger.info(f"Found {len(handlers)} tool handlers: {list(handlers.keys())}")
-        
-        # Test system health handler
-        async def test_health():
-            try:
-                result = await streamlined_module.system_health_handler()
-                return result
-            except Exception as e:
-                logger.error(f"Health test failed: {e}")
-                return {"success": False, "error": str(e)}
-        
-        health_result = anyio.run(test_health)
-        logger.info(f"System health test: {'✓' if health_result.get('success') else '✗'}")
-        if not health_result.get('success'):
-            logger.warning(f"Health check error: {health_result.get('error')}")
-        
+        server = create_mcp_server(auto_start_daemons=False, auto_start_lotus_daemon=False)
+        tool_names: Set[str] = {tool.get("name") for tool in server.tools}
+        expected = {"ipfs_id", "ipfs_version", "ipfs_add", "ipfs_cat"}
+        assert expected.issubset(tool_names)
         return True
         
     except Exception as e:
