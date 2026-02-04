@@ -104,12 +104,14 @@ class WasmIPFSBridge:
         """
         if self.ipfs_api is None:
             logger.error("IPFS API not initialized")
-            return None
+            raise Exception("IPFS API not initialized")
         if not getattr(self, "runtime_available", False):
             logger.error("No WASM runtime available")
-            return None
+            raise Exception("No WASM runtime available")
 
-        # Fetch errors (e.g. invalid CID) should be handled gracefully.
+        if not cid or not str(cid).strip():
+            raise Exception("Invalid CID")
+
         try:
             # Phase-6 tests use `ipfs_api.cat`.
             if hasattr(self.ipfs_api, "cat"):
@@ -119,13 +121,6 @@ class WasmIPFSBridge:
             else:
                 raise Exception("IPFS API missing cat/get")
         except Exception as e:
-            msg = str(e).lower()
-            # Invalid CID / missing content should be non-fatal (tests expect None).
-            if "invalid cid" in msg or ("cid" in msg and "invalid" in msg) or "not found" in msg:
-                logger.error(f"Failed to fetch WASM module {cid}: {e}")
-                return None
-
-            # Connection / transport failures should surface as exceptions.
             logger.error(f"Failed to fetch WASM module {cid}: {e}")
             raise
 

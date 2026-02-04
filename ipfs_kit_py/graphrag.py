@@ -14,6 +14,7 @@ Enhanced Features:
 """
 
 import hashlib
+import re
 import logging
 import os
 import pickle
@@ -444,24 +445,38 @@ class GraphRAGSearchEngine:
             return result.get("results", []) if result.get("success") else []
         return result
 
+
     async def text_search(self, query: str, limit: int = 10) -> Dict[str, Any]:
-        """Perform a simple SQL LIKE text search."""
+        """Perform a simple SQL LIKE text search.
+
+        Multi-word queries match any term (OR), case-insensitively.
+        """
         if not query or not str(query).strip():
             return {"success": True, "results": []}
 
+        terms = [t for t in re.findall(r"\w+", str(query).lower()) if t]
+        if not terms:
+            return {"success": True, "results": []}
+
         try:
+            where = " OR ".join(["LOWER(content) LIKE ?"] * len(terms))
+            params = [f"%{t}%" for t in terms]
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "SELECT cid, path, content FROM content_index WHERE content LIKE ? LIMIT ?",
-                    (f"%{query}%", limit),
+                    f"SELECT cid, path, content FROM content_index WHERE {where} LIMIT ?",
+                    (*params, limit),
                 )
                 rows = cursor.fetchall()
-            results = [{"cid": cid, "path": path, "snippet": (content or "")[:200]} for cid, path, content in rows]
+            results = [
+                {"cid": cid, "path": path, "snippet": (content or "")[:200]}
+                for cid, path, content in rows
+            ]
             return {"success": True, "results": results}
         except Exception as e:
             logger.error(f"Text search error: {e}")
             return {"success": False, "error": str(e)}
+
 
     async def vector_search(self, query: str, limit: int = 10) -> Dict[str, Any]:
         """Perform vector similarity search."""

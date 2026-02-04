@@ -120,15 +120,22 @@ class AnalyticsCollector:
             self.error_counts[operation_type] += 1
             self.total_errors += 1
     
+
     def get_metrics(self) -> Dict[str, Any]:
         """Get current metrics snapshot."""
         uptime = time.time() - self.start_time
-        
+
+        # Window-based totals (bounded by deque maxlen/window_size).
+        window_ops = list(self.operations)
+        window_total_operations = len(window_ops)
+        window_total_bytes = int(sum(int(op.get("bytes", 0) or 0) for op in window_ops))
+        window_total_errors = int(sum(1 for op in window_ops if not op.get("success", True)))
+
         # Calculate rates
-        ops_per_second = self.total_operations / uptime if uptime > 0 else 0
-        bytes_per_second = self.total_bytes / uptime if uptime > 0 else 0
-        error_rate = self.total_errors / self.total_operations if self.total_operations > 0 else 0
-        
+        ops_per_second = window_total_operations / uptime if uptime > 0 else 0
+        bytes_per_second = window_total_bytes / uptime if uptime > 0 else 0
+        error_rate = window_total_errors / window_total_operations if window_total_operations > 0 else 0
+
         # Calculate latency statistics
         latency_stats = {}
         if self.latencies:
@@ -146,14 +153,17 @@ class AnalyticsCollector:
                     "p95": self._percentile(latencies_list, 95),
                     "p99": self._percentile(latencies_list, 99),
                 }
-        
+
         flat_latency = {f"latency_{k}": v for k, v in latency_stats.items()}
 
         return {
             "uptime": uptime,
-            "total_operations": self.total_operations,
-            "total_bytes": self.total_bytes,
-            "total_errors": self.total_errors,
+            "total_operations": window_total_operations,
+            "total_bytes": window_total_bytes,
+            "total_errors": window_total_errors,
+            "lifetime_total_operations": int(self.total_operations),
+            "lifetime_total_bytes": int(self.total_bytes),
+            "lifetime_total_errors": int(self.total_errors),
             "ops_per_second": ops_per_second,
             "bytes_per_second": bytes_per_second,
             "error_rate": error_rate,
@@ -161,8 +171,9 @@ class AnalyticsCollector:
             **flat_latency,
             "operation_counts": dict(self.operation_counts),
             "error_counts": dict(self.error_counts),
-            "top_peers": self._get_top_peers(5)
+            "top_peers": self._get_top_peers(5),
         }
+
 
     def get_latency_stats(self) -> Dict[str, float]:
         """Return basic latency stats over the current window."""
@@ -508,21 +519,36 @@ class AnalyticsDashboard:
         
         return output_path
     
-    async def start_monitoring(self):
+
+    def _collect_metrics(self) -> Dict[str, Any]:
+        """Collect a single metrics snapshot (test hook)."""
+        return self.get_dashboard_data()
+
+    async def start_monitoring(self, interval: Optional[float] = None):
         """Start real-time monitoring."""
         self.is_running = True
         logger.info("Started real-time monitoring")
-        
+
+        refresh = float(interval) if interval is not None else float(self.refresh_interval)
+        if refresh <= 0:
+            refresh = 0.01
+
         while self.is_running:
             try:
-                dashboard_data = self.get_dashboard_data()
-                logger.info(f"Dashboard update: {dashboard_data['metrics']['ops_per_second']:.2f} ops/s")
-                
-                await anyio.sleep(self.refresh_interval)
+                dashboard_data = self._collect_metrics()
+                if isinstance(dashboard_data, dict):
+                    metrics = dashboard_data.get("metrics", {})
+                    if isinstance(metrics, dict) and "ops_per_second" in metrics:
+                        logger.info(
+                            f"Dashboard update: {float(metrics['ops_per_second']):.2f} ops/s"
+                        )
+
+                await anyio.sleep(refresh)
             except Exception as e:
                 logger.error(f"Error in monitoring loop: {e}")
-                await anyio.sleep(self.refresh_interval)
-    
+                await anyio.sleep(refresh)
+
+
     def stop_monitoring(self):
         """Stop real-time monitoring."""
         self.is_running = False

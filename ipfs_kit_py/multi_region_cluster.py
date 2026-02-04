@@ -10,7 +10,7 @@ import anyio
 import logging
 import math
 import time
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, replace, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
@@ -30,8 +30,8 @@ class Region:
     """Represents a geographic region."""
     name: str
     location: str
-    latency_zone: str  # e.g., "us-west", "eu-central", "ap-southeast"
-    endpoints: List[str]
+    latency_zone: str = ''  # e.g., us-west, eu-central, ap-southeast
+    endpoints: List[str] = field(default_factory=list)
     region_id: str = ""
     # Tests treat status as a string; keep it flexible.
     status: Any = "healthy"
@@ -47,6 +47,9 @@ class Region:
     def __post_init__(self) -> None:
         if not self.region_id:
             self.region_id = self.name
+
+        if not self.latency_zone:
+            self.latency_zone = self.location
 
     @property
     def avg_latency(self) -> float:
@@ -222,6 +225,44 @@ class MultiRegionCluster:
         except Exception:
             return False
 
+
+    async def _measure_endpoint_latency(self, endpoint: str) -> float:
+        """Measure endpoint latency in milliseconds (placeholder).
+
+        Tests patch this method to provide deterministic timings.
+        """
+
+        start = time.time()
+        try:
+            await anyio.sleep(0.01)
+        except Exception:
+            return 0.0
+        return float((time.time() - start) * 1000.0)
+
+    async def _update_region_latency(self, region_id: str) -> None:
+        """Update a region's average latency based on its endpoints."""
+
+        region = self.regions.get(region_id)
+        if region is None:
+            region = next((r for r in self.regions.values() if r.name == region_id), None)
+        if region is None:
+            return
+
+        endpoints = list(region.endpoints or [])
+        if not endpoints:
+            region.average_latency = 0.0
+            region.last_health_check = time.time()
+            return
+
+        latencies: List[float] = []
+        for ep in endpoints:
+            try:
+                latencies.append(float(await self._measure_endpoint_latency(ep)))
+            except Exception:
+                continue
+
+        region.average_latency = float(sum(latencies) / len(latencies)) if latencies else 0.0
+        region.last_health_check = time.time()
     async def check_region_health(self, region_id: str, *, timeout: float | None = None) -> Dict[str, Any]:
         region = self.regions.get(region_id)
         if region is None:
