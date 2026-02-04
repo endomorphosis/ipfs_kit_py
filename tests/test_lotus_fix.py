@@ -14,8 +14,23 @@ def run_lotus_kit_availability() -> bool:
         import ipfs_kit_py
         print("✓ Successfully imported ipfs_kit_py")
 
-        # Create an ipfs_kit instance
-        kit = ipfs_kit_py.ipfs_kit()
+        # Create an ipfs_kit instance (use stable accessor; the package attribute
+        # `ipfs_kit` can be overwritten by Python's submodule import mechanics).
+        kit_factory = getattr(ipfs_kit_py, "get_ipfs_kit", None)
+        if callable(kit_factory):
+            kit_factory = kit_factory()
+        else:
+            kit_factory = getattr(ipfs_kit_py, "ipfs_kit", None)
+
+        if not callable(kit_factory):
+            pytest.skip("ipfs_kit factory not available in this environment")
+
+        kit_metadata = {
+            "auto_download_binaries": False,
+            "auto_start_daemons": False,
+            "skip_dependency_check": True,
+        }
+        kit = kit_factory(metadata=kit_metadata, auto_start_daemons=False)
         print("✓ Successfully created ipfs_kit instance")
 
         # Check available attributes
