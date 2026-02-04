@@ -15,7 +15,7 @@ Architecture:
 """
 
 import argparse
-import asyncio
+import anyio
 import logging
 import sys
 from pathlib import Path
@@ -436,7 +436,7 @@ class UnifiedCLIDispatcher:
 def main():
     """Main entry point for unified CLI."""
     dispatcher = UnifiedCLIDispatcher()
-    return asyncio.run(dispatcher.run())
+    return anyio.run(dispatcher.run)
 
 
 if __name__ == "__main__":

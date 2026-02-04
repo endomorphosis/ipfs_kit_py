@@ -9,7 +9,6 @@ import traceback
 from typing import Dict, Any, Optional, Callable
 from datetime import datetime
 import anyio
-import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -52,18 +51,9 @@ class MCPToolErrorCapture:
                     try:
                         anyio.lowlevel.spawn_system_task(self._trigger_auto_heal, error_info)
                     except Exception:
-                        # Pytest commonly runs async tests under asyncio without an AnyIO context.
-                        # In that case, schedule via the running asyncio loop rather than blocking.
-                        try:
-                            import asyncio
-
-                            asyncio.get_running_loop().create_task(
-                                self._trigger_auto_heal(error_info)
-                            )
-                        except Exception:
-                            logger.debug(
-                                "Unable to spawn background auto-heal task; skipping"
-                            )
+                        logger.debug(
+                            "Unable to spawn background auto-heal task; skipping"
+                        )
                 
                 # Re-raise with enhanced context
                 raise

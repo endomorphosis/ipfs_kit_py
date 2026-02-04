@@ -8,7 +8,6 @@ and edge computing applications.
 
 import logging
 import importlib
-import asyncio
 from collections.abc import Coroutine
 from string import Template
 from typing import Any, Dict, List, Optional
@@ -17,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 
 class _AwaitableList(list):
-    _is_coroutine = asyncio.coroutines._is_coroutine
     """A list that can also be awaited to get itself.
 
     This is a pragmatic compatibility shim for tests that sometimes call
@@ -32,7 +30,6 @@ class _AwaitableList(list):
 
 
 class _AwaitableDict(dict):
-    _is_coroutine = asyncio.coroutines._is_coroutine
     """A dict that can also be awaited to get itself."""
 
     def __await__(self):
@@ -43,7 +40,6 @@ class _AwaitableDict(dict):
 
 
 class _AwaitableValue:
-    _is_coroutine = asyncio.coroutines._is_coroutine
     """A value container that can be awaited to yield its value.
 
     Useful to support both synchronous and `await` call sites without creating
@@ -77,8 +73,6 @@ class _CoroutineValue(Coroutine):
     This object satisfies both: it's recognized as a coroutine, but does not
     allocate a real coroutine frame.
     """
-
-    _is_coroutine = asyncio.coroutines._is_coroutine
 
     def __init__(self, value):
         self._value = value

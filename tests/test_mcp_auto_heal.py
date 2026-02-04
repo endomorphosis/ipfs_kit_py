@@ -3,8 +3,8 @@ Tests for MCP tool and JavaScript SDK auto-healing integration.
 """
 
 import pytest
-import asyncio
 import time
+import anyio
 from unittest.mock import Mock, patch, AsyncMock
 from ipfs_kit_py.auto_heal.mcp_tool_wrapper import MCPToolErrorCapture, get_mcp_error_capture
 from ipfs_kit_py.auto_heal.client_error_reporter import ClientErrorReporter, get_client_error_reporter
@@ -35,7 +35,7 @@ class TestMCPToolErrorCapture:
             assert 'stack_trace' in error_info
             assert 'timestamp' in error_info
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @patch('ipfs_kit_py.auto_heal.github_issue_creator.GitHubIssueCreator')
     @patch('ipfs_kit_py.auto_heal.config.AutoHealConfig')
     async def test_trigger_auto_heal(self, mock_config_class, mock_creator_class):
@@ -67,7 +67,7 @@ class TestMCPToolErrorCapture:
         # Verify issue was created
         mock_creator.create_issue_from_error.assert_called_once()
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_wrap_tool_handler(self):
         """Test wrapping a tool handler."""
         capture = MCPToolErrorCapture(enable_auto_heal=False)
@@ -103,7 +103,7 @@ class TestMCPToolErrorCapture:
 class TestClientErrorReporter:
     """Test client-side error reporter functionality."""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_report_client_error_no_data(self):
         """Test reporting with no data."""
         reporter = ClientErrorReporter()
@@ -112,7 +112,7 @@ class TestClientErrorReporter:
         assert result['status'] == 'error'
         assert 'No error data' in result['message']
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @patch('ipfs_kit_py.auto_heal.github_issue_creator.GitHubIssueCreator')
     @patch('ipfs_kit_py.auto_heal.config.AutoHealConfig')
     async def test_report_client_error_success(self, mock_config_class, mock_creator_class):
@@ -152,7 +152,7 @@ class TestClientErrorReporter:
         assert len(reporter.error_log) == 1
         assert reporter.error_log[0] == error_data
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_trigger_auto_heal_client_error(self):
         """Test auto-heal trigger for client error."""
         reporter = ClientErrorReporter()
@@ -182,7 +182,7 @@ class TestClientErrorReporter:
 class TestEndToEndIntegration:
     """Test end-to-end auto-healing flow."""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @patch('ipfs_kit_py.auto_heal.github_issue_creator.GitHubIssueCreator')
     @patch('ipfs_kit_py.auto_heal.config.AutoHealConfig')
     async def test_mcp_tool_error_creates_issue(self, mock_config_class, mock_creator_class):
@@ -213,10 +213,11 @@ class TestEndToEndIntegration:
         async def wait_for_error_log():
             timeout_counter = 0
             while len(capture.error_log) < 1 and timeout_counter < 100:
-                await asyncio.sleep(0.01)
+                await anyio.sleep(0.01)
                 timeout_counter += 1
-        
-        await asyncio.wait_for(wait_for_error_log(), timeout=1.0)
+
+        with anyio.fail_after(1.0):
+            await wait_for_error_log()
         
         # Verify issue creation was attempted
         # Note: In real scenario, this would create actual GitHub issue
@@ -226,7 +227,7 @@ class TestEndToEndIntegration:
 class TestAutoHealFailureScenarios:
     """Test auto-heal failure scenarios to ensure robustness."""
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @patch('ipfs_kit_py.auto_heal.config.AutoHealConfig')
     async def test_auto_heal_with_github_api_failure(self, mock_config_class):
         """Test that tool execution continues even if auto-heal GitHub API fails."""
@@ -261,13 +262,14 @@ class TestAutoHealFailureScenarios:
             async def wait_for_error_log():
                 timeout_counter = 0
                 while len(capture.error_log) < 1 and timeout_counter < 100:
-                    await asyncio.sleep(0.01)
+                    await anyio.sleep(0.01)
                     timeout_counter += 1
-            
-            await asyncio.wait_for(wait_for_error_log(), timeout=1.0)
+
+            with anyio.fail_after(1.0):
+                await wait_for_error_log()
             assert len(capture.error_log) == 1
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_auto_heal_with_invalid_config(self):
         """Test that tool execution continues with invalid auto-heal config."""
         from ipfs_kit_py.auto_heal.mcp_tool_wrapper import MCPToolErrorCapture
@@ -295,13 +297,14 @@ class TestAutoHealFailureScenarios:
             async def wait_for_error_log():
                 timeout_counter = 0
                 while len(capture.error_log) < 1 and timeout_counter < 100:
-                    await asyncio.sleep(0.01)
+                    await anyio.sleep(0.01)
                     timeout_counter += 1
-            
-            await asyncio.wait_for(wait_for_error_log(), timeout=1.0)
+
+            with anyio.fail_after(1.0):
+                await wait_for_error_log()
             assert len(capture.error_log) == 1
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @patch('ipfs_kit_py.auto_heal.config.AutoHealConfig')
     async def test_auto_heal_trigger_timeout_doesnt_block_error(self, mock_config_class):
         """Test that slow auto-heal trigger doesn't block error propagation."""
@@ -343,7 +346,7 @@ class TestAutoHealFailureScenarios:
             # Should complete quickly (< 1 second), not wait for 5 second delay
             assert elapsed < 1.0, f"Error took {elapsed}s to propagate, should be immediate"
     
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_client_error_reporter_with_malformed_data(self):
         """Test client error reporter handles malformed input gracefully."""
         from ipfs_kit_py.auto_heal.client_error_reporter import ClientErrorReporter

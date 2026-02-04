@@ -321,14 +321,17 @@ class TestBackendAdapterImplementation(unittest.IsolatedAsyncioTestCase):
     
     async def test_concurrent_operations(self):
         """Test that backend can handle concurrent operations."""
-        import asyncio
-        
-        # Run multiple operations concurrently
-        results = await asyncio.gather(
-            self.backend.health_check(),
-            self.backend.sync_pins(),
-            self.backend.health_check()
-        )
+        import anyio
+
+        results = [None, None, None]
+
+        async def _store(idx, func):
+            results[idx] = await func()
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(_store, 0, self.backend.health_check)
+            tg.start_soon(_store, 1, self.backend.sync_pins)
+            tg.start_soon(_store, 2, self.backend.health_check)
         
         self.assertEqual(len(results), 3)
     

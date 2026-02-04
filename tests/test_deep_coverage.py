@@ -284,11 +284,12 @@ def test_graphrag_graph_analysis():
         # Only test if NetworkX is available
         if engine.knowledge_graph:
             # Build a small graph
-            import asyncio
-            asyncio.run(engine.add_relationship("A", "B", "connects_to"))
-            asyncio.run(engine.add_relationship("B", "C", "connects_to"))
-            asyncio.run(engine.add_relationship("C", "D", "connects_to"))
-            asyncio.run(engine.add_relationship("A", "D", "connects_to"))
+            import anyio
+
+            anyio.run(engine.add_relationship, "A", "B", "connects_to")
+            anyio.run(engine.add_relationship, "B", "C", "connects_to")
+            anyio.run(engine.add_relationship, "C", "D", "connects_to")
+            anyio.run(engine.add_relationship, "A", "D", "connects_to")
             
             # Test analytics
             analysis = engine.analyze_graph()
