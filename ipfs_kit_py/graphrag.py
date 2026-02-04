@@ -450,7 +450,7 @@ class GraphRAGSearchEngine:
     async def text_search(self, query: str, limit: int = 10) -> Dict[str, Any]:
         """Perform a simple SQL LIKE text search.
 
-        Multi-word queries match any term (OR), case-insensitively.
+        Multi-word queries match all terms (AND), case-insensitively.
         """
         if not query or not str(query).strip():
             return {"success": True, "results": []}
@@ -460,7 +460,7 @@ class GraphRAGSearchEngine:
             return {"success": True, "results": []}
 
         try:
-            where = " OR ".join(["LOWER(content) LIKE ?"] * len(terms))
+            where = " AND ".join(["LOWER(content) LIKE ?"] * len(terms))
             params = [f"%{t}%" for t in terms]
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
