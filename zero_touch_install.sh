@@ -1112,7 +1112,8 @@ main() {
     log "- ipfs_kit_py ${show_loc}"
   fi
   local import_path
-  import_path="$(python -c 'import inspect, ipfs_kit_py; print(inspect.getfile(ipfs_kit_py))' 2>/dev/null)"
+  # Avoid local-checkout shadowing: run the import from the cache dir so '.' is not the repo root.
+  import_path="$(cd "${CACHE_DIR}" 2>/dev/null && python -c 'import inspect, ipfs_kit_py; print(inspect.getfile(ipfs_kit_py))' 2>/dev/null)"
   if [[ -n "${import_path}" ]]; then
     log "- ipfs_kit_py import: ${import_path}"
   fi
