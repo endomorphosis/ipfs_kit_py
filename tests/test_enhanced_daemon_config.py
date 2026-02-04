@@ -27,140 +27,54 @@ logger = logging.getLogger(__name__)
 
 def test_enhanced_daemon_config_manager():
     """Test the enhanced daemon configuration manager."""
-    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
-        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run enhanced daemon config tests")
     logger.info("🧪 Testing enhanced daemon configuration manager...")
     
     try:
         from ipfs_kit_py.daemon_config_manager import DaemonConfigManager
         
-        # Create a temporary directory for testing
         with tempfile.TemporaryDirectory() as temp_dir:
             logger.info(f"📁 Using temporary directory: {temp_dir}")
             
-            # Create test manager with custom paths
             manager = DaemonConfigManager()
             
-            # Override paths to use temp directory
+            # Override paths to use temp directory (never touch ~/.ipfs or ~/.lotus)
             manager.ipfs_path = os.path.join(temp_dir, ".ipfs")
             manager.lotus_path = os.path.join(temp_dir, ".lotus") 
-            manager.lassie_path = os.path.join(temp_dir, ".lassie")
-            manager.ipfs_cluster_path = os.path.join(temp_dir, ".ipfs-cluster")
-            manager.ipfs_cluster_follow_path = os.path.join(temp_dir, ".ipfs-cluster-follow")
-            manager.s3_config_path = os.path.join(temp_dir, ".s3cfg")
-            manager.hf_config_path = os.path.join(temp_dir, ".cache", "huggingface")
-            manager.storacha_config_path = os.path.join(temp_dir, ".storacha")
-            
-            # Test configuration for all services
-            logger.info("🔧 Testing configuration for all services...")
-            
-            # Test individual service configuration
-            services = [
-                ("IPFS", "check_and_configure_ipfs"),
-                ("Lotus", "check_and_configure_lotus"),
-                ("Lassie", "check_and_configure_lassie"),
-                ("IPFS Cluster Service", "check_and_configure_ipfs_cluster_service"),
-                ("IPFS Cluster Follow", "check_and_configure_ipfs_cluster_follow"),
-                ("IPFS Cluster Ctl", "check_and_configure_ipfs_cluster_ctl"),
-                ("S3", "check_and_configure_s3"),
-                ("HuggingFace", "check_and_configure_huggingface"),
-                ("Storacha", "check_and_configure_storacha")
-            ]
-            
-            individual_results = {}
-            for service_name, method_name in services:
-                logger.info(f"🔧 Testing {service_name} configuration...")
-                
-                try:
-                    method = getattr(manager, method_name)
-                    result = method()
-                    
-                    individual_results[service_name] = result
-                    
-                    if result.get("success", False) or result.get("already_configured", False):
-                        logger.info(f"✅ {service_name} configuration successful")
-                    else:
-                        logger.warning(f"⚠️ {service_name} configuration failed: {result.get('error', 'Unknown error')}")
-                        
-                except Exception as e:
-                    logger.error(f"❌ Error testing {service_name}: {e}")
-                    individual_results[service_name] = {"success": False, "error": str(e)}
-            
-            # Test comprehensive configuration
-            logger.info("🔧 Testing comprehensive configuration...")
-            all_results = manager.check_and_configure_all_daemons()
-            
-            # Test validation
-            logger.info("🔍 Testing configuration validation...")
-            validation_results = manager.validate_daemon_configs()
-            
-            # Test configuration updates
-            logger.info("🔄 Testing configuration updates...")
-            update_results = {}
-            
-            # Test S3 configuration update
-            s3_update = manager.update_daemon_config("s3", {
-                "host_base": "s3.example.com",
-                "bucket_location": "us-west-2"
-            })
-            update_results["s3"] = s3_update
-            
-            # Test HuggingFace configuration update
-            hf_update = manager.update_daemon_config("huggingface", {
-                "offline": True,
-                "user_agent": "test-agent"
-            })
-            update_results["huggingface"] = hf_update
-            
-            # Test Storacha configuration update
-            storacha_update = manager.update_daemon_config("storacha", {
-                "timeout": 60,
-                "retries": 5
-            })
-            update_results["storacha"] = storacha_update
-            
-            # Print results
-            logger.info("📊 Test Results Summary:")
-            logger.info(f"Individual service results: {json.dumps(individual_results, indent=2)}")
-            logger.info(f"Comprehensive results: {json.dumps(all_results, indent=2)}")
-            logger.info(f"Validation results: {json.dumps(validation_results, indent=2)}")
-            logger.info(f"Update results: {json.dumps(update_results, indent=2)}")
-            
-            # Verify file creation
-            logger.info("🗃️ Verifying configuration files were created...")
-            
-            expected_files = [
-                (manager.s3_config_path, "S3 config"),
-                (os.path.join(manager.hf_config_path, "config.json"), "HuggingFace config"),
-                (os.path.join(manager.storacha_config_path, "config.json"), "Storacha config"),
-                (os.path.join(manager.lassie_path, "config.json"), "Lassie config")
-            ]
-            
-            for file_path, description in expected_files:
-                if os.path.exists(file_path):
-                    logger.info(f"✅ {description} file exists: {file_path}")
-                else:
-                    logger.warning(f"⚠️ {description} file missing: {file_path}")
-            
-            # Calculate overall success
-            overall_success = (
-                all_results.get("overall_success", False) and
-                validation_results.get("overall_valid", False) and
-                all(result.get("success", False) for result in update_results.values())
+            # Create a minimal valid IPFS config so config checks are deterministic and
+            # do not shell out to `ipfs init`.
+            ipfs_dir = Path(manager.ipfs_path)
+            ipfs_dir.mkdir(parents=True, exist_ok=True)
+            (ipfs_dir / "config").write_text(
+                json.dumps({"Identity": {}, "Addresses": {}, "Discovery": {}}, indent=2),
+                encoding="utf-8",
             )
-            
-            if overall_success:
-                logger.info("🎉 All enhanced daemon configuration tests passed!")
-                return True
-            else:
-                logger.error("❌ Some enhanced daemon configuration tests failed")
-                return False
+
+            ipfs_check = manager.check_daemon_configuration("ipfs")
+            assert ipfs_check["configured"] is True
+            assert ipfs_check["valid_config"] is True
+            assert ipfs_check["config_exists"] is True
+
+            # Lotus/cluster are optional but configuration should always succeed.
+            lotus_cfg = manager.configure_daemon("lotus")
+            assert lotus_cfg["success"] is True
+            assert lotus_cfg["configured"] is True
+
+            cluster_cfg = manager.configure_daemon("cluster")
+            assert cluster_cfg["success"] is True
+            assert cluster_cfg["configured"] is True
+
+            all_results = manager.check_and_configure_all_daemons()
+            assert all_results["success"] is True
+            assert all_results["all_configured"] is True
+            assert set(all_results.get("daemon_results", {}).keys()) >= {"ipfs", "lotus", "cluster"}
+
+            logger.info("🎉 Enhanced daemon configuration tests passed!")
                 
     except Exception as e:
         logger.error(f"❌ Error in enhanced daemon config test: {e}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
-        return False
+        pytest.fail(f"Error in enhanced daemon config test: {e}")
 
 def test_mcp_server_integration():
     """Test MCP server integration with enhanced configuration management."""
@@ -180,65 +94,47 @@ def test_mcp_server_integration():
         server.run_standalone()
         
         logger.info("🎉 MCP server integration test passed!")
-        return True
+        assert True
         
     except Exception as e:
         logger.error(f"❌ Error in MCP server integration test: {e}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
-        return False
+        pytest.fail(f"Error in MCP server integration test: {e}")
 
 def test_default_configurations():
     """Test default configuration templates."""
-    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
-        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run default configuration tests")
     logger.info("🧪 Testing default configuration templates...")
     
     try:
         from ipfs_kit_py.daemon_config_manager import DaemonConfigManager
         
         manager = DaemonConfigManager()
-        
-        # Test default config templates
-        configs = {
-            "S3": manager.get_default_s3_config(),
-            "HuggingFace": manager.get_default_huggingface_config(),
-            "Storacha": manager.get_default_storacha_config(),
-            "Lassie": manager.get_default_lassie_config()
-        }
-        
-        logger.info("📋 Default configuration templates:")
-        for name, config in configs.items():
-            logger.info(f"  {name}: {json.dumps(config, indent=4)}")
-            
-            # Verify required fields
-            if name == "S3":
-                required_fields = ["access_key", "secret_key", "host_base"]
-                missing = [field for field in required_fields if field not in config]
-                if missing:
-                    logger.error(f"❌ S3 config missing required fields: {missing}")
-                    return False
-                    
-            elif name == "HuggingFace":
-                required_fields = ["cache_dir"]
-                missing = [field for field in required_fields if field not in config]
-                if missing:
-                    logger.error(f"❌ HuggingFace config missing required fields: {missing}")
-                    return False
-                    
-            elif name == "Storacha":
-                required_fields = ["endpoints"]
-                missing = [field for field in required_fields if field not in config]
-                if missing:
-                    logger.error(f"❌ Storacha config missing required fields: {missing}")
-                    return False
+
+        cfg = getattr(manager, "default_config", None)
+        assert isinstance(cfg, dict)
+        assert set(cfg.keys()) >= {"ipfs", "lotus", "cluster"}
+
+        ipfs_cfg = cfg["ipfs"]
+        assert set(ipfs_cfg.keys()) >= {"enabled", "auto_start", "api_port", "gateway_port", "swarm_port"}
+        assert isinstance(ipfs_cfg["api_port"], int)
+        assert isinstance(ipfs_cfg["gateway_port"], int)
+        assert isinstance(ipfs_cfg["swarm_port"], int)
+
+        lotus_cfg = cfg["lotus"]
+        assert set(lotus_cfg.keys()) >= {"enabled", "auto_start", "api_port", "network"}
+        assert isinstance(lotus_cfg["api_port"], int)
+        assert isinstance(lotus_cfg["network"], str)
+
+        cluster_cfg = cfg["cluster"]
+        assert set(cluster_cfg.keys()) >= {"enabled", "cluster_secret", "cluster_name"}
         
         logger.info("✅ All default configuration templates are valid")
-        return True
+        assert True
         
     except Exception as e:
         logger.error(f"❌ Error testing default configurations: {e}")
-        return False
+        pytest.fail(f"Error testing default configurations: {e}")
 
 def run_all_tests():
     """Run all enhanced configuration tests."""
@@ -260,6 +156,8 @@ def run_all_tests():
         
         try:
             result = test_func()
+            # Pytest-style tests should return None; treat that as success here.
+            result = True if result is None else bool(result)
             results[test_name] = result
             
             if result:
