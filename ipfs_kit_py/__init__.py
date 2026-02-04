@@ -208,7 +208,7 @@ def download_binaries():
     # Download IPFS binaries using JIT imports
     try:
         # Use JIT import to avoid loading heavy installer unless needed
-        install_ipfs_module = jit_manager.get_module('install_ipfs')
+        install_ipfs_module = jit_manager.get_module('ipfs_kit_py.install_ipfs')
         if install_ipfs_module is None:
             logger.warning("IPFS installer module not available")
             return
@@ -255,7 +255,7 @@ def download_binaries():
 
     # Download Lotus binaries using JIT imports
     try:
-        install_lotus_module = jit_manager.get_module('install_lotus')
+        install_lotus_module = jit_manager.get_module('ipfs_kit_py.install_lotus')
         if install_lotus_module is None:
             logger.warning("Lotus installer module not available")
         else:
@@ -285,7 +285,7 @@ def download_binaries():
 
     # Download Lassie binaries using JIT imports
     try:
-        install_lassie_module = jit_manager.get_module('install_lassie')
+        install_lassie_module = jit_manager.get_module('ipfs_kit_py.install_lassie')
         if install_lassie_module is None:
             logger.warning("Lassie installer module not available")
         else:
@@ -307,7 +307,7 @@ def download_binaries():
 
     # Install Storacha dependencies using JIT imports
     try:
-        install_storacha_module = jit_manager.get_module('install_storacha')
+        install_storacha_module = jit_manager.get_module('ipfs_kit_py.install_storacha')
         if install_storacha_module is None:
             logger.warning("Storacha installer module not available")
         else:
@@ -410,28 +410,57 @@ except ImportError:
 @optional_feature('high_level_api', fallback_result=(None, None))
 def _import_high_level_api():
     """Import high-level API components with JIT loading."""
-    high_level_api = jit_manager.get_module('high_level_api')
+    high_level_api = jit_manager.get_module('ipfs_kit_py.high_level_api')
     if high_level_api:
         return getattr(high_level_api, 'IPFSSimpleAPI', None), getattr(high_level_api, 'PluginBase', None)
     return None, None
 
-try:
-    IPFSSimpleAPI = None
-    PluginBase = None
-    
-    def get_high_level_api():
-        """Get high-level API components, loading them lazily if needed."""
-        global IPFSSimpleAPI, PluginBase
-        if IPFSSimpleAPI is None:
-            try:
-                IPFSSimpleAPI, PluginBase = _import_high_level_api()
-            except Exception:
-                IPFSSimpleAPI = None
-                PluginBase = None
-        return IPFSSimpleAPI, PluginBase
-except Exception:
-    IPFSSimpleAPI = None
-    PluginBase = None
+
+_IPFS_SIMPLE_API_CLASS = None
+_PLUGIN_BASE_CLASS = None
+
+
+def get_high_level_api():
+    """Get high-level API components, loading them lazily if needed."""
+    global _IPFS_SIMPLE_API_CLASS, _PLUGIN_BASE_CLASS
+    if _IPFS_SIMPLE_API_CLASS is None:
+        try:
+            _IPFS_SIMPLE_API_CLASS, _PLUGIN_BASE_CLASS = _import_high_level_api()
+        except Exception:
+            _IPFS_SIMPLE_API_CLASS, _PLUGIN_BASE_CLASS = None, None
+    return _IPFS_SIMPLE_API_CLASS, _PLUGIN_BASE_CLASS
+
+
+class _IPFSSimpleAPIProxy:
+    """Callable proxy for IPFSSimpleAPI.
+
+    Ensures `from ipfs_kit_py import IPFSSimpleAPI; IPFSSimpleAPI()` either
+    instantiates the real implementation or raises ImportError (instead of
+    returning None and triggering a TypeError).
+    """
+
+    def __call__(self, *args, **kwargs):  # noqa: ANN002, ANN003
+        api_cls, _ = get_high_level_api()
+        if api_cls is None:
+            raise ImportError("IPFSSimpleAPI not available (high_level_api feature disabled or import failed)")
+        return api_cls(*args, **kwargs)
+
+    def __getattr__(self, item):  # noqa: ANN001
+        api_cls, _ = get_high_level_api()
+        if api_cls is None:
+            raise ImportError("IPFSSimpleAPI not available (high_level_api feature disabled or import failed)")
+        return getattr(api_cls, item)
+
+    def __repr__(self) -> str:
+        api_cls, _ = get_high_level_api()
+        if api_cls is None:
+            return "<_IPFSSimpleAPIProxy unavailable>"
+        return repr(api_cls)
+
+
+# Public exports used in documentation.
+IPFSSimpleAPI = _IPFSSimpleAPIProxy()
+PluginBase = None
 
 # Import WAL components - made lazy
 StorageWriteAheadLog = None
@@ -531,7 +560,7 @@ def _initialize_wal_legacy_attrs():
 @optional_feature('installer_dependencies', fallback_result=(None, False))
 def _import_install_ipfs():
     """Import IPFS installer with JIT loading."""
-    module = jit_manager.get_module('install_ipfs')
+    module = jit_manager.get_module('ipfs_kit_py.install_ipfs')
     if module:
         return getattr(module, 'install_ipfs', None), True
     return None, False
@@ -541,7 +570,7 @@ install_ipfs, INSTALL_IPFS_AVAILABLE = _import_install_ipfs()
 @optional_feature('installer_dependencies', fallback_result=(None, False))
 def _import_install_lotus():
     """Import Lotus installer with JIT loading."""
-    module = jit_manager.get_module('install_lotus')
+    module = jit_manager.get_module('ipfs_kit_py.install_lotus')
     if module:
         return getattr(module, 'install_lotus', None), True
     return None, False
@@ -551,7 +580,7 @@ install_lotus, INSTALL_LOTUS_AVAILABLE = _import_install_lotus()
 @optional_feature('installer_dependencies', fallback_result=(None, False))
 def _import_install_lassie():
     """Import Lassie installer with JIT loading."""
-    module = jit_manager.get_module('install_lassie')
+    module = jit_manager.get_module('ipfs_kit_py.install_lassie')
     if module:
         return getattr(module, 'install_lassie', None), True
     return None, False
@@ -561,7 +590,7 @@ install_lassie, INSTALL_LASSIE_AVAILABLE = _import_install_lassie()
 @optional_feature('installer_dependencies', fallback_result=(None, False))
 def _import_install_storacha():
     """Import Storacha installer with JIT loading."""
-    module = jit_manager.get_module('install_storacha')
+    module = jit_manager.get_module('ipfs_kit_py.install_storacha')
     if module:
         return getattr(module, 'install_storacha', None), True
     return None, False
