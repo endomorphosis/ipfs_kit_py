@@ -745,9 +745,19 @@ pip_install_from_github_main_best_effort() {
   local pip_name="$1"
   local owner="$2"
   local repo="$3"
-  local url
-  url="$(github_main_url "$owner" "$repo")"
-  pip_install_best_effort "${pip_name} @ ${url}" "${pip_name} (@main)"
+
+  local vcs_url="git+https://github.com/${owner}/${repo}.git@main"
+  local zip_url="https://github.com/${owner}/${repo}/archive/refs/heads/main.zip"
+
+  if have_cmd git; then
+    if pip_install_best_effort "${pip_name} @ ${vcs_url}" "${pip_name} (@main, git)"; then
+      return 0
+    fi
+    err "WARNING: Optional ${pip_name} VCS install failed; retrying via GitHub zip archive"
+  fi
+
+  pip_install_best_effort "${pip_name} @ ${zip_url}" "${pip_name} (@main, zip)" || true
+  return 0
 }
 
 ensure_optional_python_deps() {
