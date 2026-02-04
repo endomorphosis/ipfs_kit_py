@@ -122,7 +122,21 @@ class MultiRegionCluster:
           add_region(name, location, latency_zone, endpoints)
         """
 
-        if kwargs:
+        if args:
+            if len(args) != 4:
+                raise TypeError("add_region expects 4 positional args (region_id, name, location, endpoints)")
+
+            region_id = str(args[0])
+            name = str(args[1])
+            location = str(args[2])
+            endpoints = list(args[3] or [])
+
+            # Optional overrides via kwargs
+            latency_zone = str(kwargs.get("latency_zone") or location)
+            priority = int(kwargs.get("priority", 1) or 1)
+            weight = int(kwargs.get("weight", 100) or 100)
+            status = kwargs.get("status", "healthy")
+        else:
             region_id = str(kwargs.get("region_id") or "")
             name = str(kwargs.get("name") or region_id)
             location = str(kwargs.get("location") or "")
@@ -131,19 +145,6 @@ class MultiRegionCluster:
             priority = int(kwargs.get("priority", 1) or 1)
             weight = int(kwargs.get("weight", 100) or 100)
             status = kwargs.get("status", "healthy")
-        else:
-            if len(args) != 4:
-                raise TypeError("add_region expects 4 positional args or keyword args")
-
-            # Ambiguous between test and legacy signatures; treat arg0 as region_id.
-            region_id = str(args[0])
-            name = str(args[1])
-            location = str(args[2])
-            endpoints = list(args[3] or [])
-            latency_zone = location
-            priority = 1
-            weight = 100
-            status = "healthy"
 
         if not region_id:
             region_id = name
@@ -290,12 +291,99 @@ class MultiRegionCluster:
 
         return healthy_regions[0]
 
-    async def replicate_content(self, cid: str, region_id: str) -> Dict[str, Any]:
-        """Replicate content to a single region (test-friendly wrapper)."""
+    async def replicate_content(self, cid: str, regions: Any) -> Dict[str, Any]:
+        """Replicate content to one or more regions.
+
+        Phase-6 tests call this with either a single region id (str) or a list
+        of region ids.
+        """
+
+        if isinstance(regions, (list, tuple, set)):
+            region_ids = [str(r) for r in regions]
+        else:
+            region_ids = [str(regions)]
+
+        results: Dict[str, Any] = {}
+        replicated: List[str] = []
+        overall_success = True
+
+        for region_id in region_ids:
+            region = self.regions.get(region_id)
+            if region is None:
+                region = next((r for r in self.regions.values() if r.name == region_id), None)
+            if region is None:
+                results[region_id] = {"success": False, "error": f"Region {region_id} not found"}
+                overall_success = False
+                continue
+
+            try:
+                region_result = await self._replicate_to_region(cid, region)
+                results[region.region_id] = region_result
+                if region_result.get("success"):
+                    replicated.append(region.region_id)
+                else:
+                    overall_success = False
+            except Exception as e:
+                results[region.region_id] = {"success": False, "error": str(e)}
+                overall_success = False
+
+        return {"success": overall_success, "cid": cid, "regions": replicated, "results": results}
+
+    async def replicate_to_all_regions(self, cid: str) -> Dict[str, Any]:
+        """Replicate content to all registered regions."""
+        return await self.replicate_content(cid, list(self.regions.keys()))
+
+    async def handle_failover(self, failed_region_id: str) -> Dict[str, Any]:
+        """Phase-6 compatibility failover helper."""
+        failed_region = self.regions.get(failed_region_id)
+        if failed_region is not None:
+            failed_region.status = "unhealthy"
+
+        healthy = [r for r in self.regions.values() if r.region_id != failed_region_id and self._is_region_healthy(r)]
+        healthy.sort(key=lambda r: (int(getattr(r, "priority", 1) or 1), -int(getattr(r, "weight", 0) or 0)))
+        backup_regions = [r.region_id for r in healthy]
+
+        return {
+            "success": bool(backup_regions),
+            "failed_region": failed_region_id,
+            "backup_region": backup_regions[0] if backup_regions else None,
+            "backup_regions": backup_regions,
+        }
+
+    def update_region_config(
+        self,
+        region_id: str,
+        *,
+        priority: Optional[int] = None,
+        weight: Optional[int] = None,
+        endpoints: Optional[List[str]] = None,
+        status: Optional[str] = None,
+        name: Optional[str] = None,
+        location: Optional[str] = None,
+        latency_zone: Optional[str] = None,
+    ) -> bool:
+        """Update a region's configuration fields."""
+
         region = self.regions.get(region_id)
         if region is None:
-            return {"success": False, "error": f"Region {region_id} not found"}
-        return await self._replicate_to_region(cid, region)
+            return False
+
+        if priority is not None:
+            region.priority = int(priority)
+        if weight is not None:
+            region.weight = int(weight)
+        if endpoints is not None:
+            region.endpoints = list(endpoints)
+        if status is not None:
+            region.status = status
+        if name is not None:
+            region.name = name
+        if location is not None:
+            region.location = location
+        if latency_zone is not None:
+            region.latency_zone = latency_zone
+
+        return True
     
     async def health_check(self, region_name: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -587,15 +675,15 @@ class MultiRegionCluster:
         regions_by_status = {
             "healthy": 0,
             "degraded": 0,
-            "unavailable": 0
+            "unavailable": 0,
+            "unhealthy": 0,
         }
         
         for region in self.regions.values():
             status_val = getattr(region.status, "value", region.status)
             status_key = str(status_val)
-            if status_key not in regions_by_status:
-                continue
-            regions_by_status[status_key] += 1
+            if status_key in regions_by_status:
+                regions_by_status[status_key] += 1
         
         return {
             "total_regions": len(self.regions),
