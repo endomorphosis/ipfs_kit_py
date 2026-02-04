@@ -2128,58 +2128,157 @@ def get_vfs() -> VFSCore:
     return _VFS_SINGLETON
 
 
-# Async VFS convenience functions used by MCP servers/tests.
-async def vfs_mount(mount_point: str, backend: str, target: str = "/", read_only: bool = False) -> Dict[str, Any]:
+# VFS convenience functions used by MCP servers/tests.
+#
+# These are intentionally *dual-mode*:
+# - When called from async context, they return an awaitable (so callers can `await vfs_*()`).
+# - When called from sync context, they execute via `anyio.run()` and return the dict result.
+#
+# This avoids "coroutine was never awaited" warnings in direct/smoke tests that call
+# these helpers without awaiting.
+
+
+def _vfs_in_async_context() -> bool:
+    try:
+        import sniffio
+
+        sniffio.current_async_library()
+        return True
+    except Exception:
+        return False
+
+
+def _vfs_dual(async_fn, /, *args, **kwargs):
+    if _vfs_in_async_context():
+        return async_fn(*args, **kwargs)
+    import anyio
+
+    return anyio.run(async_fn, *args, **kwargs)
+
+
+async def _vfs_mount_async(source: str, mount_point: str, *, read_only: bool = False) -> Dict[str, Any]:
+    # Heuristic backend selection (test-friendly):
+    # - memory:// -> memory
+    # - existing path -> local (target=source)
+    # - /ipfs/... or ipfs://... or empty -> ipfs
+    backend: str
+    target: str = "/"
+
+    if isinstance(source, str) and source.startswith("memory://"):
+        backend = "memory"
+        target = "/"
+    elif isinstance(source, str) and source and (os.path.exists(source) or source.startswith(".")):
+        backend = "local"
+        target = source
+    elif isinstance(source, str) and (source.startswith("/ipfs/") or source.startswith("ipfs://")):
+        backend = "ipfs"
+        target = source
+    else:
+        backend = "ipfs"
+        target = source or "/"
+
     return get_vfs().mount(mount_point, backend, target, read_only=read_only)
 
 
-async def vfs_unmount(mount_point: str) -> Dict[str, Any]:
+def vfs_mount(source: str, mount_point: str, read_only: bool = False):
+    return _vfs_dual(_vfs_mount_async, source, mount_point, read_only=read_only)
+
+
+async def _vfs_unmount_async(mount_point: str) -> Dict[str, Any]:
     return get_vfs().unmount(mount_point)
 
 
-async def vfs_list_mounts() -> Dict[str, Any]:
+def vfs_unmount(mount_point: str):
+    return _vfs_dual(_vfs_unmount_async, mount_point)
+
+
+async def _vfs_list_mounts_async() -> Dict[str, Any]:
     return get_vfs().list_mounts()
 
 
-async def vfs_read(path: str) -> Dict[str, Any]:
+def vfs_list_mounts():
+    return _vfs_dual(_vfs_list_mounts_async)
+
+
+async def _vfs_read_async(path: str) -> Dict[str, Any]:
     return get_vfs().read(path)
 
 
-async def vfs_write(path: str, content: Union[str, bytes], auto_replicate: bool = False) -> Dict[str, Any]:
+def vfs_read(path: str):
+    return _vfs_dual(_vfs_read_async, path)
+
+
+async def _vfs_write_async(path: str, content: Union[str, bytes], *, auto_replicate: bool = False) -> Dict[str, Any]:
     return get_vfs().write(path, content, auto_replicate=auto_replicate)
 
 
-async def vfs_ls(path: str) -> Dict[str, Any]:
+def vfs_write(path: str, content: Union[str, bytes], auto_replicate: bool = False):
+    return _vfs_dual(_vfs_write_async, path, content, auto_replicate=auto_replicate)
+
+
+async def _vfs_ls_async(path: str) -> Dict[str, Any]:
     return get_vfs().ls(path)
 
 
-async def vfs_stat(path: str) -> Dict[str, Any]:
+def vfs_ls(path: str):
+    return _vfs_dual(_vfs_ls_async, path)
+
+
+async def _vfs_stat_async(path: str) -> Dict[str, Any]:
     return get_vfs().stat(path)
 
 
-async def vfs_mkdir(path: str, parents: bool = False) -> Dict[str, Any]:
+def vfs_stat(path: str):
+    return _vfs_dual(_vfs_stat_async, path)
+
+
+async def _vfs_mkdir_async(path: str, *, parents: bool = False) -> Dict[str, Any]:
     return get_vfs().mkdir(path, parents=parents)
 
 
-async def vfs_rmdir(path: str) -> Dict[str, Any]:
+def vfs_mkdir(path: str, parents: bool = False):
+    return _vfs_dual(_vfs_mkdir_async, path, parents=parents)
+
+
+async def _vfs_rmdir_async(path: str) -> Dict[str, Any]:
     return get_vfs().rmdir(path)
 
 
-async def vfs_copy(src: str, dst: str) -> Dict[str, Any]:
+def vfs_rmdir(path: str):
+    return _vfs_dual(_vfs_rmdir_async, path)
+
+
+async def _vfs_copy_async(src: str, dst: str) -> Dict[str, Any]:
     return get_vfs().copy(src, dst)
 
 
-async def vfs_move(src: str, dst: str) -> Dict[str, Any]:
+def vfs_copy(src: str, dst: str):
+    return _vfs_dual(_vfs_copy_async, src, dst)
+
+
+async def _vfs_move_async(src: str, dst: str) -> Dict[str, Any]:
     return get_vfs().move(src, dst)
 
 
-async def vfs_sync_to_ipfs(path: str) -> Dict[str, Any]:
+def vfs_move(src: str, dst: str):
+    return _vfs_dual(_vfs_move_async, src, dst)
+
+
+async def _vfs_sync_to_ipfs_async(path: str) -> Dict[str, Any]:
     # Placeholder: full sync requires IPFS daemon; keep test-friendly.
     return {"success": True, "path": _norm_path(path), "message": "sync_to_ipfs not implemented"}
 
 
-async def vfs_sync_from_ipfs(path: str) -> Dict[str, Any]:
+def vfs_sync_to_ipfs(path: str):
+    return _vfs_dual(_vfs_sync_to_ipfs_async, path)
+
+
+async def _vfs_sync_from_ipfs_async(path: str) -> Dict[str, Any]:
     return {"success": True, "path": _norm_path(path), "message": "sync_from_ipfs not implemented"}
+
+
+def vfs_sync_from_ipfs(path: str):
+    return _vfs_dual(_vfs_sync_from_ipfs_async, path)
 
 
 # Placeholder filesystem classes expected by architecture tests.

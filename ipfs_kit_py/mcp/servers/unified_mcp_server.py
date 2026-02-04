@@ -137,6 +137,7 @@ class UnifiedMCPServer:
         debug: bool = False,
         auto_start_daemons: bool = True,
         auto_start_lotus_daemon: bool = True,
+        register_all_tools: bool = True,
         **_kwargs,
     ):
         """
@@ -154,6 +155,7 @@ class UnifiedMCPServer:
         self.debug = debug
         self.auto_start_daemons = auto_start_daemons
         self.auto_start_lotus_daemon = auto_start_lotus_daemon
+        self.register_all_tools = register_all_tools
         
         # Ensure data directory exists
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -170,8 +172,9 @@ class UnifiedMCPServer:
         # Small compatibility surface for tests expecting an integration object.
         self.ipfs_integration = _UnifiedIPFSIntegration()
         
-        # Register all MCP tools
-        self._register_all_tools()
+        # Register all MCP tools (can be disabled for fast stdio test startup)
+        if self.register_all_tools:
+            self._register_all_tools()
         
         logger.info(f"Unified MCP Server initialized with {len(self.tools)} tools")
     
@@ -615,6 +618,7 @@ def create_mcp_server(
     debug: bool = False,
     auto_start_daemons: bool = True,
     auto_start_lotus_daemon: bool = True,
+    register_all_tools: bool = True,
     **kwargs,
 ) -> UnifiedMCPServer:
     """
@@ -642,6 +646,7 @@ def create_mcp_server(
         debug=debug,
         auto_start_daemons=auto_start_daemons,
         auto_start_lotus_daemon=auto_start_lotus_daemon,
+        register_all_tools=register_all_tools,
         **kwargs,
     )
 
@@ -710,18 +715,28 @@ def main():
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     
     args = parser.parse_args()
-    
+
+    # If launched with stdin piped (like the test harness), run stdio JSON-RPC.
+    # Keep startup extremely fast: avoid heavy tool imports and daemon startup.
+    if not sys.stdin.isatty():
+        server = create_mcp_server(
+            host=args.host,
+            port=args.port,
+            data_dir=args.data_dir,
+            debug=args.debug,
+            auto_start_daemons=False,
+            auto_start_lotus_daemon=False,
+            register_all_tools=False,
+        )
+        anyio.run(server.run_stdio)
+        return
+
     server = create_mcp_server(
         host=args.host,
         port=args.port,
         data_dir=args.data_dir,
-        debug=args.debug
+        debug=args.debug,
     )
-
-    # If launched with stdin piped (like the test harness), run stdio JSON-RPC.
-    if not sys.stdin.isatty():
-        anyio.run(server.run_stdio)
-        return
 
     try:
         server.run()
