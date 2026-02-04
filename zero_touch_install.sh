@@ -636,13 +636,8 @@ install_python_deps() {
   local pinned_source_cmd=""
   if [[ "${INSTALL_SOURCE}" == "github-main" ]]; then
     local pkg="ipfs_kit_py"
-    # Prefer a VCS URL pinned to the main branch. If git isn't available, fall back to
-    # the GitHub branch zip archive for best-effort installs.
-    local url="git+https://github.com/endomorphosis/ipfs_kit_py@main"
-    if ! have_cmd git; then
-      err "WARNING: git not found; falling back to GitHub zip archive for @main install"
-      url="https://github.com/endomorphosis/ipfs_kit_py/archive/refs/heads/main.zip"
-    fi
+    # Use the GitHub branch zip archive to avoid VCS/submodule issues during install.
+    local url="https://github.com/endomorphosis/ipfs_kit_py/archive/refs/heads/main.zip"
 
     # pip supports extras with direct URL requirements: "name[extra] @ <url>"
     local direct="${pkg}"
@@ -753,6 +748,8 @@ ensure_optional_python_deps() {
   local want_datasets="no"
   local want_accelerate="no"
   local want_ipld_unixfs="no"
+  local want_cbor2="no"
+  local want_wasmtime="no"
 
   if [[ -n "${EXTRAS}" ]]; then
     if [[ ",${EXTRAS}," == *",ipfs_datasets,"* ]]; then
@@ -769,13 +766,36 @@ ensure_optional_python_deps() {
       dev|full)
         want_datasets="yes"
         want_ipld_unixfs="yes"
+        want_cbor2="yes"
+        want_wasmtime="yes"
         ;;
     esac
   fi
 
-  # Full installs commonly expect acceleration support when present.
-  if [[ "$PROFILE" == "full" ]]; then
-    want_accelerate="yes"
+  if [[ "${want_cbor2}" == "yes" ]]; then
+    if ! python - <<'PY' >/dev/null 2>&1
+try:
+    import cbor2  # noqa: F401
+except Exception:
+    raise SystemExit(1)
+PY
+    then
+      err "Optional dependency missing: cbor2. Attempting install."
+      pip_install_best_effort "cbor2" "cbor2"
+    fi
+  fi
+
+  if [[ "${want_wasmtime}" == "yes" ]]; then
+    if ! python - <<'PY' >/dev/null 2>&1
+try:
+    import wasmtime  # noqa: F401
+except Exception:
+    raise SystemExit(1)
+PY
+    then
+      err "Optional dependency missing: wasmtime. Attempting install."
+      pip_install_best_effort "wasmtime" "wasmtime"
+    fi
   fi
 
   if [[ "${want_datasets}" == "yes" ]]; then

@@ -157,8 +157,10 @@ class AnalyticsCollector:
         failures = sum(1 for op in ops if not op.get("success", True))
         return failures / len(ops)
 
-    def get_peer_stats(self) -> Dict[str, Dict[str, int]]:
-        """Return per-peer request/byte counters."""
+
+
+    def get_peer_stats(self) -> Dict[str, Any]:
+        """Return peer statistics collected so far."""
         return {peer_id: dict(stats) for peer_id, stats in self.peer_stats.items()}
     
     def _percentile(self, data: List[float], percentile: int) -> float:

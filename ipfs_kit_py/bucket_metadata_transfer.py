@@ -68,12 +68,18 @@ class BucketMetadataExporter:
                 "version": "1.0",
                 "exported_at": time.time(),
                 "bucket_info": {
-                    "name": bucket.name,
-                    "type": bucket.bucket_type.value if hasattr(bucket.bucket_type, 'value') else str(bucket.bucket_type),
-                    "vfs_structure": bucket.vfs_structure.value if hasattr(bucket.vfs_structure, 'value') else str(bucket.vfs_structure),
-                    "created_at": bucket.created_at,
-                    "root_cid": bucket.root_cid,
-                    "metadata": bucket.metadata
+                    "name": getattr(bucket, "name", "unknown"),
+                    "type": (
+                        getattr(getattr(bucket, "bucket_type", "standard"), "value", None)
+                        or str(getattr(bucket, "bucket_type", "standard"))
+                    ),
+                    "vfs_structure": (
+                        getattr(getattr(bucket, "vfs_structure", "flat"), "value", None)
+                        or str(getattr(bucket, "vfs_structure", "flat"))
+                    ),
+                    "created_at": getattr(bucket, "created_at", None),
+                    "root_cid": getattr(bucket, "root_cid", None),
+                    "metadata": getattr(bucket, "metadata", {})
                 }
             }
             
@@ -109,7 +115,13 @@ class BucketMetadataExporter:
                 metadata_cid = result.get("cid")
             
             # Always save to local file as backup
-            export_path = bucket.storage_path / f"metadata_export_{int(time.time())}.json"
+            storage_path = getattr(bucket, "storage_path", None)
+            if storage_path is None:
+                storage_path = (Path.cwd() / ".cache" / "bucket_exports" / str(getattr(bucket, "name", "bucket")))
+            else:
+                storage_path = Path(storage_path)
+
+            export_path = storage_path / f"metadata_export_{int(time.time())}.json"
             export_path.parent.mkdir(parents=True, exist_ok=True)
             with open(export_path, 'wb') as f:
                 f.write(metadata_bytes)
@@ -142,34 +154,57 @@ class BucketMetadataExporter:
                 "total_size": 0,
                 "files": []
             }
-            
-            # Scan files directory
-            files_dir = bucket.dirs.get("files")
-            if files_dir and files_dir.exists():
-                for file_path in files_dir.rglob("*"):
-                    if file_path.is_file():
-                        relative_path = str(file_path.relative_to(files_dir))
-                        
-                        # Get file metadata
-                        file_info = {
-                            "path": relative_path,
-                            "size": file_path.stat().st_size,
-                            "modified": file_path.stat().st_mtime
-                        }
-                        
-                        # Try to get IPFS CID if available
-                        # This would require IPFS add operation or stored mapping
-                        # For now, we'll leave it as optional
-                        
-                        manifest["files"].append(file_info)
-                        manifest["file_count"] += 1
-                        manifest["total_size"] += file_info["size"]
+
+            files = await self._get_file_manifest(bucket)
+            if isinstance(files, dict):
+                for path, info in files.items():
+                    file_info = {"path": path, **(info or {})}
+                    manifest["files"].append(file_info)
+                    manifest["file_count"] += 1
+                    manifest["total_size"] += int(file_info.get("size") or 0)
+            elif isinstance(files, list):
+                for item in files:
+                    if not isinstance(item, dict):
+                        continue
+                    manifest["files"].append(item)
+                    manifest["file_count"] += 1
+                    manifest["total_size"] += int(item.get("size") or 0)
             
             return manifest
             
         except Exception as e:
             logger.error(f"Error exporting file manifest: {e}")
             return {"error": str(e)}
+
+    async def _get_file_manifest(self, bucket) -> Dict[str, Any]:
+        """Return a best-effort manifest of bucket files.
+
+        Tests patch this method to control file counts without needing a full BucketVFS.
+        """
+
+        files_dir = None
+        dirs = getattr(bucket, "dirs", None)
+        if isinstance(dirs, dict):
+            files_dir = dirs.get("files")
+
+        if files_dir is None:
+            return {}
+
+        files_dir = Path(files_dir)
+        if not files_dir.exists():
+            return {}
+
+        manifest: Dict[str, Any] = {}
+        for file_path in files_dir.rglob("*"):
+            if not file_path.is_file():
+                continue
+            rel = str(file_path.relative_to(files_dir))
+            try:
+                st = file_path.stat()
+                manifest[rel] = {"size": int(st.st_size), "modified": float(st.st_mtime)}
+            except Exception:
+                manifest[rel] = {}
+        return manifest
     
     async def _export_knowledge_graph(self, bucket) -> Dict[str, Any]:
         """Export knowledge graph structure."""

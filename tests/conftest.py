@@ -34,6 +34,9 @@ _TESTS_DIR = Path(__file__).resolve().parent
 if str(_TESTS_DIR) not in sys.path:
     sys.path.insert(0, str(_TESTS_DIR))
 
+# Load shared fixtures used by the newer Phase 6 test suite.
+pytest_plugins = ["test_phase6_fixtures"]
+
 collect_ignore = ["unit/test_graphrag_features.py"]
 
 
@@ -241,6 +244,12 @@ def _sanitize_sys_path() -> None:
             with suppress(ValueError):
                 sys.path.remove(str(repo_root))
         sys.path.insert(0, str(repo_root))
+
+    # Some tests import helper modules as top-level (e.g. `import test_phase6_fixtures`).
+    # Make that reliable by adding the tests directory explicitly.
+    tests_dir = repo_root / "tests"
+    if tests_dir.is_dir() and str(tests_dir) not in sys.path:
+        sys.path.insert(0, str(tests_dir))
 
     # Ensure local `mcp` wins over any third-party package named `mcp`.
     mod = sys.modules.get("mcp")

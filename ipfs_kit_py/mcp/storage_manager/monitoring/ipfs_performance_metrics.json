@@ -1,11 +1,19 @@
 {
   "operations": {
     "add": {
+<<<<<<< Updated upstream
       "count": 9,
       "success": 9,
       "failed": 0,
       "response_times": [
         0.0006515979766845703
+=======
+      "count": 10,
+      "success": 10,
+      "failed": 0,
+      "response_times": [
+        0.0002739429473876953
+>>>>>>> Stashed changes
       ]
     },
     "get": {
@@ -41,8 +49,8 @@
   },
   "throughput": {
     "uploads": {
-      "bytes": 261,
-      "operations": 9
+      "bytes": 290,
+      "operations": 10
     },
     "downloads": {
       "bytes": 0,
@@ -50,6 +58,7 @@
     }
   },
   "last_hour": {
+<<<<<<< Updated upstream
     "operations": 9,
     "success_rate": 100.0,
     "avg_response_time": 0.0006515979766845703
@@ -60,4 +69,16 @@
     "avg_response_time": 0.0006515979766845703
   },
   "last_updated": 1770178680.60956
+=======
+    "operations": 10,
+    "success_rate": 100.0,
+    "avg_response_time": 0.0002739429473876953
+  },
+  "total": {
+    "operations": 10,
+    "success_rate": 100.0,
+    "avg_response_time": 0.0002739429473876953
+  },
+  "last_updated": 1770179792.7023463
+>>>>>>> Stashed changes
 }
