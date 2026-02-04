@@ -588,7 +588,7 @@ class GraphRAGSearchEngine:
     
     async def graph_search(self, query: str, max_depth: int = 2, **kwargs) -> Dict[str, Any]:
         """Perform graph-based search using knowledge graph."""
-        if not self.knowledge_graph or not HAS_NETWORKX:
+        if self.knowledge_graph is None or not HAS_NETWORKX:
             return {"success": False, "error": "Graph search dependencies not available."}
         
         try:
@@ -632,7 +632,7 @@ class GraphRAGSearchEngine:
         if not query or not str(query).strip():
             return [] if self._legacy_path_api else {"success": True, "results": []}
 
-        if not self.rdf_graph or not HAS_RDFLIB:
+        if self.rdf_graph is None or not HAS_RDFLIB:
             return [] if self._legacy_path_api else {"success": False, "error": "SPARQL search dependencies not available."}
         
         try:
@@ -871,7 +871,7 @@ class GraphRAGSearchEngine:
         Returns:
             Dictionary with graph analytics results
         """
-        if not self.knowledge_graph or not HAS_NETWORKX:
+        if self.knowledge_graph is None or not HAS_NETWORKX:
             return {"success": False, "error": "Knowledge graph not available"}
         
         try:

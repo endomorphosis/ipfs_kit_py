@@ -8,6 +8,8 @@ from unittest.mock import Mock, MagicMock, patch
 import tempfile
 from pathlib import Path
 
+from ipfs_kit_py.analytics_dashboard import HAS_MATPLOTLIB, HAS_NUMPY
+
 
 class TestAnalyticsDashboardExtended:
     """Extended tests for Analytics Dashboard functionality."""
@@ -200,7 +202,7 @@ class TestAnalyticsDashboardExtended:
         assert network["bandwidth_in"] == 1024
         assert network["bandwidth_out"] == 2048
     
-    @pytest.mark.skipif(True, reason="Matplotlib optional")
+    @pytest.mark.skipif(not (HAS_MATPLOTLIB and HAS_NUMPY), reason="Matplotlib optional")
     def test_generate_charts(self):
         """Test chart generation."""
         from ipfs_kit_py.analytics_dashboard import AnalyticsDashboard

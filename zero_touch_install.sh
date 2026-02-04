@@ -675,6 +675,10 @@ install_python_deps() {
   # optional deps don't get pulled in on re-run; this keeps zero-touch resilient.
   if [[ "${PROFILE}" == "dev" || "${PROFILE}" == "full" || "${EXTRAS}" == *"dev"* ]]; then
     python -c 'import wasmtime' >/dev/null 2>&1 || pip_install_best_effort "wasmtime" "wasmtime"
+
+    # Optional test dependencies: keep best-effort so ARM/minimal envs don't fail.
+    python -c 'import rdflib' >/dev/null 2>&1 || pip_install_best_effort "rdflib" "rdflib"
+    python -c 'import matplotlib' >/dev/null 2>&1 || pip_install_best_effort "matplotlib" "matplotlib"
   fi
 
   # Some parts of the repo still expect requirements.txt; install as a best-effort add-on
@@ -823,9 +827,6 @@ PY
     local need_datasets_install="0"
     if [[ -z "${datasets_freeze}" ]]; then
       need_datasets_install="1"
-    elif [[ "${datasets_freeze}" != *"github.com/endomorphosis/ipfs_datasets_py"* ]]; then
-      # Present but not sourced from the GitHub repo; override it.
-      need_datasets_install="1"
     fi
 
     # Also treat import failures as a reason to reinstall.
@@ -840,8 +841,13 @@ PY
     fi
 
     if [[ "${need_datasets_install}" == "1" ]]; then
-      log "Ensuring ipfs_datasets_py is installed from endomorphosis/ipfs_datasets_py@main"
-      pip_install_from_github_main_best_effort "ipfs_datasets_py" "endomorphosis" "ipfs_datasets_py"
+      if [[ "${IPFS_KIT_USE_DATASETS_GITHUB_MAIN:-0}" == "1" ]]; then
+        log "Ensuring ipfs_datasets_py is installed from endomorphosis/ipfs_datasets_py@main"
+        pip_install_from_github_main_best_effort "ipfs_datasets_py" "endomorphosis" "ipfs_datasets_py"
+      else
+        log "Ensuring ipfs_datasets_py is installed from PyPI"
+        pip_install_best_effort "ipfs_datasets_py" "ipfs_datasets_py"
+      fi
     fi
   fi
 

@@ -49,15 +49,22 @@ def _should_skip_datasets_import() -> bool:
         return True
     if os.environ.get("IPFS_KIT_SKIP_DATASETS") == "1":
         return True
-    pytest_env_markers = (
-        "PYTEST_CURRENT_TEST",
-        "PYTEST_ADDOPTS",
-        "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
-        "PYTEST_VERSION",
-        "PYTEST_XDIST_WORKER",
-    )
-    if any(os.environ.get(key) for key in pytest_env_markers):
-        return True
+    # Historically, this module skipped importing `ipfs_datasets_py` under pytest
+    # to keep optional dependencies from affecting unit test runs.
+    #
+    # For this repository, we *do* want tests to exercise the integration when
+    # the dependency is present. If you need the old behavior, set:
+    #   IPFS_KIT_SKIP_DATASETS_IN_PYTEST=1
+    if os.environ.get("IPFS_KIT_SKIP_DATASETS_IN_PYTEST") == "1":
+        pytest_env_markers = (
+            "PYTEST_CURRENT_TEST",
+            "PYTEST_ADDOPTS",
+            "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+            "PYTEST_VERSION",
+            "PYTEST_XDIST_WORKER",
+        )
+        if any(os.environ.get(key) for key in pytest_env_markers):
+            return True
     argv = sys.argv or []
     if any(flag in argv for flag in ("-h", "--help")):
         return True
@@ -81,6 +88,12 @@ def _ensure_ipfs_datasets_loaded() -> None:
         IPFS_DATASETS_AVAILABLE = False
         IPFSDatasetManager = None
         logger.info("ipfs_datasets_py not available - using fallback implementations")
+
+
+# Populate the availability flag at import time so that code paths that only
+# read `IPFS_DATASETS_AVAILABLE` (without calling into the manager) still behave
+# correctly in environments where `ipfs_datasets_py` is installed.
+_ensure_ipfs_datasets_loaded()
 
 
 class DatasetIPFSBackend:

@@ -432,17 +432,18 @@ class TestWasmSupportEnhanced:
         
         assert result["cid"] == "QmTestModule"
     
-    def test_wasm_registry_module_lookup(self):
+    @pytest.mark.anyio
+    async def test_wasm_registry_module_lookup(self):
         """Test looking up modules in registry."""
         from ipfs_kit_py.wasm_support import WasmModuleRegistry
         
         registry = WasmModuleRegistry()
         
         # Register with required name and cid
-        registry.register_module("lookup-test", "QmLookup", metadata={"test": True})
+        await registry.register_module("lookup-test", "QmLookup", metadata={"test": True})
         
         # Get module info
-        module_info = registry.get_module("lookup-test")
+        module_info = await registry.get_module("lookup-test")
         
         assert module_info is not None
 

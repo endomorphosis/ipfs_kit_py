@@ -621,8 +621,11 @@ def get_ipfs_cluster_service():
 
 def get_ipfs_kit():
     # Backwards-compatible accessor for the IPFSKit orchestrator.
-    # Returns a lazy proxy that loads the real class on demand.
-    return ipfs_kit
+    # IMPORTANT: importing the submodule `ipfs_kit_py.ipfs_kit` causes Python to
+    # set `ipfs_kit_py.ipfs_kit` (package attribute) to the module object,
+    # overwriting any callable we may have exported under the same name.
+    # Keep an internal proxy reference that remains stable.
+    return _ipfs_kit_proxy
 
 def get_ipfs_multiformats_py():
     modules = _get_ipfs_modules()
@@ -677,7 +680,8 @@ def _load_ipfs_kit_class():
 # Backward compatibility: historically `ipfs_kit_py.ipfs_kit` was the class.
 # Keep it callable + attribute-accessible without importing the heavy module
 # until first use.
-ipfs_kit = _LazyCallableProxy("ipfs_kit_py.ipfs_kit", _load_ipfs_kit_class)
+_ipfs_kit_proxy = _LazyCallableProxy("ipfs_kit_py.ipfs_kit", _load_ipfs_kit_class)
+ipfs_kit = _ipfs_kit_proxy
 
 # Import storage kit modules using JIT
 @optional_feature('storage_kits', fallback_result=(None, None, None, False, None, False))

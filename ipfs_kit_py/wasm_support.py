@@ -78,6 +78,8 @@ class _CoroutineValue(Coroutine):
     allocate a real coroutine frame.
     """
 
+    _is_coroutine = asyncio.coroutines._is_coroutine
+
     def __init__(self, value):
         self._value = value
         self._done = False

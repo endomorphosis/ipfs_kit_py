@@ -282,7 +282,7 @@ class TestImprovedGraphRAG:
         with tempfile.TemporaryDirectory() as tmpdir:
             engine = GraphRAGSearchEngine(workspace_dir=tmpdir)
             
-            if not engine.rdf_graph:
+            if engine.rdf_graph is None:
                 pytest.skip("RDFLib not available")
             
             query = "SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10"

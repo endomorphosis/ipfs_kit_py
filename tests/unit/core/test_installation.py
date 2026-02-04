@@ -61,7 +61,22 @@ def test_ipfs_kit():
 
         print(f"IPFS Kit version: {__version__}")
 
-        ipfs_kit_factory = getattr(ipfs_kit_py, "ipfs_kit", None)
+        ipfs_kit_factory = None
+        get_factory = getattr(ipfs_kit_py, "get_ipfs_kit", None)
+        if callable(get_factory):
+            ipfs_kit_factory = get_factory()
+        else:
+            candidate = getattr(ipfs_kit_py, "ipfs_kit", None)
+            if callable(candidate):
+                ipfs_kit_factory = candidate
+            else:
+                try:
+                    from ipfs_kit_py.ipfs_kit import ipfs_kit as candidate_factory
+
+                    ipfs_kit_factory = candidate_factory
+                except Exception:
+                    ipfs_kit_factory = None
+
         if not callable(ipfs_kit_factory):
             pytest.skip("ipfs_kit factory is not callable; skipping deep smoke test")
 
@@ -73,9 +88,11 @@ def test_ipfs_kit():
         }
         kit = ipfs_kit_factory(metadata=kit_metadata, auto_start_daemons=False)
 
-        # Check version compatibility
-        version_info = kit.get_version_info()
-        print(f"Compatible with IPFS version: {version_info.get('version', 'Unknown')}")
+        # Minimal smoke assertions that don't require running daemons.
+        assert getattr(kit, "role", None) in {"leecher", "worker", "master"}
+        assert hasattr(kit, "metadata")
+        assert callable(getattr(kit, "initialize", None))
+        assert getattr(kit, "is_initialized", False) is False
     except Exception as e:
         print(f"Error testing IPFS Kit: {e}")
         traceback.print_exc()

@@ -151,7 +151,6 @@ class AnalyticsCollector:
         ops_per_second = reported_ops / uptime if uptime > 0 else 0.0
         bytes_per_second = reported_bytes / uptime if uptime > 0 else 0.0
         error_rate = reported_errors / reported_ops if reported_ops > 0 else 0.0
-
         # Calculate latency statistics
         latency_stats: Dict[str, float] = {}
         if self.latencies:
@@ -411,7 +410,10 @@ class AnalyticsDashboard:
         plt.grid(True, alpha=0.3)
 
         plt.subplot(1, 2, 2)
-        plt.boxplot(cleaned, vert=True)
+        try:
+            plt.boxplot(cleaned, orientation="vertical")
+        except TypeError:
+            plt.boxplot(cleaned, vert=True)
         plt.ylabel("Latency (seconds)")
         plt.title("Latency Box Plot")
         plt.grid(True, alpha=0.3)
@@ -478,7 +480,10 @@ class AnalyticsDashboard:
         
         # Box plot
         plt.subplot(1, 2, 2)
-        plt.boxplot(latencies, vert=True)
+        try:
+            plt.boxplot(latencies, orientation="vertical")
+        except TypeError:
+            plt.boxplot(latencies, vert=True)
         plt.ylabel("Latency (seconds)")
         plt.title("Latency Box Plot")
         plt.grid(True, alpha=0.3)

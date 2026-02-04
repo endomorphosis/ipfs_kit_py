@@ -228,7 +228,7 @@ class FilesystemJournal:
         except Exception:
             safe_to_log = False
         if safe_to_log:
-            logger.info(f"Created new journal at {self.current_journal_path}")
+            logger.debug(f"Created new journal at {self.current_journal_path}")
     
     def _write_journal(self):
         """Write the current journal entries to disk."""
@@ -614,7 +614,7 @@ class FilesystemJournal:
                 
                 try:
                     if (not getattr(self, "_stop_sync", threading.Event()).is_set()) and (not sys.is_finalizing()):
-                        logger.info(f"Created checkpoint {checkpoint_id}")
+                        logger.debug(f"Created checkpoint {checkpoint_id}")
                 except Exception:
                     pass
                 return checkpoint_id
