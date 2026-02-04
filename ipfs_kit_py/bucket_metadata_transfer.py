@@ -38,6 +38,30 @@ class BucketMetadataExporter:
         """Initialize bucket metadata exporter."""
         self.ipfs_client = ipfs_client
         logger.info("Bucket metadata exporter initialized")
+
+    def _safe_attr(self, obj: Any, name: str, default: Any = None) -> Any:
+        """Safely read attributes from real objects or unittest.mock objects.
+
+        `unittest.mock.Mock` returns new Mock instances for unknown attributes,
+        which are not JSON/CBOR serializable. This helper avoids that by
+        consulting `__dict__` first for mock objects.
+        """
+
+        try:
+            is_mock = type(obj).__module__.startswith("unittest.mock")
+        except Exception:
+            is_mock = False
+
+        if is_mock:
+            obj_dict = getattr(obj, "__dict__", {})
+            if isinstance(obj_dict, dict) and name in obj_dict:
+                return obj_dict[name]
+            return default
+
+        try:
+            return getattr(obj, name)
+        except Exception:
+            return default
     
     async def export_bucket_metadata(
         self,
@@ -45,6 +69,8 @@ class BucketMetadataExporter:
         include_files: bool = True,
         include_knowledge_graph: bool = True,
         include_vector_index: bool = True,
+        knowledge_graph: Any = None,
+        vector_index: Any = None,
         format: str = "json"
     ) -> Dict[str, Any]:
         """
@@ -62,24 +88,31 @@ class BucketMetadataExporter:
         """
         try:
             logger.info(f"Exporting metadata for bucket: {bucket.name}")
+
+            bucket_name = self._safe_attr(bucket, "name", "unknown")
+            bucket_type = self._safe_attr(bucket, "bucket_type", "standard")
+            vfs_structure = self._safe_attr(bucket, "vfs_structure", "flat")
+            created_at = self._safe_attr(bucket, "created_at", None)
+            root_cid = self._safe_attr(bucket, "root_cid", None)
+            bucket_metadata = self._safe_attr(bucket, "metadata", {})
             
             # Build metadata structure
             metadata = {
                 "version": "1.0",
                 "exported_at": time.time(),
                 "bucket_info": {
-                    "name": getattr(bucket, "name", "unknown"),
+                    "name": bucket_name,
                     "type": (
-                        getattr(getattr(bucket, "bucket_type", "standard"), "value", None)
-                        or str(getattr(bucket, "bucket_type", "standard"))
+                        getattr(bucket_type, "value", None)
+                        or str(bucket_type)
                     ),
                     "vfs_structure": (
-                        getattr(getattr(bucket, "vfs_structure", "flat"), "value", None)
-                        or str(getattr(bucket, "vfs_structure", "flat"))
+                        getattr(vfs_structure, "value", None)
+                        or str(vfs_structure)
                     ),
-                    "created_at": getattr(bucket, "created_at", None),
-                    "root_cid": getattr(bucket, "root_cid", None),
-                    "metadata": getattr(bucket, "metadata", {})
+                    "created_at": created_at,
+                    "root_cid": root_cid,
+                    "metadata": bucket_metadata if isinstance(bucket_metadata, dict) else {},
                 }
             }
             
@@ -88,11 +121,13 @@ class BucketMetadataExporter:
                 metadata["files"] = await self._export_file_manifest(bucket)
             
             # Export knowledge graph
-            if include_knowledge_graph and bucket.knowledge_graph:
+            knowledge_graph = knowledge_graph if knowledge_graph is not None else self._safe_attr(bucket, "knowledge_graph", None)
+            if include_knowledge_graph and knowledge_graph:
                 metadata["knowledge_graph"] = await self._export_knowledge_graph(bucket)
             
             # Export vector index metadata
-            if include_vector_index and bucket.vector_index:
+            vector_index = vector_index if vector_index is not None else self._safe_attr(bucket, "vector_index", None)
+            if include_vector_index and vector_index:
                 metadata["vector_index"] = await self._export_vector_index(bucket)
             
             # Export statistics
@@ -115,9 +150,9 @@ class BucketMetadataExporter:
                 metadata_cid = result.get("cid")
             
             # Always save to local file as backup
-            storage_path = getattr(bucket, "storage_path", None)
+            storage_path = self._safe_attr(bucket, "storage_path", None)
             if storage_path is None:
-                storage_path = (Path.cwd() / ".cache" / "bucket_exports" / str(getattr(bucket, "name", "bucket")))
+                storage_path = (Path.cwd() / ".cache" / "bucket_exports" / str(bucket_name or "bucket"))
             else:
                 storage_path = Path(storage_path)
 
@@ -258,9 +293,9 @@ class BucketMetadataExporter:
         """Export bucket statistics."""
         try:
             stats = {
-                "created_at": bucket.created_at,
-                "root_cid": bucket.root_cid,
-                "storage_path": str(bucket.storage_path),
+                "created_at": self._safe_attr(bucket, "created_at", None),
+                "root_cid": self._safe_attr(bucket, "root_cid", None),
+                "storage_path": str(self._safe_attr(bucket, "storage_path", "")),
             }
             
             return stats
