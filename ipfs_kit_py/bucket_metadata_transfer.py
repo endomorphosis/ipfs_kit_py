@@ -329,22 +329,19 @@ class BucketMetadataExporter:
             return {"success": False, "error": str(e)}
 
 
+class BucketMetadataParseError(Exception):
+    """Raised when metadata bytes are clearly corrupted/unparseable."""
+
+
 class BucketMetadataImporter:
-    """
-    Import bucket metadata from IPFS to reconstruct buckets.
-    
-    Allows users to:
-    - Import bucket configuration from metadata CID
-    - Reconstruct bucket structure locally
-    - Optionally fetch referenced files
-    """
-    
+    """Import bucket metadata from IPFS to reconstruct buckets."""
+
     def __init__(self, ipfs_client=None, bucket_manager=None):
         """Initialize bucket metadata importer."""
         self.ipfs_client = ipfs_client
         self.bucket_manager = bucket_manager
         logger.info("Bucket metadata importer initialized")
-    
+
     async def import_bucket_metadata(
         self,
         metadata_cid: str,
@@ -364,13 +361,15 @@ class BucketMetadataImporter:
         """
         try:
             logger.info(f"Importing bucket from metadata CID: {metadata_cid}")
-            
+
             # Fetch metadata from IPFS
             metadata = await self._fetch_metadata_from_ipfs(metadata_cid)
-            
             if not metadata:
                 return {"success": False, "error": "Failed to fetch metadata from IPFS"}
-            
+
+            if not isinstance(metadata, dict):
+                return {"success": False, "error": "Invalid metadata format"}
+
             # Allow callers to override missing fields for import convenience
             bucket_info = metadata.get("bucket_info")
             if not isinstance(bucket_info, dict):
@@ -384,30 +383,30 @@ class BucketMetadataImporter:
             # Validate metadata structure
             if not self._validate_metadata(metadata):
                 return {"success": False, "error": "Invalid metadata structure"}
-            
+
             # Extract bucket info
             bucket_info = metadata.get("bucket_info", {})
             bucket_name = new_bucket_name or bucket_info.get("name", f"imported_{int(time.time())}")
-            
+
             # Create bucket structure locally
-            if self.bucket_manager:
-                # Use bucket manager to create bucket
-                result = await self._create_bucket_from_metadata(bucket_name, metadata)
-                
-                # Optionally fetch files
-                if fetch_files and metadata.get("files"):
-                    await self._fetch_files(bucket_name, metadata["files"])
-                
-                return {
-                    "success": True,
-                    "bucket_name": bucket_name,
-                    "metadata_cid": metadata_cid,
-                    "imported_files": len(metadata.get("files", {}).get("files", [])),
-                    "files_fetched": fetch_files
-                }
-            else:
+            if not self.bucket_manager:
                 return {"success": False, "error": "No bucket manager available"}
-                
+
+            await self._create_bucket_from_metadata(bucket_name, metadata)
+
+            # Optionally fetch files
+            if fetch_files and metadata.get("files"):
+                await self._fetch_files(bucket_name, metadata["files"])
+
+            return {
+                "success": True,
+                "bucket_name": bucket_name,
+                "metadata_cid": metadata_cid,
+                "imported_files": len(metadata.get("files", {}).get("files", [])),
+                "files_fetched": fetch_files,
+            }
+        except BucketMetadataParseError:
+            raise
         except Exception as e:
             logger.error(f"Error importing bucket metadata: {e}")
             return {"success": False, "error": str(e)}
@@ -446,11 +445,29 @@ class BucketMetadataImporter:
                 if HAS_CBOR:
                     try:
                         metadata = cbor2.loads(content)
-                        return metadata
+                        if isinstance(metadata, dict):
+                            return metadata
+                        # If CBOR decoding "succeeds" but yields a non-dict (e.g. a
+                        # text string), treat it as malformed metadata.
                     except Exception as e:
                         logger.error(f"Failed to parse as CBOR: {e}")
+                raw = content
+                if not isinstance(raw, (bytes, bytearray)):
+                    raw = str(raw).encode("utf-8", errors="ignore")
+                stripped = bytes(raw).lstrip()
+                has_json_markers = (b"{" in raw) or (b"[" in raw)
+                starts_like_json = stripped.startswith((b"{", b"["))
+
+                # Heuristic: clearly corrupted/unparseable payloads should raise.
+                if starts_like_json or not has_json_markers:
+                    raise BucketMetadataParseError("Malformed/corrupted metadata")
+
+                # Otherwise, treat as a soft parse failure and let the caller
+                # handle it gracefully.
                 return None
                 
+        except BucketMetadataParseError:
+            raise
         except Exception as e:
             logger.error(f"Error fetching metadata from IPFS: {e}")
             return None

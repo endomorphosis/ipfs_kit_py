@@ -18,6 +18,7 @@ import logging
 import os
 import pickle
 import sqlite3
+import tempfile
 import time
 from typing import Dict, Any, List, Optional, Set, Tuple
 
@@ -89,6 +90,13 @@ class GraphRAGSearchEngine:
 
         if workspace_dir is None and db_path is not None:
             workspace_dir = os.path.dirname(os.path.abspath(db_path)) or "."
+
+        # Default to a temp workspace to keep instances isolated (tests expect a
+        # fresh database when workspace_dir is not explicitly provided).
+        self._workspace_tmp = None
+        if workspace_dir is None:
+            self._workspace_tmp = tempfile.TemporaryDirectory(prefix="ipfs_mcp_search_")
+            workspace_dir = self._workspace_tmp.name
 
         self.workspace_dir = workspace_dir or os.path.expanduser("~/.ipfs_mcp_search")
         os.makedirs(self.workspace_dir, exist_ok=True)

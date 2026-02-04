@@ -82,6 +82,7 @@ class AnalyticsCollector:
         event = {
             "timestamp": timestamp,
             "type": operation_type,
+            "operation_type": operation_type,
             "duration": duration,
             "bytes": bytes_transferred,
             "success": success,
