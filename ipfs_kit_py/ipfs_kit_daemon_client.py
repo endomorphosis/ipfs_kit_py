@@ -24,6 +24,17 @@ import psutil
 logger = logging.getLogger(__name__)
 
 
+__all__ = [
+    "DaemonClient",
+    "IPFSKitClientMixin",
+    "RouteReader",
+    "route_reader",
+    "daemon_client",
+    "find_backends_for_cid",
+    "suggest_backend_for_pin",
+]
+
+
 class DaemonClient:
     """Client for communicating with the IPFS-Kit daemon.
 
@@ -217,6 +228,9 @@ class RouteReader:
 
 # Convenience globals
 route_reader = RouteReader()
+
+# Legacy/compat export: some modules import a module-level client instance.
+daemon_client = DaemonClient()
 
 
 def find_backends_for_cid(cid: str) -> List[str]:
