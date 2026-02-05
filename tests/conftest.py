@@ -12,6 +12,7 @@ allowing tests to import `ipfs_kit_py` in editable/installed environments.
 
 from __future__ import annotations
 
+import errno
 import importlib.util
 import inspect
 import os
@@ -26,6 +27,54 @@ import pytest
 import aiohttp
 import json
 import socket
+
+
+# ---------------------------------------------------------------------------
+# Pytest teardown robustness
+# ---------------------------------------------------------------------------
+#
+# In some environments, a dependency import chain can close a file descriptor
+# underneath pytest's own log-file handler. When pytest later closes that
+# handler during unconfigure, it can raise OSError: [Errno 9] Bad file
+# descriptor and incorrectly fail the run.
+#
+# Treat EBADF as harmless during handler close.
+import logging
+
+
+_ORIGINAL_FILEHANDLER_CLOSE = logging.FileHandler.close
+
+
+def _safe_filehandler_close(self) -> None:  # type: ignore[override]
+    try:
+        _ORIGINAL_FILEHANDLER_CLOSE(self)
+    except OSError as e:
+        if getattr(e, "errno", None) == errno.EBADF:
+            return
+        raise
+
+
+logging.FileHandler.close = _safe_filehandler_close  # type: ignore[assignment]
+
+
+# Pytest's built-in faulthandler plugin can similarly raise EBADF when closing
+# its saved stderr FD during teardown if something already closed it.
+try:
+    import _pytest.faulthandler as _pytest_faulthandler
+
+    _ORIGINAL_PYTEST_OS_CLOSE = _pytest_faulthandler.os.close
+
+    def _safe_pytest_os_close(fd: int) -> None:
+        try:
+            _ORIGINAL_PYTEST_OS_CLOSE(fd)
+        except OSError as e:
+            if getattr(e, "errno", None) == errno.EBADF:
+                return
+            raise
+
+    _pytest_faulthandler.os.close = _safe_pytest_os_close  # type: ignore[assignment]
+except Exception:
+    pass
 
 # Allow tests to import sibling helper modules like `test_phase6_fixtures.py`.
 # This is safe because it adds the *tests directory* (not the package dir)

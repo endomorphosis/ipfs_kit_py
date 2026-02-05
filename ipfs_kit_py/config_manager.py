@@ -95,3 +95,11 @@ class ConfigManager:
         
         with open(metadata_file, "w") as f:
             json.dump(metadata, f, indent=2)
+
+
+def get_config_manager(config_dir: Optional[Path] = None) -> ConfigManager:
+    """Return a default ConfigManager instance.
+
+    Several legacy subsystems expect a `get_config_manager()` factory.
+    """
+    return ConfigManager(config_dir=config_dir or (Path.home() / ".ipfs_kit" / "config"))
