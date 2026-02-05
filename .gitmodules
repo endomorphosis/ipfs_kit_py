@@ -54,10 +54,6 @@
 	path = ipfs_transformers_py
 	url = https://github.com/endomorphosis/ipfs_transformers_py.git
 	branch = main
-[submodule "ipfs_accelerate_py"]
-	path = ipfs_accelerate_py
-	url = https://github.com/Endomorphosis/ipfs_accelerate_py.git
-	branch = main
 [submodule "docs/mcp-python-sdk"]
 	path = docs/mcp-python-sdk
 	url = https://github.com/modelcontextprotocol/python-sdk.git
