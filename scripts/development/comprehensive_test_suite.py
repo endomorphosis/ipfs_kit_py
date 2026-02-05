@@ -992,7 +992,7 @@ class ComprehensiveTestSuite:
         try:
             code = (
                 "import os; os.environ['IPFS_KIT_MCP_JSONRPC_URL']='http://127.0.0.1:1234/api/jsonrpc';"
-                "from consolidated_mcp_dashboard import ConsolidatedMCPDashboard;"
+                "from ipfs_kit_py.consolidated_mcp_dashboard import ConsolidatedMCPDashboard;"
                 "d=ConsolidatedMCPDashboard({'debug':True});"
                 "print(d._get_mcp_base_url())"
             )

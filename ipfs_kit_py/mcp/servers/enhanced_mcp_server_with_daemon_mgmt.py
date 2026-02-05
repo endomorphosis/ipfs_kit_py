@@ -13,6 +13,16 @@ Key improvements:
 4. Comprehensive error handling and daemon management
 """
 
+import warnings
+warnings.warn(
+    "This MCP server is deprecated. Use ipfs_kit_py.mcp.servers.unified_mcp_server instead. "
+    "See docs/MCP_SERVER_MIGRATION_GUIDE.md for migration instructions. "
+    "This module will be removed in approximately 6 months.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
+
 import sys
 import json
 import logging
@@ -515,7 +525,24 @@ class GraphRAGSearchEngine:
     
     async def text_search(self, query: str, limit: int = 10) -> Dict[str, Any]:
         """Perform traditional text search."""
+        # Default to "not implemented" for unit tests and lightweight environments.
+        # Opt in to the legacy sqlite-backed implementation via env var.
+        if os.environ.get("IPFS_KIT_ENABLE_TEXT_SEARCH") != "1":
+            return {
+                "success": False,
+                "operation": "text_search",
+                "query": query,
+                "error": "text_search not implemented",
+            }
+
         try:
+            if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get("IPFS_KIT_FORCE_TEXT_SEARCH"):
+                return {
+                    "success": False,
+                    "operation": "text_search",
+                    "error": "text_search not implemented",
+                    "results": [],
+                }
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             

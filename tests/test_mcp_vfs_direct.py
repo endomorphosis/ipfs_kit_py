@@ -29,7 +29,7 @@ async def test_mcp_vfs_operations():
     
     try:
         # Import the MCP server
-        from mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
+        from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
         
         # Create integration instance
         integration = IPFSKitIntegration()

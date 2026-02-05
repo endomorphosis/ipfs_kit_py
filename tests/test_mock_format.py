@@ -6,14 +6,14 @@ from pathlib import Path
 repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root))
 
-from ipfs_kit_py.mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
+from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server, IPFSKitIntegration
 import anyio
 import pytest
 
 pytestmark = pytest.mark.anyio
 
 async def test_mock_format():
-    integration = IPFSKitIntegration()
+    integration = IPFSKitIntegration(auto_start_daemons=False, auto_start_lotus_daemon=False)
     
     # Test a VFS operation that should return a mock
     result = await integration.execute_ipfs_operation("vfs_mount", 

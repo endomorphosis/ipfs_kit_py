@@ -745,7 +745,7 @@ This visualization provides insights into:
 - Network vs. computation time
 - Throughput measurements
 
-For more details, see the [AI/ML Visualization Guide](ai_ml_visualization.md).
+For more details, see the [AI/ML Visualization Guide](integration/ai-ml/ai_ml_visualization.md).
 
 ## Implementation Details
 

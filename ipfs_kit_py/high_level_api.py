@@ -410,7 +410,7 @@ class IPFSSimpleAPI:
                     sys.path.insert(0, parent_dir)
                     
                     # Try direct import
-                    from ipfs_fsspec import IPFSFileSystem
+                    from ipfs_kit_py.ipfs_fsspec import IPFSFileSystem
                     
                     # Remove the temporary path addition
                     if parent_dir in sys.path:

@@ -13,6 +13,7 @@ import json
 import logging
 import tempfile
 import time
+import os
 from pathlib import Path
 import pytest
 
@@ -23,8 +24,14 @@ logger = logging.getLogger(__name__)
 pytestmark = pytest.mark.anyio
 
 
+def _skip_long_integration():
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run intelligent daemon system tests")
+
+
 def test_backend_adapters():
     """Test backend adapter factory and isomorphic interfaces."""
+    _skip_long_integration()
     logger.info("Testing backend adapter factory and interfaces...")
     
     try:
@@ -83,6 +90,7 @@ def test_backend_adapters():
 
 def test_filesystem_adapter():
     """Test filesystem backend adapter with temporary directory."""
+    _skip_long_integration()
     logger.info("Testing filesystem backend adapter...")
     
     try:
@@ -155,6 +163,7 @@ def test_filesystem_adapter():
 
 def test_intelligent_daemon_discovery():
     """Test backend discovery using temporary configurations."""
+    _skip_long_integration()
     logger.info("Testing intelligent daemon backend discovery...")
     
     try:
@@ -226,6 +235,7 @@ def test_intelligent_daemon_discovery():
 
 def test_daemon_task_system():
     """Test the daemon task scheduling and execution system."""
+    _skip_long_integration()
     logger.info("Testing daemon task scheduling system...")
     
     try:

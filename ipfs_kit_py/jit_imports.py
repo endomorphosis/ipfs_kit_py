@@ -157,6 +157,25 @@ class JITImports:
                 pip_packages=['aiohttp', 'websockets', 'requests'],
                 check_function=self._check_networking_available,
                 description="Advanced networking capabilities"
+            ),
+            'installer_dependencies': FeatureDefinition(
+                name='installer_dependencies',
+                modules=[
+                    'ipfs_kit_py.install_ipfs',
+                    'ipfs_kit_py.install_lotus',
+                    'ipfs_kit_py.install_lassie',
+                    'ipfs_kit_py.install_storacha',
+                ],
+                check_function=self._check_installer_dependencies_available,
+                priority=2,
+                description="Installer modules used for binary/dependency setup"
+            ),
+            'high_level_api': FeatureDefinition(
+                name='high_level_api',
+                modules=['ipfs_kit_py.high_level_api'],
+                check_function=self._check_high_level_api_available,
+                priority=2,
+                description="High-level convenience API (IPFSSimpleAPI)"
             )
         }
         
@@ -429,6 +448,36 @@ class JITImports:
         optional_modules = ['aiohttp', 'websockets', 'requests']
         # At least one networking module should be available
         return any(self._check_modules_available([module]) for module in optional_modules)
+
+    def _check_installer_dependencies_available(self) -> bool:
+        """Check if installer modules are available.
+
+        These are first-party modules in the package. They should be importable
+        even in minimal environments (they may no-op on actual downloads).
+        """
+        required_modules = [
+            'ipfs_kit_py.install_ipfs',
+            'ipfs_kit_py.install_lotus',
+            'ipfs_kit_py.install_lassie',
+            'ipfs_kit_py.install_storacha',
+        ]
+        return self._check_modules_available(required_modules)
+
+    def _check_high_level_api_available(self) -> bool:
+        """Check if the high-level API module (and IPFSSimpleAPI) is available."""
+        # The high-level API may trigger expensive initialization (daemon checks,
+        # network probes) at import/instantiation time. In test environments we
+        # default to treating it as unavailable unless explicitly enabled.
+        try:
+            import os
+
+            if os.environ.get('PYTEST_CURRENT_TEST') and os.environ.get('IPFS_KIT_ENABLE_HIGH_LEVEL_API_IN_TESTS', '').strip().lower() not in {'1', 'true', 'yes', 'on'}:
+                return False
+
+            module = importlib.import_module('ipfs_kit_py.high_level_api')
+            return getattr(module, 'IPFSSimpleAPI', None) is not None
+        except ImportError:
+            return False
     
     def _check_modules_available(self, modules: list[str]) -> bool:
         """Check if a list of modules are available."""

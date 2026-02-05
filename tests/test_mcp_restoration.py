@@ -14,7 +14,15 @@ except ImportError:
     UnifiedMCPDashboard = None
 
 def test_mcp_dashboard():
-    """Test the MCP dashboard functionality"""
+    """pytest wrapper for the standalone MCP dashboard check."""
+    assert run_mcp_dashboard_check()
+
+
+def run_mcp_dashboard_check() -> bool:
+    """Run the MCP dashboard functionality check.
+
+    Returns a boolean so this file can still be executed as a script.
+    """
     if UnifiedMCPDashboard is None:
         pytest.skip("UnifiedMCPDashboard not available")
     
@@ -50,7 +58,7 @@ def test_mcp_dashboard():
         print("- MCP tool methods: ✅ Available")
         print("- IPFS integration: ✅ Connected")
         print("- Bucket management: ✅ Ready")
-        
+
         return True
         
     except Exception as e:
@@ -58,7 +66,7 @@ def test_mcp_dashboard():
         return False
 
 if __name__ == "__main__":
-    success = test_mcp_dashboard()
+    success = run_mcp_dashboard_check()
     if success:
         print("\n🎉 All MCP functionality has been successfully restored!")
         print("🚀 Ready to run: ipfs-kit mcp start")

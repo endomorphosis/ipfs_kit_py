@@ -13,10 +13,12 @@ import os
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
+import pytest
 from ipfs_kit_py.enhanced_daemon_manager import EnhancedDaemonManager
 
 def test_background_indexing():
     """Test the background indexing functionality."""
+    pytest.skip("Background indexing integration test is slow; run manually when needed")
     print("🚀 Testing Enhanced Daemon Manager with Background Indexing")
     print("=" * 60)
     

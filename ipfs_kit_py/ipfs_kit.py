@@ -35,7 +35,14 @@ from .error import (
 )
 from .performance_metrics import PerformanceMetrics
 from .observability_api import observability_router
-from .cluster.monitoring import ClusterMonitor, MetricsCollector
+# Avoid importing cluster monitoring at module import time.
+# It can pull in large portions of the stack and has historically triggered
+# circular imports / side effects during test collection.
+try:
+    from .cluster.monitoring import ClusterMonitor, MetricsCollector
+except Exception:
+    ClusterMonitor = None  # type: ignore
+    MetricsCollector = None  # type: ignore
 from .program_state import get_program_state_manager
 
 # Define a generic type variable for the return type
@@ -195,13 +202,8 @@ try:
 except ImportError:
     HAS_CLUSTER_MANAGEMENT = False
 
-# Try to import monitoring components
-try:
-    from .cluster.monitoring import ClusterMonitor, MetricsCollector
-
-    HAS_MONITORING = True
-except ImportError:
-    HAS_MONITORING = False
+# Monitoring components are imported (best-effort) near the top of this module.
+HAS_MONITORING = ClusterMonitor is not None and MetricsCollector is not None
 
 # GPU information is included in the cluster management imports
 
@@ -248,14 +250,22 @@ except ImportError:
     HAS_TIERED_CACHE_MANAGER = False # Added flag for tiered cache manager
 
 # Import WebSocket peer discovery components (with fallback if not available)
-try:
-    from .peer_websocket import (
-        PeerInfo, PeerWebSocketServer, PeerWebSocketClient,
-        create_peer_info_from_ipfs_kit, PeerRole, WEBSOCKET_AVAILABLE
-    )
+#
+# Note: this import can trigger noisy stdout from optional third-party deps
+# (e.g. libp2p_kit_py) at import time. Keep it opt-in so core imports remain
+# side-effect free and tests don't hang waiting on network-ish initialization.
+_ENABLE_WS = os.environ.get("IPFS_KIT_ENABLE_WEBSOCKET_PEER_DISCOVERY", "").strip().lower() in {"1", "true", "yes", "on"}
+if _ENABLE_WS:
+    try:
+        from .peer_websocket import (
+            PeerInfo, PeerWebSocketServer, PeerWebSocketClient,
+            create_peer_info_from_ipfs_kit, PeerRole, WEBSOCKET_AVAILABLE
+        )
 
-    HAS_WEBSOCKET_PEER_DISCOVERY = True
-except ImportError:
+        HAS_WEBSOCKET_PEER_DISCOVERY = True
+    except ImportError:
+        HAS_WEBSOCKET_PEER_DISCOVERY = False
+else:
     HAS_WEBSOCKET_PEER_DISCOVERY = False
 import json
 import os
@@ -393,6 +403,10 @@ class ipfs_kit:
 
         # Store metadata
         self.metadata = metadata or {}
+        # Normalize local variable so downstream logic doesn't treat None as
+        # "skip initialization". Many call sites construct ipfs_kit() without
+        # passing metadata.
+        metadata = self.metadata
 
         # Initialize _initialized attribute
         self._initialized = False
@@ -421,7 +435,10 @@ class ipfs_kit:
         self.daemon_manager = None
 
         # Check if we need to download binaries
-        auto_download = self.metadata.get("auto_download_binaries", True)
+        # Default to NOT downloading binaries automatically. This avoids
+        # surprising network activity during imports/tests; users can opt-in
+        # via metadata["auto_download_binaries"] = True.
+        auto_download = self.metadata.get("auto_download_binaries", False)
         if auto_download:
             # Check if binaries directory exists and has the required binaries
             this_dir = os.path.dirname(os.path.realpath(__file__))

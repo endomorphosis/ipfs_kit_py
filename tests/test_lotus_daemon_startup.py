@@ -6,6 +6,8 @@ Test script to verify lotus daemon starts up properly with ipfs_kit
 import sys
 import logging
 import time
+import os
+import pytest
 
 # Configure logging
 logging.basicConfig(
@@ -17,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 def test_lotus_daemon_startup():
     """Test that lotus daemon starts up properly"""
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run Lotus daemon startup test")
     
     print("=" * 60)
     print("Testing Lotus Daemon Startup")

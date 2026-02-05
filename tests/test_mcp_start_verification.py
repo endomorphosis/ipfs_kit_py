@@ -9,27 +9,60 @@ import time
 import requests
 import signal
 import sys
+import socket
 
 
-def test_dashboard_startup():
-    """Test that the dashboard starts and serves the refactored version."""
+def _find_available_port(preferred: int = 8005) -> int:
+    """Return a free TCP port, preferring the provided port if available."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind(("127.0.0.1", preferred))
+            return preferred
+        except OSError:
+            pass
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+def run_dashboard_startup_check() -> bool:
+    """Run the dashboard startup check.
+
+    Returns a boolean so this file can still be executed as a script; pytest asserts it.
+    """
     print("🔍 Testing MCP dashboard startup and management functionality...")
     
     # Start the MCP server in background
     print("🚀 Starting MCP server...")
+    port = _find_available_port(8005)
+    if port != 8005:
+        print(f"⚠️  Port 8005 in use, using free port {port} for test")
+
     proc = subprocess.Popen([
         sys.executable, "-m", "ipfs_kit_py.cli", 
-        "mcp", "start", "--port", "8005", "--host", "127.0.0.1"
+        "mcp", "start", "--port", str(port), "--host", "127.0.0.1"
     ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     
     try:
         # Give server time to start
         print("⏳ Waiting for server to start...")
-        time.sleep(10)
+        deadline = time.time() + 30
+        response = None
+        last_error = None
+        while time.time() < deadline:
+            try:
+                response = requests.get(f"http://127.0.0.1:{port}", timeout=5)
+                break
+            except requests.exceptions.RequestException as e:
+                last_error = e
+                time.sleep(1)
         
         # Test if server is running
         try:
-            response = requests.get("http://127.0.0.1:8005", timeout=5)
+            if response is None:
+                raise requests.exceptions.RequestException(last_error)
+            
             print(f"✅ Dashboard responded with status code: {response.status_code}")
             
             # Check if it's the refactored version (not migration notice)
@@ -50,7 +83,7 @@ def test_dashboard_startup():
                 
                 for endpoint, name in api_tests:
                     try:
-                        api_response = requests.get(f"http://127.0.0.1:8005{endpoint}", timeout=5)
+                        api_response = requests.get(f"http://127.0.0.1:{port}{endpoint}", timeout=5)
                         if api_response.status_code == 200:
                             print(f"✅ {name} endpoint working")
                         else:
@@ -80,13 +113,17 @@ def test_dashboard_startup():
         print("✅ Server stopped")
 
 
+def test_dashboard_startup():
+    assert run_dashboard_startup_check()
+
+
 def main():
     """Main test function."""
     print("=" * 60)
     print("🧪 MCP Dashboard Management Features Test")
     print("=" * 60)
     
-    success = test_dashboard_startup()
+    success = run_dashboard_startup_check()
     
     print("\n" + "=" * 60)
     if success:

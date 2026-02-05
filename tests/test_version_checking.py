@@ -12,8 +12,8 @@ sys.path.insert(0, str(repo_root))
 
 from ipfs_kit_py.install_ipfs import install_ipfs
 
-def test_version_checking():
-    """Test the version checking functionality."""
+def run_version_checking() -> bool:
+    """Run version checking functionality and return success."""
     print("=== Testing IPFS Version Checking ===")
     
     try:
@@ -54,6 +54,11 @@ def test_version_checking():
         traceback.print_exc()
         return False
 
+
+def test_version_checking():
+    """Test the version checking functionality."""
+    assert run_version_checking() is True
+
 if __name__ == "__main__":
-    success = test_version_checking()
+    success = run_version_checking()
     sys.exit(0 if success else 1)

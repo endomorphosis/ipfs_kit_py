@@ -7,7 +7,7 @@ providing schema definitions and validation for FTP storage backend configuratio
 """
 
 from typing import Dict, List, Optional, Any, Union
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, validator
 from datetime import datetime
 import json
 
@@ -23,8 +23,8 @@ class FTPConnectionConfig(BaseModel):
     passive_mode: bool = Field(True, description="Use passive mode for data connections")
     timeout: int = Field(30, description="Connection timeout in seconds")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "host": "ftp.example.com",
                 "port": 21,
@@ -35,6 +35,7 @@ class FTPConnectionConfig(BaseModel):
                 "timeout": 30
             }
         }
+    )
 
 
 class FTPStorageMetadata(BaseModel):
@@ -71,11 +72,11 @@ class FTPStorageMetadata(BaseModel):
     git_repositories: List[str] = Field(default_factory=list, description="Git repositories using VFS translation")
     vfs_snapshots: List[Dict[str, Any]] = Field(default_factory=list, description="VFS snapshots for Git integration")
     
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat() if v else None
-        }
-        schema_extra = {
+        },
+        json_schema_extra={
             "example": {
                 "connection_config": {
                     "host": "ftp.example.com",
@@ -104,6 +105,7 @@ class FTPStorageMetadata(BaseModel):
                 "vfs_snapshots": []
             }
         }
+    )
 
 
 class FTPOperationResult(BaseModel):
@@ -118,10 +120,11 @@ class FTPOperationResult(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional operation metadata")
     timestamp: datetime = Field(default_factory=datetime.now, description="Operation timestamp")
     
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat()
         }
+    )
 
 
 class FTPHealthStatus(BaseModel):
@@ -148,10 +151,11 @@ class FTPHealthStatus(BaseModel):
     available_space_bytes: Optional[int] = Field(None, description="Available storage space")
     used_space_bytes: Optional[int] = Field(None, description="Used storage space")
     
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat()
         }
+    )
 
 
 class FTPModel(BaseModel):
@@ -173,11 +177,11 @@ class FTPModel(BaseModel):
     is_configured: bool = Field(False, description="Backend configuration status")
     configuration_errors: List[str] = Field(default_factory=list, description="Configuration validation errors")
     
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat() if v else None
-        }
-        schema_extra = {
+        },
+        json_schema_extra={
             "example": {
                 "backend_id": "ftp_primary",
                 "backend_type": "ftp",
@@ -204,6 +208,7 @@ class FTPModel(BaseModel):
                 "configuration_errors": []
             }
         }
+    )
 
     def to_parquet_dict(self) -> Dict[str, Any]:
         """Convert model to dictionary suitable for Parquet storage"""

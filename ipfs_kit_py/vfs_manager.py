@@ -22,7 +22,7 @@ import os
 import stat
 import json
 import threading
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Union, TYPE_CHECKING
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,8 @@ def _run_async_from_sync(async_fn, *args, **kwargs):
 
 # Import core IPFS Kit components
 try:
-    from .high_level_api import IPFSSimpleAPI
+    if TYPE_CHECKING:
+        from .high_level_api import IPFSSimpleAPI  # noqa: F401
     from .pin_metadata_index import get_global_pin_metadata_index
     from .filesystem_journal import FilesystemJournal
     from .pin_metadata_index import get_cli_pin_metrics
@@ -246,7 +247,15 @@ class VFSManager:
     async def _initialize_ipfs_api(self):
         """Initialize the IPFS API."""
         try:
-            self.api = await anyio.to_thread.run_sync(IPFSSimpleAPI)
+            # Import lazily to avoid circular imports during package/module initialization.
+            from .high_level_api import IPFSSimpleAPI as _IPFSSimpleAPI
+        except Exception as e:
+            logger.warning(f"IPFS API import failed (high_level_api not ready?): {e}")
+            self.api = None
+            return
+
+        try:
+            self.api = await anyio.to_thread.run_sync(_IPFSSimpleAPI)
             logger.info("✓ IPFS Simple API initialized")
         except Exception as e:
             logger.warning(f"IPFS API initialization failed: {e}")

@@ -46,7 +46,7 @@ except ImportError:
     import sys
     import os
     sys.path.insert(0, os.path.dirname(__file__))
-    from ipfs_kit_daemon_client import DaemonClient
+    from ipfs_kit_py.ipfs_kit_daemon_client import DaemonClient
 
 
 class ArrowIPCDaemonInterface:

@@ -11,6 +11,7 @@ This validates the comprehensive daemon management solution that addresses:
 import json
 import sys
 import time
+import os
 from pathlib import Path
 import pytest
 
@@ -18,8 +19,21 @@ import pytest
 repo_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(repo_root))
 
+
+def _skip_unless_enabled() -> None:
+    # This file is an integration-style diagnostic that can start/stop a real IPFS
+    # daemon. It is opt-in so normal pytest runs stay fast and do not touch user
+    # state.
+    if os.environ.get("IPFS_KIT_RUN_DAEMON_MANAGER_TESTS", "0") != "1":
+        pytest.skip(
+            "Set IPFS_KIT_RUN_DAEMON_MANAGER_TESTS=1 to enable IPFS daemon manager integration tests"
+        )
+
+
+@pytest.mark.timeout(180)
 def test_daemon_manager():
     """Test the standalone daemon manager functionality."""
+    _skip_unless_enabled()
     print("🔧 Testing IPFS Daemon Manager - Comprehensive Solution")
     print("=" * 60)
     
@@ -29,7 +43,10 @@ def test_daemon_manager():
         print("✅ Successfully imported IPFSDaemonManager and IPFSConfig")
         
         # Create configuration
-        config = IPFSConfig(ipfs_path=Path.home() / ".ipfs")
+        ipfs_path_env = os.environ.get("IPFS_PATH")
+        if not ipfs_path_env:
+            pytest.skip("IPFS_PATH is not set; source ./bin/env.sh before running this test")
+        config = IPFSConfig(ipfs_path=Path(ipfs_path_env))
         print(f"✅ Created IPFSConfig with path: {config.ipfs_path}")
         
         # Create daemon manager
@@ -99,8 +116,10 @@ def test_daemon_manager():
         traceback.print_exc()
         pytest.fail(f"Error during daemon manager test: {e}")
 
+@pytest.mark.timeout(60)
 def test_integration_status():
     """Test the current state of ipfs_py integration."""
+    _skip_unless_enabled()
     print("\n" + "=" * 60)
     print("🔗 Testing ipfs_py Integration Status")
     print("=" * 60)

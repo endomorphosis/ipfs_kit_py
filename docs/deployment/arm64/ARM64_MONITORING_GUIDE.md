@@ -368,7 +368,7 @@ When adding monitoring features:
 ## Related Documentation
 
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [ARM64 Build Summary](../../ARM64_BUILD_SUMMARY.md)
+- [ARM64 Build Summary](ARM64_BUILD_SUMMARY.md)
 - [CI/CD Scripts README](./README.md)
 - [Workflow Configuration](../../.github/workflows/README.md)
 

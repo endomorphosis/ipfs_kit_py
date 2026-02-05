@@ -1,48 +1,45 @@
 [submodule "docs/ipfs-docs"]
 	path = docs/ipfs-docs
 	url = https://github.com/ipfs/ipfs-docs.git
-[submodule "docs/libp2p_docs"]
-	path = docs/libp2p_docs
-	url = https://github.com/libp2p/docs.git
-[submodule "docs/ipfs_cluster"]
-	path = docs/ipfs_cluster
-	url = https://github.com/ipfs-cluster/ipfs-cluster-website.git
-[submodule "docs/filesystem_spec"]
-	path = docs/filesystem_spec
-	url = https://github.com/fsspec/filesystem_spec.git
+	branch = main
 [submodule "docs/libp2p-universal-connectivity"]
 	path = docs/libp2p-universal-connectivity
 	url = https://github.com/libp2p/universal-connectivity.git
+	branch = main
 [submodule "docs/filecoin-address-python"]
 	path = docs/filecoin-address-python
 	url = https://github.com/ciknight/filecoin-address-python.git
+	branch = main
 [submodule "docs/ipfsspec"]
 	path = docs/ipfsspec
 	url = https://github.com/fsspec/ipfsspec.git
+	branch = main
 [submodule "docs/lassie"]
 	path = docs/lassie
-	url = https://github.com/filecoin-project/lassie
+	url = https://github.com/filecoin-project/lassie.git
+	branch = main
 [submodule "docs/lighthouse-python-sdk"]
 	path = docs/lighthouse-python-sdk
 	url = https://github.com/lighthouse-web3/lighthouse-python-sdk.git
+	branch = main
 [submodule "docs/storacha_specs"]
 	path = docs/storacha_specs
 	url = https://github.com/storacha/specs.git
+	branch = main
 [submodule "py-ipld-car"]
 	path = py-ipld-car
 	url = https://github.com/storacha/py-ipld-car.git
+	branch = main
 [submodule "py-ipld-dag-pb"]
 	path = py-ipld-dag-pb
 	url = https://github.com/storacha/py-ipld-dag-pb.git
+	branch = main
 [submodule "py-ipld-unixfs"]
 	path = py-ipld-unixfs
 	url = https://github.com/storacha/py-ipld-unixfs.git
-[submodule "ipfs_transformers_py"]
-	path = ipfs_transformers_py
-	url = https://github.com/endomorphosis/ipfs_transformers_py.git
-[submodule "ipfs_accelerate_py"]
-	path = ipfs_accelerate_py
-	url = https://github.com/Endomorphosis/ipfs_accelerate_py.git
-[submodule "ipfs_datasets_py"]
-	path = ipfs_datasets_py
-	url = https://github.com/endomorphosis/ipfs_datasets_py.git
+	branch = main
+
+[submodule "docs/mcp-python-sdk"]
+	path = docs/mcp-python-sdk
+	url = https://github.com/modelcontextprotocol/python-sdk.git
+	branch = main

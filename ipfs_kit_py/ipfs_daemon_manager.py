@@ -66,7 +66,13 @@ class IPFSDaemonManager:
     """
     
     def __init__(self, config: Optional[IPFSConfig] = None):
-        self.config = config or IPFSConfig()
+        # Respect project-local IPFS repos when an environment override is present.
+        # This is critical for "zero-touch" installs and for tests, where we should
+        # not mutate the user's ~/.ipfs unless explicitly requested.
+        if config is None:
+            config = IPFSConfig(ipfs_path=os.environ.get("IPFS_PATH", "~/.ipfs"))
+
+        self.config = config
         self.ipfs_path = os.path.expanduser(self.config.ipfs_path)
         self.repo_lock_path = os.path.join(self.ipfs_path, "repo.lock")
         self.api_url = f"http://127.0.0.1:{self.config.api_port}"

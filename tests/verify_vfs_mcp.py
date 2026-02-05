@@ -28,12 +28,12 @@ async def test_vfs_through_mcp_tools():
         # Test importing MCP server components
         print("1. Testing MCP server imports...")
         
-        from mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
+        from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
         print("   ✓ MCP server imported successfully")
         
         # Create server instance
         print("2. Creating MCP server instance...")
-        server = EnhancedMCPServerWithDaemonMgmt()
+        server = create_mcp_server()
         print("   ✓ MCP server instance created")
         
         # Check if VFS tools are registered
@@ -172,11 +172,11 @@ async def test_vfs_system_direct():
         print("1. Testing VFS system import...")
         
         try:
-            from ipfs_fsspec import HAS_VFS
+            from ipfs_kit_py.ipfs_fsspec import HAS_VFS
             print(f"   VFS system available: {HAS_VFS}")
             
             if HAS_VFS:
-                from ipfs_fsspec import (
+                from ipfs_kit_py.ipfs_fsspec import (
                     vfs_list_mounts, vfs_mkdir, vfs_write, vfs_read, vfs_ls
                 )
                 print("   ✓ VFS functions imported successfully")

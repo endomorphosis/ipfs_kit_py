@@ -163,6 +163,53 @@ class AuditExtensions:
         
         # Update log integrity chain
         await self._update_log_integrity(event)
+
+    def get_statistics(self) -> Dict[str, Any]:
+        """Return basic audit statistics from recent events."""
+        events = self.audit_logger.query_events()
+        stats = {
+            "total_events": len(events),
+            "by_type": {},
+            "by_status": {}
+        }
+        for event in events:
+            event_type = event.get("event_type", "unknown")
+            stats["by_type"][event_type] = stats["by_type"].get(event_type, 0) + 1
+            status = event.get("status")
+            if status:
+                stats["by_status"][status] = stats["by_status"].get(status, 0) + 1
+        return stats
+
+    def generate_report(self, report_type: str = "summary") -> Dict[str, Any]:
+        """Generate simple audit reports for test coverage."""
+        events = self.audit_logger.query_events()
+        if report_type == "summary":
+            return {
+                "total_events": len(events),
+                "by_type": self.get_statistics().get("by_type", {})
+            }
+
+        if report_type == "security":
+            failed_logins = [e for e in events if e.get("action") == "login" and e.get("status") in {"failure", "failed"}]
+            return {
+                "failed_logins": len(failed_logins),
+                "failed_login_samples": failed_logins[:5]
+            }
+
+        if report_type == "user_activity":
+            users = {}
+            for event in events:
+                user_id = event.get("user_id")
+                if not user_id:
+                    continue
+                users.setdefault(user_id, 0)
+                users[user_id] += 1
+            return {
+                "users": users,
+                "total_users": len(users)
+            }
+
+        return {"total_events": len(events)}
     
     def _cleanup_counters(self, counter_key: str, max_age: int = 86400):
         """

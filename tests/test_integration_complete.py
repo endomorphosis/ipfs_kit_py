@@ -283,12 +283,13 @@ class TestGatewayChainRetrieval:
         test_cid = "bafybeibj5h3bvrxvnkcrwyjv2vmdg4nwbsqw6h6qlq5oqnbw4jfabrjhpu"
         
         try:
-            content = await chain.fetch(test_cid, timeout=10)
+            with anyio.fail_after(5):
+                content = await chain.fetch(test_cid, timeout=5)
             
             # If successful, content should be bytes
             assert isinstance(content, bytes)
             
-        except Exception as e:
+        except (TimeoutError, Exception) as e:
             # Network issues are acceptable in CI
             pytest.skip(f"Gateway fetch failed (expected in CI): {e}")
     
@@ -300,14 +301,15 @@ class TestGatewayChainRetrieval:
         test_cid = "bafybeibj5h3bvrxvnkcrwyjv2vmdg4nwbsqw6h6qlq5oqnbw4jfabrjhpu"
         
         try:
-            content, metrics = await chain.fetch_with_metrics(test_cid, timeout=10)
+            with anyio.fail_after(5):
+                content, metrics = await chain.fetch_with_metrics(test_cid, timeout=5)
             
             assert isinstance(content, bytes)
             assert "source" in metrics
             assert "duration_ms" in metrics
             
-        except Exception:
-            pytest.skip("Gateway fetch failed (expected in CI)")
+        except (TimeoutError, Exception) as e:
+            pytest.skip(f"Gateway fetch failed (expected in CI): {e}")
 
 
 class TestEnhancedGatewayChain:
@@ -324,14 +326,15 @@ class TestEnhancedGatewayChain:
         test_cid = "bafybeibj5h3bvrxvnkcrwyjv2vmdg4nwbsqw6h6qlq5oqnbw4jfabrjhpu"
         
         try:
-            content, metrics = await chain.fetch_with_discovery(test_cid)
+            with anyio.fail_after(5):
+                content, metrics = await chain.fetch_with_discovery(test_cid)
             
             assert isinstance(content, bytes)
             assert "method" in metrics
             assert metrics["method"] in ["cache", "ipni_discovery", "saturn_cdn", "gateway"]
             
-        except Exception:
-            pytest.skip("Enhanced fetch failed (expected in CI)")
+        except (TimeoutError, Exception) as e:
+            pytest.skip(f"Enhanced fetch failed (expected in CI): {e}")
 
 
 class TestEndToEndWorkflows:

@@ -27,8 +27,18 @@ logger = logging.getLogger(__name__)
 
 pytestmark = pytest.mark.anyio
 
+def _skip_unless_enabled() -> None:
+    # This file is an integration-style diagnostic script that starts/inspects real
+    # daemons and binaries. It is intentionally opt-in for normal pytest runs.
+    if os.environ.get("IPFS_KIT_RUN_CLUSTER_BACKEND_TESTS", "0") != "1":
+        pytest.skip(
+            "Set IPFS_KIT_RUN_CLUSTER_BACKEND_TESTS=1 to enable cluster backend integration tests"
+        )
+
 async def test_cluster_backends():
     """Test and diagnose IPFS cluster backends."""
+
+    _skip_unless_enabled()
     
     print("🔍 Testing IPFS Cluster backends...")
     print("=" * 50)

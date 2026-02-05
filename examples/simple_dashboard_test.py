@@ -28,7 +28,7 @@ async def test_dashboard_basic_functionality():
     logger.info("🧪 Testing basic dashboard functionality...")
     
     try:
-        from unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
+        from ipfs_kit_py.dashboard.unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
         logger.info("✅ Dashboard import successful")
     except ImportError as e:
         logger.error(f"❌ Dashboard import failed: {e}")
@@ -94,7 +94,7 @@ async def test_mcp_tool_execution():
     logger.info("🧪 Testing MCP tool execution...")
     
     try:
-        from unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
+        from ipfs_kit_py.dashboard.unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
         
         temp_dir = tempfile.mkdtemp()
         dashboard = UnifiedComprehensiveDashboard({
@@ -164,7 +164,7 @@ async def test_api_endpoints():
     logger.info("🧪 Testing API endpoint methods...")
     
     try:
-        from unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
+        from ipfs_kit_py.dashboard.unified_comprehensive_dashboard import UnifiedComprehensiveDashboard
         
         temp_dir = tempfile.mkdtemp()
         dashboard = UnifiedComprehensiveDashboard({
@@ -276,7 +276,7 @@ def test_imports_and_fallbacks():
     logger.info("🧪 Testing imports and fallbacks...")
     
     try:
-        from unified_comprehensive_dashboard import (
+        from ipfs_kit_py.dashboard.unified_comprehensive_dashboard import (
             UnifiedComprehensiveDashboard,
             MemoryLogHandler,
             WebSocketManager,

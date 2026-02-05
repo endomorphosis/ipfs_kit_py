@@ -73,7 +73,10 @@ class install_ipfs:
             self.config_ipfs = self.metadata["config_ipfs"]
         elif "config_ipfs" in list(dir(self)) and "config_ipfs" in list(self.metadata.keys()):
             self.config_ipfs = self.metadata["config_ipfs"]
-        if "ipfs_path" not in list(dir(self)) and "ipfs_path" in list(self.metadata.keys()):
+        # Respect caller-provided IPFS repo path when supplied (e.g. zero-touch installer).
+        # The previous implementation checked dir(self) which always contains 'ipfs_path'
+        # once the attribute exists, causing metadata overrides to be ignored.
+        if self.metadata and "ipfs_path" in self.metadata:
             self.ipfs_path = self.metadata["ipfs_path"]
         else:
             self.ipfs_path = os.path.join(os.path.expanduser("~"), ".ipfs")
@@ -259,6 +262,51 @@ class install_ipfs:
             "openbsd x86": "bafybeigk5q3g3q3k7m3qy4q3f",
             "openbsd arm": "bafybeigk5q3g3q3k7m3qy4q3f",
         }
+
+        # Cache network lookups (GitHub API rate limits can cause noisy 403s).
+        self._cached_latest_kubo_version = None
+        self._cached_latest_ipfs_cluster_version = None
+
+    def _github_latest_release_tag(self, owner: str, repo: str, fallback: str) -> str:
+        """Best-effort latest tag lookup.
+
+        Tries GitHub API first (optionally with GITHUB_TOKEN), then falls back to the
+        releases/latest redirect (no API) to avoid rate-limit 403s.
+        """
+
+        fallback = self._normalize_v_prefix(fallback) or fallback
+        if requests is None:
+            return fallback
+
+        headers = {"Accept": "application/vnd.github+json"}
+        token = os.environ.get("GITHUB_TOKEN")
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+        api_url = f"https://api.github.com/repos/{owner}/{repo}/releases/latest"
+        try:
+            response = requests.get(api_url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                tag = data.get("tag_name")
+                tag = self._normalize_v_prefix(tag) or fallback
+                return tag
+        except Exception:
+            pass
+
+        # Fallback: avoid the API entirely by using the releases/latest redirect.
+        try:
+            latest_url = f"https://github.com/{owner}/{repo}/releases/latest"
+            response = requests.get(latest_url, allow_redirects=False, timeout=10)
+            location = response.headers.get("Location")
+            if location and "/tag/" in location:
+                tag = location.rsplit("/tag/", 1)[-1].strip()
+                tag = self._normalize_v_prefix(tag) or fallback
+                return tag
+        except Exception:
+            pass
+
+        return fallback
 
         # Set up tmp_path (bin_path is initialized earlier)
         self.tmp_path = tempfile.mkdtemp()
@@ -548,11 +596,8 @@ class install_ipfs:
             # Download Go
             print(f"Downloading Go from {go_url}...")
             go_tar = os.path.join(self.tmp_path, f"go{go_version}.tar.gz")
-            
-            if system == "Linux":
-                subprocess.run(["wget", "-O", go_tar, go_url], check=True)
-            elif system == "Darwin":
-                subprocess.run(["curl", "-L", "-o", go_tar, go_url], check=True)
+
+            self._download_url_to_file(go_url, go_tar)
             
             # Extract Go
             go_install_dir = os.path.join(os.path.expanduser("~"), ".local")
@@ -713,21 +758,21 @@ class install_ipfs:
                 with tempfile.NamedTemporaryFile(
                     suffix=url_suffix, dir=self.tmp_path, delete=False
                 ) as this_tempfile:
-                    if platform.system() == "Linux":
-                        command = "wget " + url + " -O " + this_tempfile.name
-                    elif platform.system() == "Windows":
-                        drive, path = os.path.splitdrive(this_tempfile.name)
+                    if platform.system() == "Windows":
+                        _, _ = os.path.splitdrive(this_tempfile.name)  # Removed unused vars
                         temp_path = this_tempfile.name.replace("\\", "/")
-                        temp_path = temp_path.split("/")
-                        temp_path = "/".join(temp_path)
-                        # temp_path = drive + temp_path
+                        temp_path = "/".join(temp_path.split("/"))
                         this_tempfile.close()
                         command = f"powershell -Command \"Invoke-WebRequest -Uri '{url}' -OutFile '{temp_path}'\""
                         command = command.replace("'", "")
-                    elif platform.system() == "Darwin":
-                        command = "curl " + url + " -o " + this_tempfile.name
-
-                    results = subprocess.check_output(command, shell=True)
+                        try:
+                            subprocess.check_output(command, shell=True)
+                        except Exception:
+                            # Fallback for restricted shells / missing PowerShell.
+                            self._download_url_to_file(url, temp_path)
+                    else:
+                        # Linux/macOS: avoid relying on wget/curl.
+                        self._download_url_to_file(url, this_tempfile.name)
             except subprocess.CalledProcessError as e:
                 print(f"Failed to download binary from {url}: {e}")
                 print("Attempting to build IPFS from source as fallback...")
@@ -909,21 +954,20 @@ class install_ipfs:
         with tempfile.NamedTemporaryFile(
             suffix=url_suffix, dir=self.tmp_path, delete=False
         ) as this_tempfile:
-                if platform.system() == "Linux":
-                    command = "wget " + url + " -O " + this_tempfile.name
-                elif platform.system() == "Windows":
+                if platform.system() == "Windows":
                     _, _ = os.path.splitdrive(this_tempfile.name)  # Removed unused variables
                     temp_path = this_tempfile.name.replace("\\", "/")
-                    temp_path = temp_path.split("/")
-                    temp_path = "/".join(temp_path)
-                    # temp_path = drive + temp_path
+                    temp_path = "/".join(temp_path.split("/"))
                     this_tempfile.close()
                     command = f"powershell -Command \"Invoke-WebRequest -Uri '{url}' -OutFile '{temp_path}'\""
                     command = command.replace("'", "")
-                elif platform.system() == "Darwin":
-                    command = "curl " + url + " -o " + this_tempfile.name
-
-                results = subprocess.check_output(command, shell=True)
+                    try:
+                        subprocess.check_output(command, shell=True)
+                    except Exception:
+                        self._download_url_to_file(url, temp_path)
+                else:
+                    self._download_url_to_file(url, this_tempfile.name)
+                results = b""
                 if url_suffix == ".zip":
                     if platform.system() == "Windows":
                         move_source_path = os.path.join(
@@ -1048,21 +1092,20 @@ class install_ipfs:
             with tempfile.NamedTemporaryFile(
                 suffix=url_suffix, dir=self.tmp_path, delete=False
             ) as this_tempfile:
-                if platform.system() == "Linux":
-                    command = "wget " + url + " -O " + this_tempfile.name
-                elif platform.system() == "Windows":
-                    drive, path = os.path.splitdrive(this_tempfile.name)
+                if platform.system() == "Windows":
+                    _, _ = os.path.splitdrive(this_tempfile.name)  # Removed unused variables
                     temp_path = this_tempfile.name.replace("\\", "/")
-                    temp_path = temp_path.split("/")
-                    temp_path = "/".join(temp_path)
-                    # temp_path = drive + temp_path
+                    temp_path = "/".join(temp_path.split("/"))
                     this_tempfile.close()
                     command = f"powershell -Command \"Invoke-WebRequest -Uri '{url}' -OutFile '{temp_path}'\""
                     command = command.replace("'", "")
-                elif platform.system() == "Darwin":
-                    command = "curl " + url + " -o " + this_tempfile.name
-
-                results = subprocess.check_output(command, shell=True)
+                    try:
+                        subprocess.check_output(command, shell=True)
+                    except Exception:
+                        self._download_url_to_file(url, temp_path)
+                else:
+                    self._download_url_to_file(url, this_tempfile.name)
+                results = b""
                 if url_suffix == ".zip":
                     if platform.system() == "Windows":
                         move_source_path = os.path.join(
@@ -1710,24 +1753,20 @@ class install_ipfs:
 
     def get_latest_kubo_version(self):
         """Fetch the latest Kubo version from GitHub releases."""
-        try:
-            if requests is None:
-                print("requests library not available, using fallback version v0.35.0")
-                return "v0.35.0"
-                
-            url = "https://api.github.com/repos/ipfs/kubo/releases/latest"
-            response = requests.get(url, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                latest_version = data['tag_name']  # e.g., "v0.35.0"
-                print(f"Successfully fetched latest version from GitHub: {latest_version}")
-                return latest_version
-            else:
-                print(f"Failed to fetch latest version: HTTP {response.status_code}")
-                return "v0.35.0"  # Fallback to current version
-        except Exception as e:
-            print(f"Error fetching latest Kubo version: {e}")
-            return "v0.35.0"  # Fallback to current version
+        fallback = "v0.35.0"
+        if self._cached_latest_kubo_version:
+            return self._cached_latest_kubo_version
+
+        if requests is None:
+            print(f"requests library not available, using fallback version {fallback}")
+            self._cached_latest_kubo_version = fallback
+            return fallback
+
+        latest_version = self._github_latest_release_tag("ipfs", "kubo", fallback)
+        if latest_version and latest_version != fallback:
+            print(f"Successfully fetched latest version from GitHub: {latest_version}")
+        self._cached_latest_kubo_version = latest_version
+        return latest_version
     
     def update_ipfs_dists_with_version(self, version):
         """Update the IPFS distribution URLs with the specified version."""
@@ -1806,24 +1845,19 @@ class install_ipfs:
     def get_latest_ipfs_cluster_version(self):
         """Fetch the latest IPFS Cluster version from GitHub releases."""
         fallback = "v1.1.2"
-        try:
-            if requests is None:
-                print(f"requests library not available, using fallback IPFS Cluster version {fallback}")
-                return fallback
+        if self._cached_latest_ipfs_cluster_version:
+            return self._cached_latest_ipfs_cluster_version
 
-            url = "https://api.github.com/repos/ipfs/ipfs-cluster/releases/latest"
-            response = requests.get(url, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                latest_version = data.get("tag_name") or fallback
-                latest_version = self._normalize_v_prefix(latest_version)
-                print(f"Successfully fetched latest IPFS Cluster version from GitHub: {latest_version}")
-                return latest_version
-            print(f"Failed to fetch latest IPFS Cluster version: HTTP {response.status_code}")
+        if requests is None:
+            print(f"requests library not available, using fallback IPFS Cluster version {fallback}")
+            self._cached_latest_ipfs_cluster_version = fallback
             return fallback
-        except Exception as e:
-            print(f"Error fetching latest IPFS Cluster version: {e}")
-            return fallback
+
+        latest_version = self._github_latest_release_tag("ipfs", "ipfs-cluster", fallback)
+        if latest_version and latest_version != fallback:
+            print(f"Successfully fetched latest IPFS Cluster version from GitHub: {latest_version}")
+        self._cached_latest_ipfs_cluster_version = latest_version
+        return latest_version
 
     def update_ipfs_cluster_dists_with_version(self, version):
         """Update the IPFS Cluster distribution URLs with the specified version."""
@@ -1909,6 +1943,26 @@ class install_ipfs:
         except Exception as e:
             print(f"Could not verify release URL {url}: {e}")
             return False
+
+    def _download_url_to_file(self, url, dest_path):
+        """Download a URL to a local path without relying on external tools.
+
+        This is a critical fallback for environments that lack `curl`/`wget`.
+        """
+        os.makedirs(os.path.dirname(os.path.abspath(dest_path)), exist_ok=True)
+
+        if requests is not None:
+            resp = requests.get(url, stream=True, timeout=60)
+            resp.raise_for_status()
+            with open(dest_path, "wb") as f:
+                for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        f.write(chunk)
+            return
+
+        import urllib.request
+        with urllib.request.urlopen(url, timeout=60) as r, open(dest_path, "wb") as f:
+            shutil.copyfileobj(r, f)
     
     def get_installed_kubo_version(self):
         """Get the currently installed Kubo version."""

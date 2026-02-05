@@ -1,134 +1,78 @@
-#!/usr/bin/env python3
+"""Deterministic smoke tests for daemon configuration components.
+
+These tests intentionally avoid starting external daemons or invoking binaries.
+They validate that the current public APIs import and behave consistently.
 """
-Simple test for daemon configuration integration
-"""
 
-import os
-import sys
-import logging
+from __future__ import annotations
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("daemon_config_test")
+import json
+from pathlib import Path
 
-def test_daemon_config_manager():
-    """Test the daemon configuration manager."""
-    print("🧪 Testing daemon configuration manager...")
-    
-    try:
-        from daemon_config_manager import DaemonConfigManager
-        
-        manager = DaemonConfigManager()
-        print("✅ DaemonConfigManager imported and instantiated successfully")
-        
-        # Test configuration checking
-        config_result = manager.check_and_configure_all_daemons()
-        print(f"✅ Configuration check completed: {config_result.get('overall_success', False)}")
-        
-        # Test validation
-        validation_result = manager.validate_daemon_configs()
-        print(f"✅ Validation completed: {validation_result.get('overall_valid', False)}")
-        
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error testing daemon config manager: {e}")
-        return False
 
-def test_enhanced_server():
-    """Test the enhanced server with configuration."""
-    print("🧪 Testing enhanced server with configuration...")
-    
-    try:
-        from enhanced_mcp_server_with_config import EnhancedMCPServerWithConfig
-        
-        server = EnhancedMCPServerWithConfig()
-        print("✅ EnhancedMCPServerWithConfig imported and instantiated successfully")
-        
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error testing enhanced server: {e}")
-        return False
+def _write_minimal_ipfs_config(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+    config_file = path / "config"
+    config_file.write_text(
+        json.dumps(
+            {
+                "Identity": {"PeerID": "QmTestPeer", "PrivKey": ""},
+                "Addresses": {
+                    "API": "/ip4/127.0.0.1/tcp/0",
+                    "Gateway": "/ip4/127.0.0.1/tcp/0",
+                    "Swarm": ["/ip4/127.0.0.1/tcp/0"],
+                },
+                "Discovery": {"MDNS": {"Enabled": False}},
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
 
-def test_installer_patches():
-    """Test that the installer patches work."""
-    print("🧪 Testing installer patches...")
-    
-    try:
-        # Test install_ipfs patch
-        from ipfs_kit_py.install_ipfs import install_ipfs
-        ipfs_installer = install_ipfs()
-        
-        if hasattr(ipfs_installer, 'ensure_daemon_configured'):
-            print("✅ install_ipfs patch applied successfully")
-        else:
-            print("❌ install_ipfs patch not found")
-            return False
-        
-        # Test install_lotus patch
-        from ipfs_kit_py.install_lotus import install_lotus
-        lotus_installer = install_lotus()
-        
-        if hasattr(lotus_installer, 'ensure_daemon_configured'):
-            print("✅ install_lotus patch applied successfully")
-        else:
-            print("❌ install_lotus patch not found")
-            return False
-        
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error testing installer patches: {e}")
-        return False
 
-def main():
-    """Run all tests."""
-    print("🧪 Running daemon configuration integration tests...")
-    
-    tests = [
-        ("Daemon Config Manager", test_daemon_config_manager),
-        ("Enhanced Server", test_enhanced_server),
-        ("Installer Patches", test_installer_patches),
-    ]
-    
-    results = []
-    
-    for test_name, test_func in tests:
-        print(f"\n{'='*50}")
-        print(f"Running: {test_name}")
-        print(f"{'='*50}")
-        
-        result = test_func()
-        results.append((test_name, result))
-        
-        if result:
-            print(f"✅ {test_name} PASSED")
-        else:
-            print(f"❌ {test_name} FAILED")
-    
-    # Summary
-    print(f"\n{'='*50}")
-    print("TEST SUMMARY")
-    print(f"{'='*50}")
-    
-    passed = sum(1 for _, result in results if result)
-    total = len(results)
-    
-    print(f"Tests passed: {passed}/{total}")
-    
-    for test_name, result in results:
-        status = "PASSED" if result else "FAILED"
-        print(f"  {test_name}: {status}")
-    
-    if passed == total:
-        print("\n🎉 All tests passed!")
-        print("\n💡 Daemon configuration integration is working correctly!")
-        print("💡 The system now ensures proper daemon configuration before startup.")
-        return 0
-    else:
-        print("\n❌ Some tests failed.")
-        return 1
+def test_daemon_config_manager_smoke(tmp_path, monkeypatch):
+    from ipfs_kit_py.daemon_config_manager import DaemonConfigManager
 
-if __name__ == "__main__":
-    sys.exit(main())
+    ipfs_path = tmp_path / "ipfs"
+    lotus_path = tmp_path / "lotus"
+    lotus_path.mkdir(parents=True, exist_ok=True)
+    _write_minimal_ipfs_config(ipfs_path)
+
+    monkeypatch.setenv("IPFS_PATH", str(ipfs_path))
+    monkeypatch.setenv("LOTUS_PATH", str(lotus_path))
+
+    manager = DaemonConfigManager()
+
+    ipfs_status = manager.check_daemon_configuration("ipfs")
+    assert ipfs_status["configured"] is True
+    assert ipfs_status["valid_config"] is True
+
+    overall = manager.check_and_configure_all_daemons()
+    assert overall["success"] is True
+    assert overall["all_configured"] is True
+
+
+def test_enhanced_mcp_server_module_smoke():
+    from fastapi import FastAPI
+
+    from ipfs_kit_py.mcp.enhanced_mcp_server_with_config import InMemoryClusterState, create_app
+
+    app = create_app(InMemoryClusterState(node_id="test-node", role="primary"))
+    assert isinstance(app, FastAPI)
+    paths = {getattr(route, "path", None) for route in app.routes}
+    assert "/health" in paths
+
+
+def test_installer_ensure_daemon_configured_smoke(tmp_path):
+    from ipfs_kit_py.install_ipfs import install_ipfs
+    from ipfs_kit_py.install_lotus import install_lotus
+
+    assert hasattr(install_ipfs, "ensure_daemon_configured")
+    assert hasattr(install_lotus, "ensure_daemon_configured")
+
+    ipfs_repo = tmp_path / "ipfs"
+    ipfs_repo.mkdir(parents=True, exist_ok=True)
+    (ipfs_repo / "config").write_text("{}", encoding="utf-8")
+
+    ipfs_installer = install_ipfs(metadata={"ipfs_path": str(ipfs_repo), "bin_dir": str(tmp_path / "bin")})
+    assert ipfs_installer.ensure_daemon_configured() is True

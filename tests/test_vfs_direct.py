@@ -12,9 +12,10 @@ import json
 import tempfile
 import shutil
 from datetime import datetime
+import pytest
 
-def test_vfs_direct():
-    """Test the VFS system directly."""
+def run_vfs_direct() -> bool:
+    """Run VFS direct checks and return success."""
     
     print("Testing VFS system directly...")
     
@@ -23,7 +24,7 @@ def test_vfs_direct():
     
     # Try to import VFS system
     try:
-        from ipfs_fsspec import (
+        from ipfs_kit_py.ipfs_fsspec import (
             get_vfs, vfs_mount, vfs_unmount, vfs_list_mounts, vfs_read, vfs_write,
             vfs_ls, vfs_stat, vfs_mkdir, vfs_rmdir, vfs_copy, vfs_move,
             vfs_sync_to_ipfs, vfs_sync_from_ipfs
@@ -32,7 +33,7 @@ def test_vfs_direct():
         has_vfs = True
     except ImportError as e:
         print(f"✗ VFS system import failed: {e}")
-        has_vfs = False
+        pytest.skip(f"VFS system not available: {e}")
     
     # Test VFS operations
     if has_vfs:
@@ -73,7 +74,7 @@ def test_vfs_direct():
     
     # Test importing the MCP server parts that handle VFS
     try:
-        from mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
+        from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
         print("✓ MCP server VFS integration imported successfully")
         
         # Test creating the integration
@@ -105,8 +106,13 @@ def test_vfs_direct():
     
     return has_vfs
 
+
+def test_vfs_direct():
+    """Test the VFS system directly."""
+    assert run_vfs_direct() is True
+
 if __name__ == "__main__":
-    success = test_vfs_direct()
+    success = run_vfs_direct()
     
     print("\n" + "="*50)
     print("DIRECT VFS TEST RESULT")

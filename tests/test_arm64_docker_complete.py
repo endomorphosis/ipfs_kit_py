@@ -11,7 +11,20 @@ import time
 import requests
 import json
 import sys
+import platform
+import os
+import pytest
 from pathlib import Path
+
+
+def _skip_if_not_arm64():
+    # These are heavy integration tests intended to be run explicitly.
+    # Default behavior in CI/dev runs is to skip to avoid requiring a working
+    # Docker daemon and long image builds.
+    if os.environ.get("IPFS_KIT_RUN_DOCKER_TESTS", "0") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_DOCKER_TESTS=1 to enable Docker integration tests")
+    if platform.machine() != "aarch64":
+        pytest.skip("ARM64 Docker tests require aarch64 host")
 
 def run_command(cmd, description="", return_output=True, timeout=60):
     """Run a shell command and return the result"""
@@ -43,6 +56,7 @@ def run_command(cmd, description="", return_output=True, timeout=60):
 
 def test_docker_availability():
     """Test if Docker is available and running"""
+    _skip_if_not_arm64()
     print("\n" + "="*60)
     print("🐳 TESTING DOCKER AVAILABILITY")
     print("="*60)
@@ -63,6 +77,7 @@ def test_docker_availability():
 
 def test_system_architecture():
     """Test system architecture"""
+    _skip_if_not_arm64()
     print("\n" + "="*60)
     print("🏗️  TESTING SYSTEM ARCHITECTURE")
     print("="*60)
@@ -75,6 +90,7 @@ def test_system_architecture():
 
 def test_docker_build():
     """Test Docker image build for ARM64"""
+    _skip_if_not_arm64()
     print("\n" + "="*60)
     print("🔨 TESTING DOCKER BUILD ON ARM64")
     print("="*60)
@@ -93,6 +109,7 @@ def test_docker_build():
 
 def test_container_startup():
     """Test container startup and basic functionality"""
+    _skip_if_not_arm64()
     print("\n" + "="*60)
     print("🚀 TESTING CONTAINER STARTUP")
     print("="*60)
@@ -130,6 +147,7 @@ def test_container_startup():
 
 def test_api_endpoints():
     """Test API endpoints"""
+    _skip_if_not_arm64()
     print("\n" + "="*60)
     print("🌐 TESTING API ENDPOINTS")
     print("="*60)
@@ -176,6 +194,7 @@ def test_api_endpoints():
 
 def test_container_functionality():
     """Test specific container functionality"""
+    _skip_if_not_arm64()
     print("\n" + "="*60)
     print("⚙️  TESTING CONTAINER FUNCTIONALITY")  
     print("="*60)

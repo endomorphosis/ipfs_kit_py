@@ -18,7 +18,7 @@ pytestmark = pytest.mark.anyio
 async def test_vfs_list_mounts():
     """Test vfs_list_mounts specifically."""
     try:
-        from ipfs_kit_py.mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
+        from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
         
         integration = IPFSKitIntegration()
         

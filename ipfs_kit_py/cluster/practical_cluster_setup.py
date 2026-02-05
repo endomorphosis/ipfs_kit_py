@@ -31,7 +31,7 @@ import os
 import sys
 import json
 import logging
-import asyncio
+import anyio
 import argparse
 import time
 import signal
@@ -430,7 +430,7 @@ async def main():
                 cluster_manager.start_node(node_id, start_daemon=False, start_cluster=True)
             
             # Wait for initialization
-            await asyncio.sleep(2)
+            await anyio.sleep(2)
             
             # Run demonstrations
             await cluster_manager.demonstrate_cluster_capabilities()
@@ -473,7 +473,7 @@ async def main():
                 logger.info("🔄 Node running. Press Ctrl+C to stop...")
                 try:
                     while True:
-                        await asyncio.sleep(10)
+                        await anyio.sleep(10)
                         
                         # Periodic status log
                         status = node.get_status()
@@ -507,4 +507,4 @@ async def main():
 
 if __name__ == "__main__":
     import sys
-    sys.exit(asyncio.run(main()))
+    anyio.run(main)

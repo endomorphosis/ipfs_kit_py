@@ -61,7 +61,7 @@ if project_root not in sys.path:
 
 # Import components
 try:
-    from ipfs_kit_daemon_client import daemon_client, route_reader
+    from ipfs_kit_py.ipfs_kit_daemon_client import daemon_client, route_reader
     from ipfs_kit_py.ipfs_kit import IPFSKit
     from ipfs_kit_py.mcp.ipfs_kit.api.vfs_endpoints import VFSEndpoints
     from ipfs_kit_py.mcp.ipfs_kit.backends.health_monitor import BackendHealthMonitor

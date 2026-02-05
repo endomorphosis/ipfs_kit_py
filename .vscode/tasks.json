@@ -4,84 +4,116 @@
 		{
 			"label": "GitHub: List Workflow Runs (Cached)",
 			"type": "shell",
-			"command": "source .github/scripts/gh_cache_wrapper.sh && gh run list --limit 10",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"source .github/scripts/gh_cache_wrapper.sh && gh run list --limit 10"
+			],
 			"problemMatcher": [],
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
 			},
-			"group": "github"
+			"group": "none"
 		},
 		{
 			"label": "GitHub: View Recent Failures (Cached)",
 			"type": "shell",
-			"command": "source .github/scripts/gh_cache_wrapper.sh && gh run list --status failure --limit 5",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"source .github/scripts/gh_cache_wrapper.sh && gh run list --status failure --limit 5"
+			],
 			"problemMatcher": [],
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
 			},
-			"group": "github"
+			"group": "none"
 		},
 		{
 			"label": "GitHub: List PRs (Cached)",
 			"type": "shell",
-			"command": "source .github/scripts/gh_cache_wrapper.sh && gh pr list --state all --limit 20",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"source .github/scripts/gh_cache_wrapper.sh && gh pr list --state all --limit 20"
+			],
 			"problemMatcher": [],
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
 			},
-			"group": "github"
+			"group": "none"
 		},
 		{
 			"label": "GitHub: List Open Issues (Cached)",
 			"type": "shell",
-			"command": "source .github/scripts/gh_cache_wrapper.sh && gh issue list --state open --limit 20",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"source .github/scripts/gh_cache_wrapper.sh && gh issue list --state open --limit 20"
+			],
 			"problemMatcher": [],
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
 			},
-			"group": "github"
+			"group": "none"
 		},
 		{
 			"label": "GitHub: Show Cache Statistics",
 			"type": "shell",
-			"command": "source .github/scripts/gh_cache_wrapper.sh && gh_cache_stats",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"source .github/scripts/gh_cache_wrapper.sh && gh_cache_stats"
+			],
 			"problemMatcher": [],
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
 			},
-			"group": "github"
+			"group": "none"
 		},
 		{
 			"label": "GitHub: Clear Cache",
 			"type": "shell",
-			"command": "source .github/scripts/gh_cache_wrapper.sh && gh_cache_clear",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"source .github/scripts/gh_cache_wrapper.sh && gh_cache_clear"
+			],
 			"problemMatcher": [],
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
 			},
-			"group": "github"
+			"group": "none"
 		},
 		{
 			"label": "Cache: Test GitHub CLI Caching",
 			"type": "shell",
-			"command": "source .github/scripts/gh_cache_wrapper.sh && export GH_CACHE_ENABLED=1 && echo '=== First call (miss) ===' && gh repo view && echo '\\n=== Second call (hit) ===' && gh repo view && echo '\\n=== Statistics ===' && gh_cache_stats",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"source .github/scripts/gh_cache_wrapper.sh && export GH_CACHE_ENABLED=1 && echo '=== First call (miss) ===' && gh repo view && echo $'\\n=== Second call (hit) ===' && gh repo view && echo $'\\n=== Statistics ===' && gh_cache_stats"
+			],
 			"problemMatcher": [],
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
 			},
-			"group": "github"
+			"group": "none"
 		},
 		{
 			"label": "Test: Run All Tests",
 			"type": "shell",
-			"command": "pytest tests/ -v",
+			"command": "pytest",
+			"args": [
+				"tests/",
+				"-v"
+			],
 			"problemMatcher": [],
 			"presentation": {
 				"reveal": "always",
@@ -93,9 +125,34 @@
 			}
 		},
 		{
+			"label": "Test: Pytest (env.sh, -ra)",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py && source ./bin/env.sh && ./.venv/bin/python -m pytest -ra"
+			],
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			},
+			"group": {
+				"kind": "test",
+				"isDefault": false
+			}
+		},
+		{
 			"label": "Build: Install Dependencies",
 			"type": "shell",
-			"command": "pip install -r requirements.txt",
+			"command": "python",
+			"args": [
+				"-m",
+				"pip",
+				"install",
+				"-r",
+				"requirements.txt"
+			],
 			"problemMatcher": [],
 			"presentation": {
 				"reveal": "always",
@@ -106,13 +163,17 @@
 		{
 			"label": "CI/CD: Analyze Recent Workflow Failure",
 			"type": "shell",
-			"command": "source .github/scripts/gh_cache_wrapper.sh && RUN_ID=$(gh run list --status failure --limit 1 --json databaseId --jq '.[0].databaseId') && echo \"Analyzing run: $RUN_ID\" && gh run view $RUN_ID",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"source .github/scripts/gh_cache_wrapper.sh && RUN_ID=$(gh run list --status failure --limit 1 --json databaseId --jq '.[0].databaseId') && echo \"Analyzing run: $RUN_ID\" && gh run view \"$RUN_ID\""
+			],
 			"problemMatcher": [],
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
 			},
-			"group": "github"
+			"group": "none"
 		},
 		{
 			"label": "pytest-all",
@@ -124,7 +185,6 @@
 				"-p",
 				"no:warnings"
 			],
-			"isBackground": false,
 			"problemMatcher": [],
 			"group": "test"
 		},
@@ -140,7 +200,6 @@
 				"--maxfail=1",
 				"-x"
 			],
-			"isBackground": false,
 			"problemMatcher": [],
 			"group": "test"
 		},
@@ -149,13 +208,24 @@
 			"type": "shell",
 			"command": "pytest",
 			"args": [
+				"-rs",
+				"-p",
+				"no:warnings",
 				"--maxfail=1",
 				"-x",
-				"-vv",
-				"-p",
-				"no:warnings"
+				"-vv"
 			],
-			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "pytest-full-first-fail-log",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py && source ./bin/env.sh && mkdir -p .cache && (./.venv/bin/python -m pytest -q --maxfail=1) 2>&1 | tee .cache/pytest_first_fail.log"
+			],
 			"problemMatcher": [],
 			"group": "test"
 		},
@@ -165,17 +235,20 @@
 			"command": "bash",
 			"args": [
 				"-lc",
-				"\"pytest --maxfail=1 -x -vv -p no:warnings > /tmp/pytest_first_fail.log 2>&1\""
+				"cd /home/barberb/ipfs_kit_py && source ./bin/env.sh && mkdir -p .cache && (./.venv/bin/python -m pytest -q --maxfail=1) 2>&1 | tee .cache/pytest_first_fail.log"
 			],
-			"isBackground": false,
 			"problemMatcher": [],
 			"group": "test"
 		},
 		{
 			"label": "pytest (quiet)",
 			"type": "shell",
-			"command": "pytest -q",
-			"isBackground": false
+			"command": "pytest",
+			"args": [
+				"-q"
+			],
+			"problemMatcher": [],
+			"group": "test"
 		},
 		{
 			"label": "Run pytest",
@@ -183,6 +256,1301 @@
 			"command": "pytest",
 			"args": [
 				"-q"
+			],
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "pytest-full",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py && source ./bin/env.sh && ./.venv/bin/python -m pytest -ra"
+			],
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "pytest maxfail1 (env.sh)",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"source ./bin/env.sh && pytest -q --maxfail=1"
+			],
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "zero-touch (python-only)",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"./zero_touch_install.sh",
+				"--profile",
+				"dev",
+				"--source",
+				"local",
+				"--node",
+				"no",
+				"--playwright",
+				"no",
+				"--ipfs",
+				"no",
+				"--lassie",
+				"no",
+				"--lotus",
+				"no",
+				"--go",
+				"no",
+				"--jq",
+				"no"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "zero-touch (python-only) v2",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"./zero_touch_install.sh",
+				"--profile",
+				"dev",
+				"--source",
+				"local",
+				"--node",
+				"no",
+				"--playwright",
+				"no",
+				"--ipfs",
+				"no",
+				"--lassie",
+				"no",
+				"--lotus",
+				"no",
+				"--go",
+				"no",
+				"--jq",
+				"no"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "zero-touch trace",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-x",
+				"./zero_touch_install.sh",
+				"--profile",
+				"dev",
+				"--source",
+				"local",
+				"--node",
+				"no",
+				"--playwright",
+				"no",
+				"--ipfs",
+				"no",
+				"--lassie",
+				"no",
+				"--lotus",
+				"no",
+				"--go",
+				"no",
+				"--jq",
+				"no"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "scan-backticks",
+			"type": "shell",
+			"command": "/usr/bin/python3",
+			"args": [
+				"-c",
+				"p='zero_touch_install.sh'; s=open(p,'rb').read(); print('len',len(s)); print('backticks',s.count(b'`')); print('dollarsubs',s.count(b'$('));"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "scan installer bytes",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"python3 - <<'PY'\nfrom pathlib import Path\np=Path('zero_touch_install.sh')\nb=p.read_bytes()\nprint('bytes',len(b))\nprint('backticks',b.count(b'`'))\nprint('dollar_sub',b.count(b'$('))\n# show first few backtick contexts\nidxs=[i for i,c in enumerate(b) if c==0x60]\nfor i in idxs[:10]:\n    start=max(0,i-40); end=min(len(b),i+40)\n    snippet=b[start:end].decode('utf-8','replace')\n    print('---',i,'---')\n    print(snippet.replace('\\n','\\\\n'))\nPY"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "scan installer backticks",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"python3 -c \"from pathlib import Path; b=Path('zero_touch_install.sh').read_bytes(); print('backticks', b.count(b'\\\\x60')); print('has_backticks', b'\\\\x60' in b)\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "trace installer python-only",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"set -euo pipefail; cd /home/barberb/ipfs_kit_py; timeout 12s bash -x ./zero_touch_install.sh --profile dev --source local --node no --playwright no --ipfs no --lassie no --lotus no --go no --jq no"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "capture installer trace tail",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"set -euo pipefail; cd /home/barberb/ipfs_kit_py; rm -f /tmp/zt_trace.txt; timeout 5s bash -x ./zero_touch_install.sh --profile dev --source local --node no --playwright no --ipfs no --lassie no --lotus no --go no --jq no > /tmp/zt_trace.txt 2>&1 || true; echo '--- TRACE TAIL ---'; tail -n 120 /tmp/zt_trace.txt"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check trace file",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"ls -l /tmp/zt_trace.txt || true; echo '---'; head -n 5 /tmp/zt_trace.txt 2>/dev/null || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "tail trace file",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"echo '--- TRACE TAIL ---'; tail -n 160 /tmp/zt_trace.txt"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "tail trace no-echo",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"tail -n 200 /tmp/zt_trace.txt"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "grep ++ python in trace",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"grep -n \"^++ python\" -n /tmp/zt_trace.txt | head -n 20 || true; echo '---'; grep -n \"python\" /tmp/zt_trace.txt | tail -n 40"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "show trace context around python",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"nl -ba /tmp/zt_trace.txt | sed -n '135,175p'"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "trace lines 145-160",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"nl -ba /tmp/zt_trace.txt | sed -n '145,160p'"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "repr trace lines around python",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"python3 - <<'PY'\nfrom pathlib import Path\nlines = Path('/tmp/zt_trace.txt').read_text(errors='replace').splitlines()\nfor i in range(142, 156):\n    if 1 <= i <= len(lines):\n        print(f\"{i}: {lines[i-1]!r}\")\nPY"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "repr trace lines one-liner",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"python3 -c \"from pathlib import Path; lines=Path('/tmp/zt_trace.txt').read_text(errors='replace').splitlines();\nimport sys\n\nstart,end=142,156\nfor i in range(start,end):\n    if i-1 < len(lines):\n        sys.stdout.write(str(i)+': '+repr(lines[i-1])+'\\n')\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "sed raw trace lines",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"sed -n '142,156p' /tmp/zt_trace.txt | cat -A"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "awk trace 146-152 catA",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"awk 'NR>=146 && NR<=152 {print NR \":\" $0}' /tmp/zt_trace.txt | cat -A"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "awk trace 146-152 safe",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"awk \"NR>=146 && NR<=152 {print NR \\\":\\\" \\$0}\" /tmp/zt_trace.txt | cat -A"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "show trace line 151",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"awk \"NR==151 {print NR \\\":\\\" \\$0}\" /tmp/zt_trace.txt | cat -A"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "show trace line 150",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"awk \"NR==150 {print NR \\\":\\\" \\$0}\" /tmp/zt_trace.txt | cat -A"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "show trace lines 145-152 individually",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"for n in 145 146 147 148 149 150 151 152; do echo \"--- $n ---\"; awk \"NR==$n {print \\$0}\" /tmp/zt_trace.txt | cat -A; done"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "trace line 149",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"awk \"NR==149 {print \\$0}\" /tmp/zt_trace.txt | cat -A"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "scan write_env_sh for expansions",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"sed -n '454,520p' /home/barberb/ipfs_kit_py/zero_touch_install.sh | nl -ba | grep -n \"\\$\\(\" || true; echo '---'; sed -n '454,520p' /home/barberb/ipfs_kit_py/zero_touch_install.sh | nl -ba | grep -n \"`\" || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "scan heredoc range for $(",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"sed -n '454,520p' /home/barberb/ipfs_kit_py/zero_touch_install.sh | nl -ba | grep -n \"\\$\\(\" || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "scan heredoc for $(",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"sed -n '454,520p' /home/barberb/ipfs_kit_py/zero_touch_install.sh | nl -ba | grep -n -F '$(' || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "scan heredoc for $(",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"sed -n '454,520p' /home/barberb/ipfs_kit_py/zero_touch_install.sh | nl -ba | grep -n -F \"\\$(\" || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "count backticks in installer",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; LC_ALL=C tr -cd '\\140' < zero_touch_install.sh | wc -c"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "run installer python-only after fix",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"set -euo pipefail; cd /home/barberb/ipfs_kit_py; rm -f bin/env.sh; bash ./zero_touch_install.sh --profile dev --source local --node no --playwright no --ipfs no --lassie no --lotus no --go no --jq no"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "capture trace2 and locate python",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"set -euo pipefail; cd /home/barberb/ipfs_kit_py; rm -f /tmp/zt_trace2.txt; timeout 5s bash -x ./zero_touch_install.sh --profile dev --source local --node no --playwright no --ipfs no --lassie no --lotus no --go no --jq no > /tmp/zt_trace2.txt 2>&1 || true; grep -n \"^++ python$\" /tmp/zt_trace2.txt | head -n 5 || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "trace2 key lines",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"for n in 148 149 150 151; do printf '%s: ' \"$n\"; awk \"NR==$n {print \\$0}\" /tmp/zt_trace2.txt | cat -A; done"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "trace2 line149",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"awk \"NR==149 {print \\$0}\" /tmp/zt_trace2.txt | cat -A"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "trace2 line150",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"awk \"NR==150 {print \\$0}\" /tmp/zt_trace2.txt | cat -A"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "count backticks in write_env_sh region",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; awk 'NR>=452 && NR<=520 {print}' zero_touch_install.sh | LC_ALL=C tr -cd '\\140' | wc -c"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "count backticks region via sed",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; sed -n '452,520p' zero_touch_install.sh | LC_ALL=C tr -cd '\\140' | wc -c"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "show line 456 raw",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; sed -n '456p' zero_touch_install.sh | cat -A"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "python show line 456 repr",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; python3 -c \"import linecache; print(linecache.getline('zero_touch_install.sh',456).rstrip('\\n'))\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "python repr line 456 simple",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; python3 -c 'import linecache; print(repr(linecache.getline(\"zero_touch_install.sh\", 456)))'"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "awk print line 456",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; awk \"NR==456{print}\" zero_touch_install.sh | cat -A"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "grep safely line number",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; grep -n \"safely\" zero_touch_install.sh | head -n 10"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "grep safely line number",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; grep -n \"safely\" zero_touch_install.sh | head -n 20"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "show installer region via nl+sed",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; nl -ba zero_touch_install.sh | sed -n '430,520p' | head -n 40"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "show installer write_env_sh actual",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; nl -ba zero_touch_install.sh | sed -n '430,510p'"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "ls -l installer",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; ls -l zero_touch_install.sh; file zero_touch_install.sh"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "stat installer symlink",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; stat -c '%N' zero_touch_install.sh"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "git status porcelain",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; git status --porcelain"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "grep write_env_sh definitions",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; grep -n \"^write_env_sh()\" zero_touch_install.sh; grep -n \"write_env_sh\" zero_touch_install.sh | head -n 20"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "grep write_env_sh definitions",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; grep -n \"^write_env_sh()\" zero_touch_install.sh || true; echo '---'; grep -n \"write_env_sh\" zero_touch_install.sh | head -n 30"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "grep heredoc delimiter",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; grep -n \"<<'EOF'\" -n zero_touch_install.sh | head -n 5; grep -n \"<<EOF\" -n zero_touch_install.sh | head -n 5"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "show line 458 raw cat heredoc",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; awk \"NR==458{print}\" zero_touch_install.sh | cat -A"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "git diff installer head",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; git --no-pager diff -- zero_touch_install.sh | head -n 40"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "wc -l installer",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; wc -l zero_touch_install.sh; head -n 5 zero_touch_install.sh"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "wc lines installer only",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; wc -l zero_touch_install.sh"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "od heredoc line bytes",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; line=$(grep -n \"cat > \\\"\\${BIN_DIR}/env\\.sh\\\"\" -n zero_touch_install.sh | head -n 1 | cut -d: -f1); echo \"line=$line\"; sed -n \"${line}p\" zero_touch_install.sh | od -An -tx1"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "find backtick python in installer via hex",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; grep -nP \"\\x60python\\x60\" zero_touch_install.sh | head -n 20 || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "list backtick lines in installer",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; grep -nP \"\\x60\" zero_touch_install.sh | head -n 50"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "backtick lines root installer",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; grep -nP \"\\x60\" zero_touch_install.sh || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "backtick lines scripts installer",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; grep -nP \"\\x60\" scripts/zero_touch_install.sh || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "backtick lines deployment installer",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; grep -nP \"\\x60\" scripts/deployment/zero_touch_install.sh || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "show root env.sh comment context",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; nl -ba zero_touch_install.sh | sed -n '450,470p'"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "show root env.sh comment lines 456-466",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; nl -ba zero_touch_install.sh | sed -n '456,468p'"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "show root backtick comment area",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; nl -ba zero_touch_install.sh | sed -n '458,466p'"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "od comment line 462",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; sed -n '462p' zero_touch_install.sh | od -An -c"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "hex of line 462",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; sed -n '462p' zero_touch_install.sh | od -An -tx1"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "cat -A line 462",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; sed -n '462p' zero_touch_install.sh | cat -A"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "xxd line 462",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; sed -n '462p' zero_touch_install.sh | xxd -g 1"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "xxd full line 462",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; sed -n '462p' zero_touch_install.sh | xxd -g 1 -c 200"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "show lines 460-464 catA",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; sed -n '460,464p' zero_touch_install.sh | cat -A"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "show lines 458-463 catA",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; sed -n '458,463p' zero_touch_install.sh | cat -A"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "show lines 456-461 catA",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; sed -n '456,461p' zero_touch_install.sh | cat -A"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "base64 line 462",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; sed -n '462p' zero_touch_install.sh | base64 -w 0; echo"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "grep This ensures",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; grep -n \"This ensures\" zero_touch_install.sh"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "realpath installer",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; realpath zero_touch_install.sh; ls -i zero_touch_install.sh | awk '{print $1}'"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "realpath and inode",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; realpath zero_touch_install.sh; ls -i zero_touch_install.sh"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "edit installers to remove backticks in env.sh comment",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; python3 -c \"from pathlib import Path\nfiles=['zero_touch_install.sh','scripts/deployment/zero_touch_install.sh']\nold = '# This ensures ' + chr(96) + 'python' + chr(96) + '/' + chr(96) + 'pytest' + chr(96) + ' resolve to ./.venv and see all installed deps.'\nnew = '# This ensures python/pytest resolve to ./.venv and see all installed deps.'\nfor f in files:\n    p=Path(f)\n    s=p.read_text(encoding='utf-8', errors='replace')\n    if old in s:\n        p.write_text(s.replace(old, new), encoding='utf-8')\n        print('patched', f)\n    else:\n        print('no-match', f)\n\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "perl patch backticks comment",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; perl -pi -e 's/# This ensures \\x60python\\x60\\/\\x60pytest\\x60 resolve to \\/\\.venv and see all installed deps\\./# This ensures python\\/pytest resolve to .\\/\\.venv and see all installed deps./g' zero_touch_install.sh scripts/deployment/zero_touch_install.sh; git diff -- zero_touch_install.sh scripts/deployment/zero_touch_install.sh | head -n 40"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "perl patch backticks comment (double quotes)",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; perl -pi -e \"s/# This ensures \\\\x60python\\\\x60\\\\/\\\\x60pytest\\\\x60 resolve to \\\\/\\\\.venv and see all installed deps\\\\./# This ensures python\\\\/pytest resolve to .\\\\/\\\\.venv and see all installed deps./g\" zero_touch_install.sh scripts/deployment/zero_touch_install.sh"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "git diff installers after perl patch",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; git --no-pager diff -- zero_touch_install.sh scripts/deployment/zero_touch_install.sh | head -n 60"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify comment line replaced",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; grep -n \"This ensures\" zero_touch_install.sh | head -n 3; grep -n \"This ensures\" scripts/deployment/zero_touch_install.sh | head -n 3"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "show root ensures line catA",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; sed -n '462p' zero_touch_install.sh | cat -A"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "python replace backtick comment root",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; python3 -c \"from pathlib import Path; f=Path('zero_touch_install.sh'); s=f.read_text(encoding='utf-8', errors='replace'); old='# This ensures '+chr(96)+'python'+chr(96)+'/'+chr(96)+'pytest'+chr(96)+' resolve to ./.venv and see all installed deps.'; new='# This ensures python/pytest resolve to ./.venv and see all installed deps.'; f.write_text(s.replace(old,new), encoding='utf-8'); print('done')\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "python replace backtick comment root (no single quotes)",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; python3 -c \"from pathlib import Path; f=Path(\\\"zero_touch_install.sh\\\"); s=f.read_text(encoding=\\\"utf-8\\\", errors=\\\"replace\\\"); old=\\\"# This ensures \\\"+chr(96)+\\\"python\\\"+chr(96)+\\\"/\\\"+chr(96)+\\\"pytest\\\"+chr(96)+\\\" resolve to ./.venv and see all installed deps.\\\"; new=\\\"# This ensures python/pytest resolve to ./.venv and see all installed deps.\\\"; f.write_text(s.replace(old,new), encoding=\\\"utf-8\\\")\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify root ensures line after python",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; sed -n '462p' zero_touch_install.sh | cat -A"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "python replace backtick comment deployment",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; python3 -c \"from pathlib import Path; f=Path(\\\"scripts/deployment/zero_touch_install.sh\\\"); s=f.read_text(encoding=\\\"utf-8\\\", errors=\\\"replace\\\"); old=\\\"# This ensures \\\"+chr(96)+\\\"python\\\"+chr(96)+\\\"/\\\"+chr(96)+\\\"pytest\\\"+chr(96)+\\\" resolve to ./.venv and see all installed deps.\\\"; new=\\\"# This ensures python/pytest resolve to ./.venv and see all installed deps.\\\"; f.write_text(s.replace(old,new), encoding=\\\"utf-8\\\")\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify deployment ensures line after python",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; grep -n \"This ensures\" scripts/deployment/zero_touch_install.sh | head -n 3"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "git status after installer edits",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; git status --porcelain | head"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "git status after installer edits",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; git status --porcelain"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "cleanup stray files",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; rm -f =146 =452"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "run installer python-only after backtick fix",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"set -euo pipefail; cd /home/barberb/ipfs_kit_py; bash ./zero_touch_install.sh --profile dev --source local --node no --playwright no --ipfs no --lassie no --lotus no --go no --jq no"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "pytest first failure (venv)",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"set -euo pipefail; cd /home/barberb/ipfs_kit_py; source ./bin/env.sh; ./.venv/bin/python -m pytest -q -ra -rs --maxfail=1"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check pytest process",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"ps -eo pid,cmd | grep -E \"pytest|python -m pytest\" | grep -v grep || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "pytest first failure to log",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"set -euo pipefail; cd /home/barberb/ipfs_kit_py; mkdir -p .cache; source ./bin/env.sh; (./.venv/bin/python -m pytest -q -ra -rs --maxfail=1) 2>&1 | tee .cache/pytest_first_fail.log"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "tail pytest log",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; tail -n 40 .cache/pytest_first_fail.log"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "ls pytest log size",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; ls -l .cache/pytest_first_fail.log || true; wc -l .cache/pytest_first_fail.log 2>/dev/null || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "pytest first-fail capture tail+rc",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"set -euo pipefail; cd /home/barberb/ipfs_kit_py; source ./bin/env.sh; tmp=.cache/pytest_tmp.out; mkdir -p .cache; set +e; ./.venv/bin/python -m pytest -q -ra -rs --maxfail=1 >\"$tmp\" 2>&1; rc=$?; set -e; echo \"RC=$rc\"; tail -n 60 \"$tmp\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check tmp pytest output file",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; ls -l .cache/pytest_tmp.out || true; wc -l .cache/pytest_tmp.out 2>/dev/null || true; tail -n 5 .cache/pytest_tmp.out 2>/dev/null || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check venv python exists",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; ls -l .venv/bin/python; .venv/bin/python -V; .venv/bin/python -c \"import pytest; print(pytest.__version__)\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "test redirection works",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; echo hi > .cache/redir_test.txt; cat .cache/redir_test.txt"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "pytest version to file",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; ./.venv/bin/python -m pytest --version > .cache/pytest_version.txt 2>&1; cat .cache/pytest_version.txt"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "source env.sh smoke",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; set -e; source ./bin/env.sh; echo OK; which python; python -V"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "list tests",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; ls -1 tests | head -n 50"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "ps for ipfs_kit_py pytest",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"ps -eo pid,etime,cmd | grep -E \"ipfs_kit_py/\\.venv/bin/python -m pytest\" | grep -v grep || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "pytest first-fail show rc",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; source ./bin/env.sh; ./.venv/bin/python -m pytest -q -ra -rs --maxfail=1; echo RC=$?"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "ps pytest any",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"ps -eo pid,etime,cmd | grep -E \"pytest\" | grep -v grep | head -n 20 || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "pytest version rc via venv",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; source ./bin/env.sh; ./.venv/bin/python -m pytest --version; echo RC=$?"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "pytest first-fail 60s timeout capture",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; mkdir -p .cache; source ./bin/env.sh; set +e; timeout 60s ./.venv/bin/python -m pytest -q -ra -rs --maxfail=1 > .cache/pytest_60s.out 2>&1; rc=$?; echo RC=$rc; tail -n 40 .cache/pytest_60s.out"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check pytest_60s.out",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; ls -l .cache/pytest_60s.out || true; wc -c .cache/pytest_60s.out 2>/dev/null || true; head -c 200 .cache/pytest_60s.out 2>/dev/null | cat -A || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "pytest verbose 60s capture",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; mkdir -p .cache; source ./bin/env.sh; set +e; timeout 60s ./.venv/bin/python -m pytest -vv -ra -rs --maxfail=1 > .cache/pytest_vv_60s.out 2>&1; rc=$?; echo RC=$rc; tail -n 40 .cache/pytest_vv_60s.out"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check vv out file",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; ls -l .cache/pytest_vv_60s.out; wc -c .cache/pytest_vv_60s.out; head -n 20 .cache/pytest_vv_60s.out | cat -A"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "wc lines vv out",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; wc -l .cache/pytest_vv_60s.out; tail -n 30 .cache/pytest_vv_60s.out"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "pytest full first-fail to file",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; mkdir -p .cache; source ./bin/env.sh; set +e; ./.venv/bin/python -m pytest -vv -ra -rs --maxfail=1 > .cache/pytest_first_fail_full.out 2>&1; rc=$?; set -e; echo RC=$rc; tail -n 60 .cache/pytest_first_fail_full.out"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check running pytest and file size",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; ps -eo pid,etime,cmd | grep -E \"ipfs_kit_py/\\.venv/bin/python -m pytest\" | grep -v grep || true; ls -l .cache/pytest_first_fail_full.out || true; wc -l .cache/pytest_first_fail_full.out 2>/dev/null || true; tail -n 5 .cache/pytest_first_fail_full.out 2>/dev/null || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "ps pytest in ipfs_kit_py only",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"ps -eo pid,etime,cmd | grep -E \"/home/barberb/ipfs_kit_py/\\.venv/bin/python -m pytest\" | grep -v grep || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "tail first_fail_full out",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; tail -n 80 .cache/pytest_first_fail_full.out"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "ps grep pytest_first_fail_full.out",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"ps -eo pid,etime,cmd | grep -F \"pytest_first_fail_full.out\" | grep -v grep || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "grep fail markers in pytest out",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; grep -n \"FAILED\\|ERROR\\|Traceback\" .cache/pytest_first_fail_full.out | tail -n 20 || true; echo '---'; tail -n 30 .cache/pytest_first_fail_full.out"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "ps for any pytest python",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"ps -eo pid,etime,cmd | grep -E \"python.*-m pytest\" | grep -v grep | head -n 20 || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "wait and tail pytest output",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; sleep 20; tail -n 60 .cache/pytest_first_fail_full.out"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check pytest pid running",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"ps -p 3748530 -o pid,etime,cmd || echo DONE"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "wait for pytest completion and tail",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; while ps -p 3748530 >/dev/null 2>&1; do sleep 30; done; echo DONE; tail -n 120 .cache/pytest_first_fail_full.out"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "tail and grep for failure so far",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd /home/barberb/ipfs_kit_py; ps -p 3748530 -o etime=,cmd= || echo DONE; echo '--- last 20 lines ---'; tail -n 20 .cache/pytest_first_fail_full.out; echo '--- last FAIL markers ---'; grep -n \"FAILED\\|ERROR\" .cache/pytest_first_fail_full.out | tail -n 10 || true"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check pytest pid again",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"ps -p 3748530 -o pid=,etime=,cmd= || echo DONE"
 			],
 			"isBackground": false
 		}

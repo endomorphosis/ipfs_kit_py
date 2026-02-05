@@ -1,54 +1,50 @@
-"""
-Cluster Management Package for IPFS Kit.
+"""Cluster management package.
 
-This package provides advanced cluster management capabilities for IPFS Kit,
-enabling efficient coordination and task distribution across nodes with different
-roles (master, worker, leecher). It implements Phase 3B of the development roadmap.
+Keep this module intentionally lightweight.
 
-Components:
-- role_manager: Handles node role detection, switching, and optimization
-- distributed_coordination: Manages cluster membership, leader election, and consensus
-- monitoring: Provides health monitoring, metrics collection, and visualization
-- cluster_manager: Integrates all components into a unified management system
+Historically, this package imported many submodules at import-time. That caused
+hard-to-debug circular imports (notably when other parts of the project import
+`ipfs_kit_py.ipfs_kit` during startup).
+
+To keep imports safe and predictable, public symbols are exposed via lazy loading.
 """
 
-from .cluster_manager import ClusterManager
-from .distributed_coordination import ClusterCoordinator, MembershipManager
-from .monitoring import ClusterMonitor, MetricsCollector
-from .role_manager import NodeRole, RoleManager, role_capabilities
-from .utils import get_gpu_info
+from __future__ import annotations
+
+import importlib
+from typing import Any, Dict, Tuple
 
 
-# Daemon management with cluster capabilities
-from .enhanced_daemon_manager_with_cluster import (
-    EnhancedDaemonManager,
-    NodeRole as DaemonNodeRole,
-    PeerInfo as DaemonPeerInfo,
-    LeaderElection,
-    ReplicationManager,
-    IndexingService,
-)
+_LAZY: Dict[str, Tuple[str, str]] = {
+    # Cluster management
+    "ClusterManager": ("ipfs_kit_py.cluster.cluster_manager", "ClusterManager"),
+    "ClusterCoordinator": ("ipfs_kit_py.cluster.distributed_coordination", "ClusterCoordinator"),
+    "MembershipManager": ("ipfs_kit_py.cluster.distributed_coordination", "MembershipManager"),
+    "ClusterMonitor": ("ipfs_kit_py.cluster.monitoring", "ClusterMonitor"),
+    "MetricsCollector": ("ipfs_kit_py.cluster.monitoring", "MetricsCollector"),
+    "NodeRole": ("ipfs_kit_py.cluster.role_manager", "NodeRole"),
+    "RoleManager": ("ipfs_kit_py.cluster.role_manager", "RoleManager"),
+    "role_capabilities": ("ipfs_kit_py.cluster.role_manager", "role_capabilities"),
+    "get_gpu_info": ("ipfs_kit_py.cluster.utils", "get_gpu_info"),
+    # Daemon management with cluster capabilities
+    "EnhancedDaemonManager": ("ipfs_kit_py.cluster.enhanced_daemon_manager_with_cluster", "EnhancedDaemonManager"),
+    "DaemonNodeRole": ("ipfs_kit_py.cluster.enhanced_daemon_manager_with_cluster", "NodeRole"),
+    "DaemonPeerInfo": ("ipfs_kit_py.cluster.enhanced_daemon_manager_with_cluster", "PeerInfo"),
+    "LeaderElection": ("ipfs_kit_py.cluster.enhanced_daemon_manager_with_cluster", "LeaderElection"),
+    "ReplicationManager": ("ipfs_kit_py.cluster.enhanced_daemon_manager_with_cluster", "ReplicationManager"),
+    "IndexingService": ("ipfs_kit_py.cluster.enhanced_daemon_manager_with_cluster", "IndexingService"),
+}
 
-# Practical cluster setup utilities
-# Note: practical_cluster_setup is primarily a script, 
-# import it directly if needed: from ipfs_kit_py.cluster import practical_cluster_setup
 
-__all__ = [
-    # Existing cluster management
-    "NodeRole",
-    "RoleManager",
-    "role_capabilities",
-    "ClusterCoordinator",
-    "MembershipManager",
-    "ClusterMonitor",
-    "MetricsCollector",
-    "ClusterManager",
-    "get_gpu_info",
-    # Daemon management with cluster
-    "EnhancedDaemonManager",
-    "DaemonNodeRole",
-    "DaemonPeerInfo",
-    "LeaderElection",
-    "ReplicationManager",
-    "IndexingService",
-]
+def __getattr__(name: str) -> Any:  # pragma: no cover
+    entry = _LAZY.get(name)
+    if not entry:
+        raise AttributeError(name)
+    module_name, attr_name = entry
+    module = importlib.import_module(module_name)
+    value = getattr(module, attr_name)
+    globals()[name] = value
+    return value
+
+
+__all__ = list(_LAZY.keys())

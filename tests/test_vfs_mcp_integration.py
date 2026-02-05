@@ -86,7 +86,7 @@ class MCPVFSIntegrationTest:
         """Test direct VFS import and basic functionality."""
         try:
             # Test direct VFS import
-            from ipfs_fsspec import get_vfs, vfs_mount, vfs_unmount, vfs_list_mounts
+            from ipfs_kit_py.ipfs_fsspec import get_vfs, vfs_mount, vfs_unmount, vfs_list_mounts
             
             # Test VFS registry
             vfs = get_vfs()
@@ -138,7 +138,7 @@ class MCPVFSIntegrationTest:
         """Test MCP server startup and basic functionality."""
         try:
             # Start the MCP server
-            mcp_server_path = Path(project_root) / "mcp" / "enhanced_mcp_server_with_daemon_mgmt.py"
+            mcp_server_path = Path(project_root) / "ipfs_kit_py" / "mcp" / "servers" / "unified_mcp_server.py"
             if not mcp_server_path.exists():
                 self.log_test_result("test_mcp_server_startup", False, f"MCP server not found at {mcp_server_path}")
                 return False
@@ -179,7 +179,7 @@ class MCPVFSIntegrationTest:
         """Test VFS operations through MCP interface."""
         try:
             # Import the MCP server components
-            from mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
+            from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
             
             # Create integration instance
             integration = IPFSKitIntegration()
@@ -260,7 +260,7 @@ class MCPVFSIntegrationTest:
     async def test_vfs_file_operations(self):
         """Test VFS file operations."""
         try:
-            from ipfs_fsspec import vfs_write, vfs_read, vfs_ls, vfs_mkdir
+            from ipfs_kit_py.ipfs_fsspec import vfs_write, vfs_read, vfs_ls, vfs_mkdir
             
             # Test write operation
             test_content = "Hello from VFS integration test!"
@@ -299,7 +299,7 @@ class MCPVFSIntegrationTest:
     async def test_vfs_backend_functionality(self):
         """Test VFS backend functionality."""
         try:
-            from ipfs_fsspec import get_vfs
+            from ipfs_kit_py.ipfs_fsspec import get_vfs
             
             vfs = get_vfs()
             if vfs is None:

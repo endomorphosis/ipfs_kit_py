@@ -111,6 +111,9 @@ class FTPKit:
         
         Returns:
             bool: True if connection successful
+        
+        Raises:
+            ConnectionError: If all connection attempts fail
         """
         correlation_id = str(uuid.uuid4())
         
@@ -137,11 +140,19 @@ class FTPKit:
                 # Set passive mode
                 self.connection.set_pasv(self.passive_mode)
                 
-                # Ensure base directory exists
-                self._ensure_remote_directory(self.remote_base_path)
-                
+                # Mark as connected - connection is now fully established
                 self.connected = True
                 self.last_activity = time.time()
+                
+                # Ensure base directory exists, passing the connection directly
+                # to avoid recursion through _ensure_connection()
+                try:
+                    self._ensure_remote_directory_with_connection(
+                        self.remote_base_path, 
+                        self.connection
+                    )
+                except Exception as e:
+                    logger.warning(f"Could not ensure base directory: {e}")
                 
                 self.operations_log.append(log_operation(
                     "connect_success",
@@ -161,7 +172,8 @@ class FTPKit:
                         correlation_id
                     ))
                     logger.error(f"Failed to connect to FTP server after {self.retry_attempts} attempts")
-                    return False
+                    # Raise exception on final failure
+                    raise ConnectionError(f"Failed to connect to FTP server after {self.retry_attempts} attempts: {e}")
                 
                 time.sleep(1 * (attempt + 1))  # Exponential backoff
         
@@ -206,6 +218,8 @@ class FTPKit:
         """
         Ensure remote directory exists, create if necessary.
         
+        This method ensures connection before proceeding.
+        
         Args:
             remote_path: Remote directory path
             
@@ -215,11 +229,32 @@ class FTPKit:
         if not self._ensure_connection() or not self.connection:
             return False
         
+        return self._ensure_remote_directory_with_connection(remote_path, self.connection)
+    
+    def _ensure_remote_directory_with_connection(
+        self, 
+        remote_path: str, 
+        connection: Union[ftplib.FTP, ftplib.FTP_TLS]
+    ) -> bool:
+        """
+        Ensure remote directory exists using provided connection.
+        
+        This version accepts a connection parameter to avoid recursion when called
+        from connect(). It's the core implementation that doesn't check connection
+        state since the caller provides a valid connection.
+        
+        Args:
+            remote_path: Remote directory path
+            connection: Active FTP connection object
+            
+        Returns:
+            bool: True if directory exists or created successfully
+        """
         try:
             # Try to change to the directory
-            current_dir = self.connection.pwd()
-            self.connection.cwd(remote_path)
-            self.connection.cwd(current_dir)  # Change back
+            current_dir = connection.pwd()
+            connection.cwd(remote_path)
+            connection.cwd(current_dir)  # Change back
             return True
         except ftplib.error_perm:
             # Directory doesn't exist, create it
@@ -231,7 +266,7 @@ class FTPKit:
                     if part:  # Skip empty parts
                         current_path = f"{current_path.rstrip('/')}/{part}"
                         try:
-                            self.connection.mkd(current_path)
+                            connection.mkd(current_path)
                             logger.debug(f"Created FTP directory: {current_path}")
                         except ftplib.error_perm as e:
                             # Directory might already exist

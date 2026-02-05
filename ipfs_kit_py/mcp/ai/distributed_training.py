@@ -35,17 +35,32 @@ logging.basicConfig(
 logger = logging.getLogger("mcp_distributed_training")
 
 # Try importing ipfs_accelerate_py for distributed compute acceleration
-HAS_ACCELERATE = False
-try:
-    import sys
-    accelerate_path = Path(__file__).parent.parent.parent / "ipfs_accelerate_py"
-    if accelerate_path.exists():
-        sys.path.insert(0, str(accelerate_path))
-    
-    from ipfs_accelerate_py import AccelerateCompute
-    HAS_ACCELERATE = True
-    logger.info("ipfs_accelerate_py compute layer available for distributed training")
-except ImportError:
+import importlib.util
+import contextlib
+import io
+
+HAS_ACCELERATE = importlib.util.find_spec("ipfs_accelerate_py") is not None
+AccelerateCompute = None
+
+def _load_accelerate_compute():
+    global AccelerateCompute
+    if AccelerateCompute is not None:
+        return AccelerateCompute
+    if not HAS_ACCELERATE:
+        return None
+
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        try:
+            from ipfs_accelerate_py import AccelerateCompute as _AccelerateCompute
+        except Exception:
+            from ipfs_accelerate_py.ipfs_accelerate import ipfs_accelerate_py as _AccelerateCompute
+
+    AccelerateCompute = _AccelerateCompute
+    return AccelerateCompute
+
+if HAS_ACCELERATE:
+    logger.info("ipfs_accelerate_py detected (lazy import)")
+else:
     logger.info("ipfs_accelerate_py not available - using default compute for distributed training")
 
 

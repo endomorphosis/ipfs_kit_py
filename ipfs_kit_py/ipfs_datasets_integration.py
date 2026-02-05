@@ -26,24 +26,81 @@ Usage:
 
 import logging
 import os
+import sys
 from typing import Dict, List, Any, Optional, Union
 from pathlib import Path
 import json
 import datetime
+import importlib.util
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Try to import ipfs_datasets_py with fallback
-try:
-    import ipfs_datasets_py
-    from ipfs_datasets_py import DatasetManager as IPFSDatasetManager
-    IPFS_DATASETS_AVAILABLE = True
-    logger.info("ipfs_datasets_py is available for distributed dataset operations")
-except ImportError:
-    IPFS_DATASETS_AVAILABLE = False
-    IPFSDatasetManager = None
-    logger.info("ipfs_datasets_py not available - using fallback implementations")
+# Try to import ipfs_datasets_py with fallback.
+#
+# NOTE: The published `ipfs_datasets_py` package does not necessarily expose a
+# `DatasetManager` symbol. We treat the dependency as available if the package
+# itself imports, and keep our own manager abstraction (`IPFSDatasetsManager`).
+IPFS_DATASETS_AVAILABLE = False
+IPFSDatasetManager = None
+_ipfs_datasets_py = None
+
+def _should_skip_datasets_import() -> bool:
+    if os.environ.get("IPFS_KIT_FAST_INIT") == "1":
+        return True
+    if os.environ.get("IPFS_KIT_SKIP_DATASETS") == "1":
+        return True
+    # Historically, this module skipped importing `ipfs_datasets_py` under pytest
+    # to keep optional dependencies from affecting unit test runs.
+    #
+    # For this repository, we *do* want tests to exercise the integration when
+    # the dependency is present. If you need the old behavior, set:
+    #   IPFS_KIT_SKIP_DATASETS_IN_PYTEST=1
+    if os.environ.get("IPFS_KIT_SKIP_DATASETS_IN_PYTEST") == "1":
+        pytest_env_markers = (
+            "PYTEST_CURRENT_TEST",
+            "PYTEST_ADDOPTS",
+            "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+            "PYTEST_VERSION",
+            "PYTEST_XDIST_WORKER",
+        )
+        if any(os.environ.get(key) for key in pytest_env_markers):
+            return True
+    argv = sys.argv or []
+    if any(flag in argv for flag in ("-h", "--help")):
+        return True
+    return False
+
+def _ensure_ipfs_datasets_loaded() -> None:
+    global IPFS_DATASETS_AVAILABLE, IPFSDatasetManager, _ipfs_datasets_py
+    if _ipfs_datasets_py is not None or IPFS_DATASETS_AVAILABLE:
+        return
+    if _should_skip_datasets_import():
+        IPFS_DATASETS_AVAILABLE = False
+        return
+    try:
+        spec = importlib.util.find_spec("ipfs_datasets_py")
+        if spec is None:
+            IPFS_DATASETS_AVAILABLE = False
+            IPFSDatasetManager = None
+            logger.info("ipfs_datasets_py not available - using fallback implementations")
+            return
+
+        # Mark available without importing, to avoid heavy side effects at import time.
+        IPFS_DATASETS_AVAILABLE = True
+        IPFSDatasetManager = None
+        _ipfs_datasets_py = None
+        logger.info("ipfs_datasets_py is available for dataset operations")
+    except Exception:
+        IPFS_DATASETS_AVAILABLE = False
+        IPFSDatasetManager = None
+        logger.info("ipfs_datasets_py not available - using fallback implementations")
+
+
+# Populate the availability flag at import time so that code paths that only
+# read `IPFS_DATASETS_AVAILABLE` (without calling into the manager) still behave
+# correctly in environments where `ipfs_datasets_py` is installed.
+_ensure_ipfs_datasets_loaded()
 
 
 class DatasetIPFSBackend:
@@ -66,6 +123,7 @@ class DatasetIPFSBackend:
             base_path: Base directory for local dataset storage
             enable_distributed: Enable distributed operations (requires ipfs_datasets_py)
         """
+        _ensure_ipfs_datasets_loaded()
         self.ipfs_client = ipfs_client
         self.base_path = Path(os.path.expanduser(base_path))
         self.enable_distributed = enable_distributed and IPFS_DATASETS_AVAILABLE

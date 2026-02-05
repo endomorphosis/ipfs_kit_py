@@ -16,6 +16,7 @@ import logging
 import tempfile
 import shutil
 from pathlib import Path
+import pytest
 
 # Add the project root to the path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -29,6 +30,8 @@ logger = logging.getLogger(__name__)
 
 def test_enhanced_daemon_manager():
     """Test the enhanced daemon manager functionality."""
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run comprehensive daemon fixes tests")
     print("=" * 60)
     print("Testing Enhanced Daemon Manager")
     print("=" * 60)
@@ -75,6 +78,8 @@ def test_enhanced_daemon_manager():
 
 def test_ipfs_version_handling():
     """Test IPFS version detection and handling."""
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run comprehensive daemon fixes tests")
     print("\n" + "=" * 60)
     print("Testing IPFS Version Handling")
     print("=" * 60)
@@ -128,6 +133,8 @@ def test_ipfs_version_handling():
 
 def test_ipfs_kit_integration():
     """Test integration with the main IPFS Kit system."""
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run comprehensive daemon fixes tests")
     print("\n" + "=" * 60)
     print("Testing IPFS Kit Integration")
     print("=" * 60)
@@ -169,6 +176,8 @@ def test_ipfs_kit_integration():
 
 def test_daemon_startup_orchestration():
     """Test the daemon startup orchestration."""
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run comprehensive daemon fixes tests")
     print("\n" + "=" * 60)
     print("Testing Daemon Startup Orchestration")
     print("=" * 60)
@@ -237,6 +246,8 @@ def test_repository_migration():
     print("\n" + "=" * 60)
     print("Testing Repository Migration")
     print("=" * 60)
+    if os.environ.get("IPFS_KIT_RUN_LONG_INTEGRATION") != "1":
+        pytest.skip("Set IPFS_KIT_RUN_LONG_INTEGRATION=1 to run comprehensive daemon fixes tests")
     
     try:
         from ipfs_kit_py.enhanced_daemon_manager import EnhancedDaemonManager

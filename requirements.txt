@@ -36,6 +36,8 @@ duckdb>=0.10.0
 numpy>=1.20.0
 matplotlib>=3.7.0
 networkx>=3.0
+jsonpatch>=1.33
+rdflib>=7.0.0
 
 # IPLD support
 ipld-car>=0.0.1
@@ -44,7 +46,8 @@ dag-cbor>=0.2.0
 multiformats>=0.3.0
 
 # LibP2P support (track upstream py-libp2p main)
-libp2p @ git+https://github.com/libp2p/py-libp2p.git@main; python_version < '3.14' and platform_system != 'Windows'
+# Use a zip archive URL so installs work even when 'git' is not available.
+libp2p @ https://github.com/libp2p/py-libp2p/archive/refs/heads/main.zip; python_version < '3.14' and platform_system != 'Windows'
 protobuf>=5.26.0,<7.0.0
 eth-hash[pycryptodome]>=0.3.3
 eth-keys>=0.4.0
@@ -53,6 +56,7 @@ eth-keys>=0.4.0
 pytest>=7.0.0
 pytest-cov>=4.1.0
 pytest-asyncio>=0.23.0
+pytest-timeout>=2.3.1
 pytest-trio>=0.8.0  # For testing with trio backend
 black>=23.3.0
 isort>=5.12.0

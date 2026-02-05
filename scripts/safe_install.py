@@ -113,22 +113,27 @@ def install_dependencies():
     
     # Wait for package locks (if on Linux)
     if sys.platform.startswith('linux'):
-        wait_for_locks()
+        if os.environ.get("IPFS_KIT_SKIP_LOCK_WAIT") == "1":
+            print("Skipping package manager lock wait (IPFS_KIT_SKIP_LOCK_WAIT=1)")
+        else:
+            wait_for_locks()
     
     python_cmd = sys.executable
     use_break_system = False
 
-    if is_externally_managed_environment():
-        venv_dir = Path(".venv")
-        print("\nDetected externally managed Python environment.")
+    venv_dir = Path(".venv")
+    if os.environ.get("IPFS_KIT_SKIP_VENV") != "1":
         if not venv_dir.exists():
             print("Creating local virtual environment at .venv...")
             if not run_command([python_cmd, "-m", "venv", str(venv_dir)], retries=1):
-                print("✗ Failed to create virtual environment")
+                print("⚠ Failed to create virtual environment; falling back to system python")
         if venv_dir.exists():
             python_cmd = str(venv_dir / "bin" / "python")
             print(f"Using virtual environment python: {python_cmd}")
-        elif os.environ.get("IPFS_KIT_BREAK_SYSTEM_PACKAGES") == "1":
+
+    if is_externally_managed_environment() and python_cmd == sys.executable:
+        print("\nDetected externally managed Python environment.")
+        if os.environ.get("IPFS_KIT_BREAK_SYSTEM_PACKAGES") == "1":
             use_break_system = True
             print("Proceeding with --break-system-packages as requested")
         else:
@@ -142,9 +147,21 @@ def install_dependencies():
         print("⚠ Failed to upgrade pip tools, continuing anyway...")
     
     # Install main package
-    print("\n2. Installing main package...")
-    if not run_command(build_pip_command(python_cmd, 'install', '-e', '.', break_system=use_break_system)):
-        print("✗ Failed to install main package")
+    print("\n2. Installing main package from GitHub main branch...")
+    ipfs_kit_git = "git+https://github.com/endomorphosis/ipfs_kit_py.git@main"
+    ipfs_kit_zip = "https://github.com/endomorphosis/ipfs_kit_py/archive/refs/heads/main.zip"
+    ipfs_kit_direct_zip = f"ipfs_kit_py @ {ipfs_kit_zip}"
+    ipfs_kit_direct_git = f"ipfs_kit_py @ {ipfs_kit_git}"
+    installed_main = run_command(
+        build_pip_command(python_cmd, 'install', ipfs_kit_direct_git, break_system=use_break_system)
+    )
+    if not installed_main:
+        print("⚠ Git main install failed, trying GitHub zip archive...")
+        installed_main = run_command(
+            build_pip_command(python_cmd, 'install', ipfs_kit_direct_zip, break_system=use_break_system)
+        )
+    if not installed_main:
+        print("✗ Failed to install main package from GitHub main")
         return False
     
     # Install libp2p extras
@@ -174,7 +191,7 @@ def install_dependencies():
     
     # Install test dependencies
     print("\n4. Installing test dependencies...")
-    test_deps = ['pytest', 'pytest-anyio', 'pytest-cov', 'pytest-asyncio', 'pytest-trio']
+    test_deps = ['pytest', 'pytest-anyio', 'pytest-cov', 'pytest-asyncio', 'pytest-trio', 'pytest-timeout', 'jsonpatch']
     for dep in test_deps:
         run_command(build_pip_command(python_cmd, 'install', dep, break_system=use_break_system), retries=2)
 
@@ -183,24 +200,44 @@ def install_dependencies():
     optional_deps = [
         {
             "name": "ipfs_datasets_py",
+            "git": "git+https://github.com/endomorphosis/ipfs_datasets_py.git@main",
+            "zip": "https://github.com/endomorphosis/ipfs_datasets_py/archive/refs/heads/main.zip",
             "pip": "ipfs_datasets_py",
-            "git": "git+https://github.com/endomorphosis/ipfs_datasets_py.git",
         },
         {
             "name": "ipfs_accelerate_py",
+            "git": "git+https://github.com/endomorphosis/ipfs_accelerate_py.git@main",
+            "zip": "https://github.com/endomorphosis/ipfs_accelerate_py/archive/refs/heads/main.zip",
             "pip": "ipfs_accelerate_py",
-            "git": "git+https://github.com/endomorphosis/ipfs_accelerate_py.git",
         },
     ]
     for dep in optional_deps:
-        print(f"  Installing {dep['name']}...")
-        installed = run_command(build_pip_command(python_cmd, 'install', dep["pip"], break_system=use_break_system), retries=2)
+        print(f"  Installing {dep['name']} from GitHub main...")
+        installed = run_command(build_pip_command(python_cmd, 'install', dep["git"], '--upgrade', '--force-reinstall', break_system=use_break_system), retries=2)
+        if not installed and dep.get("zip"):
+            print(f"  GitHub clone failed for {dep['name']}, trying zip archive...")
+            installed = run_command(build_pip_command(python_cmd, 'install', dep["zip"], '--upgrade', '--force-reinstall', break_system=use_break_system), retries=2)
         if not installed:
-            print(f"  Pip install failed for {dep['name']}, trying GitHub...")
-            run_command(build_pip_command(python_cmd, 'install', dep["git"], break_system=use_break_system), retries=2)
+            print(f"  GitHub install failed for {dep['name']}, trying PyPI as last resort...")
+            run_command(build_pip_command(python_cmd, 'install', dep["pip"], '--upgrade', break_system=use_break_system), retries=2)
+
+    # Ensure upstream libp2p API compatibility (new_host) from GitHub main
+    print("\n6. Ensuring libp2p is installed from GitHub main...")
+    libp2p_git = "libp2p @ git+https://github.com/libp2p/py-libp2p.git@main"
+    run_command(
+        build_pip_command(
+            python_cmd,
+            'install',
+            '--upgrade',
+            '--force-reinstall',
+            libp2p_git,
+            break_system=use_break_system,
+        ),
+        retries=2,
+    )
 
     # Install optional extras that back integration tests
-    print("\n6. Installing optional extras (best effort)...")
+    print("\n7. Installing optional extras (best effort)...")
     optional_extras = [
         "dev",
         "api",
@@ -217,10 +254,49 @@ def install_dependencies():
     ]
     for extra in optional_extras:
         print(f"  Installing extras: [{extra}]...")
-        run_command(build_pip_command(python_cmd, 'install', '-e', f'.[{extra}]', break_system=use_break_system), retries=2)
+        zip_extra = f"ipfs_kit_py[{extra}] @ {ipfs_kit_zip}"
+        git_extra = f"ipfs_kit_py[{extra}] @ {ipfs_kit_git}"
+        installed_extra = run_command(
+            build_pip_command(python_cmd, 'install', zip_extra, break_system=use_break_system),
+            retries=2
+        )
+        if not installed_extra:
+            installed_extra = run_command(
+                build_pip_command(python_cmd, 'install', git_extra, break_system=use_break_system),
+                retries=2
+            )
+        if not installed_extra:
+            run_command(
+                build_pip_command(python_cmd, 'install', '-e', f'.[{extra}]', break_system=use_break_system),
+                retries=2
+            )
+
+    # Install additional optional dependencies detected from integration warnings
+    print("\n8. Installing optional ML/AI/PDF/RAG dependencies (best effort)...")
+    optional_packages = [
+        # ML / AI
+        "torch",
+        "sentence-transformers",
+        "tiktoken",
+        "nltk",
+        "openai",
+        # PDF / OCR
+        "pymupdf",
+        "pdfplumber",
+        "pytesseract",
+        "surya-ocr",
+        # Web content parsing
+        "beautifulsoup4",
+        "newspaper3k",
+        "readability-lxml",
+        # SSH / SFTP
+        "paramiko",
+    ]
+    for pkg in optional_packages:
+        run_command(build_pip_command(python_cmd, 'install', pkg, break_system=use_break_system), retries=2)
     
     # Verify installations
-    print("\n7. Verifying installations...")
+    print("\n9. Verifying installations...")
     print("-" * 60)
     
     checks = [

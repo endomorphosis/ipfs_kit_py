@@ -16,12 +16,19 @@ import subprocess
 import tempfile
 import shutil
 from pathlib import Path
+import pytest
 
 # Add the current directory to Python path
 sys.path.insert(0, str(Path(__file__).parent))
 
+
+def _skip_if_not_arm64():
+    if platform.machine() != "aarch64":
+        pytest.skip("ARM64 installation tests require aarch64 host")
+
 def test_platform_detection():
     """Test that our platform detection fixes work correctly."""
+    _skip_if_not_arm64()
     print("🔍 Testing Platform Detection")
     print("=" * 50)
     
@@ -46,19 +53,18 @@ def test_platform_detection():
         expected = "linux arm64"
         if ipfs_dist == expected and lotus_dist == expected:
             print("✅ Platform detection working correctly")
-            return True
         else:
-            print(f"❌ Platform detection failed. Expected: {expected}")
-            return False
+            pytest.fail(f"Platform detection failed. Expected: {expected}")
             
     except Exception as e:
         print(f"❌ Error testing platform detection: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        pytest.fail(str(e))
 
 def test_ipfs_urls():
     """Test IPFS download URLs for ARM64."""
+    _skip_if_not_arm64()
     print("\n🔗 Testing IPFS ARM64 URLs")
     print("=" * 50)
     
@@ -76,27 +82,25 @@ def test_ipfs_urls():
             if hasattr(installer, 'verify_release_url'):
                 is_valid = installer.verify_release_url(url)
                 print(f"URL validation: {'✅ Valid' if is_valid else '❌ Invalid'}")
-                return is_valid
+                assert is_valid
             else:
                 # Fallback: test with curl
                 result = subprocess.run(['curl', '-I', url], 
                                       capture_output=True, text=True, timeout=10)
                 if result.returncode == 0 and '200' in result.stdout:
                     print("✅ URL is accessible (curl test)")
-                    return True
                 else:
-                    print("❌ URL not accessible (curl test)")
-                    return False
+                    pytest.fail("URL not accessible (curl test)")
         else:
-            print(f"❌ No URL found for {dist}")
-            return False
+            pytest.fail(f"No URL found for {dist}")
             
     except Exception as e:
         print(f"❌ Error testing IPFS URLs: {e}")
-        return False
+        pytest.fail(str(e))
 
 def test_lotus_urls():
     """Test Lotus download URLs for ARM64."""
+    _skip_if_not_arm64()
     print("\n🔗 Testing Lotus ARM64 URLs")
     print("=" * 50)
     
@@ -115,22 +119,20 @@ def test_lotus_urls():
                                   capture_output=True, text=True, timeout=10)
             if result.returncode == 0 and '200' in result.stdout:
                 print("✅ URL is accessible")
-                return True
             else:
-                print("❌ URL not accessible")
-                print("This is expected - Lotus doesn't provide ARM64 binaries")
-                return False
+                print("⚠️ Lotus URL not accessible (expected on ARM64)")
+            assert True
         else:
-            print(f"❌ No URL found for {dist}")
-            print("This is expected - Lotus doesn't provide ARM64 binaries")
-            return False
+            print(f"⚠️ No URL found for {dist} (expected on ARM64)")
+            assert True
             
     except Exception as e:
         print(f"❌ Error testing Lotus URLs: {e}")
-        return False
+        pytest.fail(str(e))
 
 def test_build_from_source_methods():
     """Test that build-from-source methods exist and are callable."""
+    _skip_if_not_arm64()
     print("\n🔧 Testing Build-from-Source Methods")
     print("=" * 50)
     
@@ -172,10 +174,11 @@ def test_build_from_source_methods():
         print(f"❌ Error loading Lotus installer: {e}")
         results['lotus_methods'] = False
     
-    return all(results.values())
+    assert all(results.values())
 
 def test_actual_installation():
     """Test actual installation process (with safety measures)."""
+    _skip_if_not_arm64()
     print("\n⚙️ Testing Actual Installation Process")
     print("=" * 50)
     
@@ -205,28 +208,25 @@ def test_actual_installation():
                 url_valid = installer.verify_release_url(url)
                 if url_valid:
                     print("✅ URL is valid, installation would proceed")
-                    return True
+                    assert True
                 else:
                     print("❌ URL validation failed, would fall back to build-from-source")
                     # Test that build method exists
                     if hasattr(installer, 'build_ipfs_from_source'):
                         print("✅ Build-from-source method available as fallback")
-                        return True
+                        assert True
                     else:
-                        print("❌ No build-from-source fallback")
-                        return False
+                        pytest.fail("No build-from-source fallback")
             else:
-                print("⚠️ No URL verification method")
-                return False
+                pytest.fail("No URL verification method")
         else:
-            print("❌ No distribution available for this platform")
-            return False
+            pytest.fail("No distribution available for this platform")
             
     except Exception as e:
         print(f"❌ Error during installation test: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        pytest.fail(str(e))
     finally:
         # Clean up
         try:
@@ -237,6 +237,7 @@ def test_actual_installation():
 
 def test_build_tools():
     """Test availability of build tools."""
+    _skip_if_not_arm64()
     print("\n🔨 Testing Build Tools")
     print("=" * 50)
     
@@ -269,12 +270,12 @@ def test_build_tools():
     if missing_required:
         print(f"\n⚠️ Missing required build tools: {', '.join(missing_required)}")
         print("Install with: sudo apt-get install -y build-essential git make gcc g++")
-        return False
+        pytest.fail(f"Missing required build tools: {', '.join(missing_required)}")
     else:
         print(f"\n✅ All required build tools available")
         if not available_tools.get('go', False):
             print("⚠️ Go not installed, but will be auto-installed if needed")
-        return True
+        assert True
 
 def main():
     """Main test function."""

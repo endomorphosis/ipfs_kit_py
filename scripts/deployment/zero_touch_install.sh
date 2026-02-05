@@ -10,113 +10,11 @@ cd "$REPO_DIR"
 
 exec ./zero_touch_install.sh "$@"
 
-usage() {
-  cat <<'EOF'
-Usage: ./zero_touch_install.sh [options]
+# Legacy implementation intentionally disabled.
+# This file is a compatibility wrapper; the repo-root installer is the single source of truth.
+exit 0
 
-Options:
-  --profile <core|api|dev|full>   Install profile (default: dev)
-  --extras <comma,separated>      Explicit extras to install (overrides --profile)
-  --node <auto|yes|no>            Ensure Node.js is available (default: auto)
-  --playwright <auto|yes|no>      Install Playwright deps + browsers (default: auto)
-  --libmagic <auto|yes|no>        Build/install libmagic locally if needed (default: auto)
-  --ipfs <auto|yes|no>            Install IPFS/Kubo binaries into ./bin (default: auto)
-  --lassie <auto|yes|no>          Install Lassie binary into ./bin (default: auto)
-  --lotus <auto|yes|no>           Install Lotus binaries into ./bin (default: auto)
-  --allow-unsupported-python      Proceed even if Python < 3.12 (best-effort)
-  -h, --help                      Show this help
-
-What it does (no sudo):
-  - Creates ./bin, ./.cache, ./.venv
-  - Ensures Python venv + pip deps for chosen profile
-  - Optionally installs Node (downloaded to ./.cache, symlinked into ./bin)
-  - Optionally installs Playwright (npm install + browsers into ./.cache)
-
-Environment outputs:
-  - Writes ./bin/env.sh that you can source to set PATH and library paths
-EOF
-}
-
-parse_args() {
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --profile) PROFILE="${2:-}"; shift 2 ;;
-      --extras) EXTRAS="${2:-}"; shift 2 ;;
-      --node) INSTALL_NODE="${2:-}"; shift 2 ;;
-      --playwright) INSTALL_PLAYWRIGHT="${2:-}"; shift 2 ;;
-      --libmagic) INSTALL_LIBMAGIC="${2:-}"; shift 2 ;;
-      --ipfs) INSTALL_IPFS="${2:-}"; shift 2 ;;
-      --lassie) INSTALL_LASSIE="${2:-}"; shift 2 ;;
-      --lotus) INSTALL_LOTUS="${2:-}"; shift 2 ;;
-      --allow-unsupported-python) ALLOW_UNSUPPORTED_PYTHON="1"; shift 1 ;;
-      -h|--help) usage; exit 0 ;;
-      *) err "Unknown option: $1"; usage; exit 2 ;;
-    esac
-  done
-
-  case "$PROFILE" in
-    core|api|dev|full) : ;;
-    *) err "Invalid --profile: $PROFILE"; exit 2 ;;
-  esac
-  case "$INSTALL_NODE" in auto|yes|no) : ;; *) err "Invalid --node: $INSTALL_NODE"; exit 2 ;; esac
-  case "$INSTALL_PLAYWRIGHT" in auto|yes|no) : ;; *) err "Invalid --playwright: $INSTALL_PLAYWRIGHT"; exit 2 ;; esac
-  case "$INSTALL_LIBMAGIC" in auto|yes|no) : ;; *) err "Invalid --libmagic: $INSTALL_LIBMAGIC"; exit 2 ;; esac
-  case "$INSTALL_IPFS" in auto|yes|no) : ;; *) err "Invalid --ipfs: $INSTALL_IPFS"; exit 2 ;; esac
-  case "$INSTALL_LASSIE" in auto|yes|no) : ;; *) err "Invalid --lassie: $INSTALL_LASSIE"; exit 2 ;; esac
-  case "$INSTALL_LOTUS" in auto|yes|no) : ;; *) err "Invalid --lotus: $INSTALL_LOTUS"; exit 2 ;; esac
-}
-
-ensure_dirs() {
-  mkdir -p "$BIN_DIR" "$CACHE_DIR" "$LOCAL_DEPS_DIR"
-}
-
-detect_platform() {
-  OS_RAW="$(uname -s)"
-  ARCH_RAW="$(uname -m)"
-
-  OS="$(echo "$OS_RAW" | tr '[:upper:]' '[:lower:]')"
-  case "$OS" in
-    linux*) OS="linux" ;;
-    darwin*) OS="darwin" ;;
-    *) err "Unsupported OS: $OS_RAW"; exit 1 ;;
-  esac
-
-  case "$ARCH_RAW" in
-    x86_64|amd64) ARCH="x86_64"; NODE_ARCH="x64" ;;
-    aarch64|arm64) ARCH="arm64"; NODE_ARCH="arm64" ;;
-    *) err "Unsupported architecture: $ARCH_RAW"; exit 1 ;;
-  esac
-
-  log "Detected platform: OS=$OS ARCH=$ARCH (uname -m=$ARCH_RAW)"
-}
-
-have_cmd() { command -v "$1" >/dev/null 2>&1; }
-
-sudo_available() {
-  if have_cmd sudo && sudo -n true >/dev/null 2>&1; then
-    return 0
-  fi
-  return 1
-}
-
-python_version_ok() {
-  # expects $1 as python executable
-  local py="$1"
-  "$py" - <<'PY' >/dev/null 2>&1
-import sys
-raise SystemExit(0 if sys.version_info >= (3, 12) else 1)
-PY
-}
-
-pick_python() {
-  if have_cmd python3.12 && python_version_ok python3.12; then
-    PYTHON_EXE="python3.12"
-    return 0
-  fi
-  if have_cmd python3 && python_version_ok python3; then
-    PYTHON_EXE="python3"
-    return 0
-  fi
+: <<'LEGACY'
   if have_cmd python && python_version_ok python; then
     PYTHON_EXE="python"
     return 0
@@ -264,7 +162,15 @@ build_libmagic_local() {
 write_env_sh() {
   cat > "${BIN_DIR}/env.sh" <<EOF
 # Source this to use locally installed tools
-export PATH="${BIN_DIR}:\$PATH"
+
+# Prefer the project-local virtualenv when present.
+# This ensures python/pytest resolve to ./.venv and see all installed deps.
+if [ -d "${VENV_DIR}/bin" ]; then
+  export VIRTUAL_ENV="${VENV_DIR}"
+  export PATH="${VENV_DIR}/bin:${BIN_DIR}:\$PATH"
+else
+  export PATH="${BIN_DIR}:\$PATH"
+fi
 
 # Local native deps (best-effort)
 if [ -d "${LOCAL_DEPS_DIR}/libmagic/lib" ]; then
@@ -315,7 +221,7 @@ PY
 
   local spec=""
   local repo_url="https://github.com/endomorphosis/ipfs_kit_py.git"
-  local repo_ref="known_good"
+  local repo_ref="main"
   local clone_dir="${CACHE_DIR}/ipfs_kit_py_known_good"
 
   if [[ ! -d "${clone_dir}/.git" ]]; then
@@ -343,8 +249,8 @@ PY
     case "$PROFILE" in
       core) spec="${clone_dir}" ;;
       api) spec="${clone_dir}[api]" ;;
-      dev) spec="${clone_dir}[dev,api]" ;;
-      full) spec="${clone_dir}[full,dev,api]" ;;
+      dev) spec="${clone_dir}[dev,api,ipfs_datasets]" ;;
+      full) spec="${clone_dir}[full,dev,api,ipfs_datasets,ipfs_accelerate]" ;;
     esac
   fi
 
@@ -365,6 +271,52 @@ PY
     if [[ $rc -ne 0 ]]; then
       err "WARNING: requirements.txt install had failures. Core package install succeeded."
       err "If you want strict mode, run: .venv/bin/pip install -r requirements.txt"
+    fi
+  fi
+
+  # Ensure the key endomorphosis packages are sourced from GitHub main (not PyPI)
+  # so dev/full installs consistently exercise the latest integration code.
+  local want_datasets="no"
+  local want_accelerate="no"
+  if [[ -n "${EXTRAS}" ]]; then
+    if [[ ",${EXTRAS}," == *",ipfs_datasets,"* ]]; then
+      want_datasets="yes"
+    fi
+    if [[ ",${EXTRAS}," == *",ipfs_accelerate,"* ]]; then
+      want_accelerate="yes"
+    fi
+  else
+    case "${PROFILE}" in
+      dev) want_datasets="yes" ;;
+      full) want_datasets="yes"; want_accelerate="yes" ;;
+    esac
+  fi
+
+  if [[ "${want_datasets}" == "yes" ]]; then
+    local datasets_freeze
+    datasets_freeze="$(python -m pip freeze 2>/dev/null | grep -E '^ipfs_datasets_py(==| @ )' | head -n 1 || true)"
+    if [[ -z "${datasets_freeze}" || "${datasets_freeze}" != *"github.com/endomorphosis/ipfs_datasets_py"* ]]; then
+      log "Ensuring ipfs_datasets_py is installed from endomorphosis/ipfs_datasets_py@main"
+      if have_cmd git; then
+        python -m pip install --upgrade --force-reinstall "ipfs_datasets_py @ git+https://github.com/endomorphosis/ipfs_datasets_py.git@main" || \
+          python -m pip install --upgrade --force-reinstall "ipfs_datasets_py @ https://github.com/endomorphosis/ipfs_datasets_py/archive/refs/heads/main.zip" || true
+      else
+        python -m pip install --upgrade --force-reinstall "ipfs_datasets_py @ https://github.com/endomorphosis/ipfs_datasets_py/archive/refs/heads/main.zip" || true
+      fi
+    fi
+  fi
+
+  if [[ "${want_accelerate}" == "yes" ]]; then
+    local accel_freeze
+    accel_freeze="$(python -m pip freeze 2>/dev/null | grep -E '^ipfs_accelerate_py(==| @ )' | head -n 1 || true)"
+    if [[ -z "${accel_freeze}" || "${accel_freeze}" != *"github.com/endomorphosis/ipfs_accelerate_py"* ]]; then
+      log "Ensuring ipfs_accelerate_py is installed from endomorphosis/ipfs_accelerate_py@main"
+      if have_cmd git; then
+        python -m pip install --upgrade --force-reinstall "ipfs_accelerate_py @ git+https://github.com/endomorphosis/ipfs_accelerate_py.git@main" || \
+          python -m pip install --upgrade --force-reinstall "ipfs_accelerate_py @ https://github.com/endomorphosis/ipfs_accelerate_py/archive/refs/heads/main.zip" || true
+      else
+        python -m pip install --upgrade --force-reinstall "ipfs_accelerate_py @ https://github.com/endomorphosis/ipfs_accelerate_py/archive/refs/heads/main.zip" || true
+      fi
     fi
   fi
 
@@ -470,10 +422,11 @@ install_native_tools() {
 
   if [[ "$do_ipfs" == "yes" ]]; then
     log "Installing IPFS/Kubo binaries into ./bin (no sudo)"
+    mkdir -p "${CACHE_DIR}/ipfs-repo"
     python - <<PY
 from ipfs_kit_py.install_ipfs import install_ipfs
 
-inst = install_ipfs(metadata={"bin_dir": r"${BIN_DIR}"})
+inst = install_ipfs(metadata={"bin_dir": r"${BIN_DIR}", "ipfs_path": r"${CACHE_DIR}/ipfs-repo"})
 inst.install_ipfs_daemon()
 
 # Cluster helper binaries are useful, but avoid systemd/service setup in zero-touch.
@@ -579,3 +532,5 @@ main() {
 }
 
 main "$@"
+
+LEGACY

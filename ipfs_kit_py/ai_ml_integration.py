@@ -20,6 +20,26 @@ except ImportError:
     pd = None
 
 
+# Try to import torch, but make it optional.
+# Some integration tests patch/inspect TORCH_AVAILABLE.
+try:
+    import torch  # type: ignore
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    torch = None  # type: ignore
+
+
+# Try to import tensorflow, but make it optional.
+# Some integration tests patch/inspect TF_AVAILABLE.
+try:
+    import tensorflow as tf  # type: ignore
+    TF_AVAILABLE = True
+except ImportError:
+    TF_AVAILABLE = False
+    tf = None  # type: ignore
+
+
 # Custom JSON encoder to handle MagicMock objects
 class MockAwareJSONEncoder(json.JSONEncoder):
     """JSON encoder that handles MagicMock objects by replacing them with placeholders."""

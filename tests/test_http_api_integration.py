@@ -80,13 +80,17 @@ class MCPServerManager:
     def start_server(self, node_id="test-node", role="master"):
         """Start the MCP server subprocess"""
         try:
-            # Use the enhanced MCP server script
+            # Use the lightweight MCP HTTP server module shipped in the package.
             cmd = [
-                sys.executable, 
-                "enhanced_mcp_server_with_config.py",
-                "--node-id", node_id,
-                "--role", role,
-                "--port", str(self.port)
+                sys.executable,
+                "-m",
+                "ipfs_kit_py.mcp.enhanced_mcp_server_with_config",
+                "--node-id",
+                node_id,
+                "--role",
+                role,
+                "--port",
+                str(self.port),
             ]
             
             self.process = subprocess.Popen(
@@ -122,6 +126,16 @@ class MCPServerManager:
         """Wait for the server to start accepting connections"""
         start_time = time.time()
         while time.time() - start_time < MCP_SERVER_STARTUP_TIMEOUT:
+            # If the server exited early, surface stderr for easier debugging.
+            if self.process is not None and self.process.poll() is not None:
+                stderr = b""
+                try:
+                    stderr = self.process.stderr.read() if self.process.stderr else b""
+                except Exception:
+                    stderr = b""
+                raise RuntimeError(
+                    f"MCP server exited early with code {self.process.returncode}. stderr: {stderr[-2000:].decode(errors='replace')}"
+                )
             try:
                 with httpx.Client(timeout=2) as client:
                     response = client.get(f"{self.base_url}/health")

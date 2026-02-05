@@ -12,6 +12,16 @@ This is the final integration server that combines:
 8. Comprehensive MCP tools
 """
 
+import warnings
+warnings.warn(
+    "This MCP server is deprecated. Use ipfs_kit_py.mcp.servers.unified_mcp_server instead. "
+    "See docs/MCP_SERVER_MIGRATION_GUIDE.md for migration instructions. "
+    "This module will be removed in approximately 6 months.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
+
 import anyio
 import json
 import logging
@@ -39,8 +49,8 @@ try:
     from parquet_vfs_integration import create_parquet_vfs_integration, ParquetVirtualFileSystem
     from arrow_metadata_index import ArrowMetadataIndex
     from tiered_cache_manager import TieredCacheManager
-    from storage_wal import StorageWriteAheadLog
-    from fs_journal_replication import MetadataReplicationManager
+    from ipfs_kit_py.storage_wal import StorageWriteAheadLog
+    from ipfs_kit_py.fs_journal_replication import MetadataReplicationManager
     IPFS_KIT_AVAILABLE = True
 except ImportError as e:
     IPFS_KIT_AVAILABLE = False

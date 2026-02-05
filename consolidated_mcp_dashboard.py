@@ -1,9 +1,11 @@
-"""Repository-root compatibility shim.
+"""Compatibility shim for dashboard imports.
 
-Some tests import or copy `consolidated_mcp_dashboard.py` from the repository root.
-The implementation lives in the package under `ipfs_kit_py.consolidated_mcp_dashboard`.
+Tests expect a repository-root `consolidated_mcp_dashboard.py`. This shim
+re-exports the actual implementation from the package.
 """
 
-from ipfs_kit_py.consolidated_mcp_dashboard import ConsolidatedMCPDashboard
+from ipfs_kit_py.mcp.dashboard.consolidated_mcp_dashboard import (  # noqa: F401
+    ConsolidatedMCPDashboard,
+)
 
 __all__ = ["ConsolidatedMCPDashboard"]

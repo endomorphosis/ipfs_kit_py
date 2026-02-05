@@ -15,6 +15,7 @@ import anyio
 import argparse
 import importlib
 import importlib.util
+import io
 import json
 import logging
 import os
@@ -23,6 +24,7 @@ import subprocess
 import sys
 import time
 from contextlib import suppress
+import contextlib
 from pathlib import Path
 from typing import Optional
 
@@ -146,12 +148,47 @@ class FastCLI:
         ah_config.add_argument("--set", nargs=2, metavar=('KEY', 'VALUE'), help="Set configuration value")
         ah_config.add_argument("--get", metavar='KEY', help="Get configuration value")
         
+        # Integrate unified CLI commands
+        self._add_unified_commands(sub)
+        
         return parser
+    
+    def _add_unified_commands(self, subparsers):
+        """Add unified CLI commands from unified_cli_dispatcher."""
+        try:
+            from ipfs_kit_py.unified_cli_dispatcher import UnifiedCLIDispatcher
+            unified = UnifiedCLIDispatcher()
+            
+            # Add bucket commands
+            unified._add_bucket_commands(subparsers)
+            # Add VFS commands
+            unified._add_vfs_commands(subparsers)
+            # Add WAL commands
+            unified._add_wal_commands(subparsers)
+            # Add pin commands
+            unified._add_pin_commands(subparsers)
+            # Add backend commands (but not daemon, already exists)
+            unified._add_backend_commands(subparsers)
+            # Add journal commands
+            unified._add_journal_commands(subparsers)
+            # Add state commands
+            unified._add_state_commands(subparsers)
+        except ImportError as e:
+            logger.debug(f"Could not load unified CLI commands: {e}")
 
     async def run(self) -> None:
         args = self.parser.parse_args()
         if not args.command:
             self.parser.print_help(); sys.exit(2)
+
+        # Some optional dependencies emit stdout at import/runtime. For JSON-only
+        # CLI modes, keep stdout machine-readable by capturing any incidental
+        # prints and emitting only the final JSON payload.
+        json_safe_mode = (
+            args.command == "mcp"
+            and getattr(args, "mcp_action", None) == "deprecations"
+            and bool(getattr(args, "json", False))
+        )
 
         # Initialize backend configuration for CLI usage when needed.
         # Skip for MCP start/stop/status/deprecations to keep startup fast for readiness checks.
@@ -168,7 +205,20 @@ class FastCLI:
                 pass
         
         # Handle both mcp_action and daemon_action
-        if args.command == "mcp":
+        unified_commands = {"bucket", "vfs", "wal", "pin", "backend", "journal", "state"}
+        
+        if args.command in unified_commands:
+            # Route to unified CLI dispatcher
+            try:
+                from ipfs_kit_py.unified_cli_dispatcher import UnifiedCLIDispatcher
+                dispatcher = UnifiedCLIDispatcher()
+                await dispatcher.dispatch(args)
+                return
+            except ImportError as e:
+                logger.error(f"Failed to load unified CLI dispatcher: {e}")
+                print(f"❌ Command '{args.command}' is not available")
+                sys.exit(2)
+        elif args.command == "mcp":
             sub_action = getattr(args, "mcp_action", None)
             handler = getattr(self, f"handle_mcp_{sub_action}", None) if sub_action else None
         elif args.command == "daemon":
@@ -185,7 +235,42 @@ class FastCLI:
         
         if handler is None:
             print("Unknown command"); sys.exit(2)
-        await handler(args)
+
+        if not json_safe_mode:
+            await handler(args)
+            return
+
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                await handler(args)
+        except SystemExit:
+            # Preserve exit codes for policy enforcement while still attempting
+            # to emit a clean JSON payload if one was produced.
+            raise
+        finally:
+            captured = buf.getvalue()
+
+        # Emit only the last JSON-looking line (array/object). This avoids
+        # breaking callers that do `json.loads(stdout)`.
+        json_line = None
+        for line in reversed(captured.splitlines()):
+            s = line.strip()
+            if not s:
+                continue
+            if not (s.startswith("[") or s.startswith("{")):
+                continue
+            try:
+                json.loads(s)
+            except Exception:
+                continue
+            json_line = s
+            break
+
+        if json_line is None:
+            json_line = "[]"
+
+        sys.stdout.write(json_line + "\n")
 
     # ---- MCP ----
     async def handle_mcp_start(self, args) -> None:
@@ -201,7 +286,8 @@ class FastCLI:
             "PYTEST_VERSION",
             "PYTEST_XDIST_WORKER",
         )
-        if any(os.environ.get(key) for key in pytest_env_markers):
+        running_under_pytest = any(os.environ.get(key) for key in pytest_env_markers)
+        if running_under_pytest:
             os.environ.setdefault("IPFS_KIT_FAST_INIT", "1")
 
         def detect_server_file() -> Optional[Path]:
@@ -263,7 +349,11 @@ class FastCLI:
 
         pid_file = data_dir / f"mcp_{port}.pid"
 
-        if bool(getattr(args, "foreground", False)):
+        force_foreground = running_under_pytest and not bool(getattr(args, "foreground", False))
+        if force_foreground:
+            print("Running MCP server in foreground for pytest reliability")
+
+        if bool(getattr(args, "foreground", False)) or force_foreground:
             print(f"Starting MCP dashboard (foreground) using: {server_file}")
             spec = importlib.util.spec_from_file_location(server_file.stem, str(server_file))
             if spec is None or spec.loader is None:
@@ -811,6 +901,12 @@ class FastCLI:
 
 async def main() -> None:
     """Main CLI entry point with auto-healing error capture."""
+    # Fast path for lightweight MCP actions to avoid heavy auto-heal imports.
+    if len(sys.argv) >= 3 and sys.argv[1] == "mcp" and sys.argv[2] in {"start", "stop", "status", "deprecations"}:
+        cli = FastCLI()
+        await cli.run()
+        return
+
     from ipfs_kit_py.auto_heal.error_capture import ErrorCapture
     from ipfs_kit_py.auto_heal.config import AutoHealConfig
     from ipfs_kit_py.auto_heal.github_issue_creator import GitHubIssueCreator

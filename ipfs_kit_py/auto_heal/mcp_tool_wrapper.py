@@ -8,7 +8,7 @@ import logging
 import traceback
 from typing import Dict, Any, Optional, Callable
 from datetime import datetime
-import asyncio
+import anyio
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,13 @@ class MCPToolErrorCapture:
                 
                 # Trigger auto-healing if enabled
                 if self.enable_auto_heal:
-                    await self._trigger_auto_heal(error_info)
+                    # Fire-and-forget: auto-heal should never block tool error propagation.
+                    try:
+                        anyio.lowlevel.spawn_system_task(self._trigger_auto_heal, error_info)
+                    except Exception:
+                        logger.debug(
+                            "Unable to spawn background auto-heal task; skipping"
+                        )
                 
                 # Re-raise with enhanced context
                 raise
@@ -117,7 +123,16 @@ class MCPToolErrorCapture:
             
             # Create GitHub issue
             issue_creator = GitHubIssueCreator(config)
-            issue_url = issue_creator.create_issue_from_error(captured_error)
+            # Run sync API call off the event loop with a conservative timeout.
+            try:
+                with anyio.fail_after(2.0):
+                    issue_url = await anyio.to_thread.run_sync(
+                        issue_creator.create_issue_from_error,
+                        captured_error,
+                    )
+            except TimeoutError:
+                logger.warning("Auto-heal issue creation timed out")
+                return
             
             if issue_url:
                 logger.info(f"MCP tool error reported: {issue_url}")

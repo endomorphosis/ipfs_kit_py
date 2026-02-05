@@ -15,7 +15,7 @@ import time
 import secrets
 from typing import Dict, List, Optional, Set, Union, Any
 from datetime import datetime, timedelta
-from pydantic import BaseModel, Field, validator, root_validator
+from pydantic import BaseModel, ConfigDict, Field, validator, root_validator
 
 
 class Permission(str, enum.Enum):
@@ -217,8 +217,7 @@ class User(UserBase):
     last_login: Optional[datetime] = None
     custom_permissions: List[Permission] = []
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TokenData(BaseModel):
@@ -261,8 +260,7 @@ class APIKey(APIKeyBase):
     is_active: bool = True
     backend_restrictions: Optional[Dict[str, bool]] = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Session(BaseModel):
@@ -276,8 +274,7 @@ class Session(BaseModel):
     created_at: float = Field(default_factory=time.time)
     last_activity: float = Field(default_factory=time.time)
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LoginRequest(BaseModel):
@@ -340,8 +337,7 @@ class BackendPermission(BaseModel):
     write_access: bool = False
     extra_permissions: Dict[str, bool] = {}
     
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PermissionModel(BaseModel):
@@ -354,8 +350,7 @@ class PermissionModel(BaseModel):
     created_at: float = Field(default_factory=time.time)
     updated_at: float = Field(default_factory=time.time)
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RoleModel(BaseModel):
@@ -367,8 +362,7 @@ class RoleModel(BaseModel):
     created_at: float = Field(default_factory=time.time)
     updated_at: float = Field(default_factory=time.time)
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OAuthConnection(BaseModel):
@@ -380,5 +374,4 @@ class OAuthConnection(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
