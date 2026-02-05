@@ -28,7 +28,7 @@
 	branch = main
 [submodule "docs/lassie"]
 	path = docs/lassie
-	url = https://github.com/filecoin-project/lassie
+	url = https://github.com/filecoin-project/lassie.git
 	branch = main
 [submodule "docs/lighthouse-python-sdk"]
 	path = docs/lighthouse-python-sdk
@@ -50,10 +50,7 @@
 	path = py-ipld-unixfs
 	url = https://github.com/storacha/py-ipld-unixfs.git
 	branch = main
-[submodule "ipfs_transformers_py"]
-	path = ipfs_transformers_py
-	url = https://github.com/endomorphosis/ipfs_transformers_py.git
-	branch = main
+
 [submodule "docs/mcp-python-sdk"]
 	path = docs/mcp-python-sdk
 	url = https://github.com/modelcontextprotocol/python-sdk.git
