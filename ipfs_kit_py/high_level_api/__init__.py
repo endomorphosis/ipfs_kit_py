@@ -92,7 +92,9 @@ def _try_load_ipfs_simple_api() -> None:
 
 
 _try_load_ipfs_simple_api()
-_init_libp2p_integration()
+
+# LibP2P integration is applied by IPFSSimpleAPI at instantiation time.
+# Deferring avoids circular imports during package initialization.
 
 # Export components
 __all__ = ['WebRTCBenchmarkIntegration', 'IPFSSimpleAPI']
