@@ -94,6 +94,13 @@ REQUIRED_DEPENDENCIES = [
     "cryptography"
 ]
 
+# libp2p submodules we expect to be importable when fully installed
+REQUIRED_LIBP2P_SUBMODULES = [
+    "libp2p.crypto",
+    "libp2p.pubsub",
+    "libp2p.content_routing",
+]
+
 # Optional dependencies
 OPTIONAL_DEPENDENCIES = [
     "protobuf",
@@ -144,7 +151,7 @@ def check_dependencies() -> bool:
     Returns:
         bool: True if all dependencies are available, False otherwise
     """
-    global HAS_LIBP2P, DEPENDENCIES_CHECKED
+    global HAS_LIBP2P, DEPENDENCIES_CHECKED, _attempted_install
 
     # Fix multihash/multiformats namespace conflicts
     # The multiformats library provides multihash, but some libp2p code may try to import
@@ -190,6 +197,7 @@ def check_dependencies() -> bool:
     
     all_available = True
     missing_deps = []
+    missing_submodules = []
 
     # Check required dependencies
     for dep in REQUIRED_DEPENDENCIES:
@@ -201,24 +209,46 @@ def check_dependencies() -> bool:
             missing_deps.append(dep)
             logger.debug(f"Dependency {dep} is missing")
 
+    if all_available:
+        for module in REQUIRED_LIBP2P_SUBMODULES:
+            try:
+                importlib.import_module(module)
+                logger.debug(f"libp2p submodule {module} is available")
+            except (ImportError, ModuleNotFoundError):
+                missing_submodules.append(module)
+                logger.debug(f"libp2p submodule {module} is missing")
+        if missing_submodules:
+            all_available = False
+
     # Set global flag
     HAS_LIBP2P = all_available
     DEPENDENCIES_CHECKED = True
 
     if not all_available:
+        if missing_submodules:
+            logger.warning(
+                "Missing libp2p submodules: " + ", ".join(missing_submodules)
+            )
         # If libp2p extra is installed but dependencies are missing, this is unexpected
         if HAS_LIBP2P_EXTRA:
             logger.warning(f"Missing libp2p dependencies despite libp2p extra being installed: {', '.join(missing_deps)}")
             # This might indicate an installation issue or version mismatch
             logger.warning("Try reinstalling the package with `pip install -e .[libp2p]` or check for version conflicts")
         else:
-            logger.warning(f"Missing libp2p dependencies: {', '.join(missing_deps)}")
+            if missing_deps:
+                logger.warning(f"Missing libp2p dependencies: {', '.join(missing_deps)}")
             logger.warning("Install with `pip install ipfs_kit_py[libp2p]` to enable libp2p functionality")
 
         # Attempt auto-installation if enabled
         if AUTO_INSTALL:
             logger.info("Auto-install enabled, attempting to install missing dependencies")
             try:
+                if missing_submodules and not _attempted_install:
+                    logger.info("Reinstalling libp2p extras to restore missing submodules...")
+                    if install_dependencies(force=True):
+                        DEPENDENCIES_CHECKED = False
+                        logger.debug("Re-checking dependencies after reinstall")
+                        return check_dependencies()
                 if HAS_LIBP2P_EXTRA:
                     # If libp2p extra is installed but dependencies are missing, try reinstalling
                     logger.info("Reinstalling ipfs_kit_py with libp2p extras...")
