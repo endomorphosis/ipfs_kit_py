@@ -96,7 +96,7 @@ REQUIRED_DEPENDENCIES = [
 
 # Optional dependencies
 OPTIONAL_DEPENDENCIES = [
-    "google-protobuf",
+    "protobuf",
     "eth-hash",
     "eth-keys"
 ]
@@ -129,7 +129,7 @@ logger.debug(f"libp2p extra detected: {HAS_LIBP2P_EXTRA}")
 # Module-level state
 HAS_LIBP2P = False  # Flag indicating if libp2p is available
 DEPENDENCIES_CHECKED = False  # Flag indicating if we've performed the check
-AUTO_INSTALL = os.environ.get("IPFS_KIT_AUTO_INSTALL_DEPS", "0") == "1"
+AUTO_INSTALL = os.environ.get("IPFS_KIT_AUTO_INSTALL_DEPS", "1") == "1"
 _attempted_install = False  # Flag to indicate if we've tried manual installation
 
 def check_dependencies() -> bool:
@@ -463,21 +463,26 @@ __all__ = [
     "IPFSLibp2pPeer"
 ]
 
-# Convenience import for main peer class
-try:
-    from ..libp2p_peer import IPFSLibp2pPeer
-    # Also make it available as libp2p_peer for backwards compatibility
-    libp2p_peer = IPFSLibp2pPeer
-    __all__.append("libp2p_peer")
-    logger.debug("Successfully imported IPFSLibp2pPeer")
-except ImportError as e:
-    logger.warning(f"Could not import IPFSLibp2pPeer: {e}")
-    # Create a placeholder
-    class IPFSLibp2pPeer:
-        def __init__(self, *args, **kwargs):
-            raise ImportError("libp2p dependencies not available. Install with: pip install ipfs_kit_py[libp2p]")
-    
-    libp2p_peer = IPFSLibp2pPeer
+# Convenience import for main peer class (lazy to avoid circular imports)
+def _load_ipfs_libp2p_peer() -> type:
+    try:
+        from ..libp2p_peer import IPFSLibp2pPeer as _Peer
+        return _Peer
+    except ImportError as exc:
+        raise ImportError(
+            "libp2p dependencies not available. Install with: pip install ipfs_kit_py[libp2p]"
+        ) from exc
+
+
+class _LazyIPFSLibp2pPeer:
+    def __new__(cls, *args, **kwargs):
+        peer_cls = _load_ipfs_libp2p_peer()
+        return peer_cls(*args, **kwargs)
+
+
+IPFSLibp2pPeer = _LazyIPFSLibp2pPeer
+libp2p_peer = IPFSLibp2pPeer
+__all__.append("libp2p_peer")
 
 # Convenience imports for peer manager singleton
 try:
