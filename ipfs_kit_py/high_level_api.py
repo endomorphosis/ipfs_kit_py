@@ -2758,12 +2758,18 @@ MIT
             if hasattr(self, 'kit') and hasattr(self.kit, 'tiered_cache_manager'):
                 fs_kwargs['tiered_cache_manager'] = self.kit.tiered_cache_manager
             else:
-                # Create a mock cache manager for compatibility
-                from unittest.mock import MagicMock
-                mock_cache = MagicMock()
-                mock_cache.__class__.__name__ = "MockCacheManager"
-                fs_kwargs['tiered_cache_manager'] = mock_cache
-                logger.warning("Using mock tiered_cache_manager for filesystem initialization")
+                try:
+                    from .tiered_cache_manager import TieredCacheManager
+
+                    fs_kwargs['tiered_cache_manager'] = TieredCacheManager()
+                    logger.info("Using TieredCacheManager for filesystem cache")
+                except Exception:
+                    # Create a mock cache manager for compatibility
+                    from unittest.mock import MagicMock
+                    mock_cache = MagicMock()
+                    mock_cache.__class__.__name__ = "MockCacheManager"
+                    fs_kwargs['tiered_cache_manager'] = mock_cache
+                    logger.warning("Using mock tiered_cache_manager for filesystem initialization")
 
         # Try to create the filesystem
         try:

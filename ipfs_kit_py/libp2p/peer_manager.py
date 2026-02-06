@@ -20,12 +20,12 @@ from collections import deque, defaultdict
 try:
     from .network.stream import INetStream, NetStream, StreamError
     from .. import libp2p_peer
-    from . import HAS_LIBP2P
+    from . import check_dependencies
     from .enhanced_dht_discovery import EnhancedDHTDiscovery
     from .gossipsub_protocol import GossipSubProtocol
     from .content_routing import ContentRouter
     from .ipfs_kit_integration import apply_libp2p_integration
-    LIBP2P_AVAILABLE = HAS_LIBP2P
+    LIBP2P_AVAILABLE = False
 except ImportError as e:
     LIBP2P_AVAILABLE = False
     INetStream = Any
@@ -115,7 +115,14 @@ class Libp2pPeerManager:
     async def start(self):
         """Initialize and start the peer manager."""
         self._start_time = time.time()
-        
+
+        if not LIBP2P_AVAILABLE:
+            try:
+                if check_dependencies():
+                    globals()["LIBP2P_AVAILABLE"] = True
+            except Exception as exc:
+                logger.debug("LibP2P dependency check failed: %s", exc)
+
         if not LIBP2P_AVAILABLE:
             logger.warning("LibP2P not available, using mock mode")
             return
