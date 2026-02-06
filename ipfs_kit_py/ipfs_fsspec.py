@@ -1545,11 +1545,17 @@ def get_filesystem(return_mock: bool = False, **kwargs):
                 else:
                     raise AttributeError("No cache manager available")
             except Exception:
-                # Create a mock cache manager for compatibility  
-                from unittest.mock import MagicMock
-                kwargs['tiered_cache_manager'] = MagicMock()
-                kwargs['tiered_cache_manager'].__class__.__name__ = "MockCacheManager"
-                logger.warning("Using mock tiered_cache_manager - caching may be limited")
+                try:
+                    from .tiered_cache_manager import TieredCacheManager
+
+                    kwargs['tiered_cache_manager'] = TieredCacheManager()
+                    logger.info("Using TieredCacheManager for filesystem cache")
+                except Exception:
+                    # Create a mock cache manager for compatibility
+                    from unittest.mock import MagicMock
+                    kwargs['tiered_cache_manager'] = MagicMock()
+                    kwargs['tiered_cache_manager'].__class__.__name__ = "MockCacheManager"
+                    logger.warning("Using mock tiered_cache_manager - caching may be limited")
         
         return IPFSFSSpecFileSystem(**kwargs)
     except Exception as e:
