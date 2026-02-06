@@ -94,12 +94,15 @@ REQUIRED_DEPENDENCIES = [
     "cryptography"
 ]
 
-# libp2p submodules we expect to be importable when fully installed
+# libp2p submodules we prefer to be importable when fully installed
 REQUIRED_LIBP2P_SUBMODULES = [
     "libp2p.crypto",
     "libp2p.pubsub",
     "libp2p.content_routing",
 ]
+
+# Only treat missing submodules as fatal when strict mode is enabled.
+STRICT_LIBP2P_SUBMODULES = os.environ.get("IPFS_KIT_LIBP2P_STRICT_SUBMODULES", "0") == "1"
 
 # Optional dependencies
 OPTIONAL_DEPENDENCIES = [
@@ -217,7 +220,7 @@ def check_dependencies() -> bool:
             except (ImportError, ModuleNotFoundError):
                 missing_submodules.append(module)
                 logger.debug(f"libp2p submodule {module} is missing")
-        if missing_submodules:
+        if missing_submodules and STRICT_LIBP2P_SUBMODULES:
             all_available = False
 
     # Set global flag
@@ -229,8 +232,10 @@ def check_dependencies() -> bool:
             logger.warning(
                 "Missing libp2p submodules: " + ", ".join(missing_submodules)
             )
+            if not STRICT_LIBP2P_SUBMODULES:
+                logger.info("Continuing without optional libp2p submodules")
         # If libp2p extra is installed but dependencies are missing, this is unexpected
-        if HAS_LIBP2P_EXTRA:
+        if HAS_LIBP2P_EXTRA and missing_deps:
             logger.warning(f"Missing libp2p dependencies despite libp2p extra being installed: {', '.join(missing_deps)}")
             # This might indicate an installation issue or version mismatch
             logger.warning("Try reinstalling the package with `pip install -e .[libp2p]` or check for version conflicts")
@@ -247,7 +252,7 @@ def check_dependencies() -> bool:
                 logger.info("Auto-install enabled, attempting to install missing dependencies")
                 _attempted_install = True
                 try:
-                    if missing_submodules:
+                    if missing_submodules and STRICT_LIBP2P_SUBMODULES:
                         logger.info("Reinstalling libp2p extras to restore missing submodules...")
                         if install_dependencies(force=True):
                             DEPENDENCIES_CHECKED = False
