@@ -61,23 +61,18 @@ from . import HAS_LIBP2P
 # Configure logger
 logger = logging.getLogger(__name__)
 
-# Check for high-level API availability
-# Note: We don't import directly to avoid circular imports
-# The actual class will be passed via dependency injection
+# Check for high-level API availability without importing it to avoid circular imports.
 HAS_HIGH_LEVEL_API = False
 try:
-    # Check if the high level API module exists
-    import importlib
-    try:
-        # Try to import as a module, not as a package
-        importlib.import_module("ipfs_kit_py.high_level_api")
-        HAS_HIGH_LEVEL_API = True
+    import importlib.util
+
+    HAS_HIGH_LEVEL_API = importlib.util.find_spec("ipfs_kit_py.high_level_api") is not None
+    if HAS_HIGH_LEVEL_API:
         logger.debug("High-level API module is available")
-    except (ImportError, ValueError) as e:
-        logger.debug(f"High-level API module is not available: {e}")
-        HAS_HIGH_LEVEL_API = False
-except ImportError:
-    logger.warning("Failed to check for high-level API module")
+    else:
+        logger.debug("High-level API module is not available")
+except Exception as e:
+    logger.warning(f"Failed to check for high-level API module: {e}")
     HAS_HIGH_LEVEL_API = False
 
 def extend_high_level_api_class(high_level_api_cls):

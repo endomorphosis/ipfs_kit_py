@@ -19,7 +19,8 @@ from collections import deque, defaultdict
 # Import from ipfs_kit_py libp2p stack
 try:
     from .network.stream import INetStream, NetStream, StreamError
-    from . import libp2p_peer, HAS_LIBP2P
+    from .. import libp2p_peer
+    from . import HAS_LIBP2P
     from .enhanced_dht_discovery import EnhancedDHTDiscovery
     from .gossipsub_protocol import GossipSubProtocol
     from .content_routing import ContentRouter
