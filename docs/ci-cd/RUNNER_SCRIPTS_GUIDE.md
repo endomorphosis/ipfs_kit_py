@@ -235,7 +235,7 @@ Push a commit or manually trigger the workflow:
 # Actions → AMD64 CI/CD Pipeline → Run workflow
 
 # Or push to your branch:
-git push origin known_good
+git push origin main
 ```
 
 ---

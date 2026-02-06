@@ -28,15 +28,11 @@ def _init_libp2p_integration() -> None:
     except ImportError as e:
         logger.warning(f"LibP2P integration module not available: {e}")
 
-# Import WebRTC benchmark helpers (both async-io and anyio versions)
-from .webrtc_benchmark_helpers import WebRTCBenchmarkIntegration
-try:
-    from .webrtc_benchmark_helpers_anyio import WebRTCBenchmarkIntegrationAnyIO
-    HAVE_ANYIO_BENCHMARK = True
-    logger.info("Successfully imported WebRTCBenchmarkIntegrationAnyIO")
-except ImportError:
-    logger.warning("WebRTCBenchmarkIntegrationAnyIO not available")
-    HAVE_ANYIO_BENCHMARK = False
+# We intentionally avoid importing optional helper modules at package-import time.
+# Some helpers pull in large dependency trees which can trigger circular imports.
+WebRTCBenchmarkIntegration = None
+WebRTCBenchmarkIntegrationAnyIO = None
+HAVE_ANYIO_BENCHMARK = False
 
 class IPFSSimpleAPI:
     """Functional stub implementation of IPFSSimpleAPI.
@@ -93,11 +89,34 @@ def _try_load_ipfs_simple_api() -> None:
 
 _try_load_ipfs_simple_api()
 
+# Import optional helpers after IPFSSimpleAPI is resolved.
+try:
+    from .webrtc_benchmark_helpers import WebRTCBenchmarkIntegration as _WebRTCBenchmarkIntegration
+
+    WebRTCBenchmarkIntegration = _WebRTCBenchmarkIntegration
+except Exception as e:
+    logger.debug(f"WebRTCBenchmarkIntegration not available: {e}")
+
+try:
+    from .webrtc_benchmark_helpers_anyio import (
+        WebRTCBenchmarkIntegrationAnyIO as _WebRTCBenchmarkIntegrationAnyIO,
+    )
+
+    WebRTCBenchmarkIntegrationAnyIO = _WebRTCBenchmarkIntegrationAnyIO
+    HAVE_ANYIO_BENCHMARK = True
+    logger.info("Successfully imported WebRTCBenchmarkIntegrationAnyIO")
+except Exception as e:
+    HAVE_ANYIO_BENCHMARK = False
+    logger.debug(f"WebRTCBenchmarkIntegrationAnyIO not available: {e}")
+
 # LibP2P integration is applied by IPFSSimpleAPI at instantiation time.
 # Deferring avoids circular imports during package initialization.
 
 # Export components
-__all__ = ['WebRTCBenchmarkIntegration', 'IPFSSimpleAPI']
+__all__ = ['IPFSSimpleAPI']
+
+if WebRTCBenchmarkIntegration is not None:
+    __all__.append('WebRTCBenchmarkIntegration')
 
 # Add anyio components to exports if available
 if HAVE_ANYIO_BENCHMARK:

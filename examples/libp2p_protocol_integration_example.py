@@ -14,7 +14,7 @@ The example creates a network of peers that communicate using these protocols
 and demonstrates content routing, pub/sub messaging, and protocol negotiation.
 
 This example requires the libp2p dependencies to be installed:
-pip install libp2p multiaddr base58 cryptography semver
+pip install 'libp2p @ git+https://github.com/libp2p/py-libp2p.git@main' multiaddr base58 cryptography semver
 """
 
 import os

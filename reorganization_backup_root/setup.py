@@ -24,13 +24,13 @@ setup(
     ],
     extras_require={
         'libp2p': [
-            'libp2p>=0.2.8',  # Core libp2p functionality
+            'libp2p @ git+https://github.com/libp2p/py-libp2p.git@main',  # Core libp2p (GitHub main)
             'multiaddr>=0.0.9',  # For peer addressing
             'multiformats>=0.2.0',  # For content addressing
             'base58>=2.1.1',  # Used by CIDs and peer IDs
             'cryptography>=38.0.0',  # For key generation and encryption
-            'protobuf>=3.20.1,<4.0.0',  # For protocol buffer support (compatible with libp2p 0.2.8)
-            'eth-hash>=0.3.3',  # Optional for ETH integration
+            'protobuf>=5.26.0,<7.0.0',  # py-libp2p main generated *_pb2 compatibility
+            'eth-hash[pycryptodome]>=0.3.3',  # Optional for ETH integration
             'eth-keys>=0.4.0',  # Optional for ETH integration
         ],
     },

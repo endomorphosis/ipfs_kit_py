@@ -55,13 +55,13 @@ arrow = [
     "pandas>=1.3.0",
 ]
 libp2p = [
-    "libp2p>=0.2.8",  # Core libp2p functionality
+    "libp2p @ git+https://github.com/libp2p/py-libp2p.git@main",  # Core libp2p (GitHub main)
     "multiaddr>=0.0.9",  # For peer addressing
     "multiformats>=0.2.0",  # For content addressing
     "base58>=2.1.1",  # Used by CIDs and peer IDs
     "cryptography>=38.0.0",  # For key generation and encryption
-    "protobuf>=4.21.0",  # Updated protobuf to a more recent version, removing the upper bound
-    "eth-hash>=0.3.3",  # Optional for ETH integration
+    "protobuf>=5.26.0,<7.0.0",  # py-libp2p main generated *_pb2 compatibility
+    "eth-hash[pycryptodome]>=0.3.3",  # Optional for ETH integration
     "eth-keys>=0.4.0",  # Optional for ETH integration
 ]
 ai_ml = [

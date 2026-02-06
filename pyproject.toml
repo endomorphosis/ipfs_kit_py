@@ -41,10 +41,15 @@ dependencies = [
     "jsonpatch>=1.33",
     "base58>=2.1.1",
     "multiaddr>=0.0.9",  # For libp2p multiaddress support
+    "multiformats>=0.2.0",  # For CIDs/multicodecs (required by libp2p)
     "python-magic>=0.4.27", # For file type detection
     "anyio>=3.7.0", # For async operations with backend flexibility
     "trio>=0.22.0", # Optional backend for anyio
     "cryptography>=38.0.0", # Required for libp2p
+    "protobuf>=5.26.0,<7.0.0",  # libp2p main generated *_pb2 compatibility
+    "eth-hash[pycryptodome]>=0.3.3",  # ETH integration with crypto backend
+    "eth-keys>=0.4.0",  # ETH integration for key management
+    "libp2p @ git+https://github.com/libp2p/py-libp2p.git@main; python_version < '3.14' and platform_system != 'Windows'",
     "toml",
 ]
 

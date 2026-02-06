@@ -41,12 +41,12 @@ This document lists all dependencies used in IPFS Kit Python and their purposes.
 
 ### libp2p
 
-- `libp2p>=0.2.8`
+- `libp2p @ git+https://github.com/libp2p/py-libp2p.git@main`
 - `multiaddr>=0.0.9`
 - `multiformats>=0.2.0`
 - `base58>=2.1.1`
 - `cryptography>=38.0.0`
-- `protobuf>=3.20.0,<5.0.0`
+- `protobuf>=5.26.0,<7.0.0`
 - `eth-hash[pycryptodome]>=0.3.3`
 - `eth-keys>=0.4.0`
 
@@ -126,8 +126,8 @@ This document lists all dependencies used in IPFS Kit Python and their purposes.
 - `pandas>=1.3.0`
 - `multiformats>=0.2.0`
 - `multiaddr>=0.0.9`
-- `libp2p>=0.2.8`
-- `protobuf>=3.20.0,<5.0.0`
+- `libp2p @ git+https://github.com/libp2p/py-libp2p.git@main`
+- `protobuf>=5.26.0,<7.0.0`
 - `aiohttp>=3.8.4`
 - `pyyaml>=6.0`
 - `numpy>=1.20.0`

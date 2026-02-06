@@ -72,11 +72,11 @@ python3 scripts/safe_install.py
 python3 scripts/safe_install.py
 
 # Method 2: Standard pip
-pip install -e .[libp2p]
+pip install -e ".[libp2p]"  # libp2p installs from GitHub main
 
 # Method 3: Manual with retries
 for i in 1 2 3; do
-  pip install -e .[libp2p] && break
+  pip install -e ".[libp2p]" && break
   sleep 10
 done
 ```
@@ -148,7 +148,7 @@ sudo ./svc.sh status
 
 ### Issue: "Failed to import libp2p modules"
 ```bash
-pip install -e .[libp2p]
+pip install -e ".[libp2p]"
 python -c "import eth_hash; print('OK')"
 ```
 
@@ -161,8 +161,8 @@ sudo fuser -v /var/lib/dpkg/lock-frontend
 
 ### Issue: "Protobuf version conflict"
 ```bash
-pip uninstall protobuf google-protobuf
-pip install 'protobuf>=3.20.0,<5.0.0'
+pip uninstall -y protobuf
+pip install 'protobuf>=5.26.0,<7.0.0'
 ```
 
 ## Files Changed

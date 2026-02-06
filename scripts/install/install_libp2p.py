@@ -48,6 +48,10 @@ HAS_CRYPTO = False
 HAS_MDNS = False
 
 
+# Canonical libp2p source: GitHub py-libp2p main branch
+LIBP2P_GITHUB_MAIN_SPEC = "libp2p @ git+https://github.com/libp2p/py-libp2p.git@main"
+
+
 def check_pkg_installed(package_name: str, min_version: Optional[str] = None) -> bool:
     """
     Check if a package is installed and optionally meets minimum version requirement.
@@ -169,13 +173,13 @@ def install_libp2p_dependencies(
     """
     # Define required packages with version constraints
     required_packages = {
-        "libp2p": ">=0.2.0",           # Core libp2p library
-        "cryptography": ">=36.0.0",     # For crypto operations
-        "multiaddr": "==0.0.11",        # For multiaddress handling (libp2p requirement)
-        "protobuf": ">=3.20.0",         # For protocol buffers
-        "base58": ">=2.1.0",            # For base58 encoding/decoding
-        "networkx": ">=2.6.0",          # For peer routing graph
-        "async-timeout": ">=4.0.0",     # For async-io timeouts
+        "libp2p": ">=0.2.0",            # Installed from GitHub main (see LIBP2P_GITHUB_MAIN_SPEC)
+        "cryptography": ">=36.0.0",      # For crypto operations
+        "multiaddr": "==0.0.11",         # For multiaddress handling (libp2p requirement)
+        "protobuf": ">=5.26.0,<7.0.0",   # For protocol buffers (py-libp2p main)
+        "base58": ">=2.1.0",             # For base58 encoding/decoding
+        "networkx": ">=2.6.0",           # For peer routing graph
+        "async-timeout": ">=4.0.0",      # For async-io timeouts
     }
     
     # Additional packages that enhance functionality but aren't strictly required
@@ -214,7 +218,10 @@ def install_libp2p_dependencies(
     # Install missing packages
     success = True
     for package, version in missing_packages.items():
-        package_spec = f"{package}{version}"
+        if package == "libp2p":
+            package_spec = LIBP2P_GITHUB_MAIN_SPEC
+        else:
+            package_spec = f"{package}{version}"
         if not install_package(package_spec, install_dir=install_dir, upgrade=force):
             logger.error(f"Failed to install {package_spec}")
             success = False

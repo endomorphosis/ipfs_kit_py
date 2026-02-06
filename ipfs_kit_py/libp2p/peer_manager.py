@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 import subprocess
 import hashlib
 from collections import deque, defaultdict
+import importlib
 
 LIBP2P_AVAILABLE = False
 INetStream = Any
@@ -41,7 +42,7 @@ def _ensure_libp2p_stack() -> bool:
 
     try:
         from .network.stream import INetStream as _INetStream, NetStream as _NetStream, StreamError as _StreamError
-        from .. import libp2p_peer as _libp2p_peer
+        _libp2p_peer = importlib.import_module("ipfs_kit_py.libp2p_peer")
         from . import check_dependencies as _check_dependencies
         from .enhanced_dht_discovery import EnhancedDHTDiscovery as _EnhancedDHTDiscovery
         from .gossipsub_protocol import GossipSubProtocol as _GossipSubProtocol

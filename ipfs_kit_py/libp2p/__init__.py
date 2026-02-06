@@ -111,6 +111,13 @@ OPTIONAL_DEPENDENCIES = [
     "eth-keys"
 ]
 
+# Mapping from pip package name -> importable module name
+_OPTIONAL_IMPORT_NAMES = {
+    "protobuf": "google.protobuf",
+    "eth-hash": "eth_hash",
+    "eth-keys": "eth_keys",
+}
+
 # Check if we're installed with the libp2p extra
 try:
     # Try the newer importlib.metadata first (Python 3.8+)
@@ -287,7 +294,8 @@ def check_dependencies() -> bool:
         
         for dep in OPTIONAL_DEPENDENCIES:
             try:
-                importlib.import_module(dep)
+                import_name = _OPTIONAL_IMPORT_NAMES.get(dep, dep)
+                importlib.import_module(import_name)
                 optional_available.append(dep)
                 logger.debug(f"Optional dependency {dep} is available")
             except (ImportError, ModuleNotFoundError):
@@ -524,22 +532,36 @@ IPFSLibp2pPeer = _LazyIPFSLibp2pPeer
 libp2p_peer = IPFSLibp2pPeer
 __all__.append("libp2p_peer")
 
-# Convenience imports for peer manager singleton
-try:
-    from .peer_manager import get_peer_manager, start_peer_manager, Libp2pPeerManager
-    logger.debug("Successfully imported peer manager singleton functions")
-except ImportError as e:
-    logger.warning(f"Could not import peer manager: {e}")
-    # Create placeholders
-    def get_peer_manager(*args, **kwargs):
-        raise ImportError("Peer manager not available. Install with: pip install ipfs_kit_py[libp2p]")
-    
-    def start_peer_manager(*args, **kwargs):
-        raise ImportError("Peer manager not available. Install with: pip install ipfs_kit_py[libp2p]")
-    
-    class Libp2pPeerManager:
-        def __init__(self, *args, **kwargs):
-            raise ImportError("Peer manager not available. Install with: pip install ipfs_kit_py[libp2p]")
+# Peer manager singleton exports (lazy to avoid circular imports during package init)
+def get_peer_manager(*args, **kwargs):
+    try:
+        from .peer_manager import get_peer_manager as _get_peer_manager
+
+        return _get_peer_manager(*args, **kwargs)
+    except ImportError as exc:
+        raise ImportError("Peer manager not available. Install with: pip install ipfs_kit_py[libp2p]") from exc
+
+
+def start_peer_manager(*args, **kwargs):
+    try:
+        from .peer_manager import start_peer_manager as _start_peer_manager
+
+        return _start_peer_manager(*args, **kwargs)
+    except ImportError as exc:
+        raise ImportError("Peer manager not available. Install with: pip install ipfs_kit_py[libp2p]") from exc
+
+
+class _LazyLibp2pPeerManager:
+    def __new__(cls, *args, **kwargs):
+        try:
+            from .peer_manager import Libp2pPeerManager as _PeerManager
+
+            return _PeerManager(*args, **kwargs)
+        except ImportError as exc:
+            raise ImportError("Peer manager not available. Install with: pip install ipfs_kit_py[libp2p]") from exc
+
+
+Libp2pPeerManager = _LazyLibp2pPeerManager
 
 # Patch stream read_until method if required
 def patch_stream_read_until():

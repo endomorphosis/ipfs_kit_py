@@ -697,7 +697,8 @@ class ipfs_kit:
             else:
                 self.logger.warning("libp2p package is not installed. Skipping initialization.")
                 self.logger.info(
-                    "To enable libp2p direct P2P communication, install it with: pip install libp2p"
+                    "To enable libp2p direct P2P communication, install from GitHub main: "
+                    "pip install 'libp2p @ git+https://github.com/libp2p/py-libp2p.git@main'"
                 )
 
         # Initialize cluster management if enabled
@@ -1647,7 +1648,11 @@ class ipfs_kit:
         
         if not libp2p_installed:
             return handle_error(
-                result, IPFSError("libp2p is not available. Install with pip install libp2p")
+                result,
+                IPFSError(
+                    "libp2p is not available. Install from GitHub main with: "
+                    "pip install 'libp2p @ git+https://github.com/libp2p/py-libp2p.git@main'"
+                ),
             )
         if self.libp2p is None:
             return handle_error(

@@ -54,16 +54,17 @@ def install_with_pip():
     logger.info("Installing LibP2P dependencies with pip directly...")
     
     dependencies = [
-        "libp2p>=0.1.5",
+        "libp2p @ git+https://github.com/libp2p/py-libp2p.git@main",
         "multiaddr>=0.0.9",
+        "multiformats>=0.2.0",
         "base58",
         "cryptography",
         "fastapi>=0.100.0",
         "uvicorn",
         "anyio>=3.7.0",
         "pydantic>=2.0.0",
-        "google-protobuf",
-        "eth-hash",
+        "protobuf>=5.26.0,<7.0.0",
+        "eth-hash[pycryptodome]>=0.3.3",
         "eth-keys"
     ]
     

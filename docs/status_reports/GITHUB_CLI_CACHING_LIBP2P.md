@@ -52,7 +52,7 @@ GitHub CLI Request
 pip install ipfs-kit-py
 
 # For full P2P functionality
-pip install libp2p multiaddr base58
+pip install 'libp2p @ git+https://github.com/libp2p/py-libp2p.git@main'
 ```
 
 ### Basic Setup

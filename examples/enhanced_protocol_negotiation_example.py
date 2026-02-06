@@ -11,7 +11,7 @@ libp2p implementation. It shows how to:
 4. Query protocol capabilities
 
 This example requires the libp2p dependencies to be installed:
-pip install libp2p multiaddr base58 cryptography semver
+pip install 'libp2p @ git+https://github.com/libp2p/py-libp2p.git@main' multiaddr base58 cryptography semver
 """
 
 import anyio

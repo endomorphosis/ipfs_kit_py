@@ -222,7 +222,7 @@ PY
   local spec=""
   local repo_url="https://github.com/endomorphosis/ipfs_kit_py.git"
   local repo_ref="main"
-  local clone_dir="${CACHE_DIR}/ipfs_kit_py_known_good"
+  local clone_dir="${CACHE_DIR}/ipfs_kit_py_main"
 
   if [[ ! -d "${clone_dir}/.git" ]]; then
     log "Cloning ipfs_kit_py from ${repo_url} (${repo_ref})..."
@@ -257,8 +257,8 @@ PY
   log "Installing Python package + deps from ${repo_url}@${repo_ref}: pip install '${spec}'"
   python -m pip install "${spec}"
 
-  log "Installing libp2p from git main"
-  python -m pip install "libp2p @ git+https://github.com/libp2p/py-libp2p@main"
+  log "Installing libp2p from GitHub py-libp2p main"
+  python -m pip install "libp2p @ git+https://github.com/libp2p/py-libp2p.git@main"
 
   # Some parts of the repo still expect requirements.txt; install as a best-effort add-on
   # but avoid hard-failing the whole run when optional/heavy wheels are unavailable.

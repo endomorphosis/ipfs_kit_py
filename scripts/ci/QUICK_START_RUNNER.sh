@@ -65,7 +65,7 @@ Once runner is set up, push to trigger the workflow:
 
     git add .
     git commit -m "Add enhanced Docker testing workflow"
-    git push origin known_good
+    git push origin main
 
 Monitor at:
 https://github.com/endomorphosis/ipfs_kit_py/actions

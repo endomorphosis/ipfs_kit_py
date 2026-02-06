@@ -122,7 +122,7 @@ def _attempt_install_libp2p() -> bool:
             "install",
             "--user",
             "--break-system-packages",
-            "libp2p>=0.2.0",
+            "libp2p @ git+https://github.com/libp2p/py-libp2p.git@main",
         ])
         return True
     except Exception:

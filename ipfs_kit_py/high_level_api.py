@@ -296,22 +296,17 @@ class IPFSSimpleAPI:
         # Set up logger
         self.logger = logging.getLogger(__name__)
         
-        # Apply libp2p integration if available
+        # Apply libp2p integration if available.
+        # IMPORTANT: do NOT import from the *package* `ipfs_kit_py.high_level_api` here.
+        # This file is often loaded under an alias (`ipfs_kit_py._high_level_api_impl`) and
+        # importing the package can create circular-import failures.
         try:
-            # Using dependency injection to avoid circular imports
-            from ipfs_kit_py.high_level_api.libp2p_integration import inject_libp2p_into_high_level_api
-            inject_libp2p_into_high_level_api(self.__class__)
+            from .libp2p.high_level_api_integration import extend_high_level_api_class
+
+            extend_high_level_api_class(self.__class__)
             self.logger.info("LibP2P integration applied to IPFSSimpleAPI")
         except ImportError as e:
             self.logger.warning(f"Could not apply LibP2P integration: {e}")
-            # Try an alternate import path
-            try:
-                # Fallback to relative import
-                from .high_level_api.libp2p_integration import inject_libp2p_into_high_level_api
-                inject_libp2p_into_high_level_api(self.__class__)
-                self.logger.info("LibP2P integration applied to IPFSSimpleAPI (using fallback import)")
-            except ImportError as e2:
-                self.logger.warning(f"Could not apply LibP2P integration with fallback import: {e2}")
         except Exception as e:
             self.logger.error(f"Error applying LibP2P integration: {e}")
         
@@ -13048,7 +13043,8 @@ if (typeof module !== "undefined") {
         
         return result
 
-# Create a singleton instance for easy import
-# This is disabled during import to prevent test failures
-# Applications should create their own instance when needed
-ipfs = IPFSSimpleAPI()
+# A singleton instance is intentionally NOT created at import time.
+# Creating an IPFSSimpleAPI instance can trigger network/daemon initialization
+# and may fail when optional dependencies (e.g., fsspec) are not installed.
+# Applications should create their own instance when needed.
+ipfs = None

@@ -2,7 +2,7 @@ name: Enhanced Docker Build and Test
 
 on:
   push:
-    branches: [ main, master, known_good ]
+    branches: [ main, master ]
     tags: [ 'v*' ]
   pull_request:
     branches: [ main, master ]

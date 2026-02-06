@@ -65,10 +65,30 @@ from typing import Any, Callable, Dict, List, Optional, Set, Union, Type
 # Configure logger
 logger = logging.getLogger(__name__)
 
-# Import from our libp2p package for dependency management
-# This ensures consistent HAS_LIBP2P flag across modules
-# Use delayed import for compatible_new_host to avoid circular imports
-from ipfs_kit_py.libp2p import HAS_LIBP2P, check_dependencies, install_dependencies
+# IMPORTANT: do not import `ipfs_kit_py.libp2p` at module import time.
+# `ipfs_kit_py.libp2p` imports components that import this module, and importing it
+# here can create circular-import failures (especially during high_level_api startup).
+try:
+    import libp2p as _libp2p  # noqa: F401
+
+    HAS_LIBP2P = True
+except Exception:
+    HAS_LIBP2P = False
+
+
+def check_dependencies() -> bool:
+    """Return True if upstream `libp2p` package appears importable."""
+    return bool(HAS_LIBP2P)
+
+
+def install_dependencies() -> bool:
+    """Attempt to install libp2p dependencies via ipfs_kit_py.libp2p helper (best-effort)."""
+    try:
+        from ipfs_kit_py.libp2p import install_dependencies as _install
+
+        return bool(_install())
+    except Exception:
+        return False
 
 # Set defaults for optional features
 HAS_MDNS = False
@@ -1227,7 +1247,10 @@ class IPFSLibp2pPeer:
                 HAS_LIBP2P = True
                 return True
             else:
-                self.logger.error("libp2p is not available and automatic installation failed. Install with pip install libp2p")
+                self.logger.error(
+                    "libp2p is not available and automatic installation failed. "
+                    "Install from GitHub main with: pip install 'libp2p @ git+https://github.com/libp2p/py-libp2p.git@main'"
+                )
                 return False
         
         return True

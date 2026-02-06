@@ -215,7 +215,7 @@ pip install -e .
 # Install with specific extras
 pip install -e ".[api,full]"      # API and all features
 pip install -e ".[dev,test]"      # Development and testing
-pip install -e ".[arrow,libp2p]"  # Arrow and libp2p support
+pip install -e ".[arrow,libp2p]"  # Arrow and libp2p support (libp2p installs from GitHub main)
 ```
 
 ### Architecture-Specific Notes

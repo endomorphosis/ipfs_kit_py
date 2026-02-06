@@ -22,6 +22,7 @@ import os
 import stat
 import json
 import threading
+import inspect
 from typing import Dict, Any, List, Optional, Union, TYPE_CHECKING
 from pathlib import Path
 
@@ -1074,41 +1075,9 @@ async def cleanup_global_vfs_manager():
 # SYNCHRONOUS HELPERS FOR CLI
 # =================================================================
 
-    def get_vfs_manager_sync() -> VFSManager:
-        """Get the global VFS Manager for synchronous use (CLI)."""
-        return get_global_vfs_manager()
 
-    def list_buckets(self, args) -> List[Dict[str, Any]]:
-        """List all buckets from the bucket registry."""
-        try:
-            import pandas as pd
-            from pathlib import Path
-
-            bucket_registry_path = Path.home() / ".ipfs_kit" / "bucket_index" / "bucket_registry.parquet"
-            if not bucket_registry_path.exists():
-                return []
-
-            df = pd.read_parquet(bucket_registry_path)
-            return df.to_dict("records")
-        except Exception as e:
-            logger.error(f"Error listing buckets: {e}")
-            return []
-
-    def list_buckets(self) -> List[Dict[str, Any]]:
-        """List all buckets from the bucket registry."""
-        try:
-            import pandas as pd
-            from pathlib import Path
-
-            bucket_registry_path = Path.home() / ".ipfs_kit" / "bucket_registry.parquet"
-            if not bucket_registry_path.exists():
-                return []
-
-            df = pd.read_parquet(bucket_registry_path)
-            return df.to_dict("records")
-        except Exception as e:
-            logger.error(f"Error listing buckets: {e}")
-            return []
+def get_vfs_manager_sync() -> VFSManager:
+    """Get the global VFS Manager for synchronous use (CLI)."""
     return get_global_vfs_manager()
 
 

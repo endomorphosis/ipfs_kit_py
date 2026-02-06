@@ -146,7 +146,7 @@ The new `docker-enhanced-test.yml` workflow includes:
 - ✅ **Detailed test summary** in GitHub Actions UI
 
 ### Workflow Triggers
-- Push to `main`, `master`, or `known_good` branches
+- Push to `main` or `master` branches
 - Pull requests to `main` or `master`
 - Manual workflow dispatch
 - Version tags (`v*`)
@@ -199,7 +199,7 @@ docker stop test && docker rm test
    ```bash
    ./setup-github-runner.sh
    ```
-3. ⚠️ Test the new workflow by pushing to `known_good` branch
+3. ⚠️ Test the new workflow by pushing to `main` branch
 
 ### Recommended Actions
 1. **Set up ARM64 runner** (if you have ARM64 hardware):

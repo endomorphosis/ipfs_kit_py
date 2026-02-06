@@ -3,7 +3,7 @@ import shutil
 import subprocess
 import sys
 
-from setuptools import setup
+from setuptools import find_packages, setup
 
 
 def _warn_missing_lotus_packages() -> None:
@@ -57,6 +57,33 @@ _warn_missing_lotus_packages()
 # This file is maintained for backwards compatibility
 # Most configuration is now in pyproject.toml
 
+
+def _load_pyproject_metadata() -> tuple[dict, list[str], dict[str, list[str]]]:
+    """Load PEP 621 metadata from pyproject.toml.
+
+    This keeps legacy setup.py installs aligned with the canonical configuration.
+    """
+
+    here = os.path.abspath(os.path.dirname(__file__))
+    pyproject_path = os.path.join(here, "pyproject.toml")
+
+    try:
+        import tomllib  # Python 3.11+
+
+        with open(pyproject_path, "rb") as f:
+            data = tomllib.load(f)
+    except Exception:
+        return {}, [], {}
+
+    project = data.get("project", {})
+    dependencies = list(project.get("dependencies", []) or [])
+    optional_dependencies = dict(project.get("optional-dependencies", {}) or {})
+
+    return project, dependencies, optional_dependencies
+
+
+project, install_requires, extras_require = _load_pyproject_metadata()
+
 setup(
     name='ipfs_kit_py',
     version='0.3.0',
@@ -65,5 +92,9 @@ setup(
     author_email='starworks5@gmail.com',
     url='https://github.com/endomorphosis/ipfs_kit_py/',
     python_requires='>=3.12',
-    # All other configurations (including dependencies and extras) come from pyproject.toml
+    packages=find_packages(include=["ipfs_kit_py*", "external*"]),
+    include_package_data=True,
+    install_requires=install_requires,
+    extras_require=extras_require,
+    # All other configurations come from pyproject.toml
 )

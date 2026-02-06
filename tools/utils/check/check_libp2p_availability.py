@@ -61,8 +61,8 @@ def check_libp2p_dependencies():
         
     # Check if we have protobuf
     try:
-        import anyio
-        dependencies["anyio"] = True
+        import google.protobuf  # noqa: F401
+        dependencies["protobuf"] = True
     except ImportError:
         pass
     
@@ -72,7 +72,7 @@ def check_libp2p_dependencies():
     return {
         "libp2p_available": libp2p_available,
         "dependencies": dependencies,
-        "installation_command": "pip install libp2p multiaddr base58 cryptography protobuf"
+        "installation_command": "pip install 'libp2p @ git+https://github.com/libp2p/py-libp2p.git@main' multiaddr multiformats base58 cryptography 'protobuf>=5.26.0,<7.0.0'"
     }
 
 def check_high_level_api_integration():

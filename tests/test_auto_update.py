@@ -24,14 +24,14 @@ def run_script(env, repo_dir):
 
 
 def init_sample_repo(repo_dir: Path):
-    # Initialize a git repo with a known_good branch and a commit
+    # Initialize a git repo with a main branch and a commit
     subprocess.run(["git", "init"], cwd=repo_dir, check=True)
     subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_dir, check=True)
     subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_dir, check=True)
     (repo_dir / "README.md").write_text("sample repo\n")
     subprocess.run(["git", "add", "README.md"], cwd=repo_dir, check=True)
     subprocess.run(["git", "commit", "-m", "initial commit"], cwd=repo_dir, check=True)
-    subprocess.run(["git", "checkout", "-b", "known_good"], cwd=repo_dir, check=True)
+    subprocess.run(["git", "checkout", "-b", "main"], cwd=repo_dir, check=True)
     # Add a local 'origin' remote pointing to the repo itself so fetch works in tests
     subprocess.run(["git", "remote", "add", "origin", str(repo_dir)], cwd=repo_dir, check=True)
 
@@ -44,7 +44,7 @@ def test_auto_update_runs(tmp_path):
     # Prepare environment to override the script variables and avoid side effects
     env = os.environ.copy()
     env["REPO_DIR"] = str(repo_dir)
-    env["BRANCH"] = "known_good"
+    env["BRANCH"] = "main"
     env["PYTHON"] = "/usr/bin/python3"
     env["SKIP_PIP"] = "1"
     env["SKIP_SYSTEMCTL"] = "1"
@@ -66,4 +66,4 @@ def test_auto_update_runs(tmp_path):
     if os.name == "nt" and "SKIP_GIT=1" in log_text:
         assert "skipping git fetch/checkout/pull" in log_text
     else:
-        assert ("Pulling latest from origin/known_good" in log_text) or ("Fetching origin" in log_text)
+        assert ("Pulling latest from origin/main" in log_text) or ("Fetching origin" in log_text)

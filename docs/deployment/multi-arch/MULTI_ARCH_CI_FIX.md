@@ -92,7 +92,7 @@ Created `.github/workflows/multi-arch-ci.yml` with:
 
 ```bash
 # Install with libp2p support
-pip install -e .[libp2p]
+pip install -e ".[libp2p]"  # libp2p installs from GitHub main
 ```
 
 ### Safe Installation (Recommended for Shared Systems)
@@ -209,7 +209,7 @@ sudo ./svc.sh status
 
 | Dependency | Purpose | ARM64 | RISC-V | Notes |
 |------------|---------|-------|--------|-------|
-| protobuf | Protocol buffers | ✅ | ✅ | Version 3.20-5.0 |
+| protobuf | Protocol buffers | ✅ | ✅ | Version 5.26-7.0 |
 | eth-hash | Ethereum hashing | ✅ | ✅ | Needs pycryptodome backend |
 | eth-keys | Ethereum keys | ✅ | ⚠️ | May need compilation |
 | libp2p | P2P networking | ✅ | ⚠️ | Requires protobuf |

@@ -47,27 +47,20 @@ if PROTOBUF_VERSION != "unknown":
 # Check for message factory compatibility
 try:
     from google.protobuf.descriptor_pool import DescriptorPool
+    from google.protobuf import message_factory as _mf
     from google.protobuf.message_factory import MessageFactory
-    
-    # Try old API (GetPrototype)
-    try:
-        factory = MessageFactory()
-        # This will raise AttributeError if the method doesn't exist
-        get_prototype_method = getattr(factory, "GetPrototype", None)
-        if get_prototype_method is not None:
-            HAS_OLD_MESSAGE_FACTORY = True
-            logger.debug("MessageFactory.GetPrototype method is available")
-    except (AttributeError, TypeError):
-        pass
-    
-    # Try new API (message_factory_for_descriptor_pool)
-    try:
-        from google.protobuf.message_factory import message_factory_for_descriptor_pool
+
+    # Try old API (GetPrototype on the class)
+    if hasattr(MessageFactory, "GetPrototype"):
+        HAS_OLD_MESSAGE_FACTORY = True
+        logger.debug("MessageFactory.GetPrototype method is available")
+
+    # Protobuf 6.x removed `message_factory_for_descriptor_pool` but exposes
+    # `GetMessageClass` and friends at module level.
+    if hasattr(_mf, "message_factory_for_descriptor_pool") or hasattr(_mf, "GetMessageClass"):
         HAS_NEW_MESSAGE_FACTORY = True
-        logger.debug("message_factory_for_descriptor_pool function is available")
-    except ImportError:
-        pass
-        
+        logger.debug("New message_factory API detected")
+
 except ImportError as e:
     logger.warning(f"Protobuf message factory not available: {e}")
 
@@ -87,19 +80,24 @@ class CompatMessageFactory:
     def __init__(self):
         """Initialize the compatible message factory."""
         self.descriptor_pool = DescriptorPool()
-        
+
         # Create the appropriate factory based on available API
-        if HAS_NEW_MESSAGE_FACTORY:
-            # New API (protobuf v3.19.0+)
-            from google.protobuf.message_factory import message_factory_for_descriptor_pool
-            self._factory_func = message_factory_for_descriptor_pool
-            self._factory = None  # Not needed with new API
-            logger.debug("Using new MessageFactory API")
-        elif HAS_OLD_MESSAGE_FACTORY:
+        if HAS_OLD_MESSAGE_FACTORY:
             # Old API
             self._factory = MessageFactory(self.descriptor_pool)
             self._factory_func = None  # Not needed with old API
+            self._get_message_class = None
             logger.debug("Using old MessageFactory API")
+        elif HAS_NEW_MESSAGE_FACTORY:
+            # "New" APIs across protobuf versions:
+            # - protobuf 3.19-5.x: message_factory_for_descriptor_pool
+            # - protobuf 6.x: GetMessageClass (module-level)
+            from google.protobuf import message_factory as _mf
+
+            self._factory = None
+            self._factory_func = getattr(_mf, "message_factory_for_descriptor_pool", None)
+            self._get_message_class = getattr(_mf, "GetMessageClass", None)
+            logger.debug("Using new MessageFactory API")
         else:
             raise ImportError("Neither old nor new MessageFactory API is available")
     
@@ -115,12 +113,16 @@ class CompatMessageFactory:
         Returns:
             Message class for the descriptor
         """
-        if HAS_NEW_MESSAGE_FACTORY:
-            # New API approach
-            return self._factory_func(self.descriptor_pool).GetPrototype(descriptor)
-        else:
-            # Old API approach
+        if self._factory is not None:
             return self._factory.GetPrototype(descriptor)
+
+        if self._get_message_class is not None:
+            return self._get_message_class(descriptor)
+
+        if self._factory_func is not None:
+            return self._factory_func(self.descriptor_pool).GetPrototype(descriptor)
+
+        raise AttributeError("No compatible MessageFactory implementation available")
     
     def get_prototype(self, descriptor):
         """
@@ -173,7 +175,7 @@ def monkey_patch_message_factory():
         
     try:
         from google.protobuf.message_factory import MessageFactory
-        from google.protobuf.message_factory import message_factory_for_descriptor_pool
+        from google.protobuf import message_factory as _mf
         
         # Check if GetPrototype already exists
         if hasattr(MessageFactory, 'GetPrototype'):
@@ -194,15 +196,22 @@ def monkey_patch_message_factory():
             Returns:
                 Message class for the descriptor
             """
-            # Use the new API to create a message class
-            pool = getattr(self, '_descriptor_pool', None)
-            if pool is None:
-                from google.protobuf.descriptor_pool import DescriptorPool
-                pool = DescriptorPool()
-            
-            # Get the message class using the new API
-            factory = message_factory_for_descriptor_pool(pool)
-            return factory.GetPrototype(descriptor)
+            # Protobuf 6.x: use the public module-level helper if present.
+            get_message_class = getattr(_mf, "GetMessageClass", None)
+            if get_message_class is not None:
+                return get_message_class(descriptor)
+
+            # Older "new" API (protobuf 3.19-5.x): message_factory_for_descriptor_pool
+            factory_for_pool = getattr(_mf, "message_factory_for_descriptor_pool", None)
+            if factory_for_pool is not None:
+                pool = getattr(self, "_descriptor_pool", None)
+                if pool is None:
+                    from google.protobuf.descriptor_pool import DescriptorPool
+
+                    pool = DescriptorPool()
+                return factory_for_pool(pool).GetPrototype(descriptor)
+
+            raise AttributeError("No compatible message factory API found")
         
         # Add the method to the class
         setattr(MessageFactory, 'GetPrototype', get_prototype)

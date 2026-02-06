@@ -2,13 +2,13 @@
 set -euo pipefail
 
 # Auto-update script for ipfs_kit_py
-# - ensures repo is on `known_good` branch and up-to-date
+# - ensures repo is on `main` branch and up-to-date
 # - installs python requirements and editable package
 # - restarts the systemd service
 
 REPO_DIR="${REPO_DIR:-/home/barberb/ipfs_kit_py}"
 SERVICE_NAME="${SERVICE_NAME:-ipfs-kit-mcp.service}"
-BRANCH="${BRANCH:-known_good}"
+BRANCH="${BRANCH:-main}"
 PYTHON="${PYTHON:-/home/barberb/miniforge3/bin/python}"
 PIP="$PYTHON -m pip"
 LOG_DIR="${LOG_DIR:-$REPO_DIR/logs}"
@@ -38,7 +38,7 @@ else
   echo "Fetching origin..."
   "${SUDO_PREFIX[@]}" git fetch origin --prune
 
-  # Checkout or create branch tracking origin/known_good
+  # Checkout or create branch tracking origin/$BRANCH
   if "${SUDO_PREFIX[@]}" git rev-parse --verify "$BRANCH" >/dev/null 2>&1; then
     echo "Checking out $BRANCH"
     "${SUDO_PREFIX[@]}" git checkout "$BRANCH"

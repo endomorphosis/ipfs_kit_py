@@ -15,12 +15,14 @@ aiohttp>=3.9.0
 ipfshttpclient>=0.8.0
 
 # LibP2P peer management dependencies
-libp2p>=0.2.8               # Core libp2p functionality
+libp2p @ git+https://github.com/libp2p/py-libp2p.git@main  # Core libp2p functionality
 multiaddr>=0.0.9            # For peer addressing
 multiformats>=0.2.0         # For content addressing
 base58>=2.1.1               # Used by CIDs and peer IDs
 cryptography>=38.0.0        # For key generation and encryption
-protobuf>=3.20.0,<5.0.0     # Compatible protobuf version range
+protobuf>=5.26.0,<7.0.0     # Compatible protobuf version range
+eth-hash[pycryptodome]>=0.3.3
+eth-keys>=0.4.0
 
 # Search and AI dependencies (optional but recommended)
 sentence-transformers>=2.2.0  # For vector embeddings

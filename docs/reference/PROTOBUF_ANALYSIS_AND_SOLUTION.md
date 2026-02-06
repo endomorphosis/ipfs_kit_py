@@ -123,9 +123,9 @@ find ipfs_kit_py/libp2p -name "*.proto" -exec protoc --python_out=. {} \;
 ```python
 # Create optional libp2p integration
 extras_require = {
-    "p2p": ["libp2p>=0.2.8", "protobuf>=6.30.0"],
+    "p2p": ["libp2p @ git+https://github.com/libp2p/py-libp2p.git@main", "protobuf>=5.26.0,<7.0.0"],
     "ai": ["transformers>=4.21.0", "sentence-transformers>=2.2.0"], 
-    "full": ["libp2p>=0.2.8", "protobuf>=6.30.0", "transformers>=4.21.0"]
+    "full": ["libp2p @ git+https://github.com/libp2p/py-libp2p.git@main", "protobuf>=5.26.0,<7.0.0", "transformers>=4.21.0"]
 }
 
 # Install only what you need:
@@ -143,8 +143,8 @@ Let me implement the protobuf version fix:
 import google.protobuf
 print(f"Current protobuf: {google.protobuf.__version__}")
 
-# The error shows libp2p expects 6.30.1 but runtime has 5.29.4
-# Solution: Upgrade protobuf to match libp2p's expectations
+# The error indicates generated protobuf code expects a newer protobuf runtime.
+# Solution: install a compatible protobuf range used by upstream py-libp2p main.
 ```
 
 ## 📊 **Summary**
