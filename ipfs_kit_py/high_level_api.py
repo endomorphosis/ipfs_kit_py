@@ -109,10 +109,10 @@ except ImportError:
     logger.warning("FSJournalReplication not available.")
 
 try:
-    from .wal_api import WALManager
+    from .storage_wal import StorageWriteAheadLog as WALManager
     HAS_WAL = True
     logger.info("WALManager imported successfully")
-except (ImportError, AttributeError): # AttributeError for cases where module exists but class doesn't
+except (ImportError, AttributeError):
     WALManager = None
     HAS_WAL = False
     logger.warning("WALManager not available.")
