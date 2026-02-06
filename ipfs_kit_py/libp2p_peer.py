@@ -137,7 +137,6 @@ if HAS_LIBP2P:
                     return None
             pubsub_utils = DummyPubsubUtils()
             
-        from libp2p import new_host
         from libp2p.crypto.keys import KeyPair, PrivateKey, PublicKey
         
         # Import serialization functions - using our compatibility version
