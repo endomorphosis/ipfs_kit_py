@@ -9,19 +9,24 @@ import importlib.util
 
 logger = logging.getLogger(__name__)
 
-# Import LibP2P integration if available
-try:
-    # First check if libp2p is available
-    from ..libp2p import HAS_LIBP2P
-    
-    # Only attempt to import integration if libp2p is available
-    if HAS_LIBP2P:
-        from . import libp2p_integration
-        logger.info("LibP2P integration module imported")
-    else:
-        logger.warning("LibP2P integration module not loaded: libp2p dependencies not available")
-except ImportError as e:
-    logger.warning(f"LibP2P integration module not available: {e}")
+HAVE_LIBP2P = False
+
+def _init_libp2p_integration() -> None:
+    global HAVE_LIBP2P
+    try:
+        # First check if libp2p is available
+        from ..libp2p import HAS_LIBP2P as _HAS_LIBP2P
+
+        HAVE_LIBP2P = bool(_HAS_LIBP2P)
+
+        # Only attempt to import integration if libp2p is available
+        if HAVE_LIBP2P:
+            from . import libp2p_integration
+            logger.info("LibP2P integration module imported")
+        else:
+            logger.warning("LibP2P integration module not loaded: libp2p dependencies not available")
+    except ImportError as e:
+        logger.warning(f"LibP2P integration module not available: {e}")
 
 # Import WebRTC benchmark helpers (both async-io and anyio versions)
 from .webrtc_benchmark_helpers import WebRTCBenchmarkIntegration
@@ -87,6 +92,7 @@ def _try_load_ipfs_simple_api() -> None:
 
 
 _try_load_ipfs_simple_api()
+_init_libp2p_integration()
 
 # Export components
 __all__ = ['WebRTCBenchmarkIntegration', 'IPFSSimpleAPI']
