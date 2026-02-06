@@ -25,9 +25,6 @@ except ImportError:
 HAS_OLD_MESSAGE_FACTORY = False
 HAS_NEW_MESSAGE_FACTORY = False
 
-logger.info(f"HAS_OLD_MESSAGE_FACTORY: {HAS_OLD_MESSAGE_FACTORY}")
-logger.info(f"HAS_NEW_MESSAGE_FACTORY: {HAS_NEW_MESSAGE_FACTORY}")
-
 # Normalized version components
 PROTOBUF_MAJOR_VERSION = 0
 PROTOBUF_MINOR_VERSION = 0
@@ -73,6 +70,9 @@ try:
         
 except ImportError as e:
     logger.warning(f"Protobuf message factory not available: {e}")
+
+logger.info(f"HAS_OLD_MESSAGE_FACTORY: {HAS_OLD_MESSAGE_FACTORY}")
+logger.info(f"HAS_NEW_MESSAGE_FACTORY: {HAS_NEW_MESSAGE_FACTORY}")
 
 
 class CompatMessageFactory:
@@ -215,9 +215,11 @@ def monkey_patch_message_factory():
 
 
 # Apply monkey patch if the old GetPrototype method is not available
-if not HAS_OLD_MESSAGE_FACTORY:
+if not HAS_OLD_MESSAGE_FACTORY and HAS_NEW_MESSAGE_FACTORY:
     success = monkey_patch_message_factory()
     if success:
         logger.info("Successfully applied MessageFactory compatibility patch")
     else:
         logger.warning("Failed to apply MessageFactory compatibility patch")
+elif not HAS_OLD_MESSAGE_FACTORY and not HAS_NEW_MESSAGE_FACTORY:
+    logger.warning("No compatible MessageFactory API detected; protobuf features may be limited")
