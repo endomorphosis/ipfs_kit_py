@@ -16,22 +16,52 @@ import subprocess
 import hashlib
 from collections import deque, defaultdict
 
-# Import from ipfs_kit_py libp2p stack
-try:
-    from .network.stream import INetStream, NetStream, StreamError
-    from .. import libp2p_peer
-    from . import check_dependencies
-    from .enhanced_dht_discovery import EnhancedDHTDiscovery
-    from .gossipsub_protocol import GossipSubProtocol
-    from .content_routing import ContentRouter
-    from .ipfs_kit_integration import apply_libp2p_integration
-    LIBP2P_AVAILABLE = False
-except ImportError as e:
-    LIBP2P_AVAILABLE = False
-    INetStream = Any
-    NetStream = object
-    StreamError = Exception
-    logging.getLogger(__name__).warning(f"LibP2P imports not available: {e}")
+LIBP2P_AVAILABLE = False
+INetStream = Any
+NetStream = object
+StreamError = Exception
+libp2p_peer = None
+check_dependencies = None
+EnhancedDHTDiscovery = None
+GossipSubProtocol = None
+ContentRouter = None
+apply_libp2p_integration = None
+
+
+def _ensure_libp2p_stack() -> bool:
+    """Lazily import libp2p stack modules to avoid circular imports."""
+    global LIBP2P_AVAILABLE
+    global INetStream, NetStream, StreamError
+    global libp2p_peer, check_dependencies
+    global EnhancedDHTDiscovery, GossipSubProtocol, ContentRouter
+    global apply_libp2p_integration
+
+    if LIBP2P_AVAILABLE:
+        return True
+
+    try:
+        from .network.stream import INetStream as _INetStream, NetStream as _NetStream, StreamError as _StreamError
+        from .. import libp2p_peer as _libp2p_peer
+        from . import check_dependencies as _check_dependencies
+        from .enhanced_dht_discovery import EnhancedDHTDiscovery as _EnhancedDHTDiscovery
+        from .gossipsub_protocol import GossipSubProtocol as _GossipSubProtocol
+        from .content_routing import ContentRouter as _ContentRouter
+        from .ipfs_kit_integration import apply_libp2p_integration as _apply_libp2p_integration
+
+        INetStream = _INetStream
+        NetStream = _NetStream
+        StreamError = _StreamError
+        libp2p_peer = _libp2p_peer
+        check_dependencies = _check_dependencies
+        EnhancedDHTDiscovery = _EnhancedDHTDiscovery
+        GossipSubProtocol = _GossipSubProtocol
+        ContentRouter = _ContentRouter
+        apply_libp2p_integration = _apply_libp2p_integration
+        LIBP2P_AVAILABLE = True
+        return True
+    except ImportError as e:
+        logging.getLogger(__name__).warning(f"LibP2P imports not available: {e}")
+        return False
 
 try:
     import multiaddr
@@ -116,12 +146,15 @@ class Libp2pPeerManager:
         """Initialize and start the peer manager."""
         self._start_time = time.time()
 
-        if not LIBP2P_AVAILABLE:
-            try:
-                if check_dependencies():
-                    globals()["LIBP2P_AVAILABLE"] = True
-            except Exception as exc:
-                logger.debug("LibP2P dependency check failed: %s", exc)
+        if not _ensure_libp2p_stack():
+            logger.warning("LibP2P not available, using mock mode")
+            return
+
+        try:
+            if check_dependencies and check_dependencies():
+                globals()["LIBP2P_AVAILABLE"] = True
+        except Exception as exc:
+            logger.debug("LibP2P dependency check failed: %s", exc)
 
         if not LIBP2P_AVAILABLE:
             logger.warning("LibP2P not available, using mock mode")

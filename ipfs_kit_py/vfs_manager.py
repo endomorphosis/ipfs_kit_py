@@ -62,24 +62,57 @@ def _run_async_from_sync(async_fn, *args, **kwargs):
         raise error[0]
     return result[0] if result else None
 
-# Import core IPFS Kit components
-try:
-    if TYPE_CHECKING:
-        from .high_level_api import IPFSSimpleAPI  # noqa: F401
-    from .pin_metadata_index import get_global_pin_metadata_index
-    from .filesystem_journal import FilesystemJournal
-    from .pin_metadata_index import get_cli_pin_metrics
-    from .arrow_ipc_daemon_interface import (
-        ArrowIPCDaemonInterface, 
-        get_global_arrow_ipc_interface,
-        get_pin_index_zero_copy,
-        get_metrics_zero_copy
-    )
-    ARROW_IPC_AVAILABLE = True
-except ImportError as e:
-    logger.error(f"Failed to import core IPFS Kit components: {e}")
-    ARROW_IPC_AVAILABLE = False
-    raise
+if TYPE_CHECKING:
+    from .high_level_api import IPFSSimpleAPI  # noqa: F401
+
+ARROW_IPC_AVAILABLE = False
+get_global_pin_metadata_index = None
+get_cli_pin_metrics = None
+FilesystemJournal = None
+ArrowIPCDaemonInterface = None
+get_global_arrow_ipc_interface = None
+get_pin_index_zero_copy = None
+get_metrics_zero_copy = None
+
+_CORE_IMPORTS_READY = False
+
+
+def _ensure_core_imports() -> bool:
+    """Lazily import core IPFS Kit components to avoid circular imports."""
+    global ARROW_IPC_AVAILABLE
+    global get_global_pin_metadata_index, get_cli_pin_metrics
+    global FilesystemJournal
+    global ArrowIPCDaemonInterface, get_global_arrow_ipc_interface
+    global get_pin_index_zero_copy, get_metrics_zero_copy
+    global _CORE_IMPORTS_READY
+
+    if _CORE_IMPORTS_READY:
+        return True
+
+    try:
+        from .pin_metadata_index import get_global_pin_metadata_index as _get_global_pin_metadata_index
+        from .filesystem_journal import FilesystemJournal as _FilesystemJournal
+        from .pin_metadata_index import get_cli_pin_metrics as _get_cli_pin_metrics
+        from .arrow_ipc_daemon_interface import (
+            ArrowIPCDaemonInterface as _ArrowIPCDaemonInterface,
+            get_global_arrow_ipc_interface as _get_global_arrow_ipc_interface,
+            get_pin_index_zero_copy as _get_pin_index_zero_copy,
+            get_metrics_zero_copy as _get_metrics_zero_copy,
+        )
+        get_global_pin_metadata_index = _get_global_pin_metadata_index
+        FilesystemJournal = _FilesystemJournal
+        get_cli_pin_metrics = _get_cli_pin_metrics
+        ArrowIPCDaemonInterface = _ArrowIPCDaemonInterface
+        get_global_arrow_ipc_interface = _get_global_arrow_ipc_interface
+        get_pin_index_zero_copy = _get_pin_index_zero_copy
+        get_metrics_zero_copy = _get_metrics_zero_copy
+        ARROW_IPC_AVAILABLE = True
+        _CORE_IMPORTS_READY = True
+        return True
+    except ImportError as e:
+        logger.error(f"Failed to import core IPFS Kit components: {e}")
+        ARROW_IPC_AVAILABLE = False
+        return False
 
 # Optional imports for advanced features
 try:
@@ -223,6 +256,9 @@ class VFSManager:
         
         self.last_init_attempt = current_time
         
+        if not _ensure_core_imports():
+            return False
+
         try:
             # Initialize IPFS API
             await self._initialize_ipfs_api()
@@ -264,6 +300,10 @@ class VFSManager:
     async def _initialize_enhanced_pin_index(self):
         """Initialize the enhanced pin metadata index."""
         try:
+            if not _ensure_core_imports() or get_global_pin_metadata_index is None:
+                logger.warning("Pin metadata index unavailable; skipping initialization")
+                self.pin_index = None
+                return
             if self.api and hasattr(self.api, 'fs'):
                 self.pin_index = await anyio.to_thread.run_sync(lambda: get_global_pin_metadata_index(ipfs_filesystem=self.api.fs)
                 )
@@ -298,6 +338,10 @@ class VFSManager:
     async def _initialize_filesystem_journal(self):
         """Initialize the filesystem journal."""
         try:
+            if not _ensure_core_imports() or FilesystemJournal is None:
+                logger.warning("Filesystem journal unavailable; skipping initialization")
+                self.filesystem_journal = None
+                return
             self.filesystem_journal = await anyio.to_thread.run_sync(FilesystemJournal)
             logger.info("✓ Filesystem journal initialized")
         except Exception as e:
@@ -371,7 +415,7 @@ class VFSManager:
         Returns:
             Dictionary with pin data or None if not available
         """
-        if not ARROW_IPC_AVAILABLE:
+        if not _ensure_core_imports() or not ARROW_IPC_AVAILABLE:
             logger.warning("Arrow IPC not available, falling back to traditional access")
             return await self._get_pin_index_fallback(limit, filters)
         
@@ -410,7 +454,7 @@ class VFSManager:
         Returns:
             Dictionary with metrics data or None if not available
         """
-        if not ARROW_IPC_AVAILABLE:
+        if not _ensure_core_imports() or not ARROW_IPC_AVAILABLE:
             logger.warning("Arrow IPC not available, falling back to traditional access")
             return await self._get_metrics_fallback(metric_types)
         
@@ -738,6 +782,8 @@ class VFSManager:
         # Get enhanced pin metrics
         if self.pin_index:
             try:
+                if not _ensure_core_imports() or get_cli_pin_metrics is None:
+                    raise RuntimeError("Pin metrics function unavailable")
                 cli_metrics = await anyio.to_thread.run_sync(get_cli_pin_metrics)
                 
                 if 'error' not in cli_metrics:
