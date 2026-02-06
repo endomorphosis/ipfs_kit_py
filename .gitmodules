@@ -22,6 +22,18 @@
 	path = docs/lighthouse-python-sdk
 	url = https://github.com/lighthouse-web3/lighthouse-python-sdk.git
 	branch = main
+[submodule "docs/filesystem_spec"]
+	path = docs/filesystem_spec
+	url = https://github.com/fsspec/filesystem_spec.git
+	branch = main
+[submodule "docs/ipfs_cluster"]
+	path = docs/ipfs_cluster
+	url = https://github.com/ipfs-cluster/ipfs-cluster-website.git
+	branch = main
+[submodule "docs/libp2p_docs"]
+	path = docs/libp2p_docs
+	url = https://github.com/libp2p/docs.git
+	branch = main
 [submodule "docs/storacha_specs"]
 	path = docs/storacha_specs
 	url = https://github.com/storacha/specs.git
