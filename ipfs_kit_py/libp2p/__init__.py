@@ -137,7 +137,7 @@ logger.debug(f"libp2p extra detected: {HAS_LIBP2P_EXTRA}")
 HAS_LIBP2P = False  # Flag indicating if libp2p is available
 DEPENDENCIES_CHECKED = False  # Flag indicating if we've performed the check
 AUTO_INSTALL = os.environ.get("IPFS_KIT_AUTO_INSTALL_DEPS", "1") == "1"
-_attempted_install = False  # Flag to indicate if we've tried manual installation
+_attempted_install = False  # Flag to indicate if we've tried auto-installation
 
 def check_dependencies() -> bool:
     """
@@ -241,32 +241,37 @@ def check_dependencies() -> bool:
 
         # Attempt auto-installation if enabled
         if AUTO_INSTALL:
-            logger.info("Auto-install enabled, attempting to install missing dependencies")
-            try:
-                if missing_submodules and not _attempted_install:
-                    logger.info("Reinstalling libp2p extras to restore missing submodules...")
-                    if install_dependencies(force=True):
-                        DEPENDENCIES_CHECKED = False
-                        logger.debug("Re-checking dependencies after reinstall")
-                        return check_dependencies()
-                if HAS_LIBP2P_EXTRA:
-                    # If libp2p extra is installed but dependencies are missing, try reinstalling
-                    logger.info("Reinstalling ipfs_kit_py with libp2p extras...")
-                    cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "ipfs_kit_py[libp2p]"]
-                else:
-                    # Otherwise just install the missing dependencies directly
-                    logger.info("Attempting to auto-install missing dependencies...")
-                    cmd = [sys.executable, "-m", "pip", "install", *missing_deps]
-                
-                subprocess.check_call(cmd)
+            if _attempted_install:
+                logger.info("Auto-install already attempted; skipping repeated installs")
+            else:
+                logger.info("Auto-install enabled, attempting to install missing dependencies")
+                _attempted_install = True
+                try:
+                    if missing_submodules:
+                        logger.info("Reinstalling libp2p extras to restore missing submodules...")
+                        if install_dependencies(force=True):
+                            DEPENDENCIES_CHECKED = False
+                            logger.debug("Re-checking dependencies after reinstall")
+                            return check_dependencies()
 
-                # Force recheck after installation
-                DEPENDENCIES_CHECKED = False
-                logger.debug("Re-checking dependencies after auto-installation")
-                return check_dependencies()
-            except Exception as e:
-                logger.error(f"Failed to auto-install dependencies: {e}")
-                # Continue with the current state (missing dependencies)
+                    if HAS_LIBP2P_EXTRA:
+                        # If libp2p extra is installed but dependencies are missing, try reinstalling
+                        logger.info("Reinstalling ipfs_kit_py with libp2p extras...")
+                        cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "ipfs_kit_py[libp2p]"]
+                    else:
+                        # Otherwise just install the missing dependencies directly
+                        logger.info("Attempting to auto-install missing dependencies...")
+                        cmd = [sys.executable, "-m", "pip", "install", *missing_deps]
+
+                    subprocess.check_call(cmd)
+
+                    # Force recheck after installation
+                    DEPENDENCIES_CHECKED = False
+                    logger.debug("Re-checking dependencies after auto-installation")
+                    return check_dependencies()
+                except Exception as e:
+                    logger.error(f"Failed to auto-install dependencies: {e}")
+                    # Continue with the current state (missing dependencies)
         else:
             logger.debug("Auto-install disabled, skipping installation attempt")
 
