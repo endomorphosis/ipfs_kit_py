@@ -17,6 +17,7 @@ Usage:
 
 import argparse
 import binascii
+import glob
 import hashlib
 import json
 import logging
@@ -46,7 +47,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("install_lotus")
 
-DEFAULT_AUTO_INSTALL_DEPS = False
+DEFAULT_AUTO_INSTALL_DEPS_LINUX = True
 APT_LIKE_DISTROS = {
     "debian",
     "ubuntu",
@@ -143,17 +144,33 @@ class install_lotus:
             if env_value:
                 self.auto_install_deps = env_value in {"1", "true", "yes", "on"}
             else:
-                self.auto_install_deps = DEFAULT_AUTO_INSTALL_DEPS
+                # Default to enabled on Linux so the installer produces runnable
+                # binaries out of the box. Non-interactive contexts are still
+                # protected from hanging by the sudo/TTY checks in the
+                # dependency installer.
+                self.auto_install_deps = (
+                    platform.system() == "Linux" and DEFAULT_AUTO_INSTALL_DEPS_LINUX
+                )
         else:
             self.auto_install_deps = bool(metadata_auto_install)
 
-        # Allow attempting a user-space dependency install into the package bin
-        # directory when sudo/root isn't available.
-        self.allow_userspace_deps = bool(
+        # Allow attempting a user-space dependency install into the selected
+        # bin directory when sudo/root isn't available.
+        #
+        # This is the most reliable way to make `lotus` runnable in environments
+        # where we can't install system packages (containers, restricted hosts).
+        explicit_userspace = (
             self.metadata.get("allow_userspace_deps")
             or str(os.environ.get("IPFS_KIT_ALLOW_USERSPACE_DEPS", "")).strip().lower() in {"1", "true", "yes", "on"}
             or str(os.environ.get("IPFS_KIT_USERSPACE_LOTUS_DEPS", "")).strip().lower() in {"1", "true", "yes", "on"}
         )
+
+        default_userspace = (
+            platform.system() == "Linux"
+            and os.geteuid() != 0
+            and not self._sudo_is_passwordless()
+        )
+        self.allow_userspace_deps = bool(explicit_userspace or default_userspace)
 
         # Check and install system dependencies if needed
         self._install_system_dependencies()
@@ -792,6 +809,7 @@ class install_lotus:
 
         if os_name == "windows":
             logger.info("Windows platform detected; skipping Lotus system dependency checks")
+            self.dependencies_available = True
             return True
         
         # Define dependencies by OS
@@ -860,16 +878,25 @@ class install_lotus:
         # This will work even if package management is broken or unavailable
         if self._check_hwloc_library_direct():
             logger.info("Found libhwloc library installed on the system")
+            self.dependencies_available = True
             return True
 
-        # Non-root environments commonly lack sudo access. In that case, try a
-        # user-space fallback that installs hwloc libs into our package bin dir.
-        if os_name == "linux" and os.geteuid() != 0 and not self._sudo_is_passwordless():
+        # Non-root environments commonly lack sudo access. In that case, we can
+        # optionally attempt a user-space fallback that installs hwloc/OpenCL
+        # libs into our package bin dir. This is opt-in.
+        if (
+            os_name == "linux"
+            and os.geteuid() != 0
+            and not self._sudo_is_passwordless()
+            and getattr(self, "allow_userspace_deps", False)
+        ):
             logger.warning(
                 "Lotus dependencies missing and sudo is unavailable; attempting "
-                "user-space dependency installation into the package bin directory."
+                "user-space dependency installation into the package bin directory "
+                "(opt-in: allow_userspace_deps / IPFS_KIT_ALLOW_USERSPACE_DEPS)."
             )
             if self._try_direct_library_installation():
+                self.dependencies_available = True
                 return True
 
         if not getattr(self, "auto_install_deps", False):
@@ -886,17 +913,40 @@ class install_lotus:
             self.dependencies_available = False
             return False
 
+        # If we're about to use sudo, avoid hanging when there's no TTY.
+        if os_name == "linux" and os.geteuid() != 0 and not self._sudo_is_passwordless():
+            is_interactive = bool(getattr(sys.stdin, "isatty", lambda: False)())
+            if not is_interactive:
+                hint = self._dependency_install_hint(os_name)
+                logger.error(
+                    "Automatic dependency installation is enabled, but sudo would require a password and this "
+                    "process is non-interactive."
+                )
+                if hint:
+                    logger.error(hint)
+                logger.error(
+                    "Either run this installer in a terminal, configure passwordless sudo, run as root, or re-run "
+                    "with --no-auto-install-deps."
+                )
+                self.dependencies_available = False
+                return False
+
         logger.info("Automatic dependency installation enabled; attempting to install prerequisites.")
             
         # Continue with OS-specific package management
         if os_name == "linux":
-            return self._install_linux_dependencies(dependencies)
+            result = self._install_linux_dependencies(dependencies)
+            self.dependencies_available = bool(result)
+            return bool(result)
         elif os_name == "darwin":
-            return self._install_darwin_dependencies(dependencies)
+            result = self._install_darwin_dependencies(dependencies)
+            self.dependencies_available = bool(result)
+            return bool(result)
         elif os_name == "windows":
             # Windows doesn't typically need additional dependencies for Lotus
             # The binary should include all necessary DLLs
             logger.info("Windows platform detected, no additional dependencies required")
+            self.dependencies_available = True
             return True
         else:
             logger.warning(f"Unsupported operating system: {os_name}")
@@ -904,10 +954,19 @@ class install_lotus:
             # Try direct library check again (already did this above, but being explicit)
             if self._check_hwloc_library_direct():
                 logger.info("Found libhwloc library installed on the system")
+                self.dependencies_available = True
                 return True
             else:
                 logger.warning("You may need to manually install hwloc and OpenCL libraries")
+                self.dependencies_available = False
                 return False
+
+    def _allow_source_build(self) -> bool:
+        """Return True if building Lotus from source is explicitly enabled."""
+        if bool(self.metadata.get("build_from_source")):
+            return True
+        env_value = str(os.environ.get("IPFS_KIT_LOTUS_BUILD_SOURCE", "")).strip().lower()
+        return env_value in {"1", "true", "yes", "on"}
                 
     def _check_hwloc_library_direct(self):
         """
@@ -1715,10 +1774,23 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
             logger.info(f"Detected Linux distribution: {distro}")
             distro_deps = dependencies["linux"].get(distro, dependencies["linux"]["debian"])
             
-            # Check if we need to use sudo (if not running as root)
+            # Prefer non-interactive sudo in non-interactive contexts; allow
+            # interactive sudo when run in a terminal.
             sudo_prefix = []
             if os.geteuid() != 0:
-                sudo_prefix = ["sudo"]
+                if self._sudo_is_passwordless():
+                    sudo_prefix = ["sudo", "-n"]
+                else:
+                    is_interactive = bool(getattr(sys.stdin, "isatty", lambda: False)())
+                    if not is_interactive:
+                        logger.error(
+                            "Missing system dependencies and sudo would require a password, but this process is non-interactive."
+                        )
+                        hint = self._dependency_install_hint("linux")
+                        if hint:
+                            logger.error(hint)
+                        return False
+                    sudo_prefix = ["sudo"]
                 
             # Check for package manager availability and lock status
             available, lock_info = self._check_package_manager_available(distro_deps)
@@ -2793,78 +2865,89 @@ if __name__ == "__main__":
         download_url, filename = self.get_download_url(release_info)
         if not download_url:
             logger.warning("No pre-built binary available for this platform")
-            if platform.system() == "Windows" and not os.environ.get("IPFS_KIT_LOTUS_BUILD_SOURCE"):
-                logger.warning("Skipping Lotus source build on Windows. Set IPFS_KIT_LOTUS_BUILD_SOURCE=1 to enable.")
+            if not self._allow_source_build():
+                logger.error(
+                    "Lotus source builds are disabled by default. Re-run with --build-from-source "
+                    "or set IPFS_KIT_LOTUS_BUILD_SOURCE=1 to enable."
+                )
                 self.skipped_no_binary = True
-                return True
-            logger.info("Attempting to build Lotus from source...")
+                return False
+            logger.info("Attempting to build Lotus from source (explicitly enabled)...")
             if self.build_lotus_from_source(version):
                 logger.info("Successfully built and installed Lotus from source")
                 return True
-            else:
-                logger.error("Failed to build Lotus from source")
-                return False
+            logger.error("Failed to build Lotus from source")
+            return False
             
         # Create temp directory for download
         with tempfile.TemporaryDirectory() as temp_dir:
             # Download archive
             archive_path = os.path.join(temp_dir, filename)
             if not self.download_file(download_url, archive_path):
-                logger.warning("Failed to download binary, trying build from source...")
-                if platform.system() == "Windows" and not os.environ.get("IPFS_KIT_LOTUS_BUILD_SOURCE"):
-                    logger.warning("Skipping Lotus source build on Windows. Set IPFS_KIT_LOTUS_BUILD_SOURCE=1 to enable.")
-                    self.skipped_no_binary = True
-                    return True
+                logger.error("Failed to download prebuilt Lotus binary")
+                if not self._allow_source_build():
+                    logger.error(
+                        "To fall back to a source build, re-run with --build-from-source "
+                        "or set IPFS_KIT_LOTUS_BUILD_SOURCE=1."
+                    )
+                    return False
+                logger.info("Attempting to build Lotus from source (explicitly enabled)...")
                 if self.build_lotus_from_source(version):
                     logger.info("Successfully built and installed Lotus from source")
                     return True
-                else:
-                    logger.error("Failed to build Lotus from source")
-                    return False
+                logger.error("Failed to build Lotus from source")
+                return False
                 
             # Verify download
             if not self.verify_download(archive_path):
                 logger.error("Download verification failed")
-                logger.info("Attempting to build Lotus from source as fallback...")
-                if platform.system() == "Windows" and not os.environ.get("IPFS_KIT_LOTUS_BUILD_SOURCE"):
-                    logger.warning("Skipping Lotus source build on Windows. Set IPFS_KIT_LOTUS_BUILD_SOURCE=1 to enable.")
-                    self.skipped_no_binary = True
-                    return True
+                if not self._allow_source_build():
+                    logger.error(
+                        "To fall back to a source build, re-run with --build-from-source "
+                        "or set IPFS_KIT_LOTUS_BUILD_SOURCE=1."
+                    )
+                    return False
+                logger.info("Attempting to build Lotus from source (explicitly enabled)...")
                 if self.build_lotus_from_source(version):
                     logger.info("Successfully built and installed Lotus from source")
                     return True
-                else:
-                    logger.error("Failed to build Lotus from source")
-                    return False
+                logger.error("Failed to build Lotus from source")
+                return False
                 
             # Extract archive
             extract_dir = os.path.join(temp_dir, "extracted")
             os.makedirs(extract_dir, exist_ok=True)
             if not self.extract_archive(archive_path, extract_dir):
                 logger.error("Failed to extract archive")
-                logger.info("Attempting to build Lotus from source as fallback...")
-                if platform.system() == "Windows" and not os.environ.get("IPFS_KIT_LOTUS_BUILD_SOURCE"):
-                    logger.warning("Skipping Lotus source build on Windows. Set IPFS_KIT_LOTUS_BUILD_SOURCE=1 to enable.")
-                    self.skipped_no_binary = True
-                    return True
+                if not self._allow_source_build():
+                    logger.error(
+                        "To fall back to a source build, re-run with --build-from-source "
+                        "or set IPFS_KIT_LOTUS_BUILD_SOURCE=1."
+                    )
+                    return False
+                logger.info("Attempting to build Lotus from source (explicitly enabled)...")
                 if self.build_lotus_from_source(version):
                     logger.info("Successfully built and installed Lotus from source")
                     return True
-                else:
-                    logger.error("Failed to build Lotus from source")
-                    return False
+                logger.error("Failed to build Lotus from source")
+                return False
                 
             # Install binaries
             installed_binaries = self.install_binaries(extract_dir, self.bin_path)
             if not installed_binaries:
                 logger.error("Failed to install Lotus binaries")
-                logger.info("Attempting to build Lotus from source as fallback...")
+                if not self._allow_source_build():
+                    logger.error(
+                        "To fall back to a source build, re-run with --build-from-source "
+                        "or set IPFS_KIT_LOTUS_BUILD_SOURCE=1."
+                    )
+                    return False
+                logger.info("Attempting to build Lotus from source (explicitly enabled)...")
                 if self.build_lotus_from_source(version):
                     logger.info("Successfully built and installed Lotus from source")
                     return True
-                else:
-                    logger.error("Failed to build Lotus from source")
-                    return False
+                logger.error("Failed to build Lotus from source")
+                return False
 
             # Execute the binary to confirm runtime compatibility before proceeding.
             binary_ok, binary_output = self._verify_lotus_binary_execution()
@@ -2873,16 +2956,53 @@ if __name__ == "__main__":
                 for line in binary_output.splitlines():
                     logger.error(line)
 
+                lower_output = (binary_output or "").lower()
+                missing_shared_lib = (
+                    "error while loading shared libraries" in lower_output
+                    or "cannot open shared object file" in lower_output
+                    or "libhwloc" in lower_output
+                    or "libopencl" in lower_output
+                )
+
+                # If the binary is present but missing runtime libs, try installing deps (opt-in).
+                if missing_shared_lib and getattr(self, "auto_install_deps", False):
+                    logger.info("Attempting to install missing system dependencies and retrying...")
+                    self._install_system_dependencies()
+                    retry_ok, retry_output = self._verify_lotus_binary_execution()
+                    if retry_ok:
+                        binary_ok = True
+                    else:
+                        logger.error("Lotus binary still failed after installing dependencies:")
+                        for line in (retry_output or "").splitlines():
+                            logger.error(line)
+
+                if missing_shared_lib and not binary_ok:
+                    hint = self._dependency_install_hint(platform.system().lower())
+                    if hint:
+                        logger.error(hint)
+                    logger.error(
+                        "Lotus binaries were installed but are not runnable until the missing system libraries are installed."
+                    )
+                    # Keep installed binaries so the user can install deps and re-run.
+                    self.dependencies_available = False
+                    return False
+
+                if not self._allow_source_build():
+                    logger.error(
+                        "Lotus binaries were installed but are not runnable on this system. "
+                        "To try a source build, re-run with --build-from-source or set IPFS_KIT_LOTUS_BUILD_SOURCE=1."
+                    )
+                    return False
+
                 # Remove incompatible binaries so the source build can proceed cleanly.
                 self._remove_installed_binaries(installed_binaries)
 
-                logger.info("Attempting to build Lotus from source as fallback...")
+                logger.info("Attempting to build Lotus from source (explicitly enabled)...")
                 if self.build_lotus_from_source(version):
                     logger.info("Successfully built and installed Lotus from source")
                     return True
-                else:
-                    logger.error("Failed to build Lotus from source")
-                    return False
+                logger.error("Failed to build Lotus from source")
+                return False
         
         # Verify installation
         installation = self.check_existing_installation()
@@ -3766,6 +3886,43 @@ def main():
     parser.add_argument("--version", help=f"Lotus version to install (default: latest)")
     parser.add_argument("--force", action="store_true", help="Force reinstallation")
     parser.add_argument("--bin-dir", default="bin", help="Binary directory (default: bin)")
+    deps_group = parser.add_mutually_exclusive_group()
+    deps_group.add_argument(
+        "--auto-install-deps",
+        dest="auto_install_deps",
+        action="store_true",
+        help=(
+            "Attempt to install required system dependencies (hwloc/OpenCL) using sudo + your package manager. "
+            "On Linux this is the default when run interactively. Equivalent to setting IPFS_KIT_AUTO_INSTALL_LOTUS_DEPS=1."
+        ),
+    )
+    deps_group.add_argument(
+        "--no-auto-install-deps",
+        dest="auto_install_deps",
+        action="store_false",
+        help=(
+            "Disable automatic system dependency installation (useful for CI/containers). "
+            "Equivalent to setting IPFS_KIT_AUTO_INSTALL_LOTUS_DEPS=0."
+        ),
+    )
+    parser.set_defaults(auto_install_deps=None)
+    parser.add_argument(
+        "--allow-userspace-deps",
+        action="store_true",
+        help=(
+            "Enable a best-effort user-space dependency install (downloads + extracts libs into the bin dir). "
+            "On Linux this is used automatically when sudo/root isn't available. "
+            "Equivalent to setting IPFS_KIT_ALLOW_USERSPACE_DEPS=1."
+        ),
+    )
+    parser.add_argument(
+        "--build-from-source",
+        action="store_true",
+        help=(
+            "Opt-in to building Lotus from source if prebuilt binaries are unavailable or incompatible. "
+            "Equivalent to setting IPFS_KIT_LOTUS_BUILD_SOURCE=1."
+        ),
+    )
     parser.add_argument(
         "--download-params",
         dest="skip_params",
@@ -3793,6 +3950,9 @@ def main():
         "force": args.force,
         "bin_dir": bin_dir,
         "skip_params": args.skip_params,
+        "auto_install_deps": args.auto_install_deps,
+        "allow_userspace_deps": bool(args.allow_userspace_deps),
+        "build_from_source": bool(args.build_from_source),
     }
     if args.params_sector_size:
         metadata["params_sector_size"] = args.params_sector_size

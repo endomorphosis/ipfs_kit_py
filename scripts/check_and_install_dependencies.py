@@ -670,6 +670,10 @@ class DependencyChecker:
         self._log("\n--- System Packages ---")
         sys_packages = self.check_system_packages()
         missing_sys_packages = [pkg for pkg, installed in sys_packages.items() if not installed]
+
+        if missing_sys_packages:
+            all_ok = False
+            self.results["errors"].append(f"Missing system packages: {', '.join(missing_sys_packages)}")
         
         if missing_sys_packages and not self.dry_run:
             self._log(f"\nInstalling {len(missing_sys_packages)} missing system packages...")
@@ -698,7 +702,7 @@ class DependencyChecker:
         self._log("Summary")
         self._log("=" * 60)
         
-        if all_ok and not missing_py_packages:
+        if all_ok and not missing_py_packages and not missing_sys_packages:
             self._log("✓ All dependencies satisfied!", "INFO")
         elif self.dry_run:
             self._log("Dry run completed - no changes made", "INFO")
