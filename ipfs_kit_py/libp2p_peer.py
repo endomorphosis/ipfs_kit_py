@@ -65,6 +65,19 @@ from typing import Any, Callable, Dict, List, Optional, Set, Union, Type
 # Configure logger
 logger = logging.getLogger(__name__)
 
+try:
+    from .deps_resolver import resolve_module as _resolve_module
+except Exception:  # pragma: no cover
+    _resolve_module = None  # type: ignore
+
+
+_default_deps: object | None = None
+
+
+def set_default_deps(deps: object | None) -> None:
+    global _default_deps
+    _default_deps = deps
+
 # IMPORTANT: do not import `ipfs_kit_py.libp2p` at module import time.
 # `ipfs_kit_py.libp2p` imports components that import this module, and importing it
 # here can create circular-import failures (especially during high_level_api startup).
@@ -78,7 +91,21 @@ except Exception:
 
 def check_dependencies() -> bool:
     """Return True if upstream `libp2p` package appears importable."""
-    return bool(HAS_LIBP2P)
+    global HAS_LIBP2P
+    if HAS_LIBP2P:
+        return True
+
+    # Best-effort: allow injection/caching of the libp2p module via deps.
+    if callable(_resolve_module):
+        try:
+            mod = _resolve_module("libp2p", deps=_default_deps, cache_key="pip::libp2p")
+            if mod is not None:
+                HAS_LIBP2P = True
+                return True
+        except Exception:
+            pass
+
+    return False
 
 
 def install_dependencies() -> bool:

@@ -12,10 +12,54 @@ import os
 import types
 from pathlib import Path
 
-repo_root = Path(__file__).resolve().parent
+
+def _truthy(value: str | None) -> bool:
+    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _bootstrap_symai_engines() -> None:
+    if not _truthy(os.environ.get("IPFS_DATASETS_PY_SYMAI_SITEBOOT")):
+        return
+
+    # Keep this best-effort and lazy to avoid affecting normal imports.
+    try:
+        import symai  # noqa: F401
+        from symai.functional import EngineRepository
+    except Exception:
+        return
+
+    use_codex = _truthy(os.environ.get("IPFS_DATASETS_PY_USE_CODEX_FOR_SYMAI"))
+    model_value = os.environ.get("NEUROSYMBOLIC_ENGINE_MODEL", "")
+    if str(model_value).startswith("codex:"):
+        use_codex = True
+
+    if use_codex:
+        try:
+            from ipfs_datasets_py.utils.symai_codex_engine import CodexExecNeurosymbolicEngine
+
+            EngineRepository.register(
+                "neurosymbolic",
+                CodexExecNeurosymbolicEngine(),
+                allow_engine_override=True,
+            )
+        except Exception:
+            # Never fail interpreter startup due to registration issues.
+            return
+
+    if _truthy(os.environ.get("IPFS_DATASETS_PY_USE_SYMAI_ENGINE_ROUTER")):
+        try:
+            from ipfs_datasets_py.utils.symai_ipfs_engine import register_ipfs_symai_engines
+
+            register_ipfs_symai_engines()
+        except Exception:
+            return
+
+repo_root = Path(__file__).resolve().parent.parent
 repo_root_str = str(repo_root)
 if repo_root_str not in sys.path:
     sys.path.insert(0, repo_root_str)
+
+_bootstrap_symai_engines()
 
 # If a third-party `mcp` was already imported, drop it so local imports resolve.
 mod = sys.modules.get("mcp")

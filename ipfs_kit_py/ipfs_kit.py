@@ -372,6 +372,10 @@ class ipfs_kit:
         enable_cluster_management=False,
         enable_metadata_index=False,
         auto_start_daemons=True,
+        *,
+        deps: object | None = None,
+        ipfs_accelerate=None,
+        ipfs_datasets=None,
     ):
         """
         Initializes the IPFS Kit instance.
@@ -407,6 +411,24 @@ class ipfs_kit:
         # "skip initialization". Many call sites construct ipfs_kit() without
         # passing metadata.
         metadata = self.metadata
+
+        # Dependency injection container and optional injected cross-package modules.
+        self.deps = deps or (resources.get("deps") if isinstance(resources, dict) else None) or self.metadata.get("deps")
+        self.ipfs_accelerate_py = ipfs_accelerate or (
+            resources.get("ipfs_accelerate_py") if isinstance(resources, dict) else None
+        )
+        self.ipfs_datasets_py = ipfs_datasets or (resources.get("ipfs_datasets_py") if isinstance(resources, dict) else None)
+
+        # Best-effort: cache injected modules on deps for other packages to reuse.
+        setter = getattr(self.deps, "set_cached", None)
+        if callable(setter):
+            try:
+                if self.ipfs_accelerate_py is not None:
+                    setter("ipfs_kit_py::ipfs_accelerate_py", self.ipfs_accelerate_py)
+                if self.ipfs_datasets_py is not None:
+                    setter("ipfs_kit_py::ipfs_datasets_py", self.ipfs_datasets_py)
+            except Exception:
+                pass
 
         # Initialize _initialized attribute
         self._initialized = False
@@ -529,9 +551,8 @@ class ipfs_kit:
                     self.huggingface_kit = huggingface_kit(resources=resources, metadata=metadata)
                 else:
                     self.huggingface_kit = None # Initialize to None
-                    
+
                 # Initialize ipget component
-                self.ipget = ipget(resources=resources, metadata={"role": self.role})
                 
                 # Initialize Lotus Kit if available and not disabled
                 if HAS_LOTUS and "lotus" not in disabled_components:

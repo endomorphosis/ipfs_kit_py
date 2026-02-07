@@ -979,8 +979,28 @@ P2PWorkflowTools = None
 
 # Submodule lazy imports
 # These are optional dependencies available as submodules in the root directory
-def get_ipfs_datasets():
-    """Lazy import of ipfs_datasets_py submodule."""
+def get_ipfs_datasets(*, deps: object | None = None, module_override=None):
+    """Lazy import of ipfs_datasets_py submodule.
+
+    Supports dependency injection via ``module_override`` or a deps container
+    that implements ``get_cached``/``set_cached`` (e.g., ipfs_datasets_py.RouterDeps).
+    """
+    if module_override is not None:
+        setter = getattr(deps, "set_cached", None)
+        if callable(setter):
+            try:
+                setter("ipfs_kit_py::ipfs_datasets_py", module_override)
+            except Exception:
+                pass
+        return module_override
+    getter = getattr(deps, "get_cached", None)
+    if callable(getter):
+        try:
+            cached = getter("ipfs_kit_py::ipfs_datasets_py")
+            if cached is not None:
+                return cached
+        except Exception:
+            pass
     try:
         import sys
         from pathlib import Path
@@ -991,14 +1011,40 @@ def get_ipfs_datasets():
             sys.path.insert(0, str(datasets_path))
         
         import ipfs_datasets_py
+        setter = getattr(deps, "set_cached", None)
+        if callable(setter):
+            try:
+                setter("ipfs_kit_py::ipfs_datasets_py", ipfs_datasets_py)
+            except Exception:
+                pass
         return ipfs_datasets_py
     except ImportError as e:
         logger.debug(f"ipfs_datasets_py submodule not available: {e}")
         return None
 
 
-def get_ipfs_accelerate():
-    """Lazy import of ipfs_accelerate_py submodule."""
+def get_ipfs_accelerate(*, deps: object | None = None, module_override=None):
+    """Lazy import of ipfs_accelerate_py submodule.
+
+    Supports dependency injection via ``module_override`` or a deps container
+    that implements ``get_cached``/``set_cached`` (e.g., ipfs_datasets_py.RouterDeps).
+    """
+    if module_override is not None:
+        setter = getattr(deps, "set_cached", None)
+        if callable(setter):
+            try:
+                setter("ipfs_kit_py::ipfs_accelerate_py", module_override)
+            except Exception:
+                pass
+        return module_override
+    getter = getattr(deps, "get_cached", None)
+    if callable(getter):
+        try:
+            cached = getter("ipfs_kit_py::ipfs_accelerate_py")
+            if cached is not None:
+                return cached
+        except Exception:
+            pass
     try:
         import sys
         from pathlib import Path
@@ -1009,6 +1055,12 @@ def get_ipfs_accelerate():
             sys.path.insert(0, str(accelerate_path))
         
         import ipfs_accelerate_py
+        setter = getattr(deps, "set_cached", None)
+        if callable(setter):
+            try:
+                setter("ipfs_kit_py::ipfs_accelerate_py", ipfs_accelerate_py)
+            except Exception:
+                pass
         return ipfs_accelerate_py
     except ImportError as e:
         logger.debug(f"ipfs_accelerate_py submodule not available: {e}")

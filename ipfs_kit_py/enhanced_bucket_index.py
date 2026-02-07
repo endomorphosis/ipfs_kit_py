@@ -37,20 +37,28 @@ except ImportError:
     get_ipfs_datasets_manager = None
     logger.info("ipfs_datasets_py not available - dataset storage disabled")
 
-# Import ipfs_accelerate_py for compute acceleration
-try:
-    import sys
-    accelerate_path = Path(__file__).parent.parent / "ipfs_accelerate_py"
-    if accelerate_path.exists():
-        sys.path.insert(0, str(accelerate_path))
-    
-    from ipfs_accelerate_py import AccelerateCompute
-    HAS_ACCELERATE = True
-    logger.info("ipfs_accelerate_py compute layer available")
-except ImportError:
-    HAS_ACCELERATE = False
-    AccelerateCompute = None
-    logger.info("ipfs_accelerate_py not available - using default compute")
+HAS_ACCELERATE = False
+AccelerateCompute = None
+
+
+def _load_accelerate_compute_class(*, deps: object | None = None):
+    global HAS_ACCELERATE, AccelerateCompute
+    if AccelerateCompute is not None:
+        return AccelerateCompute
+    try:
+        from ipfs_kit_py import get_ipfs_accelerate
+
+        mod = get_ipfs_accelerate(deps=deps)
+        if mod is None:
+            return None
+        cls = getattr(mod, "AccelerateCompute", None)
+        if cls is None:
+            return None
+        AccelerateCompute = cls
+        HAS_ACCELERATE = True
+        return AccelerateCompute
+    except Exception:
+        return None
 
 @dataclass
 class BucketMetadata:
@@ -93,7 +101,10 @@ class EnhancedBucketIndex:
         bucket_vfs_manager=None,
         enable_dataset_storage: bool = False,
         enable_compute_layer: bool = False,
-        dataset_batch_size: int = 100
+        dataset_batch_size: int = 100,
+        *,
+        deps: object | None = None,
+        accelerate_compute=None,
     ):
         """
         Initialize the enhanced bucket index.
@@ -123,7 +134,7 @@ class EnhancedBucketIndex:
         self._index_buffer = []
         
         # Compute layer configuration
-        self.enable_compute_layer = enable_compute_layer and HAS_ACCELERATE
+        self.enable_compute_layer = bool(enable_compute_layer)
         self.compute_layer = None
         
         # Initialize dataset manager if enabled
@@ -138,7 +149,13 @@ class EnhancedBucketIndex:
         # Initialize compute layer if enabled
         if self.enable_compute_layer:
             try:
-                self.compute_layer = AccelerateCompute()
+                if accelerate_compute is not None:
+                    self.compute_layer = accelerate_compute
+                else:
+                    cls = _load_accelerate_compute_class(deps=deps)
+                    if cls is None:
+                        raise ImportError("ipfs_accelerate_py not available")
+                    self.compute_layer = cls()
                 logger.info("Enhanced Bucket Index compute layer enabled")
             except Exception as e:
                 logger.warning(f"Failed to initialize compute layer: {e}")
