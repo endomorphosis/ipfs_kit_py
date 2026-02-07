@@ -1406,9 +1406,14 @@ def create_replication_manager(
     )
 
 
+# Backwards-compatible alias expected by higher-level APIs.
+FSJournalReplication = MetadataReplicationManager
+
+
 # Export symbols
 __all__ = [
     'MetadataReplicationManager',
+    'FSJournalReplication',
     'ReplicationLevel',
     'ReplicationStatus',
     'create_replication_manager'

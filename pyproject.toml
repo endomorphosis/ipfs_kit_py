@@ -49,7 +49,6 @@ dependencies = [
     "protobuf>=5.26.0,<7.0.0",  # libp2p main generated *_pb2 compatibility
     "eth-hash[pycryptodome]>=0.3.3",  # ETH integration with crypto backend
     "eth-keys>=0.4.0",  # ETH integration for key management
-    "libp2p @ git+https://github.com/libp2p/py-libp2p.git@main; python_version < '3.14' and platform_system != 'Windows'",
     "toml",
 ]
 
