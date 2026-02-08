@@ -518,7 +518,7 @@ The IPLD Knowledge Graph is designed to handle large-scale knowledge bases effic
 2. **Vector Index Types**:
    - For small graphs (<10K entities): Use in-memory flat index (default)
    - For medium graphs (10K-100K): Use HNSW index with `M=16, ef_construction=200`
-   - For large graphs (>100K): Use the specialized `ipfs_embeddings_py` package with quantization
+    - For large graphs (>100K): Use a dedicated vector store backend with quantization
    ```python
    # Configure HNSW index for medium-sized graphs
    kg_db.configure_vector_index(

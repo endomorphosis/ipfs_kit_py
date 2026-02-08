@@ -2923,8 +2923,8 @@ providing graph traversal capabilities, versioning, and efficient indexing for g
 It enables sophisticated knowledge representation with content-addressed links between entities,
 and supports hybrid vector-graph search for advanced use cases like GraphRAG.
 
-Note: Advanced vector storage and specialized embedding operations are handled by the separate
-package 'ipfs_embeddings_py', which provides comprehensive vector database functionality.
+Note: Advanced vector storage and specialized embedding operations are handled by
+`ipfs_datasets_py.vector_stores` and `ipfs_datasets_py.embeddings`.
 This module provides basic vector operations for knowledge graph integration.
 
 Key features:

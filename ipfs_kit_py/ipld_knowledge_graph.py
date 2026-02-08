@@ -6,9 +6,10 @@ providing graph traversal capabilities, versioning, and efficient indexing for g
 It enables sophisticated knowledge representation with content-addressed links between entities,
 and supports hybrid vector-graph search for advanced use cases like GraphRAG.
 
-Note: Advanced vector storage and specialized embedding operations are handled by the separate
-package 'ipfs_embeddings_py', which provides comprehensive vector database functionality.
-This module provides basic vector operations for knowledge graph integration.
+Note: Advanced vector storage and embedding operations are provided by
+`ipfs_datasets_py.vector_stores` and `ipfs_datasets_py.embeddings`.
+Use `ipfs_datasets_py.embeddings_router` to route embeddings locally or through
+`ipfs_accelerate_py`.
 
 Key features:
 - Entity and relationship management with IPLD schemas
@@ -32,9 +33,8 @@ import networkx as nx
 import numpy as np
 
 # Note on vector storage and embeddings:
-# Advanced vector database functionality is provided by the separate package 'ipfs_embeddings_py'
-# For production use, consider using that package for sophisticated vector operations
-# This module provides basic vector operations for knowledge graph integration
+# Prefer `ipfs_datasets_py.vector_stores` + `ipfs_datasets_py.embeddings_router` for
+# production usage. This module provides basic vector operations for integration.
 try:
     import faiss
 
@@ -42,9 +42,9 @@ try:
 except ImportError:
     FAISS_AVAILABLE = False
 
-# Check if ipfs_embeddings_py is available
+# Check if the shared embeddings stack is available
 try:
-    import ipfs_embeddings_py
+    from ipfs_datasets_py import embeddings_router as _embeddings_router  # noqa: F401
 
     EMBEDDINGS_AVAILABLE = True
 except ImportError:
@@ -1097,8 +1097,8 @@ class IPLDGraphDB:
         """Find entities similar to the given vector.
 
         Note: This is a basic implementation for simple vector search. For production use with
-        large vector collections, use the specialized ipfs_embeddings_py package which provides
-        optimized vector operations with advanced indexing and search capabilities.
+        large vector collections, consider `ipfs_datasets_py.vector_stores` (and FAISS/Qdrant)
+        for optimized indexing and search.
 
         Args:
             query_vector: Vector to search for (numpy array or list)
@@ -1107,10 +1107,10 @@ class IPLDGraphDB:
         Returns:
             List of dicts with entity info and similarity scores
         """
-        # Check if we should delegate to ipfs_embeddings_py if available
+        # Check if we should recommend the shared embeddings/vector stores for scale
         if EMBEDDINGS_AVAILABLE and self.vectors["count"] > 10000:
             logger.info(
-                "Large vector collection detected. Consider using ipfs_embeddings_py for improved performance."
+                "Large vector collection detected. Consider using ipfs_datasets_py.vector_stores for improved performance."
             )
 
         if not self.vectors["vectors"]:
@@ -2069,9 +2069,8 @@ class GraphRAG:
     graph-based context expansion.
 
     Note: For production-grade vector embedding generation and specialized embedding operations,
-    consider using the dedicated ipfs_embeddings_py package, which provides comprehensive
-    vector database functionality. This implementation provides basic vector operations
-    for knowledge graph integration.
+    consider using `ipfs_datasets_py.embeddings_router` + `ipfs_datasets_py.vector_stores`.
+    This implementation provides basic vector operations for knowledge graph integration.
     """
 
     def __init__(self, graph_db, embedding_model=None):
@@ -2089,8 +2088,8 @@ class GraphRAG:
         """Generate embedding for text using the embedding model.
 
         Note: This is a basic implementation that relies on the provided embedding model.
-        For production use, consider using ipfs_embeddings_py which provides optimized,
-        scalable embedding generation with multiple model options and caching.
+        For production use, consider using `ipfs_datasets_py.embeddings_router`, which supports
+        local embeddings or acceleration via `ipfs_accelerate_py`.
 
         Args:
             text: Text to generate embedding for
@@ -2100,12 +2099,12 @@ class GraphRAG:
         """
         if EMBEDDINGS_AVAILABLE:
             logger.info(
-                "Consider using ipfs_embeddings_py.EmbeddingGenerator for production embedding generation"
+                "Consider using ipfs_datasets_py.embeddings_router.embed_texts for production embedding generation"
             )
 
         if self.embedding_model is None:
             raise ValueError(
-                "No embedding model available. Either provide an embedding model or use ipfs_embeddings_py"
+                "No embedding model available. Either provide an embedding model or use ipfs_datasets_py.embeddings_router"
             )
 
         return self.embedding_model.encode(text)

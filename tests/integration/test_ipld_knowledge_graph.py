@@ -4,11 +4,9 @@ Test suite for the IPLD Knowledge Graph functionality.
 This module tests the IPLD Knowledge Graph implementation which provides
 graph-based knowledge representation with content-addressing and vector search.
 
-Note: Advanced vector database operations and specialized embedding functionalities
-are implemented in the separate package 'ipfs_embeddings_py' and are out of scope
-for this implementation. This implementation provides basic vector operations
-for knowledge graph integration but relies on the specialized package for
-production-grade vector operations.
+Note: Advanced vector database operations and specialized embedding functionality
+are provided by `ipfs_datasets_py.vector_stores` and `ipfs_datasets_py.embeddings_router`.
+This test suite covers the basic vector operations used for knowledge graph integration.
 """
 
 import json
@@ -241,7 +239,7 @@ class TestIPLDKnowledgeGraph(unittest.TestCase):
         embedding_model = MagicMock()
         embedding_model.encode.return_value = [0.1, 0.2, 0.3, 0.4]
 
-        # Mock ipfs_embeddings_py import status to test logging
+        # Mock embeddings stack availability to test logging
         with patch("ipfs_kit_py.ipld_knowledge_graph.EMBEDDINGS_AVAILABLE", False):
             rag = GraphRAG(graph_db=self.graph_db, embedding_model=embedding_model)
 
@@ -264,7 +262,7 @@ class TestIPLDKnowledgeGraph(unittest.TestCase):
             self.assertIn("Tell me about knowledge graphs", prompt)
             self.assertIn("Context", prompt)
 
-        # Test with mocked ipfs_embeddings_py available (should log recommendation)
+        # Test with mocked embeddings stack available (should log recommendation)
         with patch("ipfs_kit_py.ipld_knowledge_graph.EMBEDDINGS_AVAILABLE", True), patch(
             "ipfs_kit_py.ipld_knowledge_graph.logger"
         ) as mock_logger:
@@ -272,7 +270,7 @@ class TestIPLDKnowledgeGraph(unittest.TestCase):
             embedding = rag.generate_embedding("test text")
             self.assertIsNotNone(embedding)
             mock_logger.info.assert_called_with(
-                "Consider using ipfs_embeddings_py.EmbeddingGenerator for production embedding generation"
+                "Consider using ipfs_datasets_py.embeddings_router.embed_texts for production embedding generation"
             )
 
 
