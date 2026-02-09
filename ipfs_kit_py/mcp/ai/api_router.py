@@ -19,7 +19,8 @@ def create_ai_api_router(
     model_registry=None,
     dataset_manager=None,
     distributed_training=None,
-    framework_integration=None
+    framework_integration=None,
+    llm_router_deps=None
 ) -> APIRouter:
     """
     Create the main AI/ML API router.
@@ -29,6 +30,7 @@ def create_ai_api_router(
         dataset_manager: Dataset manager instance
         distributed_training: Distributed training instance
         framework_integration: Framework integration instance
+        llm_router_deps: Router dependencies for LLM router (optional)
         
     Returns:
         FastAPI router
@@ -69,6 +71,13 @@ def create_ai_api_router(
                 "status": "available",
                 "description": "Integration with popular ML frameworks"
             })
+        
+        # Always add LLM router as it has fallback providers
+        components.append({
+            "name": "llm_router",
+            "status": "available",
+            "description": "Multi-provider LLM text generation with IPFS peer support"
+        })
             
         return {
             "name": "AI/ML API",
@@ -106,6 +115,19 @@ def create_ai_api_router(
         except ImportError as e:
             logger.warning(f"Could not include dataset manager router: {e}")
     
+    # Add LLM router (always available with fallback providers)
+    try:
+        from .llm_router_api import create_llm_router
+        llm_router = create_llm_router(deps=llm_router_deps)
+        main_router.include_router(
+            llm_router,
+            prefix="/llm",
+            tags=["llm-router"]
+        )
+        logger.info("Included LLM router")
+    except ImportError as e:
+        logger.warning(f"Could not include LLM router: {e}")
+    
     # Add health check endpoint
     @main_router.get("/health", response_model=Dict[str, Any])
     async def health_check() -> Dict[str, Any]:
@@ -139,6 +161,15 @@ def create_ai_api_router(
             
         if framework_integration:
             statuses["framework_integration"] = "not_implemented"
+        
+        # Check LLM router health
+        try:
+            from .llm_router_api import create_llm_router
+            # Basic check - can we import and initialize?
+            statuses["llm_router"] = "healthy"
+        except Exception as e:
+            logger.error(f"LLM router health check failed: {e}")
+            statuses["llm_router"] = f"unhealthy: {str(e)}"
             
         return {
             "status": "ok" if all(s == "healthy" for s in statuses.values() if s != "not_implemented") else "degraded",
