@@ -79,15 +79,20 @@ def _truthy(value: Optional[str]) -> bool:
     return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _get_env(key: str, default: str = "") -> str:
+    """Get environment variable with IPFS_KIT_* taking precedence over IPFS_DATASETS_PY_*."""
+    return os.getenv(f"IPFS_KIT_{key}") or os.getenv(f"IPFS_DATASETS_PY_{key}") or default
+
+
 def _cache_enabled() -> bool:
-    return os.environ.get("IPFS_DATASETS_PY_ROUTER_CACHE", "1").strip() != "0"
+    return _get_env("ROUTER_CACHE", "1").strip() != "0"
 
 
 def _response_cache_enabled() -> bool:
     # Default to enabled in benchmark contexts (determinism + speed), off otherwise.
-    value = os.environ.get("IPFS_DATASETS_PY_ROUTER_RESPONSE_CACHE")
-    if value is None:
-        return _truthy(os.environ.get("IPFS_DATASETS_PY_BENCHMARK"))
+    value = _get_env("ROUTER_RESPONSE_CACHE")
+    if not value:
+        return _truthy(_get_env("BENCHMARK"))
     return str(value).strip() != "0"
 
 
@@ -98,11 +103,11 @@ def _response_cache_key_strategy() -> str:
     - "cid": content-addressed CID (sha2-256, CIDv1) for the request payload
     """
 
-    return os.environ.get("IPFS_DATASETS_PY_ROUTER_CACHE_KEY", "sha256").strip().lower() or "sha256"
+    return _get_env("ROUTER_CACHE_KEY", "sha256").strip().lower() or "sha256"
 
 
 def _response_cache_cid_base() -> str:
-    return os.environ.get("IPFS_DATASETS_PY_ROUTER_CACHE_CID_BASE", "base32").strip() or "base32"
+    return _get_env("ROUTER_CACHE_CID_BASE", "base32").strip() or "base32"
 
 
 def _stable_kwargs_digest(kwargs: Dict[str, object]) -> str:
@@ -541,8 +546,16 @@ def _get_ipfs_peer_provider(deps: RouterDeps) -> Optional[LLMProvider]:
                 if peer_manager is None:
                     raise RuntimeError("IPFS peer manager not available")
                 
+                # Check if route_llm_request method exists
+                route_fn = getattr(peer_manager, "route_llm_request", None)
+                if not callable(route_fn):
+                    raise RuntimeError(
+                        "IPFS peer manager does not support LLM routing "
+                        "(missing 'route_llm_request' method)"
+                    )
+                
                 # Route request to available peers
-                result = peer_manager.route_llm_request(
+                result = route_fn(
                     prompt=prompt,
                     model=model_name,
                     **kwargs
@@ -563,17 +576,15 @@ def _get_ipfs_peer_provider(deps: RouterDeps) -> Optional[LLMProvider]:
 def _provider_cache_key() -> tuple:
     # Include only env vars that change provider resolution.
     return (
-        os.getenv("IPFS_DATASETS_PY_LLM_PROVIDER", "").strip(),
-        os.getenv("IPFS_DATASETS_PY_ENABLE_IPFS_ACCELERATE", "").strip(),
-        os.getenv("IPFS_DATASETS_PY_OPENROUTER_API_KEY", "").strip(),
-        os.getenv("OPENROUTER_API_KEY", "").strip(),
-        os.getenv("IPFS_DATASETS_PY_OPENROUTER_MODEL", "").strip(),
-        os.getenv("IPFS_DATASETS_PY_OPENROUTER_BASE_URL", "").strip(),
-        os.getenv("IPFS_DATASETS_PY_CODEX_CLI_MODEL", "").strip(),
-        os.getenv("IPFS_DATASETS_PY_CODEX_MODEL", "").strip(),
-        os.getenv("IPFS_DATASETS_PY_COPILOT_CLI_CMD", "").strip(),
-        os.getenv("IPFS_DATASETS_PY_GEMINI_CLI_CMD", "").strip(),
-        os.getenv("IPFS_DATASETS_PY_CLAUDE_CODE_CLI_CMD", "").strip(),
+        _get_env("LLM_PROVIDER", "").strip(),
+        _get_env("ENABLE_IPFS_ACCELERATE", "").strip(),
+        _coalesce_env("IPFS_KIT_OPENROUTER_API_KEY", "IPFS_DATASETS_PY_OPENROUTER_API_KEY", "OPENROUTER_API_KEY").strip(),
+        _get_env("OPENROUTER_MODEL", "").strip(),
+        _get_env("OPENROUTER_BASE_URL", "").strip(),
+        _coalesce_env("IPFS_KIT_CODEX_CLI_MODEL", "IPFS_DATASETS_PY_CODEX_CLI_MODEL", "IPFS_KIT_CODEX_MODEL", "IPFS_DATASETS_PY_CODEX_MODEL").strip(),
+        _get_env("COPILOT_CLI_CMD", "").strip(),
+        _get_env("GEMINI_CLI_CMD", "").strip(),
+        _get_env("CLAUDE_CODE_CLI_CMD", "").strip(),
     )
 
 
@@ -658,7 +669,7 @@ def _resolve_provider_uncached(preferred: Optional[str], *, deps: RouterDeps) ->
             return builtin
         raise ValueError(f"Unknown LLM provider: {preferred}")
 
-    forced = os.getenv("IPFS_DATASETS_PY_LLM_PROVIDER", "").strip()
+    forced = _get_env("LLM_PROVIDER", "").strip()
     if forced:
         info = _PROVIDER_REGISTRY.get(forced)
         if info is not None:

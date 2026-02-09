@@ -36,14 +36,14 @@ def _select_backend() -> str:
         return forced
     if _truthy(_get_env("USE_GEMINI_FOR_EMBEDDINGS")) and _gemini_available():
         return "gemini"
-    if _gemini_available():
-        return "gemini"
+    # Default to HF, not Gemini, unless explicitly enabled
     return "hf"
 
 
 def _gemini_embed(texts: List[str]) -> List[List[float]]:
     """Attempt embeddings via Gemini CLI; fall back upstream on failure."""
-    cmd = _get_env("GEMINI_EMBEDDINGS_CMD", "gemini embeddings --json").split()
+    import shlex
+    cmd = shlex.split(_get_env("GEMINI_EMBEDDINGS_CMD", "gemini embeddings --json"))
     results: List[List[float]] = []
 
     for text in texts:

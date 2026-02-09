@@ -111,10 +111,11 @@ class RouterDeps:
         with self._lock:
             if key in self.router_cache:
                 return self.router_cache[key]
-        value = factory()
-        with self._lock:
+            # Hold lock across factory call to prevent multiple threads
+            # from creating duplicate instances
+            value = factory()
             self.router_cache[key] = value
-        return value
+            return value
 
     def get_accelerate_manager(
         self,

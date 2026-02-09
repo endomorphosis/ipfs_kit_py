@@ -10,6 +10,8 @@ Part of the MCP Roadmap Phase 2: AI/ML Integration - LLM Support.
 """
 
 import logging
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional, Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -25,6 +27,9 @@ from ipfs_kit_py.router_deps import RouterDeps, get_default_router_deps
 
 # Configure logging
 logger = logging.getLogger("mcp_llm_router_api")
+
+# Thread pool for blocking I/O operations
+_thread_pool = ThreadPoolExecutor(max_workers=10)
 
 
 class TextGenerationRequest(BaseModel):
@@ -103,15 +108,19 @@ def create_llm_router(
         or use the specified provider if requested.
         """
         try:
-            # Generate text using the router
-            result = generate_text(
-                prompt=request.prompt,
-                model_name=request.model_name,
-                provider=request.provider,
-                deps=router_deps,
-                max_tokens=request.max_tokens,
-                temperature=request.temperature,
-                timeout=request.timeout,
+            # Run blocking I/O in thread pool
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                _thread_pool,
+                lambda: generate_text(
+                    prompt=request.prompt,
+                    model_name=request.model_name,
+                    provider=request.provider,
+                    deps=router_deps,
+                    max_tokens=request.max_tokens,
+                    temperature=request.temperature,
+                    timeout=request.timeout,
+                )
             )
             
             return TextGenerationResponse(

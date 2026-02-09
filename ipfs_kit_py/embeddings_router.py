@@ -47,27 +47,32 @@ def _get_env(key: str, default: str = "") -> str:
     return os.getenv(f"IPFS_KIT_{key}") or os.getenv(f"IPFS_DATASETS_PY_{key}") or default
 
 
+def _get_env(key: str, default: str = "") -> str:
+    """Get environment variable with IPFS_KIT_* taking precedence over IPFS_DATASETS_PY_*."""
+    return os.getenv(f"IPFS_KIT_{key}") or os.getenv(f"IPFS_DATASETS_PY_{key}") or default
+
+
 def _truthy(value: Optional[str]) -> bool:
     return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _cache_enabled() -> bool:
-    return os.environ.get("IPFS_DATASETS_PY_ROUTER_CACHE", "1").strip() != "0"
+    return _get_env("ROUTER_CACHE", "1").strip() != "0"
 
 
 def _response_cache_enabled() -> bool:
-    value = os.environ.get("IPFS_DATASETS_PY_ROUTER_RESPONSE_CACHE")
-    if value is None:
-        return _truthy(os.environ.get("IPFS_DATASETS_PY_BENCHMARK"))
+    value = _get_env("ROUTER_RESPONSE_CACHE")
+    if not value:
+        return _truthy(_get_env("BENCHMARK"))
     return str(value).strip() != "0"
 
 
 def _response_cache_key_strategy() -> str:
-    return os.environ.get("IPFS_DATASETS_PY_ROUTER_CACHE_KEY", "sha256").strip().lower() or "sha256"
+    return _get_env("ROUTER_CACHE_KEY", "sha256").strip().lower() or "sha256"
 
 
 def _response_cache_cid_base() -> str:
-    return os.environ.get("IPFS_DATASETS_PY_ROUTER_CACHE_CID_BASE", "base32").strip() or "base32"
+    return _get_env("ROUTER_CACHE_CID_BASE", "base32").strip() or "base32"
 
 
 def _stable_kwargs_digest(kwargs: Dict[str, object]) -> str:
@@ -400,9 +405,20 @@ def _get_ipfs_peer_provider(deps: RouterDeps) -> Optional[EmbeddingsProvider]:
                 if peer_manager is None:
                     raise RuntimeError("IPFS peer manager not available")
                 
+                # Materialize texts once
+                text_list = list(texts)
+                
+                # Check if route_embeddings_request method exists
+                route_fn = getattr(peer_manager, "route_embeddings_request", None)
+                if not callable(route_fn):
+                    raise RuntimeError(
+                        "IPFS peer manager does not support embeddings routing "
+                        "(missing 'route_embeddings_request' method)"
+                    )
+                
                 # Route request to available peers
-                result = peer_manager.route_embeddings_request(
-                    texts=list(texts),
+                result = route_fn(
+                    texts=text_list,
                     model=model_name,
                     device=device,
                     **kwargs
@@ -422,16 +438,15 @@ def _get_ipfs_peer_provider(deps: RouterDeps) -> Optional[EmbeddingsProvider]:
 
 def _provider_cache_key() -> tuple:
     return (
-        os.getenv("IPFS_DATASETS_PY_EMBEDDINGS_PROVIDER", "").strip(),
-        os.getenv("IPFS_DATASETS_PY_ENABLE_IPFS_ACCELERATE", "").strip(),
-        os.getenv("IPFS_DATASETS_PY_OPENROUTER_API_KEY", "").strip(),
-        os.getenv("OPENROUTER_API_KEY", "").strip(),
-        os.getenv("IPFS_DATASETS_PY_OPENROUTER_EMBEDDINGS_MODEL", "").strip(),
-        os.getenv("IPFS_DATASETS_PY_OPENROUTER_BASE_URL", "").strip(),
-        os.getenv("IPFS_DATASETS_PY_GEMINI_EMBEDDINGS_CMD", "").strip(),
-        os.getenv("IPFS_DATASETS_PY_EMBEDDINGS_BACKEND", "").strip(),
-        os.getenv("IPFS_DATASETS_PY_EMBEDDINGS_MODEL", "").strip(),
-        os.getenv("IPFS_DATASETS_PY_EMBEDDINGS_DEVICE", "").strip(),
+        _get_env("EMBEDDINGS_PROVIDER", "").strip(),
+        _get_env("ENABLE_IPFS_ACCELERATE", "").strip(),
+        _coalesce_env("IPFS_KIT_OPENROUTER_API_KEY", "IPFS_DATASETS_PY_OPENROUTER_API_KEY", "OPENROUTER_API_KEY").strip(),
+        _get_env("OPENROUTER_EMBEDDINGS_MODEL", "").strip(),
+        _get_env("OPENROUTER_BASE_URL", "").strip(),
+        _get_env("GEMINI_EMBEDDINGS_CMD", "").strip(),
+        _get_env("EMBEDDINGS_BACKEND", "").strip(),
+        _get_env("EMBEDDINGS_MODEL", "").strip(),
+        _get_env("EMBEDDINGS_DEVICE", "").strip(),
     )
 
 
@@ -475,7 +490,7 @@ def _resolve_provider_uncached(preferred: Optional[str], *, deps: RouterDeps) ->
         raise ValueError(f"Unknown embeddings provider: {preferred}")
 
     # 1) Registered providers can opt-in via env ordering if desired.
-    preferred_env = os.getenv("IPFS_DATASETS_PY_EMBEDDINGS_PROVIDER", "").strip()
+    preferred_env = _get_env("EMBEDDINGS_PROVIDER", "").strip()
     if preferred_env:
         info = _PROVIDER_REGISTRY.get(preferred_env)
         if info is not None:
@@ -484,15 +499,15 @@ def _resolve_provider_uncached(preferred: Optional[str], *, deps: RouterDeps) ->
         if builtin is not None:
             return builtin
 
-    # 2) Optional accelerate provider.
-    accelerate_provider = _get_accelerate_provider(deps)
-    if accelerate_provider is not None:
-        return accelerate_provider
-
-    # Try IPFS peer provider first if backend is available
+    # 2) Try IPFS peer provider first if backend is available
     ipfs_peer_provider = _get_ipfs_peer_provider(deps)
     if ipfs_peer_provider is not None:
         return ipfs_peer_provider
+
+    # 3) Optional accelerate provider.
+    accelerate_provider = _get_accelerate_provider(deps)
+    if accelerate_provider is not None:
+        return accelerate_provider
 
     # Try optional providers if available.
     for name in ["openrouter", "gemini_cli"]:
@@ -571,8 +586,16 @@ def embed_texts(
 
             backend = provider_instance or get_embeddings_provider(provider, deps=resolved_deps)
             generated = backend.embed_texts(missing_texts, model_name=model_name, device=device, **kwargs)
-            for out_idx, vec in enumerate(generated):
-                input_idx = missing_indices[out_idx]
+            
+            # Validate lengths
+            if len(generated) > len(missing_indices):
+                raise ValueError(
+                    f"Provider returned {len(generated)} embeddings for "
+                    f"{len(missing_indices)} missing texts"
+                )
+            
+            # Map generated embeddings back to their original input indices defensively
+            for input_idx, vec in zip(missing_indices, generated):
                 cached_vectors[input_idx] = vec
                 try:
                     cache_key = _response_cache_key(

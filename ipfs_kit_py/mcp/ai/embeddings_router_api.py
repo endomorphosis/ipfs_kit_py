@@ -10,6 +10,8 @@ Part of the MCP Roadmap Phase 2: AI/ML Integration - Embeddings Support.
 """
 
 import logging
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional, Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -26,6 +28,9 @@ from ipfs_kit_py.router_deps import RouterDeps, get_default_router_deps
 
 # Configure logging
 logger = logging.getLogger("mcp_embeddings_router_api")
+
+# Thread pool for blocking I/O operations
+_thread_pool = ThreadPoolExecutor(max_workers=10)
 
 
 class EmbeddingRequest(BaseModel):
@@ -126,14 +131,18 @@ def create_embeddings_router(
         or use the specified provider if requested.
         """
         try:
-            # Generate embeddings using the router
-            result = embed_texts(
-                texts=request.texts,
-                model_name=request.model_name,
-                device=request.device,
-                provider=request.provider,
-                deps=router_deps,
-                timeout=request.timeout,
+            # Run blocking I/O in thread pool
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                _thread_pool,
+                lambda: embed_texts(
+                    texts=request.texts,
+                    model_name=request.model_name,
+                    device=request.device,
+                    provider=request.provider,
+                    deps=router_deps,
+                    timeout=request.timeout,
+                )
             )
             
             return EmbeddingResponse(
@@ -154,14 +163,18 @@ def create_embeddings_router(
     async def generate_single_embedding(request: SingleEmbeddingRequest) -> SingleEmbeddingResponse:
         """Generate embedding for a single text."""
         try:
-            # Generate embedding using the router
-            result = embed_text(
-                text=request.text,
-                model_name=request.model_name,
-                device=request.device,
-                provider=request.provider,
-                deps=router_deps,
-                timeout=request.timeout,
+            # Run blocking I/O in thread pool
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                _thread_pool,
+                lambda: embed_text(
+                    text=request.text,
+                    model_name=request.model_name,
+                    device=request.device,
+                    provider=request.provider,
+                    deps=router_deps,
+                    timeout=request.timeout,
+                )
             )
             
             return SingleEmbeddingResponse(

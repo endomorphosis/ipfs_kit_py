@@ -154,9 +154,11 @@ class TestProviderFallback:
         # Register a failing provider
         register_llm_provider("failing_provider", lambda: FailingProvider())
         
-        # Without a fallback, should raise
-        with pytest.raises(RuntimeError):
-            get_llm_provider("failing_provider", use_cache=False)
+        # Calling generate_text with a failing provider should raise
+        # since we explicitly request it and there's no automatic fallback
+        # when a specific provider is requested
+        with pytest.raises(RuntimeError, match="Provider failed"):
+            generate_text("test prompt", provider="failing_provider")
 
 
 class TestEnvironmentVariables:
