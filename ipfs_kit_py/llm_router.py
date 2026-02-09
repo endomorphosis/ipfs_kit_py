@@ -524,6 +524,42 @@ def _get_accelerate_provider(deps: RouterDeps) -> Optional[LLMProvider]:
         return None
 
 
+def _get_ipfs_peer_provider(deps: RouterDeps) -> Optional[LLMProvider]:
+    """Get LLM provider that multiplexes requests across IPFS peers."""
+    
+    # Check if IPFS backend is available
+    if deps.ipfs_backend is None:
+        return None
+    
+    class _IPFSPeerProvider:
+        def generate(self, prompt: str, *, model_name: Optional[str] = None, **kwargs: object) -> str:
+            # Use the IPFS backend to route LLM requests to peers
+            # This integrates with the existing endpoint multiplexer
+            try:
+                # Try to get the peer manager
+                peer_manager = getattr(deps.ipfs_backend, 'peer_manager', None)
+                if peer_manager is None:
+                    raise RuntimeError("IPFS peer manager not available")
+                
+                # Route request to available peers
+                result = peer_manager.route_llm_request(
+                    prompt=prompt,
+                    model=model_name,
+                    **kwargs
+                )
+                
+                if isinstance(result, dict) and "text" in result:
+                    return result["text"]
+                elif isinstance(result, str):
+                    return result
+                
+                raise RuntimeError("IPFS peer provider returned invalid response")
+            except Exception as exc:
+                raise RuntimeError(f"IPFS peer provider failed: {exc}") from exc
+    
+    return _IPFSPeerProvider()
+
+
 def _provider_cache_key() -> tuple:
     # Include only env vars that change provider resolution.
     return (
@@ -584,7 +620,7 @@ def _get_local_hf_provider(*, deps: Optional[RouterDeps] = None) -> Optional[LLM
     return _LocalHFProvider()
 
 
-def _builtin_provider_by_name(name: str) -> Optional[LLMProvider]:
+def _builtin_provider_by_name(name: str, deps: Optional[RouterDeps] = None) -> Optional[LLMProvider]:
     key = (name or "").strip().lower()
     if not key:
         return None
@@ -604,8 +640,11 @@ def _builtin_provider_by_name(name: str) -> Optional[LLMProvider]:
         return _get_claude_code_provider()
     if key in {"claude", "claude_py"}:
         return _get_claude_py_provider()
+    if key in {"ipfs_peer", "ipfs_peers"}:
+        # IPFS peer provider requires deps
+        return _get_ipfs_peer_provider(deps or get_default_router_deps())
     if key in {"hf", "huggingface", "local_hf"}:
-        return _get_local_hf_provider(deps=get_default_router_deps())
+        return _get_local_hf_provider(deps=deps or get_default_router_deps())
     return None
 
 
@@ -614,7 +653,7 @@ def _resolve_provider_uncached(preferred: Optional[str], *, deps: RouterDeps) ->
         info = _PROVIDER_REGISTRY.get(preferred)
         if info is not None:
             return info.factory()
-        builtin = _builtin_provider_by_name(preferred)
+        builtin = _builtin_provider_by_name(preferred, deps)
         if builtin is not None:
             return builtin
         raise ValueError(f"Unknown LLM provider: {preferred}")
@@ -624,10 +663,15 @@ def _resolve_provider_uncached(preferred: Optional[str], *, deps: RouterDeps) ->
         info = _PROVIDER_REGISTRY.get(forced)
         if info is not None:
             return info.factory()
-        builtin = _builtin_provider_by_name(forced)
+        builtin = _builtin_provider_by_name(forced, deps)
         if builtin is not None:
             return builtin
         raise ValueError(f"Unknown LLM provider: {forced}")
+
+    # Try IPFS peer provider first if backend is available
+    ipfs_peer_provider = _get_ipfs_peer_provider(deps)
+    if ipfs_peer_provider is not None:
+        return ipfs_peer_provider
 
     accelerate_provider = _get_accelerate_provider(deps)
     if accelerate_provider is not None:
@@ -635,7 +679,7 @@ def _resolve_provider_uncached(preferred: Optional[str], *, deps: RouterDeps) ->
 
     # Try common optional CLI/API providers if available.
     for name in ["openrouter", "codex_cli", "copilot_cli", "gemini_cli", "claude_code", "claude_py", "gemini_py", "copilot_sdk"]:
-        candidate = _builtin_provider_by_name(name)
+        candidate = _builtin_provider_by_name(name, deps)
         if candidate is not None:
             return candidate
 
