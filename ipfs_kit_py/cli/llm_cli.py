@@ -10,16 +10,34 @@ import os
 import argparse
 import json
 
-# Add the parent directory to the Python path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add the ipfs_kit_py directory to the Python path
+ipfs_kit_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ipfs_kit_dir not in sys.path:
+    sys.path.insert(0, ipfs_kit_dir)
+
+# Also add the root directory
+root_dir = os.path.dirname(ipfs_kit_dir)
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
 
 try:
-    from ipfs_kit_py.llm_router import (
-        generate_text,
-        get_llm_provider,
-        clear_llm_router_caches,
-    )
-    from ipfs_kit_py.router_deps import get_default_router_deps
+    # Try importing as a package first
+    try:
+        from ipfs_kit_py.llm_router import (
+            generate_text,
+            get_llm_provider,
+            clear_llm_router_caches,
+        )
+        from ipfs_kit_py.router_deps import get_default_router_deps
+    except ImportError:
+        # Fall back to direct import
+        import llm_router
+        import router_deps
+        generate_text = llm_router.generate_text
+        get_llm_provider = llm_router.get_llm_provider
+        clear_llm_router_caches = llm_router.clear_llm_router_caches
+        get_default_router_deps = router_deps.get_default_router_deps
+    
     LLM_ROUTER_AVAILABLE = True
 except ImportError as e:
     LLM_ROUTER_AVAILABLE = False
