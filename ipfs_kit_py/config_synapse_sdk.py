@@ -19,6 +19,7 @@ Usage:
     settings = config.get_configuration()
 """
 
+import errno
 import os
 import sys
 import json
@@ -101,11 +102,33 @@ class config_synapse_sdk:
         
         # Setup paths
         self.this_dir = os.path.dirname(os.path.realpath(__file__))
-        self.config_dir = os.path.join(os.path.dirname(self.this_dir), "config")
+        package_config_dir = os.path.join(os.path.dirname(self.this_dir), "config")
+        self._readonly_config_file = os.path.join(package_config_dir, "synapse_config.yaml")
+
+        # Prefer a writable XDG-ish location for runtime services (e.g. systemd
+        # sandboxes may make the repo checkout read-only).
+        override_dir = os.environ.get("SYNAPSE_CONFIG_DIR") or os.environ.get("IPFS_KIT_PY_CONFIG_DIR")
+        if override_dir:
+            config_dir = override_dir
+        else:
+            xdg_config_home = os.environ.get("XDG_CONFIG_HOME")
+            xdg_cache_home = os.environ.get("XDG_CACHE_HOME")
+            if xdg_config_home:
+                config_dir = os.path.join(xdg_config_home, "ipfs_kit_py")
+            elif xdg_cache_home:
+                # Fallback keeps things writable when only XDG_CACHE_HOME is set.
+                config_dir = os.path.join(xdg_cache_home, "ipfs_kit_py")
+            else:
+                config_dir = os.path.join(str(Path.home()), ".config", "ipfs_kit_py")
+
+        self.config_dir = config_dir
         self.config_file = os.path.join(self.config_dir, "synapse_config.yaml")
-        
-        # Create config directory if it doesn't exist
-        os.makedirs(self.config_dir, exist_ok=True)
+
+        # Create config directory if it doesn't exist (best-effort).
+        try:
+            os.makedirs(self.config_dir, exist_ok=True)
+        except OSError as e:
+            logger.warning(f"Config dir not writable ({self.config_dir}): {e}. Using bundled config read-only.")
         
         # Initialize configuration
         self.config = self._load_default_config()
@@ -373,6 +396,12 @@ class config_synapse_sdk:
             logger.info(f"Configuration saved to {file_path}")
             return True
             
+        except OSError as e:
+            if e.errno in {errno.EROFS, errno.EACCES, errno.EPERM}:
+                logger.warning(f"Failed to save configuration (read-only): {e}")
+            else:
+                logger.error(f"Failed to save configuration: {e}")
+            return False
         except Exception as e:
             logger.error(f"Failed to save configuration: {e}")
             return False
@@ -388,6 +417,11 @@ class config_synapse_sdk:
             True if load successful, False otherwise
         """
         file_path = file_path or self.config_file
+
+        # If we're running under a sandbox with a fresh XDG dir, prefer reading
+        # a bundled config file when it exists.
+        if file_path == self.config_file and not os.path.exists(file_path) and os.path.exists(self._readonly_config_file):
+            file_path = self._readonly_config_file
         
         if not os.path.exists(file_path):
             logger.info(f"Configuration file {file_path} does not exist, using defaults")
