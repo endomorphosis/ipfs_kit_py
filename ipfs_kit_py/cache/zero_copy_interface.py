@@ -6,6 +6,8 @@ for the ParquetCIDCache using Apache Arrow's C Data Interface and shared
 memory, enabling zero-copy access to cache data from multiple processes.
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import time
