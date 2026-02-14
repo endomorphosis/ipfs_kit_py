@@ -93,6 +93,11 @@ class lotus_daemon:
         # Update PATH to include bin directory and any custom path
         self.path = os.environ.get("PATH", "")
         paths_to_add = [os.path.join(self.this_dir, 'bin')]
+
+        # Add managed bin dir (used by opt-in auto-install) if present
+        managed_bin = os.path.expanduser(os.environ.get("IPFS_KIT_BIN_DIR", "~/.local/share/ipfs_kit_py/bin"))
+        if os.path.exists(managed_bin):
+            paths_to_add.append(managed_bin)
         
         # Add custom binary path if specified
         if self.binary_path and os.path.exists(self.binary_path):
@@ -176,7 +181,7 @@ class lotus_daemon:
         if not self._auto_install_binaries_enabled():
             return False
 
-        if shutil.which("lotus"):
+        if shutil.which("lotus", path=self.env.get("PATH")):
             return True
 
         if "lotus" in self._auto_install_attempted:

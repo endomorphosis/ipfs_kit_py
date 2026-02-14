@@ -22,7 +22,7 @@ def test_lotus_daemon_status_triggers_auto_install(monkeypatch, tmp_path):
             return True
 
     monkeypatch.setattr(install_lotus_mod, "install_lotus", FakeInstaller)
-    monkeypatch.setattr("shutil.which", lambda name: None)
+    monkeypatch.setattr("shutil.which", lambda name, **kwargs: None)
 
     daemon = lotus_daemon_mod.lotus_daemon(metadata={"lotus_path": str(tmp_path / ".lotus")})
 

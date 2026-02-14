@@ -37,7 +37,7 @@ def test_auto_install_ipfs_attempts_once(monkeypatch, tmp_path):
             return True
 
     monkeypatch.setattr(install_ipfs_mod, "install_ipfs", FakeInstaller)
-    monkeypatch.setattr("shutil.which", lambda name: None)
+    monkeypatch.setattr("shutil.which", lambda name, **kwargs: None)
 
     assert manager._attempt_install_ipfs() is True
     assert calls["count"] == 1
@@ -66,7 +66,7 @@ def test_auto_install_lotus_retry_on_missing_binary(monkeypatch, tmp_path):
             return True
 
     monkeypatch.setattr(install_lotus_mod, "install_lotus", FakeInstaller)
-    monkeypatch.setattr("shutil.which", lambda name: None)
+    monkeypatch.setattr("shutil.which", lambda name, **kwargs: None)
 
     run_calls = {"count": 0}
 
