@@ -6,6 +6,53 @@ import sys
 from setuptools import find_packages, setup
 
 
+def _truthy(value: object) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+    return False
+
+
+def _auto_install_binaries_enabled() -> bool:
+    return _truthy(os.environ.get("IPFS_KIT_AUTO_INSTALL_BINARIES"))
+
+
+def _default_bin_dir() -> str:
+    override = os.environ.get("IPFS_KIT_BIN_DIR")
+    if override:
+        return os.path.expanduser(override)
+    return os.path.join(os.path.expanduser("~"), ".local", "share", "ipfs_kit_py", "bin")
+
+
+def _try_install_binaries() -> None:
+    if not _auto_install_binaries_enabled():
+        return
+
+    bin_dir = _default_bin_dir()
+    os.makedirs(bin_dir, exist_ok=True)
+
+    try:
+        from ipfs_kit_py.install_ipfs import install_ipfs
+
+        if shutil.which("ipfs") is None:
+            install_ipfs(metadata={"bin_dir": bin_dir}).install_ipfs_daemon()
+    except Exception as e:
+        print(f"WARNING: IPFS auto-install during setup failed: {e}", file=sys.stderr)
+
+    try:
+        from ipfs_kit_py.install_lotus import install_lotus
+
+        if shutil.which("lotus") is None:
+            install_lotus(metadata={"bin_dir": bin_dir}).install_lotus_daemon()
+    except Exception as e:
+        print(f"WARNING: Lotus auto-install during setup failed: {e}", file=sys.stderr)
+
+
 def _warn_missing_lotus_packages() -> None:
     """Emit a friendly warning if Lotus system dependencies are missing."""
     if os.environ.get("IPFS_KIT_SKIP_LOTUS_CHECK", "").lower() in {"1", "true", "yes"}:
@@ -84,6 +131,32 @@ def _load_pyproject_metadata() -> tuple[dict, list[str], dict[str, list[str]]]:
 
 project, install_requires, extras_require = _load_pyproject_metadata()
 
+
+cmdclass = {}
+try:
+    from setuptools.command.install import install as _install
+
+    class install(_install):  # noqa: N801 - setuptools cmdclass name
+        def run(self):
+            super().run()
+            _try_install_binaries()
+
+    cmdclass["install"] = install
+except Exception:
+    pass
+
+try:
+    from setuptools.command.develop import develop as _develop
+
+    class develop(_develop):  # noqa: N801 - setuptools cmdclass name
+        def run(self):
+            super().run()
+            _try_install_binaries()
+
+    cmdclass["develop"] = develop
+except Exception:
+    pass
+
 setup(
     name='ipfs_kit_py',
     version='0.3.0',
@@ -96,5 +169,6 @@ setup(
     include_package_data=True,
     install_requires=install_requires,
     extras_require=extras_require,
+    cmdclass=cmdclass,
     # All other configurations come from pyproject.toml
 )

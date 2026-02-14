@@ -82,6 +82,13 @@ class lotus_daemon:
         # Binary paths
         self.this_dir = os.path.dirname(os.path.realpath(__file__))
         self.binary_path = self.metadata.get("binary_path")
+
+        # Resolved lotus binary path (set during initialization)
+        self.lotus_binary_path = None
+        self.binary_available = False
+
+        # Internal guardrail to avoid repeated installer attempts
+        self._auto_install_attempted: set[str] = set()
         
         # Update PATH to include bin directory and any custom path
         self.path = os.environ.get("PATH", "")
@@ -129,6 +136,75 @@ class lotus_daemon:
         
         # Check if initialization is valid
         self._check_initialization()
+
+    def _truthy(self, value: object) -> bool:
+        if value is None:
+            return False
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return value != 0
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+        return False
+
+    def _auto_install_binaries_enabled(self) -> bool:
+        # Environment variable takes precedence.
+        if self._truthy(os.environ.get("IPFS_KIT_AUTO_INSTALL_BINARIES")):
+            return True
+
+        # Optional metadata opt-in.
+        try:
+            if isinstance(self.metadata, dict) and self._truthy(self.metadata.get("auto_install_binaries")):
+                return True
+        except Exception:
+            pass
+
+        return False
+
+    def _get_managed_bin_dir(self) -> str:
+        override = os.environ.get("IPFS_KIT_BIN_DIR")
+        if override:
+            return os.path.expanduser(override)
+        return os.path.join(os.path.expanduser("~"), ".local", "share", "ipfs_kit_py", "bin")
+
+    def _attempt_install_lotus(self) -> bool:
+        """Best-effort install of the `lotus` CLI into a managed bin dir.
+
+        This is intentionally opt-in and best-effort; failures should not abort startup.
+        """
+        if not self._auto_install_binaries_enabled():
+            return False
+
+        if shutil.which("lotus"):
+            return True
+
+        if "lotus" in self._auto_install_attempted:
+            return False
+        self._auto_install_attempted.add("lotus")
+
+        try:
+            from .install_lotus import install_lotus
+
+            bin_dir = self._get_managed_bin_dir()
+            os.makedirs(bin_dir, exist_ok=True)
+
+            installer = install_lotus(metadata={"bin_dir": bin_dir, "lotus_path": self.lotus_path})
+            ok = bool(installer.install_lotus_daemon())
+            if ok:
+                os.environ["PATH"] = f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"
+                self.env["PATH"] = os.environ["PATH"]
+
+                # Refresh resolved binary path for this instance.
+                self.lotus_binary_path = self._check_lotus_binary()
+                self.binary_available = bool(self.lotus_binary_path)
+                if self.lotus_binary_path:
+                    self.metadata["lotus_binary"] = self.lotus_binary_path
+
+            return ok
+        except Exception as e:
+            logger.warning(f"Auto-install Lotus failed (continuing): {e}")
+            return False
     
     def _check_initialization(self):
         """Verify initialization and environment."""
@@ -137,11 +213,29 @@ class lotus_daemon:
             os.makedirs(self.lotus_path, exist_ok=True)
             
             # Check if lotus binary is available in PATH
-            self._check_lotus_binary()
+            self.lotus_binary_path = self._check_lotus_binary()
+            self.binary_available = bool(self.lotus_binary_path)
+
+            # Opt-in: attempt to auto-install the binary if missing.
+            if not self.binary_available:
+                if self._attempt_install_lotus():
+                    self.lotus_binary_path = self._check_lotus_binary()
+                    self.binary_available = bool(self.lotus_binary_path)
+
+            if self.lotus_binary_path:
+                # Keep metadata aligned for any downstream helpers.
+                self.metadata["lotus_binary"] = self.lotus_binary_path
             
         except Exception as e:
             logger.error(f"Initialization error: {str(e)}")
             # Don't raise here to allow for graceful degradation
+
+    def _lotus_cmd(self, *args: str) -> list[str] | None:
+        """Build a lotus CLI command if the binary is available."""
+        lotus_binary = getattr(self, "lotus_binary_path", None) or self.metadata.get("lotus_binary")
+        if not lotus_binary:
+            return None
+        return [str(lotus_binary), *args]
     
     def _check_lotus_binary(self):
         """Check if the lotus binary is available and return its path.
@@ -649,7 +743,8 @@ class lotus_daemon:
             
         except FileNotFoundError as e:
             error_msg = f"Command not found: {command_str}"
-            logger.error(error_msg)
+            # Missing lotus binary is expected on many installs; keep logs non-fatal.
+            logger.warning(error_msg)
             return handle_error(result, e)
             
         except Exception as e:
@@ -816,6 +911,12 @@ class lotus_daemon:
         except Exception as e:
             # Not critical if this fails, continue with starting attempts
             logger.debug(f"Error checking if daemon is already running: {str(e)}")
+
+        # Opt-in: if the binary is missing, attempt install once before initialization/start.
+        if not getattr(self, "binary_available", False):
+            self._attempt_install_lotus()
+            self.lotus_binary_path = self._check_lotus_binary()
+            self.binary_available = bool(self.lotus_binary_path)
         
         # Check for repository initialization
         if check_initialization:
@@ -1858,30 +1959,42 @@ class lotus_daemon:
             process_running = False
             process_pid = None
             daemon_info = {}
+
+            # Opt-in: if the binary is missing, attempt install once before checks.
+            if not getattr(self, "binary_available", False):
+                if self._attempt_install_lotus():
+                    self.lotus_binary_path = self._check_lotus_binary()
+                    self.binary_available = bool(self.lotus_binary_path)
             
             # Method 1: Check if lotus API is responding
             try:
-                api_check_cmd = ["lotus", "net", "id"]
-                api_result = self.run_command(
-                    api_check_cmd,
-                    check=False,
-                    timeout=5,
-                    correlation_id=correlation_id
-                )
-                
-                if api_result.get("success", False) and api_result.get("returncode") == 0:
-                    process_running = True
-                    daemon_info["api_responding"] = True
-                    
-                    # Try to parse JSON response
-                    try:
-                        api_data = json.loads(api_result.get("stdout", "{}"))
-                        daemon_info["peer_id"] = api_data.get("ID")
-                        daemon_info["addresses"] = api_data.get("Addresses", [])
-                    except:
-                        daemon_info["api_data_parse_error"] = "Failed to parse API response as JSON"
-                else:
+                api_check_cmd = self._lotus_cmd("net", "id")
+                if api_check_cmd is None:
+                    daemon_info["binary_available"] = False
                     daemon_info["api_responding"] = False
+                    daemon_info["api_check_skipped"] = "Lotus binary not found"
+                else:
+                    daemon_info["binary_available"] = True
+                    api_result = self.run_command(
+                        api_check_cmd,
+                        check=False,
+                        timeout=5,
+                        correlation_id=correlation_id
+                    )
+                
+                    if api_result.get("success", False) and api_result.get("returncode") == 0:
+                        process_running = True
+                        daemon_info["api_responding"] = True
+                        
+                        # Try to parse JSON response
+                        try:
+                            api_data = json.loads(api_result.get("stdout", "{}"))
+                            daemon_info["peer_id"] = api_data.get("ID")
+                            daemon_info["addresses"] = api_data.get("Addresses", [])
+                        except Exception:
+                            daemon_info["api_data_parse_error"] = "Failed to parse API response as JSON"
+                    else:
+                        daemon_info["api_responding"] = False
             except Exception as e:
                 daemon_info["api_check_error"] = str(e)
                 daemon_info["api_responding"] = False

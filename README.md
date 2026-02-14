@@ -565,6 +565,13 @@ export IPFS_KIT_CACHE_DIR="/fast/ssd/cache"
 # Feature flags
 export IPFS_KIT_ENABLE_GRAPHRAG="true"
 export IPFS_KIT_ENABLE_AUTO_HEALING="true"
+
+# Optional: auto-install external daemon binaries (IPFS/Lotus) when missing
+# Note: this may download platform-specific binaries.
+export IPFS_KIT_AUTO_INSTALL_BINARIES="true"
+
+# Optional: where downloaded binaries are placed
+export IPFS_KIT_BIN_DIR="$HOME/.local/share/ipfs_kit_py/bin"
 ```
 
 ### Security Best Practices

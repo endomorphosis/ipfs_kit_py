@@ -9,8 +9,10 @@ validation, daemon startup/shutdown, and health monitoring.
 import json
 import logging
 import os
+import shutil
 import subprocess
 import time
+import urllib.request
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -66,6 +68,105 @@ class DaemonConfigManager:
             'lotus': False,
             'cluster': False
         }
+
+        # Internal guardrail to avoid repeated installer attempts
+        self._auto_install_attempted: set[str] = set()
+
+    def _truthy(self, value: object) -> bool:
+        if value is None:
+            return False
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return value != 0
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+        return False
+
+    def _auto_install_binaries_enabled(self) -> bool:
+        """Opt-in guard for installing external binaries."""
+        if self._truthy(os.environ.get("IPFS_KIT_AUTO_INSTALL_BINARIES")):
+            return True
+
+        try:
+            if self.ipfs_kit is not None and hasattr(self.ipfs_kit, "metadata"):
+                metadata = getattr(self.ipfs_kit, "metadata", None)
+                if isinstance(metadata, dict) and self._truthy(metadata.get("auto_install_binaries")):
+                    return True
+        except Exception:
+            pass
+
+        return False
+
+    def _attempt_install_ipfs(self) -> bool:
+        """Best-effort install of the `ipfs` CLI (kubo) into a local bin dir.
+
+        This is intentionally opt-in and best-effort; failures should not abort startup.
+        """
+        if not self._auto_install_binaries_enabled():
+            return False
+
+        if shutil.which("ipfs"):
+            return True
+
+        if "ipfs" in self._auto_install_attempted:
+            return False
+        self._auto_install_attempted.add("ipfs")
+
+        try:
+            from .install_ipfs import install_ipfs
+
+            bin_dir = self._get_managed_bin_dir()
+            os.makedirs(bin_dir, exist_ok=True)
+
+            installer = install_ipfs(metadata={"bin_dir": bin_dir, "ipfs_path": self.ipfs_path})
+            ok = bool(installer.install_ipfs_daemon())
+            if ok:
+                os.environ["PATH"] = f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"
+            return ok
+        except Exception as e:
+            self.logger.warning(f"Auto-install IPFS failed (continuing): {e}")
+            return False
+
+    def _attempt_install_lotus(self) -> bool:
+        """Best-effort install of the `lotus` CLI into a local bin dir.
+
+        This is intentionally opt-in and best-effort; failures should not abort startup.
+        """
+        if not self._auto_install_binaries_enabled():
+            return False
+
+        if shutil.which("lotus"):
+            return True
+
+        if "lotus" in self._auto_install_attempted:
+            return False
+        self._auto_install_attempted.add("lotus")
+
+        try:
+            from .install_lotus import install_lotus
+
+            bin_dir = self._get_managed_bin_dir()
+            os.makedirs(bin_dir, exist_ok=True)
+
+            installer = install_lotus(metadata={"bin_dir": bin_dir, "lotus_path": self.lotus_path})
+            ok = bool(installer.install_lotus_daemon())
+            if ok:
+                os.environ["PATH"] = f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"
+            return ok
+        except Exception as e:
+            self.logger.warning(f"Auto-install Lotus failed (continuing): {e}")
+            return False
+
+    def _get_managed_bin_dir(self) -> str:
+        """Return a writable bin dir for managed external binaries.
+
+        Override with `IPFS_KIT_BIN_DIR`.
+        """
+        override = os.environ.get("IPFS_KIT_BIN_DIR")
+        if override:
+            return os.path.expanduser(override)
+        return os.path.join(os.path.expanduser("~"), ".local", "share", "ipfs_kit_py", "bin")
     
     def check_daemon_configuration(self, daemon_type: str = 'ipfs') -> Dict[str, Any]:
         """
@@ -142,6 +243,59 @@ class DaemonConfigManager:
             result['errors'].append(f"Error checking IPFS config: {str(e)}")
             
         return result
+
+    def _get_ipfs_api_port(self) -> int:
+        """Best-effort extraction of the IPFS API port.
+
+        Prefers the port in the on-disk IPFS config (Addresses.API), else falls back
+        to defaults.
+        """
+        try:
+            ipfs_path = Path(self.ipfs_path)
+            config_file = ipfs_path / 'config'
+            if config_file.exists():
+                with open(config_file, 'r') as f:
+                    config = json.load(f)
+                api_addr = (
+                    config.get('Addresses', {}).get('API')
+                    if isinstance(config, dict)
+                    else None
+                )
+                if isinstance(api_addr, str):
+                    # Example: "/ip4/127.0.0.1/tcp/5001"
+                    parts = [p for p in api_addr.split('/') if p]
+                    for i, part in enumerate(parts):
+                        if part == 'tcp' and i + 1 < len(parts):
+                            port_str = parts[i + 1]
+                            if port_str.isdigit():
+                                return int(port_str)
+        except Exception:
+            pass
+
+        try:
+            return int(self.default_config.get('ipfs', {}).get('api_port', 5001))
+        except Exception:
+            return 5001
+
+    def _ipfs_api_responding(self, timeout: float = 2.0) -> bool:
+        """Return True if the local IPFS HTTP API appears reachable."""
+        try:
+            if self.ipfs_kit is not None and hasattr(self.ipfs_kit, 'ipfs'):
+                ipfs_client = getattr(self.ipfs_kit, 'ipfs', None)
+                if ipfs_client is not None and hasattr(ipfs_client, '_check_api_responsiveness'):
+                    return bool(ipfs_client._check_api_responsiveness(timeout=timeout))
+        except Exception:
+            # Fall back to raw HTTP probe
+            pass
+
+        try:
+            port = self._get_ipfs_api_port()
+            url = f"http://127.0.0.1:{port}/api/v0/version"
+            req = urllib.request.Request(url=url, method='POST', data=b'')
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return 200 <= getattr(resp, 'status', 200) < 500
+        except Exception:
+            return False
     
     def _check_lotus_config(self) -> Dict[str, Any]:
         """Check Lotus daemon configuration."""
@@ -244,9 +398,11 @@ class DaemonConfigManager:
             if not check_result['path_exists']:
                 self.logger.info("Initializing IPFS...")
                 try:
+                    env = os.environ.copy()
+                    env['IPFS_PATH'] = self.ipfs_path
                     init_result = subprocess.run(
                         ['ipfs', 'init'],
-                        env={'IPFS_PATH': self.ipfs_path},
+                        env=env,
                         capture_output=True,
                         text=True,
                         timeout=30
@@ -264,17 +420,50 @@ class DaemonConfigManager:
                 except subprocess.TimeoutExpired:
                     result['errors'].append("IPFS initialization timed out")
                 except FileNotFoundError:
-                    result['errors'].append("IPFS binary not found in PATH")
-                    result['message'] = "Install IPFS: https://docs.ipfs.io/install/"
+                    # If the daemon API is already reachable, allow operation without the CLI.
+                    if self._ipfs_api_responding(timeout=2.0):
+                        result['success'] = True
+                        result['configured'] = True
+                        result['message'] = 'IPFS API reachable; skipping init (ipfs binary missing)'
+                    else:
+                        # Best-effort auto-install (opt-in), then retry init once.
+                        if self._attempt_install_ipfs():
+                            try:
+                                env = os.environ.copy()
+                                env['IPFS_PATH'] = self.ipfs_path
+                                retry_result = subprocess.run(
+                                    ['ipfs', 'init'],
+                                    env=env,
+                                    capture_output=True,
+                                    text=True,
+                                    timeout=30,
+                                )
+                                if retry_result.returncode == 0:
+                                    result['success'] = True
+                                    result['configured'] = True
+                                    result['message'] = 'IPFS initialized successfully (after auto-install)'
+                                else:
+                                    result['errors'].append(
+                                        f"IPFS init failed after auto-install: {retry_result.stderr or retry_result.stdout}"
+                                    )
+                                    result['message'] = "Install IPFS: https://docs.ipfs.io/install/"
+                            except Exception as e:
+                                result['errors'].append(f"IPFS init retry failed after auto-install: {e}")
+                                result['message'] = "Install IPFS: https://docs.ipfs.io/install/"
+                        else:
+                            result['errors'].append("IPFS binary not found in PATH")
+                            result['message'] = "Install IPFS: https://docs.ipfs.io/install/"
                 except Exception as e:
                     result['errors'].append(f"IPFS initialization error: {str(e)}")
             else:
                 # Path exists but config is invalid or missing, try to reinitialize
                 self.logger.warning("IPFS path exists but configuration is invalid or missing; attempting reinit")
                 try:
+                    env = os.environ.copy()
+                    env['IPFS_PATH'] = self.ipfs_path
                     init_result = subprocess.run(
                         ['ipfs', 'init'],
-                        env={'IPFS_PATH': self.ipfs_path},
+                        env=env,
                         capture_output=True,
                         text=True,
                         timeout=30
@@ -291,8 +480,38 @@ class DaemonConfigManager:
                 except subprocess.TimeoutExpired:
                     result['errors'].append("IPFS initialization timed out")
                 except FileNotFoundError:
-                    result['errors'].append("IPFS binary not found in PATH")
-                    result['message'] = "Install IPFS: https://docs.ipfs.io/install/"
+                    # If the daemon API is already reachable, allow operation without the CLI.
+                    if self._ipfs_api_responding(timeout=2.0):
+                        result['success'] = True
+                        result['configured'] = True
+                        result['message'] = 'IPFS API reachable; skipping init (ipfs binary missing)'
+                    else:
+                        # Best-effort auto-install (opt-in), then retry init once.
+                        if self._attempt_install_ipfs():
+                            try:
+                                env = os.environ.copy()
+                                env['IPFS_PATH'] = self.ipfs_path
+                                retry_result = subprocess.run(
+                                    ['ipfs', 'init'],
+                                    env=env,
+                                    capture_output=True,
+                                    text=True,
+                                    timeout=30,
+                                )
+                                init_output = (retry_result.stdout or "") + (retry_result.stderr or "")
+                                if retry_result.returncode == 0 or "already initialized" in init_output.lower():
+                                    result['success'] = True
+                                    result['configured'] = True
+                                    result['message'] = 'IPFS initialized successfully (after auto-install)'
+                                else:
+                                    result['errors'].append(f"IPFS init failed after auto-install: {init_output.strip()}")
+                                    result['message'] = 'IPFS path exists but needs manual configuration'
+                            except Exception as e:
+                                result['errors'].append(f"IPFS init retry failed after auto-install: {e}")
+                                result['message'] = "Install IPFS: https://docs.ipfs.io/install/"
+                        else:
+                            result['errors'].append("IPFS binary not found in PATH")
+                            result['message'] = "Install IPFS: https://docs.ipfs.io/install/"
                 except Exception as e:
                     result['errors'].append(f"IPFS initialization error: {str(e)}")
             
@@ -459,9 +678,11 @@ class DaemonConfigManager:
         """Check if IPFS daemon is running."""
         try:
             # Try to connect to IPFS API
+            env = os.environ.copy()
+            env['IPFS_PATH'] = self.ipfs_path
             result = subprocess.run(
                 ['ipfs', 'id'],
-                env={'IPFS_PATH': self.ipfs_path},
+                env=env,
                 capture_output=True,
                 text=True,
                 timeout=5
@@ -476,8 +697,10 @@ class DaemonConfigManager:
             self.logger.debug("IPFS daemon check timed out")
             return False
         except FileNotFoundError:
-            self.logger.debug("IPFS binary not found in PATH")
-            return False
+            # If the CLI is missing, the daemon may still be available via HTTP API.
+            api_ok = self._ipfs_api_responding(timeout=2.0)
+            self.logger.debug(f"IPFS binary not found in PATH; HTTP API responding: {api_ok}")
+            return api_ok
         except Exception as e:
             self.logger.debug(f"IPFS daemon check failed: {str(e)}")
             return False
@@ -493,6 +716,20 @@ class DaemonConfigManager:
                 timeout=5
             )
             return result.returncode == 0
+        except FileNotFoundError:
+            # Optional: try opt-in auto-install, then retry once.
+            if self._attempt_install_lotus():
+                try:
+                    retry = subprocess.run(
+                        ['lotus', 'version'],
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                    )
+                    return retry.returncode == 0
+                except Exception:
+                    return False
+            return False
         except Exception:
             return False
     
