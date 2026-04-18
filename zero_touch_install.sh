@@ -19,7 +19,7 @@ IPFS_REPO_DIR="${CACHE_DIR}/ipfs-repo"
 
 PROFILE="dev"            # core|api|dev|full
 EXTRAS=""                # comma-separated extras override
-INSTALL_SOURCE="github-main"   # local|github-main
+INSTALL_SOURCE="local"   # local|github-main
 INSTALL_NODE="auto"       # auto|yes|no
 INSTALL_PLAYWRIGHT="auto" # auto|yes|no
 ALLOW_SUDO="no"           # yes|no (default: no; zero-touch should not require sudo)
@@ -48,7 +48,7 @@ Usage: ./zero_touch_install.sh [options]
 Options:
   --profile <core|api|dev|full>   Install profile (default: dev)
   --extras <comma,separated>      Explicit extras to install (overrides --profile)
-  --source <local|github-main>    Install ipfs_kit_py from local checkout or endomorphosis/ipfs_kit_py@main (default: github-main)
+  --source <local|github-main>    Install ipfs_kit_py from local checkout or endomorphosis/ipfs_kit_py@main (default: local)
   --node <auto|yes|no>            Ensure Node.js is available (default: auto)
   --playwright <auto|yes|no>      Install Playwright deps + browsers (default: auto)
   --sudo <yes|no>                 Allow using sudo for system deps (default: no)
@@ -393,6 +393,11 @@ install_uv_local() {
 }
 
 create_venv() {
+  if [[ -d "$VENV_DIR" && ( ! -f "${VENV_DIR}/bin/python" || ! -f "${VENV_DIR}/bin/activate" ) ]]; then
+    log "Found existing .venv without a complete activation layout; rebuilding"
+    rm -rf "$VENV_DIR"
+  fi
+
   if [[ -d "$VENV_DIR" ]]; then
     log "Found existing .venv; reusing. (Delete $VENV_DIR to force rebuild)"
     return 0
@@ -422,6 +427,14 @@ activate_venv() {
   # shellcheck disable=SC1090
   source "${VENV_DIR}/bin/activate"
   python -V
+}
+
+pip_check_venv() {
+  activate_venv
+  log "Checking dependency health (${VENV_DIR})"
+  if ! python -m pip check; then
+    err "WARNING: Dependency conflicts detected in ${VENV_DIR}"
+  fi
 }
 
 build_libmagic_local() {
@@ -1163,6 +1176,7 @@ main() {
   create_venv
   install_python_deps
   ensure_optional_python_deps
+  pip_check_venv
 
   # Optional: install vendored IPLD packages so tests can import ipld_car/ipld_dag_pb/ipld_unixfs
   # without git/network. Default to yes for dev/full profiles.
