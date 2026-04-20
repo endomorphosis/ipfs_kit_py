@@ -46,6 +46,7 @@ dependencies = [
     "anyio>=3.7.0", # For async operations with backend flexibility
     "trio>=0.22.0", # Optional backend for anyio
     "cryptography>=38.0.0", # Required for libp2p
+    "cffi>=1.16.0",
     "protobuf>=5.26.0,<7.0.0",  # libp2p main generated *_pb2 compatibility
     "eth-hash[pycryptodome]>=0.3.3",  # ETH integration with crypto backend
     "eth-keys>=0.4.0",  # ETH integration for key management
@@ -79,6 +80,7 @@ ai_ml = [
     "torch>=2.0.0",
     "numpy>=1.20.0",
     "scikit-learn>=1.0.0",
+    "faiss-cpu>=1.8.0",
     "mmh3>=3.0.0", # Updated for compatibility
 ]
 huggingface = [
@@ -212,6 +214,7 @@ full = [
     
     # ML/AI
     "scikit-learn>=1.0.0",
+    "faiss-cpu>=1.8.0",
     
     # API
     "fastapi>=0.100.0",

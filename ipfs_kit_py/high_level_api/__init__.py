@@ -10,6 +10,9 @@ import importlib.util
 logger = logging.getLogger(__name__)
 
 HAVE_LIBP2P = False
+_IPFS_SIMPLE_API_IMPL = None
+_IPFS_SIMPLE_API_LOAD_ATTEMPTED = False
+_IPFS_SIMPLE_API_LOAD_ERROR = None
 
 def _init_libp2p_integration() -> None:
     global HAVE_LIBP2P
@@ -40,7 +43,16 @@ class IPFSSimpleAPI:
     This package intentionally avoids clobbering `ipfs_kit_py.high_level_api` in
     `sys.modules` (it is a package). We attempt to load the large legacy
     implementation in `../high_level_api.py` under a *different* module name.
+    The load is deferred until first instantiation so importing this package
+    does not pull optional runtime dependencies into unrelated callers.
     """
+
+    def __new__(cls, *args, **kwargs):
+        if cls is IPFSSimpleAPI:
+            impl = _try_load_ipfs_simple_api()
+            if impl is not None and impl is not cls:
+                return impl(*args, **kwargs)
+        return super().__new__(cls)
 
     def __init__(self, *args, **kwargs):
         logger.warning("Using stub implementation of IPFSSimpleAPI")
@@ -59,17 +71,26 @@ class IPFSSimpleAPI:
         return dummy_method
 
 
-def _try_load_ipfs_simple_api() -> None:
+def _try_load_ipfs_simple_api():
+    global _IPFS_SIMPLE_API_IMPL
+    global _IPFS_SIMPLE_API_LOAD_ATTEMPTED
+    global _IPFS_SIMPLE_API_LOAD_ERROR
+
+    if _IPFS_SIMPLE_API_LOAD_ATTEMPTED:
+        return _IPFS_SIMPLE_API_IMPL
+
+    _IPFS_SIMPLE_API_LOAD_ATTEMPTED = True
     high_level_api_path = os.path.join(os.path.dirname(__file__), "..", "high_level_api.py")
     if not os.path.exists(high_level_api_path):
-        return
+        return None
 
     module_name = "ipfs_kit_py._high_level_api_impl"
     try:
         existing = sys.modules.get(module_name)
         if existing is not None and getattr(existing, "IPFSSimpleAPI", None) is not None:
+            _IPFS_SIMPLE_API_IMPL = existing.IPFSSimpleAPI
             globals()["IPFSSimpleAPI"] = existing.IPFSSimpleAPI
-            return
+            return _IPFS_SIMPLE_API_IMPL
 
         spec = importlib.util.spec_from_file_location(module_name, high_level_api_path)
         if spec is None or spec.loader is None:
@@ -81,13 +102,15 @@ def _try_load_ipfs_simple_api() -> None:
 
         impl = getattr(module, "IPFSSimpleAPI", None)
         if impl is not None:
+            _IPFS_SIMPLE_API_IMPL = impl
             globals()["IPFSSimpleAPI"] = impl
             logger.info("Successfully loaded IPFSSimpleAPI implementation")
+            return _IPFS_SIMPLE_API_IMPL
     except Exception as e:
-        logger.warning(f"Error importing IPFSSimpleAPI implementation: {e}")
+        _IPFS_SIMPLE_API_LOAD_ERROR = e
+        logger.info(f"IPFSSimpleAPI implementation unavailable: {e}")
+    return None
 
-
-_try_load_ipfs_simple_api()
 
 # Import optional helpers after IPFSSimpleAPI is resolved.
 try:
