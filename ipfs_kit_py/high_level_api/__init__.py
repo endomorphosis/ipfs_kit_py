@@ -106,6 +106,19 @@ def _try_load_ipfs_simple_api():
             globals()["IPFSSimpleAPI"] = impl
             logger.info("Successfully loaded IPFSSimpleAPI implementation")
             return _IPFS_SIMPLE_API_IMPL
+    except ModuleNotFoundError as e:
+        _IPFS_SIMPLE_API_LOAD_ERROR = e
+        if e.name == "fastapi":
+            try:
+                from ipfs_datasets_py.auto_installer import ensure_module
+
+                fastapi_module = ensure_module("fastapi", "fastapi")
+                if fastapi_module is not None:
+                    _IPFS_SIMPLE_API_LOAD_ATTEMPTED = False
+                    return _try_load_ipfs_simple_api()
+            except Exception:
+                pass
+        logger.info(f"IPFSSimpleAPI implementation unavailable: {e}")
     except Exception as e:
         _IPFS_SIMPLE_API_LOAD_ERROR = e
         logger.info(f"IPFSSimpleAPI implementation unavailable: {e}")
