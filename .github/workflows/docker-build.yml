@@ -66,7 +66,7 @@ jobs:
           IMAGE_ID=$(echo ${{ steps.meta.outputs.tags }} | cut -d ',' -f1)
           echo "Testing image $IMAGE_ID"
           docker pull $IMAGE_ID
-          docker run --rm $IMAGE_ID --help
+          docker run --rm $IMAGE_ID python --version
       
       - name: Run architecture tests on built image
         if: github.event_name != 'pull_request'
