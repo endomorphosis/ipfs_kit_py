@@ -152,13 +152,34 @@ async def delayed_shutdown(pid: int, delay: float):
 def get_other_instance_pid():
     """Get the PID of the other instance (blue if we're green, green if we're blue)."""
     other_pid_file = DEPLOYMENT_CONFIG["green_pid_file"] if is_blue else DEPLOYMENT_CONFIG["blue_pid_file"]
+    if not os.path.exists(other_pid_file):
+        return None
+
     try:
-        if os.path.exists(other_pid_file):
-            with open(other_pid_file, "r") as f:
-                return int(f.read().strip())
-    except Exception as e:
-        logger.error(f"Error reading other instance PID file: {e}")
-    return None
+        with open(other_pid_file, "r", encoding="utf-8") as f:
+            pid_text = f.read().strip()
+    except OSError as e:
+        logger.error(f"Error reading other instance PID file {other_pid_file}: {e}", exc_info=True)
+        return None
+    except UnicodeDecodeError as e:
+        logger.warning(f"Other instance PID file {other_pid_file} is not valid UTF-8: {e}")
+        return None
+
+    if not pid_text:
+        logger.warning(f"Other instance PID file {other_pid_file} is empty")
+        return None
+
+    try:
+        pid = int(pid_text)
+    except ValueError:
+        logger.warning(f"Other instance PID file {other_pid_file} contains invalid PID: {pid_text!r}")
+        return None
+
+    if pid <= 0:
+        logger.warning(f"Other instance PID file {other_pid_file} contains non-positive PID: {pid}")
+        return None
+
+    return pid
 
 def is_process_running(pid):
     """Check if a process with the given PID is running."""
