@@ -19,6 +19,11 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("enhanced-mcp")
 
+
+class ModuleImportError(ImportError):
+    """Raised when a module cannot be imported from a file path."""
+
+
 # Try to add file handler for persistent logging
 try:
     file_handler = logging.FileHandler('enhanced_mcp_server.log')
@@ -30,20 +35,27 @@ except Exception as e:
 
 def import_module_from_path(module_name, module_path):
     """Import a module from a specific path."""
+    module_path = Path(module_path)
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise ModuleImportError(f"Could not load import spec for {module_name} from {module_path}")
+
+    previous_module = sys.modules.get(module_name)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    loaded = False
     try:
-        spec = importlib.util.spec_from_file_location(module_name, module_path)
-        if spec is None:
-            logger.error(f"Could not find module at {module_path}")
-            return None
-        
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[module_name] = module
         spec.loader.exec_module(module)
-        logger.info(f"Successfully imported {module_name} from {module_path}")
-        return module
-    except Exception as e:
-        logger.error(f"Error importing {module_name} from {module_path}: {e}")
-        return None
+        loaded = True
+    finally:
+        if not loaded:
+            if previous_module is None:
+                sys.modules.pop(module_name, None)
+            else:
+                sys.modules[module_name] = previous_module
+
+    logger.info(f"Successfully imported {module_name} from {module_path}")
+    return module
 
 def main():
     """Main entry point for the enhanced MCP server."""
@@ -62,10 +74,10 @@ def main():
     
     # Import the direct_mcp_server module
     logger.info(f"Importing direct_mcp_server from {direct_mcp_path}")
-    direct_mcp = import_module_from_path("direct_mcp_server", direct_mcp_path)
-    
-    if direct_mcp is None:
-        logger.error("Failed to import direct_mcp_server module. Cannot start enhanced server.")
+    try:
+        direct_mcp = import_module_from_path("direct_mcp_server", direct_mcp_path)
+    except (ImportError, OSError, SyntaxError) as e:
+        logger.error(f"Failed to import direct_mcp_server module: {e}", exc_info=True)
         sys.exit(1)
     
     # Access the server instance from the direct_mcp_server module
