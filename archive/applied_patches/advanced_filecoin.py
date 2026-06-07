@@ -1235,15 +1235,23 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             if os.path.exists(deals_dir):
                 for filename in os.listdir(deals_dir):
                     if filename.endswith(".json"):
+                        deal_path = os.path.join(deals_dir, filename)
                         try:
-                            deal_path = os.path.join(deals_dir, filename)
                             with open(deal_path, "r") as f:
                                 deal = json.load(f)
-                            
-                            if deal.get("cid") == cid:
-                                deals.append(deal)
-                        except Exception:
-                            pass
+                        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as e:
+                            logger.warning(f"Skipping unreadable mock Filecoin deal file {deal_path}: {e}")
+                            continue
+
+                        if not isinstance(deal, dict):
+                            logger.warning(
+                                f"Skipping mock Filecoin deal file {deal_path}: "
+                                f"expected JSON object, got {type(deal).__name__}"
+                            )
+                            continue
+
+                        if deal.get("cid") == cid:
+                            deals.append(deal)
             
             return deals
         
