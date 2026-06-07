@@ -72,58 +72,61 @@ jobs:
           from typing import List, Dict, Any
           import json
           
+          class DocumentationExtractionError(RuntimeError):
+              """Raised when module documentation cannot be extracted safely."""
+          
           def extract_module_info(file_path: Path) -> Dict[str, Any]:
               """Extract docstrings and metadata from a Python file."""
               try:
-                  with open(file_path, 'r', encoding='utf-8') as f:
-                      content = f.read()
+                  content = file_path.read_text(encoding='utf-8')
+                  tree = ast.parse(content, filename=str(file_path))
+              except (OSError, UnicodeDecodeError, SyntaxError, ValueError) as error:
+                  raise DocumentationExtractionError(
+                      f"Could not process {file_path}: {error}"
+                  ) from error
                   
-                  tree = ast.parse(content)
+              module_info = {
+                  'path': str(file_path),
+                  'docstring': ast.get_docstring(tree),
+                  'classes': [],
+                  'functions': [],
+                  'imports': []
+              }
+              
+              for node in ast.walk(tree):
+                  if isinstance(node, ast.ClassDef):
+                      class_info = {
+                          'name': node.name,
+                          'docstring': ast.get_docstring(node),
+                          'methods': []
+                      }
+                      for item in node.body:
+                          if isinstance(item, ast.FunctionDef):
+                              class_info['methods'].append({
+                                  'name': item.name,
+                                  'docstring': ast.get_docstring(item)
+                              })
+                      module_info['classes'].append(class_info)
                   
-                  module_info = {
-                      'path': str(file_path),
-                      'docstring': ast.get_docstring(tree),
-                      'classes': [],
-                      'functions': [],
-                      'imports': []
-                  }
+                  elif isinstance(node, ast.FunctionDef) and node.col_offset == 0:
+                      module_info['functions'].append({
+                          'name': node.name,
+                          'docstring': ast.get_docstring(node)
+                      })
                   
-                  for node in ast.walk(tree):
-                      if isinstance(node, ast.ClassDef):
-                          class_info = {
-                              'name': node.name,
-                              'docstring': ast.get_docstring(node),
-                              'methods': []
-                          }
-                          for item in node.body:
-                              if isinstance(item, ast.FunctionDef):
-                                  class_info['methods'].append({
-                                      'name': item.name,
-                                      'docstring': ast.get_docstring(item)
-                                  })
-                          module_info['classes'].append(class_info)
-                      
-                      elif isinstance(node, ast.FunctionDef) and node.col_offset == 0:
-                          module_info['functions'].append({
-                              'name': node.name,
-                              'docstring': ast.get_docstring(node)
-                          })
-                      
-                      elif isinstance(node, (ast.Import, ast.ImportFrom)):
-                          if isinstance(node, ast.Import):
-                              for alias in node.names:
-                                  module_info['imports'].append(alias.name)
-                          elif node.module:
-                              module_info['imports'].append(node.module)
-                  
-                  return module_info
-              except Exception as e:
-                  print(f"Error processing {file_path}: {e}", file=sys.stderr)
-                  return None
+                  elif isinstance(node, (ast.Import, ast.ImportFrom)):
+                      if isinstance(node, ast.Import):
+                          for alias in node.names:
+                              module_info['imports'].append(alias.name)
+                      elif node.module:
+                          module_info['imports'].append(node.module)
+              
+              return module_info
           
           def generate_module_docs(base_path: Path, output_dir: Path):
               """Generate markdown documentation for all modules."""
               modules = []
+              failures = []
               
               # Find all Python files
               for py_file in base_path.rglob('*.py'):
@@ -131,12 +134,22 @@ jobs:
                       continue
                   
                   rel_path = py_file.relative_to(base_path)
-                  module_info = extract_module_info(py_file)
+                  try:
+                      module_info = extract_module_info(py_file)
+                  except DocumentationExtractionError as error:
+                      failures.append(str(error))
+                      continue
                   
                   if module_info and (module_info['docstring'] or 
                                      module_info['classes'] or 
                                      module_info['functions']):
                       modules.append(module_info)
+              
+              if failures:
+                  raise DocumentationExtractionError(
+                      "Could not generate complete module documentation:\n"
+                      + "\n".join(f"- {failure}" for failure in failures)
+                  )
               
               # Generate summary document
               output_dir.mkdir(parents=True, exist_ok=True)
@@ -196,7 +209,11 @@ jobs:
           if __name__ == '__main__':
               base_path = Path('ipfs_kit_py')
               output_dir = Path('docs/api_generated')
-              generate_module_docs(base_path, output_dir)
+              try:
+                  generate_module_docs(base_path, output_dir)
+              except DocumentationExtractionError as error:
+                  print(f"Documentation extraction failed: {error}", file=sys.stderr)
+                  sys.exit(1)
           EOFPYTHON
           
           python /tmp/extract_docs.py
