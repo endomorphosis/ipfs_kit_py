@@ -13,29 +13,38 @@ import re
 import sys
 import yaml
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 
-def extract_workflow_name(workflow_file: Path) -> str:
+class WorkflowListError(RuntimeError):
+    """Raised when workflow list generation cannot safely continue."""
+
+
+def extract_workflow_name(workflow_file: Path) -> Optional[str]:
     """Extract the workflow name from a YAML file."""
     try:
-        with open(workflow_file, 'r') as f:
-            content = f.read()
-            # Try to parse as YAML
-            try:
-                data = yaml.safe_load(content)
-                if data and isinstance(data, dict) and 'name' in data:
-                    return data['name']
-            except yaml.YAMLError:
-                pass
-            
-            # Fallback: regex extraction for simple cases
-            match = re.search(r'^name:\s*["\']?([^"\'\n]+)["\']?', content, re.MULTILINE)
-            if match:
-                return match.group(1).strip()
-    except Exception as e:
-        print(f"Warning: Could not parse {workflow_file}: {e}", file=sys.stderr)
-    
+        content = workflow_file.read_text(encoding='utf-8')
+    except (OSError, UnicodeDecodeError) as error:
+        raise WorkflowListError(f"Could not read {workflow_file}: {error}") from error
+
+    parse_error = None
+    try:
+        data = yaml.safe_load(content)
+        if data and isinstance(data, dict) and 'name' in data:
+            workflow_name = data['name']
+            if workflow_name is not None:
+                return str(workflow_name)
+    except yaml.YAMLError as error:
+        parse_error = error
+
+    # Fallback for workflow files that GitHub Actions accepts but PyYAML cannot parse.
+    match = re.search(r'^name:\s*["\']?([^"\'\n]+)["\']?', content, re.MULTILINE)
+    if match:
+        return match.group(1).strip()
+
+    if parse_error is not None:
+        raise WorkflowListError(f"Could not parse {workflow_file}: {parse_error}") from parse_error
+
     return None
 
 
@@ -103,7 +112,11 @@ def main():
     ]
     
     # Get workflow names
-    workflow_names = get_workflow_names(workflows_dir, exclude_patterns)
+    try:
+        workflow_names = get_workflow_names(workflows_dir, exclude_patterns)
+    except WorkflowListError as error:
+        print(f"Error: {error}", file=sys.stderr)
+        sys.exit(1)
     
     if not workflow_names:
         print("Error: No workflows found!", file=sys.stderr)
