@@ -201,13 +201,22 @@ def run_syntax_check(file_path):
     except Exception as e:
         return False, str(e)
 
+def _format_subprocess_output(stdout, stderr):
+    """Format captured subprocess output for diagnostics."""
+    if isinstance(stdout, bytes):
+        stdout = stdout.decode(errors="replace")
+    if isinstance(stderr, bytes):
+        stderr = stderr.decode(errors="replace")
+
+    return f"Output:\n{stdout or ''}\n{stderr or ''}"
+
 def run_pytest(test_paths=None):
     """Run pytest on specific test paths or all tests."""
+    cmd = ["pytest", "-xvs"]
+    if test_paths:
+        cmd.extend(test_paths)
+
     try:
-        cmd = ["pytest", "-xvs"]
-        if test_paths:
-            cmd.extend(test_paths)
-        
         result = subprocess.run(
             cmd,
             cwd=os.getcwd(),
@@ -215,9 +224,17 @@ def run_pytest(test_paths=None):
             text=True,
             timeout=120
         )
-        return result.returncode == 0, f"Output:\n{result.stdout}\n{result.stderr}"
-    except Exception as e:
-        return False, str(e)
+    except subprocess.TimeoutExpired as e:
+        output = _format_subprocess_output(e.stdout, e.stderr)
+        message = f"Pytest timed out after {e.timeout} seconds while running {cmd!r}.\n{output}"
+        logger.warning(message)
+        return False, message
+    except OSError as e:
+        message = f"Unable to start pytest command {cmd!r}: {e}"
+        logger.error(message, exc_info=True)
+        return False, message
+
+    return result.returncode == 0, _format_subprocess_output(result.stdout, result.stderr)
 
 async def start_other_instance(port):
     """Start the other instance of the server."""
