@@ -961,28 +961,49 @@ class AdvancedFilecoinStorage(FilecoinStorage):
     
     def _get_chain_height(self) -> Optional[int]:
         """Helper method to get current chain height."""
-        try:
-            if self.mock_mode or self.gateway_mode:
-                # Try to get from mock storage first
-                mock_base = os.path.expanduser("~/.ipfs_kit/mock_filecoin")
-                network_file = os.path.join(mock_base, "network", "stats.json")
-                
-                if os.path.exists(network_file):
+        if self.mock_mode or self.gateway_mode:
+            # Try to get from mock storage first
+            mock_base = os.path.expanduser("~/.ipfs_kit/mock_filecoin")
+            network_file = os.path.join(mock_base, "network", "stats.json")
+            
+            if os.path.exists(network_file):
+                try:
                     with open(network_file, "r") as f:
                         stats = json.load(f)
-                    
-                    if "chain_height" in stats:
-                        return stats["chain_height"]
-            
-            # Try to get real chain height
-            chain_head = self._make_api_request("Filecoin.ChainHead")
-            if chain_head and "Height" in chain_head:
-                return chain_head["Height"]
-            
+                except (OSError, json.JSONDecodeError) as e:
+                    logger.warning(f"Unable to read cached Filecoin height from {network_file}: {e}")
+                else:
+                    if not isinstance(stats, dict):
+                        logger.warning(f"Cached Filecoin stats in {network_file} are not a JSON object")
+                    else:
+                        chain_height = stats.get("chain_height")
+                        if chain_height is not None:
+                            try:
+                                return int(chain_height)
+                            except (TypeError, ValueError) as e:
+                                logger.warning(f"Invalid cached Filecoin height {chain_height!r}: {e}")
+        
+        # Try to get real chain height. _make_api_request reports recoverable
+        # transport/API failures by returning None; unexpected exceptions should
+        # propagate instead of being collapsed into an indistinguishable fallback.
+        chain_head = self._make_api_request("Filecoin.ChainHead")
+        if not chain_head:
             return None
         
-        except Exception as e:
-            logger.warning(f"Error getting chain height: {e}")
+        if not isinstance(chain_head, dict):
+            response_type = type(chain_head).__name__
+            logger.warning(f"Unexpected Filecoin ChainHead response type: {response_type}")
+            return None
+        
+        chain_height = chain_head.get("Height")
+        if chain_height is None:
+            logger.warning(f"Filecoin ChainHead response did not include Height: {chain_head!r}")
+            return None
+        
+        try:
+            return int(chain_height)
+        except (TypeError, ValueError) as e:
+            logger.warning(f"Invalid Filecoin ChainHead height {chain_height!r}: {e}")
             return None
 
     def explore_chain_block(self, height: Optional[int] = None, cid: Optional[str] = None) -> Dict[str, Any]:
