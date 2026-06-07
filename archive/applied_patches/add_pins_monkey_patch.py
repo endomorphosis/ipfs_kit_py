@@ -6,7 +6,9 @@ Script to apply a monkeypatch to the running MCP server to fix the pins method.
 import sys
 import time
 import importlib
+import importlib.util
 import inspect
+import os
 import types
 
 def get_ipfs_simple_api_class():
@@ -22,23 +24,32 @@ def get_ipfs_simple_api_class():
             return IPFSSimpleAPI
         except ImportError:
             # Try dynamic import
+            module_path = os.path.join(os.path.dirname(__file__), 'ipfs_kit_py', 'high_level_api.py')
+
             try:
-                import os
-                import importlib.util
-                
-                # Get path to high_level_api.py
-                module_path = os.path.join(os.path.dirname(__file__), 'ipfs_kit_py', 'high_level_api.py')
-                
-                # Import the module
                 spec = importlib.util.spec_from_file_location("high_level_api", module_path)
+                if spec is None or spec.loader is None:
+                    print(
+                        f"Failed to import IPFSSimpleAPI class: unable to load module spec from {module_path}",
+                        file=sys.stderr,
+                    )
+                    return None
+
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
-                
-                # Get the class
-                return module.IPFSSimpleAPI
-            except Exception as e:
-                print(f"Failed to import IPFSSimpleAPI class: {e}")
+            except (ImportError, OSError) as e:
+                print(f"Failed to import IPFSSimpleAPI class: {e}", file=sys.stderr)
                 return None
+
+            IPFSSimpleAPI = getattr(module, "IPFSSimpleAPI", None)
+            if IPFSSimpleAPI is None:
+                print(
+                    f"Failed to import IPFSSimpleAPI class: {module_path} does not define IPFSSimpleAPI",
+                    file=sys.stderr,
+                )
+                return None
+
+            return IPFSSimpleAPI
 
 def apply_monkeypatch():
     """Apply the monkeypatch to the IPFSSimpleAPI class."""
