@@ -201,15 +201,11 @@ except ImportError:
         }
 
 # Create router function
-def create_webrtc_router(api_prefix: str) -> Optional[APIRouter]:
+def create_webrtc_router(api_prefix: str) -> APIRouter:
     """Create a router for WebRTC endpoints."""
-    try:
-        router = APIRouter(prefix=api_prefix)
-        # Here would be route registrations
-        return router
-    except Exception as e:
-        logger.error(f"Error creating WebRTC router: {e}")
-        return None
+    router = APIRouter(prefix=api_prefix)
+    # Here would be route registrations
+    return router
 
 def create_webrtc_extension_router(api_prefix: str) -> Optional[APIRouter]:
     """
