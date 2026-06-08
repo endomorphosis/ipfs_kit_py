@@ -75,7 +75,7 @@ class UltraFastCLI:
                 with open("/tmp/ipfs_kit_daemon.pid", 'r') as f:
                     pid = int(f.read().strip())
                 print(f"   PID: {pid}")
-            except:
+            except (OSError, ValueError):
                 pass
         else:
             print("❌ Status: Not Running")
