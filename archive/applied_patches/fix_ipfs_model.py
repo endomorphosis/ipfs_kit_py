@@ -193,24 +193,118 @@ def add_compatibility_methods():
         
         # Try to find the best way to add content
         try:
-            if hasattr(self, "ipfs") and hasattr(self.ipfs, "add_str"):
-                # Go-IPFS / Kubo naming style
-                if isinstance(content, str):
-                    result = await self.ipfs.add_str(content)
-                else:
-                    # Convert to string if it's bytes
-                    content_str = content.decode('utf-8') if isinstance(content, bytes) else str(content)
-                    result = await self.ipfs.add_str(content_str)
-                return result
-            elif hasattr(self, "ipfs") and hasattr(self.ipfs, "add"):
-                # Try generic add method
-                result = await self.ipfs.add(content)
-                return result
+            ipfs_client = getattr(self, "ipfs", None)
+            attempted_methods = []
+            content_bytes = content if isinstance(content, bytes) else str(content).encode('utf-8')
+            if isinstance(content, bytes):
+                try:
+                    content_str = content.decode('utf-8')
+                except UnicodeDecodeError:
+                    content_str = None
             else:
-                raise NotImplementedError("Could not find a suitable method to add content")
+                content_str = content if isinstance(content, str) else str(content)
+
+            async def call_add_method(owner, owner_name, method_name, *args, **method_kwargs):
+                """Call a compatible add method, awaiting async implementations."""
+                if owner is None or not hasattr(owner, method_name):
+                    return None
+
+                method = getattr(owner, method_name)
+                if not callable(method):
+                    return None
+
+                attempted_methods.append(f"{owner_name}.{method_name}")
+                try:
+                    result = method(*args, **method_kwargs)
+                except TypeError:
+                    if not method_kwargs:
+                        raise
+                    result = method(*args)
+
+                if inspect.isawaitable(result):
+                    return await result
+                return result
+
+            result = await call_add_method(self, "self", "add_content_async", content, **kwargs)
+            if result is not None:
+                return result
+
+            if isinstance(content, bytes) and hasattr(self, "add_bytes"):
+                result = await call_add_method(self, "self", "add_bytes", content_bytes, **kwargs)
+                if result is not None:
+                    return result
+
+            if hasattr(self, "add_str") and content_str is not None:
+                # Go-IPFS / Kubo naming style
+                result = await call_add_method(self, "self", "add_str", content_str, **kwargs)
+                if result is not None:
+                    return result
+
+            if hasattr(self, "add_string") and content_str is not None:
+                result = await call_add_method(self, "self", "add_string", content_str, **kwargs)
+                if result is not None:
+                    return result
+
+            if not isinstance(content, bytes) and hasattr(self, "add_bytes"):
+                result = await call_add_method(self, "self", "add_bytes", content_bytes, **kwargs)
+                if result is not None:
+                    return result
+
+            if isinstance(content, bytes) and ipfs_client and hasattr(ipfs_client, "add_bytes"):
+                result = await call_add_method(ipfs_client, "self.ipfs", "add_bytes", content_bytes, **kwargs)
+                if result is not None:
+                    return result
+
+            if ipfs_client and hasattr(ipfs_client, "add_str") and content_str is not None:
+                # Go-IPFS / Kubo naming style
+                result = await call_add_method(ipfs_client, "self.ipfs", "add_str", content_str, **kwargs)
+                if result is not None:
+                    return result
+
+            if ipfs_client and hasattr(ipfs_client, "add_string") and content_str is not None:
+                result = await call_add_method(ipfs_client, "self.ipfs", "add_string", content_str, **kwargs)
+                if result is not None:
+                    return result
+
+            if not isinstance(content, bytes) and ipfs_client and hasattr(ipfs_client, "add_bytes"):
+                result = await call_add_method(ipfs_client, "self.ipfs", "add_bytes", content_bytes, **kwargs)
+                if result is not None:
+                    return result
+
+            if hasattr(self, "add"):
+                # Try generic add method
+                result = await call_add_method(self, "self", "add", content, **kwargs)
+                if result is not None:
+                    return result
+
+            if ipfs_client and hasattr(ipfs_client, "add"):
+                # Try generic add method
+                result = await call_add_method(ipfs_client, "self.ipfs", "add", content, **kwargs)
+                if result is not None:
+                    return result
+
+            if ipfs_client and hasattr(ipfs_client, "command_async"):
+                result = await call_add_method(
+                    ipfs_client, "self.ipfs", "command_async", "add", stdin=content_bytes
+                )
+                if result is not None:
+                    return result
+
+            if ipfs_client and hasattr(ipfs_client, "command"):
+                result = await call_add_method(
+                    ipfs_client, "self.ipfs", "command", "add", stdin=content_bytes
+                )
+                if result is not None:
+                    return result
         except Exception as e:
             logger.error(f"Error in minimal add_content: {e}")
             raise RuntimeError(f"Failed to add content: {e}")
+
+        attempted = ", ".join(attempted_methods) if attempted_methods else "none found"
+        raise RuntimeError(
+            "Failed to add content: IPFSModelAnyIO has no usable add method "
+            f"(attempted: {attempted})"
+        )
     
     # Add the method to the class
     setattr(IPFSModelAnyIO, "add_content", minimal_add_content)
