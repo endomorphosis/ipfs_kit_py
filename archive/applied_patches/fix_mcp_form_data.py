@@ -8,6 +8,7 @@ and add_file methods.
 
 import logging
 import os
+import re
 import sys
 
 # Configure logging
@@ -26,85 +27,14 @@ def fix_ipfs_controller_anyio():
     with open(file_path, 'r') as f:
         content = f.read()
     
-    # Fix handle_add_request method
-    old_handle_add_request = """async def handle_add_request(self, request: Request) -> Dict[str, Any]:
-    \"\"\"
-    Handle combined add request that supports both JSON and form data.
-    
-    This unified endpoint accepts content either as JSON payload or as file upload
-    to simplify client integration.
-    
-    Args:
-        request: The incoming request which may be JSON or form data
-        
-    Returns:
-        Dictionary with operation results
-    \"\"\"
-    # Determine request content type
-    content_type = request.headers.get("content-type", "")
-    
-    # Handle multipart form data (file upload)
-    if content_type.startswith("multipart/form-data"):
-        # Extract the form data
-        form = await request.form()
-        
-        # Get uploaded file
-        file = form.get("file")
-        if not file:
-            raise HTTPException(status_code=400, detail="Missing file field in form data")
-            
-        # Process the uploaded file
-        return await self.add_file(file)
-        
-    # Handle application/json
-    elif content_type.startswith("application/json"):
-        # Parse JSON body
-        try:
-            data = await request.json()
-            
-            # Create ContentRequest instance
-            content_request = ContentRequest(
-                content=data.get("content", ""),
-                filename=data.get("filename")
-            )
-            
-            # Process the JSON content
-            return await self.add_content(content_request)
-            
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid JSON data")
-            
-    # Handle unknown content type
-    else:
-        # Try to parse as JSON first
-        try:
-            data = await request.json()
-            
-            # Create ContentRequest instance
-            content_request = ContentRequest(
-                content=data.get("content", ""),
-                filename=data.get("filename")
-            )
-            
-            # Process the JSON content
-            return await self.add_content(content_request)
-            
-        except:
-            # Fall back to form data
-            try:
-                form = await request.form()
-                file = form.get("file")
-                if file:
-                    # Process the uploaded file
-                    return await self.add_file(file)
-            except:
-                pass
-                
-        # If all parsing attempts fail, return error
-        raise HTTPException(
-            status_code=400, 
-            detail="Unsupported content type. Use application/json or multipart/form-data"
-        )"""
+    # Fix handle_add_request method. Locate the legacy body structurally so this
+    # archive script does not retain the old swallowed-exception implementation
+    # as executable-looking source text.
+    handle_add_request_pattern = re.compile(
+        r"async def handle_add_request\(self, request: Request\) -> Dict\[str, Any\]:.*?"
+        r"(?=\n\s+async def|\Z)",
+        re.DOTALL,
+    )
     
     new_handle_add_request = """async def handle_add_request(
     self, 
@@ -294,13 +224,19 @@ def fix_ipfs_controller_anyio():
         )"""
     
     # Replace the methods in the file content
-    updated_content = content.replace(old_handle_add_request, new_handle_add_request)
+    updated_content, handle_replacements = handle_add_request_pattern.subn(
+        new_handle_add_request,
+        content,
+        count=1,
+    )
     updated_content = updated_content.replace(old_add_file, new_add_file)
     
     # Check if any changes were made
     if content == updated_content:
-        logger.warning("No changes were made to the file. Make sure the target methods exist with exact patterns.")
+        logger.warning("No changes were made to the file. Make sure the target methods exist with expected signatures.")
         return False
+    if handle_replacements == 0:
+        logger.warning("handle_add_request method was not found with the expected legacy signature.")
     
     # Write the updated content back to the file
     with open(file_path, 'w') as f:
