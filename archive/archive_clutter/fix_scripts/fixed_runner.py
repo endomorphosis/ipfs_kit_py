@@ -55,8 +55,8 @@ def kill_existing_servers():
                     except OSError:
                         pass
                 os.remove(pid_file)
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to process pid file {pid_file}: {e}")
 
 def run_server_process(host="0.0.0.0", port=9998, debug=True):
     """Run the server as a subprocess to avoid import hanging."""
@@ -237,8 +237,8 @@ def main():
                 if process.poll() is None:
                     logger.info("Server didn't terminate gracefully, force killing...")
                     process.kill()
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"Error during server termination: {e}")
         
         # Remove PID file
         pid_file = "fixed_final_mcp_server.pid"
