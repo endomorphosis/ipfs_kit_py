@@ -978,8 +978,8 @@ class EnhancedStorachaStorage:
                     try:
                         with open(metadata_path, "r") as f:
                             metadata = json.load(f)
-                    except:
-                        pass
+                    except (OSError, ValueError) as e:
+                        logger.warning(f"Failed to read mock metadata {metadata_path}: {e}")
                 
                 blobs.append({
                     "digest": file,
