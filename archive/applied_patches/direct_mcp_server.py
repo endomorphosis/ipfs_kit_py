@@ -250,11 +250,13 @@ async def start_other_instance(port):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
-        logger.info(f"Started other instance with PID {process.pid} on port {port}")
-        return process.pid
-    except Exception as e:
-        logger.error(f"Failed to start other instance: {e}")
-        return None
+    except OSError as e:
+        message = f"Unable to start other instance on port {port} with command {cmd!r}: {e}"
+        logger.error(message, exc_info=True)
+        raise RuntimeError(message) from e
+
+    logger.info(f"Started other instance with PID {process.pid} on port {port}")
+    return process.pid
 
 async def perform_health_check(port):
     """Check if the server on the given port is healthy."""
