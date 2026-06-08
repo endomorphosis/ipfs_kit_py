@@ -149,15 +149,15 @@ async def delayed_shutdown(pid: int, delay: float):
     except Exception as e:
         logger.error(f"Error sending SIGTERM to process {pid}: {e}")
 
-def get_other_instance_pid():
+def get_other_instance_pid() -> Optional[int]:
     """Get the PID of the other instance (blue if we're green, green if we're blue)."""
     other_pid_file = DEPLOYMENT_CONFIG["green_pid_file"] if is_blue else DEPLOYMENT_CONFIG["blue_pid_file"]
-    if not os.path.exists(other_pid_file):
-        return None
 
     try:
         with open(other_pid_file, "r", encoding="utf-8") as f:
             pid_text = f.read().strip()
+    except FileNotFoundError:
+        return None
     except OSError as e:
         logger.error(f"Error reading other instance PID file {other_pid_file}: {e}", exc_info=True)
         return None
