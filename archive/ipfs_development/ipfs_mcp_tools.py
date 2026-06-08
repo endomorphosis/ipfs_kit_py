@@ -508,11 +508,11 @@ def register_tools(server) -> bool:
                 }
                 
             finally:
-                # Clean up temporary file
+                # Clean up temporary file; log but don't raise if removal fails
                 try:
                     os.unlink(temp_path)
-                except OSError:
-                    pass
+                except OSError as unlink_err:
+                    logger.debug("Failed to remove temporary file %s: %s", temp_path, unlink_err)
                 
         except Exception as e:
             logger.error(f"Error writing to MFS: {e}")
