@@ -80,8 +80,8 @@ if cat_result and cat_result.get("success"):
     if cat_result.get("content_encoding") == "base64":
         try:
             content = base64.b64decode(content).decode("utf-8")
-        except:
-            pass
+        except (ValueError, UnicodeDecodeError) as e:
+            print(f"Warning: could not decode base64 content: {e}")
     print(f"Retrieved content: {content}")
 else:
     print(f"Cat error: {cat_result}")
