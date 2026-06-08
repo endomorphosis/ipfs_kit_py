@@ -241,7 +241,7 @@ async def start_other_instance(port):
         logger.info("Started other instance with PID %s on port %s", process.pid, port)
         return process.pid
     except Exception as e:
-        logger.error("Failed to start other instance: %s", e)
+        logger.error("Failed to start other instance: %s", e, exc_info=True)
         return None
 
 async def perform_health_check(port):
