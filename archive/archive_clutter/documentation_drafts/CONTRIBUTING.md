@@ -211,7 +211,7 @@ Comments should be used thoughtfully and maintained as code evolves. We categori
 - Don't comment on obvious code; focus on explaining complex logic
 - For Decision Comments, include context that future developers wouldn't easily know
 - For temporary or action comments, include issue numbers when applicable
-- Use standardized prefixes for action items: TODO, FIXME, HACK, NOTE
+- Use project-standard action-comment prefixes consistently, and pair temporary workarounds with issue references
 
 #### Error Handling
 
