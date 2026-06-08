@@ -188,7 +188,7 @@ try:
     with open(current_pid_file, "w") as f:
         f.write(str(os.getpid()))
     logger.info("Wrote PID %s to %s", os.getpid(), current_pid_file)
-except Exception as e:
+except OSError as e:
     logger.error("Failed to write PID file %s: %s", current_pid_file, e)
 
 # Create FastMCP server
@@ -300,8 +300,10 @@ def run_pytest(test_paths=None):
             timeout=120
         )
         return result.returncode == 0, f"Output:\n{result.stdout}\n{result.stderr}"
-    except Exception as e:
-        return False, str(e)
+    except subprocess.TimeoutExpired as e:
+        return False, f"Pytest timed out: {e}"
+    except (FileNotFoundError, OSError) as e:
+        return False, f"Failed to run pytest: {e}"
 
 async def start_other_instance(port):
     """Start the other instance of the server."""
