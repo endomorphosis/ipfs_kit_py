@@ -272,8 +272,11 @@ def restart_mcp_server():
                 ["pkill", "-f", "enhanced_mcp_server.py"],
                 check=False
             )
-        except Exception:
-            pass
+        except OSError:
+            logger.warning(
+                "Unable to run pkill cleanup for enhanced_mcp_server.py",
+                exc_info=True
+            )
             
         # Wait for processes to terminate
         time.sleep(2)
