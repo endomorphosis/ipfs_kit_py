@@ -916,8 +916,11 @@ class EnhancedStorachaStorage:
                 try:
                     with open(metadata_path, "r") as f:
                         metadata = json.load(f)
-                except:
-                    pass
+                except (OSError, ValueError) as e:
+                    logger.warning(
+                        f"Unable to read mock metadata for storage ID {storage_id} "
+                        f"from {metadata_path}: {e}"
+                    )
             
             return {
                 "success": True,
