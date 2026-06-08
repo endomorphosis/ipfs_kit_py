@@ -209,7 +209,7 @@ def create_webrtc_extension_router(api_prefix: str) -> Optional[APIRouter]:
         api_prefix: The API prefix to use for the router
         
     Returns:
-        The created router or None if an error occurred
+        The created router or None if the API prefix is invalid
     """
     logger.info("Creating WebRTC extension router")
     
@@ -221,8 +221,8 @@ def create_webrtc_extension_router(api_prefix: str) -> Optional[APIRouter]:
         router = create_webrtc_router(api_prefix)
         logger.info(f"Successfully created WebRTC router with prefix: {router.prefix}")
         return router
-    except Exception as e:
-        logger.error(f"Error creating WebRTC router: {e}")
+    except (AssertionError, ValueError):
+        logger.exception("Invalid WebRTC router prefix: %r", api_prefix)
         return None
 
 # Mock FastAPI class for type hints
