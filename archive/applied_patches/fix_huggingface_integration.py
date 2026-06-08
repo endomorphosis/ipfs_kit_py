@@ -317,12 +317,24 @@ def restart_mcp_server():
         
         # Also try to kill any process matching enhanced_mcp_server.py
         try:
-            subprocess.run(
+            pkill_result = subprocess.run(
                 ["pkill", "-f", "enhanced_mcp_server.py"],
+                capture_output=True,
+                text=True,
                 check=False
             )
-        except Exception:
-            pass
+            if pkill_result.returncode == 0:
+                logger.info("Sent termination signal to matching enhanced_mcp_server.py processes")
+            elif pkill_result.returncode == 1:
+                logger.debug("No enhanced_mcp_server.py processes were running")
+            else:
+                logger.warning(
+                    "pkill enhanced_mcp_server.py exited with code %s: %s",
+                    pkill_result.returncode,
+                    pkill_result.stderr.strip() or pkill_result.stdout.strip() or "no output"
+                )
+        except (OSError, subprocess.SubprocessError) as e:
+            logger.warning(f"Error stopping enhanced_mcp_server.py processes: {e}")
             
         # Wait for processes to terminate
         time.sleep(2)
