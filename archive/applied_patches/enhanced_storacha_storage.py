@@ -957,7 +957,11 @@ class EnhancedStorachaStorage:
             if cursor:
                 try:
                     start_idx = int(cursor)
-                except:
+                except (TypeError, ValueError) as e:
+                    logger.warning(
+                        f"Invalid mock list_blobs cursor {cursor!r}; "
+                        f"defaulting to first page: {e}"
+                    )
                     start_idx = 0
             
             end_idx = min(start_idx + size, len(files))
