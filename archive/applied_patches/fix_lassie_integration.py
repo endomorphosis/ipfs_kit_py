@@ -49,15 +49,15 @@ def backup_file(file_path):
         file_path: Path to the file to back up
         
     Returns:
-        Path to the backup file
+        Path to the backup file, or None if the backup could not be created
     """
     backup_path = f"{file_path}.bak"
     try:
         shutil.copy2(file_path, backup_path)
         logger.info(f"Created backup of {file_path} at {backup_path}")
         return backup_path
-    except Exception as e:
-        logger.error(f"Failed to back up {file_path}: {e}")
+    except (OSError, shutil.Error):
+        logger.exception(f"Failed to back up {file_path}")
         return None
 
 def update_lassie_storage():
@@ -69,7 +69,8 @@ def update_lassie_storage():
     try:
         # Back up the original file
         if ORIGINAL_LASSIE_STORAGE.exists():
-            backup_file(ORIGINAL_LASSIE_STORAGE)
+            if backup_file(ORIGINAL_LASSIE_STORAGE) is None:
+                return False
             
         # Copy enhanced implementation to the original location
         shutil.copy2(ENHANCED_LASSIE_STORAGE, ORIGINAL_LASSIE_STORAGE)
@@ -87,7 +88,8 @@ def update_lassie_extension():
         
     try:
         # Back up the original file
-        backup_file(LASSIE_EXTENSION)
+        if backup_file(LASSIE_EXTENSION) is None:
+            return False
         
         # Read the extension file content
         with open(LASSIE_EXTENSION, 'r') as f:
