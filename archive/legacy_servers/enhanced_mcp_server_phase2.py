@@ -1664,7 +1664,7 @@ class EnhancedMCPServerPhase2:
                         "used_percent": round((usage.used / usage.total) * 100, 2),
                         "free_gb": round(usage.free / (1024**3), 2)
                     }
-                except:
+                except OSError:
                     pass
                     
         except ImportError:
