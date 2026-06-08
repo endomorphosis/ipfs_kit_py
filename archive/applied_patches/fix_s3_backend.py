@@ -719,6 +719,10 @@ class S3Backend(BackendStorage):
                 with open(f"{cache_path}.meta", "r") as f:
                     cached_metadata = json.load(f)
 
+                if not isinstance(cached_metadata, dict):
+                    raise TypeError(
+                        f"Cache metadata is {type(cached_metadata).__name__}, expected dict")
+
                 if "object_metadata" in cached_metadata:
                     return {
                         "success": True,
@@ -734,9 +738,12 @@ class S3Backend(BackendStorage):
                         "cached": True,
                         "details": {"bucket": bucket, "key": content_id},
                     }
-            except Exception:
-                # If anything goes wrong with cache, fall back to S3
-                pass
+            except (OSError, TypeError, ValueError) as cache_error:
+                # Local cache reads are best-effort; fall back to S3 with diagnostics.
+                logger.warning(
+                    f"Error reading metadata cache for {bucket}/{content_id}: {str(cache_error)}",
+                    exc_info=True,
+                )
 
         try:
             # Use head_object to get metadata
