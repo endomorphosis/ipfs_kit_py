@@ -52,12 +52,13 @@ class LassieMockHandler(http.server.BaseHTTPRequestHandler):
             
             for filename in os.listdir(retrievals_dir):
                 if filename.endswith('.json'):
+                    retrieval_file = os.path.join(retrievals_dir, filename)
                     try:
-                        with open(os.path.join(retrievals_dir, filename), 'r') as f:
+                        with open(retrieval_file, 'r') as f:
                             retrieval = json.load(f)
                             retrievals.append(retrieval)
-                    except:
-                        pass
+                    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as e:
+                        self.log_error("Skipping unreadable retrieval file %s: %s", retrieval_file, e)
             
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
@@ -78,8 +79,8 @@ class LassieMockHandler(http.server.BaseHTTPRequestHandler):
                     self.send_header('Content-type', 'application/json')
                     self.end_headers()
                     self.wfile.write(json.dumps(retrieval).encode('utf-8'))
-                except:
-                    self.send_error(500, "Error reading retrieval file")
+                except (OSError, UnicodeDecodeError, json.JSONDecodeError) as e:
+                    self.send_error(500, f"Error reading retrieval file: {e}")
             else:
                 self.send_error(404, "Retrieval not found")
         
