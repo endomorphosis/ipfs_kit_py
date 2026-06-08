@@ -45,15 +45,15 @@ def backup_file(file_path):
         file_path: Path to the file to back up
         
     Returns:
-        Path to the backup file
+        Path to the backup file, or None if the backup could not be created
     """
     backup_path = f"{file_path}.bak"
     try:
         shutil.copy2(file_path, backup_path)
         logger.info(f"Created backup of {file_path} at {backup_path}")
         return backup_path
-    except Exception as e:
-        logger.error(f"Failed to back up {file_path}: {e}")
+    except (OSError, shutil.Error):
+        logger.exception(f"Failed to back up {file_path}")
         return None
 
 def update_storacha_kit():
@@ -65,7 +65,8 @@ def update_storacha_kit():
     try:
         # Back up the original file
         if OLD_STORACHA_KIT.exists():
-            backup_file(OLD_STORACHA_KIT)
+            if backup_file(OLD_STORACHA_KIT) is None:
+                return False
             
         # Copy enhanced implementation to the original location
         shutil.copy2(ENHANCED_STORACHA_KIT, OLD_STORACHA_KIT)
@@ -98,7 +99,8 @@ def update_imports_in_file(file_path):
             return True  # Not an error
         
         # Back up the file
-        backup_file(file_path)
+        if backup_file(file_path) is None:
+            return False
         
         # Update imports - no changes needed since we're replacing the original file
         # This function is kept for future enhancements if needed
@@ -118,7 +120,8 @@ def update_mcp_extension():
         
     try:
         # Back up the extension file
-        backup_file(extension_file)
+        if backup_file(extension_file) is None:
+            return False
         
         # Read the current content
         with open(extension_file, 'r') as f:
