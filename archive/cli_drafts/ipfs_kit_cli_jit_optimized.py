@@ -109,8 +109,9 @@ class IPFSKitOptimizedCLI:
                         with open(pid_file, 'r') as f:
                             pid = int(f.read().strip())
                         print(f"   PID: {pid}")
-                except Exception:
-                    pass
+                except Exception as e:
+                    # PID file read is best-effort; daemon may be running without one
+                    print(f"   (could not read PID file: {e})", file=sys.stderr)
         else:
             print("❌ Status: Not Running")
             print("   Start with: python ipfs_kit_cli_optimized.py daemon start --detach")
