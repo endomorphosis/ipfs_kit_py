@@ -427,8 +427,10 @@ class EnhancedStorachaStorage:
                 # Clean up temporary file
                 try:
                     os.unlink(temp_file_path)
-                except:
-                    pass
+                except FileNotFoundError:
+                    logger.debug(f"Temporary file already removed: {temp_file_path}")
+                except OSError as e:
+                    logger.warning(f"Failed to remove temporary file {temp_file_path}: {e}")
                 
                 if process.returncode != 0:
                     return {
