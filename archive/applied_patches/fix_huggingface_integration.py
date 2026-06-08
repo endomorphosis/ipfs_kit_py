@@ -49,15 +49,21 @@ def backup_file(file_path):
         
     Returns:
         Path to the backup file
+
+    Raises:
+        RuntimeError: If the backup cannot be created
     """
-    backup_path = f"{file_path}.bak"
+    file_path = Path(file_path)
+    backup_path = Path(f"{file_path}.bak")
     try:
         shutil.copy2(file_path, backup_path)
-        logger.info(f"Created backup of {file_path} at {backup_path}")
-        return backup_path
-    except Exception as e:
-        logger.error(f"Failed to back up {file_path}: {e}")
-        return None
+    except (OSError, shutil.Error) as e:
+        raise RuntimeError(
+            f"Failed to back up {file_path} to {backup_path}"
+        ) from e
+
+    logger.info(f"Created backup of {file_path} at {backup_path}")
+    return backup_path
 
 def update_huggingface_storage():
     """Replace the current huggingface_storage.py with the enhanced version."""
@@ -193,7 +199,7 @@ logger.info(f"Initialized HuggingFace storage with repo: {repo_name} (type: {rep
         updated_content = updated_content.replace(old_list_files_error, new_from_ipfs_error)
         
         # Update the storage_backends update function to include more info
-        old_update_function = """# Function to update storage_backends with actual status
+        old_update_function = '''# Function to update storage_backends with actual status
 def update_huggingface_status(storage_backends: Dict[str, Any]) -> None:
     """
     Update storage_backends dictionary with actual HuggingFace status.
@@ -207,9 +213,9 @@ def update_huggingface_status(storage_backends: Dict[str, Any]) -> None:
         "simulation": status.get("simulation", True),
         "message": status.get("message", ""),
         "error": status.get("error", None)
-    }"""
+    }'''
     
-        new_update_function = """# Function to update storage_backends with actual status
+        new_update_function = '''# Function to update storage_backends with actual status
 def update_huggingface_status(storage_backends: Dict[str, Any]) -> None:
     """
     Update storage_backends dictionary with actual HuggingFace status.
@@ -240,7 +246,7 @@ def update_huggingface_status(storage_backends: Dict[str, Any]) -> None:
     if status.get("mock", False) and "mock_storage_path" in status:
         hf_status["mock_storage_path"] = status["mock_storage_path"]
     
-    storage_backends["huggingface"] = hf_status"""
+    storage_backends["huggingface"] = hf_status'''
     
         # Replace the update function with the enhanced version
         updated_content = updated_content.replace(old_update_function, new_update_function)
