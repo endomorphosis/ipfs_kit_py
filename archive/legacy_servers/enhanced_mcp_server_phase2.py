@@ -1664,7 +1664,7 @@ class EnhancedMCPServerPhase2:
                         "used_percent": round((usage.used / usage.total) * 100, 2),
                         "free_gb": round(usage.free / (1024**3), 2)
                     }
-                except:
+                except OSError:
                     pass
                     
         except ImportError:
@@ -1677,3 +1677,7 @@ class EnhancedMCPServerPhase2:
         return {
             "success": True,
             "cluster_id": "12D3KooWExample",
+            "status": "unknown",
+            "message": "Cluster status not available in this configuration",
+            "timestamp": datetime.now().isoformat(),
+        }
