@@ -210,58 +210,82 @@ def start_enhanced_mcp_server():
 def check_server_health(port=9997):
     """Check the health of the MCP server."""
     logger.info(f"Checking MCP server health on port {port}...")
-    
+
     try:
         import requests
-        
-        # Try multiple times with a delay
-        max_attempts = 3
-        for attempt in range(max_attempts):
-            try:
-                response = requests.get(f"http://localhost:{port}/api/v0/health", timeout=5)
-                
-                if response.status_code == 200:
-                    health_data = response.json()
-                    logger.info(f"Server status: {health_data.get('status', 'unknown')}")
-                    
-                    # Check storage backends
-                    backends = health_data.get('storage_backends', {})
-                    for backend, status in backends.items():
-                        if backend in ['ipfs', 'local']:
-                            continue  # Skip IPFS and local which should work by default
-                            
-                        available = status.get('available', False)
-                        simulation = status.get('simulation', True)
-                        mock = status.get('mock', False)
-                        
-                        if available and not simulation:
-                            if mock:
-                                logger.info(f"✓ {backend}: Running in functional mock mode")
-                            else:
-                                logger.info(f"✓ {backend}: Fully functional with real connection")
-                        else:
-                            error = status.get('error', 'Unknown error')
-                            logger.warning(f"✗ {backend}: Not functioning properly - {error}")
-                    
-                    return health_data
-                else:
-                    logger.warning(f"Health check failed: HTTP {response.status_code}")
-                    
-            except requests.RequestException as e:
-                if attempt < max_attempts - 1:
-                    logger.info(f"Retrying health check in 2 seconds... (attempt {attempt+1}/{max_attempts})")
-                    time.sleep(2)
-                else:
-                    logger.error(f"Failed to connect to server: {e}")
-        
-        return None
-                
     except ImportError:
         logger.error("Requests module not available - skipping health check")
         return None
-    except Exception as e:
-        logger.error(f"Error checking server health: {e}")
-        return None
+
+    # Try multiple times with a delay
+    max_attempts = 3
+    for attempt in range(max_attempts):
+        try:
+            response = requests.get(f"http://localhost:{port}/api/v0/health", timeout=5)
+        except requests.RequestException as e:
+            if attempt < max_attempts - 1:
+                logger.info(f"Retrying health check in 2 seconds... (attempt {attempt+1}/{max_attempts})")
+                time.sleep(2)
+            else:
+                logger.error(f"Failed to connect to server: {e}")
+            continue
+
+        if response.status_code != 200:
+            logger.warning(f"Health check failed: HTTP {response.status_code}")
+            continue
+
+        try:
+            health_data = response.json()
+        except ValueError:
+            logger.error("Health endpoint returned invalid JSON", exc_info=True)
+            return None
+
+        if not isinstance(health_data, dict):
+            logger.error(
+                "Health endpoint returned %s instead of an object",
+                type(health_data).__name__,
+            )
+            return None
+
+        logger.info(f"Server status: {health_data.get('status', 'unknown')}")
+
+        # Check storage backends
+        backends = health_data.get('storage_backends', {})
+        if not isinstance(backends, dict):
+            logger.error(
+                "Health endpoint storage_backends payload is %s instead of an object",
+                type(backends).__name__,
+            )
+            return None
+
+        for backend, status in backends.items():
+            if backend in ['ipfs', 'local']:
+                continue  # Skip IPFS and local which should work by default
+
+            if not isinstance(status, dict):
+                logger.warning(
+                    "✗ %s: Invalid backend health payload (%s)",
+                    backend,
+                    type(status).__name__,
+                )
+                continue
+
+            available = status.get('available', False)
+            simulation = status.get('simulation', True)
+            mock = status.get('mock', False)
+
+            if available and not simulation:
+                if mock:
+                    logger.info(f"✓ {backend}: Running in functional mock mode")
+                else:
+                    logger.info(f"✓ {backend}: Fully functional with real connection")
+            else:
+                error = status.get('error', 'Unknown error')
+                logger.warning(f"✗ {backend}: Not functioning properly - {error}")
+
+        return health_data
+
+    return None
 
 def main():
     """Main function to fix the MCP server."""
