@@ -1546,11 +1546,21 @@ class StorachaBackend(BackendStorage):
 
                 # Try to parse version information
                 api_version = None
-                try:
-                    data = response.json()
-                    api_version = data.get("version")
-                except Exception:
-                    pass
+                if response.status_code == 200:
+                    try:
+                        data = response.json()
+                    except ValueError as version_error:
+                        logger.warning(
+                            f"Unable to parse Storacha status version response: {str(version_error)}"
+                        )
+                    else:
+                        if isinstance(data, dict):
+                            api_version = data.get("version")
+                        else:
+                            logger.warning(
+                                "Unexpected Storacha status version response type: "
+                                f"{type(data).__name__}"
+                            )
             except Exception as e:
                 api_status = f"error: {str(e)}"
                 api_version = None
