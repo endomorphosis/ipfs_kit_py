@@ -135,7 +135,7 @@ def register_tools(server) -> bool:
                 # Clean up temporary file
                 try:
                     os.unlink(temp_path)
-                except:
+                except OSError:
                     pass
                 
         except Exception as e:
@@ -511,7 +511,7 @@ def register_tools(server) -> bool:
                 # Clean up temporary file
                 try:
                     os.unlink(temp_path)
-                except:
+                except OSError:
                     pass
                 
         except Exception as e:
@@ -728,7 +728,7 @@ def register_tools(server) -> bool:
             # Parse the output to extract identity information
             try:
                 id_info = json.loads(stdout)
-            except:
+            except (ValueError, json.JSONDecodeError):
                 id_info = {"ID": "unknown", "Error": "Failed to parse JSON output"}
             
             # Get bandwidth stats
@@ -737,7 +737,7 @@ def register_tools(server) -> bool:
             if bw_success:
                 try:
                     bw_info = json.loads(bw_stdout)
-                except:
+                except (ValueError, json.JSONDecodeError):
                     bw_info = {"Error": "Failed to parse JSON output"}
             else:
                 bw_info = {"Error": bw_stderr}
@@ -748,7 +748,7 @@ def register_tools(server) -> bool:
             if repo_success:
                 try:
                     repo_info = json.loads(repo_stdout)
-                except:
+                except (ValueError, json.JSONDecodeError):
                     repo_info = {"Error": "Failed to parse JSON output"}
             else:
                 repo_info = {"Error": repo_stderr}
