@@ -29,7 +29,7 @@ def load_tools():
         return tools
     
     except Exception as e:
-        logger.error(f"Error loading tools from JSON: {e}")
+        logger.exception(f"Error loading tools from JSON: {e}")
         return None
 
 def create_patched_mcp_server():
@@ -92,7 +92,7 @@ def create_patched_mcp_server():
         return True
     
     except Exception as e:
-        logger.error(f"Error creating patched MCP server: {e}")
+        logger.exception(f"Error creating patched MCP server: {e}")
         return False
 
 def create_restart_script():
@@ -125,7 +125,7 @@ echo "To test, try using a tool with the MCP interface"
         return True
     
     except Exception as e:
-        logger.error(f"Error creating restart script: {e}")
+        logger.exception(f"Error creating restart script: {e}")
         return False
 
 def main():
