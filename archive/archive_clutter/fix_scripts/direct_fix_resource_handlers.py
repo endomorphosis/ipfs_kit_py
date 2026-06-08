@@ -246,8 +246,8 @@ def patch_module(module_name):
     except ImportError:
         logger.warning(f"Could not import module {module_name}")
         return None
-    except Exception as e:
-        logger.error(f"Error patching module {module_name}: {e}")
+    except (AttributeError, TypeError):
+        logger.exception(f"Could not attach logger to module {module_name}")
         return None
 
 def patch_all_mcp_resources():
