@@ -286,7 +286,7 @@ def update_mcp_server_with_proxies(proxy_files):
         logger.info(f"Created updated server file: {updated_server_file}")
         return updated_server_file
     except Exception as e:
-        logger.error(f"Failed to update server file: {e}")
+        logger.exception(f"Failed to update server file: {e}")
         return None
 
 def create_startup_script():
@@ -465,7 +465,10 @@ def main():
     if proxy_files:
         print("\n=== Updating MCP server with storage backend proxies ===")
         server_file = update_mcp_server_with_proxies(proxy_files)
-        
+        if server_file is None:
+            logger.error("Skipping startup/test script creation: server file update failed")
+            return
+
         # Create startup script
         startup_script = create_startup_script()
         results["startup_script"] = startup_script
