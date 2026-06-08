@@ -220,15 +220,11 @@ sed -i '1s/^/from fastapi import APIRouter, WebSocket\nfrom typing import Option
 
 # Fix 7: Fix create_webrtc_router in webrtc.py
 sed -i '/def create_webrtc_extension_router/i\
-def create_webrtc_router(api_prefix: str) -> Optional[APIRouter]:\
+def create_webrtc_router(api_prefix: str) -> APIRouter:\
     """Create a router for WebRTC endpoints."""\
-    try:\
-        router = APIRouter(prefix=api_prefix)\
-        # Here would be route registrations\
-        return router\
-    except Exception as e:\
-        logger.error(f"Error creating WebRTC router: {e}")\
-        return None\
+    router = APIRouter(prefix=api_prefix)\
+    # Here would be route registrations\
+    return router\
 ' ipfs_kit_py/mcp/extensions/webrtc.py
 
 # STEP 2: Apply Black formatter to fix coding style issues
