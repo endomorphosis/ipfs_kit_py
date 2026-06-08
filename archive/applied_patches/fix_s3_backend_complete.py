@@ -823,28 +823,39 @@ class S3Backend(BackendStorage):
         if use_cache:
             in_cache, cache_path = self._is_in_cache(bucket, identifier)
             if in_cache:
+                meta_path = f"{cache_path}.meta"
                 try:
-                    with open(f"{cache_path}.meta", "r") as f:
+                    with open(meta_path, "r") as f:
                         cached_metadata = json.load(f)
-
-                    if "object_metadata" in cached_metadata:
-                        return {
-                            "success": True,
-                            "metadata": {
-                                "size": cached_metadata.get("size", 0),
-                                "last_modified": time.ctime(cached_metadata.get("cached_at", 0)),
-                                "backend": self.get_name(),
-                                "user_metadata": cached_metadata.get("object_metadata", {}),
-                            },
+                    object_metadata = cached_metadata["object_metadata"]
+                    size = cached_metadata.get("size", 0)
+                    last_modified = time.ctime(cached_metadata.get("cached_at", 0))
+                except (
+                    OSError,
+                    json.JSONDecodeError,
+                    KeyError,
+                    AttributeError,
+                    TypeError,
+                    ValueError,
+                    OverflowError,
+                ) as cache_error:
+                    logger.warning(
+                        f"Error reading S3 metadata cache {meta_path}: {str(cache_error)}")
+                else:
+                    return {
+                        "success": True,
+                        "metadata": {
+                            "size": size,
+                            "last_modified": last_modified,
                             "backend": self.get_name(),
-                            "identifier": identifier,
-                            "container": bucket,
-                            "cached": True,
-                            "details": {"bucket": bucket, "key": identifier},
-                        }
-                except Exception:
-                    # If anything goes wrong with cache, fall back to S3
-                    pass
+                            "user_metadata": object_metadata,
+                        },
+                        "backend": self.get_name(),
+                        "identifier": identifier,
+                        "container": bucket,
+                        "cached": True,
+                        "details": {"bucket": bucket, "key": identifier},
+                    }
 
         try:
             # Use head_object to get metadata
