@@ -1067,9 +1067,12 @@ class StorachaBackend(BackendStorage):
                                 "cached_at": cached_metadata.get("cached_at"),
                             },
                         }
-                except Exception:
-                    # If anything goes wrong with cache, fall back to API
-                    pass
+                except (OSError, ValueError) as cache_error:
+                    # Local cache reads are best-effort; fall back to the API,
+                    # but keep cache corruption or filesystem issues visible.
+                    logger.warning(
+                        f"Error reading metadata cache for {identifier}: {str(cache_error)}"
+                    )
 
         try:
             # Not in cache, try to get from API
