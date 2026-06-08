@@ -88,8 +88,8 @@ def kill_existing_servers():
                     except OSError:
                         pass
                 os.remove(pid_file)
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Error processing pid file {pid_file}: {e}")
     
     # Try to kill by process name
     try:
@@ -106,10 +106,10 @@ def kill_existing_servers():
                         os.kill(pid, 9)
                     except OSError:
                         pass
-                except:
-                    pass
-    except:
-        pass
+                except Exception as e:
+                    logger.debug(f"Error killing process {pid}: {e}")
+    except subprocess.CalledProcessError:
+        pass  # pgrep exits non-zero when no matching processes found
 
 def check_port_availability(host, port):
     """Check if the port is available."""
@@ -194,10 +194,8 @@ def wait_for_server_ready(host, port, max_wait=60):
             if response.status_code == 200:
                 logger.info("Server is ready! ✓")
                 return True
-        except:
+        except (requests.RequestException, OSError):
             pass
-        
-        # Check if process is still running
         if os.path.exists(PID_FILE):
             with open(PID_FILE, "r") as f:
                 pid = int(f.read().strip())
@@ -219,10 +217,8 @@ def wait_for_server_ready(host, port, max_wait=60):
                     logger.info("Recent server output:")
                     for line in lines:
                         logger.info(f"  {line.strip()}")
-            except:
+            except Exception:
                 pass
-        
-        time.sleep(1)
     
     logger.error(f"Server didn't become ready within {max_wait} seconds ✗")
     return False
