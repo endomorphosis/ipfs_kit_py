@@ -14,6 +14,7 @@ Key features:
 
 import anyio
 import base64
+import binascii
 import hashlib
 import logging
 import time
@@ -258,35 +259,59 @@ class DHTOperations:
             # Call the IPFS API
             response = self.connection_pool.post("dht/get", params=params)
             
-            success = response.status_code == 200
-            
-            # Update metrics
             duration = time.time() - start_time
-            self._update_metrics("get_value", duration, success)
+            success = response.status_code == 200
             
             if success:
                 response_json = response.json()
                 
                 # Extract the value from the responses
                 value = None
+                decode_errors = []
                 responses = response_json if isinstance(response_json, list) else [response_json]
                 
-                for resp in responses:
+                for response_index, resp in enumerate(responses):
                     if resp.get("Type") == 5 and "Extra" in resp:  # Type 5 is VALUE
                         try:
-                            value = base64.b64decode(resp["Extra"])
+                            value = base64.b64decode(resp["Extra"], validate=True)
                             break
-                        except:
-                            pass
-                
-                return {
+                        except (binascii.Error, TypeError, ValueError) as exc:
+                            decode_error = {
+                                "response_index": response_index,
+                                "error": str(exc),
+                            }
+                            decode_errors.append(decode_error)
+                            logger.warning(
+                                "Failed to decode DHT value payload for key %s in response %s: %s",
+                                key,
+                                response_index,
+                                exc,
+                            )
+
+                if value is None and decode_errors:
+                    self._update_metrics("get_value", duration, False)
+                    return {
+                        "success": False,
+                        "key": key,
+                        "error": "Failed to decode DHT value payload",
+                        "decode_errors": decode_errors,
+                        "responses": responses,
+                        "duration": duration,
+                    }
+
+                self._update_metrics("get_value", duration, True)
+                result = {
                     "success": True,
                     "key": key,
                     "value": value,
                     "responses": responses,
                     "duration": duration,
                 }
+                if decode_errors:
+                    result["decode_errors"] = decode_errors
+                return result
             else:
+                self._update_metrics("get_value", duration, False)
                 return {
                     "success": False,
                     "key": key,
