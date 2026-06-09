@@ -217,8 +217,8 @@ def wait_for_server_ready(host, port, max_wait=60):
                     logger.info("Recent server output:")
                     for line in lines:
                         logger.info(f"  {line.strip()}")
-            except Exception:
-                pass
+            except OSError as e:
+                logger.debug(f"Could not read server log file: {e}")
     
     logger.error(f"Server didn't become ready within {max_wait} seconds ✗")
     return False
