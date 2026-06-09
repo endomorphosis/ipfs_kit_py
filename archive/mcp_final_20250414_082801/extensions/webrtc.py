@@ -74,8 +74,14 @@ def create_webrtc_extension_router(api_prefix: str) -> Optional[APIRouter]:
             return None
         logger.info(f"Successfully created WebRTC router with prefix: {router.prefix}")
         return router
-    except Exception as e:  # noqa: BLE001 – broad catch is intentional; all errors are logged
-        logger.error("Error creating WebRTC extension router: %s", e, exc_info=True)
+    except Exception as e:  # noqa: BLE001 – broad catch is intentional; caller checks None return
+        # Log exception type explicitly so triage does not require reading the traceback.
+        logger.error(
+            "Error creating WebRTC extension router (%s): %s",
+            type(e).__name__,
+            e,
+            exc_info=True,
+        )
         return None
 
 
@@ -113,6 +119,11 @@ def register_app_webrtc_routes(app: FastAPI, api_prefix: str) -> bool:
 
         logger.info(f"Successfully registered {len(websocket_routes)} WebRTC routes with app")
         return True
-    except Exception as e:
-        logger.error("Error registering WebRTC routes: %s", e, exc_info=True)
+    except Exception as e:  # noqa: BLE001 – broad catch is intentional; all errors are logged
+        logger.error(
+            "Error registering WebRTC routes (%s): %s",
+            type(e).__name__,
+            e,
+            exc_info=True,
+        )
         return False
