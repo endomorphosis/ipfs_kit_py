@@ -5,15 +5,6 @@ This controller provides a unified interface for managing multiple storage backe
 and their integration with the MCP server.
 """
 
-        try:
-            try:
-                anyio.run(self.shutdown)
-                return
-            except Exception as e:
-                logger.warning(f"Error using anyio.run for shutdown: {e}")
-        except Exception as e:
-            logger.error(f"Error during shutdown: {e}")
-
 
 class BackendStatusResponse(OperationResponse):
     """Response model for backend status information."""
@@ -190,21 +181,16 @@ class StorageManagerController:
 
         # Log shutdown status
         if errors:
-            try:
-                try:
-                    anyio.run(self.shutdown)
-                    return
-                except Exception as e:
-                    logger.warning(f"Error using anyio.run for shutdown: {e}")
-            except Exception as e:
-                logger.error(f"Error during shutdown: {e}")
+            logger.warning(
+                f"Storage Manager Controller shutdown completed with {len(errors)} errors"
+            )
+        else:
+            logger.info("Storage Manager Controller shutdown completed successfully")
 
-            if errors:
-                try:
-                    anyio.run(self.shutdown)
-                    return
-                except Exception as e:
-                    logger.error(f"Error during shutdown: {e}")
+    def register_routes(self, router):
+        """
+        Register API routes with the FastAPI router.
+
         Args:
             router: FastAPI router to register routes with
         """
@@ -282,12 +268,12 @@ class StorageManagerController:
         try:
             # Create default response structure first to ensure we always return a valid response
             response = {
-                "success": True
+                "success": True,
                 "operation_id": f"storage_status_{int(start_time * 1000)}",
                 "backends": {},
-                "available_count": 0
-                "total_count": 0
-                "duration_ms": 0
+                "available_count": 0,
+                "total_count": 0,
+                "duration_ms": 0,
             }
 
             try:
@@ -346,16 +332,16 @@ class StorageManagerController:
                         logger.error(f"Error getting capabilities for {backend_name}: {str(e)}")
 
                     backends_status[backend_name] = {
-                        "backend_name": backend_name
-                        "is_available": is_available
-                        "capabilities": capabilities
+                        "backend_name": backend_name,
+                        "is_available": is_available,
+                        "capabilities": capabilities,
                         "stats": stats
                     }
                 except Exception as e:
                     logger.error(f"Error processing backend {backend_name}: {str(e)}")
                     backends_status[backend_name] = {
-                        "backend_name": backend_name
-                        "is_available": False
+                        "backend_name": backend_name,
+                        "is_available": False,
                         "capabilities": [],
                         "stats": {"error": str(e), "error_type": type(e).__name__},
                         "error": str(e),
@@ -371,13 +357,13 @@ class StorageManagerController:
         except Exception as e:
             logger.error(f"Error handling storage status request: {str(e)}")
             return {
-                "success": False
+                "success": False,
                 "operation_id": f"storage_status_{int(start_time * 1000)}",
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "backends": {},
-                "available_count": 0
-                "total_count": 0
+                "available_count": 0,
+                "total_count": 0,
                 "duration_ms": (time.time() - start_time) * 1000,
             }
 
@@ -396,12 +382,12 @@ class StorageManagerController:
         try:
             # Create default response structure to ensure consistency
             response = {
-                "success": True
+                "success": True,
                 "operation_id": f"backend_status_{int(start_time * 1000)}",
-                "backend_name": backend_name
-                "is_available": False
+                "backend_name": backend_name,
+                "is_available": False,
                 "capabilities": [],
-                "stats": None
+                "stats": None,
                 "duration_ms": 0
             }
 
@@ -449,12 +435,12 @@ class StorageManagerController:
         except Exception as e:
             logger.error(f"Unhandled error in backend_status for '{backend_name}': {str(e)}")
             return {
-                "success": False
+                "success": False,
                 "operation_id": f"backend_status_{int(start_time * 1000)}",
-                "backend_name": backend_name
-                "is_available": False
+                "backend_name": backend_name,
+                "is_available": False,
                 "capabilities": [],
-                "stats": None
+                "stats": None,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "duration_ms": (time.time() - start_time) * 1000,
@@ -475,7 +461,7 @@ class StorageManagerController:
         try:
             # Initialize default response
             result = {
-                "success": False
+                "success": False,
                 "operation_id": f"transfer_{int(start_time * 1000)}",
                 "source_backend": request.source_backend,
                 "target_backend": request.target_backend,
@@ -643,7 +629,7 @@ class StorageManagerController:
         except Exception as e:
             logger.error(f"Unhandled error in content transfer: {str(e)}")
             return {
-                "success": False
+                "success": False,
                 "operation_id": f"transfer_{int(start_time * 1000)}",
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -682,7 +668,7 @@ class StorageManagerController:
             backend_model = self.storage_manager.get_model(backend_name)
             if not backend_model:
                 verification_results[backend_name] = {
-                    "success": False
+                    "success": False,
                     "error": f"Backend '{backend_name}' not found",
                     "error_type": "BackendNotFoundError",
                 }
@@ -706,7 +692,7 @@ class StorageManagerController:
                     }
                 else:
                     verification_results[backend_name] = {
-                        "success": False
+                        "success": False,
                         "error": f"Backend '{backend_name}' does not support content verification or retrieval",
                         "error_type": "UnsupportedOperationError",
                     }
@@ -719,10 +705,10 @@ class StorageManagerController:
         response = {
             "success": len(verified_backends) > 0,
             "operation_id": f"verify_{int(start_time * 1000)}",
-            "content_id": content_id
-            "verified_backends": verified_backends
+            "content_id": content_id,
+            "verified_backends": verified_backends,
             "total_backends_checked": len(backends),
-            "verification_results": verification_results
+            "verification_results": verification_results,
             "duration_ms": (time.time() - start_time) * 1000,
         }
 
@@ -764,14 +750,14 @@ class StorageManagerController:
 
         # Initialize result
         result = {
-            "success": True
+            "success": True,
             "operation_id": f"migrate_{int(start_time * 1000)}",
             "source_backend": request.source_backend,
             "target_backend": request.target_backend,
             "content_count": len(request.content_ids),
-            "successful_count": 0
-            "failed_count": 0
-            "total_bytes_transferred": 0
+            "successful_count": 0,
+            "failed_count": 0,
+            "total_bytes_transferred": 0,
             "results": {},
         }
 
@@ -840,7 +826,7 @@ class StorageManagerController:
                     else:
                         # Skip verification if storage bridge not available
                         result["results"][content_id]["verify_result"] = {
-                            "success": False
+                            "success": False,
                             "error": "Storage bridge not available for verification",
                             "error_type": "StorageBridgeNotAvailable",
                         }
@@ -855,7 +841,7 @@ class StorageManagerController:
                         result["results"][content_id]["delete_result"] = delete_result
                     else:
                         result["results"][content_id]["delete_result"] = {
-                            "success": False
+                            "success": False,
                             "error": f"Source backend '{request.source_backend}' does not support content deletion",
                             "error_type": "UnsupportedOperationError",
                         }
@@ -871,10 +857,10 @@ class StorageManagerController:
         return result
 
     def _transfer_content(
-    self,
-    source_backend: str
-        target_backend: str
-        content_id: str
+        self,
+        source_backend: str,
+        target_backend: str,
+        content_id: str,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
@@ -892,11 +878,11 @@ class StorageManagerController:
         start_time = time.time()
 
         result = {
-            "success": False
+            "success": False,
             "operation": "transfer_content",
-            "source_backend": source_backend
-            "target_backend": target_backend
-            "content_id": content_id
+            "source_backend": source_backend,
+            "target_backend": target_backend,
+            "content_id": content_id,
             "timestamp": time.time(),
         }
 
@@ -1049,7 +1035,10 @@ class StorageManagerController:
                 logger.error("Storage manager doesn't have get_model method")
                 return None
             except Exception as e:
-                logger.error(f"Error calling get_model on storage manager: {str(e)}")
+                logger.error(
+                    f"Error calling get_model on storage manager: {type(e).__name__}: {str(e)}",
+                    exc_info=True,
+                )
                 return None
 
             # Check if backend exists
