@@ -273,8 +273,12 @@ async def get_from_cache(key: str) -> Optional[Dict[str, Any]]:
             "content_type": entry.get("content_type", "application/octet-stream"),
             "size": len(content),
         }
+    except OSError as e:
+        logger.exception("Error reading cache file for key %r: %s", key, e)
+        stats["caching"]["misses"] += 1
+        return None
     except Exception as e:
-        logger.error(f"Error retrieving from cache ({type(e).__name__}): {e}", exc_info=True)
+        logger.exception("Unexpected error retrieving from cache for key %r: %s", key, e)
         stats["caching"]["misses"] += 1
         return None
 
