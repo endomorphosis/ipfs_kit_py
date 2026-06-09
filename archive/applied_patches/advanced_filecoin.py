@@ -961,29 +961,36 @@ class AdvancedFilecoinStorage(FilecoinStorage):
     
     def _get_chain_height(self) -> Optional[int]:
         """Helper method to get current chain height."""
-        try:
-            if self.mock_mode or self.gateway_mode:
-                # Try to get from mock storage first
-                mock_base = os.path.expanduser("~/.ipfs_kit/mock_filecoin")
-                network_file = os.path.join(mock_base, "network", "stats.json")
-                
-                if os.path.exists(network_file):
+        if self.mock_mode or self.gateway_mode:
+            # Try to get from mock storage first
+            mock_base = os.path.expanduser("~/.ipfs_kit/mock_filecoin")
+            network_file = os.path.join(mock_base, "network", "stats.json")
+
+            if os.path.exists(network_file):
+                try:
                     with open(network_file, "r") as f:
                         stats = json.load(f)
-                    
-                    if "chain_height" in stats:
-                        return stats["chain_height"]
-            
-            # Try to get real chain height
+                except (OSError, json.JSONDecodeError) as e:
+                    logger.warning(f"Error reading mock Filecoin chain height: {e}")
+                else:
+                    chain_height = stats.get("chain_height")
+                    if isinstance(chain_height, int):
+                        return chain_height
+                    if chain_height is not None:
+                        logger.warning(f"Invalid mock Filecoin chain height: {chain_height!r}")
+
+        # Try to get real chain height. Expected API/runtime failures fall back to
+        # callers' synthetic height paths, but programming errors should surface.
+        try:
             chain_head = self._make_api_request("Filecoin.ChainHead")
-            if chain_head and "Height" in chain_head:
-                return chain_head["Height"]
-            
+        except (OSError, subprocess.SubprocessError, TimeoutError, ValueError) as e:
+            logger.warning(f"Error getting Filecoin chain height: {e}")
             return None
-        
-        except Exception as e:
-            logger.warning(f"Error getting chain height: {e}")
-            return None
+
+        if chain_head and "Height" in chain_head:
+            return chain_head["Height"]
+
+        return None
 
     def explore_chain_block(self, height: Optional[int] = None, cid: Optional[str] = None) -> Dict[str, Any]:
         """
