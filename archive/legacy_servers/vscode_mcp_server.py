@@ -302,7 +302,7 @@ async def system_health_tool(ctx: MCPContext) -> Dict[str, Any]:
                         "total_gb": round(usage.total / (1024**3), 2)
                     }
                 except OSError as path_err:
-                   health_data["disk_usage"][path] = {"error": str(path_err)}
+                    health_data["disk_usage"][path] = {"error": str(path_err)}
                     
         except ImportError:
             health_data["system_metrics"] = "psutil not available"
