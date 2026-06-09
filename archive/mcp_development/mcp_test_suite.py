@@ -106,8 +106,8 @@ def kill_existing_servers():
                         os.kill(pid, 9)
                     except OSError:
                         pass
-                except Exception as e:
-                    logger.debug(f"Error killing process {pid}: {e}")
+                except (ValueError, OSError, PermissionError) as e:
+                    logger.warning(f"Error killing process {pid}: {e}")
     except subprocess.CalledProcessError:
         pass  # pgrep exits non-zero when no matching processes found
 
