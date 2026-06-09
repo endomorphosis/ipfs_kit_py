@@ -2178,9 +2178,9 @@ class IPFSControllerAnyIO:
 
                     json.loads(data)
                     media_type = "application/json"
-                except Exception:
+                except Exception as json_err:
                     # Data is not valid JSON; keep default media_type
-                    pass
+                    logger.debug("Content starting with '{' or '[' is not valid JSON: %s", json_err)
             elif all(c < 128 and c >= 32 or c in (9, 10, 13) for c in data[: min(1000, len(data))]):
                 # If it looks like text, use text/plain
                 media_type = "text/plain"
