@@ -69,10 +69,13 @@ def create_webrtc_extension_router(api_prefix: str) -> Optional[APIRouter]:
     try:
         # Create the WebRTC router
         router = create_webrtc_router(api_prefix)
+        if router is None:
+            logger.error("create_webrtc_router returned None; WebRTC router could not be created")
+            return None
         logger.info(f"Successfully created WebRTC router with prefix: {router.prefix}")
         return router
     except Exception as e:
-        logger.error("Error creating WebRTC router: %s", e, exc_info=True)
+        logger.error("Error creating WebRTC extension router: %s", e, exc_info=True)
         return None
 
 
@@ -99,6 +102,9 @@ def register_app_webrtc_routes(app: FastAPI, api_prefix: str) -> bool:
     try:
         # Create the WebRTC router (but don't use it directly)
         router = create_webrtc_router(api_prefix)
+        if router is None:
+            logger.error("create_webrtc_router returned None; cannot register WebRTC routes")
+            return False
 
         # Register the WebSocket routes directly with the app
         websocket_routes = [route for route in router.routes if isinstance(route, WebSocket)]
