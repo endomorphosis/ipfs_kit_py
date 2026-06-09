@@ -52,8 +52,9 @@ def create_websocket_extension_router(
     except (TypeError, ValueError) as e:
         logger.exception("Invalid configuration creating WebSocket router (prefix=%r): %s", api_prefix, e)
         return None, None
-    except Exception as e:
-        logger.exception("Unexpected error creating WebSocket router (prefix=%r): %s", api_prefix, e)
+    except Exception:
+        # Broad catch-all: logger.exception captures the full traceback via sys.exc_info().
+        logger.exception("Unexpected error creating WebSocket router (prefix=%r)", api_prefix)
         return None, None
 
 
@@ -107,8 +108,9 @@ def register_app_websocket_routes(app: FastAPI, api_prefix: str) -> bool:
     except (TypeError, ValueError) as e:
         logger.exception("Invalid configuration registering WebSocket routes (prefix=%r): %s", api_prefix, e)
         return False
-    except Exception as e:
-        logger.exception("Unexpected error registering WebSocket routes (prefix=%r): %s", api_prefix, e)
+    except Exception:
+        # Broad catch-all: logger.exception captures the full traceback via sys.exc_info().
+        logger.exception("Unexpected error registering WebSocket routes (prefix=%r)", api_prefix)
         return False
 
 
@@ -130,6 +132,7 @@ def setup_mcp_event_hooks() -> bool:
         # This will be implemented when we hook up the events system
 
         return True
-    except Exception as e:
-        logger.exception(f"Error setting up MCP event hooks: {e}")
+    except Exception:
+        # Broad catch-all: logger.exception captures the full traceback via sys.exc_info().
+        logger.exception("Error setting up MCP event hooks")
         return False
