@@ -334,7 +334,7 @@ class HighAvailabilityService:
         # Add heartbeat endpoint
         @app.post("/api/v0/ha/heartbeat")
         async def heartbeat(
-            node_id: str
+            node_id: str,
             status: Optional[str] = None,
             load: Optional[Dict[str, float]] = None,
         ):
@@ -753,13 +753,32 @@ class HighAvailabilityService:
 
         try:
             import aiofiles
+        except ImportError:
+            logger.error(
+                "aiofiles package is not installed; cannot load config file asynchronously"
+            )
+            return None
 
+        try:
             async with aiofiles.open(self.config_path, "r") as f:
                 data = await f.read()
-                config_dict = json.loads(data)
-                return ClusterConfig(**config_dict)
+            config_dict = json.loads(data)
+            return ClusterConfig(**config_dict)
+        except OSError as e:
+            logger.error("Error reading config file %s: %s", self.config_path, e)
+            return None
+        except json.JSONDecodeError as e:
+            logger.error(
+                "Config file %s contains invalid JSON: %s", self.config_path, e
+            )
+            return None
         except Exception as e:
-            logger.error(f"Error loading config file: {e}")
+            logger.error(
+                "Unexpected error loading config file %s: %s",
+                self.config_path,
+                e,
+                exc_info=True,
+            )
             return None
 
     async def _heartbeat_loop(self):
@@ -828,9 +847,9 @@ class HighAvailabilityService:
             disk_percent = disk.percent
 
             return {
-                "cpu": cpu_percent
-                "memory": memory_percent
-                "disk": disk_percent
+                "cpu": cpu_percent,
+                "memory": memory_percent,
+                "disk": disk_percent,
                 "timestamp": time.time(),
             }
         except Exception as e:
@@ -1376,9 +1395,9 @@ class HighAvailabilityService:
         return {
             "status": "success",
             "message": f"Failover completed successfully to node {new_primary}",
-            "event_id": event_id
-            "old_primary": old_primary
-            "new_primary": new_primary
+            "event_id": event_id,
+            "old_primary": old_primary,
+            "new_primary": new_primary,
             "recovery_time": event.recovery_time,
         }
 
