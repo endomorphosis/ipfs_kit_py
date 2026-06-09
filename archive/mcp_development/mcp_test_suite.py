@@ -194,8 +194,8 @@ def wait_for_server_ready(host, port, max_wait=60):
             if response.status_code == 200:
                 logger.info("Server is ready! ✓")
                 return True
-        except (requests.RequestException, OSError):
-            pass
+        except (requests.RequestException, OSError) as e:
+            logger.debug(f"Server not yet reachable at {health_url}: {e}")
         if os.path.exists(PID_FILE):
             with open(PID_FILE, "r") as f:
                 pid = int(f.read().strip())
