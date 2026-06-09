@@ -14,9 +14,7 @@ import secrets
 import ipaddress
 from typing import Dict, Any, Optional, Set, Tuple
 from .models import (
-from .persistence import (
-
-User,
+    User,
     Role,
     Permission,
     ApiKey,
@@ -25,8 +23,9 @@ User,
     LoginRequest,
     RegisterRequest,
     ApiKeyCreateRequest,
-    ApiKeyResponse)
-
+    ApiKeyResponse,
+)
+from .persistence import (
     UserStore,
     RoleStore,
     PermissionStore,
@@ -46,8 +45,8 @@ class AuthenticationService:
     from the MCP roadmap.
     """
     def __init__(
-    self,
-    secret_key: str
+        self,
+        secret_key: str,
         token_expire_minutes: int = 60,
         refresh_token_expire_days: int = 7,
         password_reset_expire_hours: int = 24,
@@ -283,8 +282,13 @@ class AuthenticationService:
 
             # Compare hashes
             return secrets.compare_digest(computed_hash, stored_hash)
-        except Exception as e:
-            logger.error(f"Error verifying password: {e}")
+        except ValueError:
+            # Malformed hash string — missing '$' separator
+            logger.error("Error verifying password: stored hash has unexpected format")
+            return False
+        except Exception:
+            # Unexpected error — log with full traceback so it is not silently swallowed
+            logger.exception("Unexpected error while verifying password")
             return False
 
     def _get_api_key_hash(self, api_key: str) -> str:
@@ -435,8 +439,8 @@ class AuthenticationService:
         return user
 
     async def create_session(
-    self,
-    user: User
+        self,
+        user: User,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
     ) -> Session:
@@ -1010,8 +1014,8 @@ class AuthenticationService:
         return required_role in user.roles
 
     async def login(
-    self,
-    request: LoginRequest
+        self,
+        request: LoginRequest,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
     ) -> Tuple[bool, Dict[str, Any], str]:
@@ -1041,8 +1045,8 @@ class AuthenticationService:
         return (
             True,
             {
-                "access_token": access_token
-                "refresh_token": refresh_token
+                "access_token": access_token,
+                "refresh_token": refresh_token,
                 "token_type": "bearer",
                 "expires_in": self.token_expire_minutes * 60,
                 "user": {
