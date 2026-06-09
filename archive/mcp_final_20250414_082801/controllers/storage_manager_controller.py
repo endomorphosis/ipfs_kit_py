@@ -989,7 +989,12 @@ class StorageManagerController:
                     if hasattr(backend_model, method_name):
                         capabilities.append(capability)
                 except Exception as e:
-                    logger.debug(f"Error checking method {method_name} on {backend_name}: {str(e)}")
+                    # HAO-381: elevate to warning and include exc_info so the
+                    # traceback is not silently swallowed when checking capabilities.
+                    logger.warning(
+                        f"Error checking method {method_name} on {backend_name}: {str(e)}",
+                        exc_info=True,
+                    )
 
             # Backend-specific capabilities
             if backend_name == "s3":
@@ -1079,9 +1084,11 @@ class StorageManagerController:
                 return None
 
         except Exception as e:
-            # Catch-all for any unexpected errors
+            # Catch-all for any unexpected errors; include exc_info so the full
+            # traceback is captured and not silently swallowed.  HAO-381.
             logger.error(
-                f"Unexpected error in _get_backend_method for {backend_name}.{method_name}: {type(e).__name__}: {str(e)}"
+                f"Unexpected error in _get_backend_method for {backend_name}.{method_name}: {type(e).__name__}: {str(e)}",
+                exc_info=True,
             )
             return None
 
