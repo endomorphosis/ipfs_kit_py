@@ -419,8 +419,8 @@ def create_health_router(api_prefix: str) -> APIRouter:
                             "healthy": peer_health,
                             "count": peer_count,
                         }
-                except Exception:
-                    logger.debug("Failed to get IPFS peer count", exc_info=True)
+                except Exception as e:
+                    logger.debug("Failed to get IPFS peer count: %s", e, exc_info=True)
             else:
                 ipfs_status = {"healthy": False, "error": result.stderr.strip()}
         except Exception as e:
