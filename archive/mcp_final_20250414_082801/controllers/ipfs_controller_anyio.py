@@ -1633,15 +1633,21 @@ class IPFSControllerAnyIO:
                 try:
                     body = await request.json()
                     cid = body.get("arg") or body.get("cid")
-                except Exception as e:
-                    # Not JSON or couldn't parse
+                except (ValueError, TypeError) as e:
+                    # Expected: body is not valid JSON
                     logger.debug("Could not parse request body as JSON for CID lookup: %s", e)
                     try:
                         form = await request.form()
                         cid = form.get("arg") or form.get("cid")
-                    except Exception as e2:
-                        # Not form data either
+                    except (ValueError, TypeError) as e2:
+                        # Expected: body is not form data either
                         logger.debug("Could not parse request as form data for CID lookup: %s", e2)
+                    except Exception as e2:
+                        # Unexpected error reading form data - surface it
+                        logger.warning("Unexpected error reading form data for CID lookup: %s", e2)
+                except Exception as e:
+                    # Unexpected error reading request body - surface it
+                    logger.warning("Unexpected error reading request body for CID lookup: %s", e)
 
         # Extract num_providers from various possible sources
         if num_providers is None and request:
@@ -1661,15 +1667,21 @@ class IPFSControllerAnyIO:
                 try:
                     body = await request.json()
                     num_providers = body.get("num-providers") or body.get("numProviders")
-                except Exception as e:
-                    # Not JSON or couldn't parse
+                except (ValueError, TypeError) as e:
+                    # Expected: body is not valid JSON
                     logger.debug("Could not parse request body as JSON for num_providers: %s", e)
                     try:
                         form = await request.form()
                         num_providers = form.get("num-providers") or form.get("numProviders")
-                    except Exception as e2:
-                        # Not form data either
+                    except (ValueError, TypeError) as e2:
+                        # Expected: body is not form data either
                         logger.debug("Could not parse request as form data for num_providers: %s", e2)
+                    except Exception as e2:
+                        # Unexpected error reading form data - surface it
+                        logger.warning("Unexpected error reading form data for num_providers: %s", e2)
+                except Exception as e:
+                    # Unexpected error reading request body - surface it
+                    logger.warning("Unexpected error reading request body for num_providers: %s", e)
 
         # Set default value for num_providers if not provided
         if num_providers is None:
