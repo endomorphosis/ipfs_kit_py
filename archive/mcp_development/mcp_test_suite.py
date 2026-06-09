@@ -259,8 +259,11 @@ def get_server_info():
         else:
             logger.error(f"Health check failed with status code {response.status_code}")
             return None
+    except requests.RequestException as e:
+        logger.error(f"Error getting server info: {e}", exc_info=True)
+        return None
     except Exception as e:
-        logger.error(f"Error getting server info: {e}")
+        logger.error(f"Unexpected error getting server info: {e}", exc_info=True)
         return None
 
 def get_registered_tools():
@@ -313,8 +316,11 @@ def get_registered_tools():
         else:
             logger.error(f"list_tools request failed with status {response.status_code}")
             return []
+    except requests.RequestException as e:
+        logger.error(f"Error getting registered tools: {e}", exc_info=True)
+        return []
     except Exception as e:
-        logger.error(f"Error getting registered tools: {e}")
+        logger.error(f"Unexpected error getting registered tools: {e}", exc_info=True)
         return []
 
 def test_tool(tool_name, params=None):
@@ -363,8 +369,11 @@ def test_tool(tool_name, params=None):
         else:
             logger.error(f"Tool '{tool_name}' request failed with status {response.status_code}")
             return False, {"error": f"HTTP {response.status_code}"}
+    except requests.RequestException as e:
+        logger.error(f"Error testing tool '{tool_name}': {e}", exc_info=True)
+        return False, {"error": str(e)}
     except Exception as e:
-        logger.error(f"Error testing tool '{tool_name}': {e}")
+        logger.error(f"Unexpected error testing tool '{tool_name}': {e}", exc_info=True)
         return False, {"error": str(e)}
 
 def test_tools_by_category(tools, categories):
