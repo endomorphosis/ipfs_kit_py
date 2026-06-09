@@ -558,8 +558,8 @@ class PeerWebSocketController:
             # Even on error, try to clear the client reference to prevent resource leaks
             try:
                 self.peer_websocket_client = None
-            except Exception:
-                pass
+            except Exception as clear_err:
+                logger.warning(f"Failed to clear peer_websocket_client reference: {clear_err}")
 
             return {
                 "success": False,
