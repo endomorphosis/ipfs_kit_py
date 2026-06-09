@@ -199,8 +199,8 @@ class EnhancedFilecoinGateway:
                             chain_data.get("Height") + 60
                         )  # Start 60 blocks in the future
                         deal_info["end_epoch"] = chain_data.get("Height") + duration
-                    except json.JSONDecodeError:
-                        pass
+                    except json.JSONDecodeError as json_exc:
+                        logger.debug("Could not parse chain head JSON for deal epoch estimation: %s", json_exc)
             except Exception as chain_exc:
                 logger.debug("Could not fetch chain head for deal epoch estimation: %s", chain_exc)
 
