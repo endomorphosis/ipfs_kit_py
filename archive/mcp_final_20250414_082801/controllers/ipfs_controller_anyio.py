@@ -580,7 +580,7 @@ class IPFSControllerAnyIO:
                 "daemon_status": {},
                 "overall_status": "critical",
                 "status_code": 500,
-                "daemon_type": daemon_type
+                "daemon_type": daemon_type,
             }
 
     async def get_replication_status(self, request: Request) -> Dict[str, Any]:
@@ -630,7 +630,7 @@ class IPFSControllerAnyIO:
                 "error_type": type(e).__name__,
                 "cid": cid,
                 "replication": {},
-                "needs_replication": True
+                "needs_replication": True,
             }
 
     async def publish_name(
@@ -669,7 +669,7 @@ class IPFSControllerAnyIO:
                     body = await request.json()
                     path = body.get("path")
                 except Exception as e:
-                    # Body is not JSON or could not be parsed; path remains None
+                    # Body is not JSON or could not be parsed (e.g., empty or form-encoded); path remains None
                     logger.debug("Could not parse request body as JSON for IPNS publish: %s", e)
 
         # Validate path
@@ -715,7 +715,7 @@ class IPFSControllerAnyIO:
                     "success": True,
                     "operation": "name_publish",
                     "name": f"k51q9dft3fmkhiqmx{path_hash}",
-                    "value": path
+                    "value": path,
                 }
 
             # Add standard tracking fields if missing
@@ -738,7 +738,7 @@ class IPFSControllerAnyIO:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "path": path,
-                "key": key
+                "key": key,
             }
 
     async def put_dag_node(
@@ -829,7 +829,7 @@ class IPFSControllerAnyIO:
                     "success": True,
                     "operation": "dag_put",
                     "cid": f"bafyrei{data_hash}abcdef0123456789",
-                    "format": format
+                    "format": format,
                 }
 
             # Add standard tracking fields if missing
@@ -855,7 +855,7 @@ class IPFSControllerAnyIO:
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "format": format
+                "format": format,
             }
 
     async def get_block(self, cid: str) -> Response:
@@ -1028,7 +1028,7 @@ class IPFSControllerAnyIO:
                     "cid": cid,
                     "data": sim_data,
                     "size": len(sim_data),
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Add standard tracking fields if missing
@@ -1074,7 +1074,7 @@ class IPFSControllerAnyIO:
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "cid": cid
+                "cid": cid,
             }
 
     async def stat_block(self, request: Request = None, cid: str = None) -> Dict[str, Any]:
@@ -1149,7 +1149,7 @@ class IPFSControllerAnyIO:
                     "cid": cid,
                     "key": cid,  # For backward compatibility,
                     "size": sim_size,
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Ensure required fields are present
@@ -1181,7 +1181,7 @@ class IPFSControllerAnyIO:
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "cid": cid
+                "cid": cid,
             }
 
     async def get_dag_node(
@@ -1277,7 +1277,7 @@ class IPFSControllerAnyIO:
                     "cid": cid,
                     "path": path,
                     "node": sim_node,
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Ensure node data is included
@@ -1319,7 +1319,7 @@ class IPFSControllerAnyIO:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "cid": cid,
-                "path": path
+                "path": path,
             }
 
     async def resolve_name(self, request: Request = None, name: str = None) -> Dict[str, Any]:
@@ -1418,7 +1418,7 @@ class IPFSControllerAnyIO:
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "name": name
+                "name": name,
             }
 
     async def find_peer(self, request: Request = None, peer_id: str = None) -> Dict[str, Any]:
@@ -1448,14 +1448,15 @@ class IPFSControllerAnyIO:
                 try:
                     body = await request.json()
                     peer_id = body.get("arg") or body.get("peer_id")
-                except Exception:
+                except Exception as e:
                     # Not JSON or couldn't parse
+                    logger.debug("Could not parse request body as JSON for peer lookup: %s", e)
                     try:
                         form = await request.form()
                         peer_id = form.get("arg") or form.get("peer_id")
-                    except Exception:
+                    except Exception as e2:
                         # Not form data either
-                        pass
+                        logger.debug("Could not parse request as form data for peer lookup: %s", e2)
 
         # Validate required parameters
         if not peer_id:
@@ -1540,7 +1541,7 @@ class IPFSControllerAnyIO:
                     "timestamp": time.time(),
                     "peer_id": peer_id,
                     "addresses": addresses,
-                    "raw_responses": responses
+                    "raw_responses": responses,
                 }
 
                 # Add duration if request took time
@@ -1632,14 +1633,15 @@ class IPFSControllerAnyIO:
                 try:
                     body = await request.json()
                     cid = body.get("arg") or body.get("cid")
-                except Exception:
+                except Exception as e:
                     # Not JSON or couldn't parse
+                    logger.debug("Could not parse request body as JSON for CID lookup: %s", e)
                     try:
                         form = await request.form()
                         cid = form.get("arg") or form.get("cid")
-                    except Exception:
+                    except Exception as e2:
                         # Not form data either
-                        pass
+                        logger.debug("Could not parse request as form data for CID lookup: %s", e2)
 
         # Extract num_providers from various possible sources
         if num_providers is None and request:
@@ -1659,14 +1661,15 @@ class IPFSControllerAnyIO:
                 try:
                     body = await request.json()
                     num_providers = body.get("num-providers") or body.get("numProviders")
-                except Exception:
+                except Exception as e:
                     # Not JSON or couldn't parse
+                    logger.debug("Could not parse request body as JSON for num_providers: %s", e)
                     try:
                         form = await request.form()
                         num_providers = form.get("num-providers") or form.get("numProviders")
-                    except Exception:
+                    except Exception as e2:
                         # Not form data either
-                        pass
+                        logger.debug("Could not parse request as form data for num_providers: %s", e2)
 
         # Set default value for num_providers if not provided
         if num_providers is None:
@@ -1777,7 +1780,7 @@ class IPFSControllerAnyIO:
                     "cid": cid,
                     "providers": providers,
                     "provider_count": len(providers),
-                    "raw_responses": responses
+                    "raw_responses": responses,
                 }
 
                 # Add duration if request took time
@@ -2176,6 +2179,7 @@ class IPFSControllerAnyIO:
                     json.loads(data)
                     media_type = "application/json"
                 except Exception:
+                    # Data is not valid JSON; keep default media_type
                     pass
             elif all(c < 128 and c >= 32 or c in (9, 10, 13) for c in data[: min(1000, len(data))]):
                 # If it looks like text, use text/plain
@@ -2441,7 +2445,7 @@ class IPFSControllerAnyIO:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "cid": cid,
-                "pinned": False
+                "pinned": False,
             }
 
     async def unpin_content(
@@ -2587,7 +2591,7 @@ class IPFSControllerAnyIO:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "cid": cid,
-                "unpinned": False
+                "unpinned": False,
             }
 
     async def list_pins(self) -> Dict[str, Any]:
@@ -2641,7 +2645,7 @@ class IPFSControllerAnyIO:
                     "duration_ms": (time.time() - start_time) * 1000,
                     "pins": pins,
                     "count": len(pins),
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Add operation tracking fields for consistency
@@ -2669,7 +2673,7 @@ class IPFSControllerAnyIO:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "pins": [],
-                "count": 0
+                "count": 0,
             }
 
     async def list_files(self, path: str = "/", long: bool = False) -> Dict[str, Any]:
@@ -2953,7 +2957,7 @@ class IPFSControllerAnyIO:
                     "agent_version": result.get("AgentVersion"),
                     "protocol_version": result.get("ProtocolVersion"),
                     "public_key": result.get("PublicKey"),
-                    "peer_id": result.get("ID"),  # Alias for compatibility
+                    "peer_id": result.get("ID"),  # Alias for compatibility,
                 }
 
                 # Add duration if request took time
@@ -3335,7 +3339,7 @@ class IPFSControllerAnyIO:
                     "agent_version": result.get("AgentVersion"),
                     "protocol_version": result.get("ProtocolVersion"),
                     "public_key": result.get("PublicKey"),
-                    "peer_id": result.get("ID"),  # Alias for compatibility
+                    "peer_id": result.get("ID"),  # Alias for compatibility,
                 }
 
                 # Add duration if request took time
@@ -3456,7 +3460,7 @@ class IPFSControllerAnyIO:
                     "Repo": "12",
                     "System": "amd64/linux",
                     "Golang": "go1.16.15",
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Standardize response: most implementations return "Version" with capital letter
@@ -3561,7 +3565,7 @@ class IPFSControllerAnyIO:
                     "duration_ms": (time.time() - start_time) * 1000,
                     "Peers": peers,
                     "peer_count": len(peers),
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Standardize response: ensure "Peers" field exists
@@ -3609,7 +3613,7 @@ class IPFSControllerAnyIO:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "Peers": [],
-                "peer_count": 0
+                "peer_count": 0,
             }
 
     async def connect_peer(self, address: str = Body(..., embed=True)) -> Dict[str, Any]:
@@ -3674,7 +3678,7 @@ class IPFSControllerAnyIO:
                         "Strings": [f"connect {address} success"],
                         "connected": True,
                         "address": address,
-                        "simulated": True
+                        "simulated": True,
                     }
 
                 # Otherwise return the actual error
@@ -3684,7 +3688,7 @@ class IPFSControllerAnyIO:
                     "duration_ms": (time.time() - start_time) * 1000,
                     "error": result.get("error", f"Failed to connect to {address}"),
                     "error_type": result.get("error_type", "connection_error"),
-                    "address": address
+                    "address": address,
                 }
 
             # Add convenience field
@@ -3716,7 +3720,7 @@ class IPFSControllerAnyIO:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "address": address,
-                "connected": False
+                "connected": False,
             }
 
     async def disconnect_peer(self, address: str = Body(..., embed=True)) -> Dict[str, Any]:
@@ -3785,7 +3789,7 @@ class IPFSControllerAnyIO:
                         "Strings": [f"disconnect {address} success"],
                         "disconnected": True,
                         "address": address,
-                        "simulated": True
+                        "simulated": True,
                     }
 
                 # Otherwise return the actual error
@@ -3795,7 +3799,7 @@ class IPFSControllerAnyIO:
                     "duration_ms": (time.time() - start_time) * 1000,
                     "error": result.get("error", f"Failed to disconnect from {address}"),
                     "error_type": result.get("error_type", "connection_error"),
-                    "address": address
+                    "address": address,
                 }
 
             # Add convenience field
@@ -3827,7 +3831,7 @@ class IPFSControllerAnyIO:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "address": address,
-                "disconnected": False
+                "disconnected": False,
             }
 
     async def read_file(
@@ -4503,7 +4507,7 @@ class IPFSControllerAnyIO:
                     "agent_version": result.get("AgentVersion"),
                     "protocol_version": result.get("ProtocolVersion"),
                     "public_key": result.get("PublicKey"),
-                    "peer_id": result.get("ID"),  # Alias for compatibility
+                    "peer_id": result.get("ID"),  # Alias for compatibility,
                 }
 
                 # Add duration if request took time
