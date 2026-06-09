@@ -33,7 +33,7 @@ except ImportError:
     def check_webrtc_dependencies():
         """Check if WebRTC dependencies are available."""
         return {
-            "webrtc_available": False
+            "webrtc_available": False,
             "missing_dependencies": ["aiortc", "opencv-python", "numpy"],
             "message": "WebRTC streaming not available - dependencies not installed",
         }
@@ -47,7 +47,7 @@ def create_webrtc_router(api_prefix: str) -> Optional[APIRouter]:
         # Here would be route registrations
         return router
     except Exception as e:
-        logger.error(f"Error creating WebRTC router: {e}")
+        logger.error("Error creating WebRTC router: %s", e, exc_info=True)
         return None
 
 
@@ -72,7 +72,7 @@ def create_webrtc_extension_router(api_prefix: str) -> Optional[APIRouter]:
         logger.info(f"Successfully created WebRTC router with prefix: {router.prefix}")
         return router
     except Exception as e:
-        logger.error(f"Error creating WebRTC router: {e}")
+        logger.error("Error creating WebRTC router: %s", e, exc_info=True)
         return None
 
 
@@ -108,5 +108,5 @@ def register_app_webrtc_routes(app: FastAPI, api_prefix: str) -> bool:
         logger.info(f"Successfully registered {len(websocket_routes)} WebRTC routes with app")
         return True
     except Exception as e:
-        logger.error(f"Error registering WebRTC routes: {e}")
+        logger.error("Error registering WebRTC routes: %s", e, exc_info=True)
         return False
