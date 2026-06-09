@@ -792,8 +792,8 @@ async def load_balancing_middleware(request: Request, call_next):
                 try:
                     latency = float(latency_ms)
                     update_backend_stats(backend, latency, success=(response.status_code < 500))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Could not parse X-Response-Time-MS header value {latency_ms!r}: {e}")
     except Exception as e:
         logger.error(f"Error in load balancing middleware: {e}")
 
