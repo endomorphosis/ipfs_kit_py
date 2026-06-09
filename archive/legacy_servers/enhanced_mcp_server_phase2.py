@@ -1664,8 +1664,8 @@ class EnhancedMCPServerPhase2:
                         "used_percent": round((usage.used / usage.total) * 100, 2),
                         "free_gb": round(usage.free / (1024**3), 2)
                     }
-                except OSError:
-                    pass
+                except OSError as e:
+                    health_data["disk_usage"][path] = {"error": str(e)}
                     
         except ImportError:
             health_data["system_metrics"] = "psutil not available"
