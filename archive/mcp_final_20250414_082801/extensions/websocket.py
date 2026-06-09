@@ -118,11 +118,34 @@ def setup_mcp_event_hooks() -> bool:
 
     try:
         # Get the WebSocket service
-        get_websocket_service()
+        service = get_websocket_service()
 
-        # TODO: Register event handlers for various MCP operations
-        # This will be implemented when we hook up the events system
+        async def _on_ipfs_event(event: Any) -> None:
+            logger.debug(f"MCP IPFS event: {event}")
 
+        async def _on_storage_event(event: Any) -> None:
+            logger.debug(f"MCP storage event: {event}")
+
+        async def _on_websocket_connect(event: Any) -> None:
+            logger.debug(f"MCP WebSocket connect: {event}")
+
+        async def _on_websocket_disconnect(event: Any) -> None:
+            logger.debug(f"MCP WebSocket disconnect: {event}")
+
+        # Register handlers for IPFS and storage broadcast channels
+        for ipfs_op in ("add", "get", "pin", "unpin", "cat"):
+            service.register_event_handler(f"ipfs:{ipfs_op}", _on_ipfs_event)
+        service.register_event_handler("ipfs:all", _on_ipfs_event)
+
+        for backend in ("ipfs", "s3", "storacha", "filecoin", "huggingface", "lassie"):
+            for op in ("upload", "download", "delete", "pin", "unpin"):
+                service.register_event_handler(f"storage:{backend}:{op}", _on_storage_event)
+        service.register_event_handler("storage:all", _on_storage_event)
+
+        service.register_event_handler("websocket:connect", _on_websocket_connect)
+        service.register_event_handler("websocket:disconnect", _on_websocket_disconnect)
+
+        logger.info("MCP event hooks registered successfully")
         return True
     except Exception as e:
         logger.exception(f"Error setting up MCP event hooks: {e}")
