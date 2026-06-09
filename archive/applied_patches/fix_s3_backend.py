@@ -695,9 +695,9 @@ class S3Backend(BackendStorage):
                         "cached": True,
                         "details": {"bucket": bucket, "key": content_id},
                     }
-            except Exception:
-                # If anything goes wrong with cache, fall back to S3
-                pass
+            except Exception as cache_error:
+                logger.warning(f"Error reading metadata from cache: {str(cache_error)}")
+                # Fall back to S3
 
         try:
             # Use head_object to get metadata
