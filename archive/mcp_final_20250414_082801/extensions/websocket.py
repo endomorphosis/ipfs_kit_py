@@ -50,7 +50,7 @@ def create_websocket_extension_router(
         logger.info("Successfully created WebSocket routers")
         return websocket_router, rest_router
     except Exception as e:
-        logger.error(f"Error creating WebSocket router: {e}")
+        logger.exception(f"Error creating WebSocket router: {e}")
         return None, None
 
 
@@ -63,13 +63,13 @@ def update_websocket_status(storage_backends: Dict[str, Any]) -> None:
     """
     # Add WebSocket as a component
     storage_backends["realtime"] = {
-        "available": WEBSOCKET_AVAILABLE
-        "simulation": False
+        "available": WEBSOCKET_AVAILABLE,
+        "simulation": False,
         "features": {
-            "websocket": True
-            "events": True
-            "broadcast": True
-            "subscriptions": True
+            "websocket": True,
+            "events": True,
+            "broadcast": True,
+            "subscriptions": True,
         },
     }
     logger.debug("Updated WebSocket status in storage backends")
@@ -102,7 +102,7 @@ def register_app_websocket_routes(app: FastAPI, api_prefix: str) -> bool:
         # Return the REST router for normal inclusion
         return True
     except Exception as e:
-        logger.error(f"Error registering WebSocket routes: {e}")
+        logger.exception(f"Error registering WebSocket routes: {e}")
         return False
 
 
@@ -125,5 +125,5 @@ def setup_mcp_event_hooks() -> bool:
 
         return True
     except Exception as e:
-        logger.error(f"Error setting up MCP event hooks: {e}")
+        logger.exception(f"Error setting up MCP event hooks: {e}")
         return False
