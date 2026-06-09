@@ -19,11 +19,11 @@ import random
 import hashlib
 from typing import Dict, List, Any, Optional
 from fastapi import (
-from pydantic import BaseModel
-
-APIRouter,
+    APIRouter,
     Request,
-    Response)
+    Response,
+)
+from pydantic import BaseModel
 
 
 # Configure logging
@@ -59,20 +59,20 @@ storage_backends = {
 # Default performance configuration
 DEFAULT_CONFIG = {
     "caching": {
-        "enabled": True
-        "max_cache_size_mb": 1024
-        "default_ttl_seconds": 3600
+        "enabled": True,
+        "max_cache_size_mb": 1024,
+        "default_ttl_seconds": 3600,
     },
     "load_balancing": {
-        "enabled": True
+        "enabled": True,
         "strategy": "adaptive",  # adaptive, round_robin, least_connections, weighted
         "backend_weights": {
-            "ipfs": 10
-            "s3": 10
-            "filecoin": 5
-            "storacha": 8
-            "huggingface": 8
-            "lassie": 8
+            "ipfs": 10,
+            "s3": 10,
+            "filecoin": 5,
+            "storacha": 8,
+            "huggingface": 8,
+            "lassie": 8,
         },
     },
     "connection_management": {"enabled": True, "max_connections_per_backend": 20},
@@ -82,7 +82,7 @@ DEFAULT_CONFIG = {
 DEFAULT_STATS = {
     "caching": {"hits": 0, "misses": 0, "size_bytes": 0, "entries": 0},
     "load_balancing": {"requests_per_backend": {}, "errors_per_backend": {}},
-    "uptime_seconds": 0
+    "uptime_seconds": 0,
     "start_time": time.time(),
 }
 
@@ -269,12 +269,12 @@ async def get_from_cache(key: str) -> Optional[Dict[str, Any]]:
         stats["caching"]["hits"] += 1
 
         return {
-            "content": content
+            "content": content,
             "content_type": entry.get("content_type", "application/octet-stream"),
             "size": len(content),
         }
     except Exception as e:
-        logger.error(f"Error retrieving from cache: {e}")
+        logger.error(f"Error retrieving from cache ({type(e).__name__}): {e}", exc_info=True)
         stats["caching"]["misses"] += 1
         return None
 
@@ -307,8 +307,8 @@ async def store_in_cache(key: str, content: bytes, content_type: str) -> bool:
         ttl = config["caching"]["default_ttl_seconds"]
 
         cache_entries[key] = {
-            "filename": filename
-            "content_type": content_type
+            "filename": filename,
+            "content_type": content_type,
             "size": len(content),
             "created_at": time.time(),
             "expires_at": time.time() + ttl,
@@ -369,9 +369,9 @@ def update_backend_stats(backend: str, latency_ms: float, success: bool = True):
     if backend not in backend_stats:
         backend_stats[backend] = {
             "latency_history": [],
-            "error_count": 0
-            "request_count": 0
-            "last_used": 0
+            "error_count": 0,
+            "request_count": 0,
+            "last_used": 0,
         }
 
     # Update request count
@@ -516,13 +516,13 @@ def create_performance_router(api_prefix: str) -> APIRouter:
         uptime = int(time.time() - stats["start_time"])
 
         return {
-            "success": True
-            "uptime_seconds": uptime
+            "success": True,
+            "uptime_seconds": uptime,
             "caching": {
                 "enabled": config["caching"]["enabled"],
-                "hits": hits
-                "misses": misses
-                "hit_ratio": hit_ratio
+                "hits": hits,
+                "misses": misses,
+                "hit_ratio": hit_ratio,
                 "size_mb": stats["caching"]["size_bytes"] / (1024 * 1024),
                 "entries": stats["caching"]["entries"],
             },
@@ -580,7 +580,7 @@ def create_performance_router(api_prefix: str) -> APIRouter:
         save_config()
 
         return {
-            "success": True
+            "success": True,
             "message": "Connection management configuration updated",
         }
 
@@ -596,10 +596,10 @@ def create_performance_router(api_prefix: str) -> APIRouter:
         paginated = entries[offset : offset + limit]
 
         return {
-            "success": True
+            "success": True,
             "entries": [
                 {
-                    "key": key
+                    "key": key,
                     "content_type": entry.get("content_type"),
                     "size_bytes": entry.get("size"),
                     "created_at": entry.get("created_at"),
@@ -608,8 +608,8 @@ def create_performance_router(api_prefix: str) -> APIRouter:
                 for key, entry in paginated
             ],
             "total": len(entries),
-            "offset": offset
-            "limit": limit
+            "offset": offset,
+            "limit": limit,
         }
 
     @router.delete("/cache/clear")
@@ -637,7 +637,7 @@ def create_performance_router(api_prefix: str) -> APIRouter:
             stats["caching"]["size_bytes"] = 0
 
             return {
-                "success": True
+                "success": True,
                 "message": f"Cleared {entry_count} cache entries ({total_size / (1024 * 1024):.2f} MB)",
             }
         except Exception as e:
@@ -666,17 +666,17 @@ def create_performance_router(api_prefix: str) -> APIRouter:
             error_rate = error_count / request_count if request_count > 0 else 0
 
             backend_status[backend] = {
-                "available": True
+                "available": True,
                 "active_connections": active_connections.get(backend, 0),
-                "avg_latency_ms": avg_latency
-                "error_rate": error_rate
-                "request_count": request_count
+                "avg_latency_ms": avg_latency,
+                "error_rate": error_rate,
+                "request_count": request_count,
                 "last_used": stats_info.get("last_used", 0),
             }
 
         return {
-            "success": True
-            "backends": backend_status
+            "success": True,
+            "backends": backend_status,
             "load_balancing_strategy": config["load_balancing"]["strategy"],
         }
 
