@@ -274,7 +274,7 @@ class PeerWebSocketControllerAnyIO:
             Dictionary with WebSocket support status
         """
         return {
-            "success": True
+            "success": True,
             "operation_id": str(uuid.uuid4()),
             "timestamp": time.time(),
             "websocket_available": HAS_PEER_WEBSOCKET
@@ -292,7 +292,7 @@ class PeerWebSocketControllerAnyIO:
         """
         if not HAS_PEER_WEBSOCKET:
             return {
-                "success": False
+                "success": False,
                 "operation_id": str(uuid.uuid4()),
                 "timestamp": time.time(),
                 "error": "WebSocket support not available",
@@ -336,10 +336,10 @@ class PeerWebSocketControllerAnyIO:
             logger.info(f"WebSocket peer discovery server started at {server_url}")
 
             return {
-                "success": True
+                "success": True,
                 "operation_id": str(uuid.uuid4()),
                 "timestamp": time.time(),
-                "server_url": server_url
+                "server_url": server_url,
                 "peer_info": self.local_peer_info.to_dict(),
             }
 
@@ -356,7 +356,7 @@ class PeerWebSocketControllerAnyIO:
                     )
 
             return {
-                "success": False
+                "success": False,
                 "operation_id": str(uuid.uuid4()),
                 "timestamp": time.time(),
                 "error": str(e),
@@ -371,7 +371,7 @@ class PeerWebSocketControllerAnyIO:
         """
         if not self.peer_websocket_server:
             return {
-                "success": False
+                "success": False,
                 "operation_id": str(uuid.uuid4()),
                 "timestamp": time.time(),
                 "error": "Server not running",
@@ -386,7 +386,7 @@ class PeerWebSocketControllerAnyIO:
             logger.info("WebSocket peer discovery server stopped")
 
             return {
-                "success": True
+                "success": True,
                 "operation_id": str(uuid.uuid4()),
                 "timestamp": time.time(),
                 "message": "Server stopped successfully",
@@ -395,14 +395,11 @@ class PeerWebSocketControllerAnyIO:
         except Exception as e:
             logger.error(f"Error stopping WebSocket server: {e}")
 
-            # Even on error, try to clear the server reference to prevent resource leaks
-            try:
-                self.peer_websocket_server = None
-            except Exception:
-                pass
+            # Clear the server reference to prevent resource leaks
+            self.peer_websocket_server = None
 
             return {
-                "success": False
+                "success": False,
                 "operation_id": str(uuid.uuid4()),
                 "timestamp": time.time(),
                 "error": str(e),
@@ -417,10 +414,10 @@ class PeerWebSocketControllerAnyIO:
         """
         if not self.peer_websocket_server:
             return {
-                "success": True
+                "success": True,
                 "operation_id": str(uuid.uuid4()),
                 "timestamp": time.time(),
-                "running": False
+                "running": False,
                 "peers_connected": 0
             }
 
@@ -428,12 +425,12 @@ class PeerWebSocketControllerAnyIO:
         known_peers = len(self.peer_websocket_server.peers)
 
         return {
-            "success": True
+            "success": True,
             "operation_id": str(uuid.uuid4()),
             "timestamp": time.time(),
-            "running": True
-            "peers_connected": peer_count
-            "known_peers": known_peers
+            "running": True,
+            "peers_connected": peer_count,
+            "known_peers": known_peers,
             "local_peer": self.local_peer_info.to_dict() if self.local_peer_info else None,
         }
 
@@ -449,7 +446,7 @@ class PeerWebSocketControllerAnyIO:
         """
         if not HAS_PEER_WEBSOCKET:
             return {
-                "success": False
+                "success": False,
                 "operation_id": str(uuid.uuid4()),
                 "timestamp": time.time(),
                 "error": "WebSocket support not available",
@@ -502,10 +499,10 @@ class PeerWebSocketControllerAnyIO:
             )
 
             return {
-                "success": True
+                "success": True,
                 "operation_id": str(uuid.uuid4()),
                 "timestamp": time.time(),
-                "connected": connection_result
+                "connected": connection_result,
                 "server_url": request.server_url,
             }
 
@@ -523,7 +520,7 @@ class PeerWebSocketControllerAnyIO:
                     )
 
             return {
-                "success": False
+                "success": False,
                 "operation_id": str(uuid.uuid4()),
                 "timestamp": time.time(),
                 "error": str(e),
@@ -538,7 +535,7 @@ class PeerWebSocketControllerAnyIO:
         """
         if not self.peer_websocket_client:
             return {
-                "success": False
+                "success": False,
                 "operation_id": str(uuid.uuid4()),
                 "timestamp": time.time(),
                 "error": "Client not running",
@@ -553,7 +550,7 @@ class PeerWebSocketControllerAnyIO:
             logger.info("WebSocket peer discovery client stopped")
 
             return {
-                "success": True
+                "success": True,
                 "operation_id": str(uuid.uuid4()),
                 "timestamp": time.time(),
                 "message": "Client stopped successfully",
@@ -569,7 +566,7 @@ class PeerWebSocketControllerAnyIO:
                 pass
 
             return {
-                "success": False
+                "success": False,
                 "operation_id": str(uuid.uuid4()),
                 "timestamp": time.time(),
                 "error": str(e),
@@ -592,7 +589,7 @@ class PeerWebSocketControllerAnyIO:
         """
         if not self.peer_websocket_client:
             return {
-                "success": True
+                "success": True,
                 "operation_id": str(uuid.uuid4()),
                 "timestamp": time.time(),
                 "peers": [],
@@ -613,10 +610,10 @@ class PeerWebSocketControllerAnyIO:
         peer_dicts = [peer.to_dict() for peer in peers]
 
         return {
-            "success": True
+            "success": True,
             "operation_id": str(uuid.uuid4()),
             "timestamp": time.time(),
-            "peers": peer_dicts
+            "peers": peer_dicts,
             "count": len(peer_dicts),
         }
 
@@ -632,7 +629,7 @@ class PeerWebSocketControllerAnyIO:
         """
         if not self.peer_websocket_client:
             return {
-                "success": False
+                "success": False,
                 "operation_id": str(uuid.uuid4()),
                 "timestamp": time.time(),
                 "error": "Client not running",
@@ -642,14 +639,14 @@ class PeerWebSocketControllerAnyIO:
         peer = self.peer_websocket_client.get_peer_by_id(peer_id)
         if not peer:
             return {
-                "success": False
+                "success": False,
                 "operation_id": str(uuid.uuid4()),
                 "timestamp": time.time(),
                 "error": f"Peer not found: {peer_id}",
             }
 
         return {
-            "success": True
+            "success": True,
             "operation_id": str(uuid.uuid4()),
             "timestamp": time.time(),
             "peer": peer.to_dict(),
