@@ -75,11 +75,11 @@ class EnhancedFilecoinGateway:
             Dict containing status information
         """
         status_info = {
-            "success": True
+            "success": True,
             "available": self.gateway_available,
-            "simulation": False
-            "mock": False
-            "gateway": True
+            "simulation": False,
+            "mock": False,
+            "gateway": True,
             "timestamp": time.time(),
             "message": "Connected to Filecoin network via gateway",
         }
@@ -134,8 +134,8 @@ class EnhancedFilecoinGateway:
         """
         if not self.gateway_available:
             return {
-                "success": False
-                "gateway": True
+                "success": False,
+                "gateway": True,
                 "error": "Lotus gateway script not available",
             }
 
@@ -145,8 +145,8 @@ class EnhancedFilecoinGateway:
 
             if result.returncode != 0:
                 return {
-                    "success": False
-                    "gateway": True
+                    "success": False,
+                    "gateway": True,
                     "error": f"CID {cid} not found on IPFS: {result.stderr}",
                 }
 
@@ -174,14 +174,14 @@ class EnhancedFilecoinGateway:
             # Create a deal metadata file
             deal_file = os.path.join(deals_dir, f"{deal_id}.json")
             deal_info = {
-                "deal_id": deal_id
-                "cid": cid
-                "miner": miner
-                "duration": duration
+                "deal_id": deal_id,
+                "cid": cid,
+                "miner": miner,
+                "duration": duration,
                 "status": "proposed",
                 "created_at": time.time(),
-                "gateway": True
-                "ipfs_verified": True
+                "gateway": True,
+                "ipfs_verified": True,
             }
 
             # Get additional data from the chain for realism
@@ -201,22 +201,22 @@ class EnhancedFilecoinGateway:
                         deal_info["end_epoch"] = chain_data.get("Height") + duration
                     except json.JSONDecodeError:
                         pass
-            except Exception:
-                pass
+            except Exception as chain_exc:
+                logger.debug("Could not fetch chain head for deal epoch estimation: %s", chain_exc)
 
             # Store the deal information
             with open(deal_file, "w") as f:
                 json.dump(deal_info, f, indent=2)
 
             return {
-                "success": True
-                "gateway": True
+                "success": True,
+                "gateway": True,
                 "message": "Storage deal proposed via Filecoin gateway",
                 "note": "This is a simulated deal proposal using real network data",
-                "deal_id": deal_id
-                "cid": cid
-                "miner": miner
-                "duration": duration
+                "deal_id": deal_id,
+                "cid": cid,
+                "miner": miner,
+                "duration": duration,
                 "status": "proposed",
                 "start_epoch": deal_info.get("start_epoch"),
                 "end_epoch": deal_info.get("end_epoch"),
@@ -238,8 +238,8 @@ class EnhancedFilecoinGateway:
         """
         if not self.gateway_available:
             return {
-                "success": False
-                "gateway": True
+                "success": False,
+                "gateway": True,
                 "error": "Lotus gateway script not available",
             }
 
@@ -250,8 +250,8 @@ class EnhancedFilecoinGateway:
 
             if not os.path.exists(deal_file):
                 return {
-                    "success": False
-                    "gateway": True
+                    "success": False,
+                    "gateway": True,
                     "error": f"Deal {deal_id} not found in records",
                 }
 
@@ -262,8 +262,8 @@ class EnhancedFilecoinGateway:
             cid = deal_info.get("cid")
             if not cid:
                 return {
-                    "success": False
-                    "gateway": True
+                    "success": False,
+                    "gateway": True,
                     "error": "Deal information does not contain a CID",
                 }
 
@@ -275,11 +275,11 @@ class EnhancedFilecoinGateway:
             if ipfs_check.returncode == 0:
                 # Content already in IPFS
                 return {
-                    "success": True
-                    "gateway": True
+                    "success": True,
+                    "gateway": True,
                     "message": "Content already available in IPFS",
-                    "deal_id": deal_id
-                    "cid": cid
+                    "deal_id": deal_id,
+                    "cid": cid,
                     "status": "retrieved",
                 }
 
@@ -291,22 +291,22 @@ class EnhancedFilecoinGateway:
 
             if retrieve_result.returncode == 0:
                 return {
-                    "success": True
-                    "gateway": True
+                    "success": True,
+                    "gateway": True,
                     "message": "Content retrieved from IPFS network",
-                    "deal_id": deal_id
-                    "cid": cid
+                    "deal_id": deal_id,
+                    "cid": cid,
                     "status": "retrieved",
                     "source": "ipfs_network",
                 }
             else:
                 return {
-                    "success": False
-                    "gateway": True
+                    "success": False,
+                    "gateway": True,
                     "message": "Content not available in IPFS network",
                     "error": retrieve_result.stderr,
-                    "deal_id": deal_id
-                    "cid": cid
+                    "deal_id": deal_id,
+                    "cid": cid,
                     "status": "retrieval_failed",
                 }
 
@@ -326,8 +326,8 @@ class EnhancedFilecoinGateway:
         """
         if not self.gateway_available:
             return {
-                "success": False
-                "gateway": True
+                "success": False,
+                "gateway": True,
                 "error": "Lotus gateway script not available",
             }
 
@@ -338,8 +338,8 @@ class EnhancedFilecoinGateway:
 
             if not os.path.exists(deal_file):
                 return {
-                    "success": False
-                    "gateway": True
+                    "success": False,
+                    "gateway": True,
                     "error": f"Deal {deal_id} not found in records",
                 }
 
