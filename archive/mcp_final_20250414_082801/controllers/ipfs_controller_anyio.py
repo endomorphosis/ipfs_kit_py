@@ -9,6 +9,7 @@ This implementation uses AnyIO for backend-agnostic async operations.
 
 import logging
 import time
+import json
 import random
 import anyio
 import sniffio
@@ -2186,11 +2187,9 @@ class IPFSControllerAnyIO:
             elif data.startswith(b"{") or data.startswith(b"["):
                 # Try to see if it's valid JSON
                 try:
-                    import json
-
                     json.loads(data)
                     media_type = "application/json"
-                except Exception as json_err:
+                except (ValueError, UnicodeDecodeError) as json_err:
                     # Data is not valid JSON; keep default media_type
                     logger.debug("Content starting with '{' or '[' is not valid JSON: %s", json_err)
             elif all(c < 128 and c >= 32 or c in (9, 10, 13) for c in data[: min(1000, len(data))]):
