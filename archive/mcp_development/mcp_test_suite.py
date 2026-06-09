@@ -262,8 +262,8 @@ def get_server_info():
     except requests.RequestException as e:
         logger.error(f"Error getting server info: {e}", exc_info=True)
         return None
-    except Exception as e:
-        logger.error(f"Unexpected error getting server info: {e}", exc_info=True)
+    except json.JSONDecodeError as e:
+        logger.error(f"Error parsing server info response JSON: {e}", exc_info=True)
         return None
 
 def get_registered_tools():
