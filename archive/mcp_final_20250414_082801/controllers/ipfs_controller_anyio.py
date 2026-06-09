@@ -14,27 +14,17 @@ import anyio
 import sniffio
 from typing import Dict, Any, Optional, Union
 from fastapi import (
-from pydantic import BaseModel, Field
-from ipfs_kit_py.mcp.controllers.ipfs_controller import (
-
-APIRouter,
+    APIRouter,
     HTTPException,
     Body,
     File,
     UploadFile,
     Form,
     Response,
-    Request)
-
-# Import AnyIO for backend-agnostic async operations
-
-
-
-# Import Pydantic models for request/response validation
-
-
-# Import from original controller
-
+    Request,
+)
+from pydantic import BaseModel, Field
+from ipfs_kit_py.mcp.controllers.ipfs_controller import (
     ContentRequest,
     CIDRequest,
     AddContentResponse,
@@ -536,8 +526,8 @@ class IPFSControllerAnyIO:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -582,14 +572,14 @@ class IPFSControllerAnyIO:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "daemon_status": {},
                 "overall_status": "critical",
-                "status_code": 500
+                "status_code": 500,
                 "daemon_type": daemon_type
             }
 
@@ -633,12 +623,12 @@ class IPFSControllerAnyIO:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "cid": cid
+                "cid": cid,
                 "replication": {},
                 "needs_replication": True
             }
@@ -678,15 +668,16 @@ class IPFSControllerAnyIO:
                 try:
                     body = await request.json()
                     path = body.get("path")
-                except Exception:
-                    pass
+                except Exception as e:
+                    # Body is not JSON or could not be parsed; path remains None
+                    logger.debug("Could not parse request body as JSON for IPNS publish: %s", e)
 
         # Validate path
         if not path:
             logger.error("Missing path parameter for IPNS publish")
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": "Missing path parameter",
                 "error_type": "ValidationError",
@@ -721,7 +712,7 @@ class IPFSControllerAnyIO:
 
                 # Create simulated IPNS response for stability in testing
                 result = {
-                    "success": True
+                    "success": True,
                     "operation": "name_publish",
                     "name": f"k51q9dft3fmkhiqmx{path_hash}",
                     "value": path
@@ -741,12 +732,12 @@ class IPFSControllerAnyIO:
 
             # Return standardized error response
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "path": path
+                "path": path,
                 "key": key
             }
 
@@ -788,7 +779,7 @@ class IPFSControllerAnyIO:
                 # Failed to parse body, log and continue
                 logger.error(f"Failed to parse request body as JSON: {e}")
                 return {
-                    "success": False
+                    "success": False,
                     "error": f"Invalid JSON data: {str(e)}",
                     "error_type": type(e).__name__,
                 }
@@ -801,8 +792,8 @@ class IPFSControllerAnyIO:
         if not data:
             logger.error("Missing required parameter: data")
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": "Missing required parameter: data",
                 "error_type": "ValidationError",
@@ -835,7 +826,7 @@ class IPFSControllerAnyIO:
 
                 # Create simulated response
                 result = {
-                    "success": True
+                    "success": True,
                     "operation": "dag_put",
                     "cid": f"bafyrei{data_hash}abcdef0123456789",
                     "format": format
@@ -859,8 +850,8 @@ class IPFSControllerAnyIO:
 
             # Return standardized error response
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -943,7 +934,7 @@ class IPFSControllerAnyIO:
 
             # Return raw content with helpful headers
             headers = {
-                "X-IPFS-Block": cid
+                "X-IPFS-Block": cid,
                 "X-Operation-ID": result.get("operation_id", operation_id),
                 "X-Operation-Duration-MS": str(
                     result.get("duration_ms", (time.time() - start_time) * 1000)
@@ -999,8 +990,8 @@ class IPFSControllerAnyIO:
         if not cid:
             logger.error("Missing required parameter: cid or arg")
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": "Missing required parameter: cid or arg",
                 "error_type": "ValidationError",
@@ -1032,10 +1023,10 @@ class IPFSControllerAnyIO:
 
                 # Create simulated response
                 result = {
-                    "success": True
+                    "success": True,
                     "operation": "block_get",
-                    "cid": cid
-                    "data": sim_data
+                    "cid": cid,
+                    "data": sim_data,
                     "size": len(sim_data),
                     "simulated": True
                 }
@@ -1078,8 +1069,8 @@ class IPFSControllerAnyIO:
 
             # Return standardized error response
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -1119,8 +1110,8 @@ class IPFSControllerAnyIO:
         if not cid:
             logger.error("Missing required parameter: cid or arg")
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": "Missing required parameter: cid or arg",
                 "error_type": "ValidationError",
@@ -1153,11 +1144,11 @@ class IPFSControllerAnyIO:
 
                 # Create simulated response
                 result = {
-                    "success": True
+                    "success": True,
                     "operation": "block_stat",
-                    "cid": cid
-                    "key": cid,  # For backward compatibility
-                    "size": sim_size
+                    "cid": cid,
+                    "key": cid,  # For backward compatibility,
+                    "size": sim_size,
                     "simulated": True
                 }
 
@@ -1185,8 +1176,8 @@ class IPFSControllerAnyIO:
 
             # Return standardized error response
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -1231,8 +1222,8 @@ class IPFSControllerAnyIO:
         if not cid:
             logger.error("Missing required parameter: cid or arg")
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": "Missing required parameter: cid or arg",
                 "error_type": "ValidationError",
@@ -1263,8 +1254,8 @@ class IPFSControllerAnyIO:
                     sim_node = {
                         "Data": {
                             "Type": "File",
-                            "Data": "U2ltdWxhdGVkIGRhdGE=",  # base64 "Simulated data"
-                            "filesize": 14
+                            "Data": "U2ltdWxhdGVkIGRhdGE=",  # base64 "Simulated data",
+                            "filesize": 14,
                             "blocksizes": [14],
                         },
                         "Links": [],
@@ -1273,7 +1264,7 @@ class IPFSControllerAnyIO:
                     # Simulate a CBOR node
                     sim_node = {
                         "test": "value",
-                        "num": 123
+                        "num": 123,
                         "nested": {"field": "test"},
                     }
                 else:
@@ -1282,10 +1273,10 @@ class IPFSControllerAnyIO:
 
                 # Standardized simulated response
                 result = {
-                    "success": True
-                    "cid": cid
-                    "path": path
-                    "node": sim_node
+                    "success": True,
+                    "cid": cid,
+                    "path": path,
+                    "node": sim_node,
                     "simulated": True
                 }
 
@@ -1322,12 +1313,12 @@ class IPFSControllerAnyIO:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "cid": cid
+                "cid": cid,
                 "path": path
             }
 
@@ -1365,8 +1356,8 @@ class IPFSControllerAnyIO:
         if not name:
             logger.error("Missing required parameter: name or arg")
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": "Missing required parameter: name or arg",
                 "error_type": "ValidationError",
@@ -1398,8 +1389,8 @@ class IPFSControllerAnyIO:
 
                 # Create simulated response
                 result = {
-                    "success": True
-                    "name": name
+                    "success": True,
+                    "name": name,
                     "path": f"/ipfs/Qm{name_hash}abcdef0123456789",
                     "operation": "name_resolve",
                 }
@@ -1422,8 +1413,8 @@ class IPFSControllerAnyIO:
 
             # Return standardized error response
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -1470,8 +1461,8 @@ class IPFSControllerAnyIO:
         if not peer_id:
             logger.warning("Missing required parameter: peer_id")
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "operation": "find_peer",
                 "timestamp": time.time(),
                 "error": "Missing required parameter: peer_id",
@@ -1515,16 +1506,16 @@ class IPFSControllerAnyIO:
                         logger.warning("find_peer method not available on model or model.ipfs")
                         # Return simulated response for testing
                         return {
-                            "success": True
-                            "operation_id": operation_id
+                            "success": True,
+                            "operation_id": operation_id,
                             "operation": "find_peer",
                             "timestamp": time.time(),
-                            "peer_id": peer_id
+                            "peer_id": peer_id,
                             "addresses": [
                                 f"/ip4/127.0.0.1/tcp/4001/p2p/{peer_id}",
                                 f"/ip4/192.168.1.100/tcp/4001/p2p/{peer_id}",
                             ],
-                            "simulated": True
+                            "simulated": True,
                             "duration_ms": (time.time() - start_time) * 1000,
                         }
                 except Exception as thread_err:
@@ -1543,12 +1534,12 @@ class IPFSControllerAnyIO:
                         addresses.extend(response.get("Addrs", []))
 
                 formatted_result = {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "find_peer",
                     "timestamp": time.time(),
-                    "peer_id": peer_id
-                    "addresses": addresses
+                    "peer_id": peer_id,
+                    "addresses": addresses,
                     "raw_responses": responses
                 }
 
@@ -1577,21 +1568,21 @@ class IPFSControllerAnyIO:
             if isinstance(result, list):
                 # Assume it's a list of addresses
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "find_peer",
                     "timestamp": time.time(),
-                    "peer_id": peer_id
-                    "addresses": result
+                    "peer_id": peer_id,
+                    "addresses": result,
                     "duration_ms": (time.time() - start_time) * 1000,
                 }
 
             return {
                 "success": True if result else False,
-                "operation_id": operation_id
+                "operation_id": operation_id,
                 "operation": "find_peer",
                 "timestamp": time.time(),
-                "peer_id": peer_id
+                "peer_id": peer_id,
                 "raw_result": str(result),
                 "duration_ms": (time.time() - start_time) * 1000,
             }
@@ -1601,11 +1592,11 @@ class IPFSControllerAnyIO:
 
             # Return error in standard format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "operation": "find_peer",
                 "timestamp": time.time(),
-                "peer_id": peer_id
+                "peer_id": peer_id,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "duration_ms": (time.time() - start_time) * 1000,
@@ -1692,8 +1683,8 @@ class IPFSControllerAnyIO:
         if not cid:
             logger.warning("Missing required parameter: cid")
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "operation": "find_providers",
                 "timestamp": time.time(),
                 "error": "Missing required parameter: cid",
@@ -1741,11 +1732,11 @@ class IPFSControllerAnyIO:
                         logger.warning("find_providers method not available on model or model.ipfs")
                         # Return simulated response for testing
                         return {
-                            "success": True
-                            "operation_id": operation_id
+                            "success": True,
+                            "operation_id": operation_id,
                             "operation": "find_providers",
                             "timestamp": time.time(),
-                            "cid": cid
+                            "cid": cid,
                             "providers": [
                                 {
                                     "id": "QmProvider1",
@@ -1756,8 +1747,8 @@ class IPFSControllerAnyIO:
                                     "addresses": ["/ip4/192.168.1.2/tcp/4001/p2p/QmProvider2"],
                                 },
                             ],
-                            "provider_count": 2
-                            "simulated": True
+                            "provider_count": 2,
+                            "simulated": True,
                             "duration_ms": (time.time() - start_time) * 1000,
                         }
                 except Exception as thread_err:
@@ -1779,12 +1770,12 @@ class IPFSControllerAnyIO:
                     providers.append(provider)
 
                 formatted_result = {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "find_providers",
                     "timestamp": time.time(),
-                    "cid": cid
-                    "providers": providers
+                    "cid": cid,
+                    "providers": providers,
                     "provider_count": len(providers),
                     "raw_responses": responses
                 }
@@ -1825,22 +1816,22 @@ class IPFSControllerAnyIO:
                         providers.append({"id": str(item), "addresses": []})
 
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "find_providers",
                     "timestamp": time.time(),
-                    "cid": cid
-                    "providers": providers
+                    "cid": cid,
+                    "providers": providers,
                     "provider_count": len(providers),
                     "duration_ms": (time.time() - start_time) * 1000,
                 }
 
             return {
                 "success": True if result else False,
-                "operation_id": operation_id
+                "operation_id": operation_id,
                 "operation": "find_providers",
                 "timestamp": time.time(),
-                "cid": cid
+                "cid": cid,
                 "raw_result": str(result),
                 "duration_ms": (time.time() - start_time) * 1000,
             }
@@ -1850,19 +1841,19 @@ class IPFSControllerAnyIO:
 
             # Return error in standard format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "operation": "find_providers",
                 "timestamp": time.time(),
-                "cid": cid
+                "cid": cid,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "duration_ms": (time.time() - start_time) * 1000,
             }
 
     async def handle_add_request(
-    self,
-    request: Request
+        self,
+        request: Request,
         content_request: Optional[ContentRequest] = None,
         file: Optional[UploadFile] = File(None),
         pin: bool = Form(False),
@@ -1971,8 +1962,8 @@ class IPFSControllerAnyIO:
 
             # Return proper error response
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -2271,7 +2262,7 @@ class IPFSControllerAnyIO:
         except Exception as e:
             logger.error(f"Error getting content for CID {cid_request.cid}: {e}")
             return {
-                "success": False
+                "success": False,
                 "operation_id": f"get_{int(time.time() * 1000)}",
                 "timestamp": time.time(),
                 "error": str(e),
@@ -2374,26 +2365,26 @@ class IPFSControllerAnyIO:
                 # Special case: empty result, assume pin was "successful" for compatibility
                 # This behavior matches some IPFS implementations that return nothing on success
                 result = {
-                    "success": True
-                    "cid": cid
-                    "pinned": True
+                    "success": True,
+                    "cid": cid,
+                    "pinned": True,
                     "note": "Empty response interpreted as success",
                 }
             elif not isinstance(result, dict):
                 if result is True:
                     # Simple boolean success case
                     result = {
-                        "success": True
-                        "cid": cid
-                        "pinned": True
+                        "success": True,
+                        "cid": cid,
+                        "pinned": True,
                         "note": "Boolean True response interpreted as success",
                     }
                 elif result is False:
                     # Simple boolean failure case
                     result = {
-                        "success": False
-                        "cid": cid
-                        "pinned": False
+                        "success": False,
+                        "cid": cid,
+                        "pinned": False,
                         "error": "Pin operation failed",
                         "note": "Boolean False response interpreted as failure",
                     }
@@ -2401,9 +2392,9 @@ class IPFSControllerAnyIO:
                     # Other non-dict result
                     success = bool(result)
                     result = {
-                        "success": success
-                        "cid": cid
-                        "pinned": success
+                        "success": success,
+                        "cid": cid,
+                        "pinned": success,
                         "raw_result": str(result),
                         "note": f"Non-dictionary response '{str(result)}' interpreted as {'success' if success else 'failure'}",
                     }
@@ -2444,12 +2435,12 @@ class IPFSControllerAnyIO:
 
             # Return error in compatible format
             return {
-                "success": False
-                "operation_id": operation_id
-                "duration_ms": duration_ms
+                "success": False,
+                "operation_id": operation_id,
+                "duration_ms": duration_ms,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "cid": cid
+                "cid": cid,
                 "pinned": False
             }
 
@@ -2520,26 +2511,26 @@ class IPFSControllerAnyIO:
             if result is None:
                 # Special case: empty result, assume unpin was "successful" for compatibility
                 result = {
-                    "success": True
-                    "cid": cid
-                    "unpinned": True
+                    "success": True,
+                    "cid": cid,
+                    "unpinned": True,
                     "note": "Empty response interpreted as success",
                 }
             elif not isinstance(result, dict):
                 if result is True:
                     # Simple boolean success case
                     result = {
-                        "success": True
-                        "cid": cid
-                        "unpinned": True
+                        "success": True,
+                        "cid": cid,
+                        "unpinned": True,
                         "note": "Boolean True response interpreted as success",
                     }
                 elif result is False:
                     # Simple boolean failure case
                     result = {
-                        "success": False
-                        "cid": cid
-                        "unpinned": False
+                        "success": False,
+                        "cid": cid,
+                        "unpinned": False,
                         "error": "Unpin operation failed",
                         "note": "Boolean False response interpreted as failure",
                     }
@@ -2547,9 +2538,9 @@ class IPFSControllerAnyIO:
                     # Other non-dict result
                     success = bool(result)
                     result = {
-                        "success": success
-                        "cid": cid
-                        "unpinned": success
+                        "success": success,
+                        "cid": cid,
+                        "unpinned": success,
                         "raw_result": str(result),
                         "note": f"Non-dictionary response '{str(result)}' interpreted as {'success' if success else 'failure'}",
                     }
@@ -2590,12 +2581,12 @@ class IPFSControllerAnyIO:
 
             # Return error in compatible format
             return {
-                "success": False
-                "operation_id": operation_id
-                "duration_ms": duration_ms
+                "success": False,
+                "operation_id": operation_id,
+                "duration_ms": duration_ms,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "cid": cid
+                "cid": cid,
                 "unpinned": False
             }
 
@@ -2645,10 +2636,10 @@ class IPFSControllerAnyIO:
 
                 # Standardized simulated response
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
-                    "pins": pins
+                    "pins": pins,
                     "count": len(pins),
                     "simulated": True
                 }
@@ -2672,8 +2663,8 @@ class IPFSControllerAnyIO:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -2736,12 +2727,12 @@ class IPFSControllerAnyIO:
             if isinstance(result, dict) and "Entries" in result and "success" not in result:
                 # Convert raw IPFS daemon result to standard format
                 formatted_result = {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "files_ls",
                     "timestamp": time.time(),
-                    "path": path
-                    "long": long
+                    "path": path,
+                    "long": long,
                     "entries": result.get("Entries", []),
                 }
 
@@ -2769,11 +2760,11 @@ class IPFSControllerAnyIO:
             # Do best effort to return something useful
             return {
                 "success": True if result else False,
-                "operation_id": operation_id
+                "operation_id": operation_id,
                 "operation": "files_ls",
                 "timestamp": time.time(),
-                "path": path
-                "long": long
+                "path": path,
+                "long": long,
                 "raw_result": str(result),
                 "duration_ms": (time.time() - start_time) * 1000,
             }
@@ -2783,12 +2774,12 @@ class IPFSControllerAnyIO:
 
             # Return error in standard format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "operation": "files_ls",
                 "timestamp": time.time(),
-                "path": path
-                "long": long
+                "path": path,
+                "long": long,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "duration_ms": (time.time() - start_time) * 1000,
@@ -2846,11 +2837,11 @@ class IPFSControllerAnyIO:
             if isinstance(result, dict) and "Hash" in result and "success" not in result:
                 # Convert raw IPFS daemon result to standard format
                 formatted_result = {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "files_stat",
                     "timestamp": time.time(),
-                    "path": path
+                    "path": path,
                     "hash": result.get("Hash"),
                     "size": result.get("Size", 0),
                     "cumulative_size": result.get("CumulativeSize", 0),
@@ -2883,10 +2874,10 @@ class IPFSControllerAnyIO:
             # Do best effort to return something useful
             return {
                 "success": True if result else False,
-                "operation_id": operation_id
+                "operation_id": operation_id,
                 "operation": "files_stat",
                 "timestamp": time.time(),
-                "path": path
+                "path": path,
                 "raw_result": str(result),
                 "duration_ms": (time.time() - start_time) * 1000,
             }
@@ -2896,11 +2887,11 @@ class IPFSControllerAnyIO:
 
             # Return error in standard format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "operation": "files_stat",
                 "timestamp": time.time(),
-                "path": path
+                "path": path,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "duration_ms": (time.time() - start_time) * 1000,
@@ -2953,8 +2944,8 @@ class IPFSControllerAnyIO:
             if isinstance(result, dict) and "ID" in result:
                 # Format from ipfs id command
                 formatted_result = {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "get_node_id",
                     "timestamp": time.time(),
                     "id": result.get("ID"),
@@ -2994,19 +2985,19 @@ class IPFSControllerAnyIO:
             if isinstance(result, str) and result.startswith("Qm"):
                 # Just a peer ID string
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "get_node_id",
                     "timestamp": time.time(),
-                    "id": result
-                    "peer_id": result
+                    "id": result,
+                    "peer_id": result,
                     "addresses": [],
                     "duration_ms": (time.time() - start_time) * 1000,
                 }
 
             return {
                 "success": True if result else False,
-                "operation_id": operation_id
+                "operation_id": operation_id,
                 "operation": "get_node_id",
                 "timestamp": time.time(),
                 "raw_result": str(result),
@@ -3018,8 +3009,8 @@ class IPFSControllerAnyIO:
 
             # Return error in standard format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "operation": "get_node_id",
                 "timestamp": time.time(),
                 "error": str(e),
@@ -3084,12 +3075,12 @@ class IPFSControllerAnyIO:
             if result is None or (isinstance(result, dict) and len(result) == 0):
                 # Empty response means success for mkdir operation
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "files_mkdir",
                     "timestamp": time.time(),
-                    "path": path
-                    "parents": parents
+                    "path": path,
+                    "parents": parents,
                     "duration_ms": (time.time() - start_time) * 1000,
                 }
 
@@ -3114,11 +3105,11 @@ class IPFSControllerAnyIO:
             # Do best effort to return something useful
             return {
                 "success": True if result else False,
-                "operation_id": operation_id
+                "operation_id": operation_id,
                 "operation": "files_mkdir",
                 "timestamp": time.time(),
-                "path": path
-                "parents": parents
+                "path": path,
+                "parents": parents,
                 "raw_result": str(result),
                 "duration_ms": (time.time() - start_time) * 1000,
             }
@@ -3128,12 +3119,12 @@ class IPFSControllerAnyIO:
 
             # Return error in standard format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "operation": "files_mkdir",
                 "timestamp": time.time(),
-                "path": path
-                "parents": parents
+                "path": path,
+                "parents": parents,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "duration_ms": (time.time() - start_time) * 1000,
@@ -3224,16 +3215,16 @@ class IPFSControllerAnyIO:
             if result is None or (isinstance(result, dict) and len(result) == 0):
                 # Empty response means success for write operation
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "files_write",
                     "timestamp": time.time(),
-                    "path": path
+                    "path": path,
                     "size": len(content_bytes),
-                    "offset": offset
-                    "create": create
-                    "truncate": truncate
-                    "parents": parents
+                    "offset": offset,
+                    "create": create,
+                    "truncate": truncate,
+                    "parents": parents,
                     "duration_ms": (time.time() - start_time) * 1000,
                 }
 
@@ -3260,15 +3251,15 @@ class IPFSControllerAnyIO:
             # Do best effort to return something useful
             return {
                 "success": True if result else False,
-                "operation_id": operation_id
+                "operation_id": operation_id,
                 "operation": "files_write",
                 "timestamp": time.time(),
-                "path": path
+                "path": path,
                 "size": len(content_bytes),
-                "offset": offset
-                "create": create
-                "truncate": truncate
-                "parents": parents
+                "offset": offset,
+                "create": create,
+                "truncate": truncate,
+                "parents": parents,
                 "raw_result": str(result),
                 "duration_ms": (time.time() - start_time) * 1000,
             }
@@ -3278,11 +3269,11 @@ class IPFSControllerAnyIO:
 
             # Return error in standard format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "operation": "files_write",
                 "timestamp": time.time(),
-                "path": path
+                "path": path,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "duration_ms": (time.time() - start_time) * 1000,
@@ -3335,8 +3326,8 @@ class IPFSControllerAnyIO:
             if isinstance(result, dict) and "ID" in result:
                 # Format from ipfs id command
                 formatted_result = {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "get_node_id",
                     "timestamp": time.time(),
                     "id": result.get("ID"),
@@ -3376,19 +3367,19 @@ class IPFSControllerAnyIO:
             if isinstance(result, str) and result.startswith("Qm"):
                 # Just a peer ID string
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "get_node_id",
                     "timestamp": time.time(),
-                    "id": result
-                    "peer_id": result
+                    "id": result,
+                    "peer_id": result,
                     "addresses": [],
                     "duration_ms": (time.time() - start_time) * 1000,
                 }
 
             return {
                 "success": True if result else False,
-                "operation_id": operation_id
+                "operation_id": operation_id,
                 "operation": "get_node_id",
                 "timestamp": time.time(),
                 "raw_result": str(result),
@@ -3400,8 +3391,8 @@ class IPFSControllerAnyIO:
 
             # Return error in standard format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "operation": "get_node_id",
                 "timestamp": time.time(),
                 "error": str(e),
@@ -3457,8 +3448,8 @@ class IPFSControllerAnyIO:
 
                 # Standardized simulated response
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
                     "Version": "0.14.0",
                     "Commit": "test_simulator_commit",
@@ -3491,8 +3482,8 @@ class IPFSControllerAnyIO:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -3555,7 +3546,7 @@ class IPFSControllerAnyIO:
                     peer_id = f"QmTestPeer{i}{uuid.uuid4().hex[:8]}"
                     peers.append(
                         {
-                            "Peer": peer_id
+                            "Peer": peer_id,
                             "Addr": f"/ip4/192.168.0.{random.randint(2, 254)}/tcp/4001",
                             "Direction": random.choice(["inbound", "outbound"]),
                             "Latency": f"{random.randint(10, 500)}ms",
@@ -3565,10 +3556,10 @@ class IPFSControllerAnyIO:
 
                 # Standardized simulated response
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
-                    "Peers": peers
+                    "Peers": peers,
                     "peer_count": len(peers),
                     "simulated": True
                 }
@@ -3612,8 +3603,8 @@ class IPFSControllerAnyIO:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -3677,19 +3668,19 @@ class IPFSControllerAnyIO:
                 if "test" in address.lower() or "local" in address.lower():
                     # Simulate success for test addresses
                     return {
-                        "success": True
-                        "operation_id": operation_id
+                        "success": True,
+                        "operation_id": operation_id,
                         "duration_ms": (time.time() - start_time) * 1000,
                         "Strings": [f"connect {address} success"],
-                        "connected": True
-                        "address": address
+                        "connected": True,
+                        "address": address,
                         "simulated": True
                     }
 
                 # Otherwise return the actual error
                 return {
-                    "success": False
-                    "operation_id": operation_id
+                    "success": False,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
                     "error": result.get("error", f"Failed to connect to {address}"),
                     "error_type": result.get("error_type", "connection_error"),
@@ -3719,12 +3710,12 @@ class IPFSControllerAnyIO:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "address": address
+                "address": address,
                 "connected": False
             }
 
@@ -3788,19 +3779,19 @@ class IPFSControllerAnyIO:
                 if "test" in address.lower() or "local" in address.lower():
                     # Simulate success for test addresses
                     return {
-                        "success": True
-                        "operation_id": operation_id
+                        "success": True,
+                        "operation_id": operation_id,
                         "duration_ms": (time.time() - start_time) * 1000,
                         "Strings": [f"disconnect {address} success"],
-                        "disconnected": True
-                        "address": address
+                        "disconnected": True,
+                        "address": address,
                         "simulated": True
                     }
 
                 # Otherwise return the actual error
                 return {
-                    "success": False
-                    "operation_id": operation_id
+                    "success": False,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
                     "error": result.get("error", f"Failed to disconnect from {address}"),
                     "error_type": result.get("error_type", "connection_error"),
@@ -3830,12 +3821,12 @@ class IPFSControllerAnyIO:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "address": address
+                "address": address,
                 "disconnected": False
             }
 
@@ -3866,7 +3857,7 @@ class IPFSControllerAnyIO:
         elif path is None:
             # Both request and path are None, return error
             return {
-                "success": False
+                "success": False,
                 "error": "Path is required",
                 "error_type": "ValidationError",
                 "timestamp": time.time(),
@@ -3921,18 +3912,18 @@ class IPFSControllerAnyIO:
             if isinstance(result, bytes):
                 # Format standard response with content
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "files_read",
                     "timestamp": time.time(),
-                    "path": path
-                    "offset": offset
+                    "path": path,
+                    "offset": offset,
                     "count": count if count != -1 else len(result),
                     "size": len(result),
                     "content": result.decode(
                         "utf-8", errors="replace"
                     ),  # Attempt to decode as UTF-8
-                    "content_binary": True
+                    "content_binary": True,
                     "duration_ms": (time.time() - start_time) * 1000,
                 }
 
@@ -3957,12 +3948,12 @@ class IPFSControllerAnyIO:
             # Do best effort to return something useful
             return {
                 "success": True if result else False,
-                "operation_id": operation_id
+                "operation_id": operation_id,
                 "operation": "files_read",
                 "timestamp": time.time(),
-                "path": path
-                "offset": offset
-                "count": count
+                "path": path,
+                "offset": offset,
+                "count": count,
                 "raw_result": str(result),
                 "duration_ms": (time.time() - start_time) * 1000,
             }
@@ -3972,13 +3963,13 @@ class IPFSControllerAnyIO:
 
             # Return error in standard format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "operation": "files_read",
                 "timestamp": time.time(),
-                "path": path
-                "offset": offset
-                "count": count
+                "path": path,
+                "offset": offset,
+                "count": count,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "duration_ms": (time.time() - start_time) * 1000,
@@ -4044,13 +4035,13 @@ class IPFSControllerAnyIO:
             if result is None or (isinstance(result, dict) and len(result) == 0):
                 # Empty response means success for rm operation
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "files_rm",
                     "timestamp": time.time(),
-                    "path": path
-                    "recursive": recursive
-                    "force": force
+                    "path": path,
+                    "recursive": recursive,
+                    "force": force,
                     "duration_ms": (time.time() - start_time) * 1000,
                 }
 
@@ -4077,12 +4068,12 @@ class IPFSControllerAnyIO:
             # Do best effort to return something useful
             return {
                 "success": True if result else False,
-                "operation_id": operation_id
+                "operation_id": operation_id,
                 "operation": "files_rm",
                 "timestamp": time.time(),
-                "path": path
-                "recursive": recursive
-                "force": force
+                "path": path,
+                "recursive": recursive,
+                "force": force,
                 "raw_result": str(result),
                 "duration_ms": (time.time() - start_time) * 1000,
             }
@@ -4092,13 +4083,13 @@ class IPFSControllerAnyIO:
 
             # Return error in standard format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "operation": "files_rm",
                 "timestamp": time.time(),
-                "path": path
-                "recursive": recursive
-                "force": force
+                "path": path,
+                "recursive": recursive,
+                "force": force,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "duration_ms": (time.time() - start_time) * 1000,
@@ -4162,13 +4153,13 @@ class IPFSControllerAnyIO:
             if result is None or (isinstance(result, dict) and len(result) == 0):
                 # Empty response means success for cp operation
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "files_cp",
                     "timestamp": time.time(),
-                    "source": source
-                    "destination": destination
-                    "parents": parents
+                    "source": source,
+                    "destination": destination,
+                    "parents": parents,
                     "duration_ms": (time.time() - start_time) * 1000,
                 }
 
@@ -4195,12 +4186,12 @@ class IPFSControllerAnyIO:
             # Do best effort to return something useful
             return {
                 "success": True if result else False,
-                "operation_id": operation_id
+                "operation_id": operation_id,
                 "operation": "files_cp",
                 "timestamp": time.time(),
-                "source": source
-                "destination": destination
-                "parents": parents
+                "source": source,
+                "destination": destination,
+                "parents": parents,
                 "raw_result": str(result),
                 "duration_ms": (time.time() - start_time) * 1000,
             }
@@ -4210,13 +4201,13 @@ class IPFSControllerAnyIO:
 
             # Return error in standard format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "operation": "files_cp",
                 "timestamp": time.time(),
-                "source": source
-                "destination": destination
-                "parents": parents
+                "source": source,
+                "destination": destination,
+                "parents": parents,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "duration_ms": (time.time() - start_time) * 1000,
@@ -4280,13 +4271,13 @@ class IPFSControllerAnyIO:
             if result is None or (isinstance(result, dict) and len(result) == 0):
                 # Empty response means success for mv operation
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "files_mv",
                     "timestamp": time.time(),
-                    "source": source
-                    "destination": destination
-                    "parents": parents
+                    "source": source,
+                    "destination": destination,
+                    "parents": parents,
                     "duration_ms": (time.time() - start_time) * 1000,
                 }
 
@@ -4313,12 +4304,12 @@ class IPFSControllerAnyIO:
             # Do best effort to return something useful
             return {
                 "success": True if result else False,
-                "operation_id": operation_id
+                "operation_id": operation_id,
                 "operation": "files_mv",
                 "timestamp": time.time(),
-                "source": source
-                "destination": destination
-                "parents": parents
+                "source": source,
+                "destination": destination,
+                "parents": parents,
                 "raw_result": str(result),
                 "duration_ms": (time.time() - start_time) * 1000,
             }
@@ -4328,13 +4319,13 @@ class IPFSControllerAnyIO:
 
             # Return error in standard format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "operation": "files_mv",
                 "timestamp": time.time(),
-                "source": source
-                "destination": destination
-                "parents": parents
+                "source": source,
+                "destination": destination,
+                "parents": parents,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "duration_ms": (time.time() - start_time) * 1000,
@@ -4393,23 +4384,23 @@ class IPFSControllerAnyIO:
             # If result contains CID directly
             if isinstance(result, str) and result.startswith("Qm"):
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "files_flush",
                     "timestamp": time.time(),
-                    "path": path
-                    "cid": result
+                    "path": path,
+                    "cid": result,
                     "duration_ms": (time.time() - start_time) * 1000,
                 }
 
             # If result is a dict with Cid field
             if isinstance(result, dict) and "Cid" in result:
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "files_flush",
                     "timestamp": time.time(),
-                    "path": path
+                    "path": path,
                     "cid": result["Cid"],
                     "duration_ms": (time.time() - start_time) * 1000,
                 }
@@ -4433,10 +4424,10 @@ class IPFSControllerAnyIO:
             # Do best effort to return something useful
             return {
                 "success": True if result else False,
-                "operation_id": operation_id
+                "operation_id": operation_id,
                 "operation": "files_flush",
                 "timestamp": time.time(),
-                "path": path
+                "path": path,
                 "raw_result": str(result),
                 "duration_ms": (time.time() - start_time) * 1000,
             }
@@ -4446,11 +4437,11 @@ class IPFSControllerAnyIO:
 
             # Return error in standard format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "operation": "files_flush",
                 "timestamp": time.time(),
-                "path": path
+                "path": path,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "duration_ms": (time.time() - start_time) * 1000,
@@ -4503,8 +4494,8 @@ class IPFSControllerAnyIO:
             if isinstance(result, dict) and "ID" in result:
                 # Format from ipfs id command
                 formatted_result = {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "get_node_id",
                     "timestamp": time.time(),
                     "id": result.get("ID"),
@@ -4544,19 +4535,19 @@ class IPFSControllerAnyIO:
             if isinstance(result, str) and result.startswith("Qm"):
                 # Just a peer ID string
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "operation": "get_node_id",
                     "timestamp": time.time(),
-                    "id": result
-                    "peer_id": result
+                    "id": result,
+                    "peer_id": result,
                     "addresses": [],
                     "duration_ms": (time.time() - start_time) * 1000,
                 }
 
             return {
                 "success": True if result else False,
-                "operation_id": operation_id
+                "operation_id": operation_id,
                 "operation": "get_node_id",
                 "timestamp": time.time(),
                 "raw_result": str(result),
@@ -4568,8 +4559,8 @@ class IPFSControllerAnyIO:
 
             # Return error in standard format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "operation": "get_node_id",
                 "timestamp": time.time(),
                 "error": str(e),
