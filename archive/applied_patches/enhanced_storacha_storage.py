@@ -127,7 +127,7 @@ class EnhancedStorachaStorage:
             # Count objects in mock storage
             try:
                 object_count = len(os.listdir(self.mock_storage_path))
-            except:
+            except OSError:
                 object_count = 0
             
             return {

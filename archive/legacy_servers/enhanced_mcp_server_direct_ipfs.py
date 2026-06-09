@@ -229,8 +229,8 @@ class DirectIPFSInterface:
                 logger.warning(f"Error shutting down daemon: {e}")
                 try:
                     self.daemon_process.kill()
-                except:
-                    pass
+                except Exception as kill_err:
+                    logger.warning(f"Error force-killing daemon: {kill_err}")
 
 
 class EnhancedMCPServerDirect:

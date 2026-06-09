@@ -88,8 +88,8 @@ def kill_existing_servers():
                     except OSError:
                         pass
                 os.remove(pid_file)
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Error processing pid file {pid_file}: {e}")
     
     # Try to kill by process name
     try:
@@ -106,10 +106,10 @@ def kill_existing_servers():
                         os.kill(pid, 9)
                     except OSError:
                         pass
-                except:
-                    pass
-    except:
-        pass
+                except (ValueError, OSError, PermissionError) as e:
+                    logger.warning(f"Error killing process {pid}: {e}")
+    except subprocess.CalledProcessError:
+        pass  # pgrep exits non-zero when no matching processes found
 
 def check_port_availability(host, port):
     """Check if the port is available."""
@@ -194,10 +194,8 @@ def wait_for_server_ready(host, port, max_wait=60):
             if response.status_code == 200:
                 logger.info("Server is ready! ✓")
                 return True
-        except:
-            pass
-        
-        # Check if process is still running
+        except (requests.RequestException, OSError) as e:
+            logger.debug(f"Server not yet reachable at {health_url}: {e}")
         if os.path.exists(PID_FILE):
             with open(PID_FILE, "r") as f:
                 pid = int(f.read().strip())
@@ -219,10 +217,8 @@ def wait_for_server_ready(host, port, max_wait=60):
                     logger.info("Recent server output:")
                     for line in lines:
                         logger.info(f"  {line.strip()}")
-            except:
-                pass
-        
-        time.sleep(1)
+            except OSError as e:
+                logger.debug(f"Could not read server log file: {e}")
     
     logger.error(f"Server didn't become ready within {max_wait} seconds ✗")
     return False
@@ -263,8 +259,11 @@ def get_server_info():
         else:
             logger.error(f"Health check failed with status code {response.status_code}")
             return None
-    except Exception as e:
-        logger.error(f"Error getting server info: {e}")
+    except requests.RequestException as e:
+        logger.error(f"Error getting server info: {e}", exc_info=True)
+        return None
+    except json.JSONDecodeError as e:
+        logger.error(f"Error parsing server info response JSON: {e}", exc_info=True)
         return None
 
 def get_registered_tools():
@@ -317,8 +316,11 @@ def get_registered_tools():
         else:
             logger.error(f"list_tools request failed with status {response.status_code}")
             return []
+    except requests.RequestException as e:
+        logger.error(f"Error getting registered tools: {e}", exc_info=True)
+        return []
     except Exception as e:
-        logger.error(f"Error getting registered tools: {e}")
+        logger.error(f"Unexpected error getting registered tools: {e}", exc_info=True)
         return []
 
 def test_tool(tool_name, params=None):
@@ -367,8 +369,11 @@ def test_tool(tool_name, params=None):
         else:
             logger.error(f"Tool '{tool_name}' request failed with status {response.status_code}")
             return False, {"error": f"HTTP {response.status_code}"}
+    except requests.RequestException as e:
+        logger.error(f"Error testing tool '{tool_name}': {e}", exc_info=True)
+        return False, {"error": str(e)}
     except Exception as e:
-        logger.error(f"Error testing tool '{tool_name}': {e}")
+        logger.error(f"Unexpected error testing tool '{tool_name}': {e}", exc_info=True)
         return False, {"error": str(e)}
 
 def test_tools_by_category(tools, categories):

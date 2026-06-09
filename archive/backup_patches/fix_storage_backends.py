@@ -285,7 +285,10 @@ def update_mcp_server_with_proxies(proxy_files):
         
         logger.info(f"Created updated server file: {updated_server_file}")
         return updated_server_file
-    except Exception as e:
+    except (OSError, IOError) as e:
+        # Narrow catch to expected file-I/O errors only.  Unexpected exceptions
+        # (AttributeError, NameError, etc.) are allowed to propagate so they
+        # surface immediately rather than being silently swallowed as None.
         logger.exception(f"Failed to update server file: {e}")
         return None
 
