@@ -49,8 +49,11 @@ def create_websocket_extension_router(
         websocket_router, rest_router = create_websocket_router(api_prefix)
         logger.info("Successfully created WebSocket routers")
         return websocket_router, rest_router
+    except (TypeError, ValueError) as e:
+        logger.exception("Invalid configuration creating WebSocket router (prefix=%r): %s", api_prefix, e)
+        return None, None
     except Exception as e:
-        logger.exception(f"Error creating WebSocket router: {e}")
+        logger.exception("Unexpected error creating WebSocket router (prefix=%r): %s", api_prefix, e)
         return None, None
 
 
@@ -101,8 +104,11 @@ def register_app_websocket_routes(app: FastAPI, api_prefix: str) -> bool:
 
         # Return the REST router for normal inclusion
         return True
+    except (TypeError, ValueError) as e:
+        logger.exception("Invalid configuration registering WebSocket routes (prefix=%r): %s", api_prefix, e)
+        return False
     except Exception as e:
-        logger.exception(f"Error registering WebSocket routes: {e}")
+        logger.exception("Unexpected error registering WebSocket routes (prefix=%r): %s", api_prefix, e)
         return False
 
 
