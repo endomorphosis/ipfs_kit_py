@@ -46,6 +46,10 @@ def backup_file(file_path):
         
     Returns:
         Path to the backup file
+        
+    Raises:
+        Exception: Re-raises any exception that occurs during backup so callers
+            are not silently bypassed when the backup fails.
     """
     backup_path = f"{file_path}.bak"
     try:
@@ -54,7 +58,7 @@ def backup_file(file_path):
         return backup_path
     except Exception as e:
         logger.error(f"Failed to back up {file_path}: {e}")
-        return None
+        raise
 
 def update_storacha_kit():
     """Replace the current storacha_kit.py with the enhanced version."""
