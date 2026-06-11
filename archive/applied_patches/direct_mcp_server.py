@@ -149,16 +149,37 @@ async def delayed_shutdown(pid: int, delay: float):
     except Exception as e:
         logger.error(f"Error sending SIGTERM to process {pid}: {e}")
 
-def get_other_instance_pid():
+def get_other_instance_pid() -> Optional[int]:
     """Get the PID of the other instance (blue if we're green, green if we're blue)."""
     other_pid_file = DEPLOYMENT_CONFIG["green_pid_file"] if is_blue else DEPLOYMENT_CONFIG["blue_pid_file"]
+
     try:
-        if os.path.exists(other_pid_file):
-            with open(other_pid_file, "r") as f:
-                return int(f.read().strip())
-    except (OSError, ValueError) as e:
-        logger.error(f"Error reading other instance PID file: {e}")
-    return None
+        with open(other_pid_file, "r", encoding="utf-8") as f:
+            pid_text = f.read().strip()
+    except FileNotFoundError:
+        return None
+    except OSError as e:
+        logger.error(f"Error reading other instance PID file {other_pid_file}: {e}", exc_info=True)
+        return None
+    except UnicodeDecodeError as e:
+        logger.warning(f"Other instance PID file {other_pid_file} is not valid UTF-8: {e}")
+        return None
+
+    if not pid_text:
+        logger.warning(f"Other instance PID file {other_pid_file} is empty")
+        return None
+
+    try:
+        pid = int(pid_text)
+    except ValueError:
+        logger.warning(f"Other instance PID file {other_pid_file} contains invalid PID: {pid_text!r}")
+        return None
+
+    if pid <= 0:
+        logger.warning(f"Other instance PID file {other_pid_file} contains non-positive PID: {pid}")
+        return None
+
+    return pid
 
 def is_process_running(pid):
     """Check if a process with the given PID is running."""
@@ -180,13 +201,22 @@ def run_syntax_check(file_path):
     except Exception as e:
         return False, str(e)
 
+def _format_subprocess_output(stdout, stderr):
+    """Format captured subprocess output for diagnostics."""
+    if isinstance(stdout, bytes):
+        stdout = stdout.decode(errors="replace")
+    if isinstance(stderr, bytes):
+        stderr = stderr.decode(errors="replace")
+
+    return f"Output:\n{stdout or ''}\n{stderr or ''}"
+
 def run_pytest(test_paths=None):
     """Run pytest on specific test paths or all tests."""
+    cmd = ["pytest", "-xvs"]
+    if test_paths:
+        cmd.extend(test_paths)
+
     try:
-        cmd = ["pytest", "-xvs"]
-        if test_paths:
-            cmd.extend(test_paths)
-        
         result = subprocess.run(
             cmd,
             cwd=os.getcwd(),
@@ -194,9 +224,17 @@ def run_pytest(test_paths=None):
             text=True,
             timeout=120
         )
-        return result.returncode == 0, f"Output:\n{result.stdout}\n{result.stderr}"
-    except Exception as e:
-        return False, str(e)
+    except subprocess.TimeoutExpired as e:
+        output = _format_subprocess_output(e.stdout, e.stderr)
+        message = f"Pytest timed out after {e.timeout} seconds while running {cmd!r}.\n{output}"
+        logger.warning(message)
+        return False, message
+    except OSError as e:
+        message = f"Unable to start pytest command {cmd!r}: {e}"
+        logger.error(message, exc_info=True)
+        return False, message
+
+    return result.returncode == 0, _format_subprocess_output(result.stdout, result.stderr)
 
 async def start_other_instance(port):
     """Start the other instance of the server."""
@@ -212,11 +250,13 @@ async def start_other_instance(port):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
-        logger.info(f"Started other instance with PID {process.pid} on port {port}")
-        return process.pid
-    except Exception as e:
-        logger.error(f"Failed to start other instance: {e}")
-        return None
+    except OSError as e:
+        message = f"Unable to start other instance on port {port} with command {cmd!r}: {e}"
+        logger.error(message, exc_info=True)
+        raise RuntimeError(message) from e
+
+    logger.info(f"Started other instance with PID {process.pid} on port {port}")
+    return process.pid
 
 async def perform_health_check(port):
     """Check if the server on the given port is healthy."""

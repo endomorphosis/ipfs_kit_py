@@ -210,27 +210,66 @@ class S3Backend(BackendStorage):
         if self.cache_usage + len(data) > self.cache_size_limit:
             return None # Cannot cache if still over limit
 
+        cache_metadata = {
+            "cached_at": time.time(),
+            "size": len(data),
+            "bucket": bucket,
+            "key": key,
+            "object_metadata": metadata,
+        }
+        data_tmp_path = None
+        meta_tmp_path = None
+        data_committed = False
+        previous_size = 0
+
         try:
-            with open(cache_path, "wb") as f:
+            if os.path.exists(cache_path):
+                previous_size = os.path.getsize(cache_path)
+
+            with tempfile.NamedTemporaryFile("wb", delete=False, dir=self.cache_dir) as f:
+                data_tmp_path = f.name
                 f.write(data)
 
-            cache_metadata = {
-                "cached_at": time.time(),
-                "size": len(data),
-                "bucket": bucket,
-                "key": key,
-                "object_metadata": metadata,
-            }
-
-            with open(meta_path, "w") as f:
+            with tempfile.NamedTemporaryFile("w", delete=False, dir=self.cache_dir) as f:
+                meta_tmp_path = f.name
                 json.dump(cache_metadata, f)
 
-            # Update cache usage
-            self.cache_usage += len(data)
+            os.replace(data_tmp_path, cache_path)
+            data_tmp_path = None
+            data_committed = True
+
+            os.replace(meta_tmp_path, meta_path)
+            meta_tmp_path = None
+
+            # Update cache usage after both cache files are visible.
+            self.cache_usage += len(data) - previous_size
 
             return cache_path
-        except Exception as e:
-            logger.warning(f"Error caching object: {str(e)}")
+        except (OSError, TypeError, ValueError) as e:
+            # Local cache writes are best-effort, but partial files must not leak
+            # because _clean_cache only tracks entries that have metadata.
+            for tmp_path in (data_tmp_path, meta_tmp_path):
+                if not tmp_path:
+                    continue
+                try:
+                    if os.path.exists(tmp_path):
+                        os.remove(tmp_path)
+                except OSError as cleanup_error:
+                    logger.warning(
+                        f"Error removing temporary cache file {tmp_path}: {str(cleanup_error)}")
+
+            if data_committed:
+                for final_path in (cache_path, meta_path):
+                    try:
+                        if os.path.exists(final_path):
+                            os.remove(final_path)
+                    except OSError as cleanup_error:
+                        logger.warning(
+                            f"Error removing incomplete cache file {final_path}: {str(cleanup_error)}")
+                if previous_size:
+                    self.cache_usage = max(0, self.cache_usage - previous_size)
+
+            logger.warning(f"Error caching object {bucket}/{key}: {str(e)}", exc_info=True)
             return None
 
     def _clean_cache(self):
@@ -823,28 +862,39 @@ class S3Backend(BackendStorage):
         if use_cache:
             in_cache, cache_path = self._is_in_cache(bucket, identifier)
             if in_cache:
+                meta_path = f"{cache_path}.meta"
                 try:
-                    with open(f"{cache_path}.meta", "r") as f:
+                    with open(meta_path, "r") as f:
                         cached_metadata = json.load(f)
-
-                    if "object_metadata" in cached_metadata:
-                        return {
-                            "success": True,
-                            "metadata": {
-                                "size": cached_metadata.get("size", 0),
-                                "last_modified": time.ctime(cached_metadata.get("cached_at", 0)),
-                                "backend": self.get_name(),
-                                "user_metadata": cached_metadata.get("object_metadata", {}),
-                            },
+                    object_metadata = cached_metadata["object_metadata"]
+                    size = cached_metadata.get("size", 0)
+                    last_modified = time.ctime(cached_metadata.get("cached_at", 0))
+                except (
+                    OSError,
+                    json.JSONDecodeError,
+                    KeyError,
+                    AttributeError,
+                    TypeError,
+                    ValueError,
+                    OverflowError,
+                ) as cache_error:
+                    logger.warning(
+                        f"Error reading S3 metadata cache {meta_path}: {str(cache_error)}")
+                else:
+                    return {
+                        "success": True,
+                        "metadata": {
+                            "size": size,
+                            "last_modified": last_modified,
                             "backend": self.get_name(),
-                            "identifier": identifier,
-                            "container": bucket,
-                            "cached": True,
-                            "details": {"bucket": bucket, "key": identifier},
-                        }
-                except Exception:
-                    # If anything goes wrong with cache, fall back to S3
-                    pass
+                            "user_metadata": object_metadata,
+                        },
+                        "backend": self.get_name(),
+                        "identifier": identifier,
+                        "container": bucket,
+                        "cached": True,
+                        "details": {"bucket": bucket, "key": identifier},
+                    }
 
         try:
             # Use head_object to get metadata

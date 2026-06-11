@@ -201,17 +201,13 @@ except ImportError:
         }
 
 # Create router function
-def create_webrtc_router(api_prefix: str) -> Optional[APIRouter]:
+def create_webrtc_router(api_prefix: str) -> APIRouter:
     """Create a router for WebRTC endpoints."""
-    try:
-        router = APIRouter(prefix=api_prefix)
-        # Here would be route registrations
-        return router
-    except Exception as e:
-        logger.error(f"Error creating WebRTC router: {e}")
-        return None
+    router = APIRouter(prefix=api_prefix)
+    # Here would be route registrations
+    return router
 
-def create_webrtc_extension_router(api_prefix: str) -> Optional[APIRouter]:
+def create_webrtc_extension_router(api_prefix: str) -> APIRouter:
     """
     Create a FastAPI router for WebRTC endpoints.
     
@@ -219,21 +215,16 @@ def create_webrtc_extension_router(api_prefix: str) -> Optional[APIRouter]:
         api_prefix: The API prefix to use for the router
         
     Returns:
-        The created router or None if an error occurred
+        The created router. Router construction errors are propagated to callers.
     """
     logger.info("Creating WebRTC extension router")
     
     if not WEBRTC_AVAILABLE:
         logger.warning("WebRTC not available, extension will be limited")
     
-    try:
-        # Create the WebRTC router
-        router = create_webrtc_router(api_prefix)
-        logger.info(f"Successfully created WebRTC router with prefix: {router.prefix}")
-        return router
-    except Exception as e:
-        logger.error(f"Error creating WebRTC router: {e}")
-        return None
+    router = create_webrtc_router(api_prefix)
+    logger.info(f"Successfully created WebRTC router with prefix: {router.prefix}")
+    return router
 
 # Mock FastAPI class for type hints
 class FastAPI:

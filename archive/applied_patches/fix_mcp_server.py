@@ -137,6 +137,8 @@ def ensure_ipfs_daemon():
 def start_enhanced_mcp_server():
     """Start the enhanced MCP server."""
     logger.info("Starting enhanced MCP server...")
+    pid_file = Path("mcp_server.pid")
+    server_process = None
     
     try:
         # Make sure logs directory exists
@@ -146,79 +148,144 @@ def start_enhanced_mcp_server():
         server_process = subprocess.Popen(
             [sys.executable, "enhanced_mcp_server.py", "--port", "9997", "--debug"],
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stderr=subprocess.PIPE,
+            text=True
         )
         
         # Save PID
-        with open("mcp_server.pid", "w") as f:
+        with pid_file.open("w") as f:
             f.write(str(server_process.pid))
         
         logger.info(f"Started enhanced MCP server (PID: {server_process.pid})")
         
         # Wait a bit for the server to start
         time.sleep(3)
+
+        if server_process.poll() is not None:
+            stdout, stderr = server_process.communicate()
+            if stdout:
+                logger.error("MCP server stdout before exit:\n%s", stdout.strip())
+            if stderr:
+                logger.error("MCP server stderr before exit:\n%s", stderr.strip())
+            raise RuntimeError(
+                f"Enhanced MCP server exited early with code {server_process.returncode}"
+            )
         
         return server_process.pid
         
-    except Exception as e:
-        logger.error(f"Error starting enhanced MCP server: {e}")
+    except (OSError, subprocess.SubprocessError, RuntimeError):
+        logger.exception("Error starting enhanced MCP server")
+        if server_process is not None and server_process.poll() is None:
+            logger.info(
+                "Stopping partially started enhanced MCP server (PID: %s)",
+                server_process.pid,
+            )
+            server_process.terminate()
+            try:
+                server_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                logger.warning(
+                    "Enhanced MCP server did not stop after SIGTERM; killing PID %s",
+                    server_process.pid,
+                )
+                try:
+                    server_process.kill()
+                    server_process.wait(timeout=5)
+                except (OSError, subprocess.TimeoutExpired):
+                    logger.exception(
+                        "Failed to kill partially started enhanced MCP server"
+                    )
+
+        if server_process is not None:
+            try:
+                pid_file.unlink()
+            except FileNotFoundError:
+                pass
+            except OSError:
+                logger.warning(
+                    "Failed to remove stale PID file: %s", pid_file, exc_info=True
+                )
         return None
 
 def check_server_health(port=9997):
     """Check the health of the MCP server."""
     logger.info(f"Checking MCP server health on port {port}...")
-    
+
     try:
         import requests
-        
-        # Try multiple times with a delay
-        max_attempts = 3
-        for attempt in range(max_attempts):
-            try:
-                response = requests.get(f"http://localhost:{port}/api/v0/health", timeout=5)
-                
-                if response.status_code == 200:
-                    health_data = response.json()
-                    logger.info(f"Server status: {health_data.get('status', 'unknown')}")
-                    
-                    # Check storage backends
-                    backends = health_data.get('storage_backends', {})
-                    for backend, status in backends.items():
-                        if backend in ['ipfs', 'local']:
-                            continue  # Skip IPFS and local which should work by default
-                            
-                        available = status.get('available', False)
-                        simulation = status.get('simulation', True)
-                        mock = status.get('mock', False)
-                        
-                        if available and not simulation:
-                            if mock:
-                                logger.info(f"✓ {backend}: Running in functional mock mode")
-                            else:
-                                logger.info(f"✓ {backend}: Fully functional with real connection")
-                        else:
-                            error = status.get('error', 'Unknown error')
-                            logger.warning(f"✗ {backend}: Not functioning properly - {error}")
-                    
-                    return health_data
-                else:
-                    logger.warning(f"Health check failed: HTTP {response.status_code}")
-                    
-            except requests.RequestException as e:
-                if attempt < max_attempts - 1:
-                    logger.info(f"Retrying health check in 2 seconds... (attempt {attempt+1}/{max_attempts})")
-                    time.sleep(2)
-                else:
-                    logger.error(f"Failed to connect to server: {e}")
-        
-        return None
-                
     except ImportError:
         logger.error("Requests module not available - skipping health check")
         return None
-    except Exception as e:
-        logger.error(f"Error checking server health: {e}")
-        return None
+
+    # Try multiple times with a delay
+    max_attempts = 3
+    for attempt in range(max_attempts):
+        try:
+            response = requests.get(f"http://localhost:{port}/api/v0/health", timeout=5)
+        except requests.RequestException as e:
+            if attempt < max_attempts - 1:
+                logger.info(f"Retrying health check in 2 seconds... (attempt {attempt+1}/{max_attempts})")
+                time.sleep(2)
+            else:
+                logger.error(f"Failed to connect to server: {e}")
+            continue
+
+        if response.status_code != 200:
+            logger.warning(f"Health check failed: HTTP {response.status_code}")
+            continue
+
+        try:
+            health_data = response.json()
+        except ValueError:
+            logger.error("Health endpoint returned invalid JSON", exc_info=True)
+            return None
+
+        if not isinstance(health_data, dict):
+            logger.error(
+                "Health endpoint returned %s instead of an object",
+                type(health_data).__name__,
+            )
+            return None
+
+        logger.info(f"Server status: {health_data.get('status', 'unknown')}")
+
+        # Check storage backends
+        backends = health_data.get('storage_backends', {})
+        if not isinstance(backends, dict):
+            logger.error(
+                "Health endpoint storage_backends payload is %s instead of an object",
+                type(backends).__name__,
+            )
+            return None
+
+        for backend, status in backends.items():
+            if backend in ['ipfs', 'local']:
+                continue  # Skip IPFS and local which should work by default
+
+            if not isinstance(status, dict):
+                logger.warning(
+                    "✗ %s: Invalid backend health payload (%s)",
+                    backend,
+                    type(status).__name__,
+                )
+                continue
+
+            available = status.get('available', False)
+            simulation = status.get('simulation', True)
+            mock = status.get('mock', False)
+
+            if available and not simulation:
+                if mock:
+                    logger.info(f"✓ {backend}: Running in functional mock mode")
+                else:
+                    logger.info(f"✓ {backend}: Fully functional with real connection")
+            else:
+                error = status.get('error', 'Unknown error')
+                logger.warning(f"✗ {backend}: Not functioning properly - {error}")
+
+        return health_data
+
+    return None
 
 def main():
     """Main function to fix the MCP server."""

@@ -427,8 +427,10 @@ class EnhancedStorachaStorage:
                 # Clean up temporary file
                 try:
                     os.unlink(temp_file_path)
-                except:
-                    pass
+                except FileNotFoundError:
+                    logger.debug(f"Temporary file already removed: {temp_file_path}")
+                except OSError as e:
+                    logger.warning(f"Failed to remove temporary file {temp_file_path}: {e}")
                 
                 if process.returncode != 0:
                     return {
@@ -914,8 +916,11 @@ class EnhancedStorachaStorage:
                 try:
                     with open(metadata_path, "r") as f:
                         metadata = json.load(f)
-                except:
-                    pass
+                except (OSError, ValueError) as e:
+                    logger.warning(
+                        f"Unable to read mock metadata for storage ID {storage_id} "
+                        f"from {metadata_path}: {e}"
+                    )
             
             return {
                 "success": True,
@@ -952,7 +957,11 @@ class EnhancedStorachaStorage:
             if cursor:
                 try:
                     start_idx = int(cursor)
-                except:
+                except (TypeError, ValueError) as e:
+                    logger.warning(
+                        f"Invalid mock list_blobs cursor {cursor!r}; "
+                        f"defaulting to first page: {e}"
+                    )
                     start_idx = 0
             
             end_idx = min(start_idx + size, len(files))
@@ -976,8 +985,8 @@ class EnhancedStorachaStorage:
                     try:
                         with open(metadata_path, "r") as f:
                             metadata = json.load(f)
-                    except:
-                        pass
+                    except (OSError, ValueError) as e:
+                        logger.warning(f"Failed to read mock metadata {metadata_path}: {e}")
                 
                 blobs.append({
                     "digest": file,
@@ -1032,8 +1041,8 @@ class EnhancedStorachaStorage:
                 try:
                     with open(metadata_path, "r") as f:
                         metadata = json.load(f)
-                except:
-                    pass
+                except (OSError, ValueError) as e:
+                    logger.warning(f"Failed to read mock blob metadata {metadata_path}: {e}")
             
             return {
                 "success": True,

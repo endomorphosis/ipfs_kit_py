@@ -1441,7 +1441,8 @@ class IPNSOperations:
 
         Returns:
             Dict[str, Any]: A dictionary containing:
-                - 'success' (bool): True if the operation completed (even if some resolves failed).
+                - 'success' (bool): True if the operation completed without per-key
+                  resolve exceptions.
                 - 'records' (List[Dict]): A list of dictionaries, each representing a
                   successfully resolved IPNS record associated with a local key.
                   Each record includes 'name' (PeerID), 'value' (/ipfs/CID), 'key_name',
@@ -1449,10 +1450,13 @@ class IPNSOperations:
                 - 'count' (int): The number of successfully resolved records found.
                 - 'duration' (float): Operation time in seconds.
                 - 'error' (str, optional): Error message if listing keys failed initially.
+                - 'resolution_errors' (List[Dict], optional): Per-key resolve exceptions
+                  returned by `resolve()` while collecting records.
         """
         options = options or {}
         start_time = time.time()
         records = []
+        resolution_errors = []
         logger.info("Getting locally published IPNS records by resolving keys...")
 
         try:
@@ -1474,46 +1478,66 @@ class IPNSOperations:
 
                 if key_id:
                     logger.debug(f"Attempting to resolve IPNS name for key '{key_name}' (ID: {key_id})...")
-                    try:
-                        # Try to resolve the name to see if it's published
-                        # Use nocache to get potentially updated value, but might be slower
-                        resolve_result = self.resolve(key_id, nocache=True)
+                    # Try to resolve the name to see if it's published.
+                    # Use nocache to get potentially updated value, but might be slower.
+                    resolve_result = self.resolve(key_id, nocache=True)
 
-                        if resolve_result.get("success"):
-                            logger.debug(f"Successfully resolved {key_id} -> {resolve_result.get('value')}")
-                            # Create a record entry
-                            record = {
-                                "name": key_id,
-                                "value": resolve_result["value"],
+                    if resolve_result.get("success"):
+                        logger.debug(f"Successfully resolved {key_id} -> {resolve_result.get('value')}")
+                        # Create a record entry
+                        record = {
+                            "name": key_id,
+                            "value": resolve_result["value"],
+                            "key_name": key_name,
+                            "last_resolved": datetime.now().isoformat(),
+                        }
+
+                        # If we have it in cache, add more details
+                        if key_id in self._record_cache:
+                            cached_record = self._record_cache[key_id]
+                            record["details"] = cached_record.to_dict()
+
+                        records.append(record)
+                    else:
+                        resolve_error = resolve_result.get("error", "Unknown resolve error")
+                        if resolve_result.get("exception"):
+                            resolution_errors.append({
                                 "key_name": key_name,
-                                "last_resolved": datetime.now().isoformat(),
-                            }
-
-                            # If we have it in cache, add more details
-                            if key_id in self._record_cache:
-                                cached_record = self._record_cache[key_id]
-                                record["details"] = cached_record.to_dict()
-
-                            records.append(record)
+                                "key_id": key_id,
+                                "error": resolve_error,
+                                "exception": resolve_result["exception"],
+                            })
+                            logger.warning(
+                                f"Error resolving IPNS name for key '{key_name}' (ID: {key_id}): {resolve_error}"
+                            )
                         else:
-                             logger.debug(f"Could not resolve IPNS name for key '{key_name}' (ID: {key_id}). Maybe not published or expired.")
+                            logger.debug(
+                                f"Could not resolve IPNS name for key '{key_name}' (ID: {key_id}). Maybe not published or expired."
+                            )
 
-                    except Exception as resolve_e:
-                        # Ignore errors for individual keys, log them
-                        logger.warning(f"Error resolving IPNS name for key '{key_name}' (ID: {key_id}): {resolve_e}")
-                        pass # Continue to the next key
-
-            # Update metrics (success is true if the overall process didn't fail)
+            # Update metrics (success is false when per-key resolve exceptions occurred)
             duration = time.time() - start_time
-            self._update_metrics("records", duration, True)
-            logger.info(f"Finished getting records. Found {len(records)} published names.")
+            success = not resolution_errors
+            self._update_metrics("records", duration, success)
+            if resolution_errors:
+                logger.warning(
+                    f"Finished getting records with {len(resolution_errors)} resolution errors. "
+                    f"Found {len(records)} published names."
+                )
+            else:
+                logger.info(f"Finished getting records. Found {len(records)} published names.")
 
-            return {
-                "success": True,
+            result = {
+                "success": success,
                 "records": records,
                 "count": len(records),
                 "duration": duration,
             }
+            if resolution_errors:
+                result["error"] = f"Failed to resolve {len(resolution_errors)} IPNS key record(s)"
+                result["resolution_errors"] = resolution_errors
+
+            return result
 
         except Exception as e:
             duration = time.time() - start_time

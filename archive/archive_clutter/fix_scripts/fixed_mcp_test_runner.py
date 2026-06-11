@@ -561,41 +561,38 @@ class MCPTestRunner:
         logger.info("Testing SSE endpoint...")
         results = {"passed": 0, "failed": 0, "skipped": 0, "total": 1}
         
-        # Check if SSE endpoint exists at all
         try:
             response = requests.get(self.sse_url, timeout=2, stream=True)
-            if response.status_code == 200:
-                logger.info("SSE endpoint exists")
-                results["passed"] += 1
-                
-                # Try to use SSEClient
-                try:
-                    messages = SSEClient(self.sse_url)
-                    logger.info("Successfully connected to SSE endpoint")
-                    
-                    # Trigger an event
-                    self.call_jsonrpc("ping")
-                    
-                    # Wait for events with timeout
-                    start_time = time.time()
-                    timeout = 5  # 5 seconds timeout
-                    event_received = False
-                    
-                    # NOTE: Some SSE implementations may require specific handling here
-                    # For simplicity, we'll just check if the endpoint exists
-                    logger.info("PASS: SSE endpoint exists")
-                except Exception as e:
-                    logger.warning(f"Could not use SSEClient: {e}")
-                    logger.info("PASS: SSE endpoint exists, but client had errors")
-            else:
-                logger.info(f"SSE endpoint returned status {response.status_code}, skipping test")
-                results["skipped"] += 1
-        except requests.exceptions.RequestException as e:
+        except RequestException as e:
             logger.info(f"SSE endpoint not available: {e}")
             results["skipped"] += 1
-        except Exception as e:
-            logger.error(f"Error testing SSE endpoint: {e}")
-            results["failed"] += 1
+        else:
+            try:
+                if response.status_code == 200:
+                    logger.info("SSE endpoint exists")
+
+                    try:
+                        SSEClient(response)
+                    except (RequestException, ValueError, TypeError, AttributeError) as e:
+                        logger.error(f"FAIL: SSEClient could not use SSE endpoint: {e}")
+                        results["failed"] += 1
+                        TEST_RESULTS["failed_tools"].append({
+                            "name": "sse",
+                            "category": "transport",
+                            "response": {"error": str(e)}
+                        })
+                    else:
+                        logger.info("Successfully initialized SSEClient")
+
+                        # Trigger an event without making SSE client setup errors pass.
+                        self.call_jsonrpc("ping")
+                        logger.info("PASS: SSE endpoint exists and SSEClient initialized")
+                        results["passed"] += 1
+                else:
+                    logger.info(f"SSE endpoint returned status {response.status_code}, skipping test")
+                    results["skipped"] += 1
+            finally:
+                response.close()
         
         # Update global test results
         TEST_RESULTS["tests"]["total"] += results["total"]
@@ -702,8 +699,7 @@ class MCPTestRunner:
         
         # Generate summary
         summary = [
-            "
-" + "="*80,
+            "\n" + "="*80,
             "                     MCP TEST RESULTS SUMMARY                       ",
             "="*80,
             f"Timestamp:      {TEST_RESULTS['timestamp']}",
@@ -719,8 +715,7 @@ class MCPTestRunner:
         
         # Add probe results
         if TEST_RESULTS.get("probe_results"):
-            summary.append("
-Initial Probe Results:")
+            summary.append("\nInitial Probe Results:")
             for probe, result in TEST_RESULTS["probe_results"].items():
                 status = result.get("status", "unknown")
                 details = result.get("response") or result.get("reason", "")
@@ -729,30 +724,24 @@ Initial Probe Results:")
         
         # Add overall result
         if total == 0: 
-            summary.append("
-No tests were run (beyond initial health/probe if any)!")
+            summary.append("\nNo tests were run (beyond initial health/probe if any)!")
         elif failed == 0 and skipped < total: 
-            summary.append("
-ALL TESTS PASSED! The MCP server implementation appears to be working.")
+            summary.append("\nALL TESTS PASSED! The MCP server implementation appears to be working.")
         elif failed == 0 and skipped == total:
-            summary.append("
-ALL TESTS SKIPPED! This server may not implement the tested functionality.")
+            summary.append("\nALL TESTS SKIPPED! This server may not implement the tested functionality.")
         else:
-            summary.append(f"
-SOME TESTS FAILED. See {DEFAULT_RESULTS_FILE} and mcp_test_runner.log for details.")
+            summary.append(f"\nSOME TESTS FAILED. See {DEFAULT_RESULTS_FILE} and mcp_test_runner.log for details.")
             
             # Add failed tools details
             if TEST_RESULTS.get("failed_tools"):
-                summary.append("
-Failed tools/operations:")
+                summary.append("\nFailed tools/operations:")
                 for ft in TEST_RESULTS["failed_tools"]:
                     resp_summary = json.dumps(ft.get('response')) if ft.get('response') else "N/A"
                     summary.append(f"  - Name: {ft.get('name', 'N/A')}, Category: {ft.get('category', 'N/A')}, Details: {resp_summary[:200] + '...' if len(resp_summary) > 200 else resp_summary}")
         
         # Add skipped tools summary
         if TEST_RESULTS.get("skipped_tools"):
-            summary.append("
-Skipped tools/operations (not implemented by server):")
+            summary.append("\nSkipped tools/operations (not implemented by server):")
             skipped_by_category = {}
             for st in TEST_RESULTS.get("skipped_tools", []):
                 category = st.get("category", "unknown")
@@ -764,31 +753,26 @@ Skipped tools/operations (not implemented by server):")
                 summary.append(f"  - {category.upper()}: {', '.join(tools)}")
         
         # Add tool category counts
-        summary.append("
-Tool counts by category (from last successful list_tools):")
+        summary.append("\nTool counts by category (from last successful list_tools):")
         for cat, tools in TEST_RESULTS.get("categories", {}).items(): 
             summary.append(f"- {cat.upper()}: {len(tools)}")
         
         # Add missing essential tools warning
         if TEST_RESULTS.get("coverage", {}).get("missing_essentials"):
-            summary.append("
-WARNING: Missing essential tools (based on coverage analysis):")
+            summary.append("\nWARNING: Missing essential tools (based on coverage analysis):")
             for tool in TEST_RESULTS["coverage"]["missing_essentials"]: 
                 summary.append(f"- {tool}")
                 
         # Final separator
-        summary.append("="*80 + "
-")
+        summary.append("="*80 + "\n")
         
         # Print summary to console
-        print('
-'.join(summary))
+        print('\n'.join(summary))
         
         # Save summary to file
         summary_file = os.path.join(os.path.dirname(DEFAULT_RESULTS_FILE) or ".", "summary_mcp_test_runner.md")
         with open(summary_file, "w") as f_sum:
-            f_sum.write('
-'.join(summary))
+            f_sum.write('\n'.join(summary))
 
 
 def main():

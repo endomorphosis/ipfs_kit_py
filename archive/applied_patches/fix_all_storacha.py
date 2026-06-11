@@ -45,20 +45,16 @@ def backup_file(file_path):
         file_path: Path to the file to back up
         
     Returns:
-        Path to the backup file
-        
-    Raises:
-        Exception: Re-raises any exception that occurs during backup so callers
-            are not silently bypassed when the backup fails.
+        Path to the backup file, or None if the backup could not be created
     """
     backup_path = f"{file_path}.bak"
     try:
         shutil.copy2(file_path, backup_path)
         logger.info(f"Created backup of {file_path} at {backup_path}")
         return backup_path
-    except Exception as e:
-        logger.error(f"Failed to back up {file_path}: {e}")
-        raise
+    except (OSError, shutil.Error):
+        logger.exception(f"Failed to back up {file_path}")
+        return None
 
 def update_storacha_kit():
     """Replace the current storacha_kit.py with the enhanced version."""
@@ -69,7 +65,8 @@ def update_storacha_kit():
     try:
         # Back up the original file
         if OLD_STORACHA_KIT.exists():
-            backup_file(OLD_STORACHA_KIT)
+            if backup_file(OLD_STORACHA_KIT) is None:
+                return False
             
         # Copy enhanced implementation to the original location
         shutil.copy2(ENHANCED_STORACHA_KIT, OLD_STORACHA_KIT)
@@ -102,7 +99,8 @@ def update_imports_in_file(file_path):
             return True  # Not an error
         
         # Back up the file
-        backup_file(file_path)
+        if backup_file(file_path) is None:
+            return False
         
         # Update imports - no changes needed since we're replacing the original file
         # This function is kept for future enhancements if needed
@@ -122,7 +120,8 @@ def update_mcp_extension():
         
     try:
         # Back up the extension file
-        backup_file(extension_file)
+        if backup_file(extension_file) is None:
+            return False
         
         # Read the current content
         with open(extension_file, 'r') as f:
@@ -289,12 +288,24 @@ def restart_mcp_server():
         
         # Also try to kill any process matching enhanced_mcp_server.py
         try:
-            subprocess.run(
+            pkill_result = subprocess.run(
                 ["pkill", "-f", "enhanced_mcp_server.py"],
+                capture_output=True,
+                text=True,
                 check=False
             )
-        except Exception:
-            pass
+            if pkill_result.returncode == 0:
+                logger.info("Sent termination signal to matching enhanced_mcp_server.py processes")
+            elif pkill_result.returncode == 1:
+                logger.debug("No enhanced_mcp_server.py processes were running")
+            else:
+                logger.warning(
+                    "pkill enhanced_mcp_server.py exited with code %s: %s",
+                    pkill_result.returncode,
+                    pkill_result.stderr.strip() or pkill_result.stdout.strip() or "no output"
+                )
+        except (OSError, subprocess.SubprocessError) as e:
+            logger.warning(f"Error stopping enhanced_mcp_server.py processes: {e}")
             
         # Wait for processes to terminate
         time.sleep(2)

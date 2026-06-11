@@ -35,14 +35,24 @@ def get_huggingface_token():
         result = subprocess.run(
             ["huggingface-cli", "whoami", "--token"], 
             capture_output=True, 
-            text=True
+            text=True,
+            check=False
         )
-        if result.returncode == 0 and result.stdout.strip():
-            token = result.stdout.strip()
+    except (OSError, subprocess.SubprocessError) as e:
+        print(f"Unable to get token from huggingface-cli: {e}")
+    else:
+        token = result.stdout.strip()
+        if result.returncode == 0 and token:
             print("Found HuggingFace token via CLI")
             return token
-    except Exception as e:
-        print(f"Error getting token from CLI: {e}")
+        if result.returncode != 0:
+            details = result.stderr.strip() or "no error output"
+            print(
+                f"huggingface-cli token lookup failed "
+                f"(exit {result.returncode}): {details}"
+            )
+        else:
+            print("huggingface-cli token lookup returned no token")
     
     return None
 
