@@ -55,3 +55,7 @@
 	path = docs/mcp-python-sdk
 	url = https://github.com/modelcontextprotocol/python-sdk.git
 	branch = main
+[submodule "ipfs_accelerate_py"]
+	path = ipfs_accelerate_py
+	url = https://github.com/endomorphosis/ipfs_accelerate_py
+	branch = main
