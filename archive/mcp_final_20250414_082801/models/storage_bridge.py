@@ -1527,8 +1527,14 @@ content_hash
                 # Clean up temporary file
                 try:
                     os.unlink(temp_path)
-                except Exception:
-                    pass
+                except Exception as cleanup_err:
+                    logger.warning(
+                        "Failed to remove temporary upload file %s after storing %s in %s: %s",
+                        temp_path,
+                        content_id,
+                        backend_name,
+                        cleanup_err,
+                    )
             else:
                 result["error"] = f"Backend '{backend_name}' does not support content storage"
                 result["error_type"] = "UnsupportedOperationError"
