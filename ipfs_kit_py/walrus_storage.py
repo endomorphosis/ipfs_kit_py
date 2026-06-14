@@ -380,7 +380,7 @@ class WalrusStorageClient:
             content=data,
             headers=headers,
         )
-        response.raise_for_status()
+        self._raise_for_status(response)
         info = self.normalize_response(response.json())
         if info.size is None:
             info = WalrusBlobInfo(**{**info.to_dict(), "size": len(data)})
@@ -398,12 +398,12 @@ class WalrusStorageClient:
             last = "" if end is None else str(end - 1)
             headers["Range"] = f"bytes={first}-{last}"
         response = self._client.get(self.resolve_aggregator_blob_url(blob_id), headers=headers)
-        response.raise_for_status()
+        self._raise_for_status(response)
         return response.content
 
     def head_blob(self, blob_id: str) -> Dict[str, Any]:
         response = self._client.head(self.resolve_aggregator_blob_url(blob_id))
-        response.raise_for_status()
+        self._raise_for_status(response)
         return {
             "status_code": response.status_code,
             "headers": dict(response.headers),
@@ -418,7 +418,7 @@ class WalrusStorageClient:
         record_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         response = self._client.delete(self.resolve_delete_url(blob_id, object_id, record_id))
-        response.raise_for_status()
+        self._raise_for_status(response)
         if response.content:
             try:
                 payload = response.json()
@@ -456,6 +456,50 @@ class WalrusStorageClient:
 
     def remove_index_entry(self, name: str) -> Optional[Dict[str, Any]]:
         return self.index.remove(name)
+
+    @classmethod
+    def _raise_for_status(cls, response: httpx.Response) -> None:
+        if response.is_success:
+            return
+
+        message = response.reason_phrase
+        extracted = cls.extract_error_message(response)
+        if extracted:
+            message = f"{message}: {extracted}"
+        raise httpx.HTTPStatusError(
+            f"Walrus request failed with status {response.status_code} {message}",
+            request=response.request,
+            response=response,
+        )
+
+    @classmethod
+    def extract_error_message(cls, response: httpx.Response) -> Optional[str]:
+        if not response.content:
+            return None
+
+        try:
+            payload = response.json()
+        except ValueError:
+            text = response.text.strip()
+            return text or None
+
+        if isinstance(payload, Mapping):
+            return cls._extract_error_from_mapping(payload)
+        if isinstance(payload, str):
+            return payload.strip() or None
+        return None
+
+    @classmethod
+    def _extract_error_from_mapping(cls, payload: Mapping[str, Any]) -> Optional[str]:
+        for key in ("message", "error", "detail", "details"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+            if isinstance(value, Mapping):
+                nested = cls._extract_error_from_mapping(value)
+                if nested:
+                    return nested
+        return None
 
     @classmethod
     def normalize_response(cls, payload: Mapping[str, Any]) -> WalrusBlobInfo:

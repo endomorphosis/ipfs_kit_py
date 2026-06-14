@@ -186,6 +186,28 @@ def test_direct_blob_id_read_info_exists_and_ukey(tmp_path):
     assert fs.ls("walrus://") == []
 
 
+def test_direct_blob_id_read_surfaces_extracted_walrus_error(tmp_path):
+    from ipfs_kit_py.walrus_fsspec import WalrusFileSystem
+
+    def handler(request):
+        assert request.method == "GET"
+        assert request.url == "https://aggregator.test/v1/blobs/blob-missing"
+        return httpx.Response(404, json={"error": {"message": "blob is not certified"}})
+
+    fs = WalrusFileSystem(
+        aggregator_url="https://aggregator.test",
+        index_path=tmp_path / "index.json",
+        transport=httpx.MockTransport(handler),
+        skip_instance_cache=True,
+    )
+
+    with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        fs.cat_file("walrus://blob-missing")
+
+    assert exc_info.value.response.status_code == 404
+    assert "blob is not certified" in str(exc_info.value)
+
+
 def test_open_write_uploads_on_close(tmp_path):
     from ipfs_kit_py.walrus_fsspec import WalrusFileSystem
 
