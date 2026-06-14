@@ -23,6 +23,15 @@ import fsspec
 from fsspec.spec import AbstractFileSystem
 from fsspec.callbacks import DEFAULT_CALLBACK
 
+from .fsspec_utils import (
+    backend_capabilities,
+    ensure_protocol,
+    normalize_protocol_path,
+    raise_for_fsspec_result,
+    standard_file_info,
+    strip_protocol,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -357,22 +366,15 @@ class IPFSFileSystem(AbstractFileSystem):
 
     def _strip_protocol(self, path: str) -> str:
         """Remove protocol prefix from path."""
-        for protocol in self._protocols():
-            prefix = f"{protocol}://"
-            if path.startswith(prefix):
-                return path[len(prefix):]
-        return path
+        return strip_protocol(path, self._protocols())
     
     def _ensure_protocol(self, path: str) -> str:
         """Ensure path has correct protocol prefix."""
-        if not any(path.startswith(f"{p}://") for p in self._protocols()):
-            return f"{self.backend}://{path}"
-        return path
+        return ensure_protocol(path, self.backend, self._protocols())
 
     def _normalize_synapse_path(self, path: str) -> str:
         """Normalize a Synapse path or CommP to the synapse:// namespace."""
-        stripped = self._strip_protocol(str(path)).lstrip("/")
-        return f"synapse://{stripped}"
+        return normalize_protocol_path(path, "synapse", self._protocols())
 
     def _synapse_identifier(self, path: str) -> str:
         """Resolve fsspec write aliases to their stored Synapse CommP."""
@@ -398,19 +400,18 @@ class IPFSFileSystem(AbstractFileSystem):
             or result.get("provider_address")
             or result.get("current_storage_provider")
         )
-        info = {
-            "name": canonical,
-            "type": "file",
-            "size": result.get("size", result.get("data_size", 0)) or 0,
-            "commp": commp,
-            "exists": result.get("exists", result.get("success", True)),
-            "provider": provider,
-            "storage_provider": provider,
-            "proof_set_id": result.get("proof_set_id"),
-            "proof_set_last_proven": result.get("proof_set_last_proven"),
-            "proof_set_next_proof_due": result.get("proof_set_next_proof_due"),
-            "in_challenge_window": result.get("in_challenge_window", False),
-        }
+        info = standard_file_info(
+            canonical,
+            size=result.get("size", result.get("data_size", 0)) or 0,
+            commp=commp,
+            exists=result.get("exists", result.get("success", True)),
+            provider=provider,
+            storage_provider=provider,
+            proof_set_id=result.get("proof_set_id"),
+            proof_set_last_proven=result.get("proof_set_last_proven"),
+            proof_set_next_proof_due=result.get("proof_set_next_proof_due"),
+            in_challenge_window=result.get("in_challenge_window", False),
+        )
         filename = result.get("filename")
         if filename:
             info["filename"] = filename
@@ -431,8 +432,7 @@ class IPFSFileSystem(AbstractFileSystem):
 
     def _normalize_storacha_path(self, path: str) -> str:
         """Normalize a Storacha path or CID to the storacha:// namespace."""
-        stripped = self._strip_protocol(str(path)).lstrip("/")
-        return f"storacha://{stripped}"
+        return normalize_protocol_path(path, "storacha", self._protocols())
 
     def _storacha_identifier(self, path: str) -> str:
         """Resolve fsspec write aliases to their stored Storacha CID."""
@@ -464,15 +464,14 @@ class IPFSFileSystem(AbstractFileSystem):
             or result.get("content_length")
             or 0
         )
-        info = {
-            "name": canonical,
-            "type": "file",
-            "size": size,
-            "cid": cid,
-            "exists": result.get("exists", result.get("success", True)),
-            "mock": bool(result.get("mock", getattr(self, "storacha_mock_mode", False))),
-            "backend": "storacha",
-        }
+        info = standard_file_info(
+            canonical,
+            size=size,
+            cid=cid,
+            exists=result.get("exists", result.get("success", True)),
+            mock=bool(result.get("mock", getattr(self, "storacha_mock_mode", False))),
+            backend="storacha",
+        )
         filename = result.get("filename") or result.get("name") or result.get("file_name")
         if filename:
             info["filename"] = filename
@@ -509,8 +508,7 @@ class IPFSFileSystem(AbstractFileSystem):
 
     def _normalize_filecoin_path(self, path: str) -> str:
         """Normalize a Filecoin CID or alias to the filecoin:// namespace."""
-        stripped = self._strip_protocol(str(path)).lstrip("/")
-        return f"filecoin://{stripped}"
+        return normalize_protocol_path(path, "filecoin", self._protocols())
 
     def _filecoin_identifier(self, path: str) -> str:
         """Resolve fsspec aliases to their pinned Filecoin/IPFS CID."""
@@ -544,20 +542,19 @@ class IPFSFileSystem(AbstractFileSystem):
         )
         status = result.get("status") or result.get("pin_status") or "unknown"
         deals = result.get("deals", result.get("deal_ids", result.get("dealIds", [])))
-        info = {
-            "name": canonical,
-            "type": "file",
-            "size": size,
-            "cid": cid,
-            "status": status,
-            "exists": result.get("exists", result.get("success", status not in {"failed", "not_found"})),
-            "request_id": result.get("request_id") or result.get("requestId"),
-            "deal_ids": result.get("deal_ids", result.get("dealIds", [])),
-            "deals": deals,
-            "replication": result.get("replication"),
-            "backend": "filecoin_pin",
-            "mock": bool(result.get("mock", getattr(self.filecoin_client, "mock_mode", False))),
-        }
+        info = standard_file_info(
+            canonical,
+            size=size,
+            cid=cid,
+            status=status,
+            exists=result.get("exists", result.get("success", status not in {"failed", "not_found"})),
+            request_id=result.get("request_id") or result.get("requestId"),
+            deal_ids=result.get("deal_ids", result.get("dealIds", [])),
+            deals=deals,
+            replication=result.get("replication"),
+            backend="filecoin_pin",
+            mock=bool(result.get("mock", getattr(self.filecoin_client, "mock_mode", False))),
+        )
         filename = result.get("filename") or result.get("name") or result.get("file_name")
         if filename:
             info["filename"] = filename
@@ -1231,7 +1228,8 @@ class IPFSFileSystem(AbstractFileSystem):
         result = self.filecoin_client.get_metadata(identifier, **kwargs)
         if result.get("success", False):
             return self._filecoin_result_to_info(result, fallback_name=identifier)
-        raise FileNotFoundError(f"Filecoin pin metadata not found for {path}: {result.get('error', 'unknown error')}")
+        raise_for_fsspec_result(result, backend="Filecoin pin", operation="metadata lookup", path=path)
+        raise FileNotFoundError(path)
     
     def _info_storacha(self, path: str, **kwargs) -> Dict[str, Any]:
         """Get Storacha storage information."""
@@ -1260,6 +1258,20 @@ class IPFSFileSystem(AbstractFileSystem):
                 status = self.synapse_storage.get_status()
             except Exception as e:
                 return {"backend": "synapse", "connected": False, "error": str(e)}
+            connected = bool(
+                status.get("synapse_initialized") and status.get("storage_service_created")
+            )
+            status.pop("backend", None)
+            status.pop("protocol", None)
+            status = backend_capabilities(
+                "synapse",
+                protocol="synapse",
+                delete=False,
+                local_index=True,
+                mutable_paths=False,
+                connected=connected,
+                **status,
+            )
             status.setdefault("backend", "synapse")
             status.setdefault(
                 "connected",
@@ -1281,24 +1293,34 @@ class IPFSFileSystem(AbstractFileSystem):
                 return {"backend": "ipfs", "connected": False, "error": str(e)}
         
         elif self.backend == "filecoin":
-            return {
-                "backend": "filecoin",
-                "provider": "filecoin_pin",
-                "connected": True,
-                "mock_mode": bool(getattr(self.filecoin_client, "mock_mode", False)),
-                "retrieval_enabled": bool(getattr(self, "filecoin_retrieval_enabled", False)),
-                "api_endpoint": getattr(self.filecoin_client, "api_endpoint", None),
-            }
+            status = backend_capabilities(
+                "filecoin",
+                protocol="filecoin",
+                delete=False,
+                local_index=True,
+                mutable_paths=False,
+                provider="filecoin_pin",
+                connected=True,
+                mock_mode=bool(getattr(self.filecoin_client, "mock_mode", False)),
+                retrieval_enabled=bool(getattr(self, "filecoin_retrieval_enabled", False)),
+                api_endpoint=getattr(self.filecoin_client, "api_endpoint", None),
+            )
+            status["provider"] = "filecoin_pin"
+            return status
         
         elif self.backend == "storacha":
             # Get Storacha client status
-            return {
-                "backend": "storacha",
-                "connected": True,
-                "mock_mode": bool(getattr(self, "storacha_mock_mode", False)),
-                "api_url": getattr(self.storacha_client, "api_url", None),
-                "space": getattr(self.storacha_client, "space", None),
-            }
+            return backend_capabilities(
+                "storacha",
+                protocol="storacha",
+                delete=True,
+                local_index=True,
+                mutable_paths=False,
+                connected=True,
+                mock_mode=bool(getattr(self, "storacha_mock_mode", False)),
+                api_url=getattr(self.storacha_client, "api_url", None),
+                space=getattr(self.storacha_client, "space", None),
+            )
         
         else:
             return {"backend": self.backend, "status": "unknown"}

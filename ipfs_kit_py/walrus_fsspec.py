@@ -25,6 +25,12 @@ from .walrus_storage import (
     WalrusConfigurationError,
     WalrusStorageClient,
 )
+from .fsspec_utils import (
+    backend_capabilities,
+    normalize_protocol_path,
+    standard_file_info,
+    strip_protocol,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -85,13 +91,10 @@ class WalrusFileSystem(AsyncFileSystem):
 
     @classmethod
     def _strip_protocol(cls, path: Any) -> Any:
-        if isinstance(path, (list, tuple)):
-            return type(path)(cls._strip_protocol(p) for p in path)
-        if not isinstance(path, str):
-            return path
-        if path.startswith("walrus://"):
-            path = path[len("walrus://") :]
-        return path.lstrip("/")
+        stripped = strip_protocol(path, cls.protocol)
+        if isinstance(stripped, str):
+            return stripped.lstrip("/")
+        return stripped
 
     @staticmethod
     def _is_root(path: str) -> bool:
@@ -99,23 +102,22 @@ class WalrusFileSystem(AsyncFileSystem):
 
     @staticmethod
     def _display_name(name: str) -> str:
-        return f"walrus://{name}" if name else "walrus://"
+        return normalize_protocol_path(name, "walrus")
 
     def _entry_to_info(self, name: str, entry: Mapping[str, Any]) -> Dict[str, Any]:
         size = entry.get("size")
-        return {
-            "name": self._display_name(name),
-            "type": "file",
-            "size": int(size) if size is not None else None,
-            "blob_id": entry.get("blob_id"),
-            "object_id": entry.get("object_id"),
-            "tx_digest": entry.get("tx_digest"),
-            "end_epoch": entry.get("end_epoch"),
-            "cost": entry.get("cost"),
-            "content_type": entry.get("content_type"),
-            "created_at": entry.get("created_at"),
-            "gateway_url": entry.get("gateway_url"),
-        }
+        return standard_file_info(
+            self._display_name(name),
+            size=int(size) if size is not None else None,
+            blob_id=entry.get("blob_id"),
+            object_id=entry.get("object_id"),
+            tx_digest=entry.get("tx_digest"),
+            end_epoch=entry.get("end_epoch"),
+            cost=entry.get("cost"),
+            content_type=entry.get("content_type"),
+            created_at=entry.get("created_at"),
+            gateway_url=entry.get("gateway_url"),
+        )
 
     def _resolve_blob_id(self, path: str) -> str:
         normalized = self._strip_protocol(path)
@@ -190,13 +192,12 @@ class WalrusFileSystem(AsyncFileSystem):
                 raise FileNotFoundError(path) from exc
             raise
         size = head.get("content_length")
-        return {
-            "name": self._display_name(normalized),
-            "type": "file",
-            "size": int(size) if size is not None else None,
-            "blob_id": normalized,
-            "content_type": head.get("content_type"),
-        }
+        return standard_file_info(
+            self._display_name(normalized),
+            size=int(size) if size is not None else None,
+            blob_id=normalized,
+            content_type=head.get("content_type"),
+        )
 
     async def _exists(self, path: str, **kwargs: Any) -> bool:
         normalized = self._strip_protocol(path)
@@ -265,6 +266,20 @@ class WalrusFileSystem(AsyncFileSystem):
 
     def ukey(self, path: str) -> str:
         return self._resolve_blob_id(path)
+
+    def get_backend_status(self) -> Dict[str, Any]:
+        return backend_capabilities(
+            "walrus",
+            protocol="walrus",
+            delete=bool(self.client.delete_url),
+            local_index=True,
+            mutable_paths=False,
+            connected=True,
+            publisher_url=self.client.publisher_url,
+            aggregator_url=self.client.aggregator_url,
+            delete_url=self.client.delete_url,
+            index_path=str(self.client.index.path),
+        )
 
     def close(self) -> None:
         self.client.close()
