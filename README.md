@@ -121,7 +121,7 @@
 
 ### Multi-Backend Storage System
 
-IPFS Kit supports **6 integrated storage backends** for maximum flexibility and redundancy:
+IPFS Kit supports **7 integrated storage backends** for maximum flexibility and redundancy:
 
 1. **IPFS/Kubo** - Decentralized content-addressed storage
 2. **Filecoin/Lotus** - Long-term archival with economic incentives
@@ -129,6 +129,7 @@ IPFS Kit supports **6 integrated storage backends** for maximum flexibility and 
 4. **Storacha (Web3.Storage)** - Web3 storage built on IPFS + Filecoin
 5. **HuggingFace** - ML model and dataset storage
 6. **Lassie** - High-performance IPFS retrieval client
+7. **Walrus** - fsspec-compatible blob storage with direct blob-id reads and local logical-path indexing
 
 ### Multi-Tier Storage Strategy
 
@@ -193,6 +194,31 @@ cid = api.add("important_data.txt", backends=['ipfs', 'filecoin', 's3'])
 ```
 
 **See Also:** [Storage Backends Documentation](docs/reference/storage_backends.md)
+
+### Walrus fsspec Usage
+
+The Walrus backend registers the `walrus://` protocol with fsspec and supports
+publisher writes, aggregator reads, direct blob-id reads, and index-backed
+logical paths:
+
+```python
+import fsspec
+import ipfs_kit_py.walrus_fsspec  # registers walrus://
+
+fs = fsspec.filesystem("walrus")
+entry = fs.pipe_file("walrus://examples/hello.txt", b"hello walrus\n")
+
+with fsspec.open("walrus://examples/hello.txt", "rb") as handle:
+    print(handle.read())
+
+with fsspec.open(f"walrus://{entry['blob_id']}", "rb") as handle:
+    print(handle.read())
+```
+
+Set `WALRUS_PUBLISHER_URL` for writes, `WALRUS_AGGREGATOR_URL` for reads,
+and `WALRUS_DELETE_URL` for deletes. See the
+[Walrus fsspec integration guide](docs/integration/walrus_fsspec.md) for full
+configuration, examples, and listing/deletion limitations.
 
 ## 🔄 Replica Management
 
