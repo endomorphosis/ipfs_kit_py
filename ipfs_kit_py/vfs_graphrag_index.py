@@ -12,6 +12,7 @@ import os
 import tempfile
 import hashlib
 import importlib
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Type, TypeVar, Union
@@ -207,6 +208,127 @@ class VFSGraphRAGIndex:
             (record for record in records if self._matches(record, filters)),
             key=self._record_id,
         )
+
+    def search(
+        self,
+        query: str = "",
+        *,
+        query_vector: Optional[Sequence[float]] = None,
+        vector: Optional[Sequence[float]] = None,
+        metadata_filters: Optional[Mapping[str, Any]] = None,
+        filters: Optional[Mapping[str, Any]] = None,
+        namespaces: Optional[Sequence[str]] = None,
+        backends: Optional[Sequence[str]] = None,
+        protocols: Optional[Sequence[str]] = None,
+        top_k: int = 10,
+        search_type: str = "hybrid",
+        vector_weight: float = 0.8,
+        metadata_weight: float = 0.2,
+        text_weight: float = 0.1,
+        facet_fields: Optional[Sequence[str]] = None,
+    ) -> Dict[str, Any]:
+        """Search indexed VFS objects by metadata filters, vectors, or both.
+
+        Vectors are dependency-free and are read from embedding or chunk
+        metadata using common keys such as ``vector`` or ``embedding``.  When
+        metadata filters and a query vector are both supplied, filtering is
+        applied first and the remaining candidates are ranked by combined score
+        parts.
+        """
+
+        effective_vector = list(query_vector if query_vector is not None else vector or [])
+        effective_filters = dict(filters or {})
+        effective_filters.update(dict(metadata_filters or {}))
+        normalized_type = (search_type or "hybrid").lower()
+        if normalized_type not in {"metadata", "metadata_only", "vector", "vector_only", "hybrid"}:
+            raise ValueError("search_type must be 'metadata', 'vector', or 'hybrid'")
+        if normalized_type in {"metadata", "metadata_only"} and effective_vector:
+            effective_vector = []
+        if normalized_type in {"vector", "vector_only"}:
+            effective_filters = {}
+
+        namespace_set = set(namespaces or [])
+        backend_set = set(backends or [])
+        protocol_set = set(protocols or [])
+        objects = [
+            record
+            for record in self.query_objects()
+            if (not namespace_set or record.namespace in namespace_set)
+            and (not backend_set or record.backend in backend_set)
+            and (not protocol_set or record.protocol in protocol_set)
+        ]
+
+        chunks_by_record = self._chunks_by_record()
+        embeddings_by_record = self._embeddings_by_record()
+        scored: List[Dict[str, Any]] = []
+        for record in objects:
+            record_chunks = chunks_by_record.get(record.record_id, [])
+            if effective_filters and not self._record_matches_filters(record, record_chunks, effective_filters):
+                continue
+
+            vector_score, vector_chunk_ids = self._record_vector_score(
+                effective_vector,
+                record_chunks,
+                embeddings_by_record.get(record.record_id, []),
+            )
+            if effective_vector and vector_score is None:
+                continue
+
+            text_score = self._record_text_score(query, record, record_chunks)
+            metadata_score = 1.0 if effective_filters else 0.0
+            score_parts = {
+                "metadata_filter": metadata_score,
+                "vector_similarity": vector_score if vector_score is not None else 0.0,
+                "text_match": text_score,
+            }
+            if effective_vector and effective_filters:
+                score = (vector_weight * score_parts["vector_similarity"]) + (
+                    metadata_weight * score_parts["metadata_filter"]
+                )
+                if query:
+                    score += text_weight * score_parts["text_match"]
+            elif effective_vector:
+                score = score_parts["vector_similarity"]
+            elif effective_filters:
+                score = score_parts["metadata_filter"] + (text_weight * score_parts["text_match"] if query else 0.0)
+            else:
+                score = score_parts["text_match"] if query else 1.0
+
+            scored.append(
+                self._format_search_result(
+                    record,
+                    record_chunks,
+                    score=score,
+                    score_parts=score_parts,
+                    highlighted_chunk_ids=vector_chunk_ids,
+                )
+            )
+
+        scored.sort(key=lambda item: (-float(item["score"]), item["path"], item["record_id"]))
+        limited = scored[: max(0, int(top_k))]
+        return {
+            "success": True,
+            "query": query,
+            "search_type": normalized_type,
+            "total": len(scored),
+            "results": limited,
+            "facets": self._build_facets(scored, facet_fields),
+        }
+
+    def metadata_search(self, **kwargs: Any) -> Dict[str, Any]:
+        """Run a metadata-only search."""
+
+        return self.search(search_type="metadata", **kwargs)
+
+    def vector_search(self, **kwargs: Any) -> Dict[str, Any]:
+        """Run a vector-only similarity search."""
+
+        return self.search(search_type="vector", **kwargs)
+
+    def hybrid_search(self, **kwargs: Any) -> Dict[str, Any]:
+        """Run a metadata-plus-vector hybrid search."""
+
+        return self.search(search_type="hybrid", **kwargs)
 
     def delete_record(self, schema_or_kind: str, record_id: str) -> bool:
         """Delete a record by id.  Returns True when a record was removed."""
@@ -443,6 +565,253 @@ class VFSGraphRAGIndex:
                 if actual != expected:
                     return False
         return True
+
+    def _record_matches_filters(
+        self,
+        record: VFSObjectRecord,
+        chunks: Sequence[VFSChunkRecord],
+        filters: Mapping[str, Any],
+    ) -> bool:
+        data = record.to_dict()
+        chunk_dicts = [chunk.to_dict() for chunk in chunks]
+        for field, expected in filters.items():
+            values = self._candidate_filter_values(field, data, chunk_dicts)
+            if not values or not any(self._filter_value_matches(value, expected) for value in values):
+                return False
+        return True
+
+    def _candidate_filter_values(
+        self,
+        field: str,
+        record_data: Mapping[str, Any],
+        chunk_dicts: Sequence[Mapping[str, Any]],
+    ) -> List[Any]:
+        values = self._extract_path_values(record_data, field)
+        if not values and not field.startswith("metadata."):
+            values = self._extract_path_values(record_data.get("metadata", {}), field)
+        for chunk in chunk_dicts:
+            values.extend(self._extract_path_values(chunk, field))
+            if not field.startswith("metadata."):
+                values.extend(self._extract_path_values(chunk.get("metadata", {}), field))
+        return values
+
+    def _extract_path_values(self, source: Any, dotted_path: str) -> List[Any]:
+        current = [source]
+        for part in dotted_path.split("."):
+            next_values = []
+            for value in current:
+                if isinstance(value, Mapping) and part in value:
+                    next_values.append(value[part])
+                elif isinstance(value, list):
+                    for item in value:
+                        if isinstance(item, Mapping) and part in item:
+                            next_values.append(item[part])
+            current = next_values
+            if not current:
+                return []
+        flattened = []
+        for value in current:
+            if isinstance(value, list):
+                flattened.extend(value)
+            else:
+                flattened.append(value)
+        return flattened
+
+    def _filter_value_matches(self, actual: Any, expected: Any) -> bool:
+        if callable(expected):
+            return bool(expected(actual))
+        if isinstance(expected, Mapping):
+            return all(self._operator_matches(actual, operator, operand) for operator, operand in expected.items())
+        if isinstance(expected, (set, tuple, list)) and not isinstance(expected, str):
+            if isinstance(actual, list):
+                return any(item in actual for item in expected)
+            return actual in expected
+        if isinstance(actual, list):
+            return expected in actual
+        return actual == expected
+
+    def _operator_matches(self, actual: Any, operator: str, operand: Any) -> bool:
+        if operator in {"$eq", "eq"}:
+            return actual == operand
+        if operator in {"$ne", "ne"}:
+            return actual != operand
+        if operator in {"$in", "in"}:
+            if isinstance(operand, (str, bytes)) or not isinstance(operand, Iterable):
+                operand_values = [operand]
+            else:
+                operand_values = list(operand)
+            return actual in operand_values
+        if operator in {"$contains", "contains"}:
+            if isinstance(actual, list):
+                return operand in actual
+            return str(operand).lower() in str(actual).lower()
+        if operator in {"$gte", "gte"}:
+            return actual >= operand
+        if operator in {"$gt", "gt"}:
+            return actual > operand
+        if operator in {"$lte", "lte"}:
+            return actual <= operand
+        if operator in {"$lt", "lt"}:
+            return actual < operand
+        raise ValueError(f"Unsupported metadata filter operator: {operator!r}")
+
+    def _chunks_by_record(self) -> Dict[str, List[VFSChunkRecord]]:
+        grouped: Dict[str, List[VFSChunkRecord]] = {}
+        for chunk in self.query_chunks():
+            grouped.setdefault(chunk.parent_record_id, []).append(chunk)
+        return grouped
+
+    def _embeddings_by_record(self) -> Dict[str, List[VFSEmbeddingRecord]]:
+        grouped: Dict[str, List[VFSEmbeddingRecord]] = {}
+        for embedding in self.query_embeddings():
+            grouped.setdefault(embedding.parent_record_id, []).append(embedding)
+        return grouped
+
+    def _record_vector_score(
+        self,
+        query_vector: Sequence[float],
+        chunks: Sequence[VFSChunkRecord],
+        embeddings: Sequence[VFSEmbeddingRecord],
+    ) -> Tuple[Optional[float], List[str]]:
+        if not query_vector:
+            return None, []
+        vectors: List[Tuple[str, Sequence[float]]] = []
+        chunk_ids = {chunk.chunk_id for chunk in chunks}
+        vector_chunk_ids = set()
+        for embedding in embeddings:
+            vector = self._metadata_vector(embedding.metadata)
+            if vector is not None:
+                vectors.append((embedding.chunk_id, vector))
+                vector_chunk_ids.add(embedding.chunk_id)
+        for chunk in chunks:
+            vector = self._metadata_vector(chunk.metadata)
+            if vector is not None and chunk.chunk_id not in vector_chunk_ids:
+                vectors.append((chunk.chunk_id, vector))
+        best_score: Optional[float] = None
+        best_chunks: List[str] = []
+        for chunk_id, vector in vectors:
+            if chunk_id and chunk_ids and chunk_id not in chunk_ids:
+                continue
+            score = self._cosine_similarity(query_vector, vector)
+            if best_score is None or score > best_score:
+                best_score = score
+                best_chunks = [chunk_id] if chunk_id else []
+            elif score == best_score and chunk_id:
+                best_chunks.append(chunk_id)
+        return best_score, best_chunks
+
+    def _metadata_vector(self, metadata: Mapping[str, Any]) -> Optional[List[float]]:
+        for key in ("vector", "embedding", "embedding_vector"):
+            value = metadata.get(key)
+            if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+                return [float(item) for item in value]
+        return None
+
+    def _cosine_similarity(self, left: Sequence[float], right: Sequence[float]) -> float:
+        if len(left) != len(right) or not left:
+            return 0.0
+        dot = sum(float(a) * float(b) for a, b in zip(left, right))
+        left_norm = math.sqrt(sum(float(a) * float(a) for a in left))
+        right_norm = math.sqrt(sum(float(b) * float(b) for b in right))
+        if left_norm == 0.0 or right_norm == 0.0:
+            return 0.0
+        return dot / (left_norm * right_norm)
+
+    def _record_text_score(
+        self,
+        query: str,
+        record: VFSObjectRecord,
+        chunks: Sequence[VFSChunkRecord],
+    ) -> float:
+        terms = [term for term in query.lower().split() if term]
+        if not terms:
+            return 0.0
+        haystack = " ".join(
+            [
+                record.path,
+                record.normalized_path,
+                str(record.content_id or ""),
+                json.dumps(record.metadata, sort_keys=True, default=str),
+                " ".join(record.tags),
+                " ".join(str(chunk.text or "") for chunk in chunks),
+            ]
+        ).lower()
+        return sum(1 for term in terms if term in haystack) / len(terms)
+
+    def _format_search_result(
+        self,
+        record: VFSObjectRecord,
+        chunks: Sequence[VFSChunkRecord],
+        *,
+        score: float,
+        score_parts: Mapping[str, float],
+        highlighted_chunk_ids: Sequence[str],
+    ) -> Dict[str, Any]:
+        chunk_rows = [chunk.to_dict() for chunk in sorted(chunks, key=lambda item: item.chunk_index)]
+        snippet_chunk = next(
+            (chunk for chunk in chunks if chunk.chunk_id in set(highlighted_chunk_ids) and chunk.text),
+            next((chunk for chunk in chunks if chunk.text), None),
+        )
+        return {
+            "record_id": record.record_id,
+            "path": record.normalized_path or record.path,
+            "backend": record.backend,
+            "protocol": record.protocol,
+            "content_id": record.content_id,
+            "score": float(score),
+            "score_parts": dict(score_parts),
+            "snippet": self._snippet(snippet_chunk.text if snippet_chunk else None),
+            "metadata": dict(record.metadata),
+            "chunks": chunk_rows,
+            "facets": self._result_facets(record),
+        }
+
+    def _snippet(self, text: Optional[str], limit: int = 180) -> str:
+        if not text:
+            return ""
+        compact = " ".join(str(text).split())
+        return compact if len(compact) <= limit else compact[: limit - 1].rstrip() + "..."
+
+    def _result_facets(self, record: VFSObjectRecord) -> Dict[str, Any]:
+        return {
+            "namespace": record.namespace,
+            "backend": record.backend,
+            "protocol": record.protocol,
+            "mime_type": record.mime_type,
+            "object_type": record.object_type,
+            "tags": list(record.tags),
+        }
+
+    def _build_facets(
+        self,
+        results: Sequence[Mapping[str, Any]],
+        facet_fields: Optional[Sequence[str]],
+    ) -> Dict[str, Dict[str, int]]:
+        fields = list(facet_fields or ("backend", "protocol", "mime_type", "object_type", "tags"))
+        facets: Dict[str, Dict[str, int]] = {field: {} for field in fields}
+        for result in results:
+            values = self._facet_values(result, str(result.get("record_id")), fields)
+            for field, field_values in values.items():
+                for value in field_values:
+                    key = str(value)
+                    facets[field][key] = facets[field].get(key, 0) + 1
+        return {field: counts for field, counts in facets.items() if counts}
+
+    def _facet_values(
+        self,
+        result: Mapping[str, Any],
+        record_id: Optional[str],
+        fields: Sequence[str],
+    ) -> Dict[str, List[Any]]:
+        record = self.get_object(record_id or "")
+        data = record.to_dict() if record is not None else dict(result)
+        values: Dict[str, List[Any]] = {}
+        for field in fields:
+            extracted = self._extract_path_values(data, field)
+            if not extracted and not field.startswith("metadata."):
+                extracted = self._extract_path_values(data.get("metadata", {}), field)
+            values[field] = extracted
+        return values
 
     def _path_for_kind(self, kind: str) -> Path:
         suffix = "parquet" if self.storage_format == "parquet" else "jsonl"
