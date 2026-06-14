@@ -16,6 +16,7 @@ Architecture:
 
 import argparse
 import anyio
+import json
 import logging
 import sys
 from pathlib import Path
@@ -46,6 +47,9 @@ class UnifiedCLIDispatcher:
         self._add_wal_commands(subparsers)
         self._add_pin_commands(subparsers)
         self._add_backend_commands(subparsers)
+        self._add_walrus_commands(subparsers)
+        self._add_fsspec_commands(subparsers)
+        self._add_graphrag_commands(subparsers)
         self._add_journal_commands(subparsers)
         self._add_state_commands(subparsers)
         self._add_audit_commands(subparsers)
@@ -271,6 +275,83 @@ class UnifiedCLIDispatcher:
         # Test backend
         test = backend_sub.add_parser("test", help="Test backend connection")
         test.add_argument("name", help="Backend name")
+
+    def _add_walrus_commands(self, subparsers):
+        """Add Walrus fsspec commands."""
+        walrus = subparsers.add_parser("walrus", help="Use the Walrus fsspec backend")
+        walrus_sub = walrus.add_subparsers(dest="walrus_action")
+
+        status = walrus_sub.add_parser("status", help="Show Walrus backend status")
+        status.add_argument("--index-path")
+        status.add_argument("--publisher-url")
+        status.add_argument("--aggregator-url")
+        status.add_argument("--delete-url")
+
+        ls = walrus_sub.add_parser("ls", help="List index-backed Walrus paths")
+        ls.add_argument("path", nargs="?", default="walrus://")
+        ls.add_argument("--index-path")
+        ls.add_argument("--no-detail", action="store_true")
+
+        get = walrus_sub.add_parser("get", help="Read a Walrus logical path or blob id")
+        get.add_argument("path")
+        get.add_argument("--encoding", choices=["text", "base64", "hex"], default="text")
+        get.add_argument("--index-path")
+        get.add_argument("--aggregator-url")
+
+        put = walrus_sub.add_parser("put", help="Write content to Walrus")
+        put.add_argument("path")
+        put.add_argument("content")
+        put.add_argument("--encoding", choices=["text", "base64", "hex"], default="text")
+        put.add_argument("--content-type")
+        put.add_argument("--index-path")
+        put.add_argument("--publisher-url")
+        put.add_argument("--aggregator-url")
+
+        delete = walrus_sub.add_parser("delete", aliases=["rm"], help="Delete a Walrus logical path or blob id")
+        delete.add_argument("path")
+        delete.add_argument("--index-path")
+        delete.add_argument("--delete-url")
+
+    def _add_fsspec_commands(self, subparsers):
+        """Add fsspec protocol utility commands."""
+        fsspec_parser = subparsers.add_parser("fsspec", help="Inspect and use fsspec protocol backends")
+        fsspec_sub = fsspec_parser.add_subparsers(dest="fsspec_action")
+
+        fsspec_sub.add_parser("protocols", help="List available ipfs_kit fsspec protocols")
+
+        status = fsspec_sub.add_parser("status", help="Show backend status for a protocol")
+        status.add_argument("protocol", nargs="?", default="ipfs")
+
+        read = fsspec_sub.add_parser("read", help="Read via fsspec.open")
+        read.add_argument("url")
+        read.add_argument("--encoding", choices=["text", "base64", "hex"], default="text")
+
+        write = fsspec_sub.add_parser("write", help="Write via fsspec.open")
+        write.add_argument("url")
+        write.add_argument("content")
+        write.add_argument("--encoding", choices=["text", "base64", "hex"], default="text")
+
+    def _add_graphrag_commands(self, subparsers):
+        """Add VFS GraphRAG index commands."""
+        graphrag = subparsers.add_parser("graphrag", aliases=["vfs-graphrag"], help="Search VFS GraphRAG indexes")
+        graphrag_sub = graphrag.add_subparsers(dest="graphrag_action")
+
+        status = graphrag_sub.add_parser("status", help="Show VFS GraphRAG index status")
+        status.add_argument("--index-path")
+        status.add_argument("--namespace", default="default")
+
+        search = graphrag_sub.add_parser("search", help="Search the VFS GraphRAG index")
+        search.add_argument("query", nargs="?", default="")
+        search.add_argument("--method", choices=["search", "metadata_search", "vector_search", "hybrid_search", "graph_search", "graph_hybrid_search"], default="search")
+        search.add_argument("--top-k", type=int, default=10)
+        search.add_argument("--index-path")
+        search.add_argument("--namespace", default="default")
+        search.add_argument("--filters-json", help="JSON object of metadata filters")
+
+        export = graphrag_sub.add_parser("export", help="Export VFS GraphRAG index records")
+        export.add_argument("--index-path")
+        export.add_argument("--namespace", default="default")
+        export.add_argument("--output")
     
     def _add_journal_commands(self, subparsers):
         """Add filesystem journal commands."""
@@ -452,6 +533,8 @@ class UnifiedCLIDispatcher:
                 else:
                     print(f"❌ Unknown backend action: {action}")
                     return 1
+            elif command in {"walrus", "fsspec", "graphrag", "vfs-graphrag"}:
+                return await self._handle_feature_command(command, action, args)
             elif command == "journal":
                 from ipfs_kit_py import fs_journal_cli
                 return await fs_journal_cli.handle_cli_command(args)
@@ -478,6 +561,43 @@ class UnifiedCLIDispatcher:
             logger.error(f"Error executing {command} {action}: {e}", exc_info=True)
             print(f"❌ Error: {e}")
             return 1
+
+    async def _handle_feature_command(self, command: str, action: str, args) -> int:
+        from ipfs_kit_py.feature_exposure import (
+            fsspec_protocols,
+            fsspec_read,
+            fsspec_status,
+            fsspec_write,
+            vfs_graphrag_export,
+            vfs_graphrag_search,
+            vfs_graphrag_status,
+            walrus_delete,
+            walrus_get,
+            walrus_list,
+            walrus_put,
+            walrus_status,
+        )
+
+        payload = {key: value for key, value in vars(args).items() if value is not None}
+        if "filters_json" in payload:
+            payload["filters"] = json.loads(payload.pop("filters_json"))
+        if "no_detail" in payload:
+            payload["detail"] = not payload.pop("no_detail")
+
+        if command == "walrus":
+            handlers = {"status": walrus_status, "ls": walrus_list, "get": walrus_get, "put": walrus_put, "delete": walrus_delete, "rm": walrus_delete}
+        elif command == "fsspec":
+            handlers = {"protocols": fsspec_protocols, "status": fsspec_status, "read": fsspec_read, "write": fsspec_write}
+        else:
+            handlers = {"status": vfs_graphrag_status, "search": vfs_graphrag_search, "export": vfs_graphrag_export}
+
+        handler = handlers.get(action)
+        if handler is None:
+            print(f"❌ Unknown {command} action: {action}")
+            return 1
+        result = handler(payload)
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return 0
     
     async def run(self):
         """Parse arguments and run the dispatcher."""

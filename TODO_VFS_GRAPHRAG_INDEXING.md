@@ -11,23 +11,23 @@ when invoked with `task_header_prefix="## vfs-graphrag-"`.
 ## Daemon Task Board
 
 <!-- vfs-graphrag-daemon-task-board:start -->
-- [ ] Task checkbox-1: Audit VFS metadata and GraphRAG integration surfaces.
-- [ ] Task checkbox-2: Define canonical VFS GraphRAG metadata schemas.
-- [ ] Task checkbox-3: Implement local VFS GraphRAG index storage.
-- [ ] Task checkbox-4: Build `ipfs_datasets_py` GraphRAG adapter layer.
-- [ ] Task checkbox-5: Add fsspec wrapper hooks for indexing VFS operations.
-- [ ] Task checkbox-6: Add `VFSManager` indexing lifecycle and search APIs.
-- [ ] Task checkbox-7: Implement vector, metadata, and hybrid search.
-- [ ] Task checkbox-8: Implement knowledge graph extraction and graph search.
-- [ ] Task checkbox-9: Implement export/import bundles for filesystem metadata and indexes.
-- [ ] Task checkbox-10: Add CLI and MCP surfaces for indexing, search, and export.
-- [ ] Task checkbox-11: Add deterministic tests and optional live integration gates.
-- [ ] Task checkbox-12: Document VFS GraphRAG indexing usage and limitations.
+- [x] Task checkbox-1: Audit VFS metadata and GraphRAG integration surfaces.
+- [x] Task checkbox-2: Define canonical VFS GraphRAG metadata schemas.
+- [x] Task checkbox-3: Implement local VFS GraphRAG index storage.
+- [x] Task checkbox-4: Build `ipfs_datasets_py` GraphRAG adapter layer.
+- [x] Task checkbox-5: Add fsspec wrapper hooks for indexing VFS operations.
+- [x] Task checkbox-6: Add `VFSManager` indexing lifecycle and search APIs.
+- [x] Task checkbox-7: Implement vector, metadata, and hybrid search.
+- [x] Task checkbox-8: Implement knowledge graph extraction and graph search.
+- [x] Task checkbox-9: Implement export/import bundles for filesystem metadata and indexes.
+- [x] Task checkbox-10: Add CLI and MCP surfaces for indexing, search, and export.
+- [x] Task checkbox-11: Add deterministic tests and optional live integration gates.
+- [x] Task checkbox-12: Document VFS GraphRAG indexing usage and limitations.
 <!-- vfs-graphrag-daemon-task-board:end -->
 
 ## vfs-graphrag-001 Audit VFS metadata and GraphRAG integration surfaces.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: audit
@@ -47,7 +47,7 @@ Implementation notes:
 
 ## vfs-graphrag-002 Define canonical VFS GraphRAG metadata schemas.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: schema
@@ -67,7 +67,7 @@ Implementation notes:
 
 ## vfs-graphrag-003 Implement local VFS GraphRAG index storage.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: index
@@ -87,7 +87,7 @@ Implementation notes:
 
 ## vfs-graphrag-004 Build `ipfs_datasets_py` GraphRAG adapter layer.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: adapter
@@ -107,7 +107,7 @@ Implementation notes:
 
 ## vfs-graphrag-005 Add fsspec wrapper hooks for indexing VFS operations.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: fsspec
@@ -126,7 +126,7 @@ Implementation notes:
 
 ## vfs-graphrag-006 Add `VFSManager` indexing lifecycle and search APIs.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: vfs-manager
@@ -145,7 +145,7 @@ Implementation notes:
 
 ## vfs-graphrag-007 Implement vector, metadata, and hybrid search.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: search
@@ -163,7 +163,7 @@ Implementation notes:
 
 ## vfs-graphrag-008 Implement knowledge graph extraction and graph search.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P1
 - track: graph
@@ -182,7 +182,7 @@ Implementation notes:
 
 ## vfs-graphrag-009 Implement export/import bundles for filesystem metadata and indexes.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: export
@@ -200,7 +200,7 @@ Implementation notes:
 
 ## vfs-graphrag-010 Add CLI and MCP surfaces for indexing, search, and export.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P1
 - track: cli-mcp
@@ -218,7 +218,7 @@ Implementation notes:
 
 ## vfs-graphrag-011 Add deterministic tests and optional live integration gates.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: tests
@@ -236,7 +236,7 @@ Implementation notes:
 
 ## vfs-graphrag-012 Document VFS GraphRAG indexing usage and limitations.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P1
 - track: docs

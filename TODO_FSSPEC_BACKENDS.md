@@ -12,19 +12,19 @@ parser when invoked with `task_header_prefix="## fsspec-backends-"`.
 ## Daemon Task Board
 
 <!-- fsspec-backends-daemon-task-board:start -->
-- [ ] Task checkbox-1: Audit current fsspec backend behavior and test coverage.
-- [ ] Task checkbox-2: Stabilize `enhanced_fsspec.py` backend selection and protocol registration.
-- [ ] Task checkbox-3: Complete Synapse fsspec read/write/status behavior.
-- [ ] Task checkbox-4: Implement Storacha fsspec list/read/write/delete behavior.
-- [ ] Task checkbox-5: Implement Filecoin pin fsspec upload/status/retrieval behavior.
-- [ ] Task checkbox-6: Add shared backend metadata and path normalization helpers.
-- [ ] Task checkbox-7: Add mocked backend test suites and optional live integration gates.
-- [ ] Task checkbox-8: Document backend capabilities, limitations, and examples.
+- [x] Task checkbox-1: Audit current fsspec backend behavior and test coverage.
+- [x] Task checkbox-2: Stabilize `enhanced_fsspec.py` backend selection and protocol registration.
+- [x] Task checkbox-3: Complete Synapse fsspec read/write/status behavior.
+- [x] Task checkbox-4: Implement Storacha fsspec list/read/write/delete behavior.
+- [x] Task checkbox-5: Implement Filecoin pin fsspec upload/status/retrieval behavior.
+- [x] Task checkbox-6: Add shared backend metadata and path normalization helpers.
+- [x] Task checkbox-7: Add mocked backend test suites and optional live integration gates.
+- [x] Task checkbox-8: Document backend capabilities, limitations, and examples.
 <!-- fsspec-backends-daemon-task-board:end -->
 
 ## fsspec-backends-001 Audit current fsspec backend behavior and test coverage.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: audit
@@ -44,7 +44,7 @@ Implementation notes:
 
 ## fsspec-backends-002 Stabilize `enhanced_fsspec.py` backend selection and protocol registration.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: fsspec
@@ -65,7 +65,7 @@ Implementation notes:
 
 ## fsspec-backends-003 Complete Synapse fsspec read/write/status behavior.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: synapse
@@ -86,7 +86,7 @@ Implementation notes:
 
 ## fsspec-backends-004 Implement Storacha fsspec list/read/write/delete behavior.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: storacha
@@ -107,7 +107,7 @@ Implementation notes:
 
 ## fsspec-backends-005 Implement Filecoin pin fsspec upload/status/retrieval behavior.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: filecoin
@@ -129,7 +129,7 @@ Implementation notes:
 
 ## fsspec-backends-006 Add shared backend metadata and path normalization helpers.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P1
 - track: shared
@@ -147,7 +147,7 @@ Implementation notes:
 
 ## fsspec-backends-007 Add mocked backend test suites and optional live integration gates.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: tests
@@ -165,7 +165,7 @@ Implementation notes:
 
 ## fsspec-backends-008 Document backend capabilities, limitations, and examples.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P1
 - track: docs

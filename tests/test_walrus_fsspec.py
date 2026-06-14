@@ -103,7 +103,7 @@ def test_pipe_cat_open_info_exists_ls_ukey_and_rm(tmp_path):
         assert handle.read() == b"hello walrus"
 
     info = fs.info("walrus://docs/readme.txt")
-    assert info["name"] == "walrus://docs/readme.txt"
+    assert info["name"] == "docs/readme.txt"
     assert info["type"] == "file"
     assert info["size"] == 12
     assert info["blob_id"] == "blob-written"
@@ -111,8 +111,8 @@ def test_pipe_cat_open_info_exists_ls_ukey_and_rm(tmp_path):
     assert fs.exists("walrus://docs/readme.txt") is True
     assert fs.ukey("walrus://docs/readme.txt") == "blob-written"
 
-    assert fs.ls("walrus://", detail=False) == ["walrus://docs/readme.txt"]
-    assert fs.ls("walrus://docs", detail=False) == ["walrus://docs/readme.txt"]
+    assert fs.ls("walrus://", detail=False) == ["docs/readme.txt"]
+    assert fs.ls("walrus://docs", detail=False) == ["docs/readme.txt"]
 
     fs.rm("walrus://docs/readme.txt")
     assert fs.exists("walrus://docs/readme.txt") is False
@@ -175,7 +175,7 @@ def test_direct_blob_id_read_info_exists_and_ukey(tmp_path):
 
     assert fs.cat_file("walrus://blob-direct") == b"direct"
     assert fs.info("walrus://blob-direct") == {
-        "name": "walrus://blob-direct",
+        "name": "blob-direct",
         "type": "file",
         "size": 6,
         "blob_id": "blob-direct",

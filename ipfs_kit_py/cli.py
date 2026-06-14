@@ -295,6 +295,10 @@ class FastCLI:
             unified._add_pin_commands(subparsers)
             # Add backend commands (but not daemon, already exists)
             unified._add_backend_commands(subparsers)
+            # Add feature exposure commands
+            unified._add_walrus_commands(subparsers)
+            unified._add_fsspec_commands(subparsers)
+            unified._add_graphrag_commands(subparsers)
             # Add journal commands
             unified._add_journal_commands(subparsers)
             # Add state commands
@@ -331,7 +335,7 @@ class FastCLI:
                 pass
         
         # Handle both mcp_action and daemon_action
-        unified_commands = {"bucket", "vfs", "wal", "pin", "backend", "journal", "state"}
+        unified_commands = {"bucket", "vfs", "wal", "pin", "backend", "walrus", "fsspec", "graphrag", "vfs-graphrag", "journal", "state"}
         
         if args.command in unified_commands:
             # Route to unified CLI dispatcher

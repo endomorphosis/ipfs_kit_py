@@ -14,7 +14,15 @@ protocols:
 For the detailed capability matrix, credential requirements, mock/live behavior,
 and per-method support, see [fsspec_backends.md](fsspec_backends.md).
 
-## Setup
+- **Filesystem Interface**: Standard file operations on content-addressed storage
+- **Tiered Caching**: Multi-level caching (memory, disk) with intelligent data movement using Adaptive Replacement Cache (ARC). ([See Docs](../reference/tiered_cache.md))
+- **Memory-mapping**: Zero-copy access for large files via `mmap`.
+- **Data Science Integration**: Works seamlessly with Pandas, PyArrow, Dask, and other tools that leverage `fsspec`.
+- **Performance Metrics**: Built-in collection and analysis of latency, bandwidth, and cache performance.
+- **Unix Socket Support**: Faster local daemon communication on Linux/macOS.
+- **Gateway Fallback**: Optionally use public HTTP gateways if the local daemon is unavailable.
+- **Additional Protocol Backends**: The completed backend work registers and tests `walrus://`, `synapse://`, `storacha://`, and `filecoin://` surfaces alongside `ipfs://`.
+- **Lazy Dependency Recovery**: Declared fsspec backend dependencies can be installed automatically at first lazy use unless `IPFS_KIT_AUTO_INSTALL_LAZY_DEPS=0` is set.
 
 Install fsspec support:
 
@@ -22,7 +30,12 @@ Install fsspec support:
 pip install -e ".[fsspec]"
 ```
 
-Install Filecoin Pin API dependencies when using live `filecoin://` mode:
+1. **IPFSFileSystem**: Main class implementing the Abstract Filesystem interface
+2. **WalrusFileSystem**: fsspec backend for Walrus blob reads/writes with direct blob-id reads and local logical-path indexing
+3. **SynapseFileSystem / StorachaFileSystem / FilecoinPinFileSystem**: protocol-specific fsspec surfaces for non-IPFS persistence backends
+4. **TieredCacheManager**: Manages content across memory and disk tiers
+5. **ARCache**: Adaptive Replacement Cache for memory-tier optimization
+6. **DiskCache**: Persistent storage with metadata
 
 ```bash
 pip install -e ".[fsspec,filecoin_pin]"

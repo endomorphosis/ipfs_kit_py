@@ -39,6 +39,8 @@ dependencies = [
     "pyyaml>=6.0",
     "networkx>=3.0",
     "jsonpatch>=1.33",
+    "fsspec>=2023.3.0",  # Required for fsspec backends, including walrus:// lazy loading
+    "walrus-fsspec>=0.1.0",  # Canonical standalone Walrus fsspec backend
     "base58>=2.1.1",
     "multiaddr>=0.0.9",  # For libp2p multiaddress support
     "multiformats>=0.2.0",  # For CIDs/multicodecs (required by libp2p)
@@ -65,6 +67,7 @@ fsspec = [
 walrus = [
     "fsspec>=2023.3.0",
     "httpx>=0.24.0",
+    "walrus-fsspec>=0.1.0",
 ]
 arrow = [
     "pyarrow>=11.0.0",  # Updated minimum version to be more compatible
@@ -197,6 +200,7 @@ dev = [
 full = [
     # Core functionality
     "fsspec>=2023.3.0",
+    "walrus-fsspec>=0.1.0",
     "requests-unixsocket>=0.3.0",
     
     # Arrow/data processing

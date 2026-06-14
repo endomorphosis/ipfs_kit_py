@@ -118,6 +118,13 @@ def create_walrus_filesystem(
 ) -> Any:
     """Create a Walrus fsspec filesystem from explicit args, kwargs, config, or env."""
     try:
+        from .jit_imports import get_jit_imports
+
+        get_jit_imports().ensure_feature_dependencies("walrus_fsspec")
+    except Exception:
+        pass
+
+    try:
         from .walrus_fsspec import WalrusFileSystem
     except ImportError:
         from ipfs_kit_py.walrus_fsspec import WalrusFileSystem

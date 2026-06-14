@@ -48,6 +48,28 @@ Runtime state lives under `data/agent_supervisor/ipfs_kit_todo/`:
 - `state/*_supervisor_status.json`
 - `state/*_8h_run_ipfs_kit_todo.log`
 
+## Current Progress Snapshot
+
+The latest supervised implementation run completed all three task-board tracks.
+Use the state JSON files, not the checkbox rendering in the markdown task
+boards, as the progress ledger:
+
+| Track | State file | Completed | Ready | Waiting | Blocked |
+|-------|------------|-----------|-------|---------|---------|
+| Walrus fsspec | `state/ipfs_kit_walrus_fsspec_task_state.json` | 7 / 7 | 0 | 0 | 0 |
+| fsspec backends | `state/ipfs_kit_fsspec_backends_task_state.json` | 8 / 8 | 0 | 0 | 0 |
+| VFS GraphRAG indexing | `state/ipfs_kit_vfs_graphrag_task_state.json` | 12 / 12 | 0 | 0 | 0 |
+
+The daemon logs show successful implementation commits and validation commands
+for each task. They also show `todo_update_result` entries with
+`reason: status_line_missing`, so the source markdown boards can still display
+unchecked boxes even after the state files mark the tasks complete.
+
+Completed work includes Walrus storage and fsspec integration, fsspec backend
+stabilization for Synapse, Storacha, Filecoin pin, and shared fsspec helpers,
+plus VFS GraphRAG schema, index, fsspec hooks, VFS manager lifecycle/search,
+graph/export/CLI surfaces, tests, and documentation.
+
 ## Stop
 
 ```bash

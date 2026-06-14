@@ -10,18 +10,18 @@ with `status`, `priority`, `track`, `depends on`, `outputs`, `validation`, and
 ## Daemon Task Board
 
 <!-- walrus-fsspec-daemon-task-board:start -->
-- [ ] Task checkbox-1: Implement Walrus storage client and response normalization.
-- [ ] Task checkbox-2: Add local Walrus metadata index for fsspec path semantics.
-- [ ] Task checkbox-3: Implement `WalrusFileSystem` fsspec backend.
-- [ ] Task checkbox-4: Register the `walrus` fsspec protocol and package extras.
-- [ ] Task checkbox-5: Add high-level API and VFS registry integration.
-- [ ] Task checkbox-6: Add mocked unit tests for client and filesystem behavior.
-- [ ] Task checkbox-7: Document usage examples, config, and limitations.
+- [x] Task checkbox-1: Implement Walrus storage client and response normalization.
+- [x] Task checkbox-2: Add local Walrus metadata index for fsspec path semantics.
+- [x] Task checkbox-3: Implement `WalrusFileSystem` fsspec backend.
+- [x] Task checkbox-4: Register the `walrus` fsspec protocol and package extras.
+- [x] Task checkbox-5: Add high-level API and VFS registry integration.
+- [x] Task checkbox-6: Add mocked unit tests for client and filesystem behavior.
+- [x] Task checkbox-7: Document usage examples, config, and limitations.
 <!-- walrus-fsspec-daemon-task-board:end -->
 
 ## walrus-fsspec-001 Implement Walrus storage client and response normalization.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: storage
@@ -40,7 +40,7 @@ Implementation notes:
 
 ## walrus-fsspec-002 Add local Walrus metadata index for fsspec path semantics.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: storage
@@ -59,7 +59,7 @@ Implementation notes:
 
 ## walrus-fsspec-003 Implement `WalrusFileSystem` fsspec backend.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: fsspec
@@ -78,7 +78,7 @@ Implementation notes:
 
 ## walrus-fsspec-004 Register the `walrus` fsspec protocol and package extras.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P1
 - track: packaging
@@ -96,7 +96,7 @@ Implementation notes:
 
 ## walrus-fsspec-005 Add high-level API and VFS registry integration.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P1
 - track: api
@@ -114,7 +114,7 @@ Implementation notes:
 
 ## walrus-fsspec-006 Add mocked unit tests for client and filesystem behavior.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P0
 - track: tests
@@ -132,7 +132,7 @@ Implementation notes:
 
 ## walrus-fsspec-007 Document usage examples, config, and limitations.
 
-- status: todo
+- status: completed
 - completion: automatic
 - priority: P1
 - track: docs

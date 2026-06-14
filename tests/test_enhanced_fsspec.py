@@ -94,18 +94,25 @@ def test_mock_compatibility_matrix_has_expected_backend_metadata(monkeypatch):
     storacha = fsspec.filesystem("storacha", skip_instance_cache=True)
     filecoin = fsspec.filesystem("filecoin", skip_instance_cache=True)
 
-    assert storacha.get_backend_status() == {
+    storacha_status = storacha.get_backend_status()
+    assert storacha_status | {
         "backend": "storacha",
         "connected": True,
         "mock_mode": True,
         "api_url": "mock://storacha",
         "space": "mock-space",
-    }
-    assert filecoin.get_backend_status() == {
+    } == storacha_status
+    assert storacha_status["content_addressed"] is True
+    assert storacha_status["writable"] is True
+
+    filecoin_status = filecoin.get_backend_status()
+    assert filecoin_status | {
         "backend": "filecoin",
         "provider": "filecoin_pin",
         "connected": True,
         "mock_mode": True,
         "retrieval_enabled": False,
         "api_endpoint": "mock://filecoin-pin",
-    }
+    } == filecoin_status
+    assert filecoin_status["content_addressed"] is True
+    assert filecoin_status["readable"] is True

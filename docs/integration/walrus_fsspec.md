@@ -1,8 +1,10 @@
 # Walrus fsspec Integration
 
 The Walrus fsspec backend exposes Walrus blobs through the standard `fsspec`
-filesystem interface. It supports direct blob-id reads and path-like logical
-names backed by a local JSON index.
+filesystem interface. `ipfs_kit_py` uses the standalone `walrus-fsspec` package
+as the canonical backend while preserving the historical `ipfs_kit_py` import
+paths, environment variable aliases, and default cache location. It supports
+direct blob-id reads and path-like logical names backed by a local JSON index.
 
 Walrus itself is content-addressed blob storage. The path semantics in this
 backend come from the local index at `~/.cache/ipfs_kit_py/walrus/index.json`
@@ -10,11 +12,21 @@ unless you pass a custom `index_path`.
 
 ## Requirements
 
-Install the optional Walrus dependencies when they are not already present:
+Current package metadata installs the Walrus runtime dependencies used by this
+backend during normal package installation: `walrus-fsspec`, `fsspec`, and
+`httpx`. The `walrus` extra remains available for explicit installs and older
+environments:
 
 ```bash
 pip install "ipfs_kit_py[walrus]"
 ```
+
+When code reaches Walrus through the lazy import helper or the high-level
+`create_walrus_filesystem()` factory, missing declared feature dependencies are
+installed automatically with pip at first use. Set
+`IPFS_KIT_AUTO_INSTALL_LAZY_DEPS=0` to disable runtime installs, or set
+`IPFS_KIT_LAZY_INSTALL_TIMEOUT` to change the default 300 second install
+timeout.
 
 Import the backend before using `fsspec.open` in environments where fsspec
 entry point discovery has not loaded it yet:
@@ -22,6 +34,33 @@ entry point discovery has not loaded it yet:
 ```python
 import ipfs_kit_py.walrus_fsspec  # registers walrus:// with fsspec
 ```
+
+## Public Surfaces
+
+Walrus is exposed through the Python package root, the CLI, MCP tools, and the
+dashboard browser SDK:
+
+```python
+from ipfs_kit_py import WalrusFileSystem, WalrusStorageClient, create_walrus_filesystem
+```
+
+```bash
+ipfs-kit walrus status
+ipfs-kit walrus ls
+ipfs-kit walrus get datasets/example.json
+ipfs-kit walrus put datasets/example.json --content '{"ok": true}'
+ipfs-kit walrus delete datasets/example.json
+```
+
+MCP clients can call `walrus_status`, `walrus_list`, `walrus_get`,
+`walrus_put`, and `walrus_delete`. Browser dashboard clients can use
+`MCP.Walrus.status()`, `MCP.Walrus.list()`, `MCP.Walrus.get()`,
+`MCP.Walrus.put()`, and `MCP.Walrus.delete()` from `/mcp-client.js` or the
+packaged `mcp-sdk.js` files.
+
+The same exposure layer publishes fsspec helpers through `ipfs-kit fsspec`,
+MCP `fsspec_*` tools, and `MCP.FSSpec`; VFS GraphRAG is available through
+`ipfs-kit graphrag`, MCP `vfs_graphrag_*` tools, and `MCP.VFSGraphRAG`.
 
 ## Configuration
 
@@ -141,6 +180,10 @@ print(fs.ukey("walrus://team/notes.txt"))  # immutable blob id
 print(fs.cat_file("walrus://team/notes.txt"))
 print(fs.ls("walrus://team", detail=False))
 ```
+
+Like other fsspec filesystems, `fs.info()` and `fs.ls(..., detail=False)` return
+protocol-less names such as `team/notes.txt`; callers may still pass either
+`team/notes.txt` or `walrus://team/notes.txt` to filesystem operations.
 
 The index file stores metadata returned by the publisher, including fields such
 as `blob_id`, `object_id`, `tx_digest`, `end_epoch`, `cost`, `size`,
