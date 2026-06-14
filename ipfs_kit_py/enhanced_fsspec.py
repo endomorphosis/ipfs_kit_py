@@ -83,6 +83,79 @@ class _InMemoryStorachaClient:
         return {"success": True, "cid": cid, "removed": True, "mock": True}
 
 
+class _InMemoryFilecoinPinClient:
+    """Small Filecoin-pin-compatible client for dependency-light fsspec use."""
+
+    mock_mode = True
+    api_endpoint = "mock://filecoin-pin"
+
+    def __init__(self) -> None:
+        self._objects: Dict[str, Dict[str, Any]] = {}
+
+    def _prepare_content(self, content: Union[bytes, BinaryIO, str]) -> bytes:
+        if isinstance(content, bytes):
+            return content
+        if isinstance(content, bytearray):
+            return bytes(content)
+        if isinstance(content, str):
+            with open(content, "rb") as f:
+                return f.read()
+        if hasattr(content, "read"):
+            data = content.read()
+            return data.encode("utf-8") if isinstance(data, str) else bytes(data)
+        raise ValueError(f"Unsupported content type: {type(content)}")
+
+    def add_content(self, content: Union[bytes, BinaryIO, str], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        metadata = metadata or {}
+        data = self._prepare_content(content)
+        digest = hashlib.sha256(data).hexdigest()
+        cid = f"bafybeib{digest[:52]}"
+        record = {
+            "success": True,
+            "cid": cid,
+            "status": "pinned",
+            "request_id": f"mock-req-{digest[:12]}",
+            "deal_ids": ["mock-deal-1", "mock-deal-2"],
+            "backend": "filecoin_pin",
+            "size": len(data),
+            "replication": metadata.get("replication", 3),
+            "filename": metadata.get("name"),
+            "mock": True,
+            "data": data,
+        }
+        self._objects[cid] = record
+        return {key: value for key, value in record.items() if key != "data"}
+
+    def get_content(self, identifier: str, **kwargs) -> Dict[str, Any]:
+        record = self._objects.get(identifier)
+        if not record:
+            return {"success": False, "cid": identifier, "error": "Filecoin mock object not found"}
+        return {
+            "success": True,
+            "cid": identifier,
+            "data": record["data"],
+            "backend": "filecoin_pin",
+            "size": len(record["data"]),
+            "mock": True,
+        }
+
+    def get_metadata(self, identifier: str, **kwargs) -> Dict[str, Any]:
+        record = self._objects.get(identifier)
+        if not record:
+            return {"success": False, "cid": identifier, "error": "Filecoin mock object not found"}
+        return {key: value for key, value in record.items() if key != "data"}
+
+    def list_pins(self, status: Optional[str] = None, limit: int = 100, **kwargs) -> Dict[str, Any]:
+        pins = []
+        for record in self._objects.values():
+            if status and record.get("status") != status:
+                continue
+            pins.append({key: value for key, value in record.items() if key != "data"})
+            if len(pins) >= limit:
+                break
+        return {"success": True, "pins": pins, "count": len(pins), "backend": "filecoin_pin", "mock": True}
+
+
 def _run_async_from_sync(async_fn, *args, **kwargs):
     """Run an async callable from sync code.
 
@@ -158,6 +231,8 @@ class IPFSFileSystem(AbstractFileSystem):
         self._synapse_path_index: Dict[str, Dict[str, Any]] = {}
         self._storacha_path_index: Dict[str, Dict[str, Any]] = {}
         self._storacha_data_index: Dict[str, bytes] = {}
+        self._filecoin_path_index: Dict[str, Dict[str, Any]] = {}
+        self._filecoin_data_index: Dict[str, bytes] = {}
         
         # Initialize backend-specific storage interface
         self._initialize_backend()
@@ -194,19 +269,39 @@ class IPFSFileSystem(AbstractFileSystem):
             raise
     
     def _initialize_filecoin_backend(self):
-        """Initialize Filecoin backend."""
+        """Initialize Filecoin pin backend."""
+        filecoin_resources = dict(self.resources)
+        filecoin_metadata = dict(self.metadata)
+        for key in ("api_key", "api_endpoint", "timeout", "max_retries"):
+            if key in filecoin_metadata and key not in filecoin_resources:
+                filecoin_resources[key] = filecoin_metadata[key]
+
         try:
-            from ipfs_kit_py.lotus_kit import lotus_kit
-            
-            self.filecoin_client = lotus_kit(
-                resources=self.resources,
-                metadata=self.metadata
+            from ipfs_kit_py.mcp.storage_manager.backends.filecoin_pin_backend import FilecoinPinBackend
+
+            self.filecoin_client = FilecoinPinBackend(
+                resources=filecoin_resources,
+                metadata=filecoin_metadata,
             )
-            logger.info("✓ Filecoin backend initialized")
+            logger.info("✓ Filecoin pin backend initialized")
             
         except ImportError as e:
-            logger.error(f"Failed to initialize Filecoin backend: {e}")
-            raise
+            if filecoin_metadata.get("require_live", False):
+                logger.error(f"Failed to initialize Filecoin pin backend: {e}")
+                raise
+            self.filecoin_client = _InMemoryFilecoinPinClient()
+            logger.info("✓ Filecoin pin backend initialized in mock mode")
+
+        self.filecoin_retrieval_enabled = bool(
+            filecoin_metadata.get("retrieval_enabled")
+            or filecoin_metadata.get("retrieval_path")
+            or filecoin_metadata.get("retrieval_gateway")
+            or filecoin_metadata.get("gateway_fallback")
+            or filecoin_resources.get("retrieval_enabled")
+            or filecoin_resources.get("retrieval_path")
+            or filecoin_resources.get("retrieval_gateway")
+            or filecoin_resources.get("gateway_fallback")
+        )
     
     def _initialize_storacha_backend(self):
         """Initialize Storacha backend."""
@@ -411,6 +506,96 @@ class IPFSFileSystem(AbstractFileSystem):
         if data is not None:
             self._storacha_data_index[alias] = bytes(data)
         return info
+
+    def _normalize_filecoin_path(self, path: str) -> str:
+        """Normalize a Filecoin CID or alias to the filecoin:// namespace."""
+        stripped = self._strip_protocol(str(path)).lstrip("/")
+        return f"filecoin://{stripped}"
+
+    def _filecoin_identifier(self, path: str) -> str:
+        """Resolve fsspec aliases to their pinned Filecoin/IPFS CID."""
+        normalized = self._normalize_filecoin_path(path)
+        indexed = self._filecoin_path_index.get(normalized)
+        if indexed and indexed.get("cid"):
+            return indexed["cid"]
+        return self._strip_protocol(str(path)).lstrip("/")
+
+    def _filecoin_result_to_info(
+        self,
+        result: Dict[str, Any],
+        *,
+        alias: Optional[str] = None,
+        fallback_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Convert Filecoin pin upload/status dictionaries to fsspec info."""
+        cid = (
+            result.get("cid")
+            or result.get("root")
+            or result.get("root_cid")
+            or self._strip_protocol(fallback_name or "")
+        )
+        canonical = self._normalize_filecoin_path(cid) if cid else self._normalize_filecoin_path(fallback_name or "")
+        size = (
+            result.get("size")
+            or result.get("size_bytes")
+            or result.get("bytes")
+            or result.get("content_length")
+            or 0
+        )
+        status = result.get("status") or result.get("pin_status") or "unknown"
+        deals = result.get("deals", result.get("deal_ids", result.get("dealIds", [])))
+        info = {
+            "name": canonical,
+            "type": "file",
+            "size": size,
+            "cid": cid,
+            "status": status,
+            "exists": result.get("exists", result.get("success", status not in {"failed", "not_found"})),
+            "request_id": result.get("request_id") or result.get("requestId"),
+            "deal_ids": result.get("deal_ids", result.get("dealIds", [])),
+            "deals": deals,
+            "replication": result.get("replication"),
+            "backend": "filecoin_pin",
+            "mock": bool(result.get("mock", getattr(self.filecoin_client, "mock_mode", False))),
+        }
+        filename = result.get("filename") or result.get("name") or result.get("file_name")
+        if filename:
+            info["filename"] = filename
+        created = result.get("created") or result.get("created_at") or result.get("timestamp")
+        if created:
+            info["created"] = created
+        if alias and alias != canonical:
+            info["alias"] = alias
+        return info
+
+    def _record_filecoin_write(
+        self,
+        requested_path: str,
+        result: Dict[str, Any],
+        data: Optional[bytes] = None,
+    ) -> Dict[str, Any]:
+        """Remember pin request metadata for Filecoin path aliases and CIDs."""
+        if not result.get("success", False):
+            raise IOError(f"Failed to upload to Filecoin pin: {result.get('error', 'Unknown error')}")
+        alias = self._normalize_filecoin_path(requested_path)
+        info = self._filecoin_result_to_info(result, alias=alias, fallback_name=requested_path)
+        self._filecoin_path_index[alias] = info
+        if info.get("cid"):
+            canonical = self._normalize_filecoin_path(info["cid"])
+            self._filecoin_path_index[canonical] = info
+            if data is not None:
+                self._filecoin_data_index[canonical] = bytes(data)
+        if data is not None:
+            self._filecoin_data_index[alias] = bytes(data)
+        return info
+
+    def _filecoin_can_retrieve(self, identifier: str, normalized: str, canonical: str) -> bool:
+        """Return whether the fsspec layer has a configured retrieval path."""
+        return (
+            normalized in self._filecoin_data_index
+            or canonical in self._filecoin_data_index
+            or bool(getattr(self, "filecoin_retrieval_enabled", False))
+        )
     
     # Core FSSpec methods
     
@@ -511,10 +696,37 @@ class IPFSFileSystem(AbstractFileSystem):
             return []
     
     def _ls_filecoin(self, path: str, detail: bool = True, **kwargs) -> Union[List[Dict[str, Any]], List[str]]:
-        """List Filecoin storage contents."""
-        # Implement Filecoin-specific listing
-        logger.warning("Filecoin ls not yet implemented")
-        return []
+        """List Filecoin pin requests."""
+        result = self.filecoin_client.list_pins(**kwargs)
+        if not result.get("success", False):
+            raise IOError(f"Failed to list Filecoin pins: {result.get('error', 'Unknown error')}")
+
+        items: List[Union[Dict[str, Any], str]] = []
+        seen = set()
+        for pin in result.get("pins", result.get("items", [])):
+            info = self._filecoin_result_to_info(pin)
+            key = info["name"]
+            seen.add(key)
+            if detail:
+                info["path"] = key
+                items.append(info)
+            else:
+                items.append(key)
+
+        for info in self._filecoin_path_index.values():
+            key = info["name"]
+            alias = info.get("alias")
+            if key in seen or alias in seen:
+                continue
+            seen.add(key)
+            indexed_info = dict(info)
+            if detail:
+                indexed_info["path"] = indexed_info["name"]
+                items.append(indexed_info)
+            else:
+                items.append(indexed_info["name"])
+
+        return items
     
     def _ls_storacha(self, path: str, detail: bool = True, **kwargs) -> Union[List[Dict[str, Any]], List[str]]:
         """List Storacha storage contents."""
@@ -615,6 +827,20 @@ class IPFSFileSystem(AbstractFileSystem):
                 except OSError:
                     pass
             return None
+        if self.backend == "filecoin":
+            if mode not in {"overwrite", "create"}:
+                raise ValueError(f"Unsupported Filecoin pin pipe_file mode: {mode}")
+            if isinstance(value, str):
+                value = value.encode("utf-8")
+            if not isinstance(value, (bytes, bytearray)):
+                raise TypeError("Filecoin pin pipe_file value must be bytes-like")
+            metadata = dict(kwargs.pop("metadata", {}))
+            metadata.setdefault("name", os.path.basename(self._strip_protocol(path)) or "data.bin")
+            result = self.filecoin_client.add_content(bytes(value), metadata=metadata)
+            result.setdefault("filename", metadata.get("name"))
+            result.setdefault("size", len(value))
+            self._record_filecoin_write(path, result, data=bytes(value))
+            return None
         if self.backend != "synapse":
             return super().pipe_file(path, value, mode=mode, **kwargs)
         if mode not in {"overwrite", "create"}:
@@ -657,10 +883,35 @@ class IPFSFileSystem(AbstractFileSystem):
             raise
     
     def _cat_file_filecoin(self, path: str, start: Optional[int] = None, end: Optional[int] = None, **kwargs) -> bytes:
-        """Read file from Filecoin storage."""
-        # Implement Filecoin-specific file reading
-        logger.warning("Filecoin cat_file not yet implemented")
-        raise NotImplementedError("Filecoin cat_file not yet implemented")
+        """Read file from Filecoin pin retrieval when available."""
+        identifier = self._filecoin_identifier(path)
+        normalized = self._normalize_filecoin_path(path)
+        canonical = self._normalize_filecoin_path(identifier)
+
+        if not self._filecoin_can_retrieve(identifier, normalized, canonical):
+            raise NotImplementedError(
+                "Filecoin pin retrieval is not configured; provide retrieval_enabled, "
+                "retrieval_path, retrieval_gateway, or gateway_fallback metadata"
+            )
+
+        if normalized in self._filecoin_data_index:
+            data = self._filecoin_data_index[normalized]
+        elif canonical in self._filecoin_data_index:
+            data = self._filecoin_data_index[canonical]
+        else:
+            result = self.filecoin_client.get_content(identifier, **kwargs)
+            if not result.get("success", False):
+                raise IOError(f"Failed to retrieve Filecoin pin content: {result.get('error', 'Unknown error')}")
+            data = result.get("data", result.get("content", b""))
+            if isinstance(data, str):
+                data = data.encode("utf-8")
+
+        if start is not None or end is not None:
+            start = start or 0
+            end = end or len(data)
+            data = data[start:end]
+
+        return bytes(data)
     
     def _cat_file_storacha(self, path: str, start: Optional[int] = None, end: Optional[int] = None, **kwargs) -> bytes:
         """Read file from Storacha storage."""
@@ -735,10 +986,16 @@ class IPFSFileSystem(AbstractFileSystem):
             raise
     
     def _put_file_filecoin(self, lpath: str, rpath: str, **kwargs) -> None:
-        """Upload file to Filecoin storage."""
-        # Implement Filecoin-specific file upload
-        logger.warning("Filecoin put_file not yet implemented")
-        raise NotImplementedError("Filecoin put_file not yet implemented")
+        """Upload file to Filecoin pin storage."""
+        with open(lpath, "rb") as f:
+            data = f.read()
+        metadata = dict(kwargs.pop("metadata", {}))
+        metadata.setdefault("name", os.path.basename(lpath))
+        result = self.filecoin_client.add_content(lpath, metadata=metadata)
+        result.setdefault("filename", metadata.get("name"))
+        result.setdefault("size", len(data))
+        self._record_filecoin_write(rpath, result, data=data)
+        logger.info(f"File uploaded to Filecoin pin: {result.get('cid', 'unknown CID')}")
     
     def _put_file_storacha(self, lpath: str, rpath: str, **kwargs) -> None:
         """Upload file to Storacha storage."""
@@ -802,10 +1059,14 @@ class IPFSFileSystem(AbstractFileSystem):
         logger.info(f"File downloaded from IPFS to: {lpath}")
     
     def _get_file_filecoin(self, rpath: str, lpath: str, **kwargs) -> None:
-        """Download file from Filecoin storage."""
-        # Implement Filecoin-specific file download
-        logger.warning("Filecoin get_file not yet implemented")
-        raise NotImplementedError("Filecoin get_file not yet implemented")
+        """Download file from Filecoin pin retrieval to a local path."""
+        data = self._cat_file_filecoin(rpath, **kwargs)
+        directory = os.path.dirname(lpath)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+        with open(lpath, "wb") as f:
+            f.write(data)
+        logger.info(f"File downloaded from Filecoin pin to: {lpath}")
     
     def _get_file_storacha(self, rpath: str, lpath: str, **kwargs) -> None:
         """Download file from Storacha storage."""
@@ -864,10 +1125,19 @@ class IPFSFileSystem(AbstractFileSystem):
             return False
     
     def _exists_filecoin(self, path: str, **kwargs) -> bool:
-        """Check if path exists in Filecoin storage."""
-        # Implement Filecoin-specific existence check
-        logger.warning("Filecoin exists not yet implemented")
-        return False
+        """Check if a CID has Filecoin pin metadata."""
+        normalized = self._normalize_filecoin_path(path)
+        if normalized in self._filecoin_path_index:
+            status = self._filecoin_path_index[normalized].get("status")
+            return status not in {"failed", "not_found"}
+        identifier = self._filecoin_identifier(path)
+        if not identifier:
+            return True
+        try:
+            result = self.filecoin_client.get_metadata(identifier, **kwargs)
+            return result.get("success", False) and result.get("status") not in {"failed", "not_found"}
+        except Exception:
+            return False
     
     def _exists_storacha(self, path: str, **kwargs) -> bool:
         """Check if path exists in Storacha storage."""
@@ -948,10 +1218,20 @@ class IPFSFileSystem(AbstractFileSystem):
             return {"name": stripped_path, "type": "unknown", "size": 0}
     
     def _info_filecoin(self, path: str, **kwargs) -> Dict[str, Any]:
-        """Get Filecoin storage information."""
-        # Implement Filecoin-specific info
-        logger.warning("Filecoin info not yet implemented")
-        return {"name": path, "type": "unknown", "size": 0}
+        """Get Filecoin pin request metadata."""
+        normalized = self._normalize_filecoin_path(path)
+        if normalized in self._filecoin_path_index:
+            return dict(self._filecoin_path_index[normalized])
+
+        identifier = self._filecoin_identifier(path)
+        canonical = self._normalize_filecoin_path(identifier)
+        if canonical in self._filecoin_path_index:
+            return dict(self._filecoin_path_index[canonical])
+
+        result = self.filecoin_client.get_metadata(identifier, **kwargs)
+        if result.get("success", False):
+            return self._filecoin_result_to_info(result, fallback_name=identifier)
+        raise FileNotFoundError(f"Filecoin pin metadata not found for {path}: {result.get('error', 'unknown error')}")
     
     def _info_storacha(self, path: str, **kwargs) -> Dict[str, Any]:
         """Get Storacha storage information."""
@@ -1001,8 +1281,14 @@ class IPFSFileSystem(AbstractFileSystem):
                 return {"backend": "ipfs", "connected": False, "error": str(e)}
         
         elif self.backend == "filecoin":
-            # Get Filecoin client status
-            return {"backend": "filecoin", "status": "connected"}  # Placeholder
+            return {
+                "backend": "filecoin",
+                "provider": "filecoin_pin",
+                "connected": True,
+                "mock_mode": bool(getattr(self.filecoin_client, "mock_mode", False)),
+                "retrieval_enabled": bool(getattr(self, "filecoin_retrieval_enabled", False)),
+                "api_endpoint": getattr(self.filecoin_client, "api_endpoint", None),
+            }
         
         elif self.backend == "storacha":
             # Get Storacha client status
@@ -1035,11 +1321,15 @@ class IPFSFileSystem(AbstractFileSystem):
         cache_options=None,
         **kwargs,
     ):
-        """Open backend files. Synapse and Storacha currently support binary reads."""
+        """Open backend files. Content-addressed backends support binary reads."""
         if self.backend == "synapse":
             if mode != "rb":
                 raise NotImplementedError("Synapse fsspec open currently supports only 'rb'")
             return io.BytesIO(self._cat_file_synapse(path, **kwargs))
+        if self.backend == "filecoin":
+            if mode != "rb":
+                raise NotImplementedError("Filecoin pin fsspec open currently supports only 'rb'")
+            return io.BytesIO(self._cat_file_filecoin(path, **kwargs))
         if self.backend == "storacha":
             if mode != "rb":
                 raise NotImplementedError("Storacha fsspec open currently supports only 'rb'")
@@ -1217,10 +1507,14 @@ class EnhancedIPFSFileSystem(_BackendFixedFileSystem):
 
 
 class FilecoinFileSystem(_BackendFixedFileSystem):
-    """Filecoin protocol filesystem registration."""
+    """Filecoin pin protocol filesystem registration."""
 
     protocol = "filecoin"
     default_backend = "filecoin"
+
+
+class FilecoinPinFileSystem(FilecoinFileSystem):
+    """Explicit export name for the Filecoin pin fsspec backend."""
 
 
 class StorachaFileSystem(_BackendFixedFileSystem):
