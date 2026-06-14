@@ -30,6 +30,7 @@ from ipfs_kit_py.mcp.controllers.storage_manager_controller import StorageManage
 from ipfs_kit_py.mcp.controllers.storage_manager_controller_anyio import (
     StorageManagerControllerAnyIO,
 )
+from ipfs_kit_py.mcp.controllers.vfs_graphrag_controller import VFSGraphRAGController
 
 # Export controllers for external use
 __all__ = [
@@ -37,4 +38,5 @@ __all__ = [
     "IPFSControllerAnyIO",
     "StorageManagerController",
     "StorageManagerControllerAnyIO",
+    "VFSGraphRAGController",
 ]
