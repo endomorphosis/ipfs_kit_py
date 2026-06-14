@@ -226,6 +226,11 @@ class VFSGraphRAGIndex:
         metadata_weight: float = 0.2,
         text_weight: float = 0.1,
         facet_fields: Optional[Sequence[str]] = None,
+        graph_hops: int = 0,
+        hop_limit: Optional[int] = None,
+        entity_types: Optional[Sequence[str]] = None,
+        graph_entity_ids: Optional[Sequence[str]] = None,
+        relationship_predicates: Optional[Sequence[str]] = None,
     ) -> Dict[str, Any]:
         """Search indexed VFS objects by metadata filters, vectors, or both.
 
@@ -240,8 +245,25 @@ class VFSGraphRAGIndex:
         effective_filters = dict(filters or {})
         effective_filters.update(dict(metadata_filters or {}))
         normalized_type = (search_type or "hybrid").lower()
-        if normalized_type not in {"metadata", "metadata_only", "vector", "vector_only", "hybrid"}:
-            raise ValueError("search_type must be 'metadata', 'vector', or 'hybrid'")
+        if normalized_type in {"graph_only"}:
+            normalized_type = "graph"
+        if normalized_type not in {"metadata", "metadata_only", "vector", "vector_only", "hybrid", "graph"}:
+            raise ValueError("search_type must be 'metadata', 'vector', 'graph', or 'hybrid'")
+        default_graph_hops = 1 if normalized_type == "graph" else 0
+        effective_hops = int(hop_limit if hop_limit is not None else (graph_hops or default_graph_hops))
+        if normalized_type == "graph":
+            return self.graph_search(
+                query=query,
+                entity_ids=graph_entity_ids,
+                entity_types=entity_types,
+                relationship_predicates=relationship_predicates,
+                hop_limit=effective_hops,
+                top_k=top_k,
+                namespaces=namespaces,
+                backends=backends,
+                protocols=protocols,
+                facet_fields=facet_fields,
+            )
         if normalized_type in {"metadata", "metadata_only"} and effective_vector:
             effective_vector = []
         if normalized_type in {"vector", "vector_only"}:
@@ -304,6 +326,18 @@ class VFSGraphRAGIndex:
                 )
             )
 
+        if effective_hops > 0:
+            scored = self._expand_results_with_graph(
+                scored,
+                chunks_by_record=chunks_by_record,
+                hop_limit=effective_hops,
+                entity_types=entity_types,
+                relationship_predicates=relationship_predicates,
+                namespace_set=namespace_set,
+                backend_set=backend_set,
+                protocol_set=protocol_set,
+            )
+
         scored.sort(key=lambda item: (-float(item["score"]), item["path"], item["record_id"]))
         limited = scored[: max(0, int(top_k))]
         return {
@@ -328,6 +362,17 @@ class VFSGraphRAGIndex:
     def hybrid_search(self, **kwargs: Any) -> Dict[str, Any]:
         """Run a metadata-plus-vector hybrid search."""
 
+        return self.search(search_type="hybrid", **kwargs)
+
+    def graph_search(self, **kwargs: Any) -> Dict[str, Any]:
+        """Run a graph-only traversal search over entity and relationship provenance."""
+
+        return self._graph_search(**kwargs)
+
+    def graph_hybrid_search(self, **kwargs: Any) -> Dict[str, Any]:
+        """Run hybrid search and expand matching objects through graph neighborhoods."""
+
+        kwargs.setdefault("graph_hops", 1)
         return self.search(search_type="hybrid", **kwargs)
 
     def delete_record(self, schema_or_kind: str, record_id: str) -> bool:
@@ -429,6 +474,79 @@ class VFSGraphRAGIndex:
 
     query_graph_edges = query_relationships
 
+    def add_graph_records(
+        self,
+        *,
+        entities: Optional[Iterable[RecordInput]] = None,
+        relationships: Optional[Iterable[RecordInput]] = None,
+        source_record_ids: Optional[Sequence[str]] = None,
+        source_chunk_ids: Optional[Sequence[str]] = None,
+        provenance: Optional[Mapping[str, Any]] = None,
+    ) -> Dict[str, List[SerializableRecord]]:
+        """Accept and persist graph entities/relationships with VFS provenance."""
+
+        record_ids = list(source_record_ids or [])
+        chunk_ids = list(source_chunk_ids or [])
+        provenance_data = dict(provenance or {})
+        stored_entities: List[SerializableRecord] = []
+        stored_relationships: List[SerializableRecord] = []
+
+        for entity in entities or []:
+            parsed = self._coerce_record(entity, VFSEntityRecord)
+            parsed.source_record_ids = self._unique_values([*parsed.source_record_ids, *record_ids])
+            parsed.source_chunk_ids = self._unique_values([*parsed.source_chunk_ids, *chunk_ids])
+            parsed.provenance = {**provenance_data, **dict(parsed.provenance)}
+            stored_entities.append(self.upsert_entity(parsed))
+
+        for relationship in relationships or []:
+            parsed = self._coerce_record(relationship, VFSRelationshipRecord)
+            parsed.source_record_ids = self._unique_values([*parsed.source_record_ids, *record_ids])
+            parsed.source_chunk_ids = self._unique_values([*parsed.source_chunk_ids, *chunk_ids])
+            parsed.provenance = {**provenance_data, **dict(parsed.provenance)}
+            stored_relationships.append(self.upsert_relationship(parsed))
+
+        return {"entities": stored_entities, "relationships": stored_relationships}
+
+    def extract_graph_for_object(
+        self,
+        record: Union[str, VFSObjectRecord, Mapping[str, Any]],
+        *,
+        chunks: Optional[Sequence[Union[VFSChunkRecord, Mapping[str, Any]]]] = None,
+        entities: Optional[Iterable[RecordInput]] = None,
+        relationships: Optional[Iterable[RecordInput]] = None,
+        include_topology: bool = True,
+        provenance: Optional[Mapping[str, Any]] = None,
+    ) -> Dict[str, List[SerializableRecord]]:
+        """Extract deterministic VFS graph records and merge caller-supplied records."""
+
+        object_record = self._resolve_object(record)
+        if object_record is None:
+            raise ValueError("record must be an existing record id, VFSObjectRecord, or object mapping")
+        object_record = self.upsert_object(object_record)
+        source_chunks = [
+            self._coerce_record(chunk, VFSChunkRecord)
+            for chunk in (chunks if chunks is not None else self.query_chunks(parent_record_id=object_record.record_id))
+        ]
+        source_chunk_ids = [chunk.chunk_id for chunk in source_chunks]
+        source_record_ids = [object_record.record_id]
+
+        generated_entities: List[VFSEntityRecord] = []
+        generated_relationships: List[VFSRelationshipRecord] = []
+        if include_topology:
+            generated_entities, generated_relationships = self._extract_topology_graph(object_record, source_chunk_ids)
+
+        supplied = self.add_graph_records(
+            entities=[*generated_entities, *(entities or [])],
+            relationships=[*generated_relationships, *(relationships or [])],
+            source_record_ids=source_record_ids,
+            source_chunk_ids=source_chunk_ids,
+            provenance={"extractor": "vfs_graph_topology", **dict(provenance or {})},
+        )
+        return supplied
+
+    index_graph = extract_graph_for_object
+
+
     def upsert_snapshot(self, record: RecordInput) -> VFSSnapshotRecord:
         return self._typed_put(record, VFSSnapshotRecord)
 
@@ -500,6 +618,402 @@ class VFSGraphRAGIndex:
             metadata=dict(metadata or {}),
         )
         return self.upsert_checkpoint(record)
+
+    def _resolve_object(
+        self,
+        record: Union[str, VFSObjectRecord, Mapping[str, Any]],
+    ) -> Optional[VFSObjectRecord]:
+        if isinstance(record, str):
+            return self.get_object(record)
+        if isinstance(record, VFSObjectRecord):
+            return record
+        return self._coerce_record(record, VFSObjectRecord)  # type: ignore[return-value]
+
+    def _extract_topology_graph(
+        self,
+        record: VFSObjectRecord,
+        source_chunk_ids: Sequence[str],
+    ) -> Tuple[List[VFSEntityRecord], List[VFSRelationshipRecord]]:
+        entities: Dict[str, VFSEntityRecord] = {}
+        relationships: Dict[str, VFSRelationshipRecord] = {}
+
+        def entity(name: str, entity_type: str, **metadata: Any) -> VFSEntityRecord:
+            item = VFSEntityRecord(
+                name=name,
+                entity_type=entity_type,
+                source_record_ids=[record.record_id],
+                source_chunk_ids=list(source_chunk_ids),
+                provenance={"record_id": record.record_id, "path": record.normalized_path},
+                metadata={key: value for key, value in metadata.items() if value is not None},
+            )
+            entities[item.entity_id] = item
+            return item
+
+        def relationship(
+            subject: VFSEntityRecord,
+            predicate: str,
+            obj: VFSEntityRecord,
+            relationship_type: str = "topology",
+            **metadata: Any,
+        ) -> None:
+            item = VFSRelationshipRecord(
+                subject_id=subject.entity_id,
+                predicate=predicate,
+                object_id=obj.entity_id,
+                relationship_type=relationship_type,
+                source_record_ids=[record.record_id],
+                source_chunk_ids=list(source_chunk_ids),
+                confidence=1.0,
+                provenance={"record_id": record.record_id, "path": record.normalized_path},
+                metadata={key: value for key, value in metadata.items() if value is not None},
+            )
+            relationships[item.relationship_id] = item
+
+        object_entity = entity(
+            record.normalized_path or record.path,
+            "vfs_object",
+            record_id=record.record_id,
+            path=record.normalized_path or record.path,
+            content_id=record.content_id,
+            object_type=record.object_type,
+        )
+        backend_entity = entity(record.backend, "backend", backend=record.backend, protocol=record.protocol)
+        relationship(object_entity, "stored_on", backend_entity)
+
+        if record.content_id:
+            content_entity = entity(str(record.content_id), "content", content_id=record.content_id)
+            relationship(object_entity, "links_to", content_entity, relationship_type="content")
+            for other in self.query_objects(content_id=record.content_id):
+                if other.record_id == record.record_id:
+                    continue
+                other_entity = entity(
+                    other.normalized_path or other.path,
+                    "vfs_object",
+                    record_id=other.record_id,
+                    path=other.normalized_path or other.path,
+                    content_id=other.content_id,
+                    object_type=other.object_type,
+                )
+                relationship(object_entity, "same_content_as", other_entity, relationship_type="content")
+
+        bucket_name = self._metadata_first(record.metadata, "bucket", "bucket_name")
+        if bucket_name is None:
+            bucket_name = self._path_bucket_name(record.normalized_path or record.path)
+        if bucket_name:
+            bucket_entity = entity(str(bucket_name), "bucket", bucket=str(bucket_name))
+            relationship(object_entity, "belongs_to_bucket", bucket_entity)
+
+        parent_entity = self._directory_parent_entity(record, entity)
+        if parent_entity is not None:
+            relationship(parent_entity, "contains", object_entity)
+
+        derived_from = self._metadata_first(record.lineage, "derived_from", "source_record_id", "parent_record_id")
+        if derived_from:
+            source_entity = entity(str(derived_from), "vfs_object", record_id=str(derived_from))
+            relationship(object_entity, "derived_from", source_entity, relationship_type="lineage")
+
+        pinned_by = self._metadata_first(record.metadata, "pinned_by", "pin_request_id", "pin_id")
+        for pin_value in self._as_list(pinned_by):
+            pin_entity = entity(str(pin_value), "pin", pin_id=str(pin_value))
+            relationship(object_entity, "pinned_by", pin_entity)
+
+        for link in self._as_list(record.metadata.get("links_to")):
+            link_entity = entity(str(link), "link", target=str(link))
+            relationship(object_entity, "links_to", link_entity)
+
+        return list(entities.values()), list(relationships.values())
+
+    def _directory_parent_entity(
+        self,
+        record: VFSObjectRecord,
+        create_entity: Any,
+    ) -> Optional[VFSEntityRecord]:
+        path = record.normalized_path or record.path
+        if "://" in path:
+            _protocol, path = path.split("://", 1)
+            path = "/" + path.strip("/")
+        parent = str(Path(path).parent)
+        if parent in {"", "."}:
+            parent = "/"
+        if parent == path:
+            return None
+        return create_entity(parent, "directory", path=parent)
+
+    def _metadata_first(self, metadata: Mapping[str, Any], *keys: str) -> Any:
+        for key in keys:
+            if key in metadata and metadata[key] not in (None, ""):
+                return metadata[key]
+        return None
+
+    def _as_list(self, value: Any) -> List[Any]:
+        if value in (None, ""):
+            return []
+        if isinstance(value, (list, tuple, set)):
+            return list(value)
+        return [value]
+
+    def _path_bucket_name(self, path: str) -> Optional[str]:
+        clean = path
+        if "://" in clean:
+            _protocol, clean = clean.split("://", 1)
+        parts = [part for part in clean.strip("/").split("/") if part]
+        return parts[0] if parts else None
+
+    def _graph_search(
+        self,
+        query: str = "",
+        *,
+        entity_ids: Optional[Sequence[str]] = None,
+        entity_types: Optional[Sequence[str]] = None,
+        relationship_predicates: Optional[Sequence[str]] = None,
+        hop_limit: int = 1,
+        top_k: int = 10,
+        namespaces: Optional[Sequence[str]] = None,
+        backends: Optional[Sequence[str]] = None,
+        protocols: Optional[Sequence[str]] = None,
+        facet_fields: Optional[Sequence[str]] = None,
+    ) -> Dict[str, Any]:
+        entity_type_set = set(entity_types or [])
+        predicate_set = set(relationship_predicates or [])
+        starts = self._graph_start_entities(query, entity_ids, entity_type_set)
+        if not starts and (query or entity_ids or entity_type_set):
+            return {
+                "success": True,
+                "query": query,
+                "search_type": "graph",
+                "total": 0,
+                "results": [],
+                "facets": {},
+            }
+
+        if not starts:
+            starts = self.query_entities()
+        traversal = self._traverse_graph(
+            [entity.entity_id for entity in starts],
+            max(0, int(hop_limit)),
+            entity_type_set=entity_type_set,
+            predicate_set=predicate_set,
+        )
+        record_hits = self._records_from_graph_context(traversal)
+        namespace_set = set(namespaces or [])
+        backend_set = set(backends or [])
+        protocol_set = set(protocols or [])
+        chunks_by_record = self._chunks_by_record()
+        results: List[Dict[str, Any]] = []
+        for record_id, distance in record_hits.items():
+            record = self.get_object(record_id)
+            if record is None:
+                continue
+            if namespace_set and record.namespace not in namespace_set:
+                continue
+            if backend_set and record.backend not in backend_set:
+                continue
+            if protocol_set and record.protocol not in protocol_set:
+                continue
+            graph_score = 1.0 / (1 + distance)
+            result = self._format_search_result(
+                record,
+                chunks_by_record.get(record.record_id, []),
+                score=graph_score,
+                score_parts={
+                    "metadata_filter": 0.0,
+                    "vector_similarity": 0.0,
+                    "text_match": 0.0,
+                    "graph_match": graph_score,
+                },
+                highlighted_chunk_ids=[],
+            )
+            result["graph"] = self._graph_context_for_record(record.record_id, traversal)
+            results.append(result)
+        results.sort(key=lambda item: (-float(item["score"]), item["path"], item["record_id"]))
+        limited = results[: max(0, int(top_k))]
+        return {
+            "success": True,
+            "query": query,
+            "search_type": "graph",
+            "total": len(results),
+            "results": limited,
+            "facets": self._build_facets(results, facet_fields),
+        }
+
+    def _graph_start_entities(
+        self,
+        query: str,
+        entity_ids: Optional[Sequence[str]],
+        entity_type_set: set,
+    ) -> List[VFSEntityRecord]:
+        if entity_ids:
+            return [
+                entity
+                for entity_id in entity_ids
+                for entity in [self.get_entity(entity_id)]
+                if entity is not None and (not entity_type_set or entity.entity_type in entity_type_set)
+            ]
+        normalized_query = query.lower().strip()
+        matches = []
+        for entity in self.query_entities():
+            if entity_type_set and entity.entity_type not in entity_type_set:
+                continue
+            if not normalized_query:
+                matches.append(entity)
+                continue
+            haystack = " ".join(
+                [
+                    entity.name,
+                    entity.entity_type,
+                    " ".join(entity.aliases),
+                    json.dumps(entity.metadata, sort_keys=True, default=str),
+                ]
+            ).lower()
+            if normalized_query in haystack or all(term in haystack for term in normalized_query.split()):
+                matches.append(entity)
+        return matches
+
+    def _traverse_graph(
+        self,
+        start_entity_ids: Sequence[str],
+        hop_limit: int,
+        *,
+        entity_type_set: set,
+        predicate_set: set,
+    ) -> Dict[str, Any]:
+        relationships = self.query_relationships()
+        adjacency: Dict[str, List[Tuple[str, VFSRelationshipRecord]]] = {}
+        for relationship in relationships:
+            if predicate_set and relationship.predicate not in predicate_set:
+                continue
+            adjacency.setdefault(relationship.subject_id, []).append((relationship.object_id, relationship))
+            adjacency.setdefault(relationship.object_id, []).append((relationship.subject_id, relationship))
+
+        visited: Dict[str, int] = {}
+        used_relationships: Dict[str, VFSRelationshipRecord] = {}
+        frontier = [(entity_id, 0) for entity_id in start_entity_ids]
+        while frontier:
+            entity_id, distance = frontier.pop(0)
+            if entity_id in visited and visited[entity_id] <= distance:
+                continue
+            visited[entity_id] = distance
+            if distance >= hop_limit:
+                continue
+            for neighbor_id, relationship in adjacency.get(entity_id, []):
+                used_relationships[relationship.relationship_id] = relationship
+                frontier.append((neighbor_id, distance + 1))
+
+        return {"entities": visited, "relationships": used_relationships}
+
+    def _records_from_graph_context(self, traversal: Mapping[str, Any]) -> Dict[str, int]:
+        record_hits: Dict[str, int] = {}
+        entity_distances = traversal.get("entities", {})
+        for entity_id, distance in entity_distances.items():
+            entity = self.get_entity(entity_id)
+            if entity is None:
+                continue
+            for record_id in entity.source_record_ids:
+                record_hits[record_id] = min(record_hits.get(record_id, distance), distance)
+            metadata_record_id = entity.metadata.get("record_id")
+            if metadata_record_id:
+                record_hits[str(metadata_record_id)] = min(record_hits.get(str(metadata_record_id), distance), distance)
+        for relationship in traversal.get("relationships", {}).values():
+            for record_id in relationship.source_record_ids:
+                record_hits[record_id] = min(record_hits.get(record_id, 1), 1)
+        return record_hits
+
+    def _graph_context_for_record(self, record_id: str, traversal: Mapping[str, Any]) -> Dict[str, Any]:
+        entity_rows = []
+        relationship_rows = []
+        for entity_id, distance in traversal.get("entities", {}).items():
+            entity = self.get_entity(entity_id)
+            if entity is None:
+                continue
+            if record_id in entity.source_record_ids or entity.metadata.get("record_id") == record_id:
+                row = entity.to_dict()
+                row["hop_distance"] = distance
+                entity_rows.append(row)
+        for relationship in traversal.get("relationships", {}).values():
+            if record_id in relationship.source_record_ids:
+                relationship_rows.append(relationship.to_dict())
+        return {
+            "entities": sorted(entity_rows, key=lambda item: (item.get("hop_distance", 0), item.get("name", ""))),
+            "relationships": sorted(relationship_rows, key=lambda item: item.get("relationship_id", "")),
+        }
+
+    def _expand_results_with_graph(
+        self,
+        scored: List[Dict[str, Any]],
+        *,
+        chunks_by_record: Mapping[str, Sequence[VFSChunkRecord]],
+        hop_limit: int,
+        entity_types: Optional[Sequence[str]],
+        relationship_predicates: Optional[Sequence[str]],
+        namespace_set: set,
+        backend_set: set,
+        protocol_set: set,
+    ) -> List[Dict[str, Any]]:
+        if not scored:
+            return scored
+        entity_type_set = set(entity_types or [])
+        predicate_set = set(relationship_predicates or [])
+        by_record = {str(item["record_id"]): item for item in scored}
+        start_entities = []
+        for record_id in by_record:
+            start_entities.extend(self._entities_for_record(record_id, entity_type_set))
+        traversal = self._traverse_graph(
+            [entity.entity_id for entity in start_entities],
+            max(0, int(hop_limit)),
+            entity_type_set=entity_type_set,
+            predicate_set=predicate_set,
+        )
+        for record_id, distance in self._records_from_graph_context(traversal).items():
+            record = self.get_object(record_id)
+            if record is None:
+                continue
+            if namespace_set and record.namespace not in namespace_set:
+                continue
+            if backend_set and record.backend not in backend_set:
+                continue
+            if protocol_set and record.protocol not in protocol_set:
+                continue
+            graph_score = 1.0 / (1 + distance)
+            if record_id in by_record:
+                existing = by_record[record_id]
+                existing.setdefault("graph", self._graph_context_for_record(record_id, traversal))
+                existing["score_parts"]["graph_expansion"] = graph_score
+                continue
+            result = self._format_search_result(
+                record,
+                chunks_by_record.get(record.record_id, []),
+                score=graph_score,
+                score_parts={
+                    "metadata_filter": 0.0,
+                    "vector_similarity": 0.0,
+                    "text_match": 0.0,
+                    "graph_expansion": graph_score,
+                },
+                highlighted_chunk_ids=[],
+            )
+            result["graph"] = self._graph_context_for_record(record_id, traversal)
+            by_record[record_id] = result
+        return list(by_record.values())
+
+    def _entities_for_record(self, record_id: str, entity_type_set: set) -> List[VFSEntityRecord]:
+        matches = []
+        for entity in self.query_entities():
+            if entity_type_set and entity.entity_type not in entity_type_set:
+                continue
+            if record_id in entity.source_record_ids or entity.metadata.get("record_id") == record_id:
+                matches.append(entity)
+        return matches
+
+    def _unique_values(self, values: Sequence[Any]) -> List[Any]:
+        seen = set()
+        unique = []
+        for value in values:
+            marker = json.dumps(value, sort_keys=True, default=str)
+            if marker in seen:
+                continue
+            seen.add(marker)
+            unique.append(value)
+        return unique
 
     def _typed_put(self, record: RecordInput, record_type: Type[T]) -> T:
         parsed = self._coerce_record(record, record_type)
