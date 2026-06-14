@@ -427,6 +427,63 @@ results = vfs.search(query="machine learning", content_type="pdf")
 
 IPFS Kit integrates **GraphRAG** (Graph-based Retrieval Augmented Generation) for semantic search and knowledge management:
 
+### VFS GraphRAG Indexing
+
+VFS GraphRAG indexing adds a dependency-light local index for virtual
+filesystem metadata, text chunks, embedding metadata, graph entities,
+relationships, snapshots, checkpoints, and portable export bundles. JSONL
+storage works without live IPFS, vector database, LLM, or `ipfs_datasets_py`
+services; optional adapters can provide richer chunking, embeddings, and
+knowledge graph extraction.
+
+```bash
+python -m ipfs_kit_py.cli vfs index \
+  --index-root /tmp/vfs-graphrag \
+  --namespace research \
+  --path /data/reports/policy.md \
+  --backend local \
+  --protocol file \
+  --mime-type text/markdown \
+  --metadata-json '{"classification":"public"}'
+
+python -m ipfs_kit_py.cli vfs search "policy" \
+  --index-root /tmp/vfs-graphrag \
+  --namespace research \
+  --type hybrid \
+  --filters-json '{"classification":"public"}'
+```
+
+```python
+from ipfs_kit_py.vfs_manager import VFSManager
+
+vfs = VFSManager(storage_path="/srv/ipfs-kit-state")
+vfs.enable_graphrag_indexing_sync(
+    index_path="/srv/ipfs-kit-state/.vfs_graphrag_index",
+    namespace="research",
+)
+vfs.index_namespace_sync("research", root_path="/data/reports", recursive=True)
+results = vfs.search_sync(
+    "policy",
+    namespaces=["research"],
+    metadata_filters={"classification": "public"},
+    search_type="hybrid",
+)
+```
+
+Export a searchable VFS snapshot with:
+
+```bash
+python -m ipfs_kit_py.cli vfs export-index \
+  --index-root /tmp/vfs-graphrag \
+  --namespace research \
+  --output /tmp/vfs-snapshot
+```
+
+See [VFS GraphRAG Indexing](docs/integration/vfs_graphrag_indexing.md) for
+configuration, indexing workflows, metadata/vector/graph search examples,
+export and import bundles, privacy controls, dependency requirements, and
+backend limitations.
+
 **Automatic Content Indexing:**
 ```python
 # All VFS operations auto-index content
