@@ -1515,6 +1515,9 @@ def get_filesystem(return_mock: bool = False, **kwargs):
         from unittest.mock import MagicMock
         mock_fs = MagicMock()
         mock_fs.__class__.__name__ = "MockIPFSFileSystem"
+        mock_fs.backend = kwargs.get("backend", "ipfs")
+        if mock_fs.backend == "synapse":
+            mock_fs.synapse_storage = None
         return mock_fs
     
     try:
@@ -1564,6 +1567,9 @@ def get_filesystem(return_mock: bool = False, **kwargs):
         from unittest.mock import MagicMock
         mock_fs = MagicMock()
         mock_fs.__class__.__name__ = "MockIPFSFileSystem" 
+        mock_fs.backend = kwargs.get("backend", "ipfs")
+        if mock_fs.backend == "synapse":
+            mock_fs.synapse_storage = None
         logger.warning("Returning mock filesystem due to initialization failure")
         return mock_fs
 

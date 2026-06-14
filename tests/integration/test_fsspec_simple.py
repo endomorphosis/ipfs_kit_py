@@ -46,6 +46,9 @@ class MockIPFSFileSystem(MockAbstractFileSystem):
         self.cache_config = cache_config
         self.use_mmap = use_mmap
         self.enable_metrics = enable_metrics
+        self.backend = kwargs.get("backend", "ipfs")
+        if self.backend == "synapse":
+            self.synapse_storage = None
 
 # Mock the imports in ipfs_fsspec
 sys.modules['ipfs_kit_py.ipfs_fsspec'] = MagicMock()
