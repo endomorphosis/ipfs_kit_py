@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
@@ -24,6 +25,8 @@ from .walrus_storage import (
     WalrusConfigurationError,
     WalrusStorageClient,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class _WalrusWriteBuffer(io.BytesIO):
@@ -269,7 +272,10 @@ class WalrusFileSystem(AsyncFileSystem):
 
 if HAVE_FSSPEC:  # pragma: no branch
     mirror_sync_methods(WalrusFileSystem)
-    fsspec.register_implementation("walrus", WalrusFileSystem, clobber=True)
+    try:
+        fsspec.register_implementation("walrus", WalrusFileSystem, clobber=True)
+    except Exception:  # pragma: no cover - defensive registration guard
+        logger.debug("Walrus fsspec registration skipped", exc_info=True)
 
 
 __all__ = ["HAVE_FSSPEC", "WalrusFileSystem"]
