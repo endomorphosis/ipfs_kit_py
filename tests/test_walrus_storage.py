@@ -1,8 +1,13 @@
+import json
+
 import httpx
 import pytest
 
 from ipfs_kit_py.walrus_storage import (
+    WALRUS_INDEX_SCHEMA,
+    WalrusBlobInfo,
     WalrusConfigurationError,
+    WalrusMetadataIndex,
     WalrusStorageClient,
 )
 
@@ -234,3 +239,96 @@ def test_missing_operation_urls_raise_clear_errors():
         client.resolve_aggregator_blob_url("blob-id")
     with pytest.raises(WalrusConfigurationError, match="delete URL"):
         client.resolve_delete_url("blob-id")
+
+
+def test_metadata_index_defaults_to_cache_path(monkeypatch, tmp_path):
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+
+    index = WalrusMetadataIndex()
+
+    assert index.path == tmp_path / ".cache" / "ipfs_kit_py" / "walrus" / "index.json"
+    assert index.load() == {"schema": WALRUS_INDEX_SCHEMA, "items": {}}
+
+
+def test_metadata_index_update_load_get_and_remove_are_atomic(tmp_path):
+    index_path = tmp_path / "walrus" / "index.json"
+    index = WalrusMetadataIndex(index_path)
+
+    entry = index.update(
+        "walrus://datasets/example.txt",
+        WalrusBlobInfo(
+            blob_id="blob-123",
+            object_id="object-123",
+            tx_digest="tx-123",
+            end_epoch=9,
+            cost=42,
+            size=5,
+            gateway_url="https://aggregator.test/v1/blobs/blob-123",
+        ),
+        content_type="text/plain",
+    )
+
+    assert entry["name"] == "datasets/example.txt"
+    assert entry["blob_id"] == "blob-123"
+    assert entry["object_id"] == "object-123"
+    assert entry["tx_digest"] == "tx-123"
+    assert entry["end_epoch"] == 9
+    assert entry["cost"] == 42
+    assert entry["size"] == 5
+    assert entry["content_type"] == "text/plain"
+    assert entry["gateway_url"] == "https://aggregator.test/v1/blobs/blob-123"
+    assert entry["created_at"].endswith("Z")
+
+    on_disk = json.loads(index_path.read_text(encoding="utf-8"))
+    assert on_disk == {
+        "schema": WALRUS_INDEX_SCHEMA,
+        "items": {"datasets/example.txt": entry},
+    }
+    assert index.get("/datasets/example.txt") == entry
+    assert index.list_items() == {"datasets/example.txt": entry}
+    assert list(index_path.parent.glob("*.tmp")) == []
+
+    removed = index.remove("datasets/example.txt")
+
+    assert removed == entry
+    assert index.load() == {"schema": WALRUS_INDEX_SCHEMA, "items": {}}
+
+
+def test_metadata_index_preserves_supplied_created_at_and_custom_fields(tmp_path):
+    index = WalrusMetadataIndex(tmp_path / "index.json")
+
+    entry = index.update(
+        "name.bin",
+        {
+            "blob_id": "blob-abc",
+            "content_type": "application/octet-stream",
+            "created_at": "2026-06-13T00:00:00Z",
+            "ignored": "value",
+        },
+    )
+
+    assert entry == {
+        "name": "name.bin",
+        "created_at": "2026-06-13T00:00:00Z",
+        "blob_id": "blob-abc",
+        "content_type": "application/octet-stream",
+    }
+
+
+def test_storage_client_exposes_metadata_index_operations(tmp_path):
+    client = WalrusStorageClient(
+        index_path=tmp_path / "walrus-index.json",
+        transport=httpx.MockTransport(lambda request: httpx.Response(500)),
+    )
+
+    entry = client.update_index(
+        "logical/path.txt",
+        {"blob_id": "blob-path", "size": 12},
+        content_type="text/plain",
+    )
+
+    assert client.status()["index_path"] == str(tmp_path / "walrus-index.json")
+    assert client.load_index()["items"] == {"logical/path.txt": entry}
+    assert client.get_index_entry("walrus://logical/path.txt") == entry
+    assert client.remove_index_entry("logical/path.txt") == entry
+    assert client.get_index_entry("logical/path.txt") is None

@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import os
+import json
+import tempfile
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 
 import httpx
+
+WALRUS_INDEX_SCHEMA = "ipfs_kit_py.walrus.index.v1"
 
 
 class WalrusConfigurationError(ValueError):
@@ -31,6 +37,141 @@ class WalrusBlobInfo:
         return asdict(self)
 
 
+class WalrusMetadataIndex:
+    """Local JSON index mapping logical names to Walrus blob metadata."""
+
+    def __init__(self, index_path: Optional[os.PathLike[str] | str] = None) -> None:
+        self.path = Path(index_path).expanduser() if index_path else self.default_path()
+
+    @staticmethod
+    def default_path() -> Path:
+        return Path.home() / ".cache" / "ipfs_kit_py" / "walrus" / "index.json"
+
+    def load(self) -> Dict[str, Any]:
+        if not self.path.exists():
+            return self._empty_index()
+
+        with self.path.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+
+        if not isinstance(payload, dict):
+            raise ValueError(f"Walrus index must be a JSON object: {self.path}")
+
+        items = payload.get("items")
+        if not isinstance(items, dict):
+            items = {}
+
+        return {
+            "schema": payload.get("schema") or WALRUS_INDEX_SCHEMA,
+            "items": items,
+        }
+
+    def get(self, name: str) -> Optional[Dict[str, Any]]:
+        item = self.load()["items"].get(self._normalize_name(name))
+        return dict(item) if isinstance(item, Mapping) else None
+
+    def list_items(self) -> Dict[str, Dict[str, Any]]:
+        return {
+            name: dict(item)
+            for name, item in self.load()["items"].items()
+            if isinstance(item, Mapping)
+        }
+
+    def update(
+        self,
+        name: str,
+        metadata: Mapping[str, Any] | WalrusBlobInfo,
+        *,
+        content_type: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        index = self.load()
+        normalized_name = self._normalize_name(name)
+        entry = self._entry_from_metadata(normalized_name, metadata, content_type=content_type)
+        index["items"][normalized_name] = entry
+        self._write(index)
+        return dict(entry)
+
+    def remove(self, name: str) -> Optional[Dict[str, Any]]:
+        index = self.load()
+        normalized_name = self._normalize_name(name)
+        removed = index["items"].pop(normalized_name, None)
+        self._write(index)
+        return dict(removed) if isinstance(removed, Mapping) else removed
+
+    @staticmethod
+    def _empty_index() -> Dict[str, Any]:
+        return {"schema": WALRUS_INDEX_SCHEMA, "items": {}}
+
+    @staticmethod
+    def _normalize_name(name: str) -> str:
+        if name.startswith("walrus://"):
+            name = name[len("walrus://") :]
+        return name.lstrip("/")
+
+    @staticmethod
+    def _utc_now() -> str:
+        return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    def _entry_from_metadata(
+        self,
+        name: str,
+        metadata: Mapping[str, Any] | WalrusBlobInfo,
+        *,
+        content_type: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        if isinstance(metadata, WalrusBlobInfo):
+            payload = metadata.to_dict()
+        else:
+            payload = dict(metadata)
+
+        entry: Dict[str, Any] = {
+            "name": name,
+            "created_at": payload.get("created_at") or self._utc_now(),
+        }
+        for key in (
+            "blob_id",
+            "object_id",
+            "tx_digest",
+            "end_epoch",
+            "cost",
+            "size",
+            "content_type",
+            "gateway_url",
+        ):
+            value = payload.get(key)
+            if value is not None:
+                entry[key] = value
+        if content_type is not None:
+            entry["content_type"] = content_type
+        return entry
+
+    def _write(self, index: Mapping[str, Any]) -> None:
+        payload = {
+            "schema": index.get("schema") or WALRUS_INDEX_SCHEMA,
+            "items": index.get("items") if isinstance(index.get("items"), Mapping) else {},
+        }
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        temp_name: Optional[str] = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                "w",
+                encoding="utf-8",
+                dir=self.path.parent,
+                prefix=f".{self.path.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as handle:
+                temp_name = handle.name
+                json.dump(payload, handle, indent=2, sort_keys=True)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp_name, self.path)
+        finally:
+            if temp_name and os.path.exists(temp_name):
+                os.unlink(temp_name)
+
+
 class WalrusStorageClient:
     """Small synchronous client for Walrus publisher, aggregator, and delete APIs."""
 
@@ -45,6 +186,7 @@ class WalrusStorageClient:
         timeout: float = 30.0,
         headers: Optional[Mapping[str, str]] = None,
         transport: Optional[httpx.BaseTransport] = None,
+        index_path: Optional[os.PathLike[str] | str] = None,
     ) -> None:
         self.publisher_url = publisher_url or self._env_first(
             "WALRUS_PUBLISHER_URL",
@@ -92,6 +234,7 @@ class WalrusStorageClient:
             timeout=timeout,
             transport=transport,
         )
+        self.index = WalrusMetadataIndex(index_path)
 
     def close(self) -> None:
         self._client.close()
@@ -293,7 +436,26 @@ class WalrusStorageClient:
             "auth_configured": bool(self.client_token),
             "epochs": self.epochs,
             "deletable": self.deletable,
+            "index_path": str(self.index.path),
         }
+
+    def load_index(self) -> Dict[str, Any]:
+        return self.index.load()
+
+    def get_index_entry(self, name: str) -> Optional[Dict[str, Any]]:
+        return self.index.get(name)
+
+    def update_index(
+        self,
+        name: str,
+        metadata: Mapping[str, Any] | WalrusBlobInfo,
+        *,
+        content_type: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        return self.index.update(name, metadata, content_type=content_type)
+
+    def remove_index_entry(self, name: str) -> Optional[Dict[str, Any]]:
+        return self.index.remove(name)
 
     @classmethod
     def normalize_response(cls, payload: Mapping[str, Any]) -> WalrusBlobInfo:
@@ -441,7 +603,9 @@ class WalrusStorageClient:
 
 
 __all__ = [
+    "WALRUS_INDEX_SCHEMA",
     "WalrusBlobInfo",
     "WalrusConfigurationError",
+    "WalrusMetadataIndex",
     "WalrusStorageClient",
 ]
