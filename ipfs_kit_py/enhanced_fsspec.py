@@ -70,10 +70,11 @@ class IPFSFileSystem(AbstractFileSystem):
     """
     
     protocol = ["ipfs", "filecoin", "storacha", "synapse"]
+    default_backend = "ipfs"
     
     def __init__(
         self,
-        backend: str = "ipfs",
+        backend: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
         resources: Optional[Dict[str, Any]] = None,
         **kwargs
@@ -89,7 +90,7 @@ class IPFSFileSystem(AbstractFileSystem):
         """
         super().__init__(**kwargs)
         
-        self.backend = backend
+        self.backend = backend or self.default_backend
         self.metadata = metadata or {}
         self.resources = resources or {}
         
@@ -172,9 +173,17 @@ class IPFSFileSystem(AbstractFileSystem):
             logger.error(f"Failed to initialize Synapse backend: {e}")
             raise
     
+    @classmethod
+    def _protocols(cls) -> List[str]:
+        """Return supported protocols as a list."""
+        protocol = cls.protocol
+        if isinstance(protocol, str):
+            return [protocol]
+        return list(protocol)
+
     def _strip_protocol(self, path: str) -> str:
         """Remove protocol prefix from path."""
-        for protocol in self.protocol:
+        for protocol in self._protocols():
             prefix = f"{protocol}://"
             if path.startswith(prefix):
                 return path[len(prefix):]
@@ -182,7 +191,7 @@ class IPFSFileSystem(AbstractFileSystem):
     
     def _ensure_protocol(self, path: str) -> str:
         """Ensure path has correct protocol prefix."""
-        if not any(path.startswith(f"{p}://") for p in self.protocol):
+        if not any(path.startswith(f"{p}://") for p in self._protocols()):
             return f"{self.backend}://{path}"
         return path
     
@@ -779,18 +788,75 @@ class IPFSFileSystem(AbstractFileSystem):
         return None
 
 
-# Register the filesystem with clobber=True to handle development reloads
+class _BackendFixedFileSystem(IPFSFileSystem):
+    """Base class for protocol-specific fsspec registrations."""
+
+    protocol: str
+    default_backend: str
+
+    def __init__(self, *args, backend: Optional[str] = None, **kwargs):
+        if backend is not None and backend != self.default_backend:
+            raise ValueError(
+                f"{self.__class__.__name__} is registered for the "
+                f"{self.default_backend!r} backend, got {backend!r}"
+            )
+        super().__init__(*args, backend=self.default_backend, **kwargs)
+
+
+class EnhancedIPFSFileSystem(_BackendFixedFileSystem):
+    """IPFS protocol filesystem registration."""
+
+    protocol = "ipfs"
+    default_backend = "ipfs"
+
+
+class FilecoinFileSystem(_BackendFixedFileSystem):
+    """Filecoin protocol filesystem registration."""
+
+    protocol = "filecoin"
+    default_backend = "filecoin"
+
+
+class StorachaFileSystem(_BackendFixedFileSystem):
+    """Storacha protocol filesystem registration."""
+
+    protocol = "storacha"
+    default_backend = "storacha"
+
+
+class SynapseFileSystem(_BackendFixedFileSystem):
+    """Synapse protocol filesystem registration."""
+
+    protocol = "synapse"
+    default_backend = "synapse"
+
+
+_PROTOCOL_IMPLEMENTATIONS = {
+    "ipfs": EnhancedIPFSFileSystem,
+    "filecoin": FilecoinFileSystem,
+    "storacha": StorachaFileSystem,
+    "synapse": SynapseFileSystem,
+}
+
+
+def register_fsspec_implementations(clobber: bool = True) -> None:
+    """Register enhanced fsspec implementations for each storage protocol."""
+    for protocol, filesystem_cls in _PROTOCOL_IMPLEMENTATIONS.items():
+        try:
+            fsspec.register_implementation(protocol, filesystem_cls, clobber=clobber)
+        except TypeError:
+            fsspec.register_implementation(protocol, filesystem_cls)
+
+
+# Register the filesystems with clobber=True to handle development reloads.
 try:
-    fsspec.register_implementation("ipfs", IPFSFileSystem, clobber=True)
-    fsspec.register_implementation("filecoin", IPFSFileSystem, clobber=True)
-    fsspec.register_implementation("storacha", IPFSFileSystem, clobber=True)
-    fsspec.register_implementation("synapse", IPFSFileSystem, clobber=True)
+    register_fsspec_implementations(clobber=True)
 except Exception as e:
     logger.warning(f"Failed to register filesystem protocols: {e}")
-    # Fallback without clobber
-    for protocol in ["ipfs", "filecoin", "storacha", "synapse"]:
-        if protocol not in fsspec.registry.known:
-            fsspec.register_implementation(protocol, IPFSFileSystem)
+    try:
+        register_fsspec_implementations(clobber=False)
+    except Exception as fallback_error:
+        logger.warning(f"Failed fallback filesystem protocol registration: {fallback_error}")
 
 
 # Convenience functions
