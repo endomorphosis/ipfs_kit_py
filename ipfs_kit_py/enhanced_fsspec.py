@@ -8,6 +8,7 @@ including IPFS, Filecoin (via Lotus), Storacha, and Synapse SDK.
 import os
 import io
 import time
+import hashlib
 import logging
 import anyio
 import sniffio
@@ -23,6 +24,63 @@ from fsspec.spec import AbstractFileSystem
 from fsspec.callbacks import DEFAULT_CALLBACK
 
 logger = logging.getLogger(__name__)
+
+
+class _InMemoryStorachaClient:
+    """Small Storacha-compatible client for credential-free fsspec mock mode."""
+
+    mock_mode = True
+    api_url = "mock://storacha"
+    space = "mock-space"
+
+    def __init__(self) -> None:
+        self._objects: Dict[str, Dict[str, Any]] = {}
+
+    def w3_up(self, file_path: str, **kwargs) -> Dict[str, Any]:
+        with open(file_path, "rb") as f:
+            data = f.read()
+        digest = hashlib.sha256(data).hexdigest()
+        cid = f"bafy{digest[:56]}"
+        filename = kwargs.get("filename") or os.path.basename(file_path)
+        self._objects[cid] = {
+            "cid": cid,
+            "name": filename,
+            "filename": filename,
+            "size": len(data),
+            "content": data,
+            "created": time.time(),
+            "mock": True,
+        }
+        return {
+            "success": True,
+            "cid": cid,
+            "filename": filename,
+            "size": len(data),
+            "mock": True,
+        }
+
+    def w3_cat(self, cid: str, **kwargs) -> Dict[str, Any]:
+        if cid not in self._objects:
+            return {"success": False, "cid": cid, "error": "Storacha mock object not found"}
+        obj = self._objects[cid]
+        return {
+            "success": True,
+            "cid": cid,
+            "content": obj["content"],
+            "size": obj["size"],
+            "mock": True,
+        }
+
+    def w3_list(self, **kwargs) -> Dict[str, Any]:
+        uploads = [
+            {key: value for key, value in obj.items() if key != "content"}
+            for obj in self._objects.values()
+        ]
+        return {"success": True, "uploads": uploads, "count": len(uploads), "mock": True}
+
+    def w3_remove(self, cid: str, **kwargs) -> Dict[str, Any]:
+        self._objects.pop(cid, None)
+        return {"success": True, "cid": cid, "removed": True, "mock": True}
 
 
 def _run_async_from_sync(async_fn, *args, **kwargs):
@@ -98,6 +156,8 @@ class IPFSFileSystem(AbstractFileSystem):
         self.metadata = metadata or {}
         self.resources = resources or {}
         self._synapse_path_index: Dict[str, Dict[str, Any]] = {}
+        self._storacha_path_index: Dict[str, Dict[str, Any]] = {}
+        self._storacha_data_index: Dict[str, bytes] = {}
         
         # Initialize backend-specific storage interface
         self._initialize_backend()
@@ -151,11 +211,25 @@ class IPFSFileSystem(AbstractFileSystem):
     def _initialize_storacha_backend(self):
         """Initialize Storacha backend."""
         try:
+            metadata = dict(self.metadata)
+            api_key = metadata.get("api_key") or os.environ.get("STORACHA_API_KEY")
+            if not api_key and not metadata.get("require_live", False):
+                self.storacha_client = _InMemoryStorachaClient()
+                self.storacha_mock_mode = True
+                logger.info("✓ Storacha backend initialized in mock mode")
+                return
+            metadata.setdefault("skip_dependency_check", True)
+
             from ipfs_kit_py.storacha_kit import storacha_kit
-            
+
             self.storacha_client = storacha_kit(
                 resources=self.resources,
-                metadata=self.metadata
+                metadata=metadata
+            )
+            self.storacha_mock_mode = bool(
+                getattr(self.storacha_client, "mock_mode", False)
+                or metadata.get("force_mock")
+                or metadata.get("mock_mode")
             )
             logger.info("✓ Storacha backend initialized")
             
@@ -258,6 +332,84 @@ class IPFSFileSystem(AbstractFileSystem):
         self._synapse_path_index[alias] = info
         if info.get("commp"):
             self._synapse_path_index[self._normalize_synapse_path(info["commp"])] = info
+        return info
+
+    def _normalize_storacha_path(self, path: str) -> str:
+        """Normalize a Storacha path or CID to the storacha:// namespace."""
+        stripped = self._strip_protocol(str(path)).lstrip("/")
+        return f"storacha://{stripped}"
+
+    def _storacha_identifier(self, path: str) -> str:
+        """Resolve fsspec write aliases to their stored Storacha CID."""
+        normalized = self._normalize_storacha_path(path)
+        indexed = self._storacha_path_index.get(normalized)
+        if indexed and indexed.get("cid"):
+            return indexed["cid"]
+        return self._strip_protocol(str(path)).lstrip("/")
+
+    def _storacha_result_to_info(
+        self,
+        result: Dict[str, Any],
+        *,
+        alias: Optional[str] = None,
+        fallback_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Convert Storacha upload/list dictionaries to fsspec info."""
+        cid = (
+            result.get("cid")
+            or result.get("root")
+            or result.get("root_cid")
+            or self._strip_protocol(fallback_name or "")
+        )
+        canonical = self._normalize_storacha_path(cid) if cid else self._normalize_storacha_path(fallback_name or "")
+        size = (
+            result.get("size")
+            or result.get("size_bytes")
+            or result.get("bytes")
+            or result.get("content_length")
+            or 0
+        )
+        info = {
+            "name": canonical,
+            "type": "file",
+            "size": size,
+            "cid": cid,
+            "exists": result.get("exists", result.get("success", True)),
+            "mock": bool(result.get("mock", getattr(self, "storacha_mock_mode", False))),
+            "backend": "storacha",
+        }
+        filename = result.get("filename") or result.get("name") or result.get("file_name")
+        if filename:
+            info["filename"] = filename
+        content_type = result.get("type") or result.get("content_type")
+        if content_type:
+            info["content_type"] = content_type
+        created = result.get("created") or result.get("created_at") or result.get("updated_at")
+        if created:
+            info["created"] = created
+        if alias and alias != canonical:
+            info["alias"] = alias
+        return info
+
+    def _record_storacha_write(
+        self,
+        requested_path: str,
+        result: Dict[str, Any],
+        data: Optional[bytes] = None,
+    ) -> Dict[str, Any]:
+        """Remember the CID returned for a Storacha path written through this filesystem."""
+        if not result.get("success", False):
+            raise IOError(f"Failed to upload to Storacha: {result.get('error', 'Unknown error')}")
+        alias = self._normalize_storacha_path(requested_path)
+        info = self._storacha_result_to_info(result, alias=alias, fallback_name=requested_path)
+        self._storacha_path_index[alias] = info
+        if info.get("cid"):
+            canonical = self._normalize_storacha_path(info["cid"])
+            self._storacha_path_index[canonical] = info
+            if data is not None:
+                self._storacha_data_index[canonical] = bytes(data)
+        if data is not None:
+            self._storacha_data_index[alias] = bytes(data)
         return info
     
     # Core FSSpec methods
@@ -366,9 +518,41 @@ class IPFSFileSystem(AbstractFileSystem):
     
     def _ls_storacha(self, path: str, detail: bool = True, **kwargs) -> Union[List[Dict[str, Any]], List[str]]:
         """List Storacha storage contents."""
-        # Implement Storacha-specific listing
-        logger.warning("Storacha ls not yet implemented")
-        return []
+        try:
+            items: List[Union[Dict[str, Any], str]] = []
+            seen = set()
+
+            result = self.storacha_client.w3_list(**kwargs)
+            if not result.get("success", False):
+                raise IOError(f"Failed to list Storacha uploads: {result.get('error', 'Unknown error')}")
+
+            for upload in result.get("uploads", result.get("items", [])):
+                info = self._storacha_result_to_info(upload)
+                key = info["name"]
+                seen.add(key)
+                if detail:
+                    info["path"] = key
+                    items.append(info)
+                else:
+                    items.append(key)
+
+            for info in self._storacha_path_index.values():
+                key = info["name"]
+                alias = info.get("alias")
+                if key in seen or alias in seen:
+                    continue
+                seen.add(key)
+                indexed_info = dict(info)
+                if detail:
+                    indexed_info["path"] = indexed_info["name"]
+                    items.append(indexed_info)
+                else:
+                    items.append(indexed_info["name"])
+
+            return items
+        except Exception as e:
+            logger.error(f"Error listing Storacha data: {e}")
+            raise
     
     def cat_file(self, path: str, start: Optional[int] = None, end: Optional[int] = None, **kwargs) -> bytes:
         """Read file contents."""
@@ -409,6 +593,28 @@ class IPFSFileSystem(AbstractFileSystem):
 
     def pipe_file(self, path: str, value: bytes, mode: str = "overwrite", **kwargs) -> None:
         """Write bytes to a backend path."""
+        if self.backend == "storacha":
+            if mode not in {"overwrite", "create"}:
+                raise ValueError(f"Unsupported Storacha pipe_file mode: {mode}")
+            if isinstance(value, str):
+                value = value.encode("utf-8")
+            if not isinstance(value, (bytes, bytearray)):
+                raise TypeError("Storacha pipe_file value must be bytes-like")
+            filename = kwargs.pop("filename", os.path.basename(self._strip_protocol(path)) or "data.bin")
+            with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                tmp.write(bytes(value))
+                tmp_path = tmp.name
+            try:
+                result = self.storacha_client.w3_up(tmp_path, filename=filename, **kwargs)
+                result.setdefault("filename", filename)
+                result.setdefault("size", len(value))
+                self._record_storacha_write(path, result, data=bytes(value))
+            finally:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+            return None
         if self.backend != "synapse":
             return super().pipe_file(path, value, mode=mode, **kwargs)
         if mode not in {"overwrite", "create"}:
@@ -458,9 +664,28 @@ class IPFSFileSystem(AbstractFileSystem):
     
     def _cat_file_storacha(self, path: str, start: Optional[int] = None, end: Optional[int] = None, **kwargs) -> bytes:
         """Read file from Storacha storage."""
-        # Implement Storacha-specific file reading
-        logger.warning("Storacha cat_file not yet implemented")
-        raise NotImplementedError("Storacha cat_file not yet implemented")
+        identifier = self._storacha_identifier(path)
+        normalized = self._normalize_storacha_path(path)
+        canonical = self._normalize_storacha_path(identifier)
+
+        if normalized in self._storacha_data_index:
+            data = self._storacha_data_index[normalized]
+        elif canonical in self._storacha_data_index:
+            data = self._storacha_data_index[canonical]
+        else:
+            result = self.storacha_client.w3_cat(identifier, **kwargs)
+            if not result.get("success", False):
+                raise IOError(f"Failed to read Storacha file: {result.get('error', 'Unknown error')}")
+            data = result.get("content", result.get("data", b""))
+            if isinstance(data, str):
+                data = data.encode("utf-8")
+
+        if start is not None or end is not None:
+            start = start or 0
+            end = end or len(data)
+            data = data[start:end]
+
+        return bytes(data)
     
     def put_file(self, lpath: str, rpath: str, **kwargs) -> None:
         """Upload a local file to storage."""
@@ -517,9 +742,18 @@ class IPFSFileSystem(AbstractFileSystem):
     
     def _put_file_storacha(self, lpath: str, rpath: str, **kwargs) -> None:
         """Upload file to Storacha storage."""
-        # Implement Storacha-specific file upload
-        logger.warning("Storacha put_file not yet implemented")
-        raise NotImplementedError("Storacha put_file not yet implemented")
+        try:
+            with open(lpath, "rb") as f:
+                data = f.read()
+            filename = kwargs.pop("filename", os.path.basename(lpath))
+            result = self.storacha_client.w3_up(lpath, filename=filename, **kwargs)
+            result.setdefault("filename", filename)
+            result.setdefault("size", len(data))
+            self._record_storacha_write(rpath, result, data=data)
+            logger.info(f"File uploaded to Storacha: {result.get('cid', 'unknown CID')}")
+        except Exception as e:
+            logger.error(f"Error uploading to Storacha: {e}")
+            raise
     
     def get_file(self, rpath: str, lpath: str, **kwargs) -> None:
         """Download a file from storage to local path."""
@@ -575,9 +809,13 @@ class IPFSFileSystem(AbstractFileSystem):
     
     def _get_file_storacha(self, rpath: str, lpath: str, **kwargs) -> None:
         """Download file from Storacha storage."""
-        # Implement Storacha-specific file download
-        logger.warning("Storacha get_file not yet implemented")
-        raise NotImplementedError("Storacha get_file not yet implemented")
+        data = self._cat_file_storacha(rpath, **kwargs)
+        directory = os.path.dirname(lpath)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+        with open(lpath, "wb") as f:
+            f.write(data)
+        logger.info(f"File downloaded from Storacha to: {lpath}")
     
     def exists(self, path: str, **kwargs) -> bool:
         """Check if a path exists in storage."""
@@ -633,9 +871,20 @@ class IPFSFileSystem(AbstractFileSystem):
     
     def _exists_storacha(self, path: str, **kwargs) -> bool:
         """Check if path exists in Storacha storage."""
-        # Implement Storacha-specific existence check
-        logger.warning("Storacha exists not yet implemented")
-        return False
+        normalized = self._normalize_storacha_path(path)
+        if normalized in self._storacha_path_index or normalized in self._storacha_data_index:
+            return True
+        identifier = self._storacha_identifier(path)
+        if not identifier:
+            return True
+        try:
+            canonical = self._normalize_storacha_path(identifier)
+            return any(
+                item["name"] == canonical or item.get("alias") == normalized
+                for item in self._ls_storacha("storacha://", detail=True, **kwargs)
+            )
+        except Exception:
+            return False
     
     def info(self, path: str, **kwargs) -> Dict[str, Any]:
         """Get detailed information about a path."""
@@ -706,9 +955,20 @@ class IPFSFileSystem(AbstractFileSystem):
     
     def _info_storacha(self, path: str, **kwargs) -> Dict[str, Any]:
         """Get Storacha storage information."""
-        # Implement Storacha-specific info
-        logger.warning("Storacha info not yet implemented")
-        return {"name": path, "type": "unknown", "size": 0}
+        normalized = self._normalize_storacha_path(path)
+        if normalized in self._storacha_path_index:
+            return dict(self._storacha_path_index[normalized])
+
+        identifier = self._storacha_identifier(path)
+        canonical = self._normalize_storacha_path(identifier)
+        if canonical in self._storacha_path_index:
+            return dict(self._storacha_path_index[canonical])
+
+        for item in self._ls_storacha("storacha://", detail=True, **kwargs):
+            if item["name"] == canonical or item.get("alias") == normalized:
+                return dict(item)
+
+        raise FileNotFoundError(path)
     
     # Backend-specific utility methods
     
@@ -746,7 +1006,13 @@ class IPFSFileSystem(AbstractFileSystem):
         
         elif self.backend == "storacha":
             # Get Storacha client status
-            return {"backend": "storacha", "status": "connected"}  # Placeholder
+            return {
+                "backend": "storacha",
+                "connected": True,
+                "mock_mode": bool(getattr(self, "storacha_mock_mode", False)),
+                "api_url": getattr(self.storacha_client, "api_url", None),
+                "space": getattr(self.storacha_client, "space", None),
+            }
         
         else:
             return {"backend": self.backend, "status": "unknown"}
@@ -769,11 +1035,15 @@ class IPFSFileSystem(AbstractFileSystem):
         cache_options=None,
         **kwargs,
     ):
-        """Open backend files. Synapse currently supports binary reads."""
+        """Open backend files. Synapse and Storacha currently support binary reads."""
         if self.backend == "synapse":
             if mode != "rb":
                 raise NotImplementedError("Synapse fsspec open currently supports only 'rb'")
             return io.BytesIO(self._cat_file_synapse(path, **kwargs))
+        if self.backend == "storacha":
+            if mode != "rb":
+                raise NotImplementedError("Storacha fsspec open currently supports only 'rb'")
+            return io.BytesIO(self._cat_file_storacha(path, **kwargs))
         return super()._open(
             path,
             mode=mode,
@@ -782,6 +1052,22 @@ class IPFSFileSystem(AbstractFileSystem):
             cache_options=cache_options,
             **kwargs,
         )
+
+    def rm_file(self, path: str, **kwargs) -> None:
+        """Remove a single backend file."""
+        if self.backend != "storacha":
+            return super().rm_file(path, **kwargs)
+
+        identifier = self._storacha_identifier(path)
+        result = self.storacha_client.w3_remove(identifier, **kwargs)
+        if not result.get("success", False):
+            raise IOError(f"Failed to delete Storacha file: {result.get('error', 'Unknown error')}")
+
+        normalized = self._normalize_storacha_path(path)
+        canonical = self._normalize_storacha_path(identifier)
+        for key in {normalized, canonical}:
+            self._storacha_path_index.pop(key, None)
+            self._storacha_data_index.pop(key, None)
     
     # Hierarchical Storage Management Methods
     # Import methods from hierarchical_storage_methods.py
