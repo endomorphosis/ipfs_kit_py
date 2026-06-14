@@ -1,5 +1,10 @@
 # Walrus fsspec Integration
 
+For the broader 2026-06-14 package update summary, including the standalone
+`walrus-fsspec` alignment, fsspec backend completion, VFS GraphRAG indexing,
+and public CLI/MCP/dashboard SDK exposure, see
+[recent_changes_2026_06_14.md](recent_changes_2026_06_14.md).
+
 The Walrus fsspec backend exposes Walrus blobs through the standard `fsspec`
 filesystem interface. `ipfs_kit_py` uses the standalone `walrus-fsspec` package
 as the canonical backend while preserving the historical `ipfs_kit_py` import
@@ -14,8 +19,10 @@ unless you pass a custom `index_path`.
 
 Current package metadata installs the Walrus runtime dependencies used by this
 backend during normal package installation: `walrus-fsspec`, `fsspec`, and
-`httpx`. The `walrus` extra remains available for explicit installs and older
-environments:
+`httpx`. The dependency is also listed in the `walrus` extra, the `full` extra,
+`requirements.txt`, the legacy `setup.py` fallback list, and the lazy import
+feature metadata. The `walrus` extra remains available for explicit installs
+and older environments:
 
 ```bash
 pip install "ipfs_kit_py[walrus]"
@@ -61,6 +68,8 @@ packaged `mcp-sdk.js` files.
 The same exposure layer publishes fsspec helpers through `ipfs-kit fsspec`,
 MCP `fsspec_*` tools, and `MCP.FSSpec`; VFS GraphRAG is available through
 `ipfs-kit graphrag`, MCP `vfs_graphrag_*` tools, and `MCP.VFSGraphRAG`.
+The shared `ipfs_kit_py.feature_exposure` adapters keep these wrappers aligned
+across CLI, MCP, dashboard, browser SDK, and TypeScript declaration surfaces.
 
 ## Configuration
 

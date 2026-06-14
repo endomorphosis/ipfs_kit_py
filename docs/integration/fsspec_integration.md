@@ -11,6 +11,11 @@ protocols:
 | `storacha://` | `StorachaFileSystem` | CID |
 | `filecoin://` | `FilecoinFileSystem` / `FilecoinPinFileSystem` | CID / pin request metadata |
 
+For the 2026-06-14 implementation summary covering the completed fsspec backend
+tasks, Walrus delegation to the standalone `walrus-fsspec` package, VFS GraphRAG
+indexing, and public CLI/MCP/dashboard SDK exposure, see
+[recent_changes_2026_06_14.md](recent_changes_2026_06_14.md).
+
 For the detailed capability matrix, credential requirements, mock/live behavior,
 and per-method support, see [fsspec_backends.md](fsspec_backends.md).
 
@@ -22,6 +27,9 @@ and per-method support, see [fsspec_backends.md](fsspec_backends.md).
 - **Unix Socket Support**: Faster local daemon communication on Linux/macOS.
 - **Gateway Fallback**: Optionally use public HTTP gateways if the local daemon is unavailable.
 - **Additional Protocol Backends**: The completed backend work registers and tests `walrus://`, `synapse://`, `storacha://`, and `filecoin://` surfaces alongside `ipfs://`.
+- **Standalone Walrus Delegation**: `ipfs_kit_py.walrus_storage` and
+    `ipfs_kit_py.walrus_fsspec` now wrap the standalone `walrus-fsspec` package
+    while preserving `ipfs_kit_py` defaults and environment aliases.
 - **Lazy Dependency Recovery**: Declared fsspec backend dependencies can be installed automatically at first lazy use unless `IPFS_KIT_AUTO_INSTALL_LAZY_DEPS=0` is set.
 
 Install fsspec support:
@@ -49,6 +57,9 @@ import ipfs_kit_py.enhanced_fsspec
 
 fs = fsspec.filesystem("ipfs")
 ```
+
+Import `ipfs_kit_py.walrus_fsspec` when you need to force-register `walrus://`
+in a development checkout before fsspec entry point discovery has run.
 
 ## Instantiation
 

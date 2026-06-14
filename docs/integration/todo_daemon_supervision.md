@@ -70,6 +70,9 @@ stabilization for Synapse, Storacha, Filecoin pin, and shared fsspec helpers,
 plus VFS GraphRAG schema, index, fsspec hooks, VFS manager lifecycle/search,
 graph/export/CLI surfaces, tests, and documentation.
 
+The user-facing documentation summary for the completed 2026-06-14 work is
+available in [recent_changes_2026_06_14.md](recent_changes_2026_06_14.md).
+
 ## Stop
 
 ```bash

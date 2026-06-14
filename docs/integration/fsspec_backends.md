@@ -1,5 +1,8 @@
 # fsspec Backend Capabilities
 
+For the 2026-06-14 summary of completed backend work and public exposure
+updates, see [recent_changes_2026_06_14.md](recent_changes_2026_06_14.md).
+
 This page documents the enhanced fsspec adapter in
 `ipfs_kit_py.enhanced_fsspec`. It registers `ipfs://`, `synapse://`,
 `storacha://`, and `filecoin://` and exposes protocol-specific filesystem
