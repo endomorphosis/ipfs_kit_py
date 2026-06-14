@@ -1,4 +1,5 @@
 import importlib
+import os
 
 import pytest
 
@@ -191,3 +192,28 @@ def test_optional_ipfs_datasets_imports_raise_clear_dependency_error(monkeypatch
 
     with pytest.raises(VFSGraphRAGDependencyError, match="UnifiedGraphRAGProcessor"):
         VFSGraphRAGAdapters.create(VFSGraphRAGAdapterConfig(use_mocks=False))
+
+
+def test_live_graphrag_marker_is_registered(pytestconfig):
+    markers = pytestconfig.getini("markers")
+
+    assert any(marker.startswith("live_graphrag:") for marker in markers)
+    assert "IPFS_KIT_VFS_GRAPHRAG_LIVE" in next(
+        marker for marker in markers if marker.startswith("live_graphrag:")
+    )
+
+
+@pytest.mark.live_graphrag
+@pytest.mark.skipif(
+    os.environ.get("IPFS_KIT_VFS_GRAPHRAG_LIVE") != "1",
+    reason="set IPFS_KIT_VFS_GRAPHRAG_LIVE=1 to run live VFS GraphRAG adapters",
+)
+def test_live_ipfs_datasets_adapters_are_explicit_opt_in():
+    adapters = create_vfs_graphrag_adapters(VFSGraphRAGAdapterConfig(use_mocks=False))
+
+    assert adapters.processor
+    assert adapters.embeddings
+    assert adapters.chunking
+    assert adapters.vector_store
+    assert adapters.knowledge_graph
+    assert adapters.query_optimizer

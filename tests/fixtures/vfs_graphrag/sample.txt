@@ -1,0 +1,2 @@
+Plain text fixture for deterministic VFS GraphRAG indexing.
+It mentions IPFS, vectors, and local metadata search.
