@@ -6,12 +6,14 @@ including IPFS, Filecoin (via Lotus), Storacha, and Synapse SDK.
 """
 
 import os
+import io
 import time
 import logging
 import anyio
 import sniffio
 import tempfile
 import threading
+from functools import partial
 from typing import Dict, List, Any, Optional, Union, BinaryIO
 from pathlib import Path
 
@@ -31,22 +33,24 @@ def _run_async_from_sync(async_fn, *args, **kwargs):
     - If called while an async library is running in this thread, runs the
       call in a dedicated helper thread.
     """
+    call = partial(async_fn, *args, **kwargs)
+
     try:
-        return anyio.from_thread.run(async_fn, *args, **kwargs)
+        return anyio.from_thread.run(call)
     except RuntimeError:
         pass
 
     try:
         sniffio.current_async_library()
     except sniffio.AsyncLibraryNotFoundError:
-        return anyio.run(async_fn, *args, **kwargs)
+        return anyio.run(call)
 
     result: List[Any] = []
     error: List[BaseException] = []
 
     def _thread_main() -> None:
         try:
-            result.append(anyio.run(async_fn, *args, **kwargs))
+            result.append(anyio.run(call))
         except BaseException as exc:  # noqa: BLE001
             error.append(exc)
 
@@ -93,6 +97,7 @@ class IPFSFileSystem(AbstractFileSystem):
         self.backend = backend or self.default_backend
         self.metadata = metadata or {}
         self.resources = resources or {}
+        self._synapse_path_index: Dict[str, Dict[str, Any]] = {}
         
         # Initialize backend-specific storage interface
         self._initialize_backend()
@@ -194,6 +199,66 @@ class IPFSFileSystem(AbstractFileSystem):
         if not any(path.startswith(f"{p}://") for p in self._protocols()):
             return f"{self.backend}://{path}"
         return path
+
+    def _normalize_synapse_path(self, path: str) -> str:
+        """Normalize a Synapse path or CommP to the synapse:// namespace."""
+        stripped = self._strip_protocol(str(path)).lstrip("/")
+        return f"synapse://{stripped}"
+
+    def _synapse_identifier(self, path: str) -> str:
+        """Resolve fsspec write aliases to their stored Synapse CommP."""
+        normalized = self._normalize_synapse_path(path)
+        indexed = self._synapse_path_index.get(normalized)
+        if indexed and indexed.get("commp"):
+            return indexed["commp"]
+        return self._strip_protocol(str(path)).lstrip("/")
+
+    def _synapse_store_result_to_info(
+        self,
+        result: Dict[str, Any],
+        *,
+        alias: Optional[str] = None,
+        fallback_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Convert Synapse storage/status dictionaries to fsspec info."""
+        commp = result.get("commp") or self._strip_protocol(fallback_name or "")
+        canonical = self._normalize_synapse_path(commp) if commp else self._normalize_synapse_path(fallback_name or "")
+        provider = (
+            result.get("storage_provider")
+            or result.get("provider")
+            or result.get("provider_address")
+            or result.get("current_storage_provider")
+        )
+        info = {
+            "name": canonical,
+            "type": "file",
+            "size": result.get("size", result.get("data_size", 0)) or 0,
+            "commp": commp,
+            "exists": result.get("exists", result.get("success", True)),
+            "provider": provider,
+            "storage_provider": provider,
+            "proof_set_id": result.get("proof_set_id"),
+            "proof_set_last_proven": result.get("proof_set_last_proven"),
+            "proof_set_next_proof_due": result.get("proof_set_next_proof_due"),
+            "in_challenge_window": result.get("in_challenge_window", False),
+        }
+        filename = result.get("filename")
+        if filename:
+            info["filename"] = filename
+        if alias and alias != canonical:
+            info["alias"] = alias
+        return info
+
+    def _record_synapse_write(self, requested_path: str, result: Dict[str, Any]) -> Dict[str, Any]:
+        """Remember the CommP returned for a path written through this filesystem."""
+        if not result.get("success", False):
+            raise IOError(f"Failed to upload to Synapse: {result.get('error', 'Unknown error')}")
+        alias = self._normalize_synapse_path(requested_path)
+        info = self._synapse_store_result_to_info(result, alias=alias, fallback_name=requested_path)
+        self._synapse_path_index[alias] = info
+        if info.get("commp"):
+            self._synapse_path_index[self._normalize_synapse_path(info["commp"])] = info
+        return info
     
     # Core FSSpec methods
     
@@ -222,33 +287,41 @@ class IPFSFileSystem(AbstractFileSystem):
             result = _run_async_from_sync(self.synapse_storage.synapse_list_stored_data, **kwargs)
             
             if not result.get("success", False):
-                logger.error(f"Failed to list Synapse data: {result.get('error', 'Unknown error')}")
-                return []
+                raise IOError(f"Failed to list Synapse data: {result.get('error', 'Unknown error')}")
             
             items = []
             for item in result.get("items", []):
                 commp = item.get("commp", "")
-                filename = item.get("filename", commp[:12] + "...")
-                size = item.get("size", 0)
-                stored_at = item.get("stored_at", "")
+                name = self._normalize_synapse_path(commp)
                 
                 if detail:
-                    items.append({
-                        "name": filename,
-                        "size": size,
-                        "type": "file",
-                        "commp": commp,
-                        "stored_at": stored_at,
-                        "path": f"synapse://{commp}"
-                    })
+                    info = self._synapse_store_result_to_info(item, fallback_name=commp)
+                    info["stored_at"] = item.get("stored_at", "")
+                    info["path"] = name
+                    items.append(info)
                 else:
-                    items.append(filename)
+                    items.append(name)
+
+            known_names = {item["name"] for item in items if detail}
+            known_plain = set(items if not detail else [])
+            for alias, info in self._synapse_path_index.items():
+                if detail:
+                    if info["name"] not in known_names and alias not in known_names:
+                        indexed_info = dict(info)
+                        indexed_info["path"] = indexed_info["name"]
+                        items.append(indexed_info)
+                        known_names.add(indexed_info["name"])
+                        if indexed_info.get("alias"):
+                            known_names.add(indexed_info["alias"])
+                elif info["name"] not in known_plain:
+                    items.append(info["name"])
+                    known_plain.add(info["name"])
             
             return items
             
         except Exception as e:
             logger.error(f"Error listing Synapse data: {e}")
-            return []
+            raise
     
     def _ls_ipfs(self, path: str, detail: bool = True, **kwargs) -> Union[List[Dict[str, Any]], List[str]]:
         """List IPFS directory contents."""
@@ -317,7 +390,7 @@ class IPFSFileSystem(AbstractFileSystem):
     
     def _cat_file_synapse(self, path: str, start: Optional[int] = None, end: Optional[int] = None, **kwargs) -> bytes:
         """Read file from Synapse storage."""
-        commp = self._strip_protocol(path)
+        commp = self._synapse_identifier(path)
         
         try:
             data = _run_async_from_sync(self.synapse_storage.synapse_retrieve_data, commp, **kwargs)
@@ -333,6 +406,25 @@ class IPFSFileSystem(AbstractFileSystem):
         except Exception as e:
             logger.error(f"Error reading Synapse file: {e}")
             raise
+
+    def pipe_file(self, path: str, value: bytes, mode: str = "overwrite", **kwargs) -> None:
+        """Write bytes to a backend path."""
+        if self.backend != "synapse":
+            return super().pipe_file(path, value, mode=mode, **kwargs)
+        if mode not in {"overwrite", "create"}:
+            raise ValueError(f"Unsupported Synapse pipe_file mode: {mode}")
+        if isinstance(value, str):
+            value = value.encode("utf-8")
+        if not isinstance(value, (bytes, bytearray)):
+            raise TypeError("Synapse pipe_file value must be bytes-like")
+        filename = kwargs.pop("filename", os.path.basename(self._strip_protocol(path)) or None)
+        result = _run_async_from_sync(
+            self.synapse_storage.synapse_store_data,
+            bytes(value),
+            filename=filename,
+            **kwargs,
+        )
+        self._record_synapse_write(path, result)
     
     def _cat_file_ipfs(self, path: str, start: Optional[int] = None, end: Optional[int] = None, **kwargs) -> bytes:
         """Read file from IPFS."""
@@ -393,9 +485,7 @@ class IPFSFileSystem(AbstractFileSystem):
         try:
             result = _run_async_from_sync(self.synapse_storage.synapse_store_file, lpath, **kwargs)
             
-            if not result.get("success", False):
-                raise IOError(f"Failed to upload to Synapse: {result.get('error', 'Unknown error')}")
-            
+            self._record_synapse_write(rpath, result)
             logger.info(f"File uploaded to Synapse: {result.get('commp', 'unknown CID')}")
             
         except Exception as e:
@@ -451,7 +541,7 @@ class IPFSFileSystem(AbstractFileSystem):
     
     def _get_file_synapse(self, rpath: str, lpath: str, **kwargs) -> None:
         """Download file from Synapse storage."""
-        commp = self._strip_protocol(rpath)
+        commp = self._synapse_identifier(rpath)
         
         try:
             result = _run_async_from_sync(self.synapse_storage.synapse_retrieve_file, commp, lpath, **kwargs)
@@ -509,7 +599,10 @@ class IPFSFileSystem(AbstractFileSystem):
     
     def _exists_synapse(self, path: str, **kwargs) -> bool:
         """Check if data exists in Synapse storage."""
-        commp = self._strip_protocol(path)
+        normalized = self._normalize_synapse_path(path)
+        if normalized in self._synapse_path_index:
+            return True
+        commp = self._synapse_identifier(path)
         
         try:
             result = _run_async_from_sync(self.synapse_storage.synapse_get_piece_status, commp, **kwargs)
@@ -564,28 +657,23 @@ class IPFSFileSystem(AbstractFileSystem):
     
     def _info_synapse(self, path: str, **kwargs) -> Dict[str, Any]:
         """Get Synapse storage information."""
-        commp = self._strip_protocol(path)
+        normalized = self._normalize_synapse_path(path)
+        if normalized in self._synapse_path_index:
+            return dict(self._synapse_path_index[normalized])
+
+        commp = self._synapse_identifier(path)
         
         try:
             result = _run_async_from_sync(self.synapse_storage.synapse_get_piece_status, commp, **kwargs)
             
             if result.get("success", False):
-                return {
-                    "name": commp,
-                    "type": "file",
-                    "size": result.get("size", 0),
-                    "commp": commp,
-                    "exists": result.get("exists", False),
-                    "proof_set_last_proven": result.get("proof_set_last_proven"),
-                    "proof_set_next_proof_due": result.get("proof_set_next_proof_due"),
-                    "in_challenge_window": result.get("in_challenge_window", False)
-                }
-            else:
-                return {"name": commp, "type": "file", "size": 0, "exists": False}
+                result.setdefault("commp", commp)
+                return self._synapse_store_result_to_info(result, fallback_name=commp)
+            raise IOError(f"Failed to get Synapse info: {result.get('error', 'Unknown error')}")
                 
         except Exception as e:
             logger.error(f"Error getting Synapse info: {e}")
-            return {"name": commp, "type": "file", "size": 0, "exists": False}
+            raise
     
     def _info_ipfs(self, path: str, **kwargs) -> Dict[str, Any]:
         """Get IPFS path information."""
@@ -628,7 +716,16 @@ class IPFSFileSystem(AbstractFileSystem):
         """Get status of the current backend."""
         
         if self.backend == "synapse":
-            return self.synapse_storage.get_status()
+            try:
+                status = self.synapse_storage.get_status()
+            except Exception as e:
+                return {"backend": "synapse", "connected": False, "error": str(e)}
+            status.setdefault("backend", "synapse")
+            status.setdefault(
+                "connected",
+                bool(status.get("synapse_initialized") and status.get("storage_service_created")),
+            )
+            return status
         
         elif self.backend == "ipfs":
             # Get IPFS client status
@@ -662,6 +759,29 @@ class IPFSFileSystem(AbstractFileSystem):
         
         else:
             return {"backend": self.backend, "metadata": self.metadata}
+
+    def _open(
+        self,
+        path: str,
+        mode: str = "rb",
+        block_size=None,
+        autocommit: bool = True,
+        cache_options=None,
+        **kwargs,
+    ):
+        """Open backend files. Synapse currently supports binary reads."""
+        if self.backend == "synapse":
+            if mode != "rb":
+                raise NotImplementedError("Synapse fsspec open currently supports only 'rb'")
+            return io.BytesIO(self._cat_file_synapse(path, **kwargs))
+        return super()._open(
+            path,
+            mode=mode,
+            block_size=block_size,
+            autocommit=autocommit,
+            cache_options=cache_options,
+            **kwargs,
+        )
     
     # Hierarchical Storage Management Methods
     # Import methods from hierarchical_storage_methods.py
