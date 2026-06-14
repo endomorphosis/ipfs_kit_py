@@ -1,6 +1,8 @@
 """Tests for Filecoin pin fsspec upload/status/retrieval behavior."""
 
 import hashlib
+import os
+import sys
 
 import fsspec
 import pytest
@@ -161,3 +163,47 @@ def test_open_write_modes_are_explicitly_unsupported(fs):
 def test_filecoin_pin_fsspec_module_exports_registration():
     assert filecoin_pin_fsspec.FilecoinFileSystem is FilecoinFileSystem
     assert filecoin_pin_fsspec.FilecoinPinFileSystem is FilecoinPinFileSystem
+
+
+def test_filecoin_missing_dependency_falls_back_to_in_memory_mock(monkeypatch):
+    monkeypatch.setitem(
+        sys.modules,
+        "ipfs_kit_py.mcp.storage_manager.backends.filecoin_pin_backend",
+        None,
+    )
+
+    filesystem = FilecoinFileSystem(skip_instance_cache=True)
+
+    status = filesystem.get_backend_status()
+    assert status["mock_mode"] is True
+    assert status["api_endpoint"] == "mock://filecoin-pin"
+    filesystem.pipe_file("filecoin://mock-only.txt", b"dependency-free")
+    assert filesystem.info("filecoin://mock-only.txt")["status"] == "pinned"
+
+
+def test_filecoin_missing_dependency_can_be_required_for_live_mode(monkeypatch):
+    monkeypatch.setitem(
+        sys.modules,
+        "ipfs_kit_py.mcp.storage_manager.backends.filecoin_pin_backend",
+        None,
+    )
+
+    with pytest.raises(ImportError):
+        FilecoinFileSystem(metadata={"require_live": True}, skip_instance_cache=True)
+
+
+@pytest.mark.skipif(
+    not (os.getenv("IPFS_KIT_LIVE_FILECOIN_PIN") and os.getenv("FILECOIN_PIN_API_KEY")),
+    reason="set IPFS_KIT_LIVE_FILECOIN_PIN=1 and FILECOIN_PIN_API_KEY to run live Filecoin pin fsspec smoke tests",
+)
+def test_live_filecoin_pin_status_requires_explicit_env_gate():
+    filesystem = FilecoinFileSystem(
+        metadata={"api_key": os.environ["FILECOIN_PIN_API_KEY"], "require_live": True},
+        skip_instance_cache=True,
+    )
+
+    status = filesystem.get_backend_status()
+
+    assert status["backend"] == "filecoin"
+    assert status["provider"] == "filecoin_pin"
+    assert status["mock_mode"] is False

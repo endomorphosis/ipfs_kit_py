@@ -1,5 +1,8 @@
 """Tests for Storacha fsspec list/read/write/delete behavior."""
 
+import os
+import sys
+
 import fsspec
 import pytest
 
@@ -77,3 +80,31 @@ def test_open_write_modes_are_explicitly_unsupported(fs):
 
 def test_storacha_fsspec_module_exports_registration():
     assert storacha_fsspec.StorachaFileSystem is StorachaFileSystem
+
+
+def test_storacha_missing_dependency_uses_in_memory_mock(monkeypatch):
+    monkeypatch.delenv("STORACHA_API_KEY", raising=False)
+    monkeypatch.setitem(sys.modules, "ipfs_kit_py.storacha_kit", None)
+
+    filesystem = StorachaFileSystem(skip_instance_cache=True)
+
+    assert filesystem.get_backend_status()["mock_mode"] is True
+    filesystem.pipe_file("storacha://mock-only.txt", b"dependency-free")
+    assert filesystem.cat_file("storacha://mock-only.txt") == b"dependency-free"
+
+
+@pytest.mark.skipif(
+    not (os.getenv("IPFS_KIT_LIVE_STORACHA") and os.getenv("STORACHA_API_KEY")),
+    reason="set IPFS_KIT_LIVE_STORACHA=1 and STORACHA_API_KEY to run live Storacha fsspec smoke tests",
+)
+def test_live_storacha_status_requires_explicit_env_gate():
+    filesystem = StorachaFileSystem(
+        metadata={"api_key": os.environ["STORACHA_API_KEY"], "require_live": True},
+        skip_instance_cache=True,
+    )
+
+    status = filesystem.get_backend_status()
+
+    assert status["backend"] == "storacha"
+    assert status["connected"] is True
+    assert status["mock_mode"] is False

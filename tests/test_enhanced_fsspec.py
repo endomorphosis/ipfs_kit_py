@@ -80,3 +80,32 @@ def test_base_filesystem_still_allows_explicit_backend(monkeypatch):
 
     assert type(fs) is enhanced_fsspec.IPFSFileSystem
     assert fs.backend == "synapse"
+
+
+def test_mock_compatibility_matrix_has_expected_backend_metadata(monkeypatch):
+    """Compatibility matrix: protocol classes expose deterministic mock-safe metadata."""
+    monkeypatch.delenv("STORACHA_API_KEY", raising=False)
+    monkeypatch.setitem(
+        sys.modules,
+        "ipfs_kit_py.mcp.storage_manager.backends.filecoin_pin_backend",
+        None,
+    )
+
+    storacha = fsspec.filesystem("storacha", skip_instance_cache=True)
+    filecoin = fsspec.filesystem("filecoin", skip_instance_cache=True)
+
+    assert storacha.get_backend_status() == {
+        "backend": "storacha",
+        "connected": True,
+        "mock_mode": True,
+        "api_url": "mock://storacha",
+        "space": "mock-space",
+    }
+    assert filecoin.get_backend_status() == {
+        "backend": "filecoin",
+        "provider": "filecoin_pin",
+        "connected": True,
+        "mock_mode": True,
+        "retrieval_enabled": False,
+        "api_endpoint": "mock://filecoin-pin",
+    }

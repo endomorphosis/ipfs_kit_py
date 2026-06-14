@@ -187,6 +187,32 @@ def _synapse_fs():
 
 
 @pytest.mark.skipif(SynapseFileSystem is None, reason="enhanced_fsspec SynapseFileSystem not available")
+def test_synapse_missing_dependency_raises_clear_import_error(monkeypatch):
+    monkeypatch.setitem(sys.modules, "ipfs_kit_py.synapse_storage", None)
+
+    with pytest.raises(ImportError):
+        fsspec.filesystem("synapse", skip_instance_cache=True)
+
+
+@pytest.mark.skipif(
+    not os.getenv("IPFS_KIT_LIVE_SYNAPSE"),
+    reason="set IPFS_KIT_LIVE_SYNAPSE=1 to run live Synapse fsspec smoke tests",
+)
+@pytest.mark.skipif(SynapseFileSystem is None, reason="enhanced_fsspec SynapseFileSystem not available")
+def test_live_synapse_status_requires_explicit_env_gate():
+    metadata = {"network": os.getenv("SYNAPSE_NETWORK", "calibration")}
+    if os.getenv("SYNAPSE_PRIVATE_KEY"):
+        metadata["private_key"] = os.environ["SYNAPSE_PRIVATE_KEY"]
+
+    filesystem = SynapseFileSystem(metadata=metadata, skip_instance_cache=True)
+    status = filesystem.get_backend_status()
+
+    assert status["backend"] == "synapse"
+    assert status["network"] == metadata["network"]
+    assert "configuration_valid" in status
+
+
+@pytest.mark.skipif(SynapseFileSystem is None, reason="enhanced_fsspec SynapseFileSystem not available")
 class TestEnhancedSynapseFSSpecBehavior:
     """Direct fsspec behavior expected by fsspec-backends-003."""
 
