@@ -84,6 +84,42 @@ def test_vfs_manager_imports_exported_graphrag_index(tmp_path):
     assert results["results"][0]["record"]["path"] == str(source_file)
 
 
+def test_vfs_manager_indexes_fixture_file_types_with_mock_adapters(tmp_path):
+    fixture_dir = Path(__file__).parent / "fixtures" / "vfs_graphrag"
+    manager = VFSManager(storage_path=tmp_path)
+
+    enabled = manager.enable_graphrag_indexing_sync(index_path=tmp_path / "index", namespace="fixtures")
+    indexed = manager.index_path_sync(
+        fixture_dir,
+        namespace="fixtures",
+        backend="local",
+        tags=["fixture"],
+        recursive=True,
+    )
+    status = manager.get_index_status_sync()
+    records_by_name = {
+        Path(record["path"]).name: record
+        for record in indexed["records"]
+        if record["object_type"] == "file"
+    }
+
+    assert enabled["success"] is True
+    assert enabled["use_mocks"] is True
+    assert indexed["success"] is True
+    assert set(records_by_name) == {
+        "sample.txt",
+        "sample.md",
+        "sample.json",
+        "sample.parquet.metadata.json",
+    }
+    assert records_by_name["sample.txt"]["mime_type"] == "text/plain"
+    assert records_by_name["sample.md"]["mime_type"] == "text/markdown"
+    assert records_by_name["sample.json"]["mime_type"] == "application/json"
+    assert status["index_status"]["graphrag"]["use_mocks"] is True
+    assert status["index_status"]["graphrag"]["stats"]["counts"]["objects"] == len(indexed["records"])
+    assert status["index_status"]["graphrag"]["stats"]["counts"]["chunks"] >= 4
+
+
 def test_vfs_manager_delegates_to_mocked_indexer(tmp_path):
     mock = MockIndexer()
     manager = VFSManager(storage_path=tmp_path)
