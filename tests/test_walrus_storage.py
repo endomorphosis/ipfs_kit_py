@@ -241,6 +241,41 @@ def test_missing_operation_urls_raise_clear_errors():
         client.resolve_delete_url("blob-id")
 
 
+@pytest.mark.parametrize(
+    ("response", "expected"),
+    [
+        (httpx.Response(400, text="plain failure"), "plain failure"),
+        (httpx.Response(400, json={"message": "message failure"}), "message failure"),
+        (httpx.Response(400, json={"error": "error failure"}), "error failure"),
+        (
+            httpx.Response(400, json={"error": {"message": "nested failure"}}),
+            "nested failure",
+        ),
+    ],
+)
+def test_extracts_error_messages_from_walrus_responses(response, expected):
+    assert WalrusStorageClient.extract_error_message(response) == expected
+
+
+def test_http_errors_include_extracted_walrus_message():
+    def handler(request):
+        return httpx.Response(
+            400,
+            json={"error": {"message": "insufficient storage budget"}},
+        )
+
+    client = WalrusStorageClient(
+        publisher_url="https://publisher.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        client.put_blob(b"payload")
+
+    assert exc_info.value.response.status_code == 400
+    assert "insufficient storage budget" in str(exc_info.value)
+
+
 def test_metadata_index_defaults_to_cache_path(monkeypatch, tmp_path):
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
 
