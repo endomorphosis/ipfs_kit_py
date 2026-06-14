@@ -37,7 +37,7 @@ import mimetypes
 import anyio
 from pathlib import Path
 from io import IOBase, BytesIO
-from typing import Any, BinaryIO, Callable, Dict, List, Optional, Tuple, Union, TypeVar, Literal, Iterator, AsyncIterator, TYPE_CHECKING
+from typing import Any, BinaryIO, Callable, Dict, List, Mapping, Optional, Tuple, Union, TypeVar, Literal, Iterator, AsyncIterator, TYPE_CHECKING
 
 import yaml
 
@@ -69,6 +69,89 @@ if TYPE_CHECKING:
 # Internal imports
 # Configure logger first
 logger = logging.getLogger(__name__)
+
+
+_WALRUS_FILESYSTEM_KEYS = (
+    "client",
+    "publisher_url",
+    "aggregator_url",
+    "delete_url",
+    "client_token",
+    "epochs",
+    "deletable",
+    "timeout",
+    "headers",
+    "transport",
+    "index_path",
+    "skip_instance_cache",
+)
+
+
+def _walrus_config_value(
+    config: Optional[Mapping[str, Any]],
+    key: str,
+    default: Any = None,
+) -> Any:
+    if not config:
+        return default
+    walrus_config = config.get("walrus")
+    if isinstance(walrus_config, Mapping) and key in walrus_config:
+        return walrus_config[key]
+    return config.get(key, default)
+
+
+def create_walrus_filesystem(
+    config: Optional[Mapping[str, Any]] = None,
+    *,
+    client: Optional[Any] = None,
+    publisher_url: Optional[str] = None,
+    aggregator_url: Optional[str] = None,
+    delete_url: Optional[str] = None,
+    client_token: Optional[str] = None,
+    epochs: Optional[int] = None,
+    deletable: Optional[bool] = None,
+    timeout: Optional[float] = None,
+    headers: Optional[Mapping[str, str]] = None,
+    transport: Optional[Any] = None,
+    index_path: Optional[Union[os.PathLike[str], str]] = None,
+    **kwargs: Any,
+) -> Any:
+    """Create a Walrus fsspec filesystem from explicit args, kwargs, config, or env."""
+    try:
+        from .walrus_fsspec import WalrusFileSystem
+    except ImportError:
+        from ipfs_kit_py.walrus_fsspec import WalrusFileSystem
+
+    explicit_values = {
+        "client": client,
+        "publisher_url": publisher_url,
+        "aggregator_url": aggregator_url,
+        "delete_url": delete_url,
+        "client_token": client_token,
+        "epochs": epochs,
+        "deletable": deletable,
+        "timeout": timeout,
+        "headers": headers,
+        "transport": transport,
+        "index_path": index_path,
+    }
+
+    fs_kwargs: Dict[str, Any] = {}
+    for key in _WALRUS_FILESYSTEM_KEYS:
+        if key in explicit_values and explicit_values[key] is not None:
+            fs_kwargs[key] = explicit_values[key]
+        elif key in kwargs and kwargs[key] is not None:
+            fs_kwargs[key] = kwargs.pop(key)
+        else:
+            value = _walrus_config_value(config, key)
+            if value is not None:
+                fs_kwargs[key] = value
+
+    for key, value in kwargs.items():
+        if value is not None:
+            fs_kwargs[key] = value
+
+    return WalrusFileSystem(**fs_kwargs)
 
 try:
     # First try relative imports (when used as a package)
@@ -2781,6 +2864,10 @@ MIT
             else:
                 # Re-raise the exception with context to help with debugging
                 raise Exception(f"Failed to initialize IPFSFileSystem: {str(e)}") from e
+
+    def create_walrus_filesystem(self, **kwargs: Any) -> Any:
+        """Create a Walrus fsspec filesystem using this API instance config."""
+        return create_walrus_filesystem(config=self.config, **kwargs)
 
     def enable_filesystem_journaling(
         self, 
