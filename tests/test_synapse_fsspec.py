@@ -12,6 +12,7 @@ import tempfile
 import shutil
 import pytest
 import anyio
+import fsspec
 from unittest.mock import Mock, patch, AsyncMock
 
 # Add project root to path
@@ -20,6 +21,15 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 pytestmark = pytest.mark.anyio
+
+try:
+    from ipfs_kit_py import enhanced_fsspec
+    SynapseFileSystem = enhanced_fsspec.SynapseFileSystem
+    EnhancedIPFSFileSystem = enhanced_fsspec.IPFSFileSystem
+except ImportError:
+    enhanced_fsspec = None
+    SynapseFileSystem = None
+    EnhancedIPFSFileSystem = None
 
 try:
     from ipfs_kit_py.ipfs_fsspec import IPFSFileSystem
@@ -41,19 +51,43 @@ except ImportError as e:
 
 class MockSynapseStorage:
     """Mock Synapse storage for FSSpec testing."""
+
+    stored_data = {}
+    stored_meta = {}
     
     def __init__(self, **kwargs):
         self.metadata = kwargs.get('metadata', {})
         self.storage_service_created = True
         self.synapse_initialized = True
+
+    @classmethod
+    def reset(cls):
+        cls.stored_data = {}
+        cls.stored_meta = {}
+
+    @staticmethod
+    def _commp_for_name(name):
+        safe = "".join(ch.lower() if ch.isalnum() else "-" for ch in name).strip("-")
+        return f"baga6ea4seaqmock{safe or 'data'}"
     
     async def synapse_store_data(self, data, **kwargs):
         """Mock store data operation."""
+        if isinstance(data, str):
+            data = data.encode("utf-8")
+        filename = kwargs.get("filename", "unknown")
+        commp = self._commp_for_name(filename)
+        self.stored_data[commp] = bytes(data)
+        self.stored_meta[commp] = {
+            "filename": filename,
+            "size": len(data),
+            "proof_set_id": 42,
+            "storage_provider": "0x1234567890abcdef",
+        }
         return {
             "success": True,
-            "commp": "baga6ea4seaqao7s73y24kcutaosvacpdjgfe5pw76ooefnyqw4ynr3d2y6x2mpq",
+            "commp": commp,
             "size": len(data),
-            "filename": kwargs.get("filename", "unknown"),
+            "filename": filename,
             "proof_set_id": 42,
             "storage_provider": "0x1234567890abcdef"
         }
@@ -66,6 +100,8 @@ class MockSynapseStorage:
             "baga6ea4seaqao7s73y24kcutaosvacpdjgfe5pw76ooefnyqw4ynr3d2y6x2test": b"Another test file content",
             "baga6ea4seaqao7s73y24kcutaosvacpdjgfe5pw76ooefnyqw4ynr3d2y6x2dir": b"Directory listing test"
         }
+        if commp in self.stored_data:
+            return self.stored_data[commp]
         return test_data_map.get(commp, b"Default test data")
     
     async def synapse_store_file(self, file_path, **kwargs):
@@ -73,16 +109,9 @@ class MockSynapseStorage:
         with open(file_path, 'rb') as f:
             data = f.read()
         
-        filename = os.path.basename(file_path)
-        return {
-            "success": True,
-            "commp": f"baga6ea4seaqao7s73y24kcutaosvacpdjgfe5pw76ooefnyqw4ynr3d2y6x2{hash(filename) % 1000:03d}",
-            "size": len(data),
-            "file_path": file_path,
-            "filename": filename,
-            "proof_set_id": 42,
-            "storage_provider": "0x1234567890abcdef"
-        }
+        result = await self.synapse_store_data(data, filename=os.path.basename(file_path), **kwargs)
+        result["file_path"] = file_path
+        return result
     
     async def synapse_retrieve_file(self, commp, output_path, **kwargs):
         """Mock retrieve file operation."""
@@ -127,10 +156,12 @@ class MockSynapseStorage:
         return {
             "success": True,
             "exists": True,
+            "size": self.stored_meta.get(commp, {}).get("size", 19),
             "proof_set_last_proven": 1704067200,  # 2024-01-01 00:00:00
             "proof_set_next_proof_due": 1704070800,  # 2024-01-01 01:00:00
             "in_challenge_window": False,
-            "commp": commp
+            "commp": commp,
+            "storage_provider": self.stored_meta.get(commp, {}).get("storage_provider", "0x1234567890abcdef"),
         }
     
     def get_status(self):
@@ -141,6 +172,98 @@ class MockSynapseStorage:
             "network": self.metadata.get("network", "calibration"),
             "configuration_valid": True
         }
+
+
+@pytest.fixture(autouse=True)
+def reset_mock_synapse_storage():
+    MockSynapseStorage.reset()
+    yield
+    MockSynapseStorage.reset()
+
+
+def _synapse_fs():
+    with patch('ipfs_kit_py.synapse_storage.synapse_storage', MockSynapseStorage):
+        return SynapseFileSystem(skip_instance_cache=True)
+
+
+@pytest.mark.skipif(SynapseFileSystem is None, reason="enhanced_fsspec SynapseFileSystem not available")
+class TestEnhancedSynapseFSSpecBehavior:
+    """Direct fsspec behavior expected by fsspec-backends-003."""
+
+    def test_synapse_protocol_registration_uses_synapse_backend(self):
+        with patch('ipfs_kit_py.synapse_storage.synapse_storage', MockSynapseStorage):
+            fs = fsspec.filesystem("synapse", skip_instance_cache=True)
+
+        assert isinstance(fs, SynapseFileSystem)
+        assert fs.backend == "synapse"
+        assert hasattr(fs, "synapse_storage")
+
+    def test_ls_returns_canonical_synapse_paths_and_metadata(self):
+        fs = _synapse_fs()
+
+        listing = fs.ls("synapse://", detail=True)
+        names = fs.ls("synapse://", detail=False)
+
+        assert listing[0]["name"].startswith("synapse://")
+        assert listing[0]["path"] == listing[0]["name"]
+        assert listing[0]["type"] == "file"
+        assert listing[0]["size"] == 19
+        assert listing[0]["commp"].endswith("mpq")
+        assert names == [item["name"] for item in listing]
+
+    def test_cat_file_info_exists_and_open_rb_by_commp(self):
+        fs = _synapse_fs()
+        path = "synapse://baga6ea4seaqao7s73y24kcutaosvacpdjgfe5pw76ooefnyqw4ynr3d2y6x2mpq"
+
+        assert fs.exists(path) is True
+        assert fs.cat_file(path) == b"Hello, FSSpec test!"
+        assert fs.cat_file(path, start=7, end=13) == b"FSSpec"
+
+        info = fs.info(path)
+        assert info["name"] == path
+        assert info["type"] == "file"
+        assert info["size"] == 19
+        assert info["commp"] == path.removeprefix("synapse://")
+        assert info["provider"] == "0x1234567890abcdef"
+        assert info["proof_set_last_proven"] == 1704067200
+
+        with fs.open(path, "rb") as handle:
+            assert handle.read() == b"Hello, FSSpec test!"
+
+    def test_pipe_file_writes_bytes_and_records_alias(self):
+        fs = _synapse_fs()
+
+        fs.pipe_file("synapse://pipe-test.bin", b"pipe payload")
+
+        assert fs.exists("synapse://pipe-test.bin") is True
+        assert fs.cat_file("synapse://pipe-test.bin") == b"pipe payload"
+        info = fs.info("synapse://pipe-test.bin")
+        assert info["name"] == "synapse://baga6ea4seaqmockpipe-test-bin"
+        assert info["alias"] == "synapse://pipe-test.bin"
+        assert info["size"] == len(b"pipe payload")
+        assert info["storage_provider"] == "0x1234567890abcdef"
+
+    def test_put_file_and_get_file_round_trip_through_synapse_alias(self, tmp_path):
+        fs = _synapse_fs()
+        source = tmp_path / "upload.txt"
+        target = tmp_path / "download.txt"
+        source.write_bytes(b"uploaded through put_file")
+
+        fs.put_file(str(source), "synapse://uploads/upload.txt")
+        fs.get_file("synapse://uploads/upload.txt", str(target))
+
+        assert target.read_bytes() == b"uploaded through put_file"
+        assert fs.info("synapse://uploads/upload.txt")["filename"] == "upload.txt"
+
+    def test_backend_status_is_normalized(self):
+        fs = _synapse_fs()
+
+        status = fs.get_backend_status()
+
+        assert status["backend"] == "synapse"
+        assert status["connected"] is True
+        assert status["network"] == "calibration"
+        assert status["configuration_valid"] is True
 
 
 class TestFSSpecSynapseIntegration:
