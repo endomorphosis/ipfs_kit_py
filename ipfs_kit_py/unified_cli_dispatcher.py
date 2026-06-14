@@ -99,12 +99,61 @@ class UnifiedCLIDispatcher:
         ls.add_argument("--path", default="/", help="Path within bucket")
     
     def _add_vfs_commands(self, subparsers):
-        """Add VFS versioning commands."""
+        """Add VFS versioning and GraphRAG indexing commands."""
         vfs = subparsers.add_parser(
             "vfs",
-            help="Manage VFS versioning and snapshots"
+            help="Manage VFS versioning, snapshots, and GraphRAG indexes"
         )
         vfs_sub = vfs.add_subparsers(dest="vfs_action")
+
+        common_index = argparse.ArgumentParser(add_help=False)
+        common_index.add_argument("--index-root", required=True, help="VFS GraphRAG index root directory")
+        common_index.add_argument("--namespace", default="default", help="VFS namespace")
+        common_index.add_argument("--storage-format", default="jsonl", choices=["jsonl", "parquet", "auto"])
+
+        index = vfs_sub.add_parser("index", parents=[common_index], help="Index VFS GraphRAG records")
+        index.add_argument("--records", help="JSON or JSONL file containing canonical VFS GraphRAG records")
+        index.add_argument("--path", help="VFS path to index as an object record")
+        index.add_argument("--content-id", help="Content identifier for --path")
+        index.add_argument("--content-hash", help="Content hash for --path")
+        index.add_argument("--backend", default="ipfs", help="Storage backend for --path")
+        index.add_argument("--protocol", help="Storage protocol for --path")
+        index.add_argument("--mime-type", default="application/octet-stream")
+        index.add_argument("--size-bytes", type=int, default=0)
+        index.add_argument("--object-type", default="file")
+        index.add_argument("--tag", dest="tags", action="append", default=[])
+        index.add_argument("--metadata-json", default="{}", help="JSON object metadata for --path")
+
+        search = vfs_sub.add_parser("search", parents=[common_index], help="Search a VFS GraphRAG index")
+        search.add_argument("query", nargs="?", default="")
+        search.add_argument("--type", dest="search_type", default="hybrid", choices=["metadata", "vector", "hybrid", "graph"])
+        search.add_argument("--top-k", type=int, default=10)
+        search.add_argument("--filters-json", default="{}", help="JSON metadata filter object")
+        search.add_argument("--query-vector", help="JSON array or comma-separated numeric vector")
+        search.add_argument("--namespace-filter", dest="namespaces", action="append", default=[])
+        search.add_argument("--backend-filter", dest="backends", action="append", default=[])
+        search.add_argument("--protocol-filter", dest="protocols", action="append", default=[])
+        search.add_argument("--facet", dest="facet_fields", action="append", default=[])
+        search.add_argument("--hop-limit", type=int)
+        search.add_argument("--entity-type", dest="entity_types", action="append", default=[])
+
+        vfs_sub.add_parser("graphrag-status", parents=[common_index], help="Show VFS GraphRAG index status")
+
+        export = vfs_sub.add_parser("export-index", parents=[common_index], help="Export a VFS GraphRAG bundle")
+        export.add_argument("--output", required=True, help="Output bundle directory")
+        export.add_argument("--filesystem-map-json", help="Optional filesystem map JSON object")
+        export.add_argument("--journal-jsonl", help="Optional journal slice JSONL file")
+        export.add_argument("--no-filesystem", action="store_true", help="Omit filesystem map artifact")
+        export.add_argument("--no-journal", action="store_true", help="Omit journal artifact")
+
+        import_cmd = vfs_sub.add_parser("import-index", parents=[common_index], help="Import a VFS GraphRAG bundle")
+        import_cmd.add_argument("--input", required=True, help="Input bundle directory or manifest path")
+        import_cmd.add_argument(
+            "--mode",
+            default="metadata-plus-indexes",
+            choices=["metadata-only", "metadata-plus-indexes", "full-snapshot"],
+        )
+        import_cmd.add_argument("--skip-checksums", action="store_true", help="Skip bundle checksum verification")
         
         # Create snapshot
         snapshot = vfs_sub.add_parser("snapshot", help="Create VFS snapshot")
@@ -382,6 +431,9 @@ class UnifiedCLIDispatcher:
                 from ipfs_kit_py import bucket_vfs_cli
                 return await bucket_vfs_cli.handle_cli_command(args)
             elif command == "vfs":
+                if action in {"index", "search", "graphrag-status", "export-index", "import-index"}:
+                    from ipfs_kit_py.cli import handle_vfs_graphrag_command
+                    return await handle_vfs_graphrag_command(args)
                 from ipfs_kit_py import vfs_version_cli
                 return await vfs_version_cli.handle_cli_command(args)
             elif command == "wal":
