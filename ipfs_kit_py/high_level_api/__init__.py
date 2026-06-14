@@ -10,6 +10,15 @@ import importlib.util
 logger = logging.getLogger(__name__)
 
 HAVE_LIBP2P = False
+try:
+    from ..ipfs_fsspec import IPFSFileSystem as IPFSFileSystem
+
+    HAVE_FSSPEC = True
+except Exception:
+    IPFSFileSystem = None
+    HAVE_FSSPEC = False
+
+_DEFAULT_IPFS_FILESYSTEM = IPFSFileSystem
 _IPFS_SIMPLE_API_IMPL = None
 _IPFS_SIMPLE_API_LOAD_ATTEMPTED = False
 _IPFS_SIMPLE_API_LOAD_ERROR = None
@@ -49,14 +58,51 @@ class IPFSSimpleAPI:
 
     def __new__(cls, *args, **kwargs):
         if cls is IPFSSimpleAPI:
+            if not HAVE_FSSPEC or IPFSFileSystem is not _DEFAULT_IPFS_FILESYSTEM:
+                return super().__new__(cls)
             impl = _try_load_ipfs_simple_api()
             if impl is not None and impl is not cls:
                 return impl(*args, **kwargs)
         return super().__new__(cls)
 
     def __init__(self, *args, **kwargs):
-        logger.warning("Using stub implementation of IPFSSimpleAPI")
+        self.config = kwargs.get("config", {})
+        self._filesystem = None
         self.available = False
+
+    def get_filesystem(self, **kwargs):
+        if not HAVE_FSSPEC or IPFSFileSystem is None:
+            return None
+
+        fs_kwargs = {}
+        if "role" in kwargs:
+            fs_kwargs["role"] = kwargs["role"]
+        else:
+            fs_kwargs["role"] = self.config.get("role", "leecher")
+
+        if "ipfs_path" in kwargs:
+            fs_kwargs["ipfs_path"] = kwargs["ipfs_path"]
+        elif "ipfs_path" in self.config:
+            fs_kwargs["ipfs_path"] = self.config["ipfs_path"]
+
+        if "socket_path" in kwargs:
+            fs_kwargs["socket_path"] = kwargs["socket_path"]
+        elif "socket_path" in self.config:
+            fs_kwargs["socket_path"] = self.config["socket_path"]
+
+        if "cache_config" in kwargs:
+            fs_kwargs["cache_config"] = kwargs["cache_config"]
+        elif "cache" in self.config:
+            fs_kwargs["cache_config"] = self.config["cache"]
+
+        fs_kwargs["use_mmap"] = kwargs.get("use_mmap", True)
+        fs_kwargs["enable_metrics"] = kwargs.get("enable_metrics", True)
+
+        try:
+            self._filesystem = IPFSFileSystem(**fs_kwargs)
+            return self._filesystem
+        except Exception:
+            return None
 
     def __getattr__(self, name):
         def dummy_method(*args, **kwargs):
