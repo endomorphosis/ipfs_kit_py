@@ -10,8 +10,11 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import hashlib
+import importlib
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Type, TypeVar, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Type, TypeVar, Union
 
 from .vfs_graphrag_schema import (
     CHECKPOINT_SCHEMA,
@@ -32,6 +35,7 @@ from .vfs_graphrag_schema import (
     VFSObjectRecord,
     VFSRelationshipRecord,
     VFSSnapshotRecord,
+    stable_id,
     record_from_dict,
     record_from_json,
 )
@@ -39,6 +43,7 @@ from .vfs_graphrag_schema import (
 
 RecordInput = Union[SerializableRecord, Mapping[str, Any]]
 T = TypeVar("T", bound=SerializableRecord)
+SymbolCandidate = Tuple[str, str]
 
 _JSON_FIELDS = {
     "aliases",
@@ -539,4 +544,586 @@ class VFSGraphRAGIndex:
         return inflated
 
 
-__all__ = ["VFSGraphRAGIndex"]
+class VFSGraphRAGDependencyError(ImportError):
+    """Raised when an optional ipfs_datasets_py GraphRAG component is requested."""
+
+
+@dataclass
+class VFSGraphRAGAdapterConfig:
+    """Configuration for dependency-gated ipfs_datasets_py adapter creation."""
+
+    namespace: str = DEFAULT_NAMESPACE
+    use_mocks: bool = True
+    vector_store_type: str = "faiss"
+    embedding_model_id: str = "mock-embedding"
+    chunk_size: int = 1000
+    chunk_overlap: int = 0
+    component_kwargs: Dict[str, Mapping[str, Any]] = field(default_factory=dict)
+
+
+def _import_optional_symbol(
+    candidates: Sequence[SymbolCandidate],
+    dependency_name: str,
+) -> Any:
+    errors: List[str] = []
+    for module_name, symbol_name in candidates:
+        try:
+            module = importlib.import_module(module_name)
+            return getattr(module, symbol_name)
+        except Exception as exc:
+            errors.append(f"{module_name}.{symbol_name}: {exc}")
+    tried = ", ".join(f"{module}.{symbol}" for module, symbol in candidates)
+    raise VFSGraphRAGDependencyError(
+        f"{dependency_name} requires optional ipfs_datasets_py support. "
+        f"Could not import any of: {tried}. Import errors: {'; '.join(errors)}"
+    )
+
+
+def _instantiate_optional(
+    candidates: Sequence[SymbolCandidate],
+    dependency_name: str,
+    kwargs: Optional[Mapping[str, Any]] = None,
+) -> Any:
+    component = _import_optional_symbol(candidates, dependency_name)
+    try:
+        return component(**dict(kwargs or {}))
+    except TypeError:
+        if kwargs:
+            raise
+        return component()
+
+
+def _get_value(item: Any, *names: str, default: Any = None) -> Any:
+    if isinstance(item, Mapping):
+        for name in names:
+            if name in item:
+                return item[name]
+        return default
+    for name in names:
+        if hasattr(item, name):
+            return getattr(item, name)
+    return default
+
+
+def _call_first(component: Any, method_names: Sequence[str], *args: Any, **kwargs: Any) -> Any:
+    for name in method_names:
+        method = getattr(component, name, None)
+        if callable(method):
+            return method(*args, **kwargs)
+    raise AttributeError(f"{type(component).__name__} does not expose any of: {', '.join(method_names)}")
+
+
+def _as_list(value: Any) -> List[Any]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return [value]
+
+
+def _vector_checksum(vector: Any) -> Optional[str]:
+    if vector is None:
+        return None
+    payload = json.dumps(vector, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+class MockUnifiedGraphRAGProcessor:
+    """Small deterministic processor for tests and dependency-free operation."""
+
+    def process(self, query: str, **kwargs: Any) -> Dict[str, Any]:
+        return {
+            "answer": query,
+            "results": [],
+            "metadata": {"mock": True, **kwargs},
+        }
+
+
+class MockEmbeddingProvider:
+    """Deterministic embedding provider used by default tests."""
+
+    def __init__(self, dimension: int = 3) -> None:
+        self.dimension = dimension
+
+    def embed(self, texts: Sequence[str], **_: Any) -> List[List[float]]:
+        vectors: List[List[float]] = []
+        for text in texts:
+            digest = hashlib.sha256(text.encode("utf-8")).digest()
+            vectors.append([digest[i] / 255.0 for i in range(self.dimension)])
+        return vectors
+
+
+class MockChunker:
+    """Fixed-size text chunker with optional character overlap."""
+
+    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 0) -> None:
+        self.chunk_size = max(1, int(chunk_size))
+        self.chunk_overlap = max(0, int(chunk_overlap))
+
+    def chunk(self, text: str, **_: Any) -> List[Dict[str, Any]]:
+        if not text:
+            return []
+        step = max(1, self.chunk_size - min(self.chunk_overlap, self.chunk_size - 1))
+        chunks = []
+        for index, start in enumerate(range(0, len(text), step)):
+            end = min(len(text), start + self.chunk_size)
+            chunks.append({"text": text[start:end], "chunk_index": index, "text_start": start, "text_end": end})
+            if end == len(text):
+                break
+        return chunks
+
+
+class MockVectorStore:
+    """In-memory vector store compatible with the adapter call surface."""
+
+    def __init__(self) -> None:
+        self.vectors: Dict[str, Any] = {}
+
+    def add(self, vectors: Sequence[Any], ids: Optional[Sequence[str]] = None, **_: Any) -> List[str]:
+        stored_ids = list(ids or [stable_id("mockvec", index, vector) for index, vector in enumerate(vectors)])
+        for vector_id, vector in zip(stored_ids, vectors):
+            self.vectors[vector_id] = vector
+        return stored_ids
+
+    def search(self, query_vector: Any, top_k: int = 10, **_: Any) -> List[Dict[str, Any]]:
+        return [
+            {"id": vector_id, "score": 1.0 if vector == query_vector else 0.0}
+            for vector_id, vector in list(self.vectors.items())[:top_k]
+        ]
+
+
+class MockKnowledgeGraphExtractor:
+    """Simple extractor that treats capitalized words as entities."""
+
+    def extract(self, text: str, **_: Any) -> Dict[str, Any]:
+        entities = []
+        seen = set()
+        for token in text.replace(".", " ").replace(",", " ").split():
+            name = token.strip()
+            if name[:1].isupper() and name not in seen:
+                seen.add(name)
+                entities.append({"name": name, "entity_type": "term", "confidence": 1.0})
+        relationships = []
+        for left, right in zip(entities, entities[1:]):
+            relationships.append(
+                {"subject": left["name"], "predicate": "near", "object": right["name"], "confidence": 1.0}
+            )
+        return {"entities": entities, "relationships": relationships}
+
+
+class MockQueryOptimizer:
+    """Dependency-free query optimizer used by tests."""
+
+    def optimize(self, query: str, **_: Any) -> Dict[str, Any]:
+        return {"query": query.strip(), "optimized_query": query.strip(), "strategy": "mock"}
+
+
+class VFSGraphRAGProcessorAdapter:
+    """Adapter for UnifiedGraphRAGProcessor-compatible components."""
+
+    def __init__(self, processor: Any) -> None:
+        self.processor = processor
+
+    @classmethod
+    def from_ipfs_datasets(cls, **kwargs: Any) -> "VFSGraphRAGProcessorAdapter":
+        processor = _instantiate_optional(
+            [
+                ("ipfs_datasets_py.graphrag_processor", "UnifiedGraphRAGProcessor"),
+                ("ipfs_datasets_py.unified_graphrag", "UnifiedGraphRAGProcessor"),
+                ("ipfs_datasets_py", "UnifiedGraphRAGProcessor"),
+            ],
+            "UnifiedGraphRAGProcessor",
+            kwargs,
+        )
+        return cls(processor)
+
+    def query(self, query: str, **kwargs: Any) -> Dict[str, Any]:
+        result = _call_first(self.processor, ("process", "query", "search", "run"), query, **kwargs)
+        return self.normalize_result(result)
+
+    def normalize_result(self, result: Any) -> Dict[str, Any]:
+        answer = _get_value(result, "answer", "response", "text", default=None)
+        raw_results = _as_list(_get_value(result, "results", "documents", "chunks", default=[]))
+        return {
+            "answer": answer,
+            "results": [self._normalize_hit(hit) for hit in raw_results],
+            "metadata": dict(_get_value(result, "metadata", default={}) or {}),
+        }
+
+    def _normalize_hit(self, hit: Any) -> Dict[str, Any]:
+        return {
+            "record_id": _get_value(hit, "record_id", "parent_record_id"),
+            "chunk_id": _get_value(hit, "chunk_id", "id"),
+            "text": _get_value(hit, "text", "content"),
+            "score": _get_value(hit, "score", "similarity", default=None),
+            "metadata": dict(_get_value(hit, "metadata", default={}) or {}),
+        }
+
+
+class VFSChunkingAdapter:
+    """Adapter that normalizes backend chunker output into VFSChunkRecord."""
+
+    def __init__(self, chunker: Any, *, namespace: str = DEFAULT_NAMESPACE) -> None:
+        self.chunker = chunker
+        self.namespace = namespace
+
+    @classmethod
+    def from_ipfs_datasets(cls, *, namespace: str = DEFAULT_NAMESPACE, **kwargs: Any) -> "VFSChunkingAdapter":
+        chunker = _instantiate_optional(
+            [
+                ("ipfs_datasets_py.unixfs_integration", "FixedSizeChunker"),
+                ("ipfs_datasets_py.chunking", "Chunker"),
+                ("ipfs_datasets_py", "FixedSizeChunker"),
+            ],
+            "chunking",
+            kwargs,
+        )
+        return cls(chunker, namespace=namespace)
+
+    def chunk_text(
+        self,
+        text: str,
+        *,
+        parent_record_id: str,
+        path: str = "",
+        content_id: Optional[str] = None,
+        **kwargs: Any,
+    ) -> List[VFSChunkRecord]:
+        raw_chunks = _call_first(self.chunker, ("chunk", "chunk_text", "split_text", "split"), text, **kwargs)
+        return [
+            self._normalize_chunk(
+                chunk,
+                index=index,
+                parent_record_id=parent_record_id,
+                path=path,
+                content_id=content_id,
+            )
+            for index, chunk in enumerate(_as_list(raw_chunks))
+        ]
+
+    def _normalize_chunk(
+        self,
+        chunk: Any,
+        *,
+        index: int,
+        parent_record_id: str,
+        path: str,
+        content_id: Optional[str],
+    ) -> VFSChunkRecord:
+        text = chunk if isinstance(chunk, str) else _get_value(chunk, "text", "content", default="")
+        return VFSChunkRecord(
+            parent_record_id=parent_record_id,
+            namespace=self.namespace,
+            path=path,
+            content_id=content_id,
+            chunk_index=int(_get_value(chunk, "chunk_index", "index", default=index)),
+            byte_start=_get_value(chunk, "byte_start", "start_byte"),
+            byte_end=_get_value(chunk, "byte_end", "end_byte"),
+            text_start=_get_value(chunk, "text_start", "start"),
+            text_end=_get_value(chunk, "text_end", "end"),
+            text=str(text),
+            extraction_method=str(_get_value(chunk, "extraction_method", "method", default="ipfs_datasets_py")),
+            language=_get_value(chunk, "language", "lang"),
+            metadata=dict(_get_value(chunk, "metadata", default={}) or {}),
+        )
+
+
+class VFSEmbeddingAdapter:
+    """Adapter that calls embedding providers and emits embedding metadata records."""
+
+    def __init__(self, provider: Any, *, model_id: str = "unknown", vector_store_id: Optional[str] = None) -> None:
+        self.provider = provider
+        self.model_id = model_id
+        self.vector_store_id = vector_store_id
+
+    @classmethod
+    def from_ipfs_datasets(cls, *, model_id: str = "unknown", **kwargs: Any) -> "VFSEmbeddingAdapter":
+        provider = _instantiate_optional(
+            [
+                ("ipfs_datasets_py.ipfs_embeddings_py", "IPFSEmbeddings"),
+                ("ipfs_datasets_py.ipfs_embeddings_py", "MultiModelEmbeddingGenerator"),
+                ("ipfs_datasets_py.embeddings", "IPFSEmbeddings"),
+            ],
+            "embeddings",
+            kwargs,
+        )
+        return cls(provider, model_id=model_id)
+
+    def embed_chunks(
+        self,
+        chunks: Sequence[VFSChunkRecord],
+        *,
+        parent_record_id: Optional[str] = None,
+        vector_store_id: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Tuple[List[VFSEmbeddingRecord], List[Any]]:
+        texts = [chunk.text or "" for chunk in chunks]
+        raw_embeddings = _call_first(
+            self.provider,
+            ("embed", "embed_documents", "generate_embeddings", "encode"),
+            texts,
+            **kwargs,
+        )
+        vectors = _as_list(_get_value(raw_embeddings, "embeddings", "vectors", default=raw_embeddings))
+        records: List[VFSEmbeddingRecord] = []
+        for chunk, vector in zip(chunks, vectors):
+            dimension = len(vector) if hasattr(vector, "__len__") else int(_get_value(vector, "dimension", default=0))
+            records.append(
+                VFSEmbeddingRecord(
+                    chunk_id=chunk.chunk_id,
+                    parent_record_id=parent_record_id or chunk.parent_record_id,
+                    model_id=self.model_id,
+                    dimension=dimension,
+                    vector_store_id=vector_store_id or self.vector_store_id,
+                    embedding_checksum=_vector_checksum(vector),
+                    metadata={"source": "ipfs_datasets_py"},
+                )
+            )
+        return records, vectors
+
+
+class VFSVectorStoreAdapter:
+    """Adapter for optional FAISS, Qdrant, Elasticsearch, or custom vector stores."""
+
+    _VECTOR_STORE_CANDIDATES: Dict[str, Sequence[SymbolCandidate]] = {
+        "faiss": [
+            ("ipfs_datasets_py.vector_stores", "FAISSVectorStore"),
+            ("ipfs_datasets_py.ipfs_knn_index", "IPFSKnnIndex"),
+        ],
+        "qdrant": [("ipfs_datasets_py.vector_stores", "QdrantVectorStore")],
+        "elasticsearch": [("ipfs_datasets_py.vector_stores", "ElasticsearchVectorStore")],
+        "ipld": [("ipfs_datasets_py.ipld.vector_store", "IPLDVectorStore")],
+    }
+
+    def __init__(self, store: Any, *, store_id: str = "vector-store") -> None:
+        self.store = store
+        self.store_id = store_id
+
+    @classmethod
+    def from_ipfs_datasets(cls, store_type: str = "faiss", **kwargs: Any) -> "VFSVectorStoreAdapter":
+        normalized = store_type.lower()
+        candidates = cls._VECTOR_STORE_CANDIDATES.get(normalized)
+        if candidates is None:
+            raise ValueError(f"Unknown vector store type: {store_type!r}")
+        store = _instantiate_optional(candidates, f"{store_type} vector store", kwargs)
+        return cls(store, store_id=normalized)
+
+    def add_embeddings(
+        self,
+        embeddings: Sequence[VFSEmbeddingRecord],
+        vectors: Sequence[Any],
+        **kwargs: Any,
+    ) -> List[VFSEmbeddingRecord]:
+        ids = [record.embedding_id for record in embeddings]
+        raw_ids = _call_first(self.store, ("add", "add_vectors", "upsert", "add_embeddings"), vectors, ids=ids, **kwargs)
+        stored_ids = [str(value) for value in _as_list(raw_ids)] or ids
+        updated = []
+        for record, vector_id in zip(embeddings, stored_ids):
+            updated.append(
+                VFSEmbeddingRecord(
+                    embedding_id=record.embedding_id,
+                    chunk_id=record.chunk_id,
+                    parent_record_id=record.parent_record_id,
+                    model_id=record.model_id,
+                    dimension=record.dimension,
+                    vector_store_id=record.vector_store_id or self.store_id,
+                    embedding_vector_id=vector_id,
+                    embedding_checksum=record.embedding_checksum,
+                    created_at=record.created_at,
+                    metadata=dict(record.metadata),
+                )
+            )
+        return updated
+
+    def search(self, query_vector: Any, *, top_k: int = 10, **kwargs: Any) -> List[Dict[str, Any]]:
+        raw_results = _call_first(self.store, ("search", "query", "similarity_search"), query_vector, top_k=top_k, **kwargs)
+        return [
+            {
+                "embedding_vector_id": _get_value(item, "embedding_vector_id", "id", "vector_id"),
+                "chunk_id": _get_value(item, "chunk_id"),
+                "score": _get_value(item, "score", "similarity", "distance"),
+                "metadata": dict(_get_value(item, "metadata", default={}) or {}),
+            }
+            for item in _as_list(raw_results)
+        ]
+
+
+class VFSKnowledgeGraphAdapter:
+    """Adapter that normalizes extractor output into entity and relationship records."""
+
+    def __init__(self, extractor: Any) -> None:
+        self.extractor = extractor
+
+    @classmethod
+    def from_ipfs_datasets(cls, **kwargs: Any) -> "VFSKnowledgeGraphAdapter":
+        extractor = _instantiate_optional(
+            [
+                ("ipfs_datasets_py.knowledge_graph_extraction", "KnowledgeGraphExtractor"),
+                ("ipfs_datasets_py", "KnowledgeGraphExtractor"),
+            ],
+            "knowledge graph extraction",
+            kwargs,
+        )
+        return cls(extractor)
+
+    def extract(
+        self,
+        text: str,
+        *,
+        source_record_ids: Optional[Sequence[str]] = None,
+        source_chunk_ids: Optional[Sequence[str]] = None,
+        **kwargs: Any,
+    ) -> Tuple[List[VFSEntityRecord], List[VFSRelationshipRecord]]:
+        raw_graph = _call_first(self.extractor, ("extract", "extract_graph", "extract_knowledge_graph"), text, **kwargs)
+        entities = [
+            self._normalize_entity(entity, source_record_ids=source_record_ids, source_chunk_ids=source_chunk_ids)
+            for entity in _as_list(_get_value(raw_graph, "entities", "nodes", default=[]))
+        ]
+        relationships = [
+            self._normalize_relationship(rel, source_record_ids=source_record_ids, source_chunk_ids=source_chunk_ids)
+            for rel in _as_list(_get_value(raw_graph, "relationships", "edges", default=[]))
+        ]
+        return entities, relationships
+
+    def _normalize_entity(
+        self,
+        entity: Any,
+        *,
+        source_record_ids: Optional[Sequence[str]],
+        source_chunk_ids: Optional[Sequence[str]],
+    ) -> VFSEntityRecord:
+        return VFSEntityRecord(
+            name=str(_get_value(entity, "name", "text", "label", default="")),
+            entity_type=str(_get_value(entity, "entity_type", "type", default="entity")),
+            aliases=list(_get_value(entity, "aliases", default=[]) or []),
+            source_record_ids=list(source_record_ids or _get_value(entity, "source_record_ids", default=[]) or []),
+            source_chunk_ids=list(source_chunk_ids or _get_value(entity, "source_chunk_ids", default=[]) or []),
+            confidence=_get_value(entity, "confidence", "score"),
+            provenance=dict(_get_value(entity, "provenance", default={}) or {}),
+            metadata=dict(_get_value(entity, "metadata", default={}) or {}),
+        )
+
+    def _normalize_relationship(
+        self,
+        relationship: Any,
+        *,
+        source_record_ids: Optional[Sequence[str]],
+        source_chunk_ids: Optional[Sequence[str]],
+    ) -> VFSRelationshipRecord:
+        return VFSRelationshipRecord(
+            subject_id=str(_get_value(relationship, "subject_id", "subject", "source", default="")),
+            predicate=str(_get_value(relationship, "predicate", "relationship_type", "type", default="related_to")),
+            object_id=str(_get_value(relationship, "object_id", "object", "target", default="")),
+            relationship_type=str(_get_value(relationship, "relationship_type", "type", default="semantic")),
+            source_record_ids=list(source_record_ids or _get_value(relationship, "source_record_ids", default=[]) or []),
+            source_chunk_ids=list(source_chunk_ids or _get_value(relationship, "source_chunk_ids", default=[]) or []),
+            confidence=_get_value(relationship, "confidence", "score"),
+            provenance=dict(_get_value(relationship, "provenance", default={}) or {}),
+            metadata=dict(_get_value(relationship, "metadata", default={}) or {}),
+        )
+
+
+class VFSQueryOptimizerAdapter:
+    """Adapter for ipfs_datasets_py GraphRAG query optimizers."""
+
+    def __init__(self, optimizer: Any) -> None:
+        self.optimizer = optimizer
+
+    @classmethod
+    def from_ipfs_datasets(cls, **kwargs: Any) -> "VFSQueryOptimizerAdapter":
+        optimizer = _instantiate_optional(
+            [
+                ("ipfs_datasets_py.rag_query_optimizer", "UnifiedGraphRAGQueryOptimizer"),
+                ("ipfs_datasets_py.rag_query_optimizer", "GraphRAGQueryOptimizer"),
+                ("ipfs_datasets_py.query_optimizer", "HybridQueryOptimizer"),
+            ],
+            "query optimizer",
+            kwargs,
+        )
+        return cls(optimizer)
+
+    def optimize(self, query: str, **kwargs: Any) -> Dict[str, Any]:
+        result = _call_first(self.optimizer, ("optimize", "rewrite", "plan_query"), query, **kwargs)
+        return {
+            "query": query,
+            "optimized_query": _get_value(result, "optimized_query", "query", "rewritten_query", default=query),
+            "strategy": _get_value(result, "strategy", "plan", default=None),
+            "metadata": dict(_get_value(result, "metadata", default={}) or {}),
+        }
+
+
+@dataclass
+class VFSGraphRAGAdapters:
+    """Bundle of GraphRAG-related adapters for VFS indexing workflows."""
+
+    processor: VFSGraphRAGProcessorAdapter
+    embeddings: VFSEmbeddingAdapter
+    chunking: VFSChunkingAdapter
+    vector_store: VFSVectorStoreAdapter
+    knowledge_graph: VFSKnowledgeGraphAdapter
+    query_optimizer: VFSQueryOptimizerAdapter
+
+    @classmethod
+    def create(cls, config: Optional[VFSGraphRAGAdapterConfig] = None) -> "VFSGraphRAGAdapters":
+        cfg = config or VFSGraphRAGAdapterConfig()
+        if cfg.use_mocks:
+            return cls(
+                processor=VFSGraphRAGProcessorAdapter(MockUnifiedGraphRAGProcessor()),
+                embeddings=VFSEmbeddingAdapter(MockEmbeddingProvider(), model_id=cfg.embedding_model_id),
+                chunking=VFSChunkingAdapter(
+                    MockChunker(chunk_size=cfg.chunk_size, chunk_overlap=cfg.chunk_overlap),
+                    namespace=cfg.namespace,
+                ),
+                vector_store=VFSVectorStoreAdapter(MockVectorStore(), store_id=f"{cfg.vector_store_type}:mock"),
+                knowledge_graph=VFSKnowledgeGraphAdapter(MockKnowledgeGraphExtractor()),
+                query_optimizer=VFSQueryOptimizerAdapter(MockQueryOptimizer()),
+            )
+        kwargs = cfg.component_kwargs
+        return cls(
+            processor=VFSGraphRAGProcessorAdapter.from_ipfs_datasets(**dict(kwargs.get("processor", {}))),
+            embeddings=VFSEmbeddingAdapter.from_ipfs_datasets(
+                model_id=cfg.embedding_model_id,
+                **dict(kwargs.get("embeddings", {})),
+            ),
+            chunking=VFSChunkingAdapter.from_ipfs_datasets(
+                namespace=cfg.namespace,
+                **dict(kwargs.get("chunking", {})),
+            ),
+            vector_store=VFSVectorStoreAdapter.from_ipfs_datasets(
+                cfg.vector_store_type,
+                **dict(kwargs.get("vector_store", {})),
+            ),
+            knowledge_graph=VFSKnowledgeGraphAdapter.from_ipfs_datasets(**dict(kwargs.get("knowledge_graph", {}))),
+            query_optimizer=VFSQueryOptimizerAdapter.from_ipfs_datasets(**dict(kwargs.get("query_optimizer", {}))),
+        )
+
+
+def create_vfs_graphrag_adapters(
+    config: Optional[VFSGraphRAGAdapterConfig] = None,
+) -> VFSGraphRAGAdapters:
+    """Create a complete adapter bundle, using mock adapters by default."""
+
+    return VFSGraphRAGAdapters.create(config)
+
+
+__all__ = [
+    "MockChunker",
+    "MockEmbeddingProvider",
+    "MockKnowledgeGraphExtractor",
+    "MockQueryOptimizer",
+    "MockUnifiedGraphRAGProcessor",
+    "MockVectorStore",
+    "VFSChunkingAdapter",
+    "VFSEmbeddingAdapter",
+    "VFSGraphRAGAdapterConfig",
+    "VFSGraphRAGAdapters",
+    "VFSGraphRAGDependencyError",
+    "VFSGraphRAGIndex",
+    "VFSGraphRAGProcessorAdapter",
+    "VFSKnowledgeGraphAdapter",
+    "VFSQueryOptimizerAdapter",
+    "VFSVectorStoreAdapter",
+    "create_vfs_graphrag_adapters",
+]
