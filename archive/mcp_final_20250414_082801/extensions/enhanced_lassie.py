@@ -46,8 +46,8 @@ else:
             result = subprocess.run(["which", "lassie"], capture_output=True, text=True)
             if result.returncode == 0:
                 lassie_binary = result.stdout.strip()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Could not locate lassie binary via PATH lookup: %s", exc)
 
 # Force turn off mock mode
 os.environ["MCP_USE_LASSIE_MOCK"] = "false"
@@ -96,7 +96,7 @@ def create_lassie_router(api_prefix: str) -> APIRouter:
         if not result.get("success", False):
             if result.get("simulation", False):
                 return {
-                    "success": False
+                    "success": False,
                     "error": "Lassie backend is in simulation mode",
                     "instructions": "Install Lassie client and make it available in PATH",
                     "installation": "https://github.com/filecoin-project/lassie#installation",
@@ -107,9 +107,9 @@ def create_lassie_router(api_prefix: str) -> APIRouter:
 
             # Create a more informative error response
             error_response = {
-                "success": False
-                "error": error_detail
-                "cid": cid
+                "success": False,
+                "error": error_detail,
+                "cid": cid,
                 "timestamp": time.time(),
             }
 
@@ -141,7 +141,7 @@ def create_lassie_router(api_prefix: str) -> APIRouter:
         if not result.get("success", False):
             if result.get("simulation", False):
                 return {
-                    "success": False
+                    "success": False,
                     "error": "Lassie backend is in simulation mode",
                     "instructions": "Install Lassie client and make it available in PATH",
                     "installation": "https://github.com/filecoin-project/lassie#installation",
@@ -152,9 +152,9 @@ def create_lassie_router(api_prefix: str) -> APIRouter:
 
             # Create a more informative error response
             error_response = {
-                "success": False
-                "error": error_detail
-                "cid": cid
+                "success": False,
+                "error": error_detail,
+                "cid": cid,
                 "timestamp": time.time(),
             }
 
