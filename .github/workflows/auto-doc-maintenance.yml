@@ -71,6 +71,13 @@ jobs:
           from pathlib import Path
           from typing import List, Dict, Any
           import json
+
+          class DocumentationExtractionError(RuntimeError):
+              """Raised when module documentation cannot be extracted."""
+
+              def __init__(self, file_path: Path, message: str):
+                  super().__init__(f"{file_path}: {message}")
+                  self.file_path = file_path
           
           class DocumentationExtractionError(RuntimeError):
               """Raised when module documentation cannot be extracted."""
@@ -82,15 +89,16 @@ jobs:
           def extract_module_info(file_path: Path) -> Dict[str, Any]:
               """Extract docstrings and metadata from a Python file."""
               try:
-                  content = file_path.read_text(encoding='utf-8')
-              except (OSError, UnicodeError) as exc:
+                  with open(file_path, 'r', encoding='utf-8') as f:
+                      content = f.read()
+              except OSError as exc:
                   raise DocumentationExtractionError(file_path, f"read failed: {exc}") from exc
-              
+
               try:
-                  tree = ast.parse(content, filename=str(file_path))
+                  tree = ast.parse(content)
               except SyntaxError as exc:
                   raise DocumentationExtractionError(file_path, f"parse failed: {exc}") from exc
-              
+
               module_info = {
                   'path': str(file_path),
                   'docstring': ast.get_docstring(tree),
@@ -98,7 +106,7 @@ jobs:
                   'functions': [],
                   'imports': []
               }
-              
+
               for node in ast.walk(tree):
                   if isinstance(node, ast.ClassDef):
                       class_info = {
@@ -113,26 +121,26 @@ jobs:
                                   'docstring': ast.get_docstring(item)
                               })
                       module_info['classes'].append(class_info)
-                  
+
                   elif isinstance(node, ast.FunctionDef) and node.col_offset == 0:
                       module_info['functions'].append({
                           'name': node.name,
                           'docstring': ast.get_docstring(node)
                       })
-                  
+
                   elif isinstance(node, (ast.Import, ast.ImportFrom)):
                       if isinstance(node, ast.Import):
                           for alias in node.names:
                               module_info['imports'].append(alias.name)
                       elif node.module:
                           module_info['imports'].append(node.module)
-              
+
               return module_info
           
           def generate_module_docs(base_path: Path, output_dir: Path):
               """Generate markdown documentation for all modules."""
               modules = []
-              failures: List[DocumentationExtractionError] = []
+              errors = []
               
               # Find all Python files
               for py_file in base_path.rglob('*.py'):
@@ -143,13 +151,19 @@ jobs:
                   try:
                       module_info = extract_module_info(py_file)
                   except DocumentationExtractionError as exc:
-                      failures.append(exc)
+                      errors.append(exc)
                       continue
                   
                   if (module_info['docstring'] or
                       module_info['classes'] or
                       module_info['functions']):
                       modules.append(module_info)
+
+              if errors:
+                  print("Module documentation extraction failed:", file=sys.stderr)
+                  for error in errors:
+                      print(f"- {error}", file=sys.stderr)
+                  raise SystemExit(1)
               
               if failures:
                   print(
