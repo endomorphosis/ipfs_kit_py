@@ -86,18 +86,25 @@ jobs:
                   super().__init__(f"{file_path}: {message}")
                   self.file_path = file_path
           
+          class DocumentationExtractionError(Exception):
+              """Raised when a Python module cannot be read or parsed for documentation."""
+              def __init__(self, file_path: Path, cause: Exception) -> None:
+                  super().__init__(f"Failed to extract documentation from {file_path}: {cause}")
+                  self.file_path = file_path
+                  self.cause = cause
+          
           def extract_module_info(file_path: Path) -> Dict[str, Any]:
               """Extract docstrings and metadata from a Python file."""
               try:
                   with open(file_path, 'r', encoding='utf-8') as f:
                       content = f.read()
-              except (OSError, UnicodeError) as exc:
-                  raise DocumentationExtractionError(file_path, f"read failed: {exc}") from exc
+              except OSError as e:
+                  raise DocumentationExtractionError(file_path, e) from e
               
               try:
                   tree = ast.parse(content)
-              except SyntaxError as exc:
-                  raise DocumentationExtractionError(file_path, f"parse failed: {exc}") from exc
+              except SyntaxError as e:
+                  raise DocumentationExtractionError(file_path, e) from e
               
               module_info = {
                   'path': str(file_path),
@@ -140,18 +147,18 @@ jobs:
           def generate_module_docs(base_path: Path, output_dir: Path):
               """Generate markdown documentation for all modules."""
               modules = []
-              errors = []
+              extraction_errors: List[DocumentationExtractionError] = []
               
               # Find all Python files
               for py_file in base_path.rglob('*.py'):
                   if '__pycache__' in str(py_file) or 'test' in str(py_file).lower():
                       continue
                   
-                  rel_path = py_file.relative_to(base_path)
                   try:
                       module_info = extract_module_info(py_file)
-                  except DocumentationExtractionError as exc:
-                      errors.append(exc)
+                  except DocumentationExtractionError as e:
+                      print(f"Error: {e}", file=sys.stderr)
+                      extraction_errors.append(e)
                       continue
                   
                   if (module_info['docstring'] or
@@ -169,6 +176,15 @@ jobs:
                   print("Module documentation extraction failed:", file=sys.stderr)
                   for error in errors:
                       print(f"- {error}", file=sys.stderr)
+                  raise SystemExit(1)
+              
+              # Abort before writing partial output if any module failed.
+              if extraction_errors:
+                  print(
+                      f"{len(extraction_errors)} module(s) could not be extracted; "
+                      "refusing to write partial module_structure.md",
+                      file=sys.stderr,
+                  )
                   raise SystemExit(1)
               
               # Generate summary document
