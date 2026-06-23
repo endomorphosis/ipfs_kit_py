@@ -74,7 +74,7 @@ def create_webrtc_extension_router(api_prefix: str) -> Optional[APIRouter]:
             return None
         logger.info(f"Successfully created WebRTC router with prefix: {router.prefix}")
         return router
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 – broad catch is intentional; all errors are logged
         logger.error("Error creating WebRTC extension router: %s", e, exc_info=True)
         return None
 

@@ -18,12 +18,14 @@ logger = logging.getLogger(__name__)
 
 class LassieModel(BaseStorageModel):
     """Model for Lassie operations."""
+
     def __init__(
-        self
-lassie_kit_instance = None
-ipfs_model = None
-cache_manager = None
-credential_manager = None
+        self,
+        lassie_kit_instance=None,
+        ipfs_model=None,
+        cache_manager=None,
+        credential_manager=None,
+    ):
         """Initialize Lassie model with dependencies.
 
         Args:
@@ -42,9 +44,9 @@ credential_manager = None
 
         # Initialize stats tracking
         self.stats = {
-            "successful_operations": 0
-            "failed_operations": 0
-            "bytes_transferred": 0
+            "successful_operations": 0,
+            "failed_operations": 0,
+            "bytes_transferred": 0,
             "operations": {},
         }
 
@@ -75,6 +77,7 @@ credential_manager = None
                 else:
                     result["error"] = check_result.get(
                         "error", "Lassie not installed or not working properly"
+                    )
                     result["error_type"] = "ConnectionError"
             else:
                 result["error"] = "Lassie kit not available"
@@ -104,7 +107,7 @@ credential_manager = None
             "successful_operations": self.stats.get("successful_operations", 0),
             "failed_operations": self.stats.get("failed_operations", 0),
             "bytes_transferred": self.stats.get("bytes_transferred", 0),
-            "simulation_mode": simulation_mode
+            "simulation_mode": simulation_mode,
             "operations": {},
         }
 
@@ -115,13 +118,14 @@ credential_manager = None
         return stats
 
     def fetch_cid(
-    self,
-    cid: str
+        self,
+        cid: str,
         output_file: Optional[str] = None,
         path: Optional[str] = None,
         block_limit: Optional[int] = None,
         protocols: Optional[List[str]] = None,
         providers: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
         """Fetch content by CID from Filecoin/IPFS networks using Lassie.
 
         Args:
@@ -148,12 +152,13 @@ credential_manager = None
             # Use lassie_kit to fetch content
             if self.lassie_kit:
                 fetch_result = self.lassie_kit.fetch_cid(
-cid=cid
-output_file=output_file
-path=path
-block_limit=block_limit
-protocols=protocols
-providers=providers
+                    cid=cid,
+                    output_file=output_file,
+                    path=path,
+                    block_limit=block_limit,
+                    protocols=protocols,
+                    providers=providers,
+                )
 
                 if fetch_result.get("success", False):
                     result["success"] = True
@@ -220,6 +225,7 @@ providers=providers
             if self.lassie_kit:
                 extract_result = self.lassie_kit.extract_car(
                     car_file=car_file, output_dir=output_dir
+                )
 
                 if extract_result.get("success", False):
                     result["success"] = True
@@ -248,6 +254,7 @@ providers=providers
 
     def retrieve_content(
         self, cid: str, output_file: Optional[str] = None, path: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Retrieve content by CID.
 
         Args:
@@ -272,6 +279,7 @@ providers=providers
             if self.lassie_kit:
                 retrieve_result = self.lassie_kit.retrieve_content(
                     cid=cid, output_file=output_file, path=path
+                )
 
                 if retrieve_result.get("success", False):
                     result["success"] = True
@@ -307,6 +315,7 @@ providers=providers
 
     def ipfs_to_lassie(
         self, cid: str, output_file: Optional[str] = None, pin: bool = True
+    ) -> Dict[str, Any]:
         """Store IPFS content using Lassie.
 
         Args:
@@ -397,8 +406,13 @@ providers=providers
             if temp_file:
                 try:
                     os.unlink(temp_file.name)
-                except Exception:
-                    pass
+                except Exception as cleanup_err:
+                    # Log but do not propagate — temp file cleanup is best-effort
+                    logger.debug(
+                        "Failed to clean up temporary file %s: %s",
+                        temp_file.name,
+                        cleanup_err,
+                    )
 
         # Add duration
         result["duration_ms"] = (time.time() - start_time) * 1000
@@ -445,6 +459,7 @@ providers=providers
             if not lassie_result.get("success", False):
                 result["error"] = lassie_result.get(
                     "error", "Failed to retrieve content from Lassie"
+                )
                 result["error_type"] = lassie_result.get("error_type", "LassieRetrieveError")
                 result["lassie_result"] = lassie_result
 

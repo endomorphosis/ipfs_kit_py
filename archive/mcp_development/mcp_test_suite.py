@@ -266,8 +266,10 @@ def get_server_info():
         logger.error(f"Error parsing server info response JSON: {e}", exc_info=True)
         return None
     except Exception as e:
+        # Re-raise after logging so unexpected errors (bugs) propagate to the
+        # caller rather than being silently treated as a normal None return.
         logger.error(f"Unexpected error getting server info: {e}", exc_info=True)
-        return None
+        raise
 
 def get_registered_tools():
     """Get the list of tools registered with the server."""
