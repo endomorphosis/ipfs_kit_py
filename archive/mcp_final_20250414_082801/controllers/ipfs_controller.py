@@ -5,6 +5,7 @@ This controller provides an interface to the IPFS functionality through the MCP 
 """
 
 import logging
+import json
 import time  # Already present, ensuring it stays
 import traceback
 from typing import Dict, List, Any, Optional, Union
@@ -918,11 +919,11 @@ class IPFSController:
 
                 # Standardized response format
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
-                    "cid": cid
-                    "output_dir": output_dir
+                    "cid": cid,
+                    "output_dir": output_dir,
                     "files": [f"simulated_file_{i}.txt" for i in range(3)],
                     "simulated": True
                 }
@@ -954,12 +955,12 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "cid": cid
+                "cid": cid,
             }
 
     async def get_content(self, cid: str) -> Response:
@@ -1112,12 +1113,10 @@ class IPFSController:
             elif data.startswith(b"{") or data.startswith(b"["):
                 # Try to see if it's valid JSON
                 try:
-                    import json
-
                     json.loads(data)
                     media_type = "application/json"
-                except Exception:
-                    pass
+                except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                    logger.debug(f"Content for CID {cid} looked like JSON but did not parse: {e}")
             elif all(c < 128 and c >= 32 or c in (9, 10, 13) for c in data[: min(1000, len(data))]):
                 # If it looks like text, use text/plain
                 media_type = "text/plain"
@@ -1268,26 +1267,26 @@ class IPFSController:
                 # Special case: empty result, assume pin was "successful" for compatibility
                 # This behavior matches some IPFS implementations that return nothing on success
                 result = {
-                    "success": True
-                    "cid": cid
-                    "pinned": True
+                    "success": True,
+                    "cid": cid,
+                    "pinned": True,
                     "note": "Empty response interpreted as success",
                 }
             elif not isinstance(result, dict):
                 if result is True:
                     # Simple boolean success case
                     result = {
-                        "success": True
-                        "cid": cid
-                        "pinned": True
+                        "success": True,
+                        "cid": cid,
+                        "pinned": True,
                         "note": "Boolean True response interpreted as success",
                     }
                 elif result is False:
                     # Simple boolean failure case
                     result = {
-                        "success": False
-                        "cid": cid
-                        "pinned": False
+                        "success": False,
+                        "cid": cid,
+                        "pinned": False,
                         "error": "Pin operation failed",
                         "note": "Boolean False response interpreted as failure",
                     }
@@ -1295,9 +1294,9 @@ class IPFSController:
                     # Other non-dict result
                     success = bool(result)
                     result = {
-                        "success": success
-                        "cid": cid
-                        "pinned": success
+                        "success": success,
+                        "cid": cid,
+                        "pinned": success,
                         "raw_result": str(result),
                         "note": f"Non-dictionary response '{str(result)}' interpreted as {'success' if success else 'failure'}",
                     }
@@ -1338,13 +1337,13 @@ class IPFSController:
 
             # Return error in compatible format
             return {
-                "success": False
-                "operation_id": operation_id
-                "duration_ms": duration_ms
+                "success": False,
+                "operation_id": operation_id,
+                "duration_ms": duration_ms,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "cid": cid
-                "pinned": False
+                "cid": cid,
+                "pinned": False,
             }
 
     async def unpin_content(
@@ -1434,11 +1433,11 @@ class IPFSController:
                 )
                 # Return success without calling unpin operation
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
                     "cid": cid_request.cid,
-                    "pinned": False
+                    "pinned": False,
                     "note": "CID was not pinned, no unpin operation needed",
                 }
 
@@ -1455,24 +1454,24 @@ class IPFSController:
             if result is None:
                 # Special case: empty result, assume unpin was "successful" for compatibility
                 result = {
-                    "success": True
+                    "success": True,
                     "cid": cid_request.cid,
-                    "pinned": False
+                    "pinned": False,
                     "note": "Empty response interpreted as success",
                 }
             elif not isinstance(result, dict):
                 if result is True:
                     # Simple boolean success case
                     result = {
-                        "success": True
+                        "success": True,
                         "cid": cid_request.cid,
-                        "pinned": False
+                        "pinned": False,
                         "note": "Boolean True response interpreted as success",
                     }
                 elif result is False:
                     # Simple boolean failure case
                     result = {
-                        "success": False
+                        "success": False,
                         "cid": cid_request.cid,
                         "pinned": True,  # Still pinned because unpin failed
                         "error": "Unpin operation failed",
@@ -1482,7 +1481,7 @@ class IPFSController:
                     # Other non-dict result
                     success = bool(result)
                     result = {
-                        "success": success
+                        "success": success,
                         "cid": cid_request.cid,
                         "pinned": not success,  # Inverted for unpin
                         "raw_result": str(result),
@@ -1530,9 +1529,9 @@ class IPFSController:
 
             # Return error in compatible format
             return {
-                "success": False
-                "operation_id": operation_id
-                "duration_ms": duration_ms
+                "success": False,
+                "operation_id": operation_id,
+                "duration_ms": duration_ms,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "cid": cid_request.cid,
@@ -1563,9 +1562,9 @@ class IPFSController:
             if result is None:
                 # Empty result, assume no pins
                 result = {
-                    "success": True
+                    "success": True,
                     "pins": [],
-                    "count": 0
+                    "count": 0,
                     "note": "Empty response interpreted as empty pin list",
                 }
             elif not isinstance(result, dict):
@@ -1586,8 +1585,8 @@ class IPFSController:
                             pins_list.append(pin_obj)
 
                     result = {
-                        "success": True
-                        "pins": pins_list
+                        "success": True,
+                        "pins": pins_list,
                         "count": len(pins_list),
                         "note": "List response converted to standard format",
                     }
@@ -1596,7 +1595,7 @@ class IPFSController:
                     result = {
                         "success": bool(result),
                         "pins": [],
-                        "count": 0
+                        "count": 0,
                         "raw_result": str(result),
                         "note": f"Non-standard response '{str(result)}' interpreted as {'success' if bool(result) else 'failure'}",
                     }
@@ -1626,9 +1625,9 @@ class IPFSController:
                     for cid, pin_info in result["PinLsList"].items():
                         result["pins"].append(
                             {
-                                "cid": cid
+                                "cid": cid,
                                 "type": pin_info.get("Type", "recursive"),
-                                "pinned": True
+                                "pinned": True,
                             }
                         )
                     logger.debug(f"Extracted {len(result['pins'])} pins from PinLsList format")
@@ -1649,9 +1648,9 @@ class IPFSController:
                     # Convert string CIDs to proper pin objects
                     if isinstance(pin, str):
                         result["pins"][i] = {
-                            "cid": pin
+                            "cid": pin,
                             "type": "recursive",
-                            "pinned": True
+                            "pinned": True,
                         }
                     continue
 
@@ -1693,13 +1692,13 @@ class IPFSController:
 
             # Return error in compatible format
             return {
-                "success": False
-                "operation_id": operation_id
-                "duration_ms": duration_ms
+                "success": False,
+                "operation_id": operation_id,
+                "duration_ms": duration_ms,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "pins": [],
-                "count": 0
+                "count": 0,
             }
 
     async def get_stats(self) -> Dict[str, Any]:
@@ -1734,8 +1733,8 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -1788,7 +1787,7 @@ class IPFSController:
                         result = {
                             "success": cluster_result.get("success", False),
                             "operation": f"check_{daemon_type}_status",
-                            "operation_id": operation_id
+                            "operation_id": operation_id,
                             "overall_status": (
                                 "running"
                                 if cluster_result.get("process_running", False)
@@ -1797,9 +1796,9 @@ class IPFSController:
                             "daemons": {
                                 daemon_type: {
                                     "running": cluster_result.get("process_running", False),
-                                    "type": daemon_type
+                                    "type": daemon_type,
                                     "process_count": cluster_result.get("process_count", 0),
-                                    "details": cluster_result
+                                    "details": cluster_result,
                                 }
                             },
                         }
@@ -1807,16 +1806,16 @@ class IPFSController:
                         logger.error(f"Error checking {daemon_type} status: {cluster_error}")
                         logger.error(traceback.format_exc())
                         result = {
-                            "success": False
+                            "success": False,
                             "operation": f"check_{daemon_type}_status",
-                            "operation_id": operation_id
+                            "operation_id": operation_id,
                             "overall_status": "error",
                             "error": str(cluster_error),
                             "error_type": type(cluster_error).__name__,
                             "daemons": {
                                 daemon_type: {
-                                    "running": False
-                                    "type": daemon_type
+                                    "running": False,
+                                    "type": daemon_type,
                                     "error": str(cluster_error),
                                 }
                             },
@@ -1869,15 +1868,15 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "daemon_status": {"overall": "error", "daemons": {}},
-                "status_code": 500
+                "status_code": 500,
                 "overall_status": "critical",
-                "daemon_type": daemon_type
+                "daemon_type": daemon_type,
             }
 
     def reset(self):
@@ -1927,9 +1926,9 @@ class IPFSController:
                 logger.warning("No direct access to cache_manager or ensure_replication method")
                 # Return a basic result with unknown replication status
                 result = {
-                    "success": True
+                    "success": True,
                     "operation": "ensure_replication",
-                    "cid": cid
+                    "cid": cid,
                     "timestamp": time.time(),
                     "replication": {
                         "current": 1,  # Assume at least one copy
@@ -1938,7 +1937,7 @@ class IPFSController:
                         "backends": ["memory"],
                         "mode": "unknown",
                     },
-                    "needs_replication": True
+                    "needs_replication": True,
                 }
                 logger.debug(
                     f"Generated basic replication status for {cid} due to missing cache_manager"
@@ -1952,9 +1951,9 @@ class IPFSController:
                 logger.info(f"Special handling for test CID: {cid}")
                 # Generate simulated replication status for test CID
                 result = {
-                    "success": True
+                    "success": True,
                     "operation": "ensure_replication",
-                    "cid": cid
+                    "cid": cid,
                     "timestamp": time.time(),
                     "replication": {
                         "current": 4,  # Set to max_redundancy for test CIDs
@@ -2002,20 +2001,20 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "cid": cid
+                "cid": cid,
                 "replication": {
-                    "current": 0
-                    "target": 3
+                    "current": 0,
+                    "target": 3,
                     "health": "poor",
                     "backends": [],
                     "mode": "unknown",
                 },
-                "needs_replication": True
+                "needs_replication": True,
             }
 
     async def get_node_id(self) -> Dict[str, Any]:
@@ -2044,11 +2043,11 @@ class IPFSController:
 
                 # Standardized response format
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
-                    "ID": test_id
-                    "AgentVersion": test_agent_version
+                    "ID": test_id,
+                    "AgentVersion": test_agent_version,
                     "Addresses": ["/ip4/127.0.0.1/tcp/4001/p2p/" + test_id],
                     "PublicKey": "CAESTest...mock...PublicKey",
                     "Protocols": [
@@ -2056,7 +2055,7 @@ class IPFSController:
                         "/ipfs/kad/1.0.0",
                         "/ipfs/ping/1.0.0",
                     ],
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Standardize response format
@@ -2095,8 +2094,8 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -2126,15 +2125,15 @@ class IPFSController:
 
                 # Standardized simulated response
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
                     "Version": "0.14.0",
                     "Commit": "test_simulator_commit",
                     "Repo": "12",
                     "System": "amd64/linux",
                     "Golang": "go1.16.15",
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Standardize response: most implementations return "Version" with capital letter
@@ -2160,8 +2159,8 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -2200,7 +2199,7 @@ class IPFSController:
                     peer_id = f"QmTestPeer{i}{uuid.uuid4().hex[:8]}"
                     peers.append(
                         {
-                            "Peer": peer_id
+                            "Peer": peer_id,
                             "Addr": f"/ip4/192.168.0.{random.randint(2, 254)}/tcp/4001",
                             "Direction": random.choice(["inbound", "outbound"]),
                             "Latency": f"{random.randint(10, 500)}ms",
@@ -2210,12 +2209,12 @@ class IPFSController:
 
                 # Standardized simulated response
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
-                    "Peers": peers
+                    "Peers": peers,
                     "peer_count": len(peers),
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Standardize response: ensure "Peers" field exists
@@ -2257,13 +2256,13 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "Peers": [],
-                "peer_count": 0
+                "peer_count": 0,
             }
 
     async def connect_peer(self, address: str = Body(..., embed=True)) -> Dict[str, Any]:
@@ -2294,23 +2293,23 @@ class IPFSController:
                 if "test" in address.lower() or "local" in address.lower():
                     # Simulate success for test addresses
                     return {
-                        "success": True
-                        "operation_id": operation_id
+                        "success": True,
+                        "operation_id": operation_id,
                         "duration_ms": (time.time() - start_time) * 1000,
                         "Strings": [f"connect {address} success"],
-                        "connected": True
-                        "address": address
-                        "simulated": True
+                        "connected": True,
+                        "address": address,
+                        "simulated": True,
                     }
 
                 # Otherwise return the actual error
                 return {
-                    "success": False
-                    "operation_id": operation_id
+                    "success": False,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
                     "error": result.get("error", f"Failed to connect to {address}"),
                     "error_type": result.get("error_type", "connection_error"),
-                    "address": address
+                    "address": address,
                 }
 
             # Add convenience field
@@ -2336,13 +2335,13 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "address": address
-                "connected": False
+                "address": address,
+                "connected": False,
             }
 
     async def disconnect_peer(self, address: str = Body(..., embed=True)) -> Dict[str, Any]:
@@ -2375,23 +2374,23 @@ class IPFSController:
                 if "test" in address.lower() or "local" in address.lower():
                     # Simulate success for test addresses
                     return {
-                        "success": True
-                        "operation_id": operation_id
+                        "success": True,
+                        "operation_id": operation_id,
                         "duration_ms": (time.time() - start_time) * 1000,
                         "Strings": [f"disconnect {address} success"],
-                        "disconnected": True
-                        "address": address
-                        "simulated": True
+                        "disconnected": True,
+                        "address": address,
+                        "simulated": True,
                     }
 
                 # Otherwise return the actual error
                 return {
-                    "success": False
-                    "operation_id": operation_id
+                    "success": False,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
                     "error": result.get("error", f"Failed to disconnect from {address}"),
                     "error_type": result.get("error_type", "connection_error"),
-                    "address": address
+                    "address": address,
                 }
 
             # Add convenience field
@@ -2417,13 +2416,13 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "address": address
-                "disconnected": False
+                "address": address,
+                "disconnected": False,
             }
 
     async def dht_findpeer(self, request: DHTFindPeerRequest) -> Dict[str, Any]:
@@ -2470,13 +2469,13 @@ class IPFSController:
                     )
 
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
                     "peer_id": request.peer_id,
-                    "responses": responses
+                    "responses": responses,
                     "peers_found": len(responses),
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Add operation tracking fields for consistency
@@ -2496,14 +2495,14 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "peer_id": request.peer_id,
                 "responses": [],
-                "peers_found": 0
+                "peers_found": 0,
             }
 
     async def dht_findprovs(self, request: DHTFindProvsRequest) -> Dict[str, Any]:
@@ -2552,14 +2551,14 @@ class IPFSController:
                     )
 
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
                     "cid": request.cid,
-                    "providers": providers
+                    "providers": providers,
                     "count": len(providers),
                     "num_providers": request.num_providers,
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Add operation tracking fields for consistency
@@ -2577,14 +2576,14 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "cid": request.cid,
                 "providers": [],
-                "count": 0
+                "count": 0,
                 "num_providers": request.num_providers,
             }
 
@@ -2788,8 +2787,8 @@ class IPFSController:
             raise HTTPException(status_code=500, detail=f"Error getting node ID: {str(e)}")
 
     async def write_file_v2(
-    self,
-    path: str
+        self,
+        path: str,
         content: Union[str, bytes] = Body(...),
         create: bool = True,
         truncate: bool = True,
@@ -2849,32 +2848,32 @@ class IPFSController:
                 if "test" in path.lower():
                     # Standardized simulated success response
                     return {
-                        "success": True
-                        "operation_id": operation_id
+                        "success": True,
+                        "operation_id": operation_id,
                         "duration_ms": (time.time() - start_time) * 1000,
-                        "path": path
+                        "path": path,
                         "written": (
                             len(content_bytes) if count is None else min(count, len(content_bytes))
                         ),
                         "size": len(content_bytes),
-                        "create": create
-                        "truncate": truncate
-                        "offset": offset
-                        "count": count
-                        "flush": flush
-                        "simulated": True
+                        "create": create,
+                        "truncate": truncate,
+                        "offset": offset,
+                        "count": count,
+                        "flush": flush,
+                        "simulated": True,
                     }
 
                 # Otherwise return the actual error
                 return {
-                    "success": False
-                    "operation_id": operation_id
+                    "success": False,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
                     "error": result.get("error", f"Failed to write to file {path}"),
                     "error_type": result.get("error_type", "write_error"),
-                    "path": path
-                    "create": create
-                    "truncate": truncate
+                    "path": path,
+                    "create": create,
+                    "truncate": truncate,
                 }
 
             # Add metadata for reference
@@ -2911,17 +2910,17 @@ class IPFSController:
 
             # Return error response
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "path": path
-                "create": create
-                "truncate": truncate
-                "offset": offset
-                "count": count
-                "flush": flush
+                "path": path,
+                "create": create,
+                "truncate": truncate,
+                "offset": offset,
+                "count": count,
+                "flush": flush,
             }
 
     async def remove_file_v2(
@@ -2961,27 +2960,27 @@ class IPFSController:
                 if "test" in path.lower():
                     # Standardized simulated success response
                     return {
-                        "success": True
-                        "operation_id": operation_id
+                        "success": True,
+                        "operation_id": operation_id,
                         "duration_ms": (time.time() - start_time) * 1000,
-                        "path": path
-                        "removed": True
-                        "recursive": recursive
-                        "force": force
-                        "simulated": True
+                        "path": path,
+                        "removed": True,
+                        "recursive": recursive,
+                        "force": force,
+                        "simulated": True,
                     }
 
                 # Otherwise return the actual error
                 return {
-                    "success": False
-                    "operation_id": operation_id
+                    "success": False,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
                     "error": result.get("error", f"Failed to remove {path}"),
                     "error_type": result.get("error_type", "remove_error"),
-                    "path": path
-                    "removed": False
-                    "recursive": recursive
-                    "force": force
+                    "path": path,
+                    "removed": False,
+                    "recursive": recursive,
+                    "force": force,
                 }
 
             # Add metadata for reference
@@ -3009,15 +3008,15 @@ class IPFSController:
 
             # Return error response
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "path": path
-                "removed": False
-                "recursive": recursive
-                "force": force
+                "path": path,
+                "removed": False,
+                "recursive": recursive,
+                "force": force,
             }
 
     async def stat_file_v2(self, path: str) -> Dict[str, Any]:
@@ -3061,19 +3060,19 @@ class IPFSController:
                     "CumulativeSize": random.randint(1024, 1024 * 1024),
                     "Blocks": random.randint(1, 10) if is_file else 0,
                     "Type": "file" if is_file else "directory",
-                    "WithLocality": False
-                    "Local": True
+                    "WithLocality": False,
+                    "Local": True,
                     "SizeLocal": random.randint(1024, 1024 * 1024) if is_file else 0,
                 }
 
                 # Standardized simulated response
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
-                    "path": path
+                    "path": path,
                     **stat_info,
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Add path for reference
@@ -3100,12 +3099,12 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "path": path
+                "path": path,
             }
 
     async def make_directory_v2(self, request: MakeDirRequest = Body(...)) -> Dict[str, Any]:
@@ -3141,23 +3140,23 @@ class IPFSController:
                 # Standardized simulated response for test scenarios
                 if "test" in path.lower():
                     return {
-                        "success": True
-                        "operation_id": operation_id
+                        "success": True,
+                        "operation_id": operation_id,
                         "duration_ms": (time.time() - start_time) * 1000,
-                        "path": path
-                        "created": True
-                        "simulated": True
+                        "path": path,
+                        "created": True,
+                        "simulated": True,
                     }
 
                 # Otherwise return the actual error
                 return {
-                    "success": False
-                    "operation_id": operation_id
+                    "success": False,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
                     "error": result.get("error", f"Failed to create directory {path}"),
                     "error_type": result.get("error_type", "mkdir_error"),
-                    "path": path
-                    "created": False
+                    "path": path,
+                    "created": False,
                 }
 
             # Add convenience field
@@ -3179,13 +3178,13 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "path": path
-                "created": False
+                "path": path,
+                "created": False,
             }
 
     async def publish_name(
@@ -3223,14 +3222,14 @@ class IPFSController:
 
                 # Standardized simulated response
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
-                    "path": path
-                    "key": key
+                    "path": path,
+                    "key": key,
                     "Name": f"/ipns/k51q{uuid.uuid4().hex[:36]}",
-                    "Value": path
-                    "simulated": True
+                    "Value": path,
+                    "simulated": True,
                 }
 
             # Standardize response: ensure "Name" and "Value" fields exist
@@ -3264,13 +3263,13 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "path": path
-                "key": key
+                "path": path,
+                "key": key,
             }
 
     async def resolve_name(self, name: str, recursive: bool = True) -> Dict[str, Any]:
@@ -3304,12 +3303,12 @@ class IPFSController:
 
                 # Standardized simulated response
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
-                    "name": name
+                    "name": name,
                     "Path": f"/ipfs/Qm{uuid.uuid4().hex[:38]}",
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Standardize response: ensure "Path" field exists
@@ -3338,12 +3337,12 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "name": name
+                "name": name,
             }
 
     async def get_dag_node(self, cid: str, path: str = "") -> Dict[str, Any]:
@@ -3380,7 +3379,7 @@ class IPFSController:
                         "Data": {
                             "Type": "File",
                             "Data": "U2ltdWxhdGVkIGRhdGE=",  # base64 "Simulated data"
-                            "filesize": 14
+                            "filesize": 14,
                             "blocksizes": [14],
                         },
                         "Links": [],
@@ -3389,7 +3388,7 @@ class IPFSController:
                     # Simulate a CBOR node
                     sim_node = {
                         "test": "value",
-                        "num": 123
+                        "num": 123,
                         "nested": {"field": "test"},
                     }
                 else:
@@ -3398,13 +3397,13 @@ class IPFSController:
 
                 # Standardized simulated response
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
-                    "cid": cid
-                    "path": path
-                    "node": sim_node
-                    "simulated": True
+                    "cid": cid,
+                    "path": path,
+                    "node": sim_node,
+                    "simulated": True,
                 }
 
             # Ensure node data is included
@@ -3440,13 +3439,13 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "cid": cid
-                "path": path
+                "cid": cid,
+                "path": path,
             }
 
     async def put_dag_node(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -3479,11 +3478,11 @@ class IPFSController:
 
                 # Standardized simulated response
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
                     "Cid": {"/": f"bafy{uuid.uuid4().hex[:38]}"},
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Standardize response: ensure "Cid" field exists in expected format
@@ -3524,8 +3523,8 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -3563,13 +3562,13 @@ class IPFSController:
 
                 # Standardized simulated response
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
-                    "Key": cid
+                    "Key": cid,
                     "Size": random.randint(1024, 1024 * 1024),
-                    "cid": cid
-                    "simulated": True
+                    "cid": cid,
+                    "simulated": True,
                 }
 
             # Standardize response: ensure "Key" and "Size" fields exist
@@ -3601,12 +3600,12 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "cid": cid
+                "cid": cid,
             }
 
     async def get_block_json(self, request: Request, cid: str = None) -> Dict[str, Any]:
@@ -3651,9 +3650,9 @@ class IPFSController:
 
                 # Return a formatted response with the error
                 return {
-                    "success": False
-                    "operation_id": operation_id
-                    "cid": cid
+                    "success": False,
+                    "operation_id": operation_id,
+                    "cid": cid,
                     "error": result.get("error", "Failed to retrieve block"),
                     "error_type": result.get("error_type", "BlockRetrievalError"),
                     "duration_ms": (time.time() - start_time) * 1000,
@@ -3680,10 +3679,10 @@ class IPFSController:
 
             # Build response
             return {
-                "success": True
-                "operation_id": operation_id
-                "cid": cid
-                "data_hex": block_data_hex
+                "success": True,
+                "operation_id": operation_id,
+                "cid": cid,
+                "data_hex": block_data_hex,
                 "size": len(block_data) if block_data is not None else 0,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "timestamp": time.time(),
@@ -3694,9 +3693,9 @@ class IPFSController:
 
             # Return error response
             return {
-                "success": False
-                "operation_id": operation_id
-                "cid": cid
+                "success": False,
+                "operation_id": operation_id,
+                "cid": cid,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "duration_ms": (time.time() - start_time) * 1000,
@@ -3740,8 +3739,8 @@ class IPFSController:
                     content=block_data,
                     media_type="application/octet-stream",
                     headers={
-                        "X-IPFS-Block": cid
-                        "X-Operation-ID": operation_id
+                        "X-IPFS-Block": cid,
+                        "X-Operation-ID": operation_id,
                         "X-Operation-Duration-MS": str(0.5),
                         "X-Content-Type-Options": "nosniff",
                         "X-Content-Size": str(len(block_data)),
@@ -3782,8 +3781,8 @@ class IPFSController:
 
             # Return raw block data
             headers = {
-                "X-IPFS-Block": cid
-                "X-Operation-ID": operation_id
+                "X-IPFS-Block": cid,
+                "X-Operation-ID": operation_id,
                 "X-Operation-Duration-MS": str((time.time() - start_time) * 1000),
                 "X-Content-Type-Options": "nosniff",
                 "X-Content-Size": str(len(data)),
@@ -3807,8 +3806,8 @@ class IPFSController:
                 content=block_data,
                 media_type="application/octet-stream",
                 headers={
-                    "X-IPFS-Block": cid
-                    "X-Operation-ID": operation_id
+                    "X-IPFS-Block": cid,
+                    "X-Operation-ID": operation_id,
                     "X-Operation-Duration-MS": str((time.time() - start_time) * 1000),
                     "X-Content-Type-Options": "nosniff",
                     "X-Content-Size": str(len(block_data)),
@@ -3856,12 +3855,12 @@ class IPFSController:
 
                 # Standardized simulated response
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
-                    "peer_id": peer_id
+                    "peer_id": peer_id,
                     "Responses": [{"ID": peer_id, "Addrs": addresses}],
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Standardize response: ensure "Responses" field exists
@@ -3881,7 +3880,7 @@ class IPFSController:
                             pid = parts[1] if len(parts) > 1 else p
                             result["Responses"].append(
                                 {
-                                    "ID": pid
+                                    "ID": pid,
                                     "Addrs": [f"{addr}/p2p/{pid}"] if addr else [],
                                 }
                             )
@@ -3911,12 +3910,12 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "peer_id": peer_id
+                "peer_id": peer_id,
                 "Responses": [],
             }
 
@@ -3966,13 +3965,13 @@ class IPFSController:
 
                 # Standardized simulated response
                 return {
-                    "success": True
-                    "operation_id": operation_id
+                    "success": True,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
-                    "cid": cid
-                    "num_providers": provider_count
-                    "Responses": providers
-                    "simulated": True
+                    "cid": cid,
+                    "num_providers": provider_count,
+                    "Responses": providers,
+                    "simulated": True,
                 }
 
             # Standardize response: ensure "Responses" field exists
@@ -4008,19 +4007,19 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "cid": cid
-                "num_providers": 0
+                "cid": cid,
+                "num_providers": 0,
                 "Responses": [],
             }
 
     async def handle_add_request(
-    self,
-    request: Request
+        self,
+        request: Request,
         content_request: Optional[ContentRequest] = None,
         file: Optional[UploadFile] = File(None),
         pin: bool = Form(False),
@@ -4104,8 +4103,8 @@ class IPFSController:
         except Exception as e:
             logger.error(f"Error handling add request: {str(e)}")
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -4116,13 +4115,13 @@ class IPFSController:
 
             # Return simulated success for test stability
             return {
-                "success": True
-                "operation_id": operation_id
+                "success": True,
+                "operation_id": operation_id,
                 "duration_ms": 0.5,
                 "cid": "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa",
                 "Hash": "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa",
-                "content_size_bytes": 16
-                "simulated": True
+                "content_size_bytes": 16,
+                "simulated": True,
             }
 
     def dag_put(self, dag_request: DAGPutRequest) -> DAGPutResponse:
@@ -4164,8 +4163,8 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -4209,13 +4208,13 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "cid": cid
-                "path": path
+                "cid": cid,
+                "path": path,
             }
 
     def dag_resolve(self, path: str) -> DAGResolveResponse:
@@ -4253,12 +4252,12 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "path": path
+                "path": path,
             }
 
     def block_put(self, block_request: BlockPutRequest) -> BlockPutResponse:
@@ -4286,8 +4285,8 @@ class IPFSController:
             except Exception as e:
                 logger.error(f"Error decoding base64 data: {e}")
                 return {
-                    "success": False
-                    "operation_id": operation_id
+                    "success": False,
+                    "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
                     "error": f"Invalid base64 data: {str(e)}",
                     "error_type": "data_error",
@@ -4312,8 +4311,8 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -4358,7 +4357,7 @@ class IPFSController:
             # Set headers for response
             headers = {
                 "X-IPFS-Path": f"/ipfs/{cid}",
-                "X-Operation-ID": operation_id
+                "X-Operation-ID": operation_id,
                 "X-Operation-Duration-MS": str((time.time() - start_time) * 1000),
                 "X-Content-Type-Options": "nosniff",
                 "X-Content-Size": str(len(data)),
@@ -4409,12 +4408,12 @@ class IPFSController:
 
             # Return error in standardized format
             return {
-                "success": False
-                "operation_id": operation_id
+                "success": False,
+                "operation_id": operation_id,
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "cid": cid
+                "cid": cid,
             }
 
     def get_version_v2(self):
@@ -4435,9 +4434,9 @@ class IPFSController:
             if not isinstance(result, dict):
                 logger.error(f"Unexpected result type from get_version: {type(result)}")
                 return {
-                    "success": False
-                    "operation_id": operation_id
-                    "duration_ms": 0
+                    "success": False,
+                    "operation_id": operation_id,
+                    "duration_ms": 0,
                     "error": f"Unexpected result type: {type(result)}",
                 }
 
@@ -4448,8 +4447,8 @@ class IPFSController:
             # Handle exceptions
             logger.error(f"Error getting IPFS version: {e}")
             return {
-                "success": False
-                "operation_id": operation_id
-                "duration_ms": 0
+                "success": False,
+                "operation_id": operation_id,
+                "duration_ms": 0,
                 "error": f"Failed to get IPFS version: {str(e)}",
             }

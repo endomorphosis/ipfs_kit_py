@@ -983,9 +983,10 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                             except (TypeError, ValueError) as e:
                                 logger.warning(f"Invalid cached Filecoin height {chain_height!r}: {e}")
         
-        # Try to get real chain height. _make_api_request reports recoverable
-        # transport/API failures by returning None; unexpected exceptions should
-        # propagate instead of being collapsed into an indistinguishable fallback.
+        # Try to get real chain height. Only malformed local cache state is
+        # downgraded above; _make_api_request reports recoverable transport/API
+        # failures by returning None. Unexpected exceptions should propagate
+        # instead of being collapsed into an indistinguishable fallback.
         chain_head = self._make_api_request("Filecoin.ChainHead")
         if not chain_head:
             return None

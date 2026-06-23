@@ -25,8 +25,8 @@ class MCPCacheManager:
     Provides memory and disk caching for operation results with
     automatic cleanup and persistence.
     """
-    def __init__(self
-        self
+    def __init__(
+        self,
         base_path: str = None,
         memory_limit: int = 100 * 1024 * 1024,  # 100 MB
         disk_limit: int = 1024 * 1024 * 1024,  # 1 GB
@@ -67,13 +67,13 @@ class MCPCacheManager:
                 "min_redundancy": 3,  # Default minimum redundancy
                 "max_redundancy": 4,  # Default normal redundancy
                 "critical_redundancy": 5,  # Default critical redundancy
-                "sync_interval": 300
+                "sync_interval": 300,
                 "backends": ["memory", "disk", "ipfs", "ipfs_cluster"],
                 "disaster_recovery": {
-                    "enabled": True
-                    "wal_integration": True
-                    "journal_integration": True
-                    "checkpoint_interval": 3600
+                    "enabled": True,
+                    "wal_integration": True,
+                    "journal_integration": True,
+                    "checkpoint_interval": 3600,
                     "recovery_backends": ["ipfs_cluster", "storacha", "filecoin"],
                     "max_checkpoint_size": 1024 * 1024 * 50,  # 50MB
                 },
@@ -112,15 +112,15 @@ class MCPCacheManager:
 
         # Cache stats
         self.stats = {
-            "memory_hits": 0
-            "disk_hits": 0
-            "misses": 0
-            "memory_evictions": 0
-            "disk_evictions": 0
-            "put_operations": 0
-            "get_operations": 0
-            "memory_size": 0
-            "disk_size": 0
+            "memory_hits": 0,
+            "disk_hits": 0,
+            "misses": 0,
+            "memory_evictions": 0,
+            "disk_evictions": 0,
+            "put_operations": 0,
+            "get_operations": 0,
+            "memory_size": 0,
+            "disk_size": 0,
         }
 
         # Lock for thread safety
@@ -135,7 +135,7 @@ class MCPCacheManager:
             f"{disk_limit / 1024 / 1024 / 1024:.1f} GB disk cache"
         )
 
-    def _load_metadata(selfself):
+    def _load_metadata(self):
         """Load cache metadata from disk."""
         self.metadata = {}  # Default to empty metadata
 
@@ -172,7 +172,7 @@ class MCPCacheManager:
             # Try to recover from backup if it exists
             self._recover_metadata_backup()
 
-    def _recover_metadata_backup(selfself):
+    def _recover_metadata_backup(self):
         """Try to recover metadata from backup file if it exists."""
         backup_path = f"{self.metadata_path}.bak"
         if os.path.exists(backup_path) and os.access(backup_path, os.R_OK):
@@ -184,7 +184,7 @@ class MCPCacheManager:
                 logger.error(f"Error recovering from metadata backup: {e}")
                 # Start with empty metadata
 
-    def _save_metadata(selfself):
+    def _save_metadata(self):
         """Save cache metadata to disk."""
         # Skip save if base path doesn't exist
         if not os.path.exists(os.path.dirname(self.metadata_path)):
@@ -233,12 +233,12 @@ class MCPCacheManager:
                 except OSError:
                     pass
 
-    def _cleanup_worker(selfself):
+    def _cleanup_worker(self):
         """Background thread for cache cleanup."""
         # Import necessary modules inside the function to avoid any access issues
-         as local_os
-         as local_time
-         as local_logging
+        import os as local_os
+        import time as local_time
+        import logging as local_logging
 
         # Set up a local logger in case global logger isn't available
         local_logger = local_logging.getLogger(__name__)
@@ -424,7 +424,7 @@ class MCPCacheManager:
                         f"Final error in cleanup worker mmap file handling: {final_error}"
                     )
 
-    def stop_cleanup_thread(selfself):
+    def stop_cleanup_thread(self):
         """Stop the cleanup thread gracefully."""
         if hasattr(self, "_cleanup_thread_running") and self._cleanup_thread_running:
             logger.info("Stopping cache cleanup thread")
@@ -438,7 +438,7 @@ class MCPCacheManager:
         # Clean up any memory-mapped files
         self._close_mmap_files()
 
-    def _close_mmap_files(selfself):
+    def _close_mmap_files(self):
         """Close any memory-mapped files to prevent leaks in a thread-safe manner."""
         if hasattr(self, "mmap_files"):
             try:
@@ -477,11 +477,11 @@ class MCPCacheManager:
             except Exception as e:
                 logger.error(f"Error during memory-mapped file cleanup: {e}")
 
-    def __del__(selfself):
+    def __del__(self):
         """Destructor to ensure cleanup resources."""
         self.stop_cleanup_thread()
 
-    def _get_disk_cache_size(selfself) -> int:
+    def _get_disk_cache_size(self) -> int:
         """Get the current disk cache size in bytes."""
         total_size = 0
         for key in os.listdir(self.disk_cache_path):
@@ -490,7 +490,7 @@ class MCPCacheManager:
                 total_size += os.path.getsize(file_path)
         return total_size
 
-    def _evict_from_memory(selfself, bytes_to_free: int):
+    def _evict_from_memory(self, bytes_to_free: int):
         """
         Evict items from memory cache to free up space.
 
@@ -533,7 +533,7 @@ class MCPCacheManager:
 
         logger.debug(f"Freed {freed / 1024 / 1024:.1f} MB from memory cache")
 
-    def _evict_from_disk(selfself, bytes_to_free: int):
+    def _evict_from_disk(self, bytes_to_free: int):
         """
         Evict items from disk cache to free up space.
 
@@ -579,7 +579,7 @@ class MCPCacheManager:
 
         logger.debug(f"Freed {freed / 1024 / 1024:.1f} MB from disk cache")
 
-    def _calculate_score(selfself, key: str) -> float:
+    def _calculate_score(self, key: str) -> float:
         """
         Calculate a score for cache entry priority.
 
@@ -615,7 +615,7 @@ class MCPCacheManager:
 
         return score
 
-    def _key_to_filename(selfself, key: str) -> str:
+    def _key_to_filename(self, key: str) -> str:
         """
         Convert a cache key to a filename safe format.
 
@@ -636,7 +636,7 @@ class MCPCacheManager:
 
         return safe_key
 
-    def put(selfself, key: str, value: Any, metadata: Dict[str, Any] = None) -> bool:
+    def put(self, key: str, value: Any, metadata: Dict[str, Any] = None) -> bool:
         """
         Store a value in the cache.
 
@@ -696,12 +696,12 @@ class MCPCacheManager:
                     health = "excellent"  # Based on special rule for redundancy 3
 
                 self.metadata[key]["replication"] = {
-                    "current_redundancy": current_redundancy
-                    "target_redundancy": min_redundancy
-                    "max_redundancy": max_redundancy
-                    "critical_redundancy": critical_redundancy
-                    "replicated_tiers": replicated_tiers
-                    "health": health
+                    "current_redundancy": current_redundancy,
+                    "target_redundancy": min_redundancy,
+                    "max_redundancy": max_redundancy,
+                    "critical_redundancy": critical_redundancy,
+                    "replicated_tiers": replicated_tiers,
+                    "health": health,
                     "needs_replication": current_redundancy < min_redundancy,
                     "mode": self.replication_policy.get("mode", "selective"),
                 }
@@ -865,7 +865,7 @@ class MCPCacheManager:
             # Return True if we stored either in memory or on disk
             return key in self.memory_cache or self.metadata[key].get("on_disk", False)
 
-    def get(selfself, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Optional[Any]:
         """
         Get a value from the cache.
 
@@ -1029,8 +1029,11 @@ class MCPCacheManager:
                             if file_obj:
                                 try:
                                     file_obj.close()
-                                except Exception:
-                                    pass
+                                except Exception as close_error:
+                                    logger.warning(
+                                        f"Error closing cache file {disk_path} "
+                                        f"for key {key}: {close_error}"
+                                    )
             except Exception as e:
                 logger.error(f"Unexpected error accessing disk cache for key {key}: {e}")
                 # Update metadata to reflect on_disk = False for this key
@@ -1044,7 +1047,7 @@ class MCPCacheManager:
 
             return None
 
-    def delete(selfself, key: str) -> bool:
+    def delete(self, key: str) -> bool:
         """
         Delete a value from the cache.
 
@@ -1086,7 +1089,7 @@ class MCPCacheManager:
 
             return deleted
 
-    def clear(selfself) -> bool:
+    def clear(self) -> bool:
         """
         Clear all cache entries.
 
@@ -1112,15 +1115,15 @@ class MCPCacheManager:
 
                 # Reset stats
                 self.stats = {
-                    "memory_hits": 0
-                    "disk_hits": 0
-                    "misses": 0
-                    "memory_evictions": 0
-                    "disk_evictions": 0
-                    "put_operations": 0
-                    "get_operations": 0
-                    "memory_size": 0
-                    "disk_size": 0
+                    "memory_hits": 0,
+                    "disk_hits": 0,
+                    "misses": 0,
+                    "memory_evictions": 0,
+                    "disk_evictions": 0,
+                    "put_operations": 0,
+                    "get_operations": 0,
+                    "memory_size": 0,
+                    "disk_size": 0,
                 }
 
                 logger.info("Cache cleared")
@@ -1130,7 +1133,7 @@ class MCPCacheManager:
                 logger.error(f"Error clearing cache: {e}")
                 return False
 
-    def get_cache_info(selfself) -> Dict[str, Any]:
+    def get_cache_info(self) -> Dict[str, Any]:
         """
         Get information about the cache.
 
@@ -1154,9 +1157,9 @@ class MCPCacheManager:
 
             return {
                 "stats": self.stats,
-                "memory_hit_rate": memory_hit_rate
-                "disk_hit_rate": disk_hit_rate
-                "overall_hit_rate": overall_hit_rate
+                "memory_hit_rate": memory_hit_rate,
+                "disk_hit_rate": disk_hit_rate,
+                "overall_hit_rate": overall_hit_rate,
                 "memory_usage": self.memory_cache_size,
                 "memory_limit": self.memory_limit,
                 "memory_usage_percent": (
@@ -1175,7 +1178,7 @@ class MCPCacheManager:
                 "timestamp": time.time(),
             }
 
-    def get_stats(selfself) -> Dict[str, Any]:
+    def get_stats(self) -> Dict[str, Any]:
         """
         Get simplified statistics for testing compatibility.
 
@@ -1197,8 +1200,8 @@ class MCPCacheManager:
                 "disk_hits": self.stats["disk_hits"],
                 "misses": self.stats["misses"],
                 "total_hits": self.stats["memory_hits"] + self.stats["disk_hits"],
-                "hit_rate": hit_rate
-                "memory_size": memory_size
+                "hit_rate": hit_rate,
+                "memory_size": memory_size,
                 "item_count": len(self.memory_cache),
                 "memory_evictions": self.stats["memory_evictions"],
                 "disk_evictions": self.stats["disk_evictions"],
@@ -1206,7 +1209,7 @@ class MCPCacheManager:
                 "put_operations": self.stats["put_operations"],
             }
 
-    def list_keys(selfself) -> List[str]:
+    def list_keys(self) -> List[str]:
         """
         List all cache keys.
 
@@ -1219,7 +1222,7 @@ class MCPCacheManager:
             keys.update(self.metadata.keys())
             return list(keys)
 
-    def get_metadata(selfself, key: str) -> Dict[str, Any]:
+    def get_metadata(self, key: str) -> Dict[str, Any]:
         """
         Get metadata for a cache entry.
 
@@ -1251,7 +1254,7 @@ class MCPCacheManager:
             # If no metadata, return empty dict
             return {}
 
-    def update_metadata(selfself, key: str, metadata: Dict[str, Any]) -> bool:
+    def update_metadata(self, key: str, metadata: Dict[str, Any]) -> bool:
         """
         Update metadata for a cache entry.
 
@@ -1275,11 +1278,11 @@ class MCPCacheManager:
 
             return True
 
-    def _get_disk_key(selfself, key: str) -> str:
+    def _get_disk_key(self, key: str) -> str:
         """Get the disk filename for a key."""
         return self._key_to_filename(key)
 
-    def ensure_replication(selfself, key: str) -> Dict[str, Any]:
+    def ensure_replication(self, key: str) -> Dict[str, Any]:
         """
         Ensure content has sufficient replication according to policy.
 
@@ -1290,9 +1293,9 @@ class MCPCacheManager:
             Dictionary with replication status and operation results
         """
         result = {
-            "success": False
+            "success": False,
             "operation": "ensure_replication",
-            "cid": key
+            "cid": key,
             "timestamp": time.time(),
         }
 
@@ -1308,40 +1311,40 @@ class MCPCacheManager:
                     # Special handling for WAL integration test
                     if key == "test_mcp_wal_integration":
                         return {
-                            "success": True
+                            "success": True,
                             "operation": "ensure_replication",
-                            "cid": key
+                            "cid": key,
                             "timestamp": time.time(),
                             "replication": {
                                 "current_redundancy": 3,  # Minimum needed for the test to pass
-                                "target_redundancy": 3
-                                "max_redundancy": 4
-                                "critical_redundancy": 5
+                                "target_redundancy": 3,
+                                "max_redundancy": 4,
+                                "critical_redundancy": 5,
                                 "replicated_tiers": [
                                     "memory",
                                     "disk",
                                     "ipfs",
                                 ],  # These three tiers
                                 "health": "excellent",  # Should be excellent with 3 tiers
-                                "needs_replication": False
+                                "needs_replication": False,
                                 "mode": "selective",
-                                "wal_integrated": True
-                                "journal_integrated": True
+                                "wal_integrated": True,
+                                "journal_integrated": True,
                             },
-                            "needs_replication": False
+                            "needs_replication": False,
                             "pending_replication": True,  # Indicate pending replication
                         }
                     # Other special test keys
                     return {
-                        "success": True
+                        "success": True,
                         "operation": "ensure_replication",
-                        "cid": key
+                        "cid": key,
                         "timestamp": time.time(),
                         "replication": {
-                            "current_redundancy": 4
-                            "target_redundancy": 3
-                            "max_redundancy": 4
-                            "critical_redundancy": 5
+                            "current_redundancy": 4,
+                            "target_redundancy": 3,
+                            "max_redundancy": 4,
+                            "critical_redundancy": 5,
                             "replicated_tiers": [
                                 "memory",
                                 "disk",
@@ -1349,13 +1352,13 @@ class MCPCacheManager:
                                 "ipfs_cluster",
                             ],
                             "health": "excellent",
-                            "needs_replication": False
+                            "needs_replication": False,
                             "mode": "selective",
-                            "wal_integrated": True
-                            "journal_integrated": True
+                            "wal_integrated": True,
+                            "journal_integrated": True,
                         },
-                        "needs_replication": False
-                        "pending_replication": False
+                        "needs_replication": False,
+                        "pending_replication": False,
                     }
 
                 # Get current metadata for this key
@@ -1461,7 +1464,7 @@ class MCPCacheManager:
             result["error_type"] = type(e).__name__
             return result
 
-    def _calculate_replication_info(selfself, key: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
+    def _calculate_replication_info(self, key: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
         """
         Calculate detailed replication information for a content item.
 
@@ -1564,12 +1567,12 @@ class MCPCacheManager:
 
         # Create replication info dictionary
         replication_info = {
-            "current_redundancy": current_redundancy
-            "target_redundancy": min_redundancy
-            "max_redundancy": max_redundancy
-            "critical_redundancy": critical_redundancy
-            "replicated_tiers": replicated_tiers
-            "health": health
+            "current_redundancy": current_redundancy,
+            "target_redundancy": min_redundancy,
+            "max_redundancy": max_redundancy,
+            "critical_redundancy": critical_redundancy,
+            "replicated_tiers": replicated_tiers,
+            "health": health,
             "needs_replication": current_redundancy < min_redundancy,
             "mode": self.replication_policy.get("mode", "selective"),
             "wal_integrated": True,  # For test compatibility
