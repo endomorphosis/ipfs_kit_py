@@ -50,6 +50,29 @@ class DashboardAPI {
         return this.request('/api/vfs/recommendations');
     }
 
+    async callMCPTool(toolName, args = {}) {
+        return this.request('/mcp/tools/call', {
+            method: 'POST',
+            body: JSON.stringify({ name: toolName, args })
+        });
+    }
+
+    async getWalrusStatus(options = {}) {
+        return this.callMCPTool('walrus_status', options);
+    }
+
+    async listFSSpecProtocols() {
+        return this.callMCPTool('fsspec_list_protocols');
+    }
+
+    async getVFSGraphRAGStatus(options = {}) {
+        return this.callMCPTool('vfs_graphrag_status', options);
+    }
+
+    async searchVFSGraphRAG(query = '', options = {}) {
+        return this.callMCPTool('vfs_graphrag_search', { query, ...options });
+    }
+
     // File management endpoints
     async getFiles(path = '/') {
         return this.request(`/api/files/?path=${encodeURIComponent(path)}`);

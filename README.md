@@ -121,7 +121,7 @@
 
 ### Multi-Backend Storage System
 
-IPFS Kit supports **6 integrated storage backends** for maximum flexibility and redundancy:
+IPFS Kit supports **7 integrated storage backends** for maximum flexibility and redundancy:
 
 1. **IPFS/Kubo** - Decentralized content-addressed storage
 2. **Filecoin/Lotus** - Long-term archival with economic incentives
@@ -129,6 +129,7 @@ IPFS Kit supports **6 integrated storage backends** for maximum flexibility and 
 4. **Storacha (Web3.Storage)** - Web3 storage built on IPFS + Filecoin
 5. **HuggingFace** - ML model and dataset storage
 6. **Lassie** - High-performance IPFS retrieval client
+7. **Walrus** - fsspec-compatible blob storage with direct blob-id reads and local logical-path indexing
 
 ### Multi-Tier Storage Strategy
 
@@ -193,6 +194,33 @@ cid = api.add("important_data.txt", backends=['ipfs', 'filecoin', 's3'])
 ```
 
 **See Also:** [Storage Backends Documentation](docs/reference/storage_backends.md)
+
+### Walrus fsspec Usage
+
+The Walrus backend registers the `walrus://` protocol with fsspec and supports
+publisher writes, aggregator reads, direct blob-id reads, and index-backed
+logical paths. `ipfs_kit_py` delegates the backend implementation to the
+standalone `walrus-fsspec` package while preserving the historical
+`ipfs_kit_py.walrus_fsspec` import path and Walrus environment variable aliases:
+
+```python
+import fsspec
+import ipfs_kit_py.walrus_fsspec  # registers walrus://
+
+fs = fsspec.filesystem("walrus")
+entry = fs.pipe_file("walrus://examples/hello.txt", b"hello walrus\n")
+
+with fsspec.open("walrus://examples/hello.txt", "rb") as handle:
+    print(handle.read())
+
+with fsspec.open(f"walrus://{entry['blob_id']}", "rb") as handle:
+    print(handle.read())
+```
+
+Set `WALRUS_PUBLISHER_URL` for writes, `WALRUS_AGGREGATOR_URL` for reads,
+and `WALRUS_DELETE_URL` for deletes. See the
+[Walrus fsspec integration guide](docs/integration/walrus_fsspec.md) for full
+configuration, examples, and listing/deletion limitations.
 
 ## 🔄 Replica Management
 
@@ -401,6 +429,63 @@ results = vfs.search(query="machine learning", content_type="pdf")
 
 IPFS Kit integrates **GraphRAG** (Graph-based Retrieval Augmented Generation) for semantic search and knowledge management:
 
+### VFS GraphRAG Indexing
+
+VFS GraphRAG indexing adds a dependency-light local index for virtual
+filesystem metadata, text chunks, embedding metadata, graph entities,
+relationships, snapshots, checkpoints, and portable export bundles. JSONL
+storage works without live IPFS, vector database, LLM, or `ipfs_datasets_py`
+services; optional adapters can provide richer chunking, embeddings, and
+knowledge graph extraction.
+
+```bash
+python -m ipfs_kit_py.cli vfs index \
+  --index-root /tmp/vfs-graphrag \
+  --namespace research \
+  --path /data/reports/policy.md \
+  --backend local \
+  --protocol file \
+  --mime-type text/markdown \
+  --metadata-json '{"classification":"public"}'
+
+python -m ipfs_kit_py.cli vfs search "policy" \
+  --index-root /tmp/vfs-graphrag \
+  --namespace research \
+  --type hybrid \
+  --filters-json '{"classification":"public"}'
+```
+
+```python
+from ipfs_kit_py.vfs_manager import VFSManager
+
+vfs = VFSManager(storage_path="/srv/ipfs-kit-state")
+vfs.enable_graphrag_indexing_sync(
+    index_path="/srv/ipfs-kit-state/.vfs_graphrag_index",
+    namespace="research",
+)
+vfs.index_namespace_sync("research", root_path="/data/reports", recursive=True)
+results = vfs.search_sync(
+    "policy",
+    namespaces=["research"],
+    metadata_filters={"classification": "public"},
+    search_type="hybrid",
+)
+```
+
+Export a searchable VFS snapshot with:
+
+```bash
+python -m ipfs_kit_py.cli vfs export-index \
+  --index-root /tmp/vfs-graphrag \
+  --namespace research \
+  --output /tmp/vfs-snapshot
+```
+
+See [VFS GraphRAG Indexing](docs/integration/vfs_graphrag_indexing.md) for
+configuration, indexing workflows, metadata/vector/graph search examples,
+export and import bundles, privacy controls, dependency requirements, and
+backend limitations.
+
 **Automatic Content Indexing:**
 ```python
 # All VFS operations auto-index content
@@ -598,6 +683,10 @@ export IPFS_KIT_BIN_DIR="$HOME/.local/share/ipfs_kit_py/bin"
 # Install core features
 pip install ipfs_kit_py
 
+# Walrus and fsspec backends are included in the core dependency set.
+# The lazy loader can also install declared feature dependencies at first use
+# unless IPFS_KIT_AUTO_INSTALL_LAZY_DEPS=0 is set.
+
 # Install with AI/ML support
 pip install ipfs_kit_py[ai_ml]
 
@@ -609,6 +698,57 @@ git clone https://github.com/endomorphosis/ipfs_kit_py.git
 cd ipfs_kit_py
 pip install -e .[dev]
 ```
+
+### Implementation Progress
+
+The supervised implementation run completed the three active VFS/fsspec task
+boards tracked under `data/agent_supervisor/ipfs_kit_todo/state/`:
+
+| Track | Task board | Completed |
+|-------|------------|-----------|
+| Walrus fsspec backend | `TODO_WALRUS_FSSPEC.md` | 7 / 7 |
+| fsspec backend improvements | `TODO_FSSPEC_BACKENDS.md` | 8 / 8 |
+| VFS GraphRAG indexing | `TODO_VFS_GRAPHRAG_INDEXING.md` | 12 / 12 |
+
+The state JSON files are the authoritative progress ledger. Some markdown
+checkboxes may still appear unchecked because the daemon could not rewrite the
+source boards after completing tasks, but the implementation state records all
+27 tasks as completed with no ready, waiting, or blocked work remaining.
+
+### Feature Exposure
+
+The Walrus, fsspec, and VFS GraphRAG work is available across the package,
+CLI, MCP server, dashboard, and browser SDK surfaces:
+
+```bash
+ipfs-kit walrus status
+ipfs-kit walrus ls
+ipfs-kit fsspec protocols
+ipfs-kit graphrag status
+ipfs-kit graphrag search "example query"
+```
+
+Python imports are available lazily from the package root:
+
+```python
+from ipfs_kit_py import (
+    VFSGraphRAGIndex,
+    WalrusFileSystem,
+    WalrusStorageClient,
+    create_walrus_filesystem,
+    register_fsspec_implementations,
+)
+```
+
+MCP clients can call `walrus_status`, `walrus_list`, `walrus_get`,
+`walrus_put`, `walrus_delete`, `fsspec_list_protocols`,
+`fsspec_backend_status`, `fsspec_read`, `fsspec_write`,
+`vfs_graphrag_status`, `vfs_graphrag_search`,
+`vfs_graphrag_metadata_search`, `vfs_graphrag_vector_search`,
+`vfs_graphrag_hybrid_search`, `vfs_graphrag_graph_search`, and
+`vfs_graphrag_graph_hybrid_search`, and `vfs_graphrag_export`. The dashboard
+JavaScript SDK also exposes these through `MCP.Walrus`, `MCP.FSSpec`, and
+`MCP.VFSGraphRAG`.
 
 ### Basic Usage
 

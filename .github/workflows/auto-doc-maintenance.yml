@@ -71,26 +71,41 @@ jobs:
           from pathlib import Path
           from typing import List, Dict, Any
           import json
-          
-          class DocumentationExtractionError(Exception):
+
+          class DocumentationExtractionError(RuntimeError):
               """Raised when module documentation cannot be extracted."""
 
+              def __init__(self, file_path: Path, message: str):
+                  super().__init__(f"{file_path}: {message}")
+                  self.file_path = file_path
+          
+          class DocumentationExtractionError(RuntimeError):
+              """Raised when module documentation cannot be extracted."""
+
+              def __init__(self, file_path: Path, message: str):
+                  super().__init__(f"{file_path}: {message}")
+                  self.file_path = file_path
+          
+          class DocumentationExtractionError(Exception):
+              """Raised when a Python module cannot be read or parsed for documentation."""
+              def __init__(self, file_path: Path, cause: Exception) -> None:
+                  super().__init__(f"Failed to extract documentation from {file_path}: {cause}")
+                  self.file_path = file_path
+                  self.cause = cause
+          
           def extract_module_info(file_path: Path) -> Dict[str, Any]:
               """Extract docstrings and metadata from a Python file."""
               try:
-                  content = file_path.read_text(encoding='utf-8')
-              except (OSError, UnicodeDecodeError) as e:
-                  raise DocumentationExtractionError(
-                      f"Unable to read {file_path}: {e}"
-                  ) from e
-
+                  with open(file_path, 'r', encoding='utf-8') as f:
+                      content = f.read()
+              except OSError as e:
+                  raise DocumentationExtractionError(file_path, e) from e
+              
               try:
-                  tree = ast.parse(content, filename=str(file_path))
+                  tree = ast.parse(content)
               except SyntaxError as e:
-                  raise DocumentationExtractionError(
-                      f"Unable to parse {file_path}: {e}"
-                  ) from e
-                  
+                  raise DocumentationExtractionError(file_path, e) from e
+              
               module_info = {
                   'path': str(file_path),
                   'docstring': ast.get_docstring(tree),
@@ -98,7 +113,7 @@ jobs:
                   'functions': [],
                   'imports': []
               }
-
+              
               for node in ast.walk(tree):
                   if isinstance(node, ast.ClassDef):
                       class_info = {
@@ -126,40 +141,52 @@ jobs:
                               module_info['imports'].append(alias.name)
                       elif node.module:
                           module_info['imports'].append(node.module)
-
+              
               return module_info
           
           def generate_module_docs(base_path: Path, output_dir: Path):
               """Generate markdown documentation for all modules."""
               modules = []
-              failures: List[DocumentationExtractionError] = []
+              extraction_errors: List[DocumentationExtractionError] = []
               
               # Find all Python files
               for py_file in base_path.rglob('*.py'):
                   if '__pycache__' in str(py_file) or 'test' in str(py_file).lower():
                       continue
                   
-                  rel_path = py_file.relative_to(base_path)
                   try:
                       module_info = extract_module_info(py_file)
                   except DocumentationExtractionError as e:
-                      failures.append(e)
+                      print(f"Error: {e}", file=sys.stderr)
+                      extraction_errors.append(e)
                       continue
                   
                   if (module_info['docstring'] or
                       module_info['classes'] or
                       module_info['functions']):
                       modules.append(module_info)
-              
+
               if failures:
-                  print(
-                      f"Documentation extraction failed for {len(failures)} file(s):",
-                      file=sys.stderr,
-                  )
+                  print("Documentation extraction failed:", file=sys.stderr)
                   for failure in failures:
                       print(f"- {failure}", file=sys.stderr)
                   raise SystemExit(1)
-
+              
+              if errors:
+                  print("Module documentation extraction failed:", file=sys.stderr)
+                  for error in errors:
+                      print(f"- {error}", file=sys.stderr)
+                  raise SystemExit(1)
+              
+              # Abort before writing partial output if any module failed.
+              if extraction_errors:
+                  print(
+                      f"{len(extraction_errors)} module(s) could not be extracted; "
+                      "refusing to write partial module_structure.md",
+                      file=sys.stderr,
+                  )
+                  raise SystemExit(1)
+              
               # Generate summary document
               output_dir.mkdir(parents=True, exist_ok=True)
               summary_path = output_dir / 'module_structure.md'

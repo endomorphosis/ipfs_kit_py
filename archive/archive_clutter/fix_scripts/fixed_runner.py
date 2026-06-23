@@ -52,8 +52,18 @@ def kill_existing_servers():
                     try:
                         os.kill(pid, signal.SIGTERM)
                         logger.info(f"Terminated process with PID {pid} from {pid_file}")
-                    except OSError:
-                        pass
+                    except ProcessLookupError:
+                        logger.info(
+                            f"Process with PID {pid} from {pid_file} is not running; removing stale PID file"
+                        )
+                    except PermissionError as e:
+                        logger.warning(
+                            f"Permission denied terminating PID {pid} from {pid_file}: {e}"
+                        )
+                    except OSError as e:
+                        logger.warning(
+                            f"Failed to terminate PID {pid} from {pid_file}: {e}"
+                        )
                 os.remove(pid_file)
             except Exception as e:
                 logger.warning(f"Failed to process pid file {pid_file}: {e}")

@@ -146,7 +146,8 @@ logger.debug(f"libp2p extra detected: {HAS_LIBP2P_EXTRA}")
 # Module-level state
 HAS_LIBP2P = False  # Flag indicating if libp2p is available
 DEPENDENCIES_CHECKED = False  # Flag indicating if we've performed the check
-AUTO_INSTALL = os.environ.get("IPFS_KIT_AUTO_INSTALL_DEPS", "1") == "1"
+AUTO_INSTALL = os.environ.get("IPFS_KIT_AUTO_INSTALL_DEPS", "0") == "1"
+LIBP2P_DISABLED = os.environ.get("IPFS_KIT_DISABLE_LIBP2P", "").lower() in {"1", "true", "yes", "on"}
 _attempted_install = False  # Flag to indicate if we've tried auto-installation
 
 def check_dependencies() -> bool:
@@ -162,6 +163,12 @@ def check_dependencies() -> bool:
         bool: True if all dependencies are available, False otherwise
     """
     global HAS_LIBP2P, DEPENDENCIES_CHECKED, _attempted_install
+
+    if LIBP2P_DISABLED:
+        HAS_LIBP2P = False
+        DEPENDENCIES_CHECKED = True
+        logger.info("LibP2P disabled by IPFS_KIT_DISABLE_LIBP2P")
+        return False
 
     # Fix multihash/multiformats namespace conflicts
     # The multiformats library provides multihash, but some libp2p code may try to import
@@ -214,19 +221,19 @@ def check_dependencies() -> bool:
         try:
             importlib.import_module(dep)
             logger.debug(f"Dependency {dep} is available")
-        except (ImportError, ModuleNotFoundError):
+        except Exception as e:
             all_available = False
             missing_deps.append(dep)
-            logger.debug(f"Dependency {dep} is missing")
+            logger.debug(f"Dependency {dep} is unavailable: {e}")
 
     if all_available:
         for module in REQUIRED_LIBP2P_SUBMODULES:
             try:
                 importlib.import_module(module)
                 logger.debug(f"libp2p submodule {module} is available")
-            except (ImportError, ModuleNotFoundError):
+            except Exception as e:
                 missing_submodules.append(module)
-                logger.debug(f"libp2p submodule {module} is missing")
+                logger.debug(f"libp2p submodule {module} is unavailable: {e}")
         if missing_submodules and STRICT_LIBP2P_SUBMODULES:
             all_available = False
 
@@ -298,9 +305,9 @@ def check_dependencies() -> bool:
                 importlib.import_module(import_name)
                 optional_available.append(dep)
                 logger.debug(f"Optional dependency {dep} is available")
-            except (ImportError, ModuleNotFoundError):
+            except Exception as e:
                 optional_missing.append(dep)
-                logger.debug(f"Optional dependency {dep} is missing")
+                logger.debug(f"Optional dependency {dep} is unavailable: {e}")
                 
         if optional_missing:
             logger.info(f"Optional dependencies missing: {', '.join(optional_missing)}")

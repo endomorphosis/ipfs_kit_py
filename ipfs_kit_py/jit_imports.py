@@ -25,6 +25,8 @@ Usage:
         bucket_index = jit.import_module('enhanced_bucket_index')
 """
 
+import os
+import subprocess
 import sys
 import time
 import threading
@@ -62,13 +64,16 @@ class FeatureDefinition:
 class JITImports:
     """Centralized Just-in-Time import management system."""
     
-    def __init__(self, enable_metrics: bool = True):
+    def __init__(self, enable_metrics: bool = True, auto_install: Optional[bool] = None):
         self.enable_metrics = enable_metrics
+        self.auto_install = self._auto_install_enabled() if auto_install is None else auto_install
         self.metrics = ImportMetrics()
         self._lock = threading.RLock()
+        self._install_lock = threading.RLock()
         self._cached_modules: Dict[str, Any] = {}
         self._cached_features: Dict[str, bool] = {}
         self._failed_imports: Set[str] = set()
+        self._auto_installed_features: Set[str] = set()
         self._startup_time = time.time()
         
         # Define feature groups
@@ -158,6 +163,20 @@ class JITImports:
                 check_function=self._check_networking_available,
                 description="Advanced networking capabilities"
             ),
+            'walrus_fsspec': FeatureDefinition(
+                name='walrus_fsspec',
+                modules=[
+                    'fsspec',
+                    'httpx',
+                    'walrus_fsspec',
+                    'ipfs_kit_py.walrus_storage',
+                    'ipfs_kit_py.walrus_fsspec',
+                ],
+                pip_packages=['fsspec>=2023.3.0', 'httpx>=0.24.0', 'walrus-fsspec>=0.1.0'],
+                check_function=self._check_walrus_fsspec_available,
+                priority=2,
+                description="Walrus fsspec backend and HTTP client"
+            ),
             'installer_dependencies': FeatureDefinition(
                 name='installer_dependencies',
                 modules=[
@@ -182,6 +201,13 @@ class JITImports:
         # Initialize startup metrics
         if self.enable_metrics:
             self.metrics.startup_time = time.time() - self._startup_time
+
+    @staticmethod
+    def _auto_install_enabled() -> bool:
+        value = os.environ.get("IPFS_KIT_AUTO_INSTALL_LAZY_DEPS")
+        if value is None:
+            return True
+        return value.strip().lower() not in {"0", "false", "no", "n", "off"}
     
     def is_available(self, feature_name: str) -> bool:
         """Check if a feature is available (cached for performance)."""
@@ -247,7 +273,11 @@ class JITImports:
             
             # Check feature group availability first
             if feature_group and not self.is_available(feature_group):
-                return None
+                if not self.ensure_feature_dependencies(feature_group):
+                    return None
+                self.clear_cache()
+                if not self.is_available(feature_group):
+                    return None
             
             try:
                 module = importlib.import_module(module_name)
@@ -334,9 +364,38 @@ class JITImports:
                 "modules": feature.modules,
                 "pip_packages": feature.pip_packages,
                 "priority": feature.priority,
-                "lazy_load": feature.lazy_load
+                "lazy_load": feature.lazy_load,
+                "auto_install": self.auto_install and bool(feature.pip_packages)
             }
         return status
+
+    def ensure_feature_dependencies(self, feature_name: str) -> bool:
+        """Install declared pip packages for a lazy-loaded feature when missing."""
+        feature = self._features.get(feature_name)
+        if not feature or not feature.pip_packages:
+            return False
+        if not self.auto_install:
+            return False
+
+        with self._install_lock:
+            if feature_name in self._auto_installed_features:
+                return self.is_available(feature_name)
+
+            command = [sys.executable, "-m", "pip", "install", *feature.pip_packages]
+            try:
+                subprocess.run(
+                    command,
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=float(os.environ.get("IPFS_KIT_LAZY_INSTALL_TIMEOUT", "300")),
+                )
+            except Exception:
+                return False
+
+            self._auto_installed_features.add(feature_name)
+            self.clear_cache()
+            return self.is_available(feature_name)
     
     def preload_features(self, features: list[str], background: bool = False):
         """Preload specific features (useful for warming up cache)."""
@@ -448,6 +507,16 @@ class JITImports:
         optional_modules = ['aiohttp', 'websockets', 'requests']
         # At least one networking module should be available
         return any(self._check_modules_available([module]) for module in optional_modules)
+
+    def _check_walrus_fsspec_available(self) -> bool:
+        """Check if the Walrus fsspec backend and runtime deps are available."""
+        return self._check_modules_available([
+            'fsspec',
+            'httpx',
+            'walrus_fsspec',
+            'ipfs_kit_py.walrus_storage',
+            'ipfs_kit_py.walrus_fsspec',
+        ])
 
     def _check_installer_dependencies_available(self) -> bool:
         """Check if installer modules are available.

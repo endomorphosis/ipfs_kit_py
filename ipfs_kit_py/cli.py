@@ -26,7 +26,7 @@ import time
 from contextlib import suppress
 import contextlib
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,132 @@ logger = logging.getLogger(__name__)
 # Schema version for the JSON report emitted by:
 #   python -m ipfs_kit_py.cli mcp deprecations --report-json <path>
 REPORT_SCHEMA_VERSION = "1.0.0"
+
+VFS_GRAPHRAG_ACTIONS = {"index", "search", "graphrag-status", "export-index", "import-index"}
+
+
+def _load_json_object(payload: str | None, *, label: str) -> dict[str, Any]:
+    if not payload:
+        return {}
+    data = json.loads(payload)
+    if not isinstance(data, dict):
+        raise ValueError(f"{label} must be a JSON object")
+    return data
+
+
+def _load_json_records(path: str | None) -> list[dict[str, Any]]:
+    if not path:
+        return []
+    source = Path(path)
+    text = source.read_text(encoding="utf-8")
+    stripped = text.strip()
+    if not stripped:
+        return []
+    if stripped.startswith("["):
+        data = json.loads(stripped)
+        if not isinstance(data, list):
+            raise ValueError("--records JSON array must contain record objects")
+        return [dict(item) for item in data]
+    if stripped.startswith("{"):
+        return [dict(json.loads(stripped))]
+    return [dict(json.loads(line)) for line in text.splitlines() if line.strip()]
+
+
+def _load_jsonl(path: str | None) -> list[dict[str, Any]]:
+    if not path:
+        return []
+    return [dict(json.loads(line)) for line in Path(path).read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def _parse_vector(value: str | None) -> list[float] | None:
+    if not value:
+        return None
+    stripped = value.strip()
+    if stripped.startswith("["):
+        data = json.loads(stripped)
+    else:
+        data = [part.strip() for part in stripped.split(",") if part.strip()]
+    return [float(item) for item in data]
+
+
+async def handle_vfs_graphrag_command(args: argparse.Namespace) -> int:
+    """Run VFS GraphRAG CLI commands and emit JSON-friendly MCP payloads."""
+
+    from ipfs_kit_py.mcp.controllers.vfs_graphrag_controller import (
+        VFSGraphRAGController,
+        dumps_json,
+    )
+
+    action = getattr(args, "vfs_action", None)
+    base_payload: dict[str, Any] = {
+        "index_root": str(getattr(args, "index_root")),
+        "namespace": getattr(args, "namespace", "default"),
+        "storage_format": getattr(args, "storage_format", "jsonl"),
+    }
+    controller = VFSGraphRAGController()
+
+    if action == "index":
+        payload = {
+            **base_payload,
+            "records": _load_json_records(getattr(args, "records", None)),
+            "path": getattr(args, "path", None),
+            "content_id": getattr(args, "content_id", None),
+            "content_hash": getattr(args, "content_hash", None),
+            "backend": getattr(args, "backend", "ipfs"),
+            "protocol": getattr(args, "protocol", None),
+            "mime_type": getattr(args, "mime_type", "application/octet-stream"),
+            "size_bytes": getattr(args, "size_bytes", 0),
+            "object_type": getattr(args, "object_type", "file"),
+            "tags": list(getattr(args, "tags", []) or []),
+            "metadata": _load_json_object(getattr(args, "metadata_json", None), label="--metadata-json"),
+        }
+        if not payload["records"] and not payload["path"]:
+            raise ValueError("vfs index requires --records or --path")
+        result = await controller.index(payload)
+    elif action == "search":
+        payload = {
+            **base_payload,
+            "query": getattr(args, "query", ""),
+            "search_type": getattr(args, "search_type", "hybrid"),
+            "top_k": getattr(args, "top_k", 10),
+            "metadata_filters": _load_json_object(getattr(args, "filters_json", None), label="--filters-json"),
+            "query_vector": _parse_vector(getattr(args, "query_vector", None)),
+            "namespaces": list(getattr(args, "namespaces", []) or []),
+            "backends": list(getattr(args, "backends", []) or []),
+            "protocols": list(getattr(args, "protocols", []) or []),
+            "facet_fields": list(getattr(args, "facet_fields", []) or []),
+            "hop_limit": getattr(args, "hop_limit", None),
+            "entity_types": list(getattr(args, "entity_types", []) or []),
+        }
+        result = await controller.search(payload)
+    elif action == "graphrag-status":
+        result = await controller.status(base_payload)
+    elif action == "export-index":
+        payload = {
+            **base_payload,
+            "output_path": str(getattr(args, "output")),
+            "filesystem_map": _load_json_object(
+                getattr(args, "filesystem_map_json", None),
+                label="--filesystem-map-json",
+            ) or None,
+            "journal_entries": _load_jsonl(getattr(args, "journal_jsonl", None)),
+            "include_filesystem": not bool(getattr(args, "no_filesystem", False)),
+            "include_journal": not bool(getattr(args, "no_journal", False)),
+        }
+        result = await controller.export_index(payload)
+    elif action == "import-index":
+        payload = {
+            **base_payload,
+            "input_path": str(getattr(args, "input")),
+            "mode": getattr(args, "mode", "metadata-plus-indexes"),
+            "verify_checksums": not bool(getattr(args, "skip_checksums", False)),
+        }
+        result = await controller.import_index(payload)
+    else:
+        raise ValueError(f"Unknown VFS GraphRAG action: {action}")
+
+    print(dumps_json(result))
+    return 0
 
 
 class FastCLI:
@@ -169,6 +295,10 @@ class FastCLI:
             unified._add_pin_commands(subparsers)
             # Add backend commands (but not daemon, already exists)
             unified._add_backend_commands(subparsers)
+            # Add feature exposure commands
+            unified._add_walrus_commands(subparsers)
+            unified._add_fsspec_commands(subparsers)
+            unified._add_graphrag_commands(subparsers)
             # Add journal commands
             unified._add_journal_commands(subparsers)
             # Add state commands
@@ -205,7 +335,7 @@ class FastCLI:
                 pass
         
         # Handle both mcp_action and daemon_action
-        unified_commands = {"bucket", "vfs", "wal", "pin", "backend", "journal", "state"}
+        unified_commands = {"bucket", "vfs", "wal", "pin", "backend", "walrus", "fsspec", "graphrag", "vfs-graphrag", "journal", "state"}
         
         if args.command in unified_commands:
             # Route to unified CLI dispatcher
@@ -903,6 +1033,10 @@ async def main() -> None:
     """Main CLI entry point with auto-healing error capture."""
     # Fast path for lightweight MCP actions to avoid heavy auto-heal imports.
     if len(sys.argv) >= 3 and sys.argv[1] == "mcp" and sys.argv[2] in {"start", "stop", "status", "deprecations"}:
+        cli = FastCLI()
+        await cli.run()
+        return
+    if len(sys.argv) >= 3 and sys.argv[1] == "vfs" and sys.argv[2] in VFS_GRAPHRAG_ACTIONS:
         cli = FastCLI()
         await cli.run()
         return

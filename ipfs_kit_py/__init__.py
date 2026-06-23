@@ -1,5 +1,5 @@
 """
-IPFS Kit - Python toolkit for IPFS with high-level API, cluster management, tiered storage, and AI/ML integration.
+IPFS Kit - Python toolkit for IPFS with high-level API, cluster management, tiered storage, fsspec backends, and AI/ML integration.
 
 This package provides comprehensive IPFS functionality including:
 
@@ -9,6 +9,8 @@ This package provides comprehensive IPFS functionality including:
 ☁️ **Web3 Storage**: Storacha/Web3.Storage integration for decentralized storage
 🤖 **AI/ML Integration**: Machine learning pipeline support with transformers
 📡 **MCP Server**: Model Context Protocol server for AI assistant integration
+🗄️ **fsspec Backends**: IPFS, Synapse, Storacha, Filecoin, and Walrus protocol access
+🔎 **VFS GraphRAG**: Local VFS metadata, vector, hybrid, and graph search indexes
 
 ## Just-in-Time (JIT) Import System
 
@@ -83,7 +85,7 @@ python final_mcp_server_enhanced.py --host 0.0.0.0 --port 9998
 For detailed documentation, see: https://github.com/endomorphosis/ipfs_kit_py
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __author__ = "Benjamin Barber"
 __email__ = "starworks5@gmail.com"
 
@@ -117,6 +119,21 @@ __all__ = [
     # Backend configuration helpers
     'initialize_backend_config',
     'get_backend_statuses',
+    # Walrus and fsspec backends
+    'create_walrus_filesystem',
+    'WalrusFileSystem',
+    'WalrusStorageClient',
+    'EnhancedIPFSFileSystem',
+    'SynapseFileSystem',
+    'StorachaFileSystem',
+    'FilecoinPinFileSystem',
+    'register_fsspec_implementations',
+    # VFS GraphRAG indexing
+    'VFSGraphRAGIndex',
+    'VFSGraphRAGAdapterConfig',
+    'VFSGraphRAGAdapters',
+    'VFSGraphRAGDependencyError',
+    'create_vfs_graphrag_adapters',
     # Submodule lazy imports
     'get_ipfs_datasets',
     'get_ipfs_accelerate',
@@ -125,6 +142,34 @@ __all__ = [
     'ipfs_accelerate_py',
     'ipfs_transformers_py',
 ]
+
+_FEATURE_EXPORTS = {
+    'create_walrus_filesystem': ('.high_level_api', 'create_walrus_filesystem'),
+    'WalrusFileSystem': ('.walrus_fsspec', 'WalrusFileSystem'),
+    'WalrusStorageClient': ('.walrus_storage', 'WalrusStorageClient'),
+    'EnhancedIPFSFileSystem': ('.enhanced_fsspec', 'EnhancedIPFSFileSystem'),
+    'SynapseFileSystem': ('.enhanced_fsspec', 'SynapseFileSystem'),
+    'StorachaFileSystem': ('.enhanced_fsspec', 'StorachaFileSystem'),
+    'FilecoinPinFileSystem': ('.enhanced_fsspec', 'FilecoinPinFileSystem'),
+    'register_fsspec_implementations': ('.enhanced_fsspec', 'register_fsspec_implementations'),
+    'VFSGraphRAGIndex': ('.vfs_graphrag_index', 'VFSGraphRAGIndex'),
+    'VFSGraphRAGAdapterConfig': ('.vfs_graphrag_index', 'VFSGraphRAGAdapterConfig'),
+    'VFSGraphRAGAdapters': ('.vfs_graphrag_index', 'VFSGraphRAGAdapters'),
+    'VFSGraphRAGDependencyError': ('.vfs_graphrag_index', 'VFSGraphRAGDependencyError'),
+    'create_vfs_graphrag_adapters': ('.vfs_graphrag_index', 'create_vfs_graphrag_adapters'),
+}
+
+
+def __getattr__(name: str):
+    if name in _FEATURE_EXPORTS:
+        import importlib
+
+        module_name, attr_name = _FEATURE_EXPORTS[name]
+        module = importlib.import_module(module_name, __name__)
+        value = getattr(module, attr_name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 # Initialize core JIT system early
 try:

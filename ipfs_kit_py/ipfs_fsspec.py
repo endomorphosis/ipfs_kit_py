@@ -1515,6 +1515,9 @@ def get_filesystem(return_mock: bool = False, **kwargs):
         from unittest.mock import MagicMock
         mock_fs = MagicMock()
         mock_fs.__class__.__name__ = "MockIPFSFileSystem"
+        mock_fs.backend = kwargs.get("backend", "ipfs")
+        if mock_fs.backend == "synapse":
+            mock_fs.synapse_storage = None
         return mock_fs
     
     try:
@@ -1564,6 +1567,9 @@ def get_filesystem(return_mock: bool = False, **kwargs):
         from unittest.mock import MagicMock
         mock_fs = MagicMock()
         mock_fs.__class__.__name__ = "MockIPFSFileSystem" 
+        mock_fs.backend = kwargs.get("backend", "ipfs")
+        if mock_fs.backend == "synapse":
+            mock_fs.synapse_storage = None
         logger.warning("Returning mock filesystem due to initialization failure")
         return mock_fs
 
@@ -1571,6 +1577,15 @@ def get_filesystem(return_mock: bool = False, **kwargs):
 # ---------------------------------------------------------------------------
 # Minimal VFS coordination layer (test-focused)
 # ---------------------------------------------------------------------------
+
+
+def _walrus_backend_available() -> bool:
+    try:
+        from .walrus_fsspec import HAVE_FSSPEC, WalrusFileSystem
+
+        return bool(HAVE_FSSPEC and WalrusFileSystem is not None)
+    except Exception:
+        return False
 
 
 class VFSBackendRegistry:
@@ -1584,6 +1599,7 @@ class VFSBackendRegistry:
         "local": {"available": True},
         "memory": {"available": True},
         "ipfs": {"available": True},
+        "walrus": {"available": False},
         "s3": {"available": False},
         "huggingface": {"available": False},
         "storacha": {"available": False},
@@ -1594,9 +1610,20 @@ class VFSBackendRegistry:
 
     def __init__(self):
         self._backends = dict(self._DEFAULT_BACKENDS)
+        if _walrus_backend_available():
+            self._backends["walrus"] = {
+                "available": True,
+                "protocol": "walrus",
+                "filesystem": "ipfs_kit_py.walrus_fsspec.WalrusFileSystem",
+            }
 
     def list_backends(self) -> List[str]:
         return sorted(self._backends.keys())
+
+    def available_backends(self) -> List[str]:
+        return sorted(
+            name for name, info in self._backends.items() if info.get("available", False)
+        )
 
     def get_backend(self, name: str) -> Dict[str, Any]:
         info = dict(self._backends.get(name, {"available": False}))
@@ -1621,10 +1648,22 @@ class VFSBackendRegistry:
                 return object()
         if backend == "ipfs":
             return IPFSFileSystem(*args, **kwargs)
+        if backend == "walrus":
+            from .high_level_api import create_walrus_filesystem
+
+            return create_walrus_filesystem(*args, **kwargs)
         if backend == "arrow":
             return ArrowFileSystem()
         # Placeholder backends
         return object()
+
+
+def list_vfs_backends() -> List[str]:
+    return VFSBackendRegistry().list_backends()
+
+
+def get_available_vfs_backends() -> List[str]:
+    return VFSBackendRegistry().available_backends()
 
 
 class VFSCacheManager:

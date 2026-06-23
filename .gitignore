@@ -109,6 +109,7 @@ virtualenv/
 *.log.*
 logs/
 **/logs/
+data/agent_supervisor/ipfs_kit_todo/
 .cache/
 *.tmp
 *.temp
