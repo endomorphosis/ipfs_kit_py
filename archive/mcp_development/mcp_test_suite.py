@@ -89,7 +89,7 @@ def kill_existing_servers():
                         pass
                 os.remove(pid_file)
             except Exception as e:
-                logger.debug(f"Error processing pid file {pid_file}: {e}")
+                logger.warning(f"Error processing pid file {pid_file}: {e}", exc_info=True)
     
     # Try to kill by process name
     try:
@@ -264,6 +264,9 @@ def get_server_info():
         return None
     except json.JSONDecodeError as e:
         logger.error(f"Error parsing server info response JSON: {e}", exc_info=True)
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error getting server info: {e}", exc_info=True)
         return None
 
 def get_registered_tools():
