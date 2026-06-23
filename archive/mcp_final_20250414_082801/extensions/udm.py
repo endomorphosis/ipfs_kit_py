@@ -469,14 +469,14 @@ async def store_content(content, request: StoreRequest):
 
         # Create content registry entry
         content_info = {
-            "cid": cid
+            "cid": cid,
             "name": request.content_name,
             "size": len(content),
             "content_type": request.content_type,
             "created_at": time.time(),
             "updated_at": time.time(),
             "backends": {target_backend: backend_cid},
-            "primary_backend": target_backend
+            "primary_backend": target_backend,
             "tags": request.tags,
         }
 
@@ -495,7 +495,7 @@ async def store_content(content, request: StoreRequest):
         return {"success": True, "cid": cid, "primary_backend": target_backend}
 
     except Exception as e:
-        logger.error(f"Error storing content: {e}")
+        logger.error(f"Error storing content: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
 
 
@@ -542,16 +542,16 @@ async def retrieve_content(cid, preferred_backend=None):
 
         # Return the content and metadata
         return content, {
-            "success": True
-            "cid": cid
-            "source_backend": source_backend
+            "success": True,
+            "cid": cid,
+            "source_backend": source_backend,
             "content_type": content_info.get("content_type"),
             "name": content_info.get("name"),
             "size": len(content),
         }
 
     except Exception as e:
-        logger.error(f"Error retrieving content: {e}")
+        logger.error(f"Error retrieving content: {e}", exc_info=True)
         return None, {"success": False, "error": str(e)}
 
 
@@ -576,14 +576,14 @@ def create_udm_router(api_prefix: str) -> APIRouter:
             available_backends = get_available_backends()
 
             return {
-                "success": True
+                "success": True,
                 "content_count": len(content_registry),
                 "metadata_count": len(metadata_registry),
-                "backend_content_counts": backend_counts
-                "available_backends": available_backends
+                "backend_content_counts": backend_counts,
+                "available_backends": available_backends,
             }
         except Exception as e:
-            logger.error(f"Error getting UDM status: {e}")
+            logger.error(f"Error getting UDM status: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
     @router.post("/store")
@@ -603,7 +603,7 @@ def create_udm_router(api_prefix: str) -> APIRouter:
             result = await store_content(content, request)
             return result
         except Exception as e:
-            logger.error(f"Error in store_content_api: {e}")
+            logger.error(f"Error in store_content_api: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
     @router.get("/retrieve/{cid}")
@@ -640,7 +640,7 @@ def create_udm_router(api_prefix: str) -> APIRouter:
 
             return response
         except Exception as e:
-            logger.error(f"Error in retrieve_content_api: {e}")
+            logger.error(f"Error in retrieve_content_api: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
     @router.get("/info/{cid}")
@@ -658,7 +658,7 @@ def create_udm_router(api_prefix: str) -> APIRouter:
 
             return {"success": True, "content": content_info, "metadata": metadata}
         except Exception as e:
-            logger.error(f"Error getting content info: {e}")
+            logger.error(f"Error getting content info: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
     @router.post("/query")
@@ -668,15 +668,15 @@ def create_udm_router(api_prefix: str) -> APIRouter:
             results, total_count = filter_content_by_query(query)
 
             return {
-                "success": True
-                "results": results
-                "total_count": total_count
+                "success": True,
+                "results": results,
+                "total_count": total_count,
                 "returned_count": len(results),
                 "offset": query.offset,
                 "limit": query.limit,
             }
         except Exception as e:
-            logger.error(f"Error querying content: {e}")
+            logger.error(f"Error querying content: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
     return router

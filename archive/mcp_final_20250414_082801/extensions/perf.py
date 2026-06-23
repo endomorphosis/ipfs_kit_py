@@ -273,8 +273,12 @@ async def get_from_cache(key: str) -> Optional[Dict[str, Any]]:
             "content_type": entry.get("content_type", "application/octet-stream"),
             "size": len(content),
         }
+    except OSError as e:
+        logger.exception("Error reading cache file for key %r: %s", key, e)
+        stats["caching"]["misses"] += 1
+        return None
     except Exception as e:
-        logger.error(f"Error retrieving from cache ({type(e).__name__}): {e}", exc_info=True)
+        logger.exception("Unexpected error retrieving from cache for key %r: %s", key, e)
         stats["caching"]["misses"] += 1
         return None
 
@@ -788,8 +792,8 @@ async def load_balancing_middleware(request: Request, call_next):
                 try:
                     latency = float(latency_ms)
                     update_backend_stats(backend, latency, success=(response.status_code < 500))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Could not parse X-Response-Time-MS header value {latency_ms!r}: {e}")
     except Exception as e:
         logger.error(f"Error in load balancing middleware: {e}")
 
