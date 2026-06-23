@@ -22,11 +22,12 @@ logger = logging.getLogger(__name__)
 class LassieModelAnyIO(BaseStorageModel):
     """Model for Lassie operations with AnyIO support."""
     def __init__(
-        self
-lassie_kit_instance = None
-ipfs_model = None
-cache_manager = None
-credential_manager = None
+        self,
+        lassie_kit_instance=None,
+        ipfs_model=None,
+        cache_manager=None,
+        credential_manager=None,
+    ):
         """Initialize Lassie model with dependencies.
 
         Args:
@@ -60,7 +61,8 @@ credential_manager = None
             warnings.warn(
                 f"Synchronous method {method_name} called from async context. "
                 f"Use {method_name}_async instead for better performance.",
-stacklevel=3
+                stacklevel=3,
+            )
 
     def check_connection(self) -> Dict[str, Any]:
         """Check connection to the Lassie API.
@@ -84,6 +86,7 @@ stacklevel=3
                 else:
                     result["error"] = check_result.get(
                         "error", "Lassie not installed or not working properly"
+                    )
                     result["error_type"] = "ConnectionError"
             else:
                 result["error"] = "Lassie kit not available"
@@ -113,6 +116,7 @@ stacklevel=3
             if self.lassie_kit:
                 check_result = await anyio.to_thread.run_sync(
                     self.lassie_kit.check_lassie_installed
+                )
 
                 if check_result.get("success", False) and check_result.get("installed", False):
                     result["success"] = True
@@ -121,6 +125,7 @@ stacklevel=3
                 else:
                     result["error"] = check_result.get(
                         "error", "Lassie not installed or not working properly"
+                    )
                     result["error_type"] = "ConnectionError"
             else:
                 result["error"] = "Lassie kit not available"
@@ -137,13 +142,14 @@ stacklevel=3
         return result
 
     def fetch_cid(
-    self,
-    cid: str
+        self,
+        cid: str,
         output_file: Optional[str] = None,
         path: Optional[str] = None,
         block_limit: Optional[int] = None,
         protocols: Optional[List[str]] = None,
         providers: Optional[List[str]] = None,
+    ):
         """Fetch content by CID from Filecoin/IPFS networks using Lassie.
 
         Args:
@@ -171,12 +177,13 @@ stacklevel=3
             # Use lassie_kit to fetch content
             if self.lassie_kit:
                 fetch_result = self.lassie_kit.fetch_cid(
-cid=cid
-output_file=output_file
-path=path
-block_limit=block_limit
-protocols=protocols
-providers=providers
+                    cid=cid,
+                    output_file=output_file,
+                    path=path,
+                    block_limit=block_limit,
+                    protocols=protocols,
+                    providers=providers,
+                )
 
                 if fetch_result.get("success", False):
                     result["success"] = True
@@ -215,13 +222,14 @@ providers=providers
         return result
 
     async def fetch_cid_async(
-    self,
-    cid: str
+        self,
+        cid: str,
         output_file: Optional[str] = None,
         path: Optional[str] = None,
         block_limit: Optional[int] = None,
         protocols: Optional[List[str]] = None,
         providers: Optional[List[str]] = None,
+    ):
         """Fetch content by CID from Filecoin/IPFS networks using Lassie asynchronously.
 
         Args:
@@ -249,12 +257,14 @@ providers=providers
             if self.lassie_kit:
                 fetch_result = await anyio.to_thread.run_sync(
                     lambda: self.lassie_kit.fetch_cid(
-cid=cid
-output_file=output_file
-path=path
-block_limit=block_limit
-protocols=protocols
-providers=providers
+                        cid=cid,
+                        output_file=output_file,
+                        path=path,
+                        block_limit=block_limit,
+                        protocols=protocols,
+                        providers=providers,
+                    )
+                )
 
                 if fetch_result.get("success", False):
                     result["success"] = True
@@ -322,6 +332,7 @@ providers=providers
             if self.lassie_kit:
                 extract_result = self.lassie_kit.extract_car(
                     car_file=car_file, output_dir=output_dir
+                )
 
                 if extract_result.get("success", False):
                     result["success"] = True
@@ -350,6 +361,7 @@ providers=providers
 
     async def extract_car_async(
         self, car_file: str, output_dir: Optional[str] = None
+    ):
         """Extract content from a CAR file asynchronously.
 
         Args:
@@ -381,6 +393,7 @@ providers=providers
             if self.lassie_kit:
                 extract_result = await anyio.to_thread.run_sync(
                     lambda: self.lassie_kit.extract_car(car_file=car_file, output_dir=output_dir)
+                )
 
                 if extract_result.get("success", False):
                     result["success"] = True
@@ -409,6 +422,7 @@ providers=providers
 
     def retrieve_content(
         self, cid: str, output_file: Optional[str] = None, path: Optional[str] = None
+    ):
         """Retrieve content by CID.
 
         Args:
@@ -434,6 +448,7 @@ providers=providers
             if self.lassie_kit:
                 retrieve_result = self.lassie_kit.retrieve_content(
                     cid=cid, output_file=output_file, path=path
+                )
 
                 if retrieve_result.get("success", False):
                     result["success"] = True
@@ -469,6 +484,7 @@ providers=providers
 
     async def retrieve_content_async(
         self, cid: str, output_file: Optional[str] = None, path: Optional[str] = None
+    ):
         """Retrieve content by CID asynchronously.
 
         Args:
@@ -494,6 +510,8 @@ providers=providers
                 retrieve_result = await anyio.to_thread.run_sync(
                     lambda: self.lassie_kit.retrieve_content(
                         cid=cid, output_file=output_file, path=path
+                    )
+                )
 
                 if retrieve_result.get("success", False):
                     result["success"] = True
@@ -529,6 +547,7 @@ providers=providers
 
     def ipfs_to_lassie(
         self, cid: str, output_file: Optional[str] = None, pin: bool = True
+    ):
         """Store IPFS content using Lassie.
 
         Args:
@@ -620,8 +639,8 @@ providers=providers
             if temp_file:
                 try:
                     os.unlink(temp_file.name)
-                except Exception:
-                    pass
+                except Exception as cleanup_err:
+                    logger.warning("Failed to remove temporary file %s: %s", temp_file.name, cleanup_err)
 
         # Add duration
         result["duration_ms"] = (time.time() - start_time) * 1000
@@ -629,6 +648,7 @@ providers=providers
 
     async def ipfs_to_lassie_async(
         self, cid: str, output_file: Optional[str] = None, pin: bool = True
+    ):
         """Store IPFS content using Lassie asynchronously.
 
         Args:
@@ -672,12 +692,14 @@ providers=providers
             # Retrieve content from IPFS
             if hasattr(self.ipfs_model, "get_content_async") and callable(
                 getattr(self.ipfs_model, "get_content_async")
+            ):
                 # Use async version if available
                 ipfs_result = await self.ipfs_model.get_content_async(cid)
             else:
                 # Fall back to sync version
                 ipfs_result = await anyio.to_thread.run_sync(
                     lambda: self.ipfs_model.get_content(cid)
+                )
 
             if not ipfs_result.get("success", False):
                 result["error"] = ipfs_result.get("error", "Failed to retrieve content from IPFS")
@@ -717,12 +739,14 @@ providers=providers
             if pin:
                 if hasattr(self.ipfs_model, "pin_content_async") and callable(
                     getattr(self.ipfs_model, "pin_content_async")
+                ):
                     # Use async version if available
                     pin_result = await self.ipfs_model.pin_content_async(cid)
                 else:
                     # Fall back to sync version
                     pin_result = await anyio.to_thread.run_sync(
                         lambda: self.ipfs_model.pin_content(cid)
+                    )
 
                 if not pin_result.get("success", False):
                     logger.warning(f"Failed to pin content {cid}: {pin_result.get('error')}")
@@ -743,8 +767,8 @@ providers=providers
             if temp_file:
                 try:
                     await anyio.to_thread.run_sync(lambda: os.unlink(output_file))
-                except Exception:
-                    pass
+                except Exception as cleanup_err:
+                    logger.warning("Failed to remove temporary file %s: %s", output_file, cleanup_err)
 
         # Add duration
         result["duration_ms"] = (time.time() - start_time) * 1000
@@ -792,6 +816,7 @@ providers=providers
             if not lassie_result.get("success", False):
                 result["error"] = lassie_result.get(
                     "error", "Failed to retrieve content from Lassie"
+                )
                 result["error_type"] = lassie_result.get("error_type", "LassieRetrieveError")
                 result["lassie_result"] = lassie_result
 
@@ -891,16 +916,19 @@ providers=providers
                 # Retrieve content using Lassie
                 if hasattr(self, "retrieve_content_async") and callable(
                     getattr(self, "retrieve_content_async")
+                ):
                     # Use async version
                     lassie_result = await self.retrieve_content_async(cid, temp_path)
                 else:
                     # Fall back to sync version
                     lassie_result = await anyio.to_thread.run_sync(
                         lambda: self.retrieve_content(cid, temp_path)
+                    )
 
                 if not lassie_result.get("success", False):
                     result["error"] = lassie_result.get(
                         "error", "Failed to retrieve content from Lassie"
+                    )
                     result["error_type"] = lassie_result.get("error_type", "LassieRetrieveError")
                     result["lassie_result"] = lassie_result
                     return result
@@ -927,12 +955,14 @@ providers=providers
                 # Add to IPFS
                 if hasattr(self.ipfs_model, "add_content_async") and callable(
                     getattr(self.ipfs_model, "add_content_async")
+                ):
                     # Use async version if available
                     ipfs_result = await self.ipfs_model.add_content_async(content)
                 else:
                     # Fall back to sync version
                     ipfs_result = await anyio.to_thread.run_sync(
                         lambda: self.ipfs_model.add_content(content)
+                    )
 
                 if not ipfs_result.get("success", False):
                     result["error"] = ipfs_result.get("error", "Failed to add content to IPFS")
@@ -946,16 +976,19 @@ providers=providers
                 if pin and ipfs_cid:
                     if hasattr(self.ipfs_model, "pin_content_async") and callable(
                         getattr(self.ipfs_model, "pin_content_async")
+                    ):
                         # Use async version if available
                         pin_result = await self.ipfs_model.pin_content_async(ipfs_cid)
                     else:
                         # Fall back to sync version
                         pin_result = await anyio.to_thread.run_sync(
                             lambda: self.ipfs_model.pin_content(ipfs_cid)
+                        )
 
                     if not pin_result.get("success", False):
                         logger.warning(
                             f"Failed to pin content {ipfs_cid}: {pin_result.get('error')}"
+                        )
 
                 # Set success and copy relevant fields
                 result["success"] = True
