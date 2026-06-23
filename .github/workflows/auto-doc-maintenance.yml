@@ -67,7 +67,11 @@ jobs:
           import sys
           import ast
           from pathlib import Path
-          from typing import Dict, Any
+          from typing import List, Dict, Any
+          import json
+
+          class DocumentationExtractionError(Exception):
+              """Raised when module documentation cannot be generated completely."""
           
           class DocumentationExtractionError(RuntimeError):
               """Raised when module documentation cannot be extracted safely."""
@@ -78,7 +82,8 @@ jobs:
           def extract_module_info(file_path: Path) -> Dict[str, Any]:
               """Extract docstrings and metadata from a Python file."""
               try:
-                  content = file_path.read_text(encoding='utf-8')
+                  with open(file_path, 'r', encoding='utf-8') as f:
+                      content = f.read()
               except (OSError, UnicodeDecodeError) as exc:
                   raise DocumentationExtractionError(
                       f"Error reading {file_path}: {exc}"
@@ -133,7 +138,7 @@ jobs:
               """Generate markdown documentation for all modules."""
               modules = []
               failures = []
-
+              
               # Find all Python files
               for py_file in base_path.rglob('*.py'):
                   if '__pycache__' in str(py_file) or 'test' in str(py_file).lower():
@@ -158,7 +163,7 @@ jobs:
                   )
                   for failure in failures:
                       print(f"- {failure}", file=sys.stderr)
-                  raise SystemExit(1)
+                  sys.exit(1)
 
               # Generate summary document
               output_dir.mkdir(parents=True, exist_ok=True)
