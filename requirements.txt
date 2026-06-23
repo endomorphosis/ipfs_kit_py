@@ -28,7 +28,6 @@ pydantic>=2.5.0
 # Additional commonly used optional dependencies
 transformers>=4.20.0
 huggingface-hub>=0.10.0
-fsspec>=2023.3.0
 requests-unixsocket>=0.3.0
 pyarrow>=11.0.0
 pandas>=1.3.0
@@ -38,6 +37,8 @@ matplotlib>=3.7.0
 networkx>=3.0
 jsonpatch>=1.33
 rdflib>=7.0.0
+fsspec>=2023.3.0  # Required for fsspec backends, including walrus://
+walrus-fsspec>=0.1.0  # Canonical standalone Walrus fsspec backend
 
 # IPLD support
 ipld-car>=0.0.1

@@ -131,6 +131,11 @@ def _load_pyproject_metadata() -> tuple[dict, list[str], dict[str, list[str]]]:
 
 project, install_requires, extras_require = _load_pyproject_metadata()
 
+for required_dependency in ("fsspec>=2023.3.0", "httpx>=0.24.0", "walrus-fsspec>=0.1.0"):
+    package_name = required_dependency.split(">=", 1)[0]
+    if not any(dependency.split(">=", 1)[0] == package_name for dependency in install_requires):
+        install_requires.append(required_dependency)
+
 
 cmdclass = {}
 try:

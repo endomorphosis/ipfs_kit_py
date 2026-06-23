@@ -8,7 +8,8 @@ and notifications into the MCP server.
 import logging
 import os
 import sys
-from typing import Any, Dict, Optional, Tuple
+import time
+from typing import Any, Awaitable, Callable, Dict, Optional, Tuple
 
 from fastapi import APIRouter, FastAPI
 
@@ -63,16 +64,42 @@ def update_websocket_status(storage_backends: Dict[str, Any]) -> None:
     """
     # Add WebSocket as a component
     storage_backends["realtime"] = {
-        "available": WEBSOCKET_AVAILABLE
-        "simulation": False
+        "available": WEBSOCKET_AVAILABLE,
+        "simulation": False,
         "features": {
-            "websocket": True
-            "events": True
-            "broadcast": True
-            "subscriptions": True
+            "websocket": True,
+            "events": True,
+            "broadcast": True,
+            "subscriptions": True,
         },
     }
     logger.debug("Updated WebSocket status in storage backends")
+
+
+def _serialize_event_data(event_data: Any) -> Any:
+    """Convert common model event payloads into JSON-friendly data."""
+    if hasattr(event_data, "dict") and callable(event_data.dict):
+        return event_data.dict()
+    if isinstance(event_data, (dict, list, str, int, float, bool)) or event_data is None:
+        return event_data
+    return repr(event_data)
+
+
+def _create_mcp_event_handler(
+    operation: str, websocket_service: Any
+) -> Callable[[Any], Awaitable[None]]:
+    async def handler(event_data: Any) -> None:
+        message = {
+            "type": "mcp_event",
+            "operation": operation,
+            "data": _serialize_event_data(event_data),
+            "timestamp": time.time(),
+        }
+        channel = f"mcp:{operation}"
+        await websocket_service.manager.broadcast(message, channel)
+        await websocket_service.manager.broadcast(message, "mcp:all")
+
+    return handler
 
 
 def register_app_websocket_routes(app: FastAPI, api_prefix: str) -> bool:
@@ -118,10 +145,38 @@ def setup_mcp_event_hooks() -> bool:
 
     try:
         # Get the WebSocket service
-        get_websocket_service()
+        websocket_service = get_websocket_service()
+        register_event_handler = getattr(websocket_service, "register_event_handler", None)
+        manager = getattr(websocket_service, "manager", None)
 
-        # TODO: Register event handlers for various MCP operations
-        # This will be implemented when we hook up the events system
+        if not callable(register_event_handler) or not hasattr(manager, "broadcast"):
+            logger.warning(
+                "WebSocket service does not expose event registration; "
+                "MCP event hooks were not installed"
+            )
+            return False
+
+        if getattr(websocket_service, "_mcp_event_hooks_registered", False):
+            return True
+
+        for operation in (
+            "initialize",
+            "tools/list",
+            "tools/call",
+            "resources/list",
+            "resources/read",
+            "prompts/list",
+            "prompts/get",
+            "notifications/initialized",
+            "ping",
+        ):
+            register_event_handler(
+                f"mcp:{operation}",
+                _create_mcp_event_handler(operation, websocket_service),
+            )
+
+        websocket_service._mcp_event_hooks_registered = True
+        logger.info("Registered MCP operation event hooks for WebSocket broadcasts")
 
         return True
     except Exception as e:

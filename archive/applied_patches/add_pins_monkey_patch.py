@@ -37,7 +37,7 @@ def get_ipfs_simple_api_class():
 
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
-            except (ImportError, OSError) as e:
+            except (ImportError, AttributeError, OSError) as e:
                 print(f"Failed to import IPFSSimpleAPI class: {e}", file=sys.stderr)
                 return None
 

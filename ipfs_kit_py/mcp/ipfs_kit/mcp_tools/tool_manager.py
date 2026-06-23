@@ -12,6 +12,12 @@ from .backend_tools import BackendTools
 from .system_tools import SystemTools
 from .vfs_tools import VFSTools
 
+try:
+    from ipfs_kit_py.feature_exposure import dispatch_feature_tool, feature_tool_definitions
+except Exception:  # pragma: no cover - optional during partial installs
+    dispatch_feature_tool = None
+    feature_tool_definitions = None
+
 logger = logging.getLogger(__name__)
 
 # Auto-healing integration
@@ -91,7 +97,7 @@ class MCPToolManager:
                         "backend": {
                             "type": "string",
                             "description": "Specific backend to check (optional)",
-                            "enum": ["ipfs", "ipfs_cluster", "ipfs_cluster_follow", "lotus", "storacha", "synapse", "s3", "huggingface", "parquet"]
+                            "enum": ["ipfs", "ipfs_cluster", "ipfs_cluster_follow", "lotus", "storacha", "synapse", "walrus", "s3", "huggingface", "parquet"]
                         }
                     }
                 }
@@ -105,7 +111,7 @@ class MCPToolManager:
                         "backend": {
                             "type": "string",
                             "description": "Backend name to get detailed info for",
-                            "enum": ["ipfs", "ipfs_cluster", "ipfs_cluster_follow", "lotus", "storacha", "synapse", "s3", "huggingface", "parquet"]
+                            "enum": ["ipfs", "ipfs_cluster", "ipfs_cluster_follow", "lotus", "storacha", "synapse", "walrus", "s3", "huggingface", "parquet"]
                         }
                     },
                     "required": ["backend"]
@@ -135,7 +141,7 @@ class MCPToolManager:
                         "backend": {
                             "type": "string",
                             "description": "Backend name to get config for",
-                            "enum": ["ipfs", "ipfs_cluster", "ipfs_cluster_follow", "lotus", "storacha", "synapse", "s3", "huggingface", "parquet"]
+                            "enum": ["ipfs", "ipfs_cluster", "ipfs_cluster_follow", "lotus", "storacha", "synapse", "walrus", "s3", "huggingface", "parquet"]
                         }
                     },
                     "required": ["backend"]
@@ -150,7 +156,7 @@ class MCPToolManager:
                         "backend": {
                             "type": "string",
                             "description": "Backend name to set config for",
-                            "enum": ["ipfs", "ipfs_cluster", "ipfs_cluster_follow", "lotus", "storacha", "synapse", "s3", "huggingface", "parquet"]
+                            "enum": ["ipfs", "ipfs_cluster", "ipfs_cluster_follow", "lotus", "storacha", "synapse", "walrus", "s3", "huggingface", "parquet"]
                         },
                         "config": {
                             "type": "object",
@@ -197,6 +203,17 @@ class MCPToolManager:
                 }
             )
         ])
+
+        # Walrus, fsspec protocol, and VFS GraphRAG feature tools
+        if feature_tool_definitions:
+            for definition in feature_tool_definitions():
+                tools.append(
+                    SimplifiedMCPTool(
+                        name=definition["name"],
+                        description=definition.get("description", definition["name"]),
+                        input_schema=definition.get("inputSchema", {"type": "object", "properties": {}}),
+                    )
+                )
         
         # IPFS tools
         tools.extend([
@@ -400,6 +417,11 @@ class MCPToolManager:
         """Execute the actual tool logic."""
         
         try:
+            if dispatch_feature_tool:
+                feature_result = dispatch_feature_tool(tool_name, arguments)
+                if feature_result is not None:
+                    return feature_result
+
             # System tools
             if tool_name == "system_health":
                 return await self.system_tools.get_system_health()

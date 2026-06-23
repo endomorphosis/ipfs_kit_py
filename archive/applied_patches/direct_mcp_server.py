@@ -155,7 +155,7 @@ def get_other_instance_pid() -> Optional[int]:
 
     try:
         with open(other_pid_file, "r", encoding="utf-8") as f:
-            pid_text = f.read().strip()
+            raw_pid_text = f.read(65)
     except FileNotFoundError:
         return None
     except OSError as e:
@@ -165,6 +165,11 @@ def get_other_instance_pid() -> Optional[int]:
         logger.warning(f"Other instance PID file {other_pid_file} is not valid UTF-8: {e}")
         return None
 
+    if len(raw_pid_text) > 64:
+        logger.warning(f"Other instance PID file {other_pid_file} is too large to contain a valid PID")
+        return None
+
+    pid_text = raw_pid_text.strip()
     if not pid_text:
         logger.warning(f"Other instance PID file {other_pid_file} is empty")
         return None

@@ -61,6 +61,13 @@ class SecureConfigManager:
                 "endpoint": "http://127.0.0.1:8008",
                 "timeout": 30
             },
+            "walrus": {
+                "publisher_url": os.getenv("WALRUS_PUBLISHER_URL", ""),
+                "aggregator_url": os.getenv("WALRUS_AGGREGATOR_URL", ""),
+                "delete_url": os.getenv("WALRUS_DELETE_URL", ""),
+                "index_path": os.getenv("WALRUS_INDEX_PATH", ""),
+                "timeout": 30
+            },
             "s3": {
                 "endpoint": "http://object.lga1.coreweave.com",
                 "timeout": 30

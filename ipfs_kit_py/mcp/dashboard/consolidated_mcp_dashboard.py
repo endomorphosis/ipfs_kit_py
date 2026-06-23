@@ -234,6 +234,31 @@ def create_default_backends():
                 "pins": 892,
                 "last_sync": now
             }
+        },
+        "walrus": {
+            "type": "walrus",
+            "description": "Walrus blob storage exposed through fsspec",
+            "status": "enabled",
+            "config": {
+                "publisher_url": "",
+                "aggregator_url": "",
+                "delete_url": "",
+                "index_path": ""
+            },
+            "created_at": now,
+            "last_check": now,
+            "health": "unknown",
+            "category": "storage",
+            "policy": {
+                "quota": "external",
+                "replication": 1,
+                "retention": "network",
+                "cache": "enabled"
+            },
+            "stats": {
+                "protocol": "walrus://",
+                "last_sync": now
+            }
         }
     }
 
@@ -1110,6 +1135,9 @@ class ConsolidatedMCPDashboard:
                    "    ensureNS('Logs', { get:(limit)=>rpcCall('get_logs',{limit: (limit==null?200:limit)}), clear:()=>rpcCall('clear_logs',{}) });\n" \
                    "    ensureNS('Server', { shutdown:()=>rpcCall('server_shutdown',{}) });\n" \
                    "    ensureNS('Peers', { list:()=>rpcCall('list_peers',{}), stats:()=>rpcCall('get_peer_stats',{}), connect:(peer)=>rpcCall('connect_peer',peer||{}), disconnect:(peer_id)=>rpcCall('disconnect_peer',{peer_id}), info:(peer_id)=>rpcCall('get_peer_info',{peer_id}), discover:(limit,timeout)=>rpcCall('discover_peers',{limit, timeout}), bootstrap:(action,peer_address)=>rpcCall('bootstrap_peers',{action, peer_address}) });\n" \
+                   "    ensureNS('Walrus', { status:(opts)=>rpcCall('walrus_status',opts||{}), list:(path,opts)=>rpcCall('walrus_list',Object.assign({path:path||'walrus://'},opts||{})), get:(path,opts)=>rpcCall('walrus_get',Object.assign({path},opts||{})), put:(path,content,opts)=>rpcCall('walrus_put',Object.assign({path,content},opts||{})), delete:(path,opts)=>rpcCall('walrus_delete',Object.assign({path},opts||{})) });\n" \
+                   "    ensureNS('FSSpec', { protocols:()=>rpcCall('fsspec_list_protocols',{}), status:(protocol,opts)=>rpcCall('fsspec_backend_status',Object.assign({protocol},opts||{})), read:(url,opts)=>rpcCall('fsspec_read',Object.assign({url},opts||{})), write:(url,content,opts)=>rpcCall('fsspec_write',Object.assign({url,content},opts||{})) });\n" \
+                   "    ensureNS('VFSGraphRAG', { status:(opts)=>rpcCall('vfs_graphrag_status',opts||{}), search:(query,opts)=>rpcCall('vfs_graphrag_search',Object.assign({query},opts||{})), metadataSearch:(query,opts)=>rpcCall('vfs_graphrag_metadata_search',Object.assign({query},opts||{})), vectorSearch:(queryVector,opts)=>rpcCall('vfs_graphrag_vector_search',Object.assign({query_vector:queryVector},opts||{})), hybridSearch:(query,queryVector,opts)=>rpcCall('vfs_graphrag_hybrid_search',Object.assign({query,query_vector:queryVector},opts||{})), graphSearch:(query,opts)=>rpcCall('vfs_graphrag_graph_search',Object.assign({query},opts||{})), graphHybridSearch:(query,queryVector,opts)=>rpcCall('vfs_graphrag_graph_hybrid_search',Object.assign({query,query_vector:queryVector},opts||{})), export:(opts)=>rpcCall('vfs_graphrag_export',opts||{}) });\n" \
                    "  } catch(e) { /* ignore shim errors */ }\n" \
                    "})();\n"
             source = "inline"
@@ -3327,6 +3355,12 @@ class ConsolidatedMCPDashboard:
             {"name": "discover_peers", "description": "Discover peers via libp2p/ipfs_kit when available", "inputSchema": {"type":"object", "properties": {"limit": {"type":"number", "default": 20}, "timeout": {"type":"number", "default": 10}}}},
             {"name": "bootstrap_peers", "description": "Manage bootstrap peers (list/from_ipfs/from_cluster/add)", "inputSchema": {"type":"object", "properties": {"action": {"type":"string", "enum":["list","from_ipfs","from_cluster","add"], "default":"list"}, "peer_address": {"type":"string"}}}},
         ]
+        try:
+            from ipfs_kit_py.feature_exposure import feature_tool_definitions
+
+            tools.extend(feature_tool_definitions())
+        except Exception as exc:
+            self.log.debug(f"Feature MCP tools unavailable: {exc}")
         return {"jsonrpc": "2.0", "result": {"tools": tools}, "id": None}
 
     async def _tools_call(self, name: Optional[str], args: Dict[str, Any]) -> Dict[str, Any]:  # noqa: C901 - large dispatch function
@@ -3336,6 +3370,7 @@ class ConsolidatedMCPDashboard:
         try:
             # Dispatch to domain handlers
             for handler in (
+                self._handle_feature_tools,
                 self._handle_system_services,
                 self._handle_backends,
                 self._handle_buckets,
@@ -3360,6 +3395,17 @@ class ConsolidatedMCPDashboard:
             return {"jsonrpc": "2.0", "error": {"code": -32000, "message": str(e)}, "id": None}
 
     # Domain handlers (return JSON-RPC dict or None if not applicable)
+    def _handle_feature_tools(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        try:
+            from ipfs_kit_py.feature_exposure import dispatch_feature_tool
+
+            result = dispatch_feature_tool(name, args)
+            if result is None:
+                return None
+            return {"jsonrpc": "2.0", "result": result, "id": None}
+        except Exception as exc:
+            return {"jsonrpc": "2.0", "error": {"code": -32000, "message": str(exc)}, "id": None}
+
     async def _handle_system_services(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         if name == "control_service":
             # Legacy alias used by older tests/clients.

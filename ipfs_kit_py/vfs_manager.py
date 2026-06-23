@@ -23,6 +23,7 @@ import stat
 import json
 import threading
 import inspect
+import mimetypes
 from typing import Dict, Any, List, Optional, Union, TYPE_CHECKING
 from pathlib import Path
 
@@ -37,22 +38,25 @@ def _run_async_from_sync(async_fn, *args, **kwargs):
     - If called while an async library is running in this thread, runs the
       call in a dedicated helper thread.
     """
+    async def _invoke():
+        return await async_fn(*args, **kwargs)
+
     try:
-        return anyio.from_thread.run(async_fn, *args, **kwargs)
+        return anyio.from_thread.run(_invoke)
     except RuntimeError:
         pass
 
     try:
         sniffio.current_async_library()
     except sniffio.AsyncLibraryNotFoundError:
-        return anyio.run(async_fn, *args, **kwargs)
+        return anyio.run(_invoke)
 
     result: List[Any] = []
     error: List[BaseException] = []
 
     def _thread_main() -> None:
         try:
-            result.append(anyio.run(async_fn, *args, **kwargs))
+            result.append(anyio.run(_invoke))
         except BaseException as exc:  # noqa: BLE001
             error.append(exc)
 
@@ -209,6 +213,16 @@ class VFSManager:
         # Compute layer configuration
         self.enable_compute_layer = enable_compute_layer and HAS_ACCELERATE
         self.compute_layer = None
+
+        # Optional VFS GraphRAG indexing state. These components are initialized
+        # lazily so the manager remains usable without GraphRAG dependencies.
+        self.graphrag_indexing_enabled = False
+        self.graphrag_namespace = "default"
+        self.graphrag_index_path: Optional[Path] = None
+        self.graphrag_index = None
+        self.graphrag_indexer = None
+        self.graphrag_adapters = None
+        self.graphrag_use_mocks = True
         
         # Initialize dataset manager if enabled
         if self.enable_dataset_storage:
@@ -939,6 +953,364 @@ class VFSManager:
         except Exception as e:
             logger.error(f"Error getting performance metrics: {e}")
             return {"success": False, "error": str(e)}
+
+    async def enable_graphrag_indexing(
+        self,
+        *,
+        index_path: Optional[Union[str, Path]] = None,
+        namespace: str = "default",
+        indexer: Optional[Any] = None,
+        use_mocks: bool = True,
+        storage_format: str = "jsonl",
+        adapter_config: Optional[Any] = None,
+    ) -> Dict[str, Any]:
+        """Enable optional VFS GraphRAG indexing for this manager.
+
+        A supplied ``indexer`` may be a mock or production object exposing any
+        subset of the manager lifecycle/search methods. Without one, the
+        dependency-free ``VFSGraphRAGIndex`` and mock adapters are used by
+        default.
+        """
+
+        try:
+            if index_path is None:
+                base_path = self.storage_path or Path.cwd()
+                index_root = base_path / ".vfs_graphrag_index"
+            else:
+                index_root = Path(index_path)
+
+            self.graphrag_namespace = namespace
+            self.graphrag_index_path = index_root
+            self.graphrag_use_mocks = use_mocks
+
+            if indexer is not None:
+                self.graphrag_indexer = indexer
+                self.graphrag_index = indexer
+                self.graphrag_adapters = None
+            else:
+                from .vfs_graphrag_index import (
+                    VFSGraphRAGAdapterConfig,
+                    VFSGraphRAGIndex,
+                    create_vfs_graphrag_adapters,
+                )
+
+                self.graphrag_index = VFSGraphRAGIndex(
+                    index_root,
+                    namespace=namespace,
+                    storage_format=storage_format,
+                )
+                config = adapter_config or VFSGraphRAGAdapterConfig(
+                    namespace=namespace,
+                    use_mocks=use_mocks,
+                )
+                self.graphrag_adapters = create_vfs_graphrag_adapters(config)
+                self.graphrag_indexer = self.graphrag_index
+
+            self.graphrag_indexing_enabled = True
+            delegated = await self._call_graphrag_method(
+                "enable_graphrag_indexing",
+                index_path=str(index_root),
+                namespace=namespace,
+                use_mocks=use_mocks,
+                storage_format=storage_format,
+            )
+            if delegated is not None:
+                return self._success_result(delegated)
+
+            return {
+                "success": True,
+                "enabled": True,
+                "namespace": namespace,
+                "index_path": str(index_root),
+                "use_mocks": use_mocks,
+                "storage_format": getattr(self.graphrag_index, "format", storage_format),
+            }
+        except Exception as e:
+            logger.error(f"Failed to enable VFS GraphRAG indexing: {e}")
+            self.graphrag_indexing_enabled = False
+            return {"success": False, "error": str(e), "enabled": False}
+
+    async def index_path(
+        self,
+        path: Union[str, Path],
+        *,
+        namespace: Optional[str] = None,
+        backend: str = "vfs",
+        protocol: str = "file",
+        content: Optional[Union[str, bytes]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        tags: Optional[List[str]] = None,
+        recursive: bool = False,
+        extract_content: bool = True,
+    ) -> Dict[str, Any]:
+        """Index one VFS path into the configured GraphRAG index."""
+
+        if not self.graphrag_indexing_enabled:
+            enabled = await self.enable_graphrag_indexing(namespace=namespace or self.graphrag_namespace)
+            if not enabled.get("success"):
+                return enabled
+
+        delegated = await self._call_graphrag_method(
+            "index_path",
+            path=path,
+            namespace=namespace,
+            backend=backend,
+            protocol=protocol,
+            content=content,
+            metadata=metadata,
+            tags=tags,
+            recursive=recursive,
+            extract_content=extract_content,
+        )
+        if delegated is not None:
+            return self._success_result(delegated)
+
+        try:
+            from .vfs_graphrag_schema import VFSObjectRecord
+
+            records = []
+            paths = self._expand_index_paths(Path(path), recursive=recursive)
+            for item_path in paths:
+                info = self._local_path_info(item_path)
+                object_content = content if len(paths) == 1 else None
+                if object_content is None and extract_content and info.get("object_type") == "file":
+                    object_content = self._read_indexable_text(item_path)
+
+                record = VFSObjectRecord(
+                    namespace=namespace or self.graphrag_namespace,
+                    backend=backend,
+                    protocol=protocol,
+                    path=str(item_path),
+                    content_id=info.get("content_id"),
+                    content_hash=info.get("content_hash"),
+                    mime_type=info.get("mime_type") or "application/octet-stream",
+                    size_bytes=int(info.get("size_bytes") or 0),
+                    object_type=info.get("object_type", "file"),
+                    modified_at=info.get("modified_at"),
+                    tags=list(tags or []),
+                    metadata={
+                        "source": "vfs_manager",
+                        "event": "index_path",
+                        **dict(metadata or {}),
+                    },
+                )
+                stored = await anyio.to_thread.run_sync(lambda r=record: self.graphrag_index.upsert_object(r))
+                records.append(stored)
+
+                if object_content is not None:
+                    await self._index_text_derivatives(stored, object_content)
+
+            return {
+                "success": True,
+                "indexed": len(records),
+                "records": [record.to_dict() for record in records],
+                "namespace": namespace or self.graphrag_namespace,
+            }
+        except Exception as e:
+            logger.error(f"Failed to index VFS path {path}: {e}")
+            return {"success": False, "error": str(e), "path": str(path)}
+
+    async def index_namespace(
+        self,
+        namespace: Optional[str] = None,
+        *,
+        root_path: Optional[Union[str, Path]] = None,
+        backend: str = "vfs",
+        protocol: str = "file",
+        recursive: bool = True,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Index all discoverable paths for a namespace."""
+
+        target_namespace = namespace or self.graphrag_namespace
+        if not self.graphrag_indexing_enabled:
+            enabled = await self.enable_graphrag_indexing(namespace=target_namespace)
+            if not enabled.get("success"):
+                return enabled
+
+        delegated = await self._call_graphrag_method(
+            "index_namespace",
+            namespace=target_namespace,
+            root_path=root_path,
+            backend=backend,
+            protocol=protocol,
+            recursive=recursive,
+            metadata=metadata,
+        )
+        if delegated is not None:
+            return self._success_result(delegated)
+
+        path = Path(root_path) if root_path is not None else self.storage_path
+        if path is None:
+            return {
+                "success": True,
+                "indexed": 0,
+                "namespace": target_namespace,
+                "warning": "No root_path or storage_path configured",
+            }
+        result = await self.index_path(
+            path,
+            namespace=target_namespace,
+            backend=backend,
+            protocol=protocol,
+            recursive=recursive,
+            metadata={"namespace_index": True, **dict(metadata or {})},
+        )
+        result["namespace"] = target_namespace
+        return result
+
+    async def search(
+        self,
+        query: str = "",
+        *,
+        namespaces: Optional[List[str]] = None,
+        backends: Optional[List[str]] = None,
+        metadata_filters: Optional[Dict[str, Any]] = None,
+        top_k: int = 10,
+        search_type: str = "hybrid",
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Search the configured VFS GraphRAG index."""
+
+        if not self.graphrag_indexing_enabled:
+            return {"success": False, "error": "VFS GraphRAG indexing is not enabled"}
+
+        delegated = await self._call_graphrag_method(
+            "search",
+            query=query,
+            namespaces=namespaces,
+            backends=backends,
+            metadata_filters=metadata_filters,
+            top_k=top_k,
+            search_type=search_type,
+            **kwargs,
+        )
+        if delegated is not None:
+            return self._success_result(delegated)
+
+        try:
+            optimized_query = query
+            processor_result = None
+            if self.graphrag_adapters is not None:
+                optimizer_result = self.graphrag_adapters.query_optimizer.optimize(query)
+                optimized_query = optimizer_result.get("optimized_query") or query
+                processor_result = self.graphrag_adapters.processor.query(
+                    optimized_query,
+                    namespaces=namespaces,
+                    backends=backends,
+                    top_k=top_k,
+                    search_type=search_type,
+                    **kwargs,
+                )
+
+            filters = dict(metadata_filters or {})
+            query_lower = optimized_query.lower()
+            records = await anyio.to_thread.run_sync(lambda: self.graphrag_index.query_objects())
+            matching_chunk_parents = set()
+            if query_lower:
+                chunks = await anyio.to_thread.run_sync(lambda: self.graphrag_index.query_chunks())
+                matching_chunk_parents = {
+                    chunk.parent_record_id
+                    for chunk in chunks
+                    if query_lower in str(chunk.text or "").lower()
+                }
+            results = []
+            namespace_set = set(namespaces or [])
+            backend_set = set(backends or [])
+            for record in records:
+                data = record.to_dict()
+                if namespace_set and data.get("namespace") not in namespace_set:
+                    continue
+                if backend_set and data.get("backend") not in backend_set:
+                    continue
+                if not self._metadata_filters_match(data, filters):
+                    continue
+                searchable = " ".join(
+                    str(value)
+                    for value in (
+                        data.get("path"),
+                        data.get("normalized_path"),
+                        data.get("content_id"),
+                        data.get("mime_type"),
+                        data.get("metadata"),
+                        data.get("tags"),
+                    )
+                ).lower()
+                if query_lower and query_lower not in searchable and data.get("record_id") not in matching_chunk_parents:
+                    continue
+                results.append({"record": data, "score": 1.0 if query_lower else None})
+                if len(results) >= top_k:
+                    break
+
+            return {
+                "success": True,
+                "query": query,
+                "optimized_query": optimized_query,
+                "search_type": search_type,
+                "results": results,
+                "graphrag": processor_result or {},
+                "total": len(results),
+            }
+        except Exception as e:
+            logger.error(f"VFS GraphRAG search failed: {e}")
+            return {"success": False, "error": str(e), "query": query}
+
+    async def export_index(
+        self,
+        destination: Optional[Union[str, Path]] = None,
+        *,
+        namespace: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Export the configured GraphRAG index as a portable JSON bundle."""
+
+        if not self.graphrag_indexing_enabled:
+            return {"success": False, "error": "VFS GraphRAG indexing is not enabled"}
+
+        delegated = await self._call_graphrag_method("export_index", destination=destination, namespace=namespace)
+        if delegated is not None:
+            return self._success_result(delegated)
+
+        try:
+            bundle = await anyio.to_thread.run_sync(lambda: self._build_index_export(namespace=namespace))
+            if destination is not None:
+                dest_path = Path(destination)
+                dest_path.parent.mkdir(parents=True, exist_ok=True)
+                await anyio.to_thread.run_sync(
+                    lambda: dest_path.write_text(json.dumps(bundle, sort_keys=True, indent=2), encoding="utf-8")
+                )
+                bundle["path"] = str(dest_path)
+            return {"success": True, "export": bundle}
+        except Exception as e:
+            logger.error(f"VFS GraphRAG export failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def import_index(
+        self,
+        source: Union[str, Path, Dict[str, Any]],
+        *,
+        namespace: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Import a JSON bundle produced by ``export_index``."""
+
+        if not self.graphrag_indexing_enabled:
+            enabled = await self.enable_graphrag_indexing(namespace=namespace or self.graphrag_namespace)
+            if not enabled.get("success"):
+                return enabled
+
+        delegated = await self._call_graphrag_method("import_index", source=source, namespace=namespace)
+        if delegated is not None:
+            return self._success_result(delegated)
+
+        try:
+            if isinstance(source, dict):
+                bundle = source
+            else:
+                bundle = json.loads(Path(source).read_text(encoding="utf-8"))
+            count = await anyio.to_thread.run_sync(lambda: self._import_index_bundle(bundle, namespace=namespace))
+            return {"success": True, "imported": count, "namespace": namespace or self.graphrag_namespace}
+        except Exception as e:
+            logger.error(f"VFS GraphRAG import failed: {e}")
+            return {"success": False, "error": str(e)}
     
     async def get_index_status(self) -> Dict[str, Any]:
         """Get status of all VFS indices."""
@@ -959,10 +1331,199 @@ class VFSManager:
             "ipfs_api": {
                 "initialized": self.api is not None,
                 "available": bool(self.api)
+            },
+            "graphrag": {
+                "enabled": self.graphrag_indexing_enabled,
+                "initialized": self.graphrag_index is not None,
+                "available": self.graphrag_index is not None,
+                "namespace": self.graphrag_namespace,
+                "index_path": str(self.graphrag_index_path) if self.graphrag_index_path else None,
+                "use_mocks": self.graphrag_use_mocks,
             }
         }
+
+        delegated = await self._call_graphrag_method("get_index_status")
+        if delegated is not None:
+            status["graphrag"]["indexer_status"] = delegated
+        elif self.graphrag_index is not None and hasattr(self.graphrag_index, "stats"):
+            try:
+                status["graphrag"]["stats"] = await anyio.to_thread.run_sync(self.graphrag_index.stats)
+            except Exception as e:
+                status["graphrag"]["stats_error"] = str(e)
         
         return {"success": True, "index_status": status}
+
+    def enable_graphrag_indexing_sync(self, **kwargs: Any) -> Dict[str, Any]:
+        """Synchronous wrapper for ``enable_graphrag_indexing``."""
+
+        return _run_async_from_sync(self.enable_graphrag_indexing, **kwargs)
+
+    def index_path_sync(self, path: Union[str, Path], **kwargs: Any) -> Dict[str, Any]:
+        """Synchronous wrapper for ``index_path``."""
+
+        return _run_async_from_sync(self.index_path, path, **kwargs)
+
+    def index_namespace_sync(self, namespace: Optional[str] = None, **kwargs: Any) -> Dict[str, Any]:
+        """Synchronous wrapper for ``index_namespace``."""
+
+        return _run_async_from_sync(self.index_namespace, namespace, **kwargs)
+
+    def search_sync(self, query: str = "", **kwargs: Any) -> Dict[str, Any]:
+        """Synchronous wrapper for ``search``."""
+
+        return _run_async_from_sync(self.search, query, **kwargs)
+
+    def export_index_sync(self, destination: Optional[Union[str, Path]] = None, **kwargs: Any) -> Dict[str, Any]:
+        """Synchronous wrapper for ``export_index``."""
+
+        return _run_async_from_sync(self.export_index, destination, **kwargs)
+
+    def import_index_sync(self, source: Union[str, Path, Dict[str, Any]], **kwargs: Any) -> Dict[str, Any]:
+        """Synchronous wrapper for ``import_index``."""
+
+        return _run_async_from_sync(self.import_index, source, **kwargs)
+
+    def get_index_status_sync(self) -> Dict[str, Any]:
+        """Synchronous wrapper for ``get_index_status``."""
+
+        return _run_async_from_sync(self.get_index_status)
+
+    async def _call_graphrag_method(self, method_name: str, **kwargs: Any) -> Optional[Any]:
+        """Call a method on an injected GraphRAG indexer when it is distinct."""
+
+        indexer = self.graphrag_indexer
+        if indexer is None or indexer is self:
+            return None
+        if indexer is self.graphrag_index and type(indexer).__name__ == "VFSGraphRAGIndex":
+            return None
+        method = getattr(indexer, method_name, None)
+        if not callable(method):
+            return None
+        filtered = {key: value for key, value in kwargs.items() if value is not None}
+        try:
+            result = method(**filtered)
+        except TypeError:
+            result = method(*filtered.values())
+        if inspect.isawaitable(result):
+            result = await result
+        return result
+
+    def _success_result(self, value: Any) -> Dict[str, Any]:
+        if isinstance(value, dict):
+            return value if "success" in value else {"success": True, **value}
+        return {"success": True, "result": value}
+
+    def _expand_index_paths(self, path: Path, *, recursive: bool) -> List[Path]:
+        if path.exists() and path.is_dir() and recursive:
+            return [path, *sorted(child for child in path.rglob("*"))]
+        return [path]
+
+    def _local_path_info(self, path: Path) -> Dict[str, Any]:
+        info: Dict[str, Any] = {
+            "object_type": "directory" if path.exists() and path.is_dir() else "file",
+            "mime_type": mimetypes.guess_type(str(path))[0],
+            "size_bytes": 0,
+        }
+        try:
+            stat_result = path.stat()
+            info["size_bytes"] = stat_result.st_size
+            info["modified_at"] = str(stat_result.st_mtime)
+        except OSError:
+            return info
+        if info["object_type"] == "file":
+            try:
+                import hashlib
+
+                digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                info["content_hash"] = f"sha256:{digest}"
+            except OSError:
+                pass
+        return info
+
+    def _read_indexable_text(self, path: Path, *, max_bytes: int = 1_000_000) -> Optional[str]:
+        mime_type = mimetypes.guess_type(str(path))[0] or ""
+        if not (
+            mime_type.startswith("text/")
+            or path.suffix.lower() in {".md", ".json", ".yaml", ".yml", ".csv", ".py", ".js", ".ts", ".txt"}
+        ):
+            return None
+        try:
+            data = path.read_bytes()[:max_bytes]
+            return data.decode("utf-8", errors="replace")
+        except OSError:
+            return None
+
+    async def _index_text_derivatives(self, record: Any, content: Union[str, bytes]) -> None:
+        if self.graphrag_adapters is None:
+            return
+        text = content.decode("utf-8", errors="replace") if isinstance(content, bytes) else str(content)
+        if not text:
+            return
+
+        def _index() -> None:
+            chunks = self.graphrag_adapters.chunking.chunk_text(
+                text,
+                parent_record_id=record.record_id,
+                path=record.path,
+                content_id=record.content_id,
+            )
+            if chunks:
+                self.graphrag_index.put_records(chunks)
+                embeddings, vectors = self.graphrag_adapters.embeddings.embed_chunks(
+                    chunks,
+                    parent_record_id=record.record_id,
+                    vector_store_id=getattr(self.graphrag_adapters.vector_store, "store_id", None),
+                )
+                embeddings = self.graphrag_adapters.vector_store.add_embeddings(embeddings, vectors)
+                self.graphrag_index.put_records(embeddings)
+            entities, relationships = self.graphrag_adapters.knowledge_graph.extract(
+                text,
+                source_record_ids=[record.record_id],
+                source_chunk_ids=[chunk.chunk_id for chunk in chunks],
+            )
+            self.graphrag_index.put_records([*entities, *relationships])
+
+        await anyio.to_thread.run_sync(_index)
+
+    def _metadata_filters_match(self, record: Dict[str, Any], filters: Dict[str, Any]) -> bool:
+        metadata = record.get("metadata") or {}
+        for key, expected in filters.items():
+            if key in record:
+                actual = record.get(key)
+            else:
+                actual = metadata.get(key)
+            if actual != expected:
+                return False
+        return True
+
+    def _build_index_export(self, *, namespace: Optional[str] = None) -> Dict[str, Any]:
+        kinds = ("objects", "chunks", "embeddings", "entities", "relationships", "snapshots", "checkpoints")
+        records: Dict[str, List[Dict[str, Any]]] = {}
+        for kind in kinds:
+            rows = [record.to_dict() for record in self.graphrag_index.query_records(kind)]
+            if namespace is not None and rows and "namespace" in rows[0]:
+                rows = [row for row in rows if row.get("namespace") == namespace]
+            records[kind] = rows
+        return {
+            "schema": "ipfs_kit_py.vfs.graphrag.export.v1",
+            "namespace": namespace or self.graphrag_namespace,
+            "created_at": time.time(),
+            "records": records,
+            "counts": {kind: len(rows) for kind, rows in records.items()},
+        }
+
+    def _import_index_bundle(self, bundle: Dict[str, Any], *, namespace: Optional[str] = None) -> int:
+        from .vfs_graphrag_schema import record_from_dict
+
+        count = 0
+        for rows in (bundle.get("records") or {}).values():
+            for row in rows:
+                data = dict(row)
+                if namespace is not None and "namespace" in data:
+                    data["namespace"] = namespace
+                self.graphrag_index.put_record(record_from_dict(data))
+                count += 1
+        return count
     
     # =================================================================
     # JOURNAL OPERATIONS

@@ -114,9 +114,15 @@ class MigrationStore:
             async with aiofiles.open(file_path, "r") as f:
                 content = await f.read()
                 return json.loads(content)
-        except Exception as e:
-            logger.error(f"Failed to read migration record {migration_id}: {e}")
+        except FileNotFoundError:
+            logger.debug(f"Migration record disappeared while reading: {migration_id}")
             return None
+        except json.JSONDecodeError:
+            logger.exception("Invalid JSON in migration record %s", migration_id)
+            raise
+        except (OSError, UnicodeDecodeError):
+            logger.exception("Failed to read migration record %s", migration_id)
+            raise
 
     async def delete(self, migration_id: str) -> bool:
         """
@@ -270,16 +276,16 @@ class MigrationStore:
         active_backends = list(set(source_backends.keys()).union(set(target_backends.keys())))
 
         return {
-            "total_migrations": total
-            "active_migrations": active
-            "completed_migrations": completed
-            "failed_migrations": failed
-            "queued_migrations": queued
-            "total_bytes_migrated": total_bytes
-            "total_cost": total_cost
-            "active_backends": active_backends
-            "most_used_source": most_used_source
-            "most_used_target": most_used_target
+            "total_migrations": total,
+            "active_migrations": active,
+            "completed_migrations": completed,
+            "failed_migrations": failed,
+            "queued_migrations": queued,
+            "total_bytes_migrated": total_bytes,
+            "total_cost": total_cost,
+            "active_backends": active_backends,
+            "most_used_source": most_used_source,
+            "most_used_target": most_used_target,
             "last_updated": time.time(),
         }
 
