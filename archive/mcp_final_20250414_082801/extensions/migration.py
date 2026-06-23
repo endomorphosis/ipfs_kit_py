@@ -118,7 +118,7 @@ def get_backend_module(backend_name: str):
         logger.error(f"Failed to import backend module {backend_name}: {e}")
         return None
     except Exception as e:
-        logger.error(f"Error getting backend module {backend_name}: {e}")
+        logger.error(f"Error getting backend module {backend_name}: {e}", exc_info=True)
         return None
 
 
@@ -130,7 +130,7 @@ async def estimate_migration_cost(
     cost_estimate = {
         "estimated_cost": 0.0,
         "currency": "USD",
-        "size_bytes": 0
+        "size_bytes": 0,
         "source_cost": 0.0,
         "target_cost": 0.0,
         "transfer_cost": 0.0,
@@ -182,12 +182,12 @@ async def estimate_migration_cost(
 
 
 async def perform_migration(
-    migration_id: str
-    source_backend: str
-    target_backend: str
-    cid: str
-    metadata_sync: bool
-    remove_source: bool
+    migration_id: str,
+    source_backend: str,
+    target_backend: str,
+    cid: str,
+    metadata_sync: bool,
+    remove_source: bool,
 ):
     """
     Perform the actual migration between backends.
@@ -300,7 +300,7 @@ async def perform_migration(
         migrations[migration_id]["progress"] = 100.0
         migrations[migration_id]["updated_at"] = time.time()
         migrations[migration_id]["result"] = {
-            "source_cid": cid
+            "source_cid": cid,
             "target_cid": target_result.get("cid", cid),
             "target_info": target_result
         }
@@ -362,18 +362,18 @@ def create_migration_router(api_prefix: str) -> APIRouter:
         ]
 
         return {
-            "success": True
+            "success": True,
             "service": "migration",
             "status": "active",
-            "available_backends": available_backends
-            "migrations": status_counts
+            "available_backends": available_backends,
+            "migrations": status_counts,
             "policies": len(policies),
         }
 
     @router.post("/start")
     async def start_migration(
-        request: MigrationRequest
-        background_tasks: BackgroundTasks
+        request: MigrationRequest,
+        background_tasks: BackgroundTasks,
         backends: Dict = Depends(verify_backends),
     ):
         """Start a new migration between backends."""
@@ -392,7 +392,7 @@ def create_migration_router(api_prefix: str) -> APIRouter:
 
         # Create migration record
         migrations[migration_id] = {
-            "id": migration_id
+            "id": migration_id,
             "source_backend": request.source_backend,
             "target_backend": request.target_backend,
             "cid": request.cid,
@@ -417,8 +417,8 @@ def create_migration_router(api_prefix: str) -> APIRouter:
         )
 
         return {
-            "success": True
-            "migration_id": migration_id
+            "success": True,
+            "migration_id": migration_id,
             "status": "queued",
             "source_backend": request.source_backend,
             "target_backend": request.target_backend,
@@ -456,11 +456,11 @@ def create_migration_router(api_prefix: str) -> APIRouter:
         paginated = filtered_migrations[offset : offset + limit]
 
         return {
-            "success": True
+            "success": True,
             "total": len(filtered_migrations),
-            "offset": offset
-            "limit": limit
-            "migrations": paginated
+            "offset": offset,
+            "limit": limit,
+            "migrations": paginated,
         }
 
     @router.post("/policies")
@@ -469,7 +469,7 @@ def create_migration_router(api_prefix: str) -> APIRouter:
         policies[policy.name] = policy.dict()
 
         return {
-            "success": True
+            "success": True,
             "policy": policy.name,
             "message": "Policy created successfully",
         }
@@ -499,27 +499,27 @@ def create_migration_router(api_prefix: str) -> APIRouter:
 
     @router.post("/estimate")
     async def estimate_migration(
-        source_backend: str
-        target_backend: str
-        cid: str
+        source_backend: str,
+        target_backend: str,
+        cid: str,
         backends: Dict = Depends(verify_backends),
     ):
         """Estimate cost and resources for a migration."""
         cost_estimate = await estimate_migration_cost(source_backend, target_backend, cid)
 
         return {
-            "success": True
-            "source_backend": source_backend
-            "target_backend": target_backend
-            "cid": cid
-            "estimates": cost_estimate
+            "success": True,
+            "source_backend": source_backend,
+            "target_backend": target_backend,
+            "cid": cid,
+            "estimates": cost_estimate,
         }
 
     @router.post("/batch")
     async def batch_migration(
-        background_tasks: BackgroundTasks
-        source_backend: str
-        target_backend: str
+        background_tasks: BackgroundTasks,
+        source_backend: str,
+        target_backend: str,
         cids: List[str] = Body(..., description="List of CIDs to migrate"),
         policy_name: Optional[str] = Body(None, description="Migration policy to apply"),
         metadata_sync: bool = Body(True, description="Synchronize metadata"),
@@ -561,18 +561,18 @@ def create_migration_router(api_prefix: str) -> APIRouter:
         for cid in cids:
             migration_id = f"{batch_id}_{cid[:10]}"
             migrations[migration_id] = {
-                "id": migration_id
-                "batch_id": batch_id
-                "source_backend": source_backend
-                "target_backend": target_backend
-                "cid": cid
+                "id": migration_id,
+                "batch_id": batch_id,
+                "source_backend": source_backend,
+                "target_backend": target_backend,
+                "cid": cid,
                 "status": "queued",
                 "created_at": time.time(),
                 "updated_at": time.time(),
                 "progress": 0.0,
-                "policy_applied": policy_name
-                "metadata_sync": metadata_sync
-                "remove_source": remove_source
+                "policy_applied": policy_name,
+                "metadata_sync": metadata_sync,
+                "remove_source": remove_source,
             }
 
             # Schedule the migration as a background task
@@ -589,12 +589,12 @@ def create_migration_router(api_prefix: str) -> APIRouter:
             migration_ids.append(migration_id)
 
         return {
-            "success": True
-            "batch_id": batch_id
+            "success": True,
+            "batch_id": batch_id,
             "total_migrations": len(migration_ids),
-            "migration_ids": migration_ids
-            "source_backend": source_backend
-            "target_backend": target_backend
+            "migration_ids": migration_ids,
+            "source_backend": source_backend,
+            "target_backend": target_backend,
         }
 
     return router

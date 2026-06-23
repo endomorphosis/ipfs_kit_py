@@ -50,10 +50,10 @@ if MONITORING_AVAILABLE:
     try:
         # Load configuration
         config = {
-            "metrics_enabled": True
+            "metrics_enabled": True,
             "prometheus_enabled": PROMETHEUS_AVAILABLE,  # Changed from PROMETHEUS_CLIENT_AVAILABLE
-            "prometheus_port": 9998
-            "collection_interval": 10
+            "prometheus_port": 9998,
+            "collection_interval": 10,
             "disk_paths": ["/", os.path.expanduser("~")],
             "network_interfaces": ["eth0", "wlan0", "en0"],  # Common interface names
         }
@@ -81,16 +81,16 @@ def create_metrics_router(api_prefix: str) -> APIRouter:
         """Get the status of the metrics and monitoring system."""
         if not MONITORING_AVAILABLE or monitoring_system is None:
             return {
-                "success": False
+                "success": False,
                 "status": "unavailable",
                 "error": "Monitoring system is not available",
             }
 
         system_info = monitoring_system.get_system_info()
         return {
-            "success": True
+            "success": True,
             "status": "available",
-            "system_info": system_info
+            "system_info": system_info,
             "prometheus_enabled": PROMETHEUS_AVAILABLE  # Use the flag from the first import block
             and monitoring_system.config["prometheus_enabled"],
             "prometheus_port": (
@@ -151,8 +151,8 @@ def create_metrics_router(api_prefix: str) -> APIRouter:
                 }
 
         return {
-            "success": True
-            "metrics": system_metrics
+            "success": True,
+            "metrics": system_metrics,
             "system_info": monitoring_system.get_system_info(),
         }
 
@@ -212,8 +212,8 @@ def create_metrics_router(api_prefix: str) -> APIRouter:
                 }
 
         return {
-            "success": True
-            "metrics": storage_metrics
+            "success": True,
+            "metrics": storage_metrics,
             "storage_backends": monitoring_system.storage_backends,
         }
 
@@ -238,7 +238,7 @@ def create_metrics_router(api_prefix: str) -> APIRouter:
 
     @router.get("/history/{metric_name}")
     async def metric_history(
-        metric_name: str
+        metric_name: str,
         labels: Optional[str] = Query(
             None, description="Comma-separated list of label=value pairs"
         ),
@@ -262,7 +262,7 @@ def create_metrics_router(api_prefix: str) -> APIRouter:
                     label_dict[key.strip()] = value.strip()
             except Exception:
                 return {
-                    "success": False
+                    "success": False,
                     "error": "Invalid label format. Use 'key1=value1,key2=value2'",
                 }
 
@@ -271,10 +271,10 @@ def create_metrics_router(api_prefix: str) -> APIRouter:
 
         if not history:
             return {
-                "success": False
+                "success": False,
                 "error": f"No history available for metric {metric_name}",
-                "metric": metric_name
-                "labels": label_dict
+                "metric": metric_name,
+                "labels": label_dict,
             }
 
         # Format history as timestamps and values
@@ -283,10 +283,10 @@ def create_metrics_router(api_prefix: str) -> APIRouter:
             formatted_history.append({"timestamp": timestamp, "value": value})
 
         return {
-            "success": True
-            "metric": metric_name
-            "labels": label_dict
-            "history": formatted_history
+            "success": True,
+            "metric": metric_name,
+            "labels": label_dict,
+            "history": formatted_history,
         }
 
     @router.get("/all")
@@ -325,7 +325,7 @@ def create_health_router(api_prefix: str) -> APIRouter:
             result = subprocess.run(["ipfs", "version"], capture_output=True, timeout=2)
             ipfs_running = result.returncode == 0
         except Exception:
-            pass
+            logger.debug("IPFS daemon not reachable during health check", exc_info=True)
 
         # Get system info if monitoring available
         system_info = None
@@ -336,12 +336,12 @@ def create_health_router(api_prefix: str) -> APIRouter:
         health_status = "healthy" if ipfs_running else "degraded"
 
         return {
-            "success": True
-            "status": health_status
+            "success": True,
+            "status": health_status,
             "timestamp": time.time(),
-            "ipfs_daemon_running": ipfs_running
+            "ipfs_daemon_running": ipfs_running,
             "monitoring_available": MONITORING_AVAILABLE and monitoring_system is not None,
-            "system_info": system_info
+            "system_info": system_info,
         }
 
     @router.get("/detailed")
@@ -363,7 +363,7 @@ def create_health_router(api_prefix: str) -> APIRouter:
                     status = usage.percent < 90
                     disk_health = disk_health and status
                     disk_status[path] = {
-                        "healthy": status
+                        "healthy": status,
                         "usage_percent": usage.percent,
                         "free_bytes": usage.free,
                         "total_bytes": usage.total,
@@ -385,7 +385,7 @@ def create_health_router(api_prefix: str) -> APIRouter:
             # Consider unhealthy if less than 10% free memory
             memory_health = memory.percent < 90
             memory_status = {
-                "healthy": memory_health
+                "healthy": memory_health,
                 "usage_percent": memory.percent,
                 "available_bytes": memory.available,
                 "total_bytes": memory.total,
@@ -416,11 +416,11 @@ def create_health_router(api_prefix: str) -> APIRouter:
                         # Consider unhealthy if no peers
                         peer_health = peer_count > 0
                         ipfs_status["peers"] = {
-                            "healthy": peer_health
-                            "count": peer_count
+                            "healthy": peer_health,
+                            "count": peer_count,
                         }
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to get IPFS peer count: %s", e, exc_info=True)
             else:
                 ipfs_status = {"healthy": False, "error": result.stderr.strip()}
         except Exception as e:
@@ -434,9 +434,9 @@ def create_health_router(api_prefix: str) -> APIRouter:
         overall_status = "healthy" if overall_health else "degraded"
 
         return {
-            "success": True
-            "status": overall_status
-            "healthy": overall_health
+            "success": True,
+            "status": overall_status,
+            "healthy": overall_health,
             "timestamp": time.time(),
             "components": {
                 "ipfs": {"healthy": ipfs_health, "status": ipfs_status},
@@ -467,14 +467,14 @@ def update_metrics_status(storage_backends: Dict[str, Any]) -> None:
     # Add monitoring as a component
     storage_backends["monitoring"] = {
         "available": MONITORING_AVAILABLE and monitoring_system is not None,
-        "simulation": False
+        "simulation": False,
         "prometheus_available": PROMETHEUS_AVAILABLE,  # Use the flag from the first import block
         "features": (
             {
-                "system_metrics": True
-                "process_metrics": True
-                "api_metrics": True
-                "storage_metrics": True
+                "system_metrics": True,
+                "process_metrics": True,
+                "api_metrics": True,
+                "storage_metrics": True,
                 "prometheus_export": PROMETHEUS_AVAILABLE,  # Use the flag from the first import block
             }
             if MONITORING_AVAILABLE and monitoring_system is not None
