@@ -552,7 +552,7 @@ async def retrieve_content(cid, preferred_backend=None):
 
     except Exception as e:
         logger.error(f"Error retrieving content: {e}", exc_info=True)
-        return None, {"success": False, "error": str(e)}
+        return None, {"success": False, "error": str(e), "error_type": type(e).__name__}
 
 
 # Create router

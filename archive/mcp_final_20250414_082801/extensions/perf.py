@@ -278,9 +278,12 @@ async def get_from_cache(key: str) -> Optional[Dict[str, Any]]:
         stats["caching"]["misses"] += 1
         return None
     except Exception as e:
+        # Re-raise so callers can distinguish unexpected failures from normal cache
+        # misses (OSError from file I/O is already caught above).  The caching
+        # middleware wraps every call in its own try/except and falls back to
+        # call_next, so re-raising here does not break server availability.
         logger.exception("Unexpected error retrieving from cache for key %r: %s", key, e)
-        stats["caching"]["misses"] += 1
-        return None
+        raise
 
 
 async def store_in_cache(key: str, content: bytes, content_type: str) -> bool:
