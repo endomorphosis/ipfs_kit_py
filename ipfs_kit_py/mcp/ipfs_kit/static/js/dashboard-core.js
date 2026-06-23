@@ -808,7 +808,7 @@ function formatLogEntry(logEntry) {
 function generateSampleLogData(levelFilter = '', sourceFilter = '', searchQuery = '') {
     const now = new Date();
     const levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'];
-    const backends = ['ipfs', 'dashboard', 'mcp', 'daemon', 'ipfs_cluster', 'lotus', 'storacha', 'gdrive', 'huggingface'];
+    const backends = ['ipfs', 'dashboard', 'mcp', 'daemon', 'ipfs_cluster', 'lotus', 'storacha', 'walrus', 'gdrive', 'huggingface'];
     const operations = [
         'Health check completed',
         'Backend status updated',
@@ -1844,6 +1844,17 @@ function getBackendConfigOptions(backendName) {
             'Configuration': [
                 { name: 'max_file_size', label: 'Max File Size (MB)', type: 'number', value: '100', description: 'Maximum file size for uploads' },
                 { name: 'chunk_size', label: 'Chunk Size (MB)', type: 'number', value: '10', description: 'Chunk size for large files' }
+            ]
+        },
+        'walrus': {
+            'Endpoints': [
+                { name: 'publisher_url', label: 'Publisher URL', type: 'url', value: '', description: 'Walrus publisher endpoint' },
+                { name: 'aggregator_url', label: 'Aggregator URL', type: 'url', value: '', description: 'Walrus aggregator endpoint' },
+                { name: 'delete_url', label: 'Delete URL', type: 'url', value: '', description: 'Walrus delete endpoint' }
+            ],
+            'Index': [
+                { name: 'index_path', label: 'Index Path', type: 'text', value: '', description: 'Local logical path index file' },
+                { name: 'timeout', label: 'Timeout', type: 'number', value: '30', description: 'Request timeout in seconds' }
             ]
         },
         'huggingface': {

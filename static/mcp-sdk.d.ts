@@ -30,6 +30,32 @@ export interface MCPClientOptions {
   headers?: Record<string, string>;
 }
 
+export interface WalrusNamespace {
+  status(options?: Record<string, any>): Promise<any>;
+  list(path?: string, options?: Record<string, any>): Promise<any>;
+  get(path: string, options?: Record<string, any>): Promise<any>;
+  put(path: string, content: string, options?: Record<string, any>): Promise<any>;
+  delete(path: string, options?: Record<string, any>): Promise<any>;
+}
+
+export interface FSSpecNamespace {
+  protocols(): Promise<any>;
+  status(protocol: string, options?: Record<string, any>): Promise<any>;
+  read(url: string, options?: Record<string, any>): Promise<any>;
+  write(url: string, content: string, options?: Record<string, any>): Promise<any>;
+}
+
+export interface VFSGraphRAGNamespace {
+  status(options?: Record<string, any>): Promise<any>;
+  search(query?: string, options?: Record<string, any>): Promise<any>;
+  metadataSearch(query?: string, options?: Record<string, any>): Promise<any>;
+  vectorSearch(queryVector?: number[], options?: Record<string, any>): Promise<any>;
+  hybridSearch(query?: string, queryVector?: number[], options?: Record<string, any>): Promise<any>;
+  graphSearch(query?: string, options?: Record<string, any>): Promise<any>;
+  graphHybridSearch(query?: string, queryVector?: number[], options?: Record<string, any>): Promise<any>;
+  export(options?: Record<string, any>): Promise<any>;
+}
+
 export class MCPClient {
   constructor(options?: MCPClientOptions);
   baseUrl: string;
@@ -68,7 +94,14 @@ export function createClient(options?: MCPClientOptions): MCPClient;
 
 declare global {
   interface Window {
-    MCP: { MCPClient: typeof MCPClient; createClient: typeof createClient };
+    MCP: {
+      MCPClient: typeof MCPClient;
+      createClient: typeof createClient;
+      Walrus?: WalrusNamespace;
+      FSSpec?: FSSpecNamespace;
+      VFSGraphRAG?: VFSGraphRAGNamespace;
+      callTool?: (toolName: string, params?: Record<string, any>) => Promise<any>;
+    };
     mcpClient?: MCPClient;
   }
 }

@@ -13,20 +13,70 @@ async function loadVectorKBTab() {
         return;
     }
     
-    container.innerHTML = `
-        <div class="stat-card">
-            <h3>🧠 Vector Knowledge Base</h3>
-            <p>Vector database and knowledge base functionality is being developed.</p>
-            <div class="metric">
-                <span class="metric-label">Status</span>
-                <span class="metric-value">Development Mode</span>
+    try {
+        const [indexStatus, protocols, walrus] = await Promise.all([
+            dashboardAPI.getVFSGraphRAGStatus(),
+            dashboardAPI.listFSSpecProtocols(),
+            dashboardAPI.getWalrusStatus()
+        ]);
+        const statusData = indexStatus?.result || indexStatus?.data || indexStatus;
+        const protocolData = protocols?.result || protocols?.data || protocols;
+        const walrusData = walrus?.result || walrus?.data || walrus;
+        const counts = statusData?.status?.counts || {};
+        const protocolList = protocolData?.protocols || [];
+
+        container.innerHTML = `
+            <div class="stat-card">
+                <h3>VFS GraphRAG Index</h3>
+                <div class="metric"><span class="metric-label">Objects</span><span class="metric-value">${counts.objects || 0}</span></div>
+                <div class="metric"><span class="metric-label">Chunks</span><span class="metric-value">${counts.chunks || 0}</span></div>
+                <div class="metric"><span class="metric-label">Entities</span><span class="metric-value">${counts.entities || 0}</span></div>
+                <div class="metric"><span class="metric-label">Relationships</span><span class="metric-value">${counts.relationships || 0}</span></div>
             </div>
-            <div class="metric">
-                <span class="metric-label">Available Features</span>
-                <span class="metric-value">Coming Soon</span>
+            <div class="stat-card">
+                <h3>Search</h3>
+                <div class="form-group">
+                    <input id="vfsGraphRAGQuery" class="form-control" type="text" placeholder="Search indexed VFS records">
+                </div>
+                <button class="btn btn-primary" onclick="runVFSGraphRAGSearch()">Search</button>
+                <div id="vfsGraphRAGResults" class="expandable-content"></div>
             </div>
-        </div>
-    `;
+            <div class="stat-card">
+                <h3>fsspec Protocols</h3>
+                <div class="metric"><span class="metric-label">Protocols</span><span class="metric-value">${protocolList.join(', ') || 'Unavailable'}</span></div>
+                <div class="metric"><span class="metric-label">Walrus</span><span class="metric-value">${walrusData?.configured ? 'Configured' : 'Needs Config'}</span></div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading Vector/KB data:', error);
+        container.innerHTML = `
+            <div class="stat-card">
+                <h3>VFS GraphRAG</h3>
+                <div class="metric"><span class="metric-label">Status</span><span class="metric-value">Unavailable</span></div>
+            </div>
+        `;
+    }
+}
+
+async function runVFSGraphRAGSearch() {
+    const input = document.getElementById('vfsGraphRAGQuery');
+    const results = document.getElementById('vfsGraphRAGResults');
+    if (!input || !results) return;
+    results.innerHTML = 'Searching...';
+    try {
+        const response = await dashboardAPI.searchVFSGraphRAG(input.value || '', { top_k: 10 });
+        const data = response?.result || response?.data || response;
+        const items = data?.results || [];
+        results.innerHTML = items.length ? items.map(item => `
+            <div class="metric">
+                <span class="metric-label">${item.path || item.record_id || 'record'}</span>
+                <span class="metric-value">${Number(item.score || 0).toFixed(3)}</span>
+            </div>
+        `).join('') : '<div class="metric"><span class="metric-label">Results</span><span class="metric-value">0</span></div>';
+    } catch (error) {
+        console.error('VFS GraphRAG search failed:', error);
+        results.innerHTML = 'Search failed';
+    }
 }
 
 async function refreshMonitoring() {
@@ -198,6 +248,7 @@ function displayBackendsError(container, error) {
 
 // Expose functions globally for HTML compatibility
 window.loadVectorKBTab = loadVectorKBTab;
+window.runVFSGraphRAGSearch = runVFSGraphRAGSearch;
 window.refreshMonitoring = refreshMonitoring;
 window.loadConfigurationTab = loadConfigurationTab;
 window.loadBackendsTab = loadBackendsTab;

@@ -1,0 +1,1 @@
+{"format":"parquet","schema":[{"name":"id","type":"int64"},{"name":"text","type":"string"}],"row_groups":1}

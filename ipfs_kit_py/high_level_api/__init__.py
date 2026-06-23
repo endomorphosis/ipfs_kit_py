@@ -6,13 +6,102 @@ import logging
 import os
 import sys
 import importlib.util
+from typing import Any, Mapping, Optional, Union
 
 logger = logging.getLogger(__name__)
 
 HAVE_LIBP2P = False
+try:
+    from ..ipfs_fsspec import IPFSFileSystem as IPFSFileSystem
+
+    HAVE_FSSPEC = True
+except Exception:
+    IPFSFileSystem = None
+    HAVE_FSSPEC = False
+
+_DEFAULT_IPFS_FILESYSTEM = IPFSFileSystem
 _IPFS_SIMPLE_API_IMPL = None
 _IPFS_SIMPLE_API_LOAD_ATTEMPTED = False
 _IPFS_SIMPLE_API_LOAD_ERROR = None
+
+_WALRUS_FILESYSTEM_KEYS = (
+    "client",
+    "publisher_url",
+    "aggregator_url",
+    "delete_url",
+    "client_token",
+    "epochs",
+    "deletable",
+    "timeout",
+    "headers",
+    "transport",
+    "index_path",
+    "skip_instance_cache",
+)
+
+
+def _walrus_config_value(
+    config: Optional[Mapping[str, Any]],
+    key: str,
+    default: Any = None,
+) -> Any:
+    if not config:
+        return default
+    walrus_config = config.get("walrus")
+    if isinstance(walrus_config, Mapping) and key in walrus_config:
+        return walrus_config[key]
+    return config.get(key, default)
+
+
+def create_walrus_filesystem(
+    config: Optional[Mapping[str, Any]] = None,
+    *,
+    client: Optional[Any] = None,
+    publisher_url: Optional[str] = None,
+    aggregator_url: Optional[str] = None,
+    delete_url: Optional[str] = None,
+    client_token: Optional[str] = None,
+    epochs: Optional[int] = None,
+    deletable: Optional[bool] = None,
+    timeout: Optional[float] = None,
+    headers: Optional[Mapping[str, str]] = None,
+    transport: Optional[Any] = None,
+    index_path: Optional[Union[os.PathLike[str], str]] = None,
+    **kwargs: Any,
+) -> Any:
+    """Create a Walrus fsspec filesystem from explicit args, kwargs, config, or env."""
+    from ..walrus_fsspec import WalrusFileSystem
+
+    explicit_values = {
+        "client": client,
+        "publisher_url": publisher_url,
+        "aggregator_url": aggregator_url,
+        "delete_url": delete_url,
+        "client_token": client_token,
+        "epochs": epochs,
+        "deletable": deletable,
+        "timeout": timeout,
+        "headers": headers,
+        "transport": transport,
+        "index_path": index_path,
+    }
+
+    fs_kwargs = {}
+    for key in _WALRUS_FILESYSTEM_KEYS:
+        if key in explicit_values and explicit_values[key] is not None:
+            fs_kwargs[key] = explicit_values[key]
+        elif key in kwargs and kwargs[key] is not None:
+            fs_kwargs[key] = kwargs.pop(key)
+        else:
+            value = _walrus_config_value(config, key)
+            if value is not None:
+                fs_kwargs[key] = value
+
+    for key, value in kwargs.items():
+        if value is not None:
+            fs_kwargs[key] = value
+
+    return WalrusFileSystem(**fs_kwargs)
 
 def _init_libp2p_integration() -> None:
     global HAVE_LIBP2P
@@ -49,14 +138,54 @@ class IPFSSimpleAPI:
 
     def __new__(cls, *args, **kwargs):
         if cls is IPFSSimpleAPI:
+            if not HAVE_FSSPEC or IPFSFileSystem is not _DEFAULT_IPFS_FILESYSTEM:
+                return super().__new__(cls)
             impl = _try_load_ipfs_simple_api()
             if impl is not None and impl is not cls:
                 return impl(*args, **kwargs)
         return super().__new__(cls)
 
     def __init__(self, *args, **kwargs):
-        logger.warning("Using stub implementation of IPFSSimpleAPI")
+        self.config = kwargs.get("config", {})
+        self._filesystem = None
         self.available = False
+
+    def get_filesystem(self, **kwargs):
+        if not HAVE_FSSPEC or IPFSFileSystem is None:
+            return None
+
+        fs_kwargs = {}
+        if "role" in kwargs:
+            fs_kwargs["role"] = kwargs["role"]
+        else:
+            fs_kwargs["role"] = self.config.get("role", "leecher")
+
+        if "ipfs_path" in kwargs:
+            fs_kwargs["ipfs_path"] = kwargs["ipfs_path"]
+        elif "ipfs_path" in self.config:
+            fs_kwargs["ipfs_path"] = self.config["ipfs_path"]
+
+        if "socket_path" in kwargs:
+            fs_kwargs["socket_path"] = kwargs["socket_path"]
+        elif "socket_path" in self.config:
+            fs_kwargs["socket_path"] = self.config["socket_path"]
+
+        if "cache_config" in kwargs:
+            fs_kwargs["cache_config"] = kwargs["cache_config"]
+        elif "cache" in self.config:
+            fs_kwargs["cache_config"] = self.config["cache"]
+
+        fs_kwargs["use_mmap"] = kwargs.get("use_mmap", True)
+        fs_kwargs["enable_metrics"] = kwargs.get("enable_metrics", True)
+
+        try:
+            self._filesystem = IPFSFileSystem(**fs_kwargs)
+            return self._filesystem
+        except Exception:
+            return None
+
+    def create_walrus_filesystem(self, **kwargs):
+        return create_walrus_filesystem(config=self.config, **kwargs)
 
     def __getattr__(self, name):
         def dummy_method(*args, **kwargs):
@@ -149,7 +278,7 @@ except Exception as e:
 # Deferring avoids circular imports during package initialization.
 
 # Export components
-__all__ = ['IPFSSimpleAPI']
+__all__ = ['IPFSSimpleAPI', 'create_walrus_filesystem']
 
 if WebRTCBenchmarkIntegration is not None:
     __all__.append('WebRTCBenchmarkIntegration')

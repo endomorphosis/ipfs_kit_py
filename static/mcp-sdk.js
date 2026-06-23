@@ -420,6 +420,32 @@ window.MCP.System = {
         }
 };
 
+window.MCP.Walrus = {
+    async status(options = {}) { return await window.mcpClient.callTool('walrus_status', options); },
+    async list(path = 'walrus://', options = {}) { return await window.mcpClient.callTool('walrus_list', { path, ...options }); },
+    async get(path, options = {}) { return await window.mcpClient.callTool('walrus_get', { path, ...options }); },
+    async put(path, content, options = {}) { return await window.mcpClient.callTool('walrus_put', { path, content, ...options }); },
+    async delete(path, options = {}) { return await window.mcpClient.callTool('walrus_delete', { path, ...options }); }
+};
+
+window.MCP.FSSpec = {
+    async protocols() { return await window.mcpClient.callTool('fsspec_list_protocols'); },
+    async status(protocol, options = {}) { return await window.mcpClient.callTool('fsspec_backend_status', { protocol, ...options }); },
+    async read(url, options = {}) { return await window.mcpClient.callTool('fsspec_read', { url, ...options }); },
+    async write(url, content, options = {}) { return await window.mcpClient.callTool('fsspec_write', { url, content, ...options }); }
+};
+
+window.MCP.VFSGraphRAG = {
+    async status(options = {}) { return await window.mcpClient.callTool('vfs_graphrag_status', options); },
+    async search(query = '', options = {}) { return await window.mcpClient.callTool('vfs_graphrag_search', { query, ...options }); },
+    async metadataSearch(query = '', options = {}) { return await window.mcpClient.callTool('vfs_graphrag_metadata_search', { query, ...options }); },
+    async vectorSearch(queryVector = [], options = {}) { return await window.mcpClient.callTool('vfs_graphrag_vector_search', { query_vector: queryVector, ...options }); },
+    async hybridSearch(query = '', queryVector = [], options = {}) { return await window.mcpClient.callTool('vfs_graphrag_hybrid_search', { query, query_vector: queryVector, ...options }); },
+    async graphSearch(query = '', options = {}) { return await window.mcpClient.callTool('vfs_graphrag_graph_search', { query, ...options }); },
+    async graphHybridSearch(query = '', queryVector = [], options = {}) { return await window.mcpClient.callTool('vfs_graphrag_graph_hybrid_search', { query, query_vector: queryVector, ...options }); },
+    async export(options = {}) { return await window.mcpClient.callTool('vfs_graphrag_export', options); }
+};
+
 // Create global MCP client instance
 window.mcpClient = new MCPClient();
 
