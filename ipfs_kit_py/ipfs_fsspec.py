@@ -1860,26 +1860,134 @@ class VFSCore:
         self.replication_manager = VFSReplicationManager(self)
         self.mounts: Dict[str, Dict[str, Any]] = {}
         self._memory = _MemoryBackend()
+        self._metrics: Dict[str, Any] = {
+            "mount": 0,
+            "unmount": 0,
+            "list_mounts": 0,
+            "resolve_path": 0,
+            "last_operation": None,
+            "last_error": None,
+        }
+
+    def _record_metric(self, operation: str, *, error: Optional[str] = None) -> None:
+        if operation in self._metrics and isinstance(self._metrics[operation], int):
+            self._metrics[operation] += 1
+        self._metrics["last_operation"] = operation
+        self._metrics["last_error"] = error
 
     def mount(self, mount_point: str, backend: str, target: str, read_only: bool = False) -> Dict[str, Any]:
+        if not mount_point:
+            self._record_metric("mount", error="mount_point_required")
+            return {"success": False, "error": "mount_point is required"}
+
+        backend_name = (backend or "").strip().lower()
+        if backend_name not in {"ipfs", "local", "memory"}:
+            self._record_metric("mount", error="unsupported_backend")
+            return {
+                "success": False,
+                "error": f"unsupported backend: {backend_name}",
+                "backend": backend_name,
+            }
+
+        if backend_name == "local" and (not target or not os.path.exists(str(target))):
+            self._record_metric("mount", error="local_target_missing")
+            return {
+                "success": False,
+                "error": f"local mount target does not exist: {target}",
+                "backend": backend_name,
+            }
+
         mount_point = _norm_path(mount_point)
         self.mounts[mount_point] = {
             "mount_point": mount_point,
-            "backend": (backend or "").strip().lower(),
+            "backend": backend_name,
             "target": str(target),
             "read_only": bool(read_only),
         }
-        return {"success": True, "mount_point": mount_point, "backend": backend}
+        self._record_metric("mount")
+        return {"success": True, "mount_point": mount_point, "backend": backend_name, "mounted": True}
 
     def unmount(self, mount_point: str) -> Dict[str, Any]:
+        if not mount_point:
+            self._record_metric("unmount", error="mount_point_required")
+            return {"success": False, "error": "mount_point is required", "unmounted": False}
+
         mount_point = _norm_path(mount_point)
         existed = mount_point in self.mounts
+        if not existed:
+            self._record_metric("unmount", error="mount_not_found")
+            return {
+                "success": False,
+                "unmounted": False,
+                "mount_point": mount_point,
+                "error": f"mount point not found: {mount_point}",
+            }
+
         self.mounts.pop(mount_point, None)
-        return {"success": True, "unmounted": bool(existed), "mount_point": mount_point}
+        self._record_metric("unmount")
+        return {"success": True, "unmounted": True, "mount_point": mount_point}
 
     def list_mounts(self) -> Dict[str, Any]:
         mounts = [dict(v) for _, v in sorted(self.mounts.items())]
+        self._record_metric("list_mounts")
         return {"success": True, "count": len(mounts), "mounts": mounts}
+
+    def resolve_path(self, local_path: str) -> Dict[str, Any]:
+        if not local_path:
+            self._record_metric("resolve_path", error="local_path_required")
+            return {"success": False, "resolved": False, "error": "local_path is required"}
+
+        mount = self._find_mount_for_path(local_path)
+        if not mount:
+            self._record_metric("resolve_path", error="mount_not_found")
+            return {
+                "success": False,
+                "resolved": False,
+                "local_path": local_path,
+                "error": "path is not under any active mount",
+            }
+
+        mount_point = mount["mount_point"]
+        normalized_local = _norm_path(local_path)
+        rel = normalized_local[len(mount_point) :]
+        if rel.startswith("/"):
+            rel = rel[1:]
+
+        target = str(mount.get("target") or "/")
+        backend = str(mount.get("backend") or "")
+        if backend == "ipfs":
+            base = target.rstrip("/") or "/"
+            resolved_path = base if not rel else f"{base}/{rel}"
+        elif backend == "local":
+            resolved_path = os.path.join(target, rel) if rel else target
+        elif backend == "memory":
+            base = target.rstrip("/") or "/"
+            resolved_path = base if not rel else f"{base}/{rel}"
+        else:
+            self._record_metric("resolve_path", error="unsupported_backend")
+            return {
+                "success": False,
+                "resolved": False,
+                "local_path": local_path,
+                "error": f"unsupported backend for resolve: {backend}",
+            }
+
+        self._record_metric("resolve_path")
+        return {
+            "success": True,
+            "resolved": True,
+            "local_path": local_path,
+            "mount_point": mount_point,
+            "backend": backend,
+            "relative_path": rel,
+            "resolved_path": resolved_path,
+        }
+
+    def observability_snapshot(self) -> Dict[str, Any]:
+        return {
+            "mount_count": len(self.mounts),
+            "metrics": dict(self._metrics),
+        }
 
     def _find_mount_for_path(self, path: str) -> Optional[Dict[str, Any]]:
         path = _norm_path(path)
@@ -2159,7 +2267,10 @@ def _vfs_dual(async_fn, /, *args, **kwargs):
         return async_fn(*args, **kwargs)
     import anyio
 
-    return anyio.run(async_fn, *args, **kwargs)
+    async def _runner():
+        return await async_fn(*args, **kwargs)
+
+    return anyio.run(_runner)
 
 
 async def _vfs_mount_async(source: str, mount_point: str, *, read_only: bool = False) -> Dict[str, Any]:
@@ -2204,6 +2315,14 @@ async def _vfs_list_mounts_async() -> Dict[str, Any]:
 
 def vfs_list_mounts():
     return _vfs_dual(_vfs_list_mounts_async)
+
+
+async def _vfs_resolve_path_async(local_path: str) -> Dict[str, Any]:
+    return get_vfs().resolve_path(local_path)
+
+
+def vfs_resolve_path(local_path: str):
+    return _vfs_dual(_vfs_resolve_path_async, local_path)
 
 
 async def _vfs_read_async(path: str) -> Dict[str, Any]:
