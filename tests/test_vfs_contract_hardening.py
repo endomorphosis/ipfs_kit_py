@@ -92,8 +92,10 @@ def test_vfs_write_triggers_dataset_and_accelerate_hooks():
     assert write_result["success"] is True
     assert write_result["integration"]["dataset"]["attempted"] is True
     assert write_result["integration"]["dataset"]["success"] is True
+    assert write_result["integration"]["dataset"]["fallback_order"][0] == "record_ipfs_operation"
     assert write_result["integration"]["accelerate"]["attempted"] is True
     assert write_result["integration"]["accelerate"]["success"] is True
+    assert write_result["integration"]["accelerate"]["fallback_order"][0] == "discover_embedding_models"
     assert "accelerate_models" in write_result["integration"]["metadata"]
 
     snapshot = vfs.observability_snapshot()
@@ -122,3 +124,4 @@ def test_vfs_write_graceful_when_accelerate_unavailable():
     assert write_result["integration"]["dataset"]["success"] is True
     assert write_result["integration"]["accelerate"]["attempted"] is False
     assert write_result["integration"]["accelerate"]["reason"] == "ipfs_accelerate_unavailable"
+    assert write_result["integration"]["accelerate"]["fallback_order"][1] == "search_models"

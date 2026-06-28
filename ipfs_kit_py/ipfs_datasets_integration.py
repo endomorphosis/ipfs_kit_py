@@ -32,6 +32,8 @@ from pathlib import Path
 import json
 import datetime
 import importlib.util
+import csv
+import hashlib
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -419,10 +421,291 @@ class IPFSDatasetsManager:
         )
         self.event_log = []
         self.provenance_log = []
+        self.metadata_index_path = self.backend.base_path / "metadata_index.json"
+        self.metadata_index: Dict[str, Dict[str, Any]] = {}
+        self._metrics: Dict[str, int] = {
+            "index_refresh": 0,
+            "index_remove": 0,
+            "index_list": 0,
+            "accelerate_enrichment": 0,
+            "index_errors": 0,
+        }
+        self._accelerate_module: Optional[Any] = None
+        self._accelerate_checked = False
+        self._load_metadata_index()
     
     def is_available(self) -> bool:
         """Check if distributed dataset operations are available."""
         return self.backend.is_available()
+
+    def _load_metadata_index(self) -> None:
+        try:
+            if self.metadata_index_path.exists():
+                with open(self.metadata_index_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, dict):
+                    self.metadata_index = data
+        except Exception as e:
+            logger.warning(f"Failed to load metadata index: {e}")
+            self.metadata_index = {}
+
+    def _save_metadata_index(self) -> None:
+        try:
+            self.metadata_index_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.metadata_index_path, "w", encoding="utf-8") as f:
+                json.dump(self.metadata_index, f, indent=2, sort_keys=True)
+        except Exception as e:
+            self._metrics["index_errors"] += 1
+            logger.warning(f"Failed to save metadata index: {e}")
+
+    def _index_key(self, *, path: Optional[Union[str, Path]] = None, cid: Optional[str] = None) -> str:
+        if cid:
+            return f"cid:{cid}"
+        if path is None:
+            return "unknown"
+        return f"path:{Path(path).expanduser().resolve()}"
+
+    def _safe_file_hash(self, file_path: Path, max_bytes: int = 1024 * 1024) -> Optional[str]:
+        try:
+            h = hashlib.sha256()
+            with open(file_path, "rb") as f:
+                h.update(f.read(max_bytes))
+            return h.hexdigest()
+        except Exception:
+            return None
+
+    def _first_data_file(self, dataset_path: Path) -> Optional[Path]:
+        if dataset_path.is_file():
+            return dataset_path
+        if not dataset_path.is_dir():
+            return None
+        candidates: List[Path] = []
+        for ext in ("*.csv", "*.json", "*.jsonl", "*.parquet", "*.txt"):
+            candidates.extend(sorted(dataset_path.rglob(ext)))
+        return candidates[0] if candidates else None
+
+    def _infer_schema(self, dataset_path: Path) -> Dict[str, Any]:
+        data_file = self._first_data_file(dataset_path)
+        if data_file is None:
+            return {"fields": [], "source": "none"}
+
+        suffix = data_file.suffix.lower()
+        try:
+            if suffix == ".csv":
+                with open(data_file, "r", encoding="utf-8", newline="") as f:
+                    reader = csv.DictReader(f)
+                    fields = list(reader.fieldnames or [])
+                return {"fields": fields, "source": "csv_header", "sample_file": str(data_file)}
+
+            if suffix == ".json":
+                with open(data_file, "r", encoding="utf-8") as f:
+                    parsed = json.load(f)
+                if isinstance(parsed, list) and parsed and isinstance(parsed[0], dict):
+                    fields = sorted(list(parsed[0].keys()))
+                    return {"fields": fields, "source": "json_array_object", "sample_file": str(data_file)}
+                if isinstance(parsed, dict):
+                    fields = sorted(list(parsed.keys()))
+                    return {"fields": fields, "source": "json_object", "sample_file": str(data_file)}
+
+            if suffix == ".jsonl":
+                with open(data_file, "r", encoding="utf-8") as f:
+                    first = f.readline().strip()
+                if first:
+                    parsed = json.loads(first)
+                    if isinstance(parsed, dict):
+                        return {
+                            "fields": sorted(list(parsed.keys())),
+                            "source": "jsonl_first_row",
+                            "sample_file": str(data_file),
+                        }
+
+            # Keep parquet lightweight here: avoid hard dependency on pandas/pyarrow.
+            if suffix == ".parquet":
+                return {"fields": [], "source": "parquet_unparsed", "sample_file": str(data_file)}
+
+            return {"fields": [], "source": "unstructured", "sample_file": str(data_file)}
+        except Exception:
+            return {"fields": [], "source": "inference_error", "sample_file": str(data_file)}
+
+    def _infer_splits(self, dataset_path: Path) -> List[str]:
+        split_tokens = {"train", "test", "validation", "val", "dev"}
+        found: List[str] = []
+
+        for part in dataset_path.parts:
+            p = part.lower()
+            if p in split_tokens and p not in found:
+                found.append(p)
+
+        if dataset_path.is_dir():
+            try:
+                for child in dataset_path.iterdir():
+                    name = child.name.lower()
+                    if name in split_tokens and name not in found:
+                        found.append(name)
+            except Exception:
+                pass
+
+        return found
+
+    def _infer_provenance(self, dataset_path: Path, cid: Optional[str] = None) -> Dict[str, Any]:
+        provenance: Dict[str, Any] = {
+            "source_path": str(dataset_path),
+            "captured_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        }
+        if cid:
+            provenance["cid"] = cid
+
+        try:
+            stat = dataset_path.stat()
+            provenance["size_bytes"] = stat.st_size
+            provenance["mtime"] = datetime.datetime.fromtimestamp(stat.st_mtime, tz=datetime.timezone.utc).isoformat()
+        except Exception:
+            pass
+
+        data_file = self._first_data_file(dataset_path)
+        if data_file is not None:
+            file_hash = self._safe_file_hash(data_file)
+            if file_hash:
+                provenance["sample_file_sha256"] = file_hash
+                provenance["sample_file"] = str(data_file)
+
+        return provenance
+
+    def _get_accelerate_module(self) -> Optional[Any]:
+        if self._accelerate_checked:
+            return self._accelerate_module
+        self._accelerate_checked = True
+        try:
+            from ipfs_kit_py import get_ipfs_accelerate
+
+            self._accelerate_module = get_ipfs_accelerate()
+        except Exception:
+            self._accelerate_module = None
+        return self._accelerate_module
+
+    def _accelerate_enrich_index(self, entry: Dict[str, Any]) -> Dict[str, Any]:
+        accelerate = self._get_accelerate_module()
+        if accelerate is None:
+            return {"attempted": False, "reason": "accelerate_unavailable"}
+
+        try:
+            enrichment: Dict[str, Any] = {}
+
+            if hasattr(accelerate, "discover_embedding_models") and callable(accelerate.discover_embedding_models):
+                models = accelerate.discover_embedding_models()
+                enrichment["discovered_models"] = models
+            elif hasattr(accelerate, "search_models") and callable(accelerate.search_models):
+                models = accelerate.search_models("embedding")
+                enrichment["discovered_models"] = models
+
+            embed_text = entry.get("dataset_summary") or entry.get("path")
+            if hasattr(accelerate, "create_embedding") and callable(accelerate.create_embedding) and embed_text:
+                vector = accelerate.create_embedding(str(embed_text))
+                if isinstance(vector, list):
+                    enrichment["embedding_dim"] = len(vector)
+                enrichment["embedding_preview"] = vector[:8] if isinstance(vector, list) else None
+
+            if enrichment:
+                entry["accelerate"] = enrichment
+                self._metrics["accelerate_enrichment"] += 1
+                return {"attempted": True, "success": True}
+            return {"attempted": True, "success": False, "reason": "no_supported_capabilities"}
+        except Exception as e:
+            self._metrics["index_errors"] += 1
+            return {"attempted": True, "success": False, "reason": str(e)}
+
+    def _build_index_entry(
+        self,
+        *,
+        path: Optional[Union[str, Path]],
+        cid: Optional[str],
+        operation: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        metadata = dict(metadata or {})
+        dataset_path = Path(path).expanduser() if path else None
+        inferred_schema: Dict[str, Any] = {"fields": [], "source": "none"}
+        inferred_splits: List[str] = []
+        inferred_provenance: Dict[str, Any] = {}
+
+        if dataset_path and dataset_path.exists():
+            inferred_schema = self._infer_schema(dataset_path)
+            inferred_splits = self._infer_splits(dataset_path)
+            inferred_provenance = self._infer_provenance(dataset_path, cid=cid)
+
+        entry = {
+            "id": self._index_key(path=path, cid=cid),
+            "path": str(dataset_path) if dataset_path else metadata.get("path"),
+            "cid": cid,
+            "operation": operation,
+            "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "schema": inferred_schema,
+            "splits": inferred_splits,
+            "provenance": inferred_provenance,
+            "metadata": metadata,
+            "dataset_summary": metadata.get("dataset_summary") or metadata.get("description"),
+        }
+        self._accelerate_enrich_index(entry)
+        return entry
+
+    def refresh_metadata_index(
+        self,
+        *,
+        path: Optional[Union[str, Path]] = None,
+        cid: Optional[str] = None,
+        operation: str = "refresh",
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        try:
+            entry = self._build_index_entry(path=path, cid=cid, operation=operation, metadata=metadata)
+            self.metadata_index[entry["id"]] = entry
+            self._save_metadata_index()
+            self._metrics["index_refresh"] += 1
+            return {"success": True, "entry": entry}
+        except Exception as e:
+            self._metrics["index_errors"] += 1
+            return {"success": False, "error": str(e)}
+
+    def update_metadata_index(self, *, path: Optional[Union[str, Path]] = None, operation: str = "update", metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Compatibility alias used by existing wrappers."""
+        return self.refresh_metadata_index(path=path, operation=operation, metadata=metadata)
+
+    def record_ipfs_operation(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Compatibility hook for VFS and bridge notifiers."""
+        operation = str(payload.get("operation") or "operation")
+        path = payload.get("path")
+        cid = payload.get("cid")
+
+        if operation in {"remove", "delete", "rmdir", "unmount"}:
+            return self.remove_from_metadata_index(path=path, cid=cid)
+
+        return self.refresh_metadata_index(path=path, cid=cid, operation=operation, metadata=payload)
+
+    def remove_from_metadata_index(
+        self,
+        *,
+        path: Optional[Union[str, Path]] = None,
+        cid: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        key = self._index_key(path=path, cid=cid)
+        removed = self.metadata_index.pop(key, None)
+        self._save_metadata_index()
+        self._metrics["index_remove"] += 1
+        return {"success": True, "removed": removed is not None, "id": key}
+
+    def list_metadata_index(self) -> Dict[str, Any]:
+        self._metrics["index_list"] += 1
+        return {
+            "success": True,
+            "count": len(self.metadata_index),
+            "items": [self.metadata_index[k] for k in sorted(self.metadata_index.keys())],
+        }
+
+    def metadata_index_snapshot(self) -> Dict[str, Any]:
+        return {
+            "count": len(self.metadata_index),
+            "metrics": dict(self._metrics),
+        }
     
     def store(self, path: Union[str, Path], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Store a dataset with event logging."""
@@ -436,6 +719,14 @@ class IPFSDatasetsManager:
             "success": result.get("success", False),
             "cid": result.get("cid")
         })
+
+        if result.get("success"):
+            self.refresh_metadata_index(
+                path=path,
+                cid=result.get("cid"),
+                operation="store",
+                metadata=result.get("metadata") if isinstance(result.get("metadata"), dict) else {},
+            )
         
         return result
     
@@ -450,6 +741,15 @@ class IPFSDatasetsManager:
             "timestamp": datetime.datetime.now().isoformat(),
             "success": result.get("success", False)
         })
+
+        if result.get("success"):
+            # Refresh index for the resolved local path when available, otherwise identifier.
+            resolved_path = result.get("path") or identifier
+            self.refresh_metadata_index(
+                path=resolved_path,
+                operation="load",
+                metadata=result.get("metadata") if isinstance(result.get("metadata"), dict) else {},
+            )
         
         return result
     
@@ -486,7 +786,37 @@ class IPFSDatasetsManager:
             "timestamp": datetime.datetime.now().isoformat(),
             "cid": result.get("cid")
         })
+
+        if result.get("success"):
+            self.refresh_metadata_index(
+                path=dataset_id,
+                cid=result.get("cid"),
+                operation="version",
+                metadata=metadata,
+            )
         
+        return result
+
+    def remove(self, identifier: str) -> Dict[str, Any]:
+        """Remove dataset metadata index entry by CID or path."""
+        result = self.remove_from_metadata_index(path=identifier, cid=identifier if self.backend._is_cid(identifier) else None)
+        self.event_log.append({
+            "operation": "remove",
+            "identifier": identifier,
+            "timestamp": datetime.datetime.now().isoformat(),
+            "success": result.get("success", False),
+        })
+        return result
+
+    def list(self) -> Dict[str, Any]:
+        """List datasets from metadata index."""
+        result = self.list_metadata_index()
+        self.event_log.append({
+            "operation": "list",
+            "timestamp": datetime.datetime.now().isoformat(),
+            "success": result.get("success", False),
+            "count": result.get("count", 0),
+        })
         return result
     
     def get_event_log(self) -> List[Dict[str, Any]]:

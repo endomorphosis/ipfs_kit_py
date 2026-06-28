@@ -1944,23 +1944,63 @@ class VFSCore:
                 "attempted": False,
                 "success": False,
                 "reason": "ipfs_datasets_manager_unavailable",
+                "fallback_order": [
+                    "record_ipfs_operation",
+                    "refresh_metadata_index",
+                    "update_metadata_index",
+                    "store",
+                    "event_log",
+                ],
             }
 
         try:
             if hasattr(manager, "record_ipfs_operation") and callable(manager.record_ipfs_operation):
                 manager.record_ipfs_operation(payload)
                 self._metrics["dataset_events"] += 1
-                return {"attempted": True, "success": True, "mode": "record_ipfs_operation"}
+                return {
+                    "attempted": True,
+                    "success": True,
+                    "mode": "record_ipfs_operation",
+                    "fallback_order": [
+                        "record_ipfs_operation",
+                        "refresh_metadata_index",
+                        "update_metadata_index",
+                        "store",
+                        "event_log",
+                    ],
+                }
 
             if hasattr(manager, "refresh_metadata_index") and callable(manager.refresh_metadata_index):
                 manager.refresh_metadata_index(path=path, operation=operation, metadata=payload)
                 self._metrics["dataset_events"] += 1
-                return {"attempted": True, "success": True, "mode": "refresh_metadata_index"}
+                return {
+                    "attempted": True,
+                    "success": True,
+                    "mode": "refresh_metadata_index",
+                    "fallback_order": [
+                        "record_ipfs_operation",
+                        "refresh_metadata_index",
+                        "update_metadata_index",
+                        "store",
+                        "event_log",
+                    ],
+                }
 
             if hasattr(manager, "update_metadata_index") and callable(manager.update_metadata_index):
                 manager.update_metadata_index(path=path, operation=operation, metadata=payload)
                 self._metrics["dataset_events"] += 1
-                return {"attempted": True, "success": True, "mode": "update_metadata_index"}
+                return {
+                    "attempted": True,
+                    "success": True,
+                    "mode": "update_metadata_index",
+                    "fallback_order": [
+                        "record_ipfs_operation",
+                        "refresh_metadata_index",
+                        "update_metadata_index",
+                        "store",
+                        "event_log",
+                    ],
+                }
 
             if (
                 local_path
@@ -1970,18 +2010,47 @@ class VFSCore:
             ):
                 manager.store(local_path, metadata=payload)
                 self._metrics["dataset_events"] += 1
-                return {"attempted": True, "success": True, "mode": "store"}
+                return {
+                    "attempted": True,
+                    "success": True,
+                    "mode": "store",
+                    "fallback_order": [
+                        "record_ipfs_operation",
+                        "refresh_metadata_index",
+                        "update_metadata_index",
+                        "store",
+                        "event_log",
+                    ],
+                }
 
             event_log = getattr(manager, "event_log", None)
             if isinstance(event_log, list):
                 event_log.append(payload)
                 self._metrics["dataset_events"] += 1
-                return {"attempted": True, "success": True, "mode": "event_log"}
+                return {
+                    "attempted": True,
+                    "success": True,
+                    "mode": "event_log",
+                    "fallback_order": [
+                        "record_ipfs_operation",
+                        "refresh_metadata_index",
+                        "update_metadata_index",
+                        "store",
+                        "event_log",
+                    ],
+                }
 
             return {
                 "attempted": True,
                 "success": False,
                 "reason": "no_supported_dataset_hook",
+                "fallback_order": [
+                    "record_ipfs_operation",
+                    "refresh_metadata_index",
+                    "update_metadata_index",
+                    "store",
+                    "event_log",
+                ],
             }
         except Exception as exc:
             self._metrics["integration_errors"] += 1
@@ -1999,6 +2068,13 @@ class VFSCore:
                 "attempted": False,
                 "success": False,
                 "reason": "ipfs_accelerate_unavailable",
+                "fallback_order": [
+                    "discover_embedding_models",
+                    "search_models",
+                    "AccelerateCompute.discover_embedding_models",
+                    "AccelerateCompute.search_models",
+                    "AccelerateCompute.list_models",
+                ],
             }
 
         try:
@@ -2011,6 +2087,13 @@ class VFSCore:
                     "success": True,
                     "mode": "discover_embedding_models",
                     "model_count": len(models) if isinstance(models, list) else None,
+                    "fallback_order": [
+                        "discover_embedding_models",
+                        "search_models",
+                        "AccelerateCompute.discover_embedding_models",
+                        "AccelerateCompute.search_models",
+                        "AccelerateCompute.list_models",
+                    ],
                 }
 
             if hasattr(accelerate, "search_models") and callable(accelerate.search_models):
@@ -2022,6 +2105,13 @@ class VFSCore:
                     "success": True,
                     "mode": "search_models",
                     "model_count": len(models) if isinstance(models, list) else None,
+                    "fallback_order": [
+                        "discover_embedding_models",
+                        "search_models",
+                        "AccelerateCompute.discover_embedding_models",
+                        "AccelerateCompute.search_models",
+                        "AccelerateCompute.list_models",
+                    ],
                 }
 
             cls = getattr(accelerate, "AccelerateCompute", None)
@@ -2038,12 +2128,26 @@ class VFSCore:
                             "success": True,
                             "mode": f"AccelerateCompute.{method_name}",
                             "model_count": len(models) if isinstance(models, list) else None,
+                            "fallback_order": [
+                                "discover_embedding_models",
+                                "search_models",
+                                "AccelerateCompute.discover_embedding_models",
+                                "AccelerateCompute.search_models",
+                                "AccelerateCompute.list_models",
+                            ],
                         }
 
             return {
                 "attempted": True,
                 "success": False,
                 "reason": "no_supported_accelerate_hook",
+                "fallback_order": [
+                    "discover_embedding_models",
+                    "search_models",
+                    "AccelerateCompute.discover_embedding_models",
+                    "AccelerateCompute.search_models",
+                    "AccelerateCompute.list_models",
+                ],
             }
         except Exception as exc:
             self._metrics["integration_errors"] += 1
