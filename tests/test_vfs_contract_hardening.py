@@ -8,7 +8,14 @@ from pathlib import Path
 repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root))
 
-from ipfs_kit_py.ipfs_fsspec import get_vfs, vfs_list_mounts, vfs_mount, vfs_resolve_path, vfs_unmount
+from ipfs_kit_py.ipfs_fsspec import (
+    get_vfs,
+    vfs_list_mounts,
+    vfs_mount,
+    vfs_resolve_path,
+    vfs_unmount,
+    vfs_write,
+)
 
 
 def test_vfs_mount_and_resolve_path_success():
@@ -59,3 +66,59 @@ def test_vfs_list_mounts_shape():
     assert "success" in result
     assert "count" in result
     assert "mounts" in result
+
+
+def test_vfs_write_triggers_dataset_and_accelerate_hooks():
+    class FakeDatasetsManager:
+        def __init__(self):
+            self.event_log = []
+
+    class FakeAccelerate:
+        @staticmethod
+        def discover_embedding_models():
+            return ["mini-embed-v1", "e5-small"]
+
+    vfs = get_vfs()
+    for mount in list(vfs.mounts.keys()):
+        vfs.unmount(mount)
+
+    vfs.configure_integrations(
+        datasets_manager=FakeDatasetsManager(),
+        accelerate_module=FakeAccelerate(),
+    )
+    vfs.mount("/tmp/vfs-hooks", "memory", "/")
+
+    write_result = vfs_write("/tmp/vfs-hooks/doc.txt", "hello")
+    assert write_result["success"] is True
+    assert write_result["integration"]["dataset"]["attempted"] is True
+    assert write_result["integration"]["dataset"]["success"] is True
+    assert write_result["integration"]["accelerate"]["attempted"] is True
+    assert write_result["integration"]["accelerate"]["success"] is True
+    assert "accelerate_models" in write_result["integration"]["metadata"]
+
+    snapshot = vfs.observability_snapshot()
+    assert snapshot["metrics"]["dataset_events"] >= 1
+    assert snapshot["metrics"]["accelerate_enrichment"] >= 1
+
+
+def test_vfs_write_graceful_when_accelerate_unavailable():
+    class FakeDatasetsManager:
+        def __init__(self):
+            self.event_log = []
+
+    vfs = get_vfs()
+    for mount in list(vfs.mounts.keys()):
+        vfs.unmount(mount)
+
+    vfs.configure_integrations(
+        datasets_manager=FakeDatasetsManager(),
+        accelerate_module=None,
+    )
+    vfs.mount("/tmp/vfs-hooks-fallback", "memory", "/")
+
+    write_result = vfs_write("/tmp/vfs-hooks-fallback/doc.txt", "hello")
+    assert write_result["success"] is True
+    assert write_result["integration"]["dataset"]["attempted"] is True
+    assert write_result["integration"]["dataset"]["success"] is True
+    assert write_result["integration"]["accelerate"]["attempted"] is False
+    assert write_result["integration"]["accelerate"]["reason"] == "ipfs_accelerate_unavailable"

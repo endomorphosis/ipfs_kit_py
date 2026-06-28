@@ -11,6 +11,7 @@ import time
 import logging
 import io
 import tempfile
+import datetime
 from typing import Dict, List, Any, Optional, Union, Tuple, Callable, BinaryIO
 
 # Import fsspec (optional).
@@ -1867,13 +1868,221 @@ class VFSCore:
             "resolve_path": 0,
             "last_operation": None,
             "last_error": None,
+            "dataset_events": 0,
+            "accelerate_enrichment": 0,
+            "integration_errors": 0,
         }
+        self._datasets_manager: Optional[Any] = None
+        self._datasets_manager_checked = False
+        self._accelerate_module: Optional[Any] = None
+        self._accelerate_module_checked = False
 
     def _record_metric(self, operation: str, *, error: Optional[str] = None) -> None:
         if operation in self._metrics and isinstance(self._metrics[operation], int):
             self._metrics[operation] += 1
         self._metrics["last_operation"] = operation
         self._metrics["last_error"] = error
+
+    def configure_integrations(
+        self,
+        *,
+        datasets_manager: Optional[Any] = None,
+        accelerate_module: Optional[Any] = None,
+    ) -> None:
+        """Override optional integration modules (primarily for tests)."""
+        self._datasets_manager = datasets_manager
+        self._datasets_manager_checked = True
+        self._accelerate_module = accelerate_module
+        self._accelerate_module_checked = True
+
+    def _get_datasets_manager(self) -> Optional[Any]:
+        if self._datasets_manager_checked:
+            return self._datasets_manager
+        self._datasets_manager_checked = True
+        try:
+            from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
+
+            self._datasets_manager = get_ipfs_datasets_manager(enable=True)
+        except Exception:
+            self._datasets_manager = None
+        return self._datasets_manager
+
+    def _get_accelerate_module(self) -> Optional[Any]:
+        if self._accelerate_module_checked:
+            return self._accelerate_module
+        self._accelerate_module_checked = True
+        try:
+            from ipfs_kit_py import get_ipfs_accelerate
+
+            self._accelerate_module = get_ipfs_accelerate()
+        except Exception:
+            self._accelerate_module = None
+        return self._accelerate_module
+
+    def _notify_dataset_metadata(
+        self,
+        *,
+        operation: str,
+        path: str,
+        mount: Optional[Dict[str, Any]],
+        local_path: Optional[str] = None,
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        manager = self._get_datasets_manager()
+        payload: Dict[str, Any] = {
+            "operation": operation,
+            "path": path,
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "backend": (mount or {}).get("backend"),
+            "mount_point": (mount or {}).get("mount_point"),
+        }
+        if extra:
+            payload.update(extra)
+
+        if manager is None:
+            return {
+                "attempted": False,
+                "success": False,
+                "reason": "ipfs_datasets_manager_unavailable",
+            }
+
+        try:
+            if hasattr(manager, "record_ipfs_operation") and callable(manager.record_ipfs_operation):
+                manager.record_ipfs_operation(payload)
+                self._metrics["dataset_events"] += 1
+                return {"attempted": True, "success": True, "mode": "record_ipfs_operation"}
+
+            if hasattr(manager, "refresh_metadata_index") and callable(manager.refresh_metadata_index):
+                manager.refresh_metadata_index(path=path, operation=operation, metadata=payload)
+                self._metrics["dataset_events"] += 1
+                return {"attempted": True, "success": True, "mode": "refresh_metadata_index"}
+
+            if hasattr(manager, "update_metadata_index") and callable(manager.update_metadata_index):
+                manager.update_metadata_index(path=path, operation=operation, metadata=payload)
+                self._metrics["dataset_events"] += 1
+                return {"attempted": True, "success": True, "mode": "update_metadata_index"}
+
+            if (
+                local_path
+                and hasattr(manager, "store")
+                and callable(manager.store)
+                and os.path.exists(local_path)
+            ):
+                manager.store(local_path, metadata=payload)
+                self._metrics["dataset_events"] += 1
+                return {"attempted": True, "success": True, "mode": "store"}
+
+            event_log = getattr(manager, "event_log", None)
+            if isinstance(event_log, list):
+                event_log.append(payload)
+                self._metrics["dataset_events"] += 1
+                return {"attempted": True, "success": True, "mode": "event_log"}
+
+            return {
+                "attempted": True,
+                "success": False,
+                "reason": "no_supported_dataset_hook",
+            }
+        except Exception as exc:
+            self._metrics["integration_errors"] += 1
+            return {
+                "attempted": True,
+                "success": False,
+                "reason": "dataset_hook_error",
+                "error": str(exc),
+            }
+
+    def _enrich_metadata_with_accelerate(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        accelerate = self._get_accelerate_module()
+        if accelerate is None:
+            return {
+                "attempted": False,
+                "success": False,
+                "reason": "ipfs_accelerate_unavailable",
+            }
+
+        try:
+            if hasattr(accelerate, "discover_embedding_models") and callable(accelerate.discover_embedding_models):
+                models = accelerate.discover_embedding_models()
+                metadata["accelerate_models"] = models
+                self._metrics["accelerate_enrichment"] += 1
+                return {
+                    "attempted": True,
+                    "success": True,
+                    "mode": "discover_embedding_models",
+                    "model_count": len(models) if isinstance(models, list) else None,
+                }
+
+            if hasattr(accelerate, "search_models") and callable(accelerate.search_models):
+                models = accelerate.search_models("embedding")
+                metadata["accelerate_models"] = models
+                self._metrics["accelerate_enrichment"] += 1
+                return {
+                    "attempted": True,
+                    "success": True,
+                    "mode": "search_models",
+                    "model_count": len(models) if isinstance(models, list) else None,
+                }
+
+            cls = getattr(accelerate, "AccelerateCompute", None)
+            if cls is not None:
+                engine = cls()
+                for method_name in ("discover_embedding_models", "search_models", "list_models"):
+                    method = getattr(engine, method_name, None)
+                    if callable(method):
+                        models = method("embedding") if method_name == "search_models" else method()
+                        metadata["accelerate_models"] = models
+                        self._metrics["accelerate_enrichment"] += 1
+                        return {
+                            "attempted": True,
+                            "success": True,
+                            "mode": f"AccelerateCompute.{method_name}",
+                            "model_count": len(models) if isinstance(models, list) else None,
+                        }
+
+            return {
+                "attempted": True,
+                "success": False,
+                "reason": "no_supported_accelerate_hook",
+            }
+        except Exception as exc:
+            self._metrics["integration_errors"] += 1
+            return {
+                "attempted": True,
+                "success": False,
+                "reason": "accelerate_hook_error",
+                "error": str(exc),
+            }
+
+    def _run_content_mutation_integrations(
+        self,
+        *,
+        operation: str,
+        path: str,
+        mount: Optional[Dict[str, Any]],
+        local_path: Optional[str] = None,
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        metadata: Dict[str, Any] = {
+            "operation": operation,
+            "path": path,
+            "backend": (mount or {}).get("backend"),
+        }
+        if extra:
+            metadata.update(extra)
+        dataset_result = self._notify_dataset_metadata(
+            operation=operation,
+            path=path,
+            mount=mount,
+            local_path=local_path,
+            extra=extra,
+        )
+        accelerate_result = self._enrich_metadata_with_accelerate(metadata)
+        return {
+            "dataset": dataset_result,
+            "accelerate": accelerate_result,
+            "metadata": metadata,
+        }
 
     def mount(self, mount_point: str, backend: str, target: str, read_only: bool = False) -> Dict[str, Any]:
         if not mount_point:
@@ -2042,10 +2251,23 @@ class VFSCore:
             if local_path is None:
                 return {"success": False, "error": "local mapping failed"}
             os.makedirs(local_path, exist_ok=parents)
-            return {"success": True, "path": path}
+            integration = self._run_content_mutation_integrations(
+                operation="mkdir",
+                path=path,
+                mount=mount,
+                local_path=local_path,
+                extra={"parents": bool(parents)},
+            )
+            return {"success": True, "path": path, "integration": integration}
         if mount["backend"] == "memory":
             self._memory.mkdir(path, parents=parents)
-            return {"success": True, "path": path}
+            integration = self._run_content_mutation_integrations(
+                operation="mkdir",
+                path=path,
+                mount=mount,
+                extra={"parents": bool(parents)},
+            )
+            return {"success": True, "path": path, "integration": integration}
         return {"success": False, "error": f"backend not supported: {mount['backend']}"}
 
     def write(self, path: str, content: Union[str, bytes], auto_replicate: bool = False) -> Dict[str, Any]:
@@ -2058,6 +2280,7 @@ class VFSCore:
 
         data = content.encode("utf-8") if isinstance(content, str) else bytes(content)
 
+        local_path: Optional[str] = None
         if mount["backend"] == "local":
             local_path = self._to_local_path(path)
             if local_path is None:
@@ -2076,6 +2299,13 @@ class VFSCore:
         self.cache_manager.put(path, mount["backend"], data)
 
         result: Dict[str, Any] = {"success": True, "path": path}
+        result["integration"] = self._run_content_mutation_integrations(
+            operation="write",
+            path=path,
+            mount=mount,
+            local_path=local_path,
+            extra={"size": len(data)},
+        )
         if auto_replicate:
             result["replication"] = self.replication_manager.replicate_file(path)
         return result
@@ -2166,10 +2396,21 @@ class VFSCore:
                     os.rmdir(local_path)
                 except OSError:
                     return {"success": False, "error": "directory not empty"}
-            return {"success": True}
+            integration = self._run_content_mutation_integrations(
+                operation="rmdir",
+                path=path,
+                mount=mount,
+                local_path=local_path,
+            )
+            return {"success": True, "integration": integration}
         if mount["backend"] == "memory":
             self._memory.dirs.discard(path)
-            return {"success": True}
+            integration = self._run_content_mutation_integrations(
+                operation="rmdir",
+                path=path,
+                mount=mount,
+            )
+            return {"success": True, "integration": integration}
         return {"success": False, "error": "unsupported backend"}
 
     def copy(self, src: str, dst: str) -> Dict[str, Any]:
@@ -2178,7 +2419,19 @@ class VFSCore:
         read_result = self.read(src)
         if not read_result.get("success", True):
             return {"success": False, "error": read_result.get("error", "read failed")}
-        return self.write(dst, read_result.get("content", ""), auto_replicate=False)
+        write_result = self.write(dst, read_result.get("content", ""), auto_replicate=False)
+        if not write_result.get("success", True):
+            return write_result
+        dst_mount = self._find_mount_for_path(dst)
+        dst_local = self._to_local_path(dst) if dst_mount and dst_mount.get("backend") == "local" else None
+        write_result["copy_integration"] = self._run_content_mutation_integrations(
+            operation="copy",
+            path=dst,
+            mount=dst_mount,
+            local_path=dst_local,
+            extra={"source": src},
+        )
+        return write_result
 
     def move(self, src: str, dst: str) -> Dict[str, Any]:
         src = _norm_path(src)
@@ -2197,7 +2450,16 @@ class VFSCore:
                     pass
         if mount and mount["backend"] == "memory":
             self._memory.files.pop(src, None)
-        return {"success": True}
+        dst_mount = self._find_mount_for_path(dst)
+        dst_local = self._to_local_path(dst) if dst_mount and dst_mount.get("backend") == "local" else None
+        integration = self._run_content_mutation_integrations(
+            operation="move",
+            path=dst,
+            mount=dst_mount,
+            local_path=dst_local,
+            extra={"source": src},
+        )
+        return {"success": True, "integration": integration}
 
     # Replication helper pass-throughs (tests call these on VFSCore)
     def add_replication_policy(self, *args, **kwargs):
