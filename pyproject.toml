@@ -44,6 +44,7 @@ dependencies = [
     "multiformats>=0.2.0",  # For CIDs/multicodecs (required by libp2p)
     "python-magic>=0.4.27", # For file type detection
     "anyio>=3.7.0", # For async operations with backend flexibility
+    "hypercorn>=0.16.0", # Trio-native ASGI server for MCP++ HTTP transport
     "trio>=0.22.0", # Optional backend for anyio
     "cryptography>=38.0.0", # Required for libp2p
     "cffi>=1.16.0",
@@ -252,6 +253,8 @@ full = [
 
 [project.scripts]
 ipfs-kit = "ipfs_kit_py.cli:sync_main"
+ipfs-kit-mcp = "ipfs_kit_py.mcp_server.server:main"
+ipfs-kit-mcp-tools = "ipfs_kit_py.mcp_server.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/endomorphosis/ipfs_kit_py/"
