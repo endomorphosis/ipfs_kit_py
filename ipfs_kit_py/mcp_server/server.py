@@ -30,17 +30,30 @@ class MCPServer:
         self.tm = HierarchicalToolManager()
         self._dag: list = []  # Profile E: ordered event nodes
 
-    async def handle(self, msg: Dict[str, Any]) -> Dict[str, Any]:
-        mid = msg.get("id")
+    async def handle(self, msg: Dict[str, Any]):
         method = msg.get("method")
         params = msg.get("params") or {}
+        is_notification = "id" not in msg
+        # JSON-RPC notifications (no id) — e.g. the MCP `notifications/initialized`
+        # handshake ack — are processed for side effects but MUST NOT be replied to.
+        if is_notification:
+            try:
+                await self._route(method, params, notification=True)
+            except Exception:
+                pass
+            return None
+        mid = msg.get("id")
         try:
             result = await self._route(method, params)
             return {"jsonrpc": "2.0", "id": mid, "result": result}
         except Exception as e:
             return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32000, "message": str(e)}}
 
-    async def _route(self, method: str, params: Dict[str, Any]) -> Any:
+    async def _route(self, method: str, params: Dict[str, Any], notification: bool = False) -> Any:
+        if notification or (method or "").startswith("notifications/"):
+            # Known MCP lifecycle notifications (initialized, cancelled, …) are
+            # accepted as no-ops; unknown ones are ignored rather than erroring.
+            return None
         if method == "initialize":
             return {
                 "protocolVersion": PROTOCOL_VERSION,
@@ -138,6 +151,8 @@ async def serve_stdio() -> None:
         if not line:
             continue
         resp = await server.handle(json.loads(line))
+        if resp is None:  # notification — no reply
+            continue
         sys.stdout.write(json.dumps(resp) + "\n")
         sys.stdout.flush()
 
@@ -166,6 +181,10 @@ async def serve_http(host: str = "127.0.0.1", port: int = 8004) -> None:
             if not ev.get("more_body"):
                 break
         resp = await server.handle(json.loads(body or b"{}"))
+        if resp is None:  # JSON-RPC notification — HTTP 202, no body
+            await send({"type": "http.response.start", "status": 202, "headers": []})
+            await send({"type": "http.response.body", "body": b""})
+            return
         data = json.dumps(resp).encode()
         await send({"type": "http.response.start", "status": 200,
                     "headers": [(b"content-type", b"application/json")]})

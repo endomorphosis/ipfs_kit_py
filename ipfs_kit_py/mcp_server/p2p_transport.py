@@ -26,6 +26,8 @@ async def handle_stream_message(raw: bytes, handler: Callable[[dict], Awaitable[
     live peer so Profile E round-trips can be exercised in CI.
     """
     resp = await handler(json.loads(raw))
+    if resp is None:  # notification — nothing to send back
+        return b""
     return json.dumps(resp).encode()
 
 

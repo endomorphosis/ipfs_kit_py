@@ -248,3 +248,23 @@ def test_fastmcp_registrar_covers_full_registry():
     assert len(names) == 28 and set(names) == set(app.tools)
     r = anyio.run(app.tools["pin_rm"], {"cid": "bafy"})
     assert r["status"] == "success"
+
+
+def test_initialize_handshake():
+    """Standard MCP clients call initialize first; server returns protocol +
+    capabilities (backwards-compat handshake)."""
+    s = MCPServer()
+    r = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                             "params": {"protocolVersion": "2025-06-18"}})
+    assert r["result"]["protocolVersion"]
+    assert "tools" in r["result"]["capabilities"]
+
+
+def test_notifications_get_no_reply():
+    """JSON-RPC notifications (no id) — e.g. notifications/initialized — must be
+    accepted silently with no response, per spec."""
+    s = MCPServer()
+    assert anyio.run(s.handle, {"jsonrpc": "2.0", "method": "notifications/initialized"}) is None
+    # An id-bearing unknown notifications/* is still a no-op result, not error
+    r = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 2, "method": "notifications/cancelled"})
+    assert "error" not in r
