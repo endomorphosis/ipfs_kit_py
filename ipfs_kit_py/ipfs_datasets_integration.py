@@ -27,6 +27,7 @@ Usage:
 import logging
 import os
 import sys
+import importlib
 from typing import Dict, List, Any, Optional, Union, Tuple, Callable
 from pathlib import Path
 import json
@@ -41,6 +42,11 @@ import time
 import queue
 import anyio
 from contextlib import contextmanager
+
+try:
+    import duckdb
+except Exception:  # pragma: no cover
+    duckdb = None  # type: ignore[assignment]
 
 try:
     import fcntl
@@ -455,6 +461,8 @@ class IPFSDatasetsManager:
             "accelerate_queue_processed": 0,
             "accelerate_queue_dropped": 0,
             "accelerate_queue_failures": 0,
+            "accelerate_queue_replayed": 0,
+            "accelerate_queue_dead_letter": 0,
             "accelerate_circuit_open": 0,
             "index_errors": 0,
         }
@@ -475,15 +483,366 @@ class IPFSDatasetsManager:
         self._enrich_queue_max = int(os.environ.get("IPFS_KIT_ACCELERATE_QUEUE_MAX", "512"))
         self._enrich_retry_budget = int(os.environ.get("IPFS_KIT_ACCELERATE_RETRY_BUDGET", "2"))
         self._enrich_queue: "queue.Queue[Tuple[str, int]]" = queue.Queue(maxsize=self._enrich_queue_max)
+        self._queue_store_lock = threading.RLock()
+        self._queue_store_backend = "duckdb" if duckdb is not None else "memory"
+        self._queue_store_path = self.backend.base_path / "accelerate_enrichment_queue.duckdb"
+        self._queue_store_task_type = "accelerate_enrichment"
+        self._queue_store_task_prefix = "accelerate_enrichment:"
+        self._queue_store_tasks_table = "tasks"
+        self._queue_store_task_queue: Optional[Any] = None
+        self._queue_store_pending_table = "accelerate_enrichment_pending"
+        self._queue_store_dead_table = "accelerate_enrichment_dead_letter"
+        self._queue_store_export_parquet = os.environ.get("IPFS_KIT_ACCELERATE_QUEUE_EXPORT_PARQUET", "0").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        self._queue_store_parquet_dir = self.backend.base_path / "queue_parquet"
         self._queue_worker: Optional[threading.Thread] = None
         self._queue_stop = threading.Event()
         self._circuit_failures = 0
         self._circuit_open_until = 0.0
         self._circuit_threshold = int(os.environ.get("IPFS_KIT_ACCELERATE_CIRCUIT_THRESHOLD", "5"))
         self._circuit_cooldown_sec = float(os.environ.get("IPFS_KIT_ACCELERATE_CIRCUIT_COOLDOWN_SEC", "30"))
+        if self._async_enrich:
+            self._init_queue_store()
+            self._hydrate_queue_from_store()
         self._load_metadata_index()
         if self._async_enrich:
             self._start_queue_worker()
+
+    def _queue_store_enabled(self) -> bool:
+        return self._async_enrich and duckdb is not None and self._queue_store_backend == "duckdb"
+
+    def _queue_store_task_id(self, item_id: str) -> str:
+        return f"{self._queue_store_task_prefix}{item_id}"
+
+    def _queue_store_item_id_from_task_id(self, task_id: str) -> str:
+        if task_id.startswith(self._queue_store_task_prefix):
+            return task_id[len(self._queue_store_task_prefix):]
+        return task_id
+
+    def _queue_store_get_attempt(self, payload_json: Any) -> int:
+        if not isinstance(payload_json, str) or not payload_json:
+            return 0
+        try:
+            payload = json.loads(payload_json)
+        except Exception:
+            return 0
+        if not isinstance(payload, dict):
+            return 0
+        attempt_value = payload.get("attempt", 0)
+        try:
+            return int(attempt_value)
+        except Exception:
+            return 0
+
+    def _queue_store_init_task_queue_adapter(self) -> None:
+        if self._queue_store_task_queue is not None:
+            return
+        try:
+            module = importlib.import_module("ipfs_datasets_py.ml.accelerate_integration.task_queue")
+            task_queue_cls = getattr(module, "TaskQueue", None)
+            if task_queue_cls is None:
+                return
+            self._queue_store_task_queue = task_queue_cls(path=str(self._queue_store_path))
+        except Exception as exc:
+            logger.debug("ipfs_datasets_py TaskQueue unavailable for queue store: %s", exc)
+            self._queue_store_task_queue = None
+
+    def _init_queue_store(self) -> None:
+        if not self._queue_store_enabled():
+            return
+        with self._queue_store_lock:
+            self._queue_store_path.parent.mkdir(parents=True, exist_ok=True)
+            self._queue_store_init_task_queue_adapter()
+            if self._queue_store_task_queue is not None:
+                return
+
+            conn = duckdb.connect(str(self._queue_store_path))
+            try:
+                conn.execute(
+                    f"""
+                    CREATE TABLE IF NOT EXISTS {self._queue_store_pending_table} (
+                        item_id VARCHAR PRIMARY KEY,
+                        attempt INTEGER,
+                        enqueued_at TIMESTAMP,
+                        updated_at TIMESTAMP
+                    )
+                    """
+                )
+                conn.execute(
+                    f"""
+                    CREATE TABLE IF NOT EXISTS {self._queue_store_dead_table} (
+                        item_id VARCHAR,
+                        attempt INTEGER,
+                        failed_at TIMESTAMP,
+                        error VARCHAR
+                    )
+                    """
+                )
+            finally:
+                conn.close()
+
+    def _queue_store_upsert_pending(self, item_id: str, attempt: int) -> None:
+        if not self._queue_store_enabled():
+            return
+
+        if self._queue_store_task_queue is not None:
+            task_id = self._queue_store_task_id(item_id)
+            try:
+                existing = self._queue_store_task_queue.get(task_id)
+                if isinstance(existing, dict) and str(existing.get("status")) in {"queued", "running"}:
+                    return
+                if isinstance(existing, dict):
+                    self._queue_store_task_queue.complete(
+                        task_id=task_id,
+                        status="cancelled",
+                        error="superseded_by_retry",
+                    )
+                self._queue_store_task_queue.submit(
+                    task_type=self._queue_store_task_type,
+                    model_name="ipfs_kit_py.accelerate_enrichment",
+                    payload={"item_id": item_id, "attempt": int(attempt)},
+                    task_id=task_id,
+                )
+            except Exception as exc:
+                logger.debug("TaskQueue upsert failed for %s: %s", item_id, exc)
+            if self._queue_store_export_parquet:
+                self._queue_store_export_to_parquet()
+            return
+
+        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        with self._queue_store_lock:
+            conn = duckdb.connect(str(self._queue_store_path))
+            try:
+                conn.execute(
+                    f"DELETE FROM {self._queue_store_pending_table} WHERE item_id = ?",
+                    [item_id],
+                )
+                conn.execute(
+                    f"""
+                    INSERT INTO {self._queue_store_pending_table} (item_id, attempt, enqueued_at, updated_at)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    [item_id, int(attempt), now, now],
+                )
+            finally:
+                conn.close()
+        if self._queue_store_export_parquet:
+            self._queue_store_export_to_parquet()
+
+    def _queue_store_delete_pending(self, item_id: str) -> None:
+        if not self._queue_store_enabled():
+            return
+
+        if self._queue_store_task_queue is not None:
+            task_id = self._queue_store_task_id(item_id)
+            try:
+                existing = self._queue_store_task_queue.get(task_id)
+                if isinstance(existing, dict) and str(existing.get("status")) in {"queued", "running"}:
+                    self._queue_store_task_queue.complete(
+                        task_id=task_id,
+                        status="completed",
+                        result={"item_id": item_id, "status": "processed"},
+                    )
+            except Exception as exc:
+                logger.debug("TaskQueue delete failed for %s: %s", item_id, exc)
+            if self._queue_store_export_parquet:
+                self._queue_store_export_to_parquet()
+            return
+
+        with self._queue_store_lock:
+            conn = duckdb.connect(str(self._queue_store_path))
+            try:
+                conn.execute(
+                    f"DELETE FROM {self._queue_store_pending_table} WHERE item_id = ?",
+                    [item_id],
+                )
+            finally:
+                conn.close()
+        if self._queue_store_export_parquet:
+            self._queue_store_export_to_parquet()
+
+    def _queue_store_move_to_dead_letter(self, item_id: str, attempt: int, error: str) -> None:
+        if not self._queue_store_enabled():
+            return
+
+        if self._queue_store_task_queue is not None:
+            task_id = self._queue_store_task_id(item_id)
+            try:
+                self._queue_store_task_queue.complete(
+                    task_id=task_id,
+                    status="failed",
+                    error=error,
+                    result={"item_id": item_id, "attempt": int(attempt)},
+                )
+            except Exception as exc:
+                logger.debug("TaskQueue dead-letter move failed for %s: %s", item_id, exc)
+            if self._queue_store_export_parquet:
+                self._queue_store_export_to_parquet()
+            return
+
+        failed_at = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        with self._queue_store_lock:
+            conn = duckdb.connect(str(self._queue_store_path))
+            try:
+                conn.execute(
+                    f"""
+                    INSERT INTO {self._queue_store_dead_table} (item_id, attempt, failed_at, error)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    [item_id, int(attempt), failed_at, error],
+                )
+                conn.execute(
+                    f"DELETE FROM {self._queue_store_pending_table} WHERE item_id = ?",
+                    [item_id],
+                )
+            finally:
+                conn.close()
+        if self._queue_store_export_parquet:
+            self._queue_store_export_to_parquet()
+
+    def _queue_store_load_pending(self, limit: int) -> List[Tuple[str, int]]:
+        if not self._queue_store_enabled() or limit <= 0:
+            return []
+
+        if self._queue_store_task_queue is not None:
+            with self._queue_store_lock:
+                conn = duckdb.connect(str(self._queue_store_path))
+                try:
+                    rows = conn.execute(
+                        f"""
+                        SELECT task_id, payload_json
+                        FROM {self._queue_store_tasks_table}
+                        WHERE task_type = ?
+                          AND status IN ('queued', 'running')
+                        ORDER BY created_at ASC
+                        LIMIT ?
+                        """,
+                        [self._queue_store_task_type, int(limit)],
+                    ).fetchall()
+                finally:
+                    conn.close()
+
+            pending_items: List[Tuple[str, int]] = []
+            for task_id, payload_json in rows:
+                item_id = self._queue_store_item_id_from_task_id(str(task_id))
+                attempt = self._queue_store_get_attempt(payload_json)
+                pending_items.append((item_id, attempt))
+            return pending_items
+
+        with self._queue_store_lock:
+            conn = duckdb.connect(str(self._queue_store_path))
+            try:
+                rows = conn.execute(
+                    f"""
+                    SELECT item_id, attempt
+                    FROM {self._queue_store_pending_table}
+                    ORDER BY updated_at ASC
+                    LIMIT ?
+                    """,
+                    [int(limit)],
+                ).fetchall()
+            finally:
+                conn.close()
+        return [(str(item_id), int(attempt)) for item_id, attempt in rows]
+
+    def _queue_store_count(self, table_name: str) -> int:
+        if not self._queue_store_enabled():
+            return 0
+
+        if self._queue_store_task_queue is not None:
+            if table_name == self._queue_store_pending_table:
+                where_clause = "status IN ('queued', 'running')"
+            elif table_name == self._queue_store_dead_table:
+                where_clause = "status = 'failed'"
+            else:
+                return 0
+
+            with self._queue_store_lock:
+                conn = duckdb.connect(str(self._queue_store_path))
+                try:
+                    row = conn.execute(
+                        f"""
+                        SELECT COUNT(*)
+                        FROM {self._queue_store_tasks_table}
+                        WHERE task_type = ? AND {where_clause}
+                        """,
+                        [self._queue_store_task_type],
+                    ).fetchone()
+                finally:
+                    conn.close()
+            return int(row[0]) if row else 0
+
+        with self._queue_store_lock:
+            conn = duckdb.connect(str(self._queue_store_path))
+            try:
+                row = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()
+            finally:
+                conn.close()
+        return int(row[0]) if row else 0
+
+    def _queue_store_pending_count(self) -> int:
+        return self._queue_store_count(self._queue_store_pending_table)
+
+    def _queue_store_dead_letter_count(self) -> int:
+        return self._queue_store_count(self._queue_store_dead_table)
+
+    def _queue_store_export_to_parquet(self) -> None:
+        if not self._queue_store_enabled():
+            return
+        with self._queue_store_lock:
+            self._queue_store_parquet_dir.mkdir(parents=True, exist_ok=True)
+            pending_path = str(self._queue_store_parquet_dir / "accelerate_enrichment_pending.parquet").replace("'", "''")
+            dead_path = str(self._queue_store_parquet_dir / "accelerate_enrichment_dead_letter.parquet").replace("'", "''")
+            conn = duckdb.connect(str(self._queue_store_path))
+            try:
+                if self._queue_store_task_queue is not None:
+                    task_type = self._queue_store_task_type.replace("'", "''")
+                    conn.execute(
+                        f"""
+                        COPY (
+                            SELECT task_id, payload_json, status, assigned_worker, created_at, updated_at
+                            FROM {self._queue_store_tasks_table}
+                            WHERE task_type = '{task_type}'
+                              AND status IN ('queued', 'running')
+                        ) TO '{pending_path}' (FORMAT PARQUET)
+                        """
+                    )
+                    conn.execute(
+                        f"""
+                        COPY (
+                            SELECT task_id, payload_json, status, error, created_at, updated_at
+                            FROM {self._queue_store_tasks_table}
+                            WHERE task_type = '{task_type}'
+                              AND status = 'failed'
+                        ) TO '{dead_path}' (FORMAT PARQUET)
+                        """
+                    )
+                else:
+                    conn.execute(
+                        f"COPY (SELECT * FROM {self._queue_store_pending_table}) TO '{pending_path}' (FORMAT PARQUET)"
+                    )
+                    conn.execute(
+                        f"COPY (SELECT * FROM {self._queue_store_dead_table}) TO '{dead_path}' (FORMAT PARQUET)"
+                    )
+            finally:
+                conn.close()
+
+    def _hydrate_queue_from_store(self) -> None:
+        if not self._queue_store_enabled():
+            return
+        replayed = 0
+        for item_id, attempt in self._queue_store_load_pending(self._enrich_queue_max):
+            try:
+                self._enrich_queue.put_nowait((item_id, attempt))
+                replayed += 1
+            except queue.Full:
+                break
+        if replayed > 0:
+            self._metrics["accelerate_queue_replayed"] += replayed
 
     def _start_queue_worker(self) -> None:
         if self._queue_worker is not None and self._queue_worker.is_alive():
@@ -513,17 +872,24 @@ class IPFSDatasetsManager:
             try:
                 await anyio.to_thread.run_sync(self._process_queued_enrichment, item_id, attempt)
                 self._metrics["accelerate_queue_processed"] += 1
+                self._queue_store_delete_pending(item_id)
             except Exception:
                 self._metrics["accelerate_queue_failures"] += 1
                 if attempt < self._enrich_retry_budget:
                     try:
-                        self._enrich_queue.put_nowait((item_id, attempt + 1))
+                        next_attempt = attempt + 1
+                        self._queue_store_upsert_pending(item_id, next_attempt)
+                        self._enrich_queue.put_nowait((item_id, next_attempt))
                     except queue.Full:
                         self._metrics["accelerate_queue_dropped"] += 1
+                else:
+                    self._queue_store_move_to_dead_letter(item_id, attempt, "retry_budget_exhausted")
+                    self._metrics["accelerate_queue_dead_letter"] += 1
             finally:
                 self._enrich_queue.task_done()
 
     def _enqueue_enrichment(self, item_id: str) -> Dict[str, Any]:
+        self._queue_store_upsert_pending(item_id, 0)
         try:
             self._enrich_queue.put_nowait((item_id, 0))
             self._metrics["accelerate_queue_enqueued"] += 1
@@ -565,6 +931,9 @@ class IPFSDatasetsManager:
             "queue_size": self._enrich_queue.qsize(),
             "worker_alive": is_alive,
             "backend": self._async_backend,
+            "store_backend": self._queue_store_backend,
+            "pending_count": self._queue_store_pending_count(),
+            "dead_letter_count": self._queue_store_dead_letter_count(),
         }
 
     def close(self) -> Dict[str, Any]:
@@ -1216,6 +1585,10 @@ class IPFSDatasetsManager:
                 "max": self._enrich_queue_max,
                 "circuit_open": time.time() < self._circuit_open_until,
                 "worker_alive": bool(self._queue_worker and self._queue_worker.is_alive()),
+                "store_backend": self._queue_store_backend,
+                "store_path": str(self._queue_store_path),
+                "pending_count": self._queue_store_pending_count(),
+                "dead_letter_count": self._queue_store_dead_letter_count(),
             },
         }
     

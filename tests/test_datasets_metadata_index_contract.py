@@ -421,3 +421,30 @@ def test_async_enrichment_worker_can_restart_after_stop(tmp_path, monkeypatch):
     second_stop = manager.stop_async_enrichment(drain=False, timeout_sec=1.0)
     assert second_stop["success"] is True
     assert second_stop["stopped"] is True
+
+
+def test_async_enrichment_duckdb_queue_persists_and_replays(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("IPFS_KIT_ACCELERATE_ASYNC_ENRICH", "1")
+    monkeypatch.setenv("IPFS_KIT_ASYNC_BACKEND", "asyncio")
+
+    manager = IPFSDatasetsManager(enable=False)
+    manager.stop_async_enrichment(drain=False, timeout_sec=1.0)
+
+    queued = manager._enqueue_enrichment("manual-replay-item")
+    assert queued["queued"] in {True, False}
+
+    snap_before = manager.metadata_index_snapshot()
+    assert snap_before["queue"]["store_backend"] == "duckdb"
+    assert snap_before["queue"]["pending_count"] >= 1
+
+    manager_restarted = IPFSDatasetsManager(enable=False)
+    snap_restarted = manager_restarted.metadata_index_snapshot()
+    assert snap_restarted["queue"]["store_backend"] == "duckdb"
+    assert snap_restarted["metrics"]["accelerate_queue_replayed"] >= 1
+
+    stopped = manager_restarted.stop_async_enrichment(drain=True, timeout_sec=1.0)
+    assert stopped["success"] is True
+
+    snap_after = manager_restarted.metadata_index_snapshot()
+    assert snap_after["queue"]["pending_count"] == 0
