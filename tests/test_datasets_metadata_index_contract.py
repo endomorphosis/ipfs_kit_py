@@ -68,12 +68,16 @@ def test_record_ipfs_operation_refreshes_index(tmp_path):
     dataset = tmp_path / "test.csv"
     dataset.write_text("a,b\n1,2\n", encoding="utf-8")
 
+    operation_id = "op-lineage-123"
     manager = IPFSDatasetsManager(enable=False)
     result = manager.record_ipfs_operation(
         {
             "operation": "write",
             "path": str(dataset),
             "dataset_summary": "updated from vfs",
+            "operation_id": operation_id,
+            "source_operation_id": "op-parent-42",
+            "source_cid": "cidv1-source-abc",
         }
     )
     assert result["success"] is True
@@ -82,6 +86,11 @@ def test_record_ipfs_operation_refreshes_index(tmp_path):
     assert listed["count"] >= 1
     entry = next(item for item in listed["items"] if item["path"] == str(dataset))
     assert entry["operation"] == "write"
+    assert entry["operation_id"] == operation_id
+    assert entry["source_operation_id"] == "op-parent-42"
+    assert entry["source_cid"] == "cidv1-source-abc"
+    assert entry["lineage"]["operation_id"] == operation_id
+    assert entry["lineage"]["source_cid"] == "cidv1-source-abc"
     assert entry["metadata"].get("dataset_summary") == "updated from vfs"
 
 
@@ -146,6 +155,45 @@ def test_datasets_accelerate_enrichment_timeout_is_bounded(tmp_path, monkeypatch
     assert accelerate.get("reason") == "accelerate_timeout"
 
 
+def test_datasets_accelerate_embedding_cache_reuses_vectors(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+
+    call_counter = {"create_embedding": 0}
+
+    class FakeAccelerate:
+        @staticmethod
+        def discover_embedding_models():
+            return ["mini-embed"]
+
+        @staticmethod
+        def create_embedding(text):
+            call_counter["create_embedding"] += 1
+            return [0.1, 0.2, 0.3]
+
+    manager = IPFSDatasetsManager(enable=False)
+    manager._accelerate_module = FakeAccelerate()
+    manager._accelerate_checked = True
+
+    dataset = tmp_path / "cache.csv"
+    dataset.write_text("x,y\n1,2\n", encoding="utf-8")
+
+    first = manager.refresh_metadata_index(
+        path=dataset,
+        operation="write",
+        metadata={"dataset_summary": "same-summary"},
+    )
+    second = manager.refresh_metadata_index(
+        path=dataset,
+        operation="write",
+        metadata={"dataset_summary": "same-summary"},
+    )
+
+    assert first["success"] is True
+    assert second["success"] is True
+    assert call_counter["create_embedding"] == 1
+    assert manager.metadata_index_snapshot()["metrics"]["accelerate_cache_hits"] >= 1
+
+
 def test_metadata_index_concurrent_process_writes_preserve_all_entries(tmp_path, monkeypatch):
     home_dir = str(tmp_path / "home")
     monkeypatch.setenv("HOME", home_dir)
@@ -177,6 +225,26 @@ def test_metadata_index_concurrent_process_writes_preserve_all_entries(tmp_path,
     recorded_paths = {item.get("path") for item in listed["items"]}
     for dataset_path in dataset_paths:
         assert dataset_path in recorded_paths
+
+
+def test_remove_from_metadata_index_returns_removed_lineage(tmp_path):
+    dataset = tmp_path / "lineage_remove.csv"
+    dataset.write_text("a,b\n1,2\n", encoding="utf-8")
+
+    manager = IPFSDatasetsManager(enable=False)
+    refresh = manager.refresh_metadata_index(
+        path=dataset,
+        operation="write",
+        metadata={"operation_id": "op-remove-55"},
+    )
+    assert refresh["success"] is True
+
+    removed = manager.remove(str(dataset))
+    assert removed["success"] is True
+    assert removed["removed"] is True
+    assert removed["removed_operation_id"] == "op-remove-55"
+    assert isinstance(removed.get("removed_entry"), dict)
+    assert removed["removed_entry"].get("operation_id") == "op-remove-55"
 
 
 def test_datasets_timeout_helper_returns_within_budget(tmp_path, monkeypatch):

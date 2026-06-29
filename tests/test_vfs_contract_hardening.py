@@ -99,6 +99,8 @@ def test_vfs_write_triggers_dataset_and_accelerate_hooks():
     assert write_result["integration"]["accelerate"]["attempted"] is True
     assert write_result["integration"]["accelerate"]["success"] is True
     assert write_result["integration"]["accelerate"]["fallback_order"][0] == "discover_embedding_models"
+    assert "operation_id" in write_result["integration"]["metadata"]
+    assert write_result["integration"]["metadata"]["operation_id"].startswith("op-")
     assert "accelerate_models" in write_result["integration"]["metadata"]
 
     snapshot = vfs.observability_snapshot()
@@ -162,15 +164,39 @@ def test_vfs_write_accelerate_timeout_is_bounded(monkeypatch):
     assert snapshot["metrics"]["accelerate_timeouts"] >= 1
 
 
-def test_vfs_sync_placeholders_are_explicit_not_implemented_failures():
-    to_ipfs = vfs_sync_to_ipfs("/tmp/sync-me")
-    from_ipfs = vfs_sync_from_ipfs("/tmp/sync-me")
+def test_vfs_sync_roundtrip_for_memory_mount():
+    vfs = get_vfs()
+    for mount in list(vfs.mounts.keys()):
+        vfs.unmount(mount)
 
-    assert to_ipfs["success"] is False
-    assert to_ipfs["code"] == "not_implemented"
+    vfs.mount("/tmp/sync-memory", "memory", "/")
+    vfs.write("/tmp/sync-memory/doc.txt", "original")
 
-    assert from_ipfs["success"] is False
-    assert from_ipfs["code"] == "not_implemented"
+    to_ipfs = vfs_sync_to_ipfs("/tmp/sync-memory")
+    assert to_ipfs["success"] is True
+    assert to_ipfs["cid"].startswith("cidv1-")
+
+    vfs.write("/tmp/sync-memory/doc.txt", "changed")
+    from_ipfs = vfs_sync_from_ipfs("/tmp/sync-memory")
+    assert from_ipfs["success"] is True
+    assert from_ipfs["cid"] == to_ipfs["cid"]
+    assert from_ipfs["restored_count"] >= 1
+
+    read_result = vfs.read("/tmp/sync-memory/doc.txt")
+    assert read_result["success"] is True
+    assert read_result["content"] == "original"
+
+
+def test_vfs_sync_from_ipfs_without_prior_sync_is_explicit_failure():
+    vfs = get_vfs()
+    for mount in list(vfs.mounts.keys()):
+        vfs.unmount(mount)
+
+    vfs.mount("/tmp/sync-missing", "memory", "/")
+    result = vfs_sync_from_ipfs("/tmp/sync-missing")
+
+    assert result["success"] is False
+    assert result["code"] == "missing_sync_state"
 
 
 def test_vfs_timeout_helper_returns_within_budget():

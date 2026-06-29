@@ -12,7 +12,10 @@ import logging
 import io
 import tempfile
 import datetime
+import hashlib
+import json
 import threading
+import uuid
 from typing import Dict, List, Any, Optional, Union, Tuple, Callable, BinaryIO
 
 # Import fsspec (optional).
@@ -1879,6 +1882,8 @@ class VFSCore:
         self._accelerate_module: Optional[Any] = None
         self._accelerate_module_checked = False
         self._accelerate_timeout_sec = float(os.environ.get("IPFS_KIT_ACCELERATE_TIMEOUT_SEC", "1.5"))
+        self._sync_snapshots: Dict[str, Dict[str, Any]] = {}
+        self._sync_state_by_path: Dict[str, Dict[str, Any]] = {}
 
     def _record_metric(self, operation: str, *, error: Optional[str] = None) -> None:
         if operation in self._metrics and isinstance(self._metrics[operation], int):
@@ -2206,19 +2211,25 @@ class VFSCore:
         local_path: Optional[str] = None,
         extra: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
+        operation_id = f"op-{uuid.uuid4().hex}"
         metadata: Dict[str, Any] = {
+            "operation_id": operation_id,
             "operation": operation,
             "path": path,
             "backend": (mount or {}).get("backend"),
         }
         if extra:
             metadata.update(extra)
+        metadata["operation_id"] = operation_id
+
+        payload_extra = dict(extra or {})
+        payload_extra["operation_id"] = operation_id
         dataset_result = self._notify_dataset_metadata(
             operation=operation,
             path=path,
             mount=mount,
             local_path=local_path,
-            extra=extra,
+            extra=payload_extra,
         )
         accelerate_result = self._enrich_metadata_with_accelerate(metadata)
         return {
@@ -2604,6 +2615,242 @@ class VFSCore:
         )
         return {"success": True, "integration": integration}
 
+    def sync_to_ipfs(self, path: str) -> Dict[str, Any]:
+        """Create an IPFS-like snapshot for the mounted subtree rooted at path.
+
+        This operation is deterministic and does not require a live daemon: it
+        computes a content hash over a manifest and keeps an in-memory snapshot
+        that can be restored by `sync_from_ipfs`.
+        """
+        normalized = _norm_path(path)
+        mount = self._find_mount_for_path(normalized)
+        if not mount:
+            return {"success": False, "path": normalized, "error": "no mount for path", "code": "mount_not_found"}
+
+        backend = str(mount.get("backend") or "")
+        entries: List[Dict[str, Any]] = []
+        blobs: Dict[str, bytes] = {}
+
+        if backend == "local":
+            local_root = self._to_local_path(normalized)
+            if local_root is None or not os.path.exists(local_root):
+                return {
+                    "success": False,
+                    "path": normalized,
+                    "error": "local path does not exist",
+                    "code": "path_not_found",
+                }
+
+            if os.path.isfile(local_root):
+                with open(local_root, "rb") as f:
+                    data = f.read()
+                digest = hashlib.sha256(data).hexdigest()
+                entries.append({"path": "", "size": len(data), "sha256": digest, "type": "file"})
+                blobs[""] = data
+            else:
+                for root, _, files in os.walk(local_root):
+                    for name in sorted(files):
+                        full_path = os.path.join(root, name)
+                        rel = os.path.relpath(full_path, local_root)
+                        with open(full_path, "rb") as f:
+                            data = f.read()
+                        digest = hashlib.sha256(data).hexdigest()
+                        entries.append({"path": rel, "size": len(data), "sha256": digest, "type": "file"})
+                        blobs[rel] = data
+        elif backend == "memory":
+            prefix = normalized.rstrip("/") + "/"
+            if normalized in self._memory.files:
+                data = self._memory.files[normalized]
+                digest = hashlib.sha256(data).hexdigest()
+                entries.append({"path": "", "size": len(data), "sha256": digest, "type": "file"})
+                blobs[""] = data
+            else:
+                for candidate_path in sorted(self._memory.files.keys()):
+                    if candidate_path.startswith(prefix):
+                        rel = candidate_path[len(prefix) :]
+                        data = self._memory.files[candidate_path]
+                        digest = hashlib.sha256(data).hexdigest()
+                        entries.append({"path": rel, "size": len(data), "sha256": digest, "type": "file"})
+                        blobs[rel] = data
+                if not entries:
+                    return {
+                        "success": False,
+                        "path": normalized,
+                        "error": "no files found under path",
+                        "code": "empty_source",
+                    }
+        elif backend == "ipfs":
+            resolved = self.resolve_path(normalized)
+            if not resolved.get("success"):
+                return {
+                    "success": False,
+                    "path": normalized,
+                    "error": resolved.get("error", "failed to resolve ipfs path"),
+                    "code": "resolve_failed",
+                }
+            resolved_path = str(resolved.get("resolved_path") or "")
+            digest = hashlib.sha256(resolved_path.encode("utf-8")).hexdigest()
+            cid = f"cidv1-{digest[:32]}"
+            self._sync_state_by_path[normalized] = {"cid": cid, "manifest_hash": digest}
+            integration = self._run_content_mutation_integrations(
+                operation="sync_to_ipfs",
+                path=normalized,
+                mount=mount,
+                extra={"cid": cid, "entry_count": 1, "already_ipfs": True},
+            )
+            return {
+                "success": True,
+                "path": normalized,
+                "cid": cid,
+                "entry_count": 1,
+                "already_ipfs": True,
+                "integration": integration,
+            }
+        else:
+            return {
+                "success": False,
+                "path": normalized,
+                "error": f"backend not supported: {backend}",
+                "code": "unsupported_backend",
+            }
+
+        manifest = {
+            "path": normalized,
+            "backend": backend,
+            "entry_count": len(entries),
+            "entries": entries,
+        }
+        manifest_bytes = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        manifest_hash = hashlib.sha256(manifest_bytes).hexdigest()
+
+        previous = self._sync_state_by_path.get(normalized)
+        if previous and previous.get("manifest_hash") == manifest_hash:
+            cid = str(previous.get("cid"))
+            changed = False
+        else:
+            cid = f"cidv1-{manifest_hash[:32]}"
+            changed = True
+
+        self._sync_snapshots[cid] = {
+            "cid": cid,
+            "path": normalized,
+            "backend": backend,
+            "manifest_hash": manifest_hash,
+            "manifest": manifest,
+            "blobs": blobs,
+            "synced_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        }
+        self._sync_state_by_path[normalized] = {"cid": cid, "manifest_hash": manifest_hash}
+
+        integration = self._run_content_mutation_integrations(
+            operation="sync_to_ipfs",
+            path=normalized,
+            mount=mount,
+            local_path=self._to_local_path(normalized) if backend == "local" else None,
+            extra={"cid": cid, "entry_count": len(entries), "changed": changed},
+        )
+
+        return {
+            "success": True,
+            "path": normalized,
+            "cid": cid,
+            "entry_count": len(entries),
+            "changed": changed,
+            "integration": integration,
+        }
+
+    def sync_from_ipfs(self, path: str) -> Dict[str, Any]:
+        """Restore the most recent snapshot for path into local or memory backends."""
+        normalized = _norm_path(path)
+        mount = self._find_mount_for_path(normalized)
+        if not mount:
+            return {"success": False, "path": normalized, "error": "no mount for path", "code": "mount_not_found"}
+
+        backend = str(mount.get("backend") or "")
+        state = self._sync_state_by_path.get(normalized)
+        if not state:
+            return {
+                "success": False,
+                "path": normalized,
+                "error": "no prior sync state for path",
+                "code": "missing_sync_state",
+            }
+
+        cid = str(state.get("cid") or "")
+        snapshot = self._sync_snapshots.get(cid)
+        if snapshot is None:
+            return {
+                "success": False,
+                "path": normalized,
+                "error": "sync snapshot not found",
+                "code": "snapshot_not_found",
+                "cid": cid,
+            }
+
+        restored = 0
+        blobs = snapshot.get("blobs", {})
+
+        if backend == "local":
+            local_root = self._to_local_path(normalized)
+            if local_root is None:
+                return {"success": False, "path": normalized, "error": "local mapping failed", "code": "mapping_failed"}
+
+            is_single_file = "" in blobs and len(blobs) == 1
+            if is_single_file:
+                os.makedirs(os.path.dirname(local_root), exist_ok=True)
+                with open(local_root, "wb") as f:
+                    f.write(blobs[""])
+                self.cache_manager.put(normalized, backend, blobs[""])
+                restored = 1
+            else:
+                os.makedirs(local_root, exist_ok=True)
+                for rel, data in blobs.items():
+                    full_path = os.path.join(local_root, rel)
+                    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                    with open(full_path, "wb") as f:
+                        f.write(data)
+                    restored_path = _norm_path(f"{normalized.rstrip('/')}/{rel}")
+                    self.cache_manager.put(restored_path, backend, data)
+                    restored += 1
+        elif backend == "memory":
+            base = normalized.rstrip("/")
+            is_single_file = "" in blobs and len(blobs) == 1
+            if is_single_file:
+                self._memory.files[normalized] = blobs[""]
+                self.cache_manager.put(normalized, backend, blobs[""])
+                restored = 1
+            else:
+                for rel, data in blobs.items():
+                    key = _norm_path(f"{base}/{rel}")
+                    self._memory.files[key] = data
+                    self.cache_manager.put(key, backend, data)
+                    restored += 1
+        elif backend == "ipfs":
+            restored = len(snapshot.get("manifest", {}).get("entries", []))
+        else:
+            return {
+                "success": False,
+                "path": normalized,
+                "error": f"backend not supported: {backend}",
+                "code": "unsupported_backend",
+            }
+
+        integration = self._run_content_mutation_integrations(
+            operation="sync_from_ipfs",
+            path=normalized,
+            mount=mount,
+            local_path=self._to_local_path(normalized) if backend == "local" else None,
+            extra={"cid": cid, "restored_count": restored},
+        )
+
+        return {
+            "success": True,
+            "path": normalized,
+            "cid": cid,
+            "restored_count": restored,
+            "integration": integration,
+        }
+
     # Replication helper pass-throughs (tests call these on VFSCore)
     def add_replication_policy(self, *args, **kwargs):
         return self.replication_manager.add_replication_policy(*args, **kwargs)
@@ -2795,13 +3042,7 @@ def vfs_move(src: str, dst: str):
 
 
 async def _vfs_sync_to_ipfs_async(path: str) -> Dict[str, Any]:
-    # Placeholder: full sync requires IPFS daemon and conflict policy.
-    return {
-        "success": False,
-        "path": _norm_path(path),
-        "error": "sync_to_ipfs not implemented",
-        "code": "not_implemented",
-    }
+    return get_vfs().sync_to_ipfs(path)
 
 
 def vfs_sync_to_ipfs(path: str):
@@ -2809,12 +3050,7 @@ def vfs_sync_to_ipfs(path: str):
 
 
 async def _vfs_sync_from_ipfs_async(path: str) -> Dict[str, Any]:
-    return {
-        "success": False,
-        "path": _norm_path(path),
-        "error": "sync_from_ipfs not implemented",
-        "code": "not_implemented",
-    }
+    return get_vfs().sync_from_ipfs(path)
 
 
 def vfs_sync_from_ipfs(path: str):

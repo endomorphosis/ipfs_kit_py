@@ -36,6 +36,7 @@ import csv
 import hashlib
 import tempfile
 import threading
+import uuid
 from contextlib import contextmanager
 
 try:
@@ -438,11 +439,15 @@ class IPFSDatasetsManager:
             "index_remove": 0,
             "index_list": 0,
             "accelerate_enrichment": 0,
+            "accelerate_cache_hits": 0,
             "index_errors": 0,
         }
         self._accelerate_module: Optional[Any] = None
         self._accelerate_checked = False
         self._accelerate_timeout_sec = float(os.environ.get("IPFS_KIT_ACCELERATE_TIMEOUT_SEC", "1.5"))
+        self._accelerate_embedding_cache: Dict[str, Any] = {}
+        self._accelerate_models_cache: Optional[Any] = None
+        self._accelerate_embedding_cache_max = int(os.environ.get("IPFS_KIT_ACCELERATE_EMBED_CACHE_MAX", "256"))
         self._load_metadata_index()
 
     @contextmanager
@@ -675,39 +680,60 @@ class IPFSDatasetsManager:
             enrichment: Dict[str, Any] = {}
 
             if hasattr(accelerate, "discover_embedding_models") and callable(accelerate.discover_embedding_models):
-                timed_out, models = self._call_with_timeout(accelerate.discover_embedding_models)
-                if timed_out:
-                    return {
-                        "attempted": True,
-                        "success": False,
-                        "reason": "accelerate_timeout",
-                        "mode": "discover_embedding_models",
-                        "timeout_seconds": self._accelerate_timeout_sec,
-                    }
+                if self._accelerate_models_cache is not None:
+                    models = self._accelerate_models_cache
+                    self._metrics["accelerate_cache_hits"] += 1
+                else:
+                    timed_out, models = self._call_with_timeout(accelerate.discover_embedding_models)
+                    if timed_out:
+                        return {
+                            "attempted": True,
+                            "success": False,
+                            "reason": "accelerate_timeout",
+                            "mode": "discover_embedding_models",
+                            "timeout_seconds": self._accelerate_timeout_sec,
+                        }
+                    self._accelerate_models_cache = models
                 enrichment["discovered_models"] = models
             elif hasattr(accelerate, "search_models") and callable(accelerate.search_models):
-                timed_out, models = self._call_with_timeout(accelerate.search_models, "embedding")
-                if timed_out:
-                    return {
-                        "attempted": True,
-                        "success": False,
-                        "reason": "accelerate_timeout",
-                        "mode": "search_models",
-                        "timeout_seconds": self._accelerate_timeout_sec,
-                    }
+                if self._accelerate_models_cache is not None:
+                    models = self._accelerate_models_cache
+                    self._metrics["accelerate_cache_hits"] += 1
+                else:
+                    timed_out, models = self._call_with_timeout(accelerate.search_models, "embedding")
+                    if timed_out:
+                        return {
+                            "attempted": True,
+                            "success": False,
+                            "reason": "accelerate_timeout",
+                            "mode": "search_models",
+                            "timeout_seconds": self._accelerate_timeout_sec,
+                        }
+                    self._accelerate_models_cache = models
                 enrichment["discovered_models"] = models
 
             embed_text = entry.get("dataset_summary") or entry.get("path")
             if hasattr(accelerate, "create_embedding") and callable(accelerate.create_embedding) and embed_text:
-                timed_out, vector = self._call_with_timeout(accelerate.create_embedding, str(embed_text))
-                if timed_out:
-                    return {
-                        "attempted": True,
-                        "success": False,
-                        "reason": "accelerate_timeout",
-                        "mode": "create_embedding",
-                        "timeout_seconds": self._accelerate_timeout_sec,
-                    }
+                cache_key = hashlib.sha256(str(embed_text).encode("utf-8")).hexdigest()
+                if cache_key in self._accelerate_embedding_cache:
+                    vector = self._accelerate_embedding_cache[cache_key]
+                    self._metrics["accelerate_cache_hits"] += 1
+                    enrichment["embedding_cache_hit"] = True
+                else:
+                    timed_out, vector = self._call_with_timeout(accelerate.create_embedding, str(embed_text))
+                    if timed_out:
+                        return {
+                            "attempted": True,
+                            "success": False,
+                            "reason": "accelerate_timeout",
+                            "mode": "create_embedding",
+                            "timeout_seconds": self._accelerate_timeout_sec,
+                        }
+                    if len(self._accelerate_embedding_cache) >= self._accelerate_embedding_cache_max:
+                        # Pop first inserted item to keep cache bounded.
+                        oldest_key = next(iter(self._accelerate_embedding_cache.keys()))
+                        self._accelerate_embedding_cache.pop(oldest_key, None)
+                    self._accelerate_embedding_cache[cache_key] = vector
                 if isinstance(vector, list):
                     enrichment["embedding_dim"] = len(vector)
                 enrichment["embedding_preview"] = vector[:8] if isinstance(vector, list) else None
@@ -730,6 +756,9 @@ class IPFSDatasetsManager:
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         metadata = dict(metadata or {})
+        operation_id = str(metadata.get("operation_id") or f"idxop-{uuid.uuid4().hex}")
+        source_operation_id = metadata.get("source_operation_id")
+        source_cid = metadata.get("source_cid")
         dataset_path = Path(path).expanduser() if path else None
         inferred_schema: Dict[str, Any] = {"fields": [], "source": "none"}
         inferred_splits: List[str] = []
@@ -745,11 +774,20 @@ class IPFSDatasetsManager:
             "path": str(dataset_path) if dataset_path else metadata.get("path"),
             "cid": cid,
             "operation": operation,
+            "operation_id": operation_id,
+            "source_operation_id": source_operation_id,
+            "source_cid": source_cid,
             "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "schema": inferred_schema,
             "splits": inferred_splits,
             "provenance": inferred_provenance,
             "metadata": metadata,
+            "lineage": {
+                "operation_id": operation_id,
+                "source_operation_id": source_operation_id,
+                "cid": cid,
+                "source_cid": source_cid,
+            },
             "dataset_summary": metadata.get("dataset_summary") or metadata.get("description"),
         }
         accelerate_status = self._accelerate_enrich_index(entry)
@@ -809,7 +847,13 @@ class IPFSDatasetsManager:
             with self._index_lock:
                 self.metadata_index = dict(disk_index)
         self._metrics["index_remove"] += 1
-        return {"success": True, "removed": removed is not None, "id": key}
+        return {
+            "success": True,
+            "removed": removed is not None,
+            "id": key,
+            "removed_entry": removed,
+            "removed_operation_id": removed.get("operation_id") if isinstance(removed, dict) else None,
+        }
 
     def list_metadata_index(self) -> Dict[str, Any]:
         self._metrics["index_list"] += 1
