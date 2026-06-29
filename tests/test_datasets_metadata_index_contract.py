@@ -364,3 +364,19 @@ def test_async_enrichment_queue_path(tmp_path, monkeypatch):
     snap = manager.metadata_index_snapshot()
     assert snap["queue"]["enabled"] is True
     assert snap["metrics"]["accelerate_queue_enqueued"] >= 0
+
+
+def test_async_enrichment_lifecycle_controls(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("IPFS_KIT_ACCELERATE_ASYNC_ENRICH", "1")
+
+    manager = IPFSDatasetsManager(enable=False)
+    snap_before = manager.metadata_index_snapshot()
+    assert snap_before["queue"]["enabled"] is True
+
+    stopped = manager.stop_async_enrichment(drain=False, timeout_sec=1.0)
+    assert stopped["success"] is True
+    assert stopped["stopped"] is True
+
+    snap_after = manager.metadata_index_snapshot()
+    assert snap_after["queue"]["worker_alive"] is False

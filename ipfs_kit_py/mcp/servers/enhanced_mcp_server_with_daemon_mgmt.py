@@ -2190,6 +2190,7 @@ class EnhancedMCPServerWithDaemonMgmt:
             }
     
     def __init__(self, auto_start_daemons: bool = True, **_kwargs):
+        _legacy_server_guard("enhanced_mcp_server_with_daemon_mgmt")
         logger.info("=== EnhancedMCPServerWithDaemonMgmt.__init__() starting ===")
         self.auto_start_daemons = auto_start_daemons
         self.ipfs_kit = None

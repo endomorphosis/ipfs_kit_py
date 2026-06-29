@@ -2393,6 +2393,69 @@ class VFSCore:
 
         return None
 
+    def _restore_snapshot_from_transport(self, *, cid: str, normalized_path: str, backend: str) -> bool:
+        manager = self._get_datasets_manager()
+        if manager is None or not hasattr(manager, "load"):
+            return False
+
+        try:
+            with tempfile.TemporaryDirectory(prefix="vfs_sync_restore_") as tmp_dir:
+                result = manager.load(cid, target_path=tmp_dir)
+                if not isinstance(result, dict) or not result.get("success"):
+                    return False
+
+                restored_path = str(result.get("path") or tmp_dir)
+                source = Path(restored_path)
+                if not source.exists():
+                    source = Path(tmp_dir)
+                if not source.exists():
+                    return False
+
+                blobs: Dict[str, bytes] = {}
+                entries: List[Dict[str, Any]] = []
+
+                if source.is_file():
+                    data = source.read_bytes()
+                    digest = hashlib.sha256(data).hexdigest()
+                    blobs[""] = data
+                    entries.append({"path": "", "size": len(data), "sha256": digest, "type": "file"})
+                else:
+                    for root, _, files in os.walk(str(source)):
+                        for name in sorted(files):
+                            full_path = Path(root) / name
+                            rel = os.path.relpath(str(full_path), str(source))
+                            data = full_path.read_bytes()
+                            digest = hashlib.sha256(data).hexdigest()
+                            blobs[rel] = data
+                            entries.append({"path": rel, "size": len(data), "sha256": digest, "type": "file"})
+
+                if not entries:
+                    return False
+
+                manifest = {
+                    "path": normalized_path,
+                    "backend": backend,
+                    "entry_count": len(entries),
+                    "entries": entries,
+                }
+                manifest_bytes = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                manifest_hash = hashlib.sha256(manifest_bytes).hexdigest()
+
+                self._sync_snapshots[cid] = {
+                    "cid": cid,
+                    "path": normalized_path,
+                    "backend": backend,
+                    "manifest_hash": manifest_hash,
+                    "manifest": manifest,
+                    "blobs": blobs,
+                    "synced_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                }
+                self._sync_state_by_path[normalized_path] = {"cid": cid, "manifest_hash": manifest_hash}
+                self._save_sync_state_to_disk()
+                return True
+        except Exception:
+            return False
+
     def mount(self, mount_point: str, backend: str, target: str, read_only: bool = False) -> Dict[str, Any]:
         if not mount_point:
             self._record_metric("mount", error="mount_point_required")
@@ -2960,6 +3023,10 @@ class VFSCore:
 
         cid = str(state.get("cid") or "")
         snapshot = self._sync_snapshots.get(cid)
+        if snapshot is None:
+            if self._restore_snapshot_from_transport(cid=cid, normalized_path=normalized, backend=backend):
+                snapshot = self._sync_snapshots.get(cid)
+
         if snapshot is None:
             return {
                 "success": False,

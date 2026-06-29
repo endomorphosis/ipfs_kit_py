@@ -127,6 +127,11 @@ class UnifiedMCPServer:
         "vfs_sync_from_ipfs",
         "system_health",
     ]
+    EXECUTABLE_NON_VFS_TOOL_NAMES = {
+        "system_health",
+        "ipfs_version",
+        "ipfs_id",
+    }
 
     @staticmethod
     def _make_default_tool(tool_name: str) -> Dict[str, Any]:
@@ -460,7 +465,7 @@ class UnifiedMCPServer:
     
     def get_tool_list(self):
         """Get list of all registered tools."""
-        return list(self.tools.keys())
+        return [name for name in self.tools.keys() if self._is_tool_executable(name)]
     
     def get_tool_info(self, tool_name: str):
         """Get information about a specific tool."""
@@ -479,11 +484,20 @@ class UnifiedMCPServer:
         """Return tool list in MCP format."""
         tools: List[Dict[str, Any]] = []
         for tool_name, tool in self.tools.items():
+            if not self._is_tool_executable(tool_name):
+                continue
             if isinstance(tool, dict):
                 tools.append(tool)
             else:
                 tools.append({"name": tool_name})
         return {"tools": tools}
+
+    def _is_tool_executable(self, tool_name: Any) -> bool:
+        if not isinstance(tool_name, str):
+            return False
+        if tool_name.startswith("vfs_"):
+            return True
+        return tool_name in self.EXECUTABLE_NON_VFS_TOOL_NAMES
 
     async def handle_tools_call(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle a tool call with canonical VFS dispatch where available."""
@@ -492,6 +506,16 @@ class UnifiedMCPServer:
 
         if name not in self.tools:
             payload = {"success": False, "error": f"Unknown tool: {name}", "tool": name}
+            return {"content": [{"type": "text", "text": json.dumps(payload)}], "isError": True}
+
+        if not self._is_tool_executable(name):
+            payload = {
+                "success": False,
+                "tool": name,
+                "arguments": arguments,
+                "error": "Tool is registered for compatibility but not executable by unified runtime",
+                "code": "tool_not_executable",
+            }
             return {"content": [{"type": "text", "text": json.dumps(payload)}], "isError": True}
 
         try:

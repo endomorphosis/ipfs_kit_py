@@ -517,6 +517,43 @@ class IPFSDatasetsManager:
             self._metrics["accelerate_queue_dropped"] += 1
             return {"queued": False, "reason": "queue_full"}
 
+    def stop_async_enrichment(self, *, drain: bool = True, timeout_sec: float = 2.0) -> Dict[str, Any]:
+        worker = self._queue_worker
+        if worker is None:
+            return {
+                "success": True,
+                "stopped": False,
+                "reason": "worker_not_started",
+                "drained": True,
+                "queue_size": self._enrich_queue.qsize(),
+            }
+
+        drained = True
+        if drain:
+            deadline = time.time() + max(0.0, float(timeout_sec))
+            while time.time() < deadline:
+                if self._enrich_queue.empty() and self._enrich_queue.unfinished_tasks == 0:
+                    break
+                time.sleep(0.01)
+            drained = self._enrich_queue.empty() and self._enrich_queue.unfinished_tasks == 0
+
+        self._queue_stop.set()
+        worker.join(timeout=max(0.0, float(timeout_sec)))
+        is_alive = worker.is_alive()
+        if not is_alive:
+            self._queue_worker = None
+
+        return {
+            "success": True,
+            "stopped": not is_alive,
+            "drained": drained,
+            "queue_size": self._enrich_queue.qsize(),
+            "worker_alive": is_alive,
+        }
+
+    def close(self) -> Dict[str, Any]:
+        return self.stop_async_enrichment(drain=False, timeout_sec=1.0)
+
     def _process_queued_enrichment(self, item_id: str, attempt: int) -> None:
         with self._index_file_lock():
             disk_index = self._read_index_from_disk_unlocked()
@@ -1095,6 +1132,7 @@ class IPFSDatasetsManager:
                 "size": self._enrich_queue.qsize(),
                 "max": self._enrich_queue_max,
                 "circuit_open": time.time() < self._circuit_open_until,
+                "worker_alive": bool(self._queue_worker and self._queue_worker.is_alive()),
             },
         }
     
