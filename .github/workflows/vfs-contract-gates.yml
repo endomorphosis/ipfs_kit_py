@@ -11,6 +11,7 @@ on:
       - 'tests/test_mcp_vfs_adapter_contract.py'
       - 'tests/test_vfs_jsonrpc.py'
       - 'tests/test_vfs_mcp_tools.py'
+      - 'tests/test_vfs_mcp_integration.py'
       - 'docs/VFS_CONTRACT_SPEC.md'
       - '.github/workflows/vfs-contract-gates.yml'
   push:
@@ -24,6 +25,7 @@ on:
       - 'tests/test_mcp_vfs_adapter_contract.py'
       - 'tests/test_vfs_jsonrpc.py'
       - 'tests/test_vfs_mcp_tools.py'
+      - 'tests/test_vfs_mcp_integration.py'
       - 'docs/VFS_CONTRACT_SPEC.md'
       - '.github/workflows/vfs-contract-gates.yml'
 
@@ -55,3 +57,16 @@ jobs:
 
       - name: Run JSON-RPC and MCP tool suites
         run: pytest tests/test_vfs_jsonrpc.py tests/test_vfs_mcp_tools.py -q
+
+      - name: Guard against zero integration-test collection
+        shell: bash
+        run: |
+          COLLECT_OUTPUT="$(pytest tests/test_vfs_mcp_integration.py --collect-only -q)"
+          echo "$COLLECT_OUTPUT"
+          if echo "$COLLECT_OUTPUT" | grep -Eq "(no tests collected|collected 0 items)"; then
+            echo "Integration suite collected zero tests"
+            exit 1
+          fi
+
+      - name: Run VFS MCP integration suite
+        run: pytest tests/test_vfs_mcp_integration.py -q

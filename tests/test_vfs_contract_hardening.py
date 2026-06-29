@@ -166,8 +166,11 @@ def test_vfs_write_accelerate_timeout_is_bounded(monkeypatch):
 
 def test_vfs_sync_roundtrip_for_memory_mount():
     vfs = get_vfs()
+    original_policy = vfs._sync_conflict_policy
     for mount in list(vfs.mounts.keys()):
         vfs.unmount(mount)
+
+    vfs._sync_conflict_policy = "overwrite"
 
     vfs.mount("/tmp/sync-memory", "memory", "/")
     vfs.write("/tmp/sync-memory/doc.txt", "original")
@@ -187,6 +190,7 @@ def test_vfs_sync_roundtrip_for_memory_mount():
     assert read_result["content"] == "original"
     assert from_ipfs["policy"] in {"overwrite", "skip", "strict"}
     assert "skipped_count" in from_ipfs
+    vfs._sync_conflict_policy = original_policy
 
 
 def test_vfs_sync_from_ipfs_without_prior_sync_is_explicit_failure():
@@ -220,18 +224,59 @@ def test_vfs_timeout_helper_returns_within_budget():
 
 def test_vfs_sync_conflict_policy_strict_fails_on_conflict(monkeypatch):
     vfs = get_vfs()
+    original_policy = vfs._sync_conflict_policy
     for mount in list(vfs.mounts.keys()):
         vfs.unmount(mount)
 
-    vfs._sync_conflict_policy = "strict"
-    vfs.mount("/tmp/sync-strict", "memory", "/")
-    vfs.write("/tmp/sync-strict/doc.txt", "base")
-    to_ipfs = vfs_sync_to_ipfs("/tmp/sync-strict")
-    assert to_ipfs["success"] is True
+    try:
+        vfs._sync_conflict_policy = "strict"
+        vfs.mount("/tmp/sync-strict", "memory", "/")
+        vfs.write("/tmp/sync-strict/doc.txt", "base")
+        to_ipfs = vfs_sync_to_ipfs("/tmp/sync-strict")
+        assert to_ipfs["success"] is True
 
-    # Create a conflicting local version before restore.
-    vfs.write("/tmp/sync-strict/doc.txt", "local-diverged")
-    from_ipfs = vfs_sync_from_ipfs("/tmp/sync-strict")
-    assert from_ipfs["success"] is False
-    assert from_ipfs["code"] == "sync_conflict"
-    assert from_ipfs["policy"] == "strict"
+        # Create a conflicting local version before restore.
+        vfs.write("/tmp/sync-strict/doc.txt", "local-diverged")
+        from_ipfs = vfs_sync_from_ipfs("/tmp/sync-strict")
+        assert from_ipfs["success"] is False
+        assert from_ipfs["code"] == "sync_conflict"
+        assert from_ipfs["policy"] == "strict"
+    finally:
+        vfs._sync_conflict_policy = original_policy
+
+
+def test_vfs_sync_from_ipfs_restores_via_transport_when_snapshot_missing(tmp_path):
+    class FakeDatasetsManager:
+        def load(self, identifier, target_path=None):
+            root = Path(target_path or tmp_path / "restore")
+            root.mkdir(parents=True, exist_ok=True)
+            restored_file = root / "doc.txt"
+            restored_file.write_text("restored-from-transport", encoding="utf-8")
+            return {
+                "success": True,
+                "id": identifier,
+                "path": str(root),
+            }
+
+    vfs = get_vfs()
+    for mount in list(vfs.mounts.keys()):
+        vfs.unmount(mount)
+
+    vfs.configure_integrations(datasets_manager=FakeDatasetsManager(), accelerate_module=None)
+    vfs.mount("/tmp/sync-transport", "memory", "/")
+    vfs.write("/tmp/sync-transport/doc.txt", "base")
+
+    to_ipfs = vfs_sync_to_ipfs("/tmp/sync-transport")
+    assert to_ipfs["success"] is True
+    cid = to_ipfs["cid"]
+
+    # Simulate restart/host boundary where in-memory snapshot cache is absent.
+    vfs._sync_snapshots.pop(cid, None)
+
+    from_ipfs = vfs_sync_from_ipfs("/tmp/sync-transport")
+    assert from_ipfs["success"] is True
+    assert from_ipfs["cid"] == cid
+
+    read_result = vfs.read("/tmp/sync-transport/doc.txt")
+    assert read_result["success"] is True
+    assert read_result["content"] == "restored-from-transport"

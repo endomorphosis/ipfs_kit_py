@@ -41,6 +41,18 @@ async def test_unified_mcp_tools_list_only_executable_tools():
     assert "ipfs_add" not in names
 
 
+async def test_unified_mcp_non_executable_tool_returns_explicit_error_code():
+    from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
+
+    server = create_mcp_server(auto_start_daemons=False, auto_start_lotus_daemon=False)
+    response = await server.handle_tools_call({"name": "ipfs_add", "arguments": {"path": "/tmp/x"}})
+
+    payload = json.loads(((response.get("content") or [{}])[0]).get("text", "{}"))
+    assert payload.get("success") is False
+    assert payload.get("code") == "tool_not_executable"
+    assert response.get("isError") is True
+
+
 async def test_unified_mcp_advertised_tools_execute_without_not_implemented():
     from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
 
@@ -66,21 +78,15 @@ async def test_unified_mcp_advertised_tools_execute_without_not_implemented():
 
 
 async def test_vfs_roundtrip_via_mcp_call_surface():
+    from ipfs_kit_py.ipfs_fsspec import get_vfs
     from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
 
     mount_point = "/tmp/vfs-mcp-roundtrip"
     server = create_mcp_server(auto_start_daemons=False, auto_start_lotus_daemon=False)
 
-    await server.handle_tools_call(
-        {
-            "name": "vfs_mount",
-            "arguments": {
-                "source": "/",
-                "mount_point": mount_point,
-                "read_only": False,
-            },
-        }
-    )
+    vfs = get_vfs()
+    vfs.unmount(mount_point)
+    vfs.mount(mount_point, "memory", "/", read_only=False)
 
     write_response = await server.handle_tools_call(
         {
