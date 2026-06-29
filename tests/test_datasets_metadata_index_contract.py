@@ -3,6 +3,9 @@
 
 import sys
 import json
+import os
+import multiprocessing
+import time
 from pathlib import Path
 
 
@@ -10,6 +13,16 @@ repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root))
 
 from ipfs_kit_py.ipfs_datasets_integration import IPFSDatasetsManager
+
+
+def _concurrent_index_writer(home_dir: str, dataset_path: str, idx: int) -> None:
+    os.environ["HOME"] = home_dir
+    manager = IPFSDatasetsManager(enable=False)
+    manager.refresh_metadata_index(
+        path=dataset_path,
+        operation="write",
+        metadata={"worker": idx},
+    )
 
 
 def test_store_and_list_updates_real_metadata_index(tmp_path):
@@ -131,3 +144,55 @@ def test_datasets_accelerate_enrichment_timeout_is_bounded(tmp_path, monkeypatch
     accelerate = result["entry"].get("accelerate_status")
     assert isinstance(accelerate, dict)
     assert accelerate.get("reason") == "accelerate_timeout"
+
+
+def test_metadata_index_concurrent_process_writes_preserve_all_entries(tmp_path, monkeypatch):
+    home_dir = str(tmp_path / "home")
+    monkeypatch.setenv("HOME", home_dir)
+
+    worker_count = 6
+    dataset_paths = []
+    for idx in range(worker_count):
+        dataset = tmp_path / f"concurrent_{idx}.jsonl"
+        dataset.write_text('{"id": %d}\n' % idx, encoding="utf-8")
+        dataset_paths.append(str(dataset))
+
+    processes = []
+    for idx, dataset_path in enumerate(dataset_paths):
+        proc = multiprocessing.Process(
+            target=_concurrent_index_writer,
+            args=(home_dir, dataset_path, idx),
+        )
+        proc.start()
+        processes.append(proc)
+
+    for proc in processes:
+        proc.join(timeout=15)
+        assert proc.exitcode == 0
+
+    manager = IPFSDatasetsManager(enable=False)
+    listed = manager.list_metadata_index()
+    assert listed["success"] is True
+
+    recorded_paths = {item.get("path") for item in listed["items"]}
+    for dataset_path in dataset_paths:
+        assert dataset_path in recorded_paths
+
+
+def test_datasets_timeout_helper_returns_within_budget(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    manager = IPFSDatasetsManager(enable=False)
+
+    original_timeout = manager._accelerate_timeout_sec
+    manager._accelerate_timeout_sec = 0.05
+
+    try:
+        start = time.perf_counter()
+        timed_out, value = manager._call_with_timeout(lambda: (time.sleep(0.25), "done")[1])
+        elapsed = time.perf_counter() - start
+
+        assert timed_out is True
+        assert value is None
+        assert elapsed < 0.20
+    finally:
+        manager._accelerate_timeout_sec = original_timeout

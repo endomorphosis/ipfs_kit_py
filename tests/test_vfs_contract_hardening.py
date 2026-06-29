@@ -2,6 +2,7 @@
 """Focused VFS contract tests for explicit resolve behavior and non-silent failures."""
 
 import sys
+import time
 from pathlib import Path
 
 
@@ -170,3 +171,20 @@ def test_vfs_sync_placeholders_are_explicit_not_implemented_failures():
 
     assert from_ipfs["success"] is False
     assert from_ipfs["code"] == "not_implemented"
+
+
+def test_vfs_timeout_helper_returns_within_budget():
+    vfs = get_vfs()
+    original_timeout = vfs._accelerate_timeout_sec
+    vfs._accelerate_timeout_sec = 0.05
+
+    try:
+        start = time.perf_counter()
+        timed_out, value = vfs._call_with_timeout(lambda: (time.sleep(0.25), "done")[1])
+        elapsed = time.perf_counter() - start
+
+        assert timed_out is True
+        assert value is None
+        assert elapsed < 0.20
+    finally:
+        vfs._accelerate_timeout_sec = original_timeout

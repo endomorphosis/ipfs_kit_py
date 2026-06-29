@@ -16,6 +16,7 @@ repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root))
 
 from ipfs_kit_py.mcp.servers import enhanced_mcp_server_with_vfs as enhanced_server
+from ipfs_kit_py.mcp.servers import enhanced_mcp_server_with_daemon_mgmt as daemon_mgmt_server
 from ipfs_kit_py.mcp.servers import standalone_vfs_mcp_server as standalone_server
 from ipfs_kit_py.mcp.servers import unified_mcp_server as unified_server
 
@@ -235,3 +236,19 @@ def test_unified_mcp_dispatches_vfs_tools_and_exposes_resolve_path(monkeypatch):
     payload_resolve = json.loads(resolve_result["content"][0]["text"])
     assert payload_resolve["success"] is True
     assert payload_resolve["resolved"] is True
+
+
+def test_daemon_mgmt_server_dispatches_vfs_tools(monkeypatch):
+    monkeypatch.setattr(daemon_mgmt_server, "HAS_CANONICAL_VFS", True)
+    monkeypatch.setattr(daemon_mgmt_server, "vfs_list_mounts", lambda: {"success": True, "count": 2, "mounts": []})
+
+    server = daemon_mgmt_server.EnhancedMCPServerWithDaemonMgmt.__new__(daemon_mgmt_server.EnhancedMCPServerWithDaemonMgmt)
+
+    result = anyio.run(
+        lambda: server.handle_tools_call({"name": "vfs_list_mounts", "arguments": {}})
+    )
+    assert result["isError"] is False
+
+    payload = json.loads(result["content"][0]["text"])
+    assert payload["success"] is True
+    assert payload["count"] == 2

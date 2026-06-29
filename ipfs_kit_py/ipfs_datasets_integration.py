@@ -36,6 +36,12 @@ import csv
 import hashlib
 import tempfile
 import threading
+from contextlib import contextmanager
+
+try:
+    import fcntl
+except Exception:  # pragma: no cover
+    fcntl = None  # type: ignore[assignment]
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -424,6 +430,7 @@ class IPFSDatasetsManager:
         self.event_log = []
         self.provenance_log = []
         self.metadata_index_path = self.backend.base_path / "metadata_index.json"
+        self.metadata_index_lock_path = self.backend.base_path / "metadata_index.lock"
         self.metadata_index: Dict[str, Dict[str, Any]] = {}
         self._index_lock = threading.RLock()
         self._metrics: Dict[str, int] = {
@@ -437,46 +444,72 @@ class IPFSDatasetsManager:
         self._accelerate_checked = False
         self._accelerate_timeout_sec = float(os.environ.get("IPFS_KIT_ACCELERATE_TIMEOUT_SEC", "1.5"))
         self._load_metadata_index()
+
+    @contextmanager
+    def _index_file_lock(self):
+        """Acquire process-safe lock for metadata index operations."""
+        self.metadata_index_lock_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.metadata_index_lock_path, "a+", encoding="utf-8") as lock_file:
+            if fcntl is not None:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                if fcntl is not None:
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+    def _read_index_from_disk_unlocked(self) -> Dict[str, Dict[str, Any]]:
+        if not self.metadata_index_path.exists():
+            return {}
+        try:
+            with open(self.metadata_index_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                return data
+        except Exception as e:
+            self._metrics["index_errors"] += 1
+            logger.warning(f"Failed to parse metadata index; recovering to empty index: {e}")
+        return {}
+
+    def _write_index_to_disk_unlocked(self, data: Dict[str, Dict[str, Any]]) -> None:
+        self.metadata_index_path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=str(self.metadata_index_path.parent),
+            prefix="metadata_index_",
+            suffix=".tmp",
+            delete=False,
+        ) as f:
+            tmp_path = Path(f.name)
+            json.dump(data, f, indent=2, sort_keys=True)
+            f.flush()
+            os.fsync(f.fileno())
+
+        os.replace(tmp_path, self.metadata_index_path)
     
     def is_available(self) -> bool:
         """Check if distributed dataset operations are available."""
         return self.backend.is_available()
 
     def _load_metadata_index(self) -> None:
-        with self._index_lock:
-            self.metadata_index = {}
+        loaded: Dict[str, Dict[str, Any]] = {}
         try:
-            if self.metadata_index_path.exists():
-                with open(self.metadata_index_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                if isinstance(data, dict):
-                    with self._index_lock:
-                        self.metadata_index = data
+            with self._index_file_lock():
+                loaded = self._read_index_from_disk_unlocked()
         except Exception as e:
             logger.warning(f"Failed to load metadata index: {e}")
-            with self._index_lock:
-                self.metadata_index = {}
+            loaded = {}
+
+        with self._index_lock:
+            self.metadata_index = loaded
 
     def _save_metadata_index(self) -> None:
         try:
             with self._index_lock:
                 snapshot = dict(self.metadata_index)
-
-            self.metadata_index_path.parent.mkdir(parents=True, exist_ok=True)
-            with tempfile.NamedTemporaryFile(
-                mode="w",
-                encoding="utf-8",
-                dir=str(self.metadata_index_path.parent),
-                prefix="metadata_index_",
-                suffix=".tmp",
-                delete=False,
-            ) as f:
-                tmp_path = Path(f.name)
-                json.dump(snapshot, f, indent=2, sort_keys=True)
-                f.flush()
-                os.fsync(f.fileno())
-
-            os.replace(tmp_path, self.metadata_index_path)
+            with self._index_file_lock():
+                self._write_index_to_disk_unlocked(snapshot)
         except Exception as e:
             self._metrics["index_errors"] += 1
             logger.warning(f"Failed to save metadata index: {e}")
@@ -734,9 +767,12 @@ class IPFSDatasetsManager:
     ) -> Dict[str, Any]:
         try:
             entry = self._build_index_entry(path=path, cid=cid, operation=operation, metadata=metadata)
-            with self._index_lock:
-                self.metadata_index[entry["id"]] = entry
-            self._save_metadata_index()
+            with self._index_file_lock():
+                disk_index = self._read_index_from_disk_unlocked()
+                disk_index[entry["id"]] = entry
+                self._write_index_to_disk_unlocked(disk_index)
+                with self._index_lock:
+                    self.metadata_index = dict(disk_index)
             self._metrics["index_refresh"] += 1
             return {"success": True, "entry": entry}
         except Exception as e:
@@ -765,9 +801,13 @@ class IPFSDatasetsManager:
         cid: Optional[str] = None,
     ) -> Dict[str, Any]:
         key = self._index_key(path=path, cid=cid)
-        with self._index_lock:
-            removed = self.metadata_index.pop(key, None)
-        self._save_metadata_index()
+        removed = None
+        with self._index_file_lock():
+            disk_index = self._read_index_from_disk_unlocked()
+            removed = disk_index.pop(key, None)
+            self._write_index_to_disk_unlocked(disk_index)
+            with self._index_lock:
+                self.metadata_index = dict(disk_index)
         self._metrics["index_remove"] += 1
         return {"success": True, "removed": removed is not None, "id": key}
 

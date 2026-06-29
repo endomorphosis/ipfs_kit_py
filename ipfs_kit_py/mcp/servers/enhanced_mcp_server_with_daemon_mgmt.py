@@ -25,6 +25,7 @@ warnings.warn(
 
 import sys
 import json
+import anyio
 import logging
 import traceback
 import os
@@ -103,6 +104,29 @@ except ImportError as e:
     HAS_VFS = False
 
 logger.info("✓ Finished VFS import section")
+
+HAS_CANONICAL_VFS = False
+try:
+    from ipfs_kit_py.ipfs_fsspec import (
+        vfs_mount,
+        vfs_unmount,
+        vfs_list_mounts,
+        vfs_resolve_path,
+        vfs_read,
+        vfs_write,
+        vfs_copy,
+        vfs_move,
+        vfs_mkdir,
+        vfs_rmdir,
+        vfs_ls,
+        vfs_stat,
+        vfs_sync_to_ipfs,
+        vfs_sync_from_ipfs,
+    )
+
+    HAS_CANONICAL_VFS = True
+except Exception as e:
+    logger.warning(f"Canonical VFS helpers unavailable in daemon-mgmt MCP server: {e}")
 
 
 class GraphRAGSearchEngine:
@@ -827,6 +851,7 @@ class EnhancedMCPServerWithDaemonMgmt:
         "vfs_mount",
         "vfs_unmount",
         "vfs_list_mounts",
+        "vfs_resolve_path",
         "vfs_read",
         "vfs_write",
         "vfs_copy",
@@ -899,6 +924,7 @@ class EnhancedMCPServerWithDaemonMgmt:
             "vfs_mount",
             "vfs_unmount",
             "vfs_list_mounts",
+            "vfs_resolve_path",
             "vfs_read",
             "vfs_write",
             "vfs_copy",
@@ -930,16 +956,79 @@ class EnhancedMCPServerWithDaemonMgmt:
         return {"tools": list(tools.values())}
 
     async def handle_tools_call(self, params):
-        """Handle a tool call with a mock success response."""
+        """Handle tool calls with real canonical VFS dispatch when possible."""
         name = params.get("name") if isinstance(params, dict) else None
+        arguments = params.get("arguments", {}) if isinstance(params, dict) else {}
+
+        if isinstance(name, str) and name.startswith("vfs_"):
+            result = await self._execute_vfs_tool(name, arguments)
+            return {
+                "content": [{"type": "text", "text": json.dumps(result)}],
+                "isError": not bool(result.get("success", False)),
+            }
+
         result = {
             "success": True,
             "tool": name,
-            "arguments": params.get("arguments", {}) if isinstance(params, dict) else {},
+            "arguments": arguments,
         }
         return {
             "content": [{"type": "text", "text": json.dumps(result)}],
             "isError": False,
+        }
+
+    async def _execute_vfs_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        if not HAS_CANONICAL_VFS:
+            return {
+                "success": False,
+                "tool": tool_name,
+                "error": "Canonical VFS helpers unavailable",
+                "code": "vfs_unavailable",
+            }
+
+        if tool_name == "vfs_mount":
+            source = arguments.get("source") or arguments.get("ipfs_path") or "/"
+            mount_point = arguments.get("mount_point") or "/ipfs"
+            read_only = bool(arguments.get("read_only", False))
+            return await anyio.to_thread.run_sync(vfs_mount, source, mount_point, read_only)
+        if tool_name == "vfs_unmount":
+            return await anyio.to_thread.run_sync(vfs_unmount, arguments.get("mount_point"))
+        if tool_name == "vfs_list_mounts":
+            return await anyio.to_thread.run_sync(vfs_list_mounts)
+        if tool_name == "vfs_resolve_path":
+            local_path = arguments.get("local_path") or arguments.get("path")
+            return await anyio.to_thread.run_sync(vfs_resolve_path, local_path)
+        if tool_name == "vfs_read":
+            return await anyio.to_thread.run_sync(vfs_read, arguments.get("path"))
+        if tool_name == "vfs_write":
+            return await anyio.to_thread.run_sync(
+                vfs_write,
+                arguments.get("path"),
+                arguments.get("content", ""),
+                bool(arguments.get("auto_replicate", False)),
+            )
+        if tool_name == "vfs_copy":
+            return await anyio.to_thread.run_sync(vfs_copy, arguments.get("src"), arguments.get("dst"))
+        if tool_name == "vfs_move":
+            return await anyio.to_thread.run_sync(vfs_move, arguments.get("src"), arguments.get("dst"))
+        if tool_name == "vfs_mkdir":
+            return await anyio.to_thread.run_sync(vfs_mkdir, arguments.get("path"), bool(arguments.get("parents", False)))
+        if tool_name == "vfs_rmdir":
+            return await anyio.to_thread.run_sync(vfs_rmdir, arguments.get("path"))
+        if tool_name == "vfs_ls":
+            return await anyio.to_thread.run_sync(vfs_ls, arguments.get("path", "/"))
+        if tool_name == "vfs_stat":
+            return await anyio.to_thread.run_sync(vfs_stat, arguments.get("path"))
+        if tool_name == "vfs_sync_to_ipfs":
+            return await anyio.to_thread.run_sync(vfs_sync_to_ipfs, arguments.get("path"))
+        if tool_name == "vfs_sync_from_ipfs":
+            return await anyio.to_thread.run_sync(vfs_sync_from_ipfs, arguments.get("path"))
+
+        return {
+            "success": False,
+            "tool": tool_name,
+            "error": "Unsupported VFS operation",
+            "code": "vfs_not_supported",
         }
 
     def cleanup(self):
