@@ -29,4 +29,11 @@ async def pin_rm(cid: str, recursive: bool = True) -> Dict[str, Any]:
     return out
 
 
-__all__ = ["pin_add", "pin_ls", "pin_rm"]
+@tool_metadata(summary="Get full pinset (local + cluster)", tags=["pin", "read"])
+async def get_pinset() -> Dict[str, Any]:
+    out = await _call("ipfs_get_pinset")
+    out["request_id"] = str(uuid.uuid4())
+    return out
+
+
+__all__ = ["pin_add", "pin_ls", "pin_rm", "get_pinset"]

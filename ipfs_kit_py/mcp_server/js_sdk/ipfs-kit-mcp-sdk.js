@@ -96,6 +96,14 @@ export const TOOLS = {
     },
     "description": "Unpin a CID from the local node"
   },
+  "get_pinset": {
+    "category": "pin_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    },
+    "description": "Get full pinset (local + cluster)"
+  },
   "dag_get": {
     "category": "dag_tools",
     "inputSchema": {
@@ -241,6 +249,44 @@ export const TOOLS = {
       "properties": {}
     },
     "description": "List connected swarm peers"
+  },
+  "name_publish": {
+    "category": "name_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ]
+    },
+    "description": "Publish a path to IPNS"
+  },
+  "name_resolve": {
+    "category": "name_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    },
+    "description": "Resolve an IPNS name to a path"
+  },
+  "create_car": {
+    "category": "car_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "roots": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "roots"
+      ]
+    },
+    "description": "Create a CAR archive from roots"
   },
   "cluster_status": {
     "category": "cluster_tools",

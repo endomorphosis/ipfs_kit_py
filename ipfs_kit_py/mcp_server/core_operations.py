@@ -84,6 +84,15 @@ class _StubKit:
     def files_rm(self, path, **kw):
         return {"success": True, "path": path}
 
+    def create_car(self, roots, blocks=None, **kw):
+        return {"success": True, "cid": "bafkstub_car", "roots": roots}
+
+    def name_publish(self, path=None, **kw):
+        return {"success": True, "name": "k51stub", "value": path}
+
+    def name_resolve(self, **kw):
+        return {"success": True, "path": "/ipfs/bafkstub"}
+
 
 async def _call(method: str, /, **kwargs) -> Dict[str, Any]:
     kit = get_kit()

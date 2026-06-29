@@ -42,7 +42,12 @@ def render() -> str:
 def main() -> None:
     out = Path(__file__).parent / "ipfs-kit-mcp-sdk.js"
     out.write_text(render())
-    print(f"wrote {out}")
+    # Emit a JSON manifest too, so non-JS consumers (e.g. the swissknife
+    # dashboard descriptor pack) read the identical tool registry.
+    tm = HierarchicalToolManager()
+    manifest = {"version": "0.1.0", "tools": tm.all_tool_schemas()}
+    (Path(__file__).parent / "tools-manifest.json").write_text(json.dumps(manifest, indent=2))
+    print(f"wrote {out} + tools-manifest.json")
 
 
 if __name__ == "__main__":
