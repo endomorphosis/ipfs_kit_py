@@ -27,7 +27,7 @@ Usage:
 import logging
 import os
 import sys
-from typing import Dict, List, Any, Optional, Union, Tuple
+from typing import Dict, List, Any, Optional, Union, Tuple, Callable
 from pathlib import Path
 import json
 import datetime
@@ -829,6 +829,42 @@ class IPFSDatasetsManager:
             raise state["error"]
         return False, state.get("result")
 
+    def _resolve_accelerate_discovery_adapter(
+        self,
+        *,
+        accelerate: Any,
+    ) -> Tuple[str, Optional[Callable[..., Any]], Tuple[Any, ...], List[str]]:
+        fallback_order = [
+            "discover_embedding_models",
+            "search_models",
+        ]
+
+        if hasattr(accelerate, "discover_embedding_models") and callable(accelerate.discover_embedding_models):
+            return "discover_embedding_models", accelerate.discover_embedding_models, tuple(), fallback_order
+
+        if hasattr(accelerate, "search_models") and callable(accelerate.search_models):
+            return "search_models", accelerate.search_models, ("embedding",), fallback_order
+
+        return "none", None, tuple(), fallback_order
+
+    def _resolve_embedding_adapter(
+        self,
+        *,
+        accelerate: Any,
+    ) -> Tuple[str, Optional[Callable[..., Any]], Tuple[Any, ...], List[str]]:
+        fallback_order = [
+            "create_embeddings",
+            "create_embedding",
+        ]
+
+        if hasattr(accelerate, "create_embeddings") and callable(accelerate.create_embeddings):
+            return "create_embeddings", accelerate.create_embeddings, tuple(), fallback_order
+
+        if hasattr(accelerate, "create_embedding") and callable(accelerate.create_embedding):
+            return "create_embedding", accelerate.create_embedding, tuple(), fallback_order
+
+        return "none", None, tuple(), fallback_order
+
     def _accelerate_enrich_index(self, entry: Dict[str, Any]) -> Dict[str, Any]:
         now = time.time()
         if now < self._circuit_open_until:
@@ -837,52 +873,51 @@ class IPFSDatasetsManager:
                 "attempted": False,
                 "success": False,
                 "reason": "accelerate_circuit_open",
+                "adapter": "accelerate_enrichment_v1",
                 "retry_after_seconds": max(0.0, self._circuit_open_until - now),
             }
 
         accelerate = self._get_accelerate_module()
         if accelerate is None:
-            return {"attempted": False, "reason": "accelerate_unavailable"}
+            return {
+                "attempted": False,
+                "reason": "accelerate_unavailable",
+                "adapter": "accelerate_enrichment_v1",
+            }
 
         try:
             enrichment: Dict[str, Any] = {}
             started = time.perf_counter()
 
-            if hasattr(accelerate, "discover_embedding_models") and callable(accelerate.discover_embedding_models):
+            discovery_mode, discovery_resolver, discovery_args, discovery_fallback_order = self._resolve_accelerate_discovery_adapter(
+                accelerate=accelerate,
+            )
+
+            if discovery_resolver is not None:
                 if self._accelerate_models_cache is not None:
                     models = self._accelerate_models_cache
                     self._metrics["accelerate_cache_hits"] += 1
                 else:
-                    timed_out, models = self._call_with_timeout(accelerate.discover_embedding_models)
+                    timed_out, models = self._call_with_timeout(discovery_resolver, *discovery_args)
                     if timed_out:
                         return {
                             "attempted": True,
                             "success": False,
                             "reason": "accelerate_timeout",
-                            "mode": "discover_embedding_models",
+                            "mode": discovery_mode,
+                            "adapter": "accelerate_enrichment_v1",
                             "timeout_seconds": self._accelerate_timeout_sec,
+                            "fallback_order": discovery_fallback_order,
                         }
                     self._accelerate_models_cache = models
                 enrichment["discovered_models"] = models
-            elif hasattr(accelerate, "search_models") and callable(accelerate.search_models):
-                if self._accelerate_models_cache is not None:
-                    models = self._accelerate_models_cache
-                    self._metrics["accelerate_cache_hits"] += 1
-                else:
-                    timed_out, models = self._call_with_timeout(accelerate.search_models, "embedding")
-                    if timed_out:
-                        return {
-                            "attempted": True,
-                            "success": False,
-                            "reason": "accelerate_timeout",
-                            "mode": "search_models",
-                            "timeout_seconds": self._accelerate_timeout_sec,
-                        }
-                    self._accelerate_models_cache = models
-                enrichment["discovered_models"] = models
+                enrichment["discovery_mode"] = discovery_mode
 
             embed_text = entry.get("dataset_summary") or entry.get("path")
-            if hasattr(accelerate, "create_embedding") and callable(accelerate.create_embedding) and embed_text:
+            embedding_mode, embedding_resolver, _, embedding_fallback_order = self._resolve_embedding_adapter(
+                accelerate=accelerate,
+            )
+            if embedding_resolver is not None and embed_text:
                 cache_key = hashlib.sha256(str(embed_text).encode("utf-8")).hexdigest()
                 if cache_key in self._accelerate_embedding_cache:
                     vector = self._accelerate_embedding_cache[cache_key]
@@ -890,15 +925,17 @@ class IPFSDatasetsManager:
                     enrichment["embedding_cache_hit"] = True
                 else:
                     batch_vector = None
-                    if hasattr(accelerate, "create_embeddings") and callable(accelerate.create_embeddings):
-                        timed_out, vectors = self._call_with_timeout(accelerate.create_embeddings, [str(embed_text)])
+                    if embedding_mode == "create_embeddings":
+                        timed_out, vectors = self._call_with_timeout(embedding_resolver, [str(embed_text)])
                         if timed_out:
                             return {
                                 "attempted": True,
                                 "success": False,
                                 "reason": "accelerate_timeout",
                                 "mode": "create_embeddings",
+                                "adapter": "accelerate_enrichment_v1",
                                 "timeout_seconds": self._accelerate_timeout_sec,
+                                "fallback_order": embedding_fallback_order,
                             }
                         if isinstance(vectors, list) and vectors:
                             batch_vector = vectors[0]
@@ -907,14 +944,28 @@ class IPFSDatasetsManager:
                     if batch_vector is not None:
                         vector = batch_vector
                     else:
-                        timed_out, vector = self._call_with_timeout(accelerate.create_embedding, str(embed_text))
+                        if embedding_mode == "create_embedding":
+                            timed_out, vector = self._call_with_timeout(embedding_resolver, str(embed_text))
+                        else:
+                            fallback_single = getattr(accelerate, "create_embedding", None)
+                            if not callable(fallback_single):
+                                return {
+                                    "attempted": True,
+                                    "success": False,
+                                    "reason": "no_supported_embedding_capability",
+                                    "adapter": "accelerate_enrichment_v1",
+                                    "fallback_order": embedding_fallback_order,
+                                }
+                            timed_out, vector = self._call_with_timeout(fallback_single, str(embed_text))
                         if timed_out:
                             return {
                                 "attempted": True,
                                 "success": False,
                                 "reason": "accelerate_timeout",
                                 "mode": "create_embedding",
+                                "adapter": "accelerate_enrichment_v1",
                                 "timeout_seconds": self._accelerate_timeout_sec,
+                                "fallback_order": embedding_fallback_order,
                             }
                     if len(self._accelerate_embedding_cache) >= self._accelerate_embedding_cache_max:
                         # Pop first inserted item to keep cache bounded.
@@ -925,20 +976,35 @@ class IPFSDatasetsManager:
                 if isinstance(vector, list):
                     enrichment["embedding_dim"] = len(vector)
                 enrichment["embedding_preview"] = vector[:8] if isinstance(vector, list) else None
+                enrichment["embedding_mode"] = embedding_mode
 
             if enrichment:
                 enrichment["timing_ms"] = round((time.perf_counter() - started) * 1000.0, 3)
                 entry["accelerate"] = enrichment
                 self._metrics["accelerate_enrichment"] += 1
                 self._circuit_failures = 0
-                return {"attempted": True, "success": True}
-            return {"attempted": True, "success": False, "reason": "no_supported_capabilities"}
+                return {
+                    "attempted": True,
+                    "success": True,
+                    "adapter": "accelerate_enrichment_v1",
+                }
+            return {
+                "attempted": True,
+                "success": False,
+                "reason": "no_supported_capabilities",
+                "adapter": "accelerate_enrichment_v1",
+            }
         except Exception as e:
             self._metrics["index_errors"] += 1
             self._circuit_failures += 1
             if self._circuit_failures >= self._circuit_threshold:
                 self._circuit_open_until = time.time() + self._circuit_cooldown_sec
-            return {"attempted": True, "success": False, "reason": str(e)}
+            return {
+                "attempted": True,
+                "success": False,
+                "reason": str(e),
+                "adapter": "accelerate_enrichment_v1",
+            }
 
     def invalidate_accelerate_cache(self, scope: str = "all") -> Dict[str, Any]:
         scope = str(scope or "all").strip().lower()
