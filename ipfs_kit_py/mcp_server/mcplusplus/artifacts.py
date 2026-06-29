@@ -107,6 +107,10 @@ def envelope_from_payloads(
     return {
         "input_cid": input_cid,
         "intent_cid": intent_cid,
+    return {
+        "interface_cid": interface_cid,
+        "input_cid": input_cid,
+        "intent_cid": intent_cid,
         "decision_cid": decision_cid,
         "output_cid": output_cid,
         "receipt_cid": receipt_cid,

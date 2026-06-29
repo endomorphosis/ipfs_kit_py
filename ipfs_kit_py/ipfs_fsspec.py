@@ -1884,6 +1884,7 @@ class VFSCore:
         self._accelerate_module: Optional[Any] = None
         self._accelerate_module_checked = False
         self._accelerate_timeout_sec = float(os.environ.get("IPFS_KIT_ACCELERATE_TIMEOUT_SEC", "1.5"))
+        self._vfs_accelerate_mode = os.environ.get("IPFS_KIT_VFS_ACCELERATE_MODE", "metadata").strip().lower()
         self._sync_snapshots: Dict[str, Dict[str, Any]] = {}
         self._sync_state_by_path: Dict[str, Dict[str, Any]] = {}
         self._sync_transport_mode = os.environ.get("IPFS_KIT_SYNC_TRANSPORT", "auto").strip().lower()
@@ -2189,6 +2190,14 @@ class VFSCore:
             }
 
     def _enrich_metadata_with_accelerate(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        if self._vfs_accelerate_mode in {"off", "disabled", "none"}:
+            return {
+                "attempted": False,
+                "success": False,
+                "reason": "vfs_accelerate_disabled",
+                "mode": self._vfs_accelerate_mode,
+            }
+
         fallback_order = [
             "discover_embedding_models",
             "search_models",

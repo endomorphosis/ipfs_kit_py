@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 import anyio
@@ -18,6 +19,10 @@ from .hierarchical_tool_manager import HierarchicalToolManager
 
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_INFO = {"name": "ipfs_kit_py-mcpplusplus", "version": "0.1.0"}
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 class MCPServer:
@@ -87,7 +92,8 @@ class MCPServer:
                     correlation_id=str(params.get("correlation_id", "")),
                     parents=parents,
                 )
-                self._dag.append({"event_cid": meta["event_cid"], **meta["event"]})
+                node = {"event_cid": meta["event_cid"], "timestamp": _now_iso(), **meta["event"]}
+                self._dag.append(node)
                 if isinstance(result, dict):
                     result = {**result, "_mcppp": meta}
                 else:

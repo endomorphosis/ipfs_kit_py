@@ -21,6 +21,7 @@ from ipfs_kit_py.ipfs_fsspec import (
 )
 
 
+
 def test_vfs_mount_and_resolve_path_success():
     vfs = get_vfs()
 
@@ -36,7 +37,6 @@ def test_vfs_mount_and_resolve_path_success():
     assert resolved["success"] is True
     assert resolved["resolved"] is True
     assert resolved["resolved_path"] == "/ipfs/QmContractCid/sub/entry.txt"
-
 
 
 def test_vfs_unmount_nonexistent_is_explicit_failure():
@@ -164,33 +164,68 @@ def test_vfs_write_accelerate_timeout_is_bounded(monkeypatch):
     assert snapshot["metrics"]["accelerate_timeouts"] >= 1
 
 
+def test_vfs_write_respects_accelerate_disabled_mode(monkeypatch):
+    class FakeDatasetsManager:
+        def __init__(self):
+            self.event_log = []
+
+    class FakeAccelerate:
+        @staticmethod
+        def discover_embedding_models():
+            return ["should-not-be-called"]
+
+    monkeypatch.setenv("IPFS_KIT_VFS_ACCELERATE_MODE", "disabled")
+
+    vfs = get_vfs()
+    for mount in list(vfs.mounts.keys()):
+        vfs.unmount(mount)
+
+    vfs.configure_integrations(
+        datasets_manager=FakeDatasetsManager(),
+        accelerate_module=FakeAccelerate(),
+    )
+    original_mode = vfs._vfs_accelerate_mode
+    vfs._vfs_accelerate_mode = "disabled"
+    vfs.mount("/tmp/vfs-hooks-accelerate-disabled", "memory", "/")
+
+    try:
+        write_result = vfs_write("/tmp/vfs-hooks-accelerate-disabled/doc.txt", "hello")
+        assert write_result["success"] is True
+        assert write_result["integration"]["accelerate"]["attempted"] is False
+        assert write_result["integration"]["accelerate"]["reason"] == "vfs_accelerate_disabled"
+    finally:
+        vfs._vfs_accelerate_mode = original_mode
+
+
 def test_vfs_sync_roundtrip_for_memory_mount():
     vfs = get_vfs()
     original_policy = vfs._sync_conflict_policy
     for mount in list(vfs.mounts.keys()):
         vfs.unmount(mount)
 
-    vfs._sync_conflict_policy = "overwrite"
+    try:
+        vfs._sync_conflict_policy = "overwrite"
 
-    vfs.mount("/tmp/sync-memory", "memory", "/")
-    vfs.write("/tmp/sync-memory/doc.txt", "original")
+        vfs.mount("/tmp/sync-memory", "memory", "/")
+        vfs.write("/tmp/sync-memory/doc.txt", "original")
 
-    to_ipfs = vfs_sync_to_ipfs("/tmp/sync-memory")
-    assert to_ipfs["success"] is True
-    assert to_ipfs["cid"].startswith("cidv1-")
+        to_ipfs = vfs_sync_to_ipfs("/tmp/sync-memory")
+        assert to_ipfs["success"] is True
+        assert to_ipfs["cid"].startswith("cidv1-")
 
-    vfs.write("/tmp/sync-memory/doc.txt", "changed")
-    from_ipfs = vfs_sync_from_ipfs("/tmp/sync-memory")
-    assert from_ipfs["success"] is True
-    assert from_ipfs["cid"] == to_ipfs["cid"]
-    assert from_ipfs["restored_count"] >= 1
+        vfs.write("/tmp/sync-memory/doc.txt", "changed")
+        from_ipfs = vfs_sync_from_ipfs("/tmp/sync-memory")
+        assert from_ipfs["success"] is True
+        assert from_ipfs["cid"] == to_ipfs["cid"]
+        assert from_ipfs["restored_count"] >= 1
 
-    read_result = vfs.read("/tmp/sync-memory/doc.txt")
-    assert read_result["success"] is True
-    assert read_result["content"] == "original"
-    assert from_ipfs["policy"] in {"overwrite", "skip", "strict"}
-    assert "skipped_count" in from_ipfs
-    vfs._sync_conflict_policy = original_policy
+        read_result = vfs.read("/tmp/sync-memory/doc.txt")
+        assert read_result["success"] is True
+        assert read_result["content"] == "original"
+        assert from_ipfs["policy"] in {"overwrite", "skip", "strict"}
+        assert "skipped_count" in from_ipfs
+    finally:
+        vfs._sync_conflict_policy = original_policy
 
 
 def test_vfs_sync_from_ipfs_without_prior_sync_is_explicit_failure():

@@ -355,17 +355,15 @@ class UnifiedMCPServer:
         for category, tools in categories.items():
             if tools:
                 logger.info(f"  {category.capitalize()}: {len(tools)} tools")
-        
-        # TODO: Implement actual server startup logic
-        # This would typically involve:
-        # 1. Setting up the MCP protocol handler
-        # 2. Starting the web server
-        # 3. Registering all tools with the MCP protocol
-        # 4. Setting up WebSocket or HTTP endpoints
-        # 5. Running the event loop
-        
-        logger.warning("Server run() method is a placeholder. Implement actual server logic.")
-        logger.info("Server initialized successfully. Ready to handle MCP requests.")
+
+        # For stdio-driven invocations, run a real request loop.
+        if not sys.stdin.isatty():
+            anyio.run(self.run_stdio)
+            return
+
+        # HTTP/websocket transports are intentionally not wired in this harness.
+        logger.warning("No transport configured for interactive run(); use stdio mode or embed handle_tools_call().")
+        logger.info("Server initialized successfully. Ready to handle in-process MCP requests.")
 
     def get_all_configs(self) -> Dict[str, Any]:
         """Load bucket and daemon configs from the data directory."""
@@ -461,7 +459,8 @@ class UnifiedMCPServer:
     def stop(self):
         """Stop the MCP server."""
         logger.info("Stopping Unified MCP Server")
-        # TODO: Implement actual server shutdown logic
+        # Stdio loop exits when input stream closes. This method remains
+        # intentionally lightweight for in-process harnesses.
     
     def get_tool_list(self):
         """Get list of all registered tools."""
@@ -699,73 +698,6 @@ class UnifiedMCPServer:
     def cleanup(self):
         """Clean up resources for tests."""
         return None
-
-    def get_all_configs(self) -> Dict[str, Any]:
-        """Load known config files from the server's data directory."""
-        try:
-            import yaml
-        except Exception as e:  # pragma: no cover
-            logger.warning(f"PyYAML not available: {e}")
-            return {}
-
-        configs: Dict[str, Any] = {}
-
-        bucket_config_path = self.data_dir / "bucket_config.yaml"
-        if bucket_config_path.exists():
-            with bucket_config_path.open("r", encoding="utf-8") as f:
-                configs["bucket"] = yaml.safe_load(f) or {}
-
-        daemon_config_path = self.data_dir / "daemon_config.yaml"
-        if daemon_config_path.exists():
-            with daemon_config_path.open("r", encoding="utf-8") as f:
-                configs["daemon"] = yaml.safe_load(f) or {}
-
-        return configs
-
-    def get_pin_metadata(self) -> List[Dict[str, Any]]:
-        """Load pin metadata records from parquet storage."""
-        parquet_path = self.data_dir / "pin_metadata" / "parquet_storage" / "pins.parquet"
-        if not parquet_path.exists():
-            return []
-
-        import pandas as pd
-
-        df = pd.read_parquet(parquet_path, engine="pyarrow")
-        return df.to_dict(orient="records")
-
-    def get_program_state_data(self) -> Dict[str, Dict[str, Any]]:
-        """Load program state parquet files; returns last row per file."""
-        state_dir = self.data_dir / "program_state" / "parquet"
-        if not state_dir.exists():
-            return {}
-
-        import pandas as pd
-
-        result: Dict[str, Dict[str, Any]] = {}
-        for parquet_path in sorted(state_dir.glob("*.parquet")):
-            df = pd.read_parquet(parquet_path, engine="pyarrow")
-            if len(df) == 0:
-                continue
-            result[parquet_path.stem] = df.iloc[-1].to_dict()
-        return result
-
-    def get_bucket_registry(self) -> List[Dict[str, Any]]:
-        """Load bucket registry records from parquet storage."""
-        parquet_path = self.data_dir / "bucket_index" / "bucket_registry.parquet"
-        if not parquet_path.exists():
-            return []
-
-        import pandas as pd
-
-        df = pd.read_parquet(parquet_path, engine="pyarrow")
-        return df.to_dict(orient="records")
-
-    def get_backend_status_data(self) -> Dict[str, Dict[str, Any]]:
-        """Return minimal backend/config status data used by tests."""
-        return {
-            "bucket": {"configured": (self.data_dir / "bucket_config.yaml").exists()},
-            "daemon": {"configured": (self.data_dir / "daemon_config.yaml").exists()},
-        }
 
 
 def create_mcp_server(
