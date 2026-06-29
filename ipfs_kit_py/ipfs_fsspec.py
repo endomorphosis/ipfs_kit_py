@@ -12,7 +12,7 @@ import logging
 import io
 import tempfile
 import datetime
-import concurrent.futures
+import threading
 from typing import Dict, List, Any, Optional, Union, Tuple, Callable, BinaryIO
 
 # Import fsspec (optional).
@@ -1923,14 +1923,31 @@ class VFSCore:
         return self._accelerate_module
 
     def _call_with_timeout(self, func: Any, *args: Any) -> Tuple[bool, Any]:
-        """Return (timed_out, result) for a synchronous callable."""
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(func, *args)
+        """Return (timed_out, result) for a synchronous callable.
+
+        Uses a daemon worker thread and timed wait so this call returns within
+        the configured timeout even if the hook itself hangs.
+        """
+        done = threading.Event()
+        state: Dict[str, Any] = {}
+
+        def _runner() -> None:
             try:
-                return False, future.result(timeout=self._accelerate_timeout_sec)
-            except concurrent.futures.TimeoutError:
-                future.cancel()
-                return True, None
+                state["result"] = func(*args)
+            except Exception as exc:
+                state["error"] = exc
+            finally:
+                done.set()
+
+        worker = threading.Thread(target=_runner, daemon=True)
+        worker.start()
+
+        if not done.wait(self._accelerate_timeout_sec):
+            return True, None
+
+        if "error" in state:
+            raise state["error"]
+        return False, state.get("result")
 
     def _notify_dataset_metadata(
         self,
@@ -2778,8 +2795,13 @@ def vfs_move(src: str, dst: str):
 
 
 async def _vfs_sync_to_ipfs_async(path: str) -> Dict[str, Any]:
-    # Placeholder: full sync requires IPFS daemon; keep test-friendly.
-    return {"success": True, "path": _norm_path(path), "message": "sync_to_ipfs not implemented"}
+    # Placeholder: full sync requires IPFS daemon and conflict policy.
+    return {
+        "success": False,
+        "path": _norm_path(path),
+        "error": "sync_to_ipfs not implemented",
+        "code": "not_implemented",
+    }
 
 
 def vfs_sync_to_ipfs(path: str):
@@ -2787,7 +2809,12 @@ def vfs_sync_to_ipfs(path: str):
 
 
 async def _vfs_sync_from_ipfs_async(path: str) -> Dict[str, Any]:
-    return {"success": True, "path": _norm_path(path), "message": "sync_from_ipfs not implemented"}
+    return {
+        "success": False,
+        "path": _norm_path(path),
+        "error": "sync_from_ipfs not implemented",
+        "code": "not_implemented",
+    }
 
 
 def vfs_sync_from_ipfs(path: str):

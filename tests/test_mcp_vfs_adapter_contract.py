@@ -6,6 +6,7 @@ lifecycle/path-resolution operations to the shared VFS contract layer.
 """
 
 import sys
+import json
 from pathlib import Path
 
 import anyio
@@ -16,6 +17,7 @@ sys.path.insert(0, str(repo_root))
 
 from ipfs_kit_py.mcp.servers import enhanced_mcp_server_with_vfs as enhanced_server
 from ipfs_kit_py.mcp.servers import standalone_vfs_mcp_server as standalone_server
+from ipfs_kit_py.mcp.servers import unified_mcp_server as unified_server
 
 
 def test_enhanced_adapter_delegates_canonical_mount_ops(monkeypatch):
@@ -195,3 +197,41 @@ def test_legacy_mcp_tool_schemas_expose_new_vfs_operations():
     for operation in ("vfs_unmount", "vfs_list_mounts", "vfs_resolve_path"):
         assert operation in enhanced_tools
         assert operation in standalone_tools
+
+
+def test_unified_mcp_dispatches_vfs_tools_and_exposes_resolve_path(monkeypatch):
+    monkeypatch.setattr(unified_server, "HAS_CANONICAL_VFS", True)
+
+    monkeypatch.setattr(unified_server, "vfs_list_mounts", lambda: {"success": True, "count": 0, "mounts": []})
+    monkeypatch.setattr(
+        unified_server,
+        "vfs_resolve_path",
+        lambda local_path: {
+            "success": True,
+            "resolved": True,
+            "local_path": local_path,
+            "resolved_path": "/ipfs/QmResolved",
+        },
+    )
+
+    server = unified_server.create_mcp_server(register_all_tools=False)
+
+    listed_tools = anyio.run(server.handle_tools_list)
+    tool_names = {tool["name"] for tool in listed_tools["tools"] if isinstance(tool, dict) and "name" in tool}
+    assert "vfs_resolve_path" in tool_names
+
+    mounts_result = anyio.run(lambda: server.handle_tools_call({"name": "vfs_list_mounts", "arguments": {}}))
+    assert mounts_result["isError"] is False
+
+    payload_mounts = json.loads(mounts_result["content"][0]["text"])
+    assert payload_mounts["success"] is True
+    assert payload_mounts["count"] == 0
+
+    resolve_result = anyio.run(
+        lambda: server.handle_tools_call({"name": "vfs_resolve_path", "arguments": {"local_path": "/m/a.txt"}})
+    )
+    assert resolve_result["isError"] is False
+
+    payload_resolve = json.loads(resolve_result["content"][0]["text"])
+    assert payload_resolve["success"] is True
+    assert payload_resolve["resolved"] is True

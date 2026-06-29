@@ -43,6 +43,28 @@ import anyio
 
 logger = logging.getLogger(__name__)
 
+try:
+    from ipfs_kit_py.ipfs_fsspec import (
+        vfs_mount,
+        vfs_unmount,
+        vfs_list_mounts,
+        vfs_resolve_path,
+        vfs_read,
+        vfs_write,
+        vfs_copy,
+        vfs_move,
+        vfs_mkdir,
+        vfs_rmdir,
+        vfs_ls,
+        vfs_stat,
+        vfs_sync_to_ipfs,
+        vfs_sync_from_ipfs,
+    )
+
+    HAS_CANONICAL_VFS = True
+except Exception:
+    HAS_CANONICAL_VFS = False
+
 
 class UnifiedMCPServer:
     """
@@ -92,6 +114,7 @@ class UnifiedMCPServer:
         "vfs_mount",
         "vfs_unmount",
         "vfs_list_mounts",
+        "vfs_resolve_path",
         "vfs_read",
         "vfs_write",
         "vfs_copy",
@@ -463,12 +486,7 @@ class UnifiedMCPServer:
         return {"tools": tools}
 
     async def handle_tools_call(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle a tool call with a safe default response.
-
-        Many unit tests only validate the MCP envelope and a JSON body with a
-        boolean success flag; this implementation avoids hard dependencies on
-        live daemons by default.
-        """
+        """Handle a tool call with canonical VFS dispatch where available."""
         name = params.get("name")
         arguments = params.get("arguments", {})
 
@@ -476,8 +494,86 @@ class UnifiedMCPServer:
             payload = {"success": False, "error": f"Unknown tool: {name}", "tool": name}
             return {"content": [{"type": "text", "text": json.dumps(payload)}], "isError": True}
 
-        payload = {"success": True, "tool": name, "arguments": arguments}
-        return {"content": [{"type": "text", "text": json.dumps(payload)}], "isError": False}
+        try:
+            if isinstance(name, str) and name.startswith("vfs_"):
+                payload = await self._execute_vfs_tool(name, arguments)
+                return {
+                    "content": [{"type": "text", "text": json.dumps(payload)}],
+                    "isError": not bool(payload.get("success", False)),
+                }
+
+            payload = {
+                "success": False,
+                "tool": name,
+                "arguments": arguments,
+                "error": "Tool registered but execution handler is not implemented in unified server",
+                "code": "not_implemented",
+            }
+            return {"content": [{"type": "text", "text": json.dumps(payload)}], "isError": True}
+        except Exception as exc:
+            payload = {
+                "success": False,
+                "tool": name,
+                "arguments": arguments,
+                "error": str(exc),
+                "code": "execution_error",
+            }
+            return {"content": [{"type": "text", "text": json.dumps(payload)}], "isError": True}
+
+    async def _execute_vfs_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        if not HAS_CANONICAL_VFS:
+            return {
+                "success": False,
+                "tool": tool_name,
+                "error": "Canonical VFS helpers unavailable",
+                "code": "vfs_unavailable",
+            }
+
+        if tool_name == "vfs_mount":
+            source = arguments.get("source") or arguments.get("ipfs_path") or "/"
+            mount_point = arguments.get("mount_point") or "/ipfs"
+            read_only = bool(arguments.get("read_only", False))
+            return await anyio.to_thread.run_sync(vfs_mount, source, mount_point, read_only)
+        if tool_name == "vfs_unmount":
+            mount_point = arguments.get("mount_point")
+            return await anyio.to_thread.run_sync(vfs_unmount, mount_point)
+        if tool_name == "vfs_list_mounts":
+            return await anyio.to_thread.run_sync(vfs_list_mounts)
+        if tool_name == "vfs_resolve_path":
+            local_path = arguments.get("local_path") or arguments.get("path")
+            return await anyio.to_thread.run_sync(vfs_resolve_path, local_path)
+        if tool_name == "vfs_read":
+            return await anyio.to_thread.run_sync(vfs_read, arguments.get("path"))
+        if tool_name == "vfs_write":
+            return await anyio.to_thread.run_sync(
+                vfs_write,
+                arguments.get("path"),
+                arguments.get("content", ""),
+                bool(arguments.get("auto_replicate", False)),
+            )
+        if tool_name == "vfs_copy":
+            return await anyio.to_thread.run_sync(vfs_copy, arguments.get("src"), arguments.get("dst"))
+        if tool_name == "vfs_move":
+            return await anyio.to_thread.run_sync(vfs_move, arguments.get("src"), arguments.get("dst"))
+        if tool_name == "vfs_mkdir":
+            return await anyio.to_thread.run_sync(vfs_mkdir, arguments.get("path"), bool(arguments.get("parents", False)))
+        if tool_name == "vfs_rmdir":
+            return await anyio.to_thread.run_sync(vfs_rmdir, arguments.get("path"))
+        if tool_name == "vfs_ls":
+            return await anyio.to_thread.run_sync(vfs_ls, arguments.get("path", "/"))
+        if tool_name == "vfs_stat":
+            return await anyio.to_thread.run_sync(vfs_stat, arguments.get("path"))
+        if tool_name == "vfs_sync_to_ipfs":
+            return await anyio.to_thread.run_sync(vfs_sync_to_ipfs, arguments.get("path"))
+        if tool_name == "vfs_sync_from_ipfs":
+            return await anyio.to_thread.run_sync(vfs_sync_from_ipfs, arguments.get("path"))
+
+        return {
+            "success": False,
+            "tool": tool_name,
+            "error": "VFS operation not supported by unified MCP dispatch",
+            "code": "vfs_not_supported",
+        }
 
     async def execute_tool(self, tool_name: str, arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Compatibility shim for tests that call server.execute_tool()."""

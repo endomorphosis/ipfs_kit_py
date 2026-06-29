@@ -36,7 +36,6 @@ import csv
 import hashlib
 import tempfile
 import threading
-import concurrent.futures
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -613,13 +612,26 @@ class IPFSDatasetsManager:
         return self._accelerate_module
 
     def _call_with_timeout(self, func: Any, *args: Any) -> Tuple[bool, Any]:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(func, *args)
+        done = threading.Event()
+        state: Dict[str, Any] = {}
+
+        def _runner() -> None:
             try:
-                return False, future.result(timeout=self._accelerate_timeout_sec)
-            except concurrent.futures.TimeoutError:
-                future.cancel()
-                return True, None
+                state["result"] = func(*args)
+            except Exception as exc:
+                state["error"] = exc
+            finally:
+                done.set()
+
+        worker = threading.Thread(target=_runner, daemon=True)
+        worker.start()
+
+        if not done.wait(self._accelerate_timeout_sec):
+            return True, None
+
+        if "error" in state:
+            raise state["error"]
+        return False, state.get("result")
 
     def _accelerate_enrich_index(self, entry: Dict[str, Any]) -> Dict[str, Any]:
         accelerate = self._get_accelerate_module()

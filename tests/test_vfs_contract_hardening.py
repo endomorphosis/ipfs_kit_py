@@ -13,6 +13,8 @@ from ipfs_kit_py.ipfs_fsspec import (
     vfs_list_mounts,
     vfs_mount,
     vfs_resolve_path,
+    vfs_sync_from_ipfs,
+    vfs_sync_to_ipfs,
     vfs_unmount,
     vfs_write,
 )
@@ -157,3 +159,14 @@ def test_vfs_write_accelerate_timeout_is_bounded(monkeypatch):
 
     snapshot = vfs.observability_snapshot()
     assert snapshot["metrics"]["accelerate_timeouts"] >= 1
+
+
+def test_vfs_sync_placeholders_are_explicit_not_implemented_failures():
+    to_ipfs = vfs_sync_to_ipfs("/tmp/sync-me")
+    from_ipfs = vfs_sync_from_ipfs("/tmp/sync-me")
+
+    assert to_ipfs["success"] is False
+    assert to_ipfs["code"] == "not_implemented"
+
+    assert from_ipfs["success"] is False
+    assert from_ipfs["code"] == "not_implemented"
