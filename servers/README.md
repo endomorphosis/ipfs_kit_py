@@ -2,6 +2,9 @@
 
 This directory contains various MCP server implementations for development and testing purposes.
 
+Production MCP runtime is the unified server:
+- `ipfs_kit_py.mcp.servers.unified_mcp_server`
+
 ## Server Types
 
 ### Development/Testing Servers (in this directory)
@@ -12,10 +15,14 @@ This directory contains various MCP server implementations for development and t
 - `streamlined_mcp_server.py` - Streamlined server version
 - `containerized_mcp_server.py` - Docker-ready containerized server
 
+These are legacy/development surfaces and are not canonical production runtime.
+
 ### Production Servers (root level)
 - `../standalone_cluster_server.py` - **Primary production cluster server**
 - `../start_3_node_cluster.py` - **Production cluster launcher**
 - `../main.py` - **Main application entry point**
+
+For MCP-specific production runtime, prefer unified server import path above.
 
 ## Usage
 
@@ -38,7 +45,9 @@ python main.py
 
 ## Server Selection Guide
 
-- **New Development**: Start with `enhanced_mcp_server_with_full_config.py`
-- **Container Deployment**: Use `containerized_mcp_server.py`
+- **New MCP Development**: Use unified server (`ipfs_kit_py.mcp.servers.unified_mcp_server`)
+- **Container Deployment**: Use unified server wiring in container startup
 - **Production Cluster**: Use `../standalone_cluster_server.py`
-- **Testing**: Use `streamlined_mcp_server.py`
+- **Testing**: Use compatibility/legacy servers only for adapter tests
+
+See `docs/MCP_SERVER_MIGRATION_GUIDE.md` for deprecation policy and migration steps.

@@ -37,12 +37,19 @@ import hashlib
 import tempfile
 import threading
 import uuid
+import time
+import queue
 from contextlib import contextmanager
 
 try:
     import fcntl
 except Exception:  # pragma: no cover
     fcntl = None  # type: ignore[assignment]
+
+try:
+    import msvcrt
+except Exception:  # pragma: no cover
+    msvcrt = None  # type: ignore[assignment]
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -440,6 +447,14 @@ class IPFSDatasetsManager:
             "index_list": 0,
             "accelerate_enrichment": 0,
             "accelerate_cache_hits": 0,
+            "accelerate_cache_evictions": 0,
+            "accelerate_cache_invalidations": 0,
+            "accelerate_batches": 0,
+            "accelerate_queue_enqueued": 0,
+            "accelerate_queue_processed": 0,
+            "accelerate_queue_dropped": 0,
+            "accelerate_queue_failures": 0,
+            "accelerate_circuit_open": 0,
             "index_errors": 0,
         }
         self._accelerate_module: Optional[Any] = None
@@ -448,7 +463,75 @@ class IPFSDatasetsManager:
         self._accelerate_embedding_cache: Dict[str, Any] = {}
         self._accelerate_models_cache: Optional[Any] = None
         self._accelerate_embedding_cache_max = int(os.environ.get("IPFS_KIT_ACCELERATE_EMBED_CACHE_MAX", "256"))
+        self._async_enrich = os.environ.get("IPFS_KIT_ACCELERATE_ASYNC_ENRICH", "0").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        self._enrich_queue_max = int(os.environ.get("IPFS_KIT_ACCELERATE_QUEUE_MAX", "512"))
+        self._enrich_retry_budget = int(os.environ.get("IPFS_KIT_ACCELERATE_RETRY_BUDGET", "2"))
+        self._enrich_queue: "queue.Queue[Tuple[str, int]]" = queue.Queue(maxsize=self._enrich_queue_max)
+        self._queue_worker: Optional[threading.Thread] = None
+        self._queue_stop = threading.Event()
+        self._circuit_failures = 0
+        self._circuit_open_until = 0.0
+        self._circuit_threshold = int(os.environ.get("IPFS_KIT_ACCELERATE_CIRCUIT_THRESHOLD", "5"))
+        self._circuit_cooldown_sec = float(os.environ.get("IPFS_KIT_ACCELERATE_CIRCUIT_COOLDOWN_SEC", "30"))
         self._load_metadata_index()
+        if self._async_enrich:
+            self._start_queue_worker()
+
+    def _start_queue_worker(self) -> None:
+        if self._queue_worker is not None and self._queue_worker.is_alive():
+            return
+
+        def _worker() -> None:
+            while not self._queue_stop.is_set():
+                try:
+                    item_id, attempt = self._enrich_queue.get(timeout=0.2)
+                except queue.Empty:
+                    continue
+                try:
+                    self._process_queued_enrichment(item_id, attempt)
+                    self._metrics["accelerate_queue_processed"] += 1
+                except Exception:
+                    self._metrics["accelerate_queue_failures"] += 1
+                    if attempt < self._enrich_retry_budget:
+                        try:
+                            self._enrich_queue.put_nowait((item_id, attempt + 1))
+                        except queue.Full:
+                            self._metrics["accelerate_queue_dropped"] += 1
+                finally:
+                    self._enrich_queue.task_done()
+
+        self._queue_worker = threading.Thread(target=_worker, daemon=True)
+        self._queue_worker.start()
+
+    def _enqueue_enrichment(self, item_id: str) -> Dict[str, Any]:
+        try:
+            self._enrich_queue.put_nowait((item_id, 0))
+            self._metrics["accelerate_queue_enqueued"] += 1
+            return {"queued": True}
+        except queue.Full:
+            self._metrics["accelerate_queue_dropped"] += 1
+            return {"queued": False, "reason": "queue_full"}
+
+    def _process_queued_enrichment(self, item_id: str, attempt: int) -> None:
+        with self._index_file_lock():
+            disk_index = self._read_index_from_disk_unlocked()
+            entry = disk_index.get(item_id)
+            if not isinstance(entry, dict):
+                return
+
+            status = self._accelerate_enrich_index(entry)
+            entry["accelerate_status"] = status
+            entry["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            disk_index[item_id] = entry
+            self._write_index_to_disk_unlocked(disk_index)
+
+            with self._index_lock:
+                self.metadata_index = dict(disk_index)
 
     @contextmanager
     def _index_file_lock(self):
@@ -477,11 +560,42 @@ class IPFSDatasetsManager:
             with open(self.metadata_index_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, dict):
-                return data
+                normalized: Dict[str, Dict[str, Any]] = {}
+                for key, value in data.items():
+                    if isinstance(value, dict):
+                        normalized[str(key)] = self._normalize_index_entry(value)
+                return normalized
         except Exception as e:
             self._metrics["index_errors"] += 1
             logger.warning(f"Failed to parse metadata index; recovering to empty index: {e}")
         return {}
+
+    def _normalize_index_entry(self, entry: Dict[str, Any]) -> Dict[str, Any]:
+        normalized = dict(entry)
+        normalized.setdefault("schema_version", "1")
+        normalized.setdefault("operation", "unknown")
+        normalized.setdefault("operation_id", f"idxop-{uuid.uuid4().hex}")
+        normalized.setdefault("path", None)
+        normalized.setdefault("cid", None)
+        normalized.setdefault("source_operation_id", None)
+        normalized.setdefault("source_cid", None)
+        normalized.setdefault("updated_at", datetime.datetime.now(datetime.timezone.utc).isoformat())
+        normalized.setdefault("metadata", {})
+
+        lineage = normalized.get("lineage")
+        if not isinstance(lineage, dict):
+            lineage = {}
+        lineage.setdefault("schema_version", str(normalized.get("schema_version", "1")))
+        lineage.setdefault("operation_id", normalized.get("operation_id"))
+        lineage.setdefault("source_operation_id", normalized.get("source_operation_id"))
+        lineage.setdefault("cid", normalized.get("cid"))
+        lineage.setdefault("source_cid", normalized.get("source_cid"))
+        normalized["lineage"] = lineage
+
+        normalized.setdefault("schema", {"fields": [], "source": "legacy"})
+        normalized.setdefault("splits", [])
+        normalized.setdefault("provenance", {})
+        return normalized
 
     def _write_index_to_disk_unlocked(self, data: Dict[str, Dict[str, Any]]) -> None:
         self.metadata_index_path.parent.mkdir(parents=True, exist_ok=True)
@@ -679,12 +793,23 @@ class IPFSDatasetsManager:
         return False, state.get("result")
 
     def _accelerate_enrich_index(self, entry: Dict[str, Any]) -> Dict[str, Any]:
+        now = time.time()
+        if now < self._circuit_open_until:
+            self._metrics["accelerate_circuit_open"] += 1
+            return {
+                "attempted": False,
+                "success": False,
+                "reason": "accelerate_circuit_open",
+                "retry_after_seconds": max(0.0, self._circuit_open_until - now),
+            }
+
         accelerate = self._get_accelerate_module()
         if accelerate is None:
             return {"attempted": False, "reason": "accelerate_unavailable"}
 
         try:
             enrichment: Dict[str, Any] = {}
+            started = time.perf_counter()
 
             if hasattr(accelerate, "discover_embedding_models") and callable(accelerate.discover_embedding_models):
                 if self._accelerate_models_cache is not None:
@@ -727,32 +852,70 @@ class IPFSDatasetsManager:
                     self._metrics["accelerate_cache_hits"] += 1
                     enrichment["embedding_cache_hit"] = True
                 else:
-                    timed_out, vector = self._call_with_timeout(accelerate.create_embedding, str(embed_text))
-                    if timed_out:
-                        return {
-                            "attempted": True,
-                            "success": False,
-                            "reason": "accelerate_timeout",
-                            "mode": "create_embedding",
-                            "timeout_seconds": self._accelerate_timeout_sec,
-                        }
+                    batch_vector = None
+                    if hasattr(accelerate, "create_embeddings") and callable(accelerate.create_embeddings):
+                        timed_out, vectors = self._call_with_timeout(accelerate.create_embeddings, [str(embed_text)])
+                        if timed_out:
+                            return {
+                                "attempted": True,
+                                "success": False,
+                                "reason": "accelerate_timeout",
+                                "mode": "create_embeddings",
+                                "timeout_seconds": self._accelerate_timeout_sec,
+                            }
+                        if isinstance(vectors, list) and vectors:
+                            batch_vector = vectors[0]
+                            self._metrics["accelerate_batches"] += 1
+
+                    if batch_vector is not None:
+                        vector = batch_vector
+                    else:
+                        timed_out, vector = self._call_with_timeout(accelerate.create_embedding, str(embed_text))
+                        if timed_out:
+                            return {
+                                "attempted": True,
+                                "success": False,
+                                "reason": "accelerate_timeout",
+                                "mode": "create_embedding",
+                                "timeout_seconds": self._accelerate_timeout_sec,
+                            }
                     if len(self._accelerate_embedding_cache) >= self._accelerate_embedding_cache_max:
                         # Pop first inserted item to keep cache bounded.
                         oldest_key = next(iter(self._accelerate_embedding_cache.keys()))
                         self._accelerate_embedding_cache.pop(oldest_key, None)
+                        self._metrics["accelerate_cache_evictions"] += 1
                     self._accelerate_embedding_cache[cache_key] = vector
                 if isinstance(vector, list):
                     enrichment["embedding_dim"] = len(vector)
                 enrichment["embedding_preview"] = vector[:8] if isinstance(vector, list) else None
 
             if enrichment:
+                enrichment["timing_ms"] = round((time.perf_counter() - started) * 1000.0, 3)
                 entry["accelerate"] = enrichment
                 self._metrics["accelerate_enrichment"] += 1
+                self._circuit_failures = 0
                 return {"attempted": True, "success": True}
             return {"attempted": True, "success": False, "reason": "no_supported_capabilities"}
         except Exception as e:
             self._metrics["index_errors"] += 1
+            self._circuit_failures += 1
+            if self._circuit_failures >= self._circuit_threshold:
+                self._circuit_open_until = time.time() + self._circuit_cooldown_sec
             return {"attempted": True, "success": False, "reason": str(e)}
+
+    def invalidate_accelerate_cache(self, scope: str = "all") -> Dict[str, Any]:
+        scope = str(scope or "all").strip().lower()
+        if scope in {"all", "models"}:
+            self._accelerate_models_cache = None
+        if scope in {"all", "embeddings", "embedding"}:
+            self._accelerate_embedding_cache.clear()
+        self._metrics["accelerate_cache_invalidations"] += 1
+        return {
+            "success": True,
+            "scope": scope,
+            "embedding_cache_size": len(self._accelerate_embedding_cache),
+            "models_cache_available": self._accelerate_models_cache is not None,
+        }
 
     def _build_index_entry(
         self,
@@ -761,8 +924,11 @@ class IPFSDatasetsManager:
         cid: Optional[str],
         operation: str,
         metadata: Optional[Dict[str, Any]] = None,
+        enrich: bool = True,
     ) -> Dict[str, Any]:
         metadata = dict(metadata or {})
+        if metadata.get("invalidate_accelerate_cache"):
+            self.invalidate_accelerate_cache(str(metadata.get("invalidate_accelerate_cache")))
         operation_id = str(metadata.get("operation_id") or f"idxop-{uuid.uuid4().hex}")
         source_operation_id = metadata.get("source_operation_id")
         source_cid = metadata.get("source_cid")
@@ -799,9 +965,12 @@ class IPFSDatasetsManager:
             },
             "dataset_summary": metadata.get("dataset_summary") or metadata.get("description"),
         }
-        accelerate_status = self._accelerate_enrich_index(entry)
-        if isinstance(accelerate_status, dict):
-            entry["accelerate_status"] = accelerate_status
+        if enrich:
+            accelerate_status = self._accelerate_enrich_index(entry)
+            if isinstance(accelerate_status, dict):
+                entry["accelerate_status"] = accelerate_status
+        else:
+            entry["accelerate_status"] = {"attempted": False, "reason": "queued"}
         return entry
 
     def refresh_metadata_index(
@@ -813,7 +982,13 @@ class IPFSDatasetsManager:
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         try:
-            entry = self._build_index_entry(path=path, cid=cid, operation=operation, metadata=metadata)
+            entry = self._build_index_entry(
+                path=path,
+                cid=cid,
+                operation=operation,
+                metadata=metadata,
+                enrich=not self._async_enrich,
+            )
             with self._index_file_lock():
                 disk_index = self._read_index_from_disk_unlocked()
                 disk_index[entry["id"]] = entry
@@ -821,6 +996,13 @@ class IPFSDatasetsManager:
                 with self._index_lock:
                     self.metadata_index = dict(disk_index)
             self._metrics["index_refresh"] += 1
+            queue_status = None
+            if self._async_enrich:
+                queue_status = self._enqueue_enrichment(entry["id"])
+                entry["accelerate_status"] = {
+                    "attempted": False,
+                    "reason": "queued" if queue_status.get("queued") else queue_status.get("reason", "queue_error"),
+                }
             return {"success": True, "entry": entry}
         except Exception as e:
             self._metrics["index_errors"] += 1
@@ -837,6 +1019,9 @@ class IPFSDatasetsManager:
         cid = payload.get("cid")
 
         if operation in {"remove", "delete", "rmdir", "unmount"}:
+            tombstone = bool(payload.get("tombstone", False))
+            if tombstone:
+                return self.refresh_metadata_index(path=path, cid=cid, operation=f"tombstone:{operation}", metadata=payload)
             return self.remove_from_metadata_index(path=path, cid=cid)
 
         return self.refresh_metadata_index(path=path, cid=cid, operation=operation, metadata=payload)
@@ -846,12 +1031,30 @@ class IPFSDatasetsManager:
         *,
         path: Optional[Union[str, Path]] = None,
         cid: Optional[str] = None,
+        tombstone: bool = False,
+        operation: str = "remove",
     ) -> Dict[str, Any]:
         key = self._index_key(path=path, cid=cid)
         removed = None
         with self._index_file_lock():
             disk_index = self._read_index_from_disk_unlocked()
             removed = disk_index.pop(key, None)
+            tombstone_entry = None
+            if tombstone:
+                removed_operation_id = removed.get("operation_id") if isinstance(removed, dict) else None
+                removed_cid = removed.get("cid") if isinstance(removed, dict) else cid
+                tombstone_entry = self._build_index_entry(
+                    path=path,
+                    cid=removed_cid,
+                    operation=f"tombstone:{operation}",
+                    metadata={
+                        "operation_id": f"idxop-{uuid.uuid4().hex}",
+                        "source_operation_id": removed_operation_id,
+                        "source_cid": removed_cid,
+                        "tombstone": True,
+                    },
+                )
+                disk_index[tombstone_entry["id"]] = tombstone_entry
             self._write_index_to_disk_unlocked(disk_index)
             with self._index_lock:
                 self.metadata_index = dict(disk_index)
@@ -860,6 +1063,8 @@ class IPFSDatasetsManager:
             "success": True,
             "removed": removed is not None,
             "id": key,
+            "tombstone": tombstone,
+            "tombstone_entry": tombstone_entry,
             "removed_entry": removed,
             "removed_operation_id": removed.get("operation_id") if isinstance(removed, dict) else None,
         }
@@ -880,6 +1085,17 @@ class IPFSDatasetsManager:
         return {
             "count": count,
             "metrics": dict(self._metrics),
+            "accelerate_cache": {
+                "embedding_cache_size": len(self._accelerate_embedding_cache),
+                "embedding_cache_max": self._accelerate_embedding_cache_max,
+                "models_cache_available": self._accelerate_models_cache is not None,
+            },
+            "queue": {
+                "enabled": self._async_enrich,
+                "size": self._enrich_queue.qsize(),
+                "max": self._enrich_queue_max,
+                "circuit_open": time.time() < self._circuit_open_until,
+            },
         }
     
     def store(self, path: Union[str, Path], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

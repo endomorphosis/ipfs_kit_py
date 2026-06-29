@@ -24,6 +24,17 @@ warnings.warn(
 )
 
 
+def _legacy_server_guard(server_name: str) -> None:
+    mode = os.environ.get("IPFS_KIT_MCP_MODE", "development").strip().lower()
+    allow_legacy = os.environ.get("IPFS_KIT_ALLOW_LEGACY_MCP", "0").strip().lower() in {"1", "true", "yes", "on"}
+    if mode == "production" and not allow_legacy:
+        raise RuntimeError(
+            f"{server_name} is deprecated and blocked in production mode. "
+            "Use ipfs_kit_py.mcp.servers.unified_mcp_server instead or set "
+            "IPFS_KIT_ALLOW_LEGACY_MCP=1 for temporary compatibility."
+        )
+
+
 import sys
 import json
 import anyio
@@ -1512,6 +1523,7 @@ class MCPServer:
                  enable_compute_layer: bool = False,
                  ipfs_client = None,
                  dataset_batch_size: int = 100):
+        _legacy_server_guard("standalone_vfs_mcp_server")
         logger.info("=== MCPServer.__init__() starting ===")
         self.ipfs_integration = IPFSKitIntegration(
             enable_dataset_storage=enable_dataset_storage,
