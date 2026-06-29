@@ -93,6 +93,27 @@ class _StubKit:
     def name_resolve(self, **kw):
         return {"success": True, "path": "/ipfs/bafkstub"}
 
+    def ipfs_block_put(self, data, **kw):
+        return {"success": True, "cid": "bafkstub_block", "size": len(data) if data else 0}
+
+    def ipfs_block_get(self, cid, **kw):
+        return {"success": True, "cid": cid, "data": b""}
+
+    def ipfs_block_stat(self, cid, **kw):
+        return {"success": True, "cid": cid, "size": 0}
+
+    def ipfs_bitswap_stat(self, **kw):
+        return {"success": True, "blocks_received": 0, "data_received": 0, "peers": []}
+
+    def ipfs_bitswap_wantlist(self, peer=None, **kw):
+        return {"success": True, "keys": []}
+
+    def ipfs_stats_bw(self, **kw):
+        return {"success": True, "total_in": 0, "total_out": 0, "rate_in": 0, "rate_out": 0}
+
+    def ipfs_stats_repo(self, **kw):
+        return {"success": True, "repo_size": 0, "num_objects": 0, "version": "fs-repo@stub"}
+
 
 async def _call(method: str, /, **kwargs) -> Dict[str, Any]:
     kit = get_kit()

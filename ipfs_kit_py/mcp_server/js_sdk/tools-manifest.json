@@ -421,6 +421,130 @@
       ],
       "deprecated": false,
       "category": "cluster_tools"
+    },
+    {
+      "name": "block_put",
+      "description": "Store a raw block and return its CID",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "tags": [
+        "block",
+        "write"
+      ],
+      "deprecated": false,
+      "category": "block_tools"
+    },
+    {
+      "name": "block_get",
+      "description": "Fetch a raw block by CID",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "cid": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cid"
+        ]
+      },
+      "tags": [
+        "block",
+        "read"
+      ],
+      "deprecated": false,
+      "category": "block_tools"
+    },
+    {
+      "name": "block_stat",
+      "description": "Report size of a raw block",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "cid": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cid"
+        ]
+      },
+      "tags": [
+        "block",
+        "read"
+      ],
+      "deprecated": false,
+      "category": "block_tools"
+    },
+    {
+      "name": "bitswap_stat",
+      "description": "Show bitswap exchange statistics",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "tags": [
+        "bitswap",
+        "read"
+      ],
+      "deprecated": false,
+      "category": "bitswap_tools"
+    },
+    {
+      "name": "bitswap_wantlist",
+      "description": "Show blocks currently on the wantlist",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "peer": {
+            "type": "string",
+            "default": null
+          }
+        }
+      },
+      "tags": [
+        "bitswap",
+        "read"
+      ],
+      "deprecated": false,
+      "category": "bitswap_tools"
+    },
+    {
+      "name": "stats_bw",
+      "description": "Report node bandwidth statistics",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "tags": [
+        "stats",
+        "read"
+      ],
+      "deprecated": false,
+      "category": "stats_tools"
+    },
+    {
+      "name": "stats_repo",
+      "description": "Report local repo statistics",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "tags": [
+        "stats",
+        "read"
+      ],
+      "deprecated": false,
+      "category": "stats_tools"
     }
   ]
 }

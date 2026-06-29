@@ -37,7 +37,7 @@ def test_dispatch_and_schema_parity():
 def test_mcp_jsonrpc_tools_list_and_call():
     s = MCPServer()
     lst = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
-    assert len(lst["result"]["tools"]) == 21
+    assert len(lst["result"]["tools"]) == 28
     init = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 2, "method": "initialize"})
     assert init["result"]["serverInfo"]["name"] == "ipfs_kit_py-mcpplusplus"
     call = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 3, "method": "tools/call",
@@ -74,7 +74,7 @@ def test_http_transport_hypercorn():
                     data=b'{"jsonrpc":"2.0","id":1,"method":"tools/list"}',
                     headers={"content-type": "application/json"})
                 body = json.loads(urllib.request.urlopen(req, timeout=2).read())
-                assert len(body["result"]["tools"]) == 21
+                assert len(body["result"]["tools"]) == 28
                 break
             except Exception:
                 time.sleep(0.5)

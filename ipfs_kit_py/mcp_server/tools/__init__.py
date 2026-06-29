@@ -9,6 +9,8 @@ from __future__ import annotations
 from typing import Awaitable, Callable, Dict
 
 from . import (
+    bitswap_tools,
+    block_tools,
     car_tools,
     cluster_tools,
     dag_tools,
@@ -16,6 +18,7 @@ from . import (
     mfs_tools,
     name_tools,
     pin_tools,
+    stats_tools,
     swarm_tools,
 )
 
@@ -32,6 +35,11 @@ TOOL_GROUPS: Dict[str, Dict[str, Callable[..., Awaitable]]] = {
     "name_tools": {"name_publish": name_tools.name_publish, "name_resolve": name_tools.name_resolve},
     "car_tools": {"create_car": car_tools.create_car},
     "cluster_tools": {"cluster_status": cluster_tools.cluster_status},
+    "block_tools": {"block_put": block_tools.block_put, "block_get": block_tools.block_get,
+                    "block_stat": block_tools.block_stat},
+    "bitswap_tools": {"bitswap_stat": bitswap_tools.bitswap_stat,
+                      "bitswap_wantlist": bitswap_tools.bitswap_wantlist},
+    "stats_tools": {"stats_bw": stats_tools.stats_bw, "stats_repo": stats_tools.stats_repo},
 }
 
 __all__ = ["TOOL_GROUPS"]

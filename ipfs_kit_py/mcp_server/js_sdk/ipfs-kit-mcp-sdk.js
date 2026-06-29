@@ -295,6 +295,88 @@ export const TOOLS = {
       "properties": {}
     },
     "description": "Get IPFS cluster status"
+  },
+  "block_put": {
+    "category": "block_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "data"
+      ]
+    },
+    "description": "Store a raw block and return its CID"
+  },
+  "block_get": {
+    "category": "block_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "cid": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "cid"
+      ]
+    },
+    "description": "Fetch a raw block by CID"
+  },
+  "block_stat": {
+    "category": "block_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "cid": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "cid"
+      ]
+    },
+    "description": "Report size of a raw block"
+  },
+  "bitswap_stat": {
+    "category": "bitswap_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    },
+    "description": "Show bitswap exchange statistics"
+  },
+  "bitswap_wantlist": {
+    "category": "bitswap_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "peer": {
+          "type": "string",
+          "default": null
+        }
+      }
+    },
+    "description": "Show blocks currently on the wantlist"
+  },
+  "stats_bw": {
+    "category": "stats_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    },
+    "description": "Report node bandwidth statistics"
+  },
+  "stats_repo": {
+    "category": "stats_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    },
+    "description": "Report local repo statistics"
   }
 };
 
