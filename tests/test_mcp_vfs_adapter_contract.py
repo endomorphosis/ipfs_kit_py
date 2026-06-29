@@ -252,3 +252,26 @@ def test_daemon_mgmt_server_dispatches_vfs_tools(monkeypatch):
     payload = json.loads(result["content"][0]["text"])
     assert payload["success"] is True
     assert payload["count"] == 2
+
+
+def test_legacy_servers_blocked_in_production_without_override(monkeypatch):
+    monkeypatch.setenv("IPFS_KIT_MCP_MODE", "production")
+    monkeypatch.delenv("IPFS_KIT_ALLOW_LEGACY_MCP", raising=False)
+
+    try:
+        enhanced_server.MCPServer()
+        assert False, "Expected production guard to block enhanced legacy server"
+    except RuntimeError as e:
+        assert "deprecated and blocked" in str(e)
+
+    try:
+        standalone_server.MCPServer()
+        assert False, "Expected production guard to block standalone legacy server"
+    except RuntimeError as e:
+        assert "deprecated and blocked" in str(e)
+
+    try:
+        daemon_mgmt_server.EnhancedMCPServerWithDaemonMgmt()
+        assert False, "Expected production guard to block daemon-mgmt legacy server"
+    except RuntimeError as e:
+        assert "deprecated and blocked" in str(e)

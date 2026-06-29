@@ -185,6 +185,8 @@ def test_vfs_sync_roundtrip_for_memory_mount():
     read_result = vfs.read("/tmp/sync-memory/doc.txt")
     assert read_result["success"] is True
     assert read_result["content"] == "original"
+    assert from_ipfs["policy"] in {"overwrite", "skip", "strict"}
+    assert "skipped_count" in from_ipfs
 
 
 def test_vfs_sync_from_ipfs_without_prior_sync_is_explicit_failure():
@@ -214,3 +216,22 @@ def test_vfs_timeout_helper_returns_within_budget():
         assert elapsed < 0.20
     finally:
         vfs._accelerate_timeout_sec = original_timeout
+
+
+def test_vfs_sync_conflict_policy_strict_fails_on_conflict(monkeypatch):
+    vfs = get_vfs()
+    for mount in list(vfs.mounts.keys()):
+        vfs.unmount(mount)
+
+    vfs._sync_conflict_policy = "strict"
+    vfs.mount("/tmp/sync-strict", "memory", "/")
+    vfs.write("/tmp/sync-strict/doc.txt", "base")
+    to_ipfs = vfs_sync_to_ipfs("/tmp/sync-strict")
+    assert to_ipfs["success"] is True
+
+    # Create a conflicting local version before restore.
+    vfs.write("/tmp/sync-strict/doc.txt", "local-diverged")
+    from_ipfs = vfs_sync_from_ipfs("/tmp/sync-strict")
+    assert from_ipfs["success"] is False
+    assert from_ipfs["code"] == "sync_conflict"
+    assert from_ipfs["policy"] == "strict"

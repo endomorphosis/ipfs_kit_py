@@ -264,3 +264,103 @@ def test_datasets_timeout_helper_returns_within_budget(tmp_path, monkeypatch):
         assert elapsed < 0.20
     finally:
         manager._accelerate_timeout_sec = original_timeout
+
+
+def test_mixed_schema_entries_are_normalized_on_load(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+
+    manager = IPFSDatasetsManager(enable=False)
+    manager.metadata_index_path.parent.mkdir(parents=True, exist_ok=True)
+    manager.metadata_index_path.write_text(
+        json.dumps(
+            {
+                "legacy:a": {
+                    "id": "legacy:a",
+                    "path": str(tmp_path / "legacy.csv"),
+                    "operation": "write",
+                },
+                "modern:b": {
+                    "schema_version": "2",
+                    "id": "modern:b",
+                    "path": str(tmp_path / "modern.csv"),
+                    "operation": "write",
+                    "operation_id": "idxop-modern",
+                    "lineage": {"operation_id": "idxop-modern"},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    reloaded = IPFSDatasetsManager(enable=False)
+    listed = reloaded.list_metadata_index()
+    assert listed["success"] is True
+    assert listed["count"] == 2
+    for item in listed["items"]:
+        assert "schema_version" in item
+        assert "lineage" in item
+        assert "operation_id" in item
+
+
+def test_tombstone_remove_flow_preserves_lineage(tmp_path):
+    dataset = tmp_path / "tombstone.csv"
+    dataset.write_text("a,b\n1,2\n", encoding="utf-8")
+
+    manager = IPFSDatasetsManager(enable=False)
+    manager.refresh_metadata_index(
+        path=dataset,
+        operation="write",
+        metadata={"operation_id": "idxop-source-1"},
+    )
+
+    removed = manager.remove_from_metadata_index(path=dataset, tombstone=True, operation="delete")
+    assert removed["success"] is True
+    assert removed["removed"] is True
+    assert removed["tombstone"] is True
+    assert isinstance(removed.get("tombstone_entry"), dict)
+
+    listed = manager.list_metadata_index()
+    assert listed["success"] is True
+    assert any(item.get("operation", "").startswith("tombstone:") for item in listed["items"])
+
+
+def test_invalidate_accelerate_cache_updates_metrics(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    manager = IPFSDatasetsManager(enable=False)
+    manager._accelerate_models_cache = ["m1"]
+    manager._accelerate_embedding_cache["k"] = [0.1]
+
+    result = manager.invalidate_accelerate_cache("all")
+    assert result["success"] is True
+    snap = manager.metadata_index_snapshot()
+    assert snap["accelerate_cache"]["embedding_cache_size"] == 0
+    assert snap["metrics"]["accelerate_cache_invalidations"] >= 1
+
+
+def test_accelerate_circuit_open_short_circuits_enrichment(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    manager = IPFSDatasetsManager(enable=False)
+    manager._circuit_open_until = time.time() + 5.0
+
+    status = manager._accelerate_enrich_index({"path": str(tmp_path / "x.csv")})
+    assert status["success"] is False
+    assert status["reason"] == "accelerate_circuit_open"
+    assert manager.metadata_index_snapshot()["metrics"]["accelerate_circuit_open"] >= 1
+
+
+def test_async_enrichment_queue_path(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("IPFS_KIT_ACCELERATE_ASYNC_ENRICH", "1")
+
+    manager = IPFSDatasetsManager(enable=False)
+    result = manager.refresh_metadata_index(
+        path=tmp_path / "queued.csv",
+        operation="write",
+        metadata={"dataset_summary": "queued-entry"},
+    )
+    assert result["success"] is True
+    assert result["entry"]["accelerate_status"]["reason"] in {"queued", "queue_full"}
+
+    snap = manager.metadata_index_snapshot()
+    assert snap["queue"]["enabled"] is True
+    assert snap["metrics"]["accelerate_queue_enqueued"] >= 0
