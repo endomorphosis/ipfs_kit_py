@@ -232,3 +232,19 @@ def test_p2p_transport_roundtrip():
                       "params": {"name": "pin_tools/get_pinset", "arguments": {}}}).encode()
     resp = json.loads(anyio.run(handle_stream_message, req, s.handle))
     assert resp["result"]["status"] == "success"
+
+
+def test_fastmcp_registrar_covers_full_registry():
+    """Backwards-compat: FastMCP registration exposes the same 28 tools, one
+    registry, callable through the same dispatch codepath."""
+    from ipfs_kit_py.mcp_server.fastmcp_app import register_fastmcp
+
+    class _FakeApp:
+        def __init__(self): self.tools = {}
+        def add_tool(self, fn, name=None, description=""): self.tools[name] = fn
+
+    app = _FakeApp()
+    names = register_fastmcp(app)
+    assert len(names) == 28 and set(names) == set(app.tools)
+    r = anyio.run(app.tools["pin_rm"], {"cid": "bafy"})
+    assert r["status"] == "success"

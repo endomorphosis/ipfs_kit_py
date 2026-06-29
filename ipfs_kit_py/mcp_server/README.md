@@ -16,7 +16,8 @@ thin async wrapper over `core_operations._call` (canonical biz logic over the
 | Python import | `from ipfs_kit_py.mcp_server.tools.ipfs_tools import ipfs_add` |
 | CLI | `ipfs-kit-mcp-tools ipfs_tools ipfs_add --file_path x` |
 | MCP server | `ipfs-kit-mcp --transport stdio\|http` — JSON-RPC `tools/list`, `tools/call` |
-| JavaScript | `python -m ipfs_kit_py.mcp_server.js_sdk.generate` → `ipfs-kit-mcp-sdk.js` |
+| JavaScript | `python -m ipfs_kit_py.mcp_server.js_sdk.generate` → `ipfs-kit-mcp-sdk.js` + `.ts` |
+| FastMCP (legacy) | `register_fastmcp(app)` registers all tools on a stdlib `mcp.server.FastMCP` |
 
 ## Tool groups
 
