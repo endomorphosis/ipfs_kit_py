@@ -153,6 +153,7 @@ def test_datasets_accelerate_enrichment_timeout_is_bounded(tmp_path, monkeypatch
     accelerate = result["entry"].get("accelerate_status")
     assert isinstance(accelerate, dict)
     assert accelerate.get("reason") == "accelerate_timeout"
+    assert accelerate.get("adapter") == "accelerate_enrichment_v1"
 
 
 def test_datasets_accelerate_embedding_cache_reuses_vectors(tmp_path, monkeypatch):
@@ -190,6 +191,7 @@ def test_datasets_accelerate_embedding_cache_reuses_vectors(tmp_path, monkeypatc
 
     assert first["success"] is True
     assert second["success"] is True
+    assert first["entry"]["accelerate_status"].get("adapter") == "accelerate_enrichment_v1"
     assert call_counter["create_embedding"] == 1
     assert manager.metadata_index_snapshot()["metrics"]["accelerate_cache_hits"] >= 1
 
@@ -345,6 +347,7 @@ def test_accelerate_circuit_open_short_circuits_enrichment(tmp_path, monkeypatch
     status = manager._accelerate_enrich_index({"path": str(tmp_path / "x.csv")})
     assert status["success"] is False
     assert status["reason"] == "accelerate_circuit_open"
+    assert status.get("adapter") == "accelerate_enrichment_v1"
     assert manager.metadata_index_snapshot()["metrics"]["accelerate_circuit_open"] >= 1
 
 
