@@ -51,6 +51,39 @@ class _StubKit:
     def get_cluster_status(self, **kw):
         return {"success": True, "peers": []}
 
+    def ipfs_pin_rm(self, cid, recursive=True, **kw):
+        return {"success": True, "unpinned": cid}
+
+    def ipfs_ls_path(self, path=None, **kw):
+        return {"success": True, "entries": []}
+
+    def ipfs_get_pinset(self, **kw):
+        return {"success": True, "pinset": {}}
+
+    def ipfs_id(self, **kw):
+        return {"success": True, "id": "12D3KooStub"}
+
+    def ipfs_swarm_peers(self, **kw):
+        return {"success": True, "peers": []}
+
+    def files_ls(self, path="/", long=False, **kw):
+        return {"success": True, "entries": []}
+
+    def files_mkdir(self, path, parents=False, **kw):
+        return {"success": True, "path": path}
+
+    def files_stat(self, path, **kw):
+        return {"success": True, "path": path, "size": 0}
+
+    def files_write(self, path, content, **kw):
+        return {"success": True, "path": path}
+
+    def files_read(self, path, **kw):
+        return {"success": True, "content": ""}
+
+    def files_rm(self, path, **kw):
+        return {"success": True, "path": path}
+
 
 async def _call(method: str, /, **kwargs) -> Dict[str, Any]:
     kit = get_kit()

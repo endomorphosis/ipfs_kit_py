@@ -46,6 +46,11 @@ class MCPServer:
         if method == "tools/call":
             name = params.get("name", "")
             args = params.get("arguments") or {}
+            envelope = params.get("_mcppp_envelope")
+            if envelope is not None:
+                err = mcplusplus.validate_packet(envelope)
+                if err:
+                    raise ValueError(f"mcp++ envelope invalid: {err}")
             category, _, tool = name.rpartition("/") if "/" in name else self._resolve(name)
             return await self.tm.dispatch(category, tool, args)
         if method == "ping":
@@ -105,15 +110,23 @@ async def serve_http(host: str = "127.0.0.1", port: int = 8004) -> None:
     await serve(app, cfg)
 
 
+async def serve_p2p() -> None:
+    from .p2p_transport import serve_p2p as _serve
+    server = MCPServer()
+    await _serve(server.handle)
+
+
 def main(argv=None) -> None:
     import argparse
     p = argparse.ArgumentParser("ipfs-kit-mcp")
-    p.add_argument("--transport", choices=["stdio", "http"], default="stdio")
+    p.add_argument("--transport", choices=["stdio", "http", "p2p"], default="stdio")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8004)
     a = p.parse_args(argv)
     if a.transport == "http":
         anyio.run(serve_http, a.host, a.port, backend="trio")
+    elif a.transport == "p2p":
+        anyio.run(serve_p2p, backend="trio")
     else:
         anyio.run(serve_stdio, backend="trio")
 

@@ -27,6 +27,10 @@ except Exception:  # pragma: no cover
 
 
 def get_capabilities() -> Dict[str, Any]:
+    try:
+        from .p2p_transport import HAVE_LIBP2P
+    except Exception:  # pragma: no cover
+        HAVE_LIBP2P = False
     return {
         "mcplusplus_available": HAVE_MCPLUSPLUS,
         "mcplusplus_version": mcplusplus_version,
@@ -35,7 +39,7 @@ def get_capabilities() -> Dict[str, Any]:
             "A_interface_descriptors": True,
             "B_cid_envelopes": True,
             "C_ucan": HAVE_MCPLUSPLUS,
-            "E_p2p_transport": HAVE_MCPLUSPLUS,
+            "E_p2p_transport": HAVE_LIBP2P,
         },
     }
 

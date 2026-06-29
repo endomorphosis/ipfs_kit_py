@@ -37,7 +37,7 @@ def test_dispatch_and_schema_parity():
 def test_mcp_jsonrpc_tools_list_and_call():
     s = MCPServer()
     lst = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
-    assert len(lst["result"]["tools"]) == 7
+    assert len(lst["result"]["tools"]) == 17
     init = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 2, "method": "initialize"})
     assert init["result"]["serverInfo"]["name"] == "ipfs_kit_py-mcpplusplus"
     call = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 3, "method": "tools/call",
@@ -74,7 +74,7 @@ def test_http_transport_hypercorn():
                     data=b'{"jsonrpc":"2.0","id":1,"method":"tools/list"}',
                     headers={"content-type": "application/json"})
                 body = json.loads(urllib.request.urlopen(req, timeout=2).read())
-                assert len(body["result"]["tools"]) == 7
+                assert len(body["result"]["tools"]) == 17
                 break
             except Exception:
                 time.sleep(0.5)
@@ -83,3 +83,19 @@ def test_http_transport_hypercorn():
     finally:
         proc.terminate()
         proc.wait(timeout=5)
+
+
+def test_mfs_and_swarm_groups():
+    tm = HierarchicalToolManager()
+    cats = {c["name"] for c in tm.list_categories()}
+    assert {"mfs_tools", "swarm_tools"} <= cats
+    assert anyio.run(tm.dispatch, "mfs_tools", "files_ls", {"path": "/"})["status"] == "success"
+    assert anyio.run(tm.dispatch, "swarm_tools", "node_id", {})["status"] == "success"
+
+
+def test_mcppp_envelope_accepted():
+    s = MCPServer()
+    call = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 9, "method": "tools/call",
+                               "params": {"name": "pin_tools/pin_rm", "arguments": {"cid": "bafy"},
+                                          "_mcppp_envelope": {"toolName": "pin_rm"}}})
+    assert call["result"]["status"] == "success"

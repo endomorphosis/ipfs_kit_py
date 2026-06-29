@@ -35,6 +35,21 @@ export const TOOLS = {
     },
     "description": "Retrieve content from IPFS by CID"
   },
+  "ipfs_ls": {
+    "category": "ipfs_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ]
+    },
+    "description": "List entries under an IPFS path"
+  },
   "pin_add": {
     "category": "pin_tools",
     "inputSchema": {
@@ -61,6 +76,25 @@ export const TOOLS = {
       "properties": {}
     },
     "description": "List pinned CIDs"
+  },
+  "pin_rm": {
+    "category": "pin_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "cid": {
+          "type": "string"
+        },
+        "recursive": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "cid"
+      ]
+    },
+    "description": "Unpin a CID from the local node"
   },
   "dag_get": {
     "category": "dag_tools",
@@ -91,6 +125,122 @@ export const TOOLS = {
       ]
     },
     "description": "Put a DAG node, returns CID"
+  },
+  "files_ls": {
+    "category": "mfs_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "default": "/"
+        },
+        "long": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "description": "List an MFS directory"
+  },
+  "files_mkdir": {
+    "category": "mfs_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "parents": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [
+        "path"
+      ]
+    },
+    "description": "Make an MFS directory"
+  },
+  "files_stat": {
+    "category": "mfs_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ]
+    },
+    "description": "Stat an MFS path"
+  },
+  "files_write": {
+    "category": "mfs_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "content": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "content"
+      ]
+    },
+    "description": "Write content to an MFS path"
+  },
+  "files_read": {
+    "category": "mfs_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ]
+    },
+    "description": "Read content from an MFS path"
+  },
+  "files_rm": {
+    "category": "mfs_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ]
+    },
+    "description": "Remove an MFS path"
+  },
+  "node_id": {
+    "category": "swarm_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    },
+    "description": "Get local node identity"
+  },
+  "swarm_peers": {
+    "category": "swarm_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    },
+    "description": "List connected swarm peers"
   },
   "cluster_status": {
     "category": "cluster_tools",

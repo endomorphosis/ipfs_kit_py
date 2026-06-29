@@ -20,14 +20,16 @@ thin async wrapper over `core_operations._call` (canonical biz logic over the
 
 ## Tool groups
 
-`ipfs_tools`, `pin_tools`, `dag_tools`, `cluster_tools` — add via a new module
-under `tools/` + an entry in `TOOL_GROUPS`. Schemas auto-derive from signatures.
+`ipfs_tools`, `pin_tools`, `dag_tools`, `mfs_tools`, `swarm_tools`,
+`cluster_tools` (17 tools) — add via a new module under `tools/` + an entry in
+`TOOL_GROUPS`. Schemas auto-derive from signatures.
 
 ## Runtime
 
-anyio on the **trio** backend; HTTP via **Hypercorn** (trio worker); optional
-**libp2p**/UCAN/CID via the graceful `mcplusplus` layer (no-op when extras
-absent). Backwards-compatible with stock MCP clients (initialize/tools/*).
+anyio on the **trio** backend; HTTP via **Hypercorn** (trio worker); P2P via
+**libp2p** (`--transport p2p`, MCP++ Profile E) and optional UCAN/CID via the
+graceful `mcplusplus` layer (no-op when extras absent). Backwards-compatible with
+stock MCP clients (initialize/tools/*); `_mcppp_envelope` validated when present.
 
 ## Tests
 

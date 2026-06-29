@@ -22,4 +22,11 @@ async def pin_ls() -> Dict[str, Any]:
     return out
 
 
-__all__ = ["pin_add", "pin_ls"]
+@tool_metadata(summary="Unpin a CID from the local node", tags=["pin", "write"])
+async def pin_rm(cid: str, recursive: bool = True) -> Dict[str, Any]:
+    out = await _call("ipfs_pin_rm", cid=cid, recursive=recursive)
+    out["request_id"] = str(uuid.uuid4())
+    return out
+
+
+__all__ = ["pin_add", "pin_ls", "pin_rm"]

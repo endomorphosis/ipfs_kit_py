@@ -22,4 +22,11 @@ async def ipfs_cat(cid: str) -> Dict[str, Any]:
     return out
 
 
-__all__ = ["ipfs_add", "ipfs_cat"]
+@tool_metadata(summary="List entries under an IPFS path", tags=["ipfs", "read"])
+async def ipfs_ls(path: str) -> Dict[str, Any]:
+    out = await _call("ipfs_ls_path", path=path)
+    out["request_id"] = str(uuid.uuid4())
+    return out
+
+
+__all__ = ["ipfs_add", "ipfs_cat", "ipfs_ls"]
