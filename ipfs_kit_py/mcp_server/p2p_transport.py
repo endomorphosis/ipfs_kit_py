@@ -19,6 +19,16 @@ except Exception:  # pragma: no cover
     libp2p = None  # type: ignore
 
 
+async def handle_stream_message(raw: bytes, handler: Callable[[dict], Awaitable[dict]]) -> bytes:
+    """Decode a JSON-RPC request, dispatch it, encode the response.
+
+    Pure framing logic shared by the libp2p stream handler; testable without a
+    live peer so Profile E round-trips can be exercised in CI.
+    """
+    resp = await handler(json.loads(raw))
+    return json.dumps(resp).encode()
+
+
 async def serve_p2p(handler: Callable[[dict], Awaitable[dict]]) -> None:
     """Serve the MCP handler over libp2p. Raises if libp2p is unavailable."""
     if not HAVE_LIBP2P:  # pragma: no cover
@@ -29,8 +39,7 @@ async def serve_p2p(handler: Callable[[dict], Awaitable[dict]]) -> None:
 
     async def _stream(stream):  # pragma: no cover - needs live libp2p
         data = await stream.read()
-        resp = await handler(json.loads(data))
-        await stream.write(json.dumps(resp).encode())
+        await stream.write(await handle_stream_message(data, handler))
         await stream.close()
 
     host.set_stream_handler(PROTOCOL_ID, _stream)

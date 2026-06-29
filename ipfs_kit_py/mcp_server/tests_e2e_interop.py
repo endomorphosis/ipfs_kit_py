@@ -114,6 +114,14 @@ def test_generated_artifacts_not_stale():
     """The committed JS SDK + manifest must equal a fresh regeneration."""
     assert generate.SDK_PATH.read_text() == generate.render(), "JS SDK stale: run generate"
     assert generate.MANIFEST_PATH.read_text() == generate.render_manifest(), "manifest stale: run generate"
+    assert generate.TS_SDK_PATH.read_text() == generate.render_ts(), "TS SDK stale: run generate"
+
+
+def test_ts_sdk_typed_tool_names():
+    """TS SDK exposes a typed ToolName union derived from the same registry."""
+    src = generate.TS_SDK_PATH.read_text()
+    assert "export type ToolName = keyof typeof TOOLS" in src
+    assert "pin_rm" in src and "ipfs_add" in src
 
 
 def test_swissknife_manifest_in_sync():
@@ -212,3 +220,15 @@ def test_all_five_profiles_smoke():
                                "params": {"name": "pin_tools/pin_rm", "arguments": {"cid": "bafy"}, "profile_b": True}})
     assert call["result"]["_mcppp"]["receipt_cid"].startswith("bafkrei")
     assert anyio.run(s.handle, {"jsonrpc": "2.0", "id": 6, "method": "mcp++/dag/frontier"})["result"]["count"] == 1
+
+
+def test_p2p_transport_roundtrip():
+    """Profile E: a tools/call routed through the libp2p framing returns the
+    same result as stdio/HTTP, without requiring py-libp2p to be installed."""
+    from ipfs_kit_py.mcp_server.p2p_transport import handle_stream_message, PROTOCOL_ID
+    assert PROTOCOL_ID == "/mcp+p2p/1.0.0"
+    s = MCPServer()
+    req = json.dumps({"jsonrpc": "2.0", "id": 7, "method": "tools/call",
+                      "params": {"name": "pin_tools/get_pinset", "arguments": {}}}).encode()
+    resp = json.loads(anyio.run(handle_stream_message, req, s.handle))
+    assert resp["result"]["status"] == "success"

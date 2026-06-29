@@ -33,7 +33,36 @@ export class IpfsKitMcpClient {{
 
 
 SDK_PATH = Path(__file__).parent / "ipfs-kit-mcp-sdk.js"
+TS_SDK_PATH = Path(__file__).parent / "ipfs-kit-mcp-sdk.ts"
 MANIFEST_PATH = Path(__file__).parent / "tools-manifest.json"
+
+TS_TEMPLATE = """// AUTO-GENERATED from ipfs_kit_py.mcp_server tool registry. Do not edit.
+// Typed mirror of the Python tool defs so SwissKnife shares one contract.
+export const TOOLS = {tools} as const;
+
+export type ToolName = keyof typeof TOOLS;
+
+export interface RpcResult {{ status?: string; [k: string]: unknown; }}
+
+export class IpfsKitMcpClient {{
+  endpoint: string;
+  private _id = 0;
+  constructor(endpoint = "http://127.0.0.1:8004") {{ this.endpoint = endpoint; }}
+  private async _rpc(method: string, params: Record<string, unknown>): Promise<any> {{
+    const res = await fetch(this.endpoint, {{
+      method: "POST", headers: {{ "content-type": "application/json" }},
+      body: JSON.stringify({{ jsonrpc: "2.0", id: ++this._id, method, params }}),
+    }});
+    const j = await res.json();
+    if (j.error) throw new Error(j.error.message);
+    return j.result;
+  }}
+  listTools(): Promise<{{ tools: unknown[] }}> {{ return this._rpc("tools/list", {{}}); }}
+  call(name: ToolName | string, args: Record<string, unknown> = {{}}): Promise<RpcResult> {{
+    return this._rpc("tools/call", {{ name, arguments: args }});
+  }}
+}}
+"""
 
 
 def render() -> str:
@@ -43,6 +72,13 @@ def render() -> str:
     return TEMPLATE.format(tools=json.dumps(tools, indent=2))
 
 
+def render_ts() -> str:
+    tm = HierarchicalToolManager()
+    tools = {s["name"]: {"category": s["category"], "inputSchema": s["inputSchema"],
+                         "description": s["description"]} for s in tm.all_tool_schemas()}
+    return TS_TEMPLATE.format(tools=json.dumps(tools, indent=2))
+
+
 def render_manifest() -> str:
     tm = HierarchicalToolManager()
     return json.dumps({"version": "0.1.0", "tools": tm.all_tool_schemas()}, indent=2)
@@ -50,10 +86,11 @@ def render_manifest() -> str:
 
 def main() -> None:
     SDK_PATH.write_text(render())
+    TS_SDK_PATH.write_text(render_ts())
     # Emit a JSON manifest too, so non-JS consumers (e.g. the swissknife
     # dashboard descriptor pack) read the identical tool registry.
     MANIFEST_PATH.write_text(render_manifest())
-    print(f"wrote {SDK_PATH} + tools-manifest.json")
+    print(f"wrote {SDK_PATH} + .ts + tools-manifest.json")
 
 
 if __name__ == "__main__":
