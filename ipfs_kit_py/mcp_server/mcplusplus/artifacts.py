@@ -105,9 +105,6 @@ def envelope_from_payloads(
     }
     event_cid = compute_artifact_cid(event)
     return {
-        "input_cid": input_cid,
-        "intent_cid": intent_cid,
-    return {
         "interface_cid": interface_cid,
         "input_cid": input_cid,
         "intent_cid": intent_cid,
