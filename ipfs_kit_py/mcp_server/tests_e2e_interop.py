@@ -121,3 +121,29 @@ def test_swissknife_manifest_in_sync():
     dash = PKG.parents[2] / "swissknife" / "src" / "services" / "mcp-ipfs-kit-tools-manifest.json"
     if dash.exists():
         assert dash.read_text() == generate.render_manifest(), "swissknife manifest stale: resync"
+
+
+def test_profile_b_receipt_emitted():
+    """tools/call with profile_b returns canonical CID receipt (B)."""
+    s = MCPServer()
+    call = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 11, "method": "tools/call",
+                               "params": {"name": "pin_tools/pin_rm", "arguments": {"cid": "bafy"},
+                                          "profile_b": True}})
+    meta = call["result"]["_mcppp"]
+    for k in ("input_cid", "intent_cid", "decision_cid", "output_cid", "receipt_cid", "success"):
+        assert k in meta
+    assert meta["receipt_cid"].startswith("cidv1-sha256-") and meta["success"] is True
+
+
+def test_cid_algorithm_matches_accelerate():
+    """Kit's artifact CID must be byte-identical to ipfs_accelerate_py's."""
+    from ipfs_kit_py.mcp_server.mcplusplus import artifacts as kit_art
+    accel = PKG.parents[1] / "external" / "ipfs_accelerate" / "ipfs_accelerate_py" / "mcp_server" / "mcplusplus"
+    if not (accel / "artifacts.py").exists():
+        pytest.skip("accelerate artifacts not present")
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("_acc_art", accel / "artifacts.py")
+    acc_art = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(acc_art)
+    payload = {"b": 2, "a": 1, "tool": "pin_rm"}
+    assert kit_art.compute_artifact_cid(payload) == acc_art.compute_artifact_cid(payload)

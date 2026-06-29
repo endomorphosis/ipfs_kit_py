@@ -38,6 +38,7 @@ def get_capabilities() -> Dict[str, Any]:
         "profiles": {
             "A_interface_descriptors": True,
             "B_cid_envelopes": True,
+            "B_artifact_cids": True,
             "C_ucan": HAVE_MCPLUSPLUS,
             "E_p2p_transport": HAVE_LIBP2P,
         },

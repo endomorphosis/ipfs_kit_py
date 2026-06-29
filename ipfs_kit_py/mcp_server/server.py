@@ -52,7 +52,21 @@ class MCPServer:
                 if err:
                     raise ValueError(f"mcp++ envelope invalid: {err}")
             category, _, tool = name.rpartition("/") if "/" in name else self._resolve(name)
-            return await self.tm.dispatch(category, tool, args)
+            result = await self.tm.dispatch(category, tool, args)
+            if params.get("profile_b") or envelope is not None:
+                from .mcplusplus import artifacts
+                meta = artifacts.envelope_from_payloads(
+                    interface_cid="cidv1-sha256-ipfs-kit-mcp",
+                    input_payload={"tool": name, "arguments": args},
+                    tool=name,
+                    output_payload=result if isinstance(result, dict) else {"value": result},
+                    correlation_id=str(params.get("correlation_id", "")),
+                )
+                if isinstance(result, dict):
+                    result = {**result, "_mcppp": meta}
+                else:
+                    result = {"value": result, "_mcppp": meta}
+            return result
         if method == "ping":
             return {}
         raise ValueError(f"unknown method: {method}")
