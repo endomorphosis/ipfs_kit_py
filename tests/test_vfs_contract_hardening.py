@@ -95,9 +95,11 @@ def test_vfs_write_triggers_dataset_and_accelerate_hooks():
     assert write_result["success"] is True
     assert write_result["integration"]["dataset"]["attempted"] is True
     assert write_result["integration"]["dataset"]["success"] is True
+    assert write_result["integration"]["dataset"]["adapter"] == "datasets_notifier_v1"
     assert write_result["integration"]["dataset"]["fallback_order"][0] == "record_ipfs_operation"
     assert write_result["integration"]["accelerate"]["attempted"] is True
     assert write_result["integration"]["accelerate"]["success"] is True
+    assert write_result["integration"]["accelerate"]["adapter"] == "accelerate_discovery_v1"
     assert write_result["integration"]["accelerate"]["fallback_order"][0] == "discover_embedding_models"
     assert "operation_id" in write_result["integration"]["metadata"]
     assert write_result["integration"]["metadata"]["operation_id"].startswith("op-")
@@ -193,6 +195,7 @@ def test_vfs_write_respects_accelerate_disabled_mode(monkeypatch):
         assert write_result["success"] is True
         assert write_result["integration"]["accelerate"]["attempted"] is False
         assert write_result["integration"]["accelerate"]["reason"] == "vfs_accelerate_disabled"
+        assert write_result["integration"]["accelerate"]["adapter"] == "accelerate_discovery_v1"
     finally:
         vfs._vfs_accelerate_mode = original_mode
 

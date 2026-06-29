@@ -2046,6 +2046,86 @@ class VFSCore:
             raise state["error"]
         return False, state.get("result")
 
+    def _resolve_dataset_notification_adapter(
+        self,
+        *,
+        manager: Any,
+        local_path: Optional[str],
+    ) -> Tuple[str, Optional[Callable[[Dict[str, Any]], None]], List[str]]:
+        fallback_order = [
+            "record_ipfs_operation",
+            "refresh_metadata_index",
+            "update_metadata_index",
+            "store",
+            "event_log",
+        ]
+
+        capabilities: Dict[str, Callable[[Dict[str, Any]], None]] = {}
+
+        if hasattr(manager, "record_ipfs_operation") and callable(manager.record_ipfs_operation):
+            capabilities["record_ipfs_operation"] = lambda payload: manager.record_ipfs_operation(payload)
+
+        if hasattr(manager, "refresh_metadata_index") and callable(manager.refresh_metadata_index):
+            capabilities["refresh_metadata_index"] = (
+                lambda payload: manager.refresh_metadata_index(
+                    path=payload.get("path"),
+                    operation=payload.get("operation"),
+                    metadata=payload,
+                )
+            )
+
+        if hasattr(manager, "update_metadata_index") and callable(manager.update_metadata_index):
+            capabilities["update_metadata_index"] = (
+                lambda payload: manager.update_metadata_index(
+                    path=payload.get("path"),
+                    operation=payload.get("operation"),
+                    metadata=payload,
+                )
+            )
+
+        if local_path and os.path.exists(local_path) and hasattr(manager, "store") and callable(manager.store):
+            capabilities["store"] = lambda payload: manager.store(local_path, metadata=payload)
+
+        event_log = getattr(manager, "event_log", None)
+        if isinstance(event_log, list):
+            capabilities["event_log"] = lambda payload: event_log.append(payload)
+
+        for name in fallback_order:
+            if name in capabilities:
+                return name, capabilities[name], fallback_order
+
+        return "none", None, fallback_order
+
+    def _resolve_accelerate_discovery_adapter(
+        self,
+        *,
+        accelerate: Any,
+    ) -> Tuple[str, Optional[Callable[..., Any]], Tuple[Any, ...], List[str]]:
+        fallback_order = [
+            "discover_embedding_models",
+            "search_models",
+            "AccelerateCompute.discover_embedding_models",
+            "AccelerateCompute.search_models",
+            "AccelerateCompute.list_models",
+        ]
+
+        if hasattr(accelerate, "discover_embedding_models") and callable(accelerate.discover_embedding_models):
+            return "discover_embedding_models", accelerate.discover_embedding_models, tuple(), fallback_order
+
+        if hasattr(accelerate, "search_models") and callable(accelerate.search_models):
+            return "search_models", accelerate.search_models, ("embedding",), fallback_order
+
+        cls = getattr(accelerate, "AccelerateCompute", None)
+        if cls is not None:
+            engine = cls()
+            for method_name in ("discover_embedding_models", "search_models", "list_models"):
+                method = getattr(engine, method_name, None)
+                if callable(method):
+                    args = ("embedding",) if method_name == "search_models" else tuple()
+                    return f"AccelerateCompute.{method_name}", method, args, fallback_order
+
+        return "none", None, tuple(), fallback_order
+
     def _notify_dataset_metadata(
         self,
         *,
@@ -2072,6 +2152,7 @@ class VFSCore:
                 "attempted": False,
                 "success": False,
                 "reason": "ipfs_datasets_manager_unavailable",
+                "adapter": "datasets_notifier_v1",
                 "fallback_order": [
                     "record_ipfs_operation",
                     "refresh_metadata_index",
@@ -2082,103 +2163,27 @@ class VFSCore:
             }
 
         try:
-            if hasattr(manager, "record_ipfs_operation") and callable(manager.record_ipfs_operation):
-                manager.record_ipfs_operation(payload)
+            mode, notifier, fallback_order = self._resolve_dataset_notification_adapter(
+                manager=manager,
+                local_path=local_path,
+            )
+            if notifier is not None:
+                notifier(payload)
                 self._metrics["dataset_events"] += 1
                 return {
                     "attempted": True,
                     "success": True,
-                    "mode": "record_ipfs_operation",
-                    "fallback_order": [
-                        "record_ipfs_operation",
-                        "refresh_metadata_index",
-                        "update_metadata_index",
-                        "store",
-                        "event_log",
-                    ],
-                }
-
-            if hasattr(manager, "refresh_metadata_index") and callable(manager.refresh_metadata_index):
-                manager.refresh_metadata_index(path=path, operation=operation, metadata=payload)
-                self._metrics["dataset_events"] += 1
-                return {
-                    "attempted": True,
-                    "success": True,
-                    "mode": "refresh_metadata_index",
-                    "fallback_order": [
-                        "record_ipfs_operation",
-                        "refresh_metadata_index",
-                        "update_metadata_index",
-                        "store",
-                        "event_log",
-                    ],
-                }
-
-            if hasattr(manager, "update_metadata_index") and callable(manager.update_metadata_index):
-                manager.update_metadata_index(path=path, operation=operation, metadata=payload)
-                self._metrics["dataset_events"] += 1
-                return {
-                    "attempted": True,
-                    "success": True,
-                    "mode": "update_metadata_index",
-                    "fallback_order": [
-                        "record_ipfs_operation",
-                        "refresh_metadata_index",
-                        "update_metadata_index",
-                        "store",
-                        "event_log",
-                    ],
-                }
-
-            if (
-                local_path
-                and hasattr(manager, "store")
-                and callable(manager.store)
-                and os.path.exists(local_path)
-            ):
-                manager.store(local_path, metadata=payload)
-                self._metrics["dataset_events"] += 1
-                return {
-                    "attempted": True,
-                    "success": True,
-                    "mode": "store",
-                    "fallback_order": [
-                        "record_ipfs_operation",
-                        "refresh_metadata_index",
-                        "update_metadata_index",
-                        "store",
-                        "event_log",
-                    ],
-                }
-
-            event_log = getattr(manager, "event_log", None)
-            if isinstance(event_log, list):
-                event_log.append(payload)
-                self._metrics["dataset_events"] += 1
-                return {
-                    "attempted": True,
-                    "success": True,
-                    "mode": "event_log",
-                    "fallback_order": [
-                        "record_ipfs_operation",
-                        "refresh_metadata_index",
-                        "update_metadata_index",
-                        "store",
-                        "event_log",
-                    ],
+                    "mode": mode,
+                    "adapter": "datasets_notifier_v1",
+                    "fallback_order": fallback_order,
                 }
 
             return {
                 "attempted": True,
                 "success": False,
                 "reason": "no_supported_dataset_hook",
-                "fallback_order": [
-                    "record_ipfs_operation",
-                    "refresh_metadata_index",
-                    "update_metadata_index",
-                    "store",
-                    "event_log",
-                ],
+                "adapter": "datasets_notifier_v1",
+                "fallback_order": fallback_order,
             }
         except Exception as exc:
             self._metrics["integration_errors"] += 1
@@ -2186,6 +2191,7 @@ class VFSCore:
                 "attempted": True,
                 "success": False,
                 "reason": "dataset_hook_error",
+                "adapter": "datasets_notifier_v1",
                 "error": str(exc),
             }
 
@@ -2195,103 +2201,56 @@ class VFSCore:
                 "attempted": False,
                 "success": False,
                 "reason": "vfs_accelerate_disabled",
+                "adapter": "accelerate_discovery_v1",
                 "mode": self._vfs_accelerate_mode,
             }
 
-        fallback_order = [
-            "discover_embedding_models",
-            "search_models",
-            "AccelerateCompute.discover_embedding_models",
-            "AccelerateCompute.search_models",
-            "AccelerateCompute.list_models",
-        ]
-
         accelerate = self._get_accelerate_module()
         if accelerate is None:
+            _, _, _, fallback_order = self._resolve_accelerate_discovery_adapter(accelerate=object())
             return {
                 "attempted": False,
                 "success": False,
                 "reason": "ipfs_accelerate_unavailable",
+                "adapter": "accelerate_discovery_v1",
                 "fallback_order": fallback_order,
             }
 
         try:
-            if hasattr(accelerate, "discover_embedding_models") and callable(accelerate.discover_embedding_models):
-                timed_out, models = self._call_with_timeout(accelerate.discover_embedding_models)
+            mode, resolver, resolver_args, fallback_order = self._resolve_accelerate_discovery_adapter(
+                accelerate=accelerate,
+            )
+
+            if resolver is not None:
+                timed_out, models = self._call_with_timeout(resolver, *resolver_args)
                 if timed_out:
                     self._metrics["accelerate_timeouts"] += 1
                     return {
                         "attempted": True,
                         "success": False,
                         "reason": "accelerate_timeout",
-                        "mode": "discover_embedding_models",
+                        "adapter": "accelerate_discovery_v1",
+                        "mode": mode,
                         "timeout_seconds": self._accelerate_timeout_sec,
                         "fallback_order": fallback_order,
                     }
+
                 metadata["accelerate_models"] = models
                 self._metrics["accelerate_enrichment"] += 1
                 return {
                     "attempted": True,
                     "success": True,
-                    "mode": "discover_embedding_models",
+                    "adapter": "accelerate_discovery_v1",
+                    "mode": mode,
                     "model_count": len(models) if isinstance(models, list) else None,
                     "fallback_order": fallback_order,
                 }
-
-            if hasattr(accelerate, "search_models") and callable(accelerate.search_models):
-                timed_out, models = self._call_with_timeout(accelerate.search_models, "embedding")
-                if timed_out:
-                    self._metrics["accelerate_timeouts"] += 1
-                    return {
-                        "attempted": True,
-                        "success": False,
-                        "reason": "accelerate_timeout",
-                        "mode": "search_models",
-                        "timeout_seconds": self._accelerate_timeout_sec,
-                        "fallback_order": fallback_order,
-                    }
-                metadata["accelerate_models"] = models
-                self._metrics["accelerate_enrichment"] += 1
-                return {
-                    "attempted": True,
-                    "success": True,
-                    "mode": "search_models",
-                    "model_count": len(models) if isinstance(models, list) else None,
-                    "fallback_order": fallback_order,
-                }
-
-            cls = getattr(accelerate, "AccelerateCompute", None)
-            if cls is not None:
-                engine = cls()
-                for method_name in ("discover_embedding_models", "search_models", "list_models"):
-                    method = getattr(engine, method_name, None)
-                    if callable(method):
-                        args = ("embedding",) if method_name == "search_models" else tuple()
-                        timed_out, models = self._call_with_timeout(method, *args)
-                        if timed_out:
-                            self._metrics["accelerate_timeouts"] += 1
-                            return {
-                                "attempted": True,
-                                "success": False,
-                                "reason": "accelerate_timeout",
-                                "mode": f"AccelerateCompute.{method_name}",
-                                "timeout_seconds": self._accelerate_timeout_sec,
-                                "fallback_order": fallback_order,
-                            }
-                        metadata["accelerate_models"] = models
-                        self._metrics["accelerate_enrichment"] += 1
-                        return {
-                            "attempted": True,
-                            "success": True,
-                            "mode": f"AccelerateCompute.{method_name}",
-                            "model_count": len(models) if isinstance(models, list) else None,
-                            "fallback_order": fallback_order,
-                        }
 
             return {
                 "attempted": True,
                 "success": False,
                 "reason": "no_supported_accelerate_hook",
+                "adapter": "accelerate_discovery_v1",
                 "fallback_order": fallback_order,
             }
         except Exception as exc:
@@ -2300,6 +2259,7 @@ class VFSCore:
                 "attempted": True,
                 "success": False,
                 "reason": "accelerate_hook_error",
+                "adapter": "accelerate_discovery_v1",
                 "error": str(exc),
             }
 
