@@ -170,3 +170,27 @@ def test_profile_e_dag_chains_events():
     fr = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 200, "method": "mcp++/dag/frontier"})["result"]
     assert fr["count"] == 2 and len(fr["frontier"]) == 1
     assert s._dag[1]["parents"] == [s._dag[0]["event_cid"]]
+
+
+def test_profile_c_ucan_validate():
+    """Profile C: valid root->leaf chain grants, escalation denied."""
+    s = MCPServer()
+    chain = [
+        {"issuer": "did:a", "audience": "did:b", "capabilities": [{"resource": "ipfs", "ability": "*"}]},
+        {"issuer": "did:b", "audience": "did:c", "capabilities": [{"resource": "ipfs", "ability": "read"}]},
+    ]
+    ok = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 30, "method": "mcp++/ucan/validate",
+                             "params": {"chain": chain, "resource": "ipfs", "ability": "read", "actor": "did:c"}})
+    assert ok["result"]["allowed"] is True
+    bad = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 31, "method": "mcp++/ucan/validate",
+                              "params": {"chain": chain, "resource": "ipfs", "ability": "write", "actor": "did:c"}})
+    assert bad["result"]["allowed"] is False
+
+
+def test_profile_d_policy_evaluate():
+    s = MCPServer()
+    allow = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 32, "method": "mcp++/policy/evaluate",
+                                "params": {"tool": "ipfs_add", "risk": 0.1}})["result"]
+    deny = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 33, "method": "mcp++/policy/evaluate",
+                               "params": {"tool": "ipfs_add", "deny": ["ipfs_add"]}})["result"]
+    assert allow["decision"] == "allow" and deny["decision"] == "deny"

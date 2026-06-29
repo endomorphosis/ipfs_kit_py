@@ -50,6 +50,22 @@ class MCPServer:
             seen = {p for n in self._dag for p in n.get("parents", [])}
             frontier = [n["event_cid"] for n in self._dag if n["event_cid"] not in seen]
             return {"frontier": frontier, "count": len(self._dag)}
+        if method in ("mcp++/ucan/validate", "mcp++/ucan/delegate"):
+            from .mcplusplus import delegation
+            return delegation.validate_raw_delegation_chain(
+                raw_chain=params.get("chain") or params.get("delegations") or [],
+                resource=params.get("resource", "*"),
+                ability=params.get("ability", "*"),
+                actor=params.get("actor", ""),
+            )
+        if method == "mcp++/policy/evaluate":
+            from .mcplusplus import delegation
+            return delegation.evaluate_policy(
+                tool=params.get("tool", ""),
+                deny=params.get("deny", []),
+                risk=float(params.get("risk", 0.0)),
+                threshold=float(params.get("threshold", 0.7)),
+            )
         if method == "tools/call":
             name = params.get("name", "")
             args = params.get("arguments") or {}
