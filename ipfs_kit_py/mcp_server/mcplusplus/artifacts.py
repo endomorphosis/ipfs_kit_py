@@ -70,6 +70,7 @@ def envelope_from_payloads(
     tool: str,
     output_payload: Dict[str, Any],
     correlation_id: str = "",
+    parents: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:
     """Build a full immutable artifact envelope and return payloads + CIDs."""
     input_cid = compute_artifact_cid(input_payload)
@@ -82,11 +83,24 @@ def envelope_from_payloads(
         intent_cid=intent_cid, output_cid=output_cid, decision_cid=decision_cid, correlation_id=correlation_id
     )
     receipt_cid = compute_artifact_cid(receipt)
+    event = {
+        "parents": list(parents or []),
+        "interface_cid": interface_cid,
+        "intent_cid": intent_cid,
+        "decision_cid": decision_cid,
+        "output_cid": output_cid,
+        "receipt_cid": receipt_cid,
+        "peer_did": "",
+        "timestamps": {},
+    }
+    event_cid = compute_artifact_cid(event)
     return {
         "input_cid": input_cid,
         "intent_cid": intent_cid,
         "decision_cid": decision_cid,
         "output_cid": output_cid,
         "receipt_cid": receipt_cid,
+        "event_cid": event_cid,
+        "event": event,
         "success": True,
     }

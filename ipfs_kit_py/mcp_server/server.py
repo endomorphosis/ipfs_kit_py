@@ -23,6 +23,7 @@ SERVER_INFO = {"name": "ipfs_kit_py-mcpplusplus", "version": "0.1.0"}
 class MCPServer:
     def __init__(self) -> None:
         self.tm = HierarchicalToolManager()
+        self._dag: list = []  # Profile E: ordered event nodes
 
     async def handle(self, msg: Dict[str, Any]) -> Dict[str, Any]:
         mid = msg.get("id")
@@ -43,6 +44,12 @@ class MCPServer:
             }
         if method == "tools/list":
             return {"tools": self.tm.all_tool_schemas()}
+        if method == "mcp++/interfaces":
+            return {"interfaces": self._interface_descriptors()}
+        if method == "mcp++/dag/frontier":
+            seen = {p for n in self._dag for p in n.get("parents", [])}
+            frontier = [n["event_cid"] for n in self._dag if n["event_cid"] not in seen]
+            return {"frontier": frontier, "count": len(self._dag)}
         if method == "tools/call":
             name = params.get("name", "")
             args = params.get("arguments") or {}
@@ -55,13 +62,16 @@ class MCPServer:
             result = await self.tm.dispatch(category, tool, args)
             if params.get("profile_b") or envelope is not None:
                 from .mcplusplus import artifacts
+                parents = [n["event_cid"] for n in self._dag[-1:]]
                 meta = artifacts.envelope_from_payloads(
                     interface_cid="cidv1-sha256-ipfs-kit-mcp",
                     input_payload={"tool": name, "arguments": args},
                     tool=name,
                     output_payload=result if isinstance(result, dict) else {"value": result},
                     correlation_id=str(params.get("correlation_id", "")),
+                    parents=parents,
                 )
+                self._dag.append({"event_cid": meta["event_cid"], **meta["event"]})
                 if isinstance(result, dict):
                     result = {**result, "_mcppp": meta}
                 else:
@@ -76,6 +86,21 @@ class MCPServer:
             if tool in tools:
                 return cat, "/", tool
         return "", "/", tool
+
+    def _interface_descriptors(self):
+        """Profile A: canonical interface descriptors derived from the registry."""
+        out = []
+        for s in self.tm.all_tool_schemas():
+            out.append({
+                "namespace": f"ipfs_kit/{s['category']}",
+                "name": s["name"],
+                "input_schema": s.get("inputSchema", {}),
+                "output_schema": {"type": "object"},
+                "errors": ["IPFSError", "ToolNotFound"],
+                "semantic_tags": s.get("tags", []),
+                "compatibility": {"mcp": True, "mcp++": True},
+            })
+        return out
 
 
 async def serve_stdio() -> None:

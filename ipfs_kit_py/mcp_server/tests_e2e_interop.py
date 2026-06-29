@@ -147,3 +147,26 @@ def test_cid_algorithm_matches_accelerate():
     spec.loader.exec_module(acc_art)
     payload = {"b": 2, "a": 1, "tool": "pin_rm"}
     assert kit_art.compute_artifact_cid(payload) == acc_art.compute_artifact_cid(payload)
+
+
+def test_profile_a_interfaces():
+    """Profile A: mcp++/interfaces yields descriptors for every tool."""
+    s = MCPServer()
+    res = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 12, "method": "mcp++/interfaces"})
+    ifaces = res["result"]["interfaces"]
+    assert len(ifaces) == len(s.tm.all_tool_schemas())
+    d = ifaces[0]
+    for k in ("namespace", "name", "input_schema", "output_schema", "errors", "semantic_tags", "compatibility"):
+        assert k in d
+    assert d["namespace"].startswith("ipfs_kit/")
+
+
+def test_profile_e_dag_chains_events():
+    """Profile E: profile_b calls append linked DAG events; frontier is latest."""
+    s = MCPServer()
+    for i in range(2):
+        anyio.run(s.handle, {"jsonrpc": "2.0", "id": 100 + i, "method": "tools/call",
+                             "params": {"name": "pin_tools/pin_rm", "arguments": {"cid": "bafy"}, "profile_b": True}})
+    fr = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 200, "method": "mcp++/dag/frontier"})["result"]
+    assert fr["count"] == 2 and len(fr["frontier"]) == 1
+    assert s._dag[1]["parents"] == [s._dag[0]["event_cid"]]
