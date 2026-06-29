@@ -194,3 +194,21 @@ def test_profile_d_policy_evaluate():
     deny = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 33, "method": "mcp++/policy/evaluate",
                                "params": {"tool": "ipfs_add", "deny": ["ipfs_add"]}})["result"]
     assert allow["decision"] == "allow" and deny["decision"] == "deny"
+
+
+def test_all_five_profiles_smoke():
+    """One server exercises A,B,C,D,E + base MCP in a single flow."""
+    s = MCPServer()
+    init = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 1, "method": "initialize"})
+    profs = init["result"]["capabilities"]["experimental"]["mcp++"]["profiles"]
+    assert all(profs.get(k) for k in ("A_interface_descriptors", "B_cid_envelopes", "C_ucan_unsigned", "D_policy", "E_dag_events"))
+    assert anyio.run(s.handle, {"jsonrpc": "2.0", "id": 2, "method": "mcp++/interfaces"})["result"]["interfaces"]
+    pol = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 3, "method": "mcp++/policy/evaluate", "params": {"tool": "ipfs_add"}})
+    assert pol["result"]["decision"] == "allow"
+    chain = [{"issuer": "did:a", "audience": "did:c", "capabilities": [{"resource": "ipfs", "ability": "read"}]}]
+    assert anyio.run(s.handle, {"jsonrpc": "2.0", "id": 4, "method": "mcp++/ucan/validate",
+                               "params": {"chain": chain, "resource": "ipfs", "ability": "read", "actor": "did:c"}})["result"]["allowed"]
+    call = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 5, "method": "tools/call",
+                               "params": {"name": "pin_tools/pin_rm", "arguments": {"cid": "bafy"}, "profile_b": True}})
+    assert call["result"]["_mcppp"]["receipt_cid"].startswith("cidv1-sha256-")
+    assert anyio.run(s.handle, {"jsonrpc": "2.0", "id": 6, "method": "mcp++/dag/frontier"})["result"]["count"] == 1
