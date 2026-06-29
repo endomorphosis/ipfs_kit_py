@@ -354,6 +354,7 @@ def test_accelerate_circuit_open_short_circuits_enrichment(tmp_path, monkeypatch
 def test_async_enrichment_queue_path(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     monkeypatch.setenv("IPFS_KIT_ACCELERATE_ASYNC_ENRICH", "1")
+    monkeypatch.setenv("IPFS_KIT_ASYNC_BACKEND", "asyncio")
 
     manager = IPFSDatasetsManager(enable=False)
     result = manager.refresh_metadata_index(
@@ -366,12 +367,14 @@ def test_async_enrichment_queue_path(tmp_path, monkeypatch):
 
     snap = manager.metadata_index_snapshot()
     assert snap["queue"]["enabled"] is True
+    assert snap["queue"]["backend"] == "asyncio"
     assert snap["metrics"]["accelerate_queue_enqueued"] >= 0
 
 
 def test_async_enrichment_lifecycle_controls(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     monkeypatch.setenv("IPFS_KIT_ACCELERATE_ASYNC_ENRICH", "1")
+    monkeypatch.setenv("IPFS_KIT_ASYNC_BACKEND", "asyncio")
 
     manager = IPFSDatasetsManager(enable=False)
     snap_before = manager.metadata_index_snapshot()
@@ -380,6 +383,41 @@ def test_async_enrichment_lifecycle_controls(tmp_path, monkeypatch):
     stopped = manager.stop_async_enrichment(drain=False, timeout_sec=1.0)
     assert stopped["success"] is True
     assert stopped["stopped"] is True
+    assert stopped["backend"] == "asyncio"
 
     snap_after = manager.metadata_index_snapshot()
     assert snap_after["queue"]["worker_alive"] is False
+
+
+def test_async_enrichment_trio_backend_selection(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("IPFS_KIT_ACCELERATE_ASYNC_ENRICH", "1")
+    monkeypatch.setenv("IPFS_KIT_ASYNC_BACKEND", "trio")
+
+    manager = IPFSDatasetsManager(enable=False)
+    snap = manager.metadata_index_snapshot()
+    assert snap["queue"]["backend"] == "trio"
+
+    stopped = manager.stop_async_enrichment(drain=False, timeout_sec=1.0)
+    assert stopped["success"] is True
+    assert stopped["backend"] == "trio"
+
+
+def test_async_enrichment_worker_can_restart_after_stop(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("IPFS_KIT_ACCELERATE_ASYNC_ENRICH", "1")
+    monkeypatch.setenv("IPFS_KIT_ASYNC_BACKEND", "asyncio")
+
+    manager = IPFSDatasetsManager(enable=False)
+
+    first_stop = manager.stop_async_enrichment(drain=False, timeout_sec=1.0)
+    assert first_stop["success"] is True
+    assert first_stop["stopped"] is True
+
+    manager._start_queue_worker()
+    restarted = manager.metadata_index_snapshot()
+    assert restarted["queue"]["worker_alive"] is True
+
+    second_stop = manager.stop_async_enrichment(drain=False, timeout_sec=1.0)
+    assert second_stop["success"] is True
+    assert second_stop["stopped"] is True

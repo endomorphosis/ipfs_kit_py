@@ -1889,10 +1889,61 @@ class VFSCore:
         self._sync_state_by_path: Dict[str, Dict[str, Any]] = {}
         self._sync_transport_mode = os.environ.get("IPFS_KIT_SYNC_TRANSPORT", "auto").strip().lower()
         self._sync_conflict_policy = os.environ.get("IPFS_KIT_SYNC_CONFLICT_POLICY", "overwrite").strip().lower()
+        self._sync_snapshot_max_count = int(os.environ.get("IPFS_KIT_VFS_SYNC_SNAPSHOT_MAX_COUNT", "256"))
+        self._sync_snapshot_max_age_sec = float(os.environ.get("IPFS_KIT_VFS_SYNC_SNAPSHOT_MAX_AGE_SEC", "604800"))
         state_path_default = Path.home() / ".ipfs_kit" / "vfs_sync_state.json"
         self._sync_state_path = Path(os.environ.get("IPFS_KIT_VFS_SYNC_STATE_PATH", str(state_path_default)))
         self._sync_state_lock = threading.RLock()
         self._load_sync_state_from_disk()
+
+    def _parse_snapshot_time(self, snapshot: Dict[str, Any]) -> Optional[datetime.datetime]:
+        synced_at = snapshot.get("synced_at")
+        if not isinstance(synced_at, str):
+            return None
+        try:
+            parsed = datetime.datetime.fromisoformat(synced_at)
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=datetime.timezone.utc)
+            return parsed.astimezone(datetime.timezone.utc)
+        except Exception:
+            return None
+
+    def _prune_sync_snapshots(self) -> None:
+        # Age-based pruning.
+        if self._sync_snapshot_max_age_sec > 0:
+            cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=self._sync_snapshot_max_age_sec)
+            stale_cids = [
+                cid
+                for cid, snapshot in self._sync_snapshots.items()
+                if isinstance(snapshot, dict)
+                and (parsed := self._parse_snapshot_time(snapshot)) is not None
+                and parsed < cutoff
+            ]
+            for cid in stale_cids:
+                self._sync_snapshots.pop(cid, None)
+
+        # Count-based pruning keeps most recent snapshots.
+        if self._sync_snapshot_max_count > 0 and len(self._sync_snapshots) > self._sync_snapshot_max_count:
+            ordered = sorted(
+                self._sync_snapshots.items(),
+                key=lambda item: self._parse_snapshot_time(item[1] if isinstance(item[1], dict) else {})
+                or datetime.datetime.min.replace(tzinfo=datetime.timezone.utc),
+                reverse=True,
+            )
+            keep = {cid for cid, _ in ordered[: self._sync_snapshot_max_count]}
+            drop = [cid for cid in self._sync_snapshots.keys() if cid not in keep]
+            for cid in drop:
+                self._sync_snapshots.pop(cid, None)
+
+        # Remove path pointers to pruned/nonexistent snapshots.
+        pruned_state: Dict[str, Dict[str, Any]] = {}
+        for path, state in self._sync_state_by_path.items():
+            if not isinstance(state, dict):
+                continue
+            cid = str(state.get("cid") or "")
+            if cid in self._sync_snapshots:
+                pruned_state[path] = dict(state)
+        self._sync_state_by_path = pruned_state
 
     def _serialize_sync_snapshot(self, snapshot: Dict[str, Any]) -> Dict[str, Any]:
         serialized = dict(snapshot)
@@ -1921,6 +1972,7 @@ class VFSCore:
 
     def _save_sync_state_to_disk(self) -> None:
         with self._sync_state_lock:
+            self._prune_sync_snapshots()
             payload = {
                 "schema_version": "1",
                 "saved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -1976,6 +2028,7 @@ class VFSCore:
                     if isinstance(snapshot, dict):
                         rebuilt[str(cid)] = self._deserialize_sync_snapshot(snapshot)
             self._sync_snapshots = rebuilt
+            self._prune_sync_snapshots()
 
     def _record_metric(self, operation: str, *, error: Optional[str] = None) -> None:
         if operation in self._metrics and isinstance(self._metrics[operation], int):
@@ -2537,6 +2590,12 @@ class VFSCore:
         return {
             "mount_count": len(self.mounts),
             "metrics": dict(self._metrics),
+            "sync_state": {
+                "snapshot_count": len(self._sync_snapshots),
+                "path_state_count": len(self._sync_state_by_path),
+                "snapshot_max_count": self._sync_snapshot_max_count,
+                "snapshot_max_age_sec": self._sync_snapshot_max_age_sec,
+            },
         }
 
     def _find_mount_for_path(self, path: str) -> Optional[Dict[str, Any]]:

@@ -39,6 +39,7 @@ import threading
 import uuid
 import time
 import queue
+import anyio
 from contextlib import contextmanager
 
 try:
@@ -469,6 +470,8 @@ class IPFSDatasetsManager:
             "yes",
             "on",
         }
+        configured_backend = os.environ.get("IPFS_KIT_ASYNC_BACKEND", "asyncio").strip().lower()
+        self._async_backend = configured_backend if configured_backend in {"asyncio", "trio"} else "asyncio"
         self._enrich_queue_max = int(os.environ.get("IPFS_KIT_ACCELERATE_QUEUE_MAX", "512"))
         self._enrich_retry_budget = int(os.environ.get("IPFS_KIT_ACCELERATE_RETRY_BUDGET", "2"))
         self._enrich_queue: "queue.Queue[Tuple[str, int]]" = queue.Queue(maxsize=self._enrich_queue_max)
@@ -486,27 +489,39 @@ class IPFSDatasetsManager:
         if self._queue_worker is not None and self._queue_worker.is_alive():
             return
 
+        # Allow worker restart after stop_async_enrichment has set the stop event.
+        self._queue_stop.clear()
+
         def _worker() -> None:
-            while not self._queue_stop.is_set():
-                try:
-                    item_id, attempt = self._enrich_queue.get(timeout=0.2)
-                except queue.Empty:
-                    continue
-                try:
-                    self._process_queued_enrichment(item_id, attempt)
-                    self._metrics["accelerate_queue_processed"] += 1
-                except Exception:
-                    self._metrics["accelerate_queue_failures"] += 1
-                    if attempt < self._enrich_retry_budget:
-                        try:
-                            self._enrich_queue.put_nowait((item_id, attempt + 1))
-                        except queue.Full:
-                            self._metrics["accelerate_queue_dropped"] += 1
-                finally:
-                    self._enrich_queue.task_done()
+            try:
+                anyio.run(self._queue_worker_main, backend=self._async_backend)
+            except Exception as exc:
+                self._metrics["accelerate_queue_failures"] += 1
+                logger.warning("Async enrichment worker exited with backend %s: %s", self._async_backend, exc)
 
         self._queue_worker = threading.Thread(target=_worker, daemon=True)
         self._queue_worker.start()
+
+    async def _queue_worker_main(self) -> None:
+        while not self._queue_stop.is_set():
+            try:
+                item_id, attempt = await anyio.to_thread.run_sync(self._enrich_queue.get, True, 0.2)
+            except queue.Empty:
+                await anyio.sleep(0)
+                continue
+
+            try:
+                await anyio.to_thread.run_sync(self._process_queued_enrichment, item_id, attempt)
+                self._metrics["accelerate_queue_processed"] += 1
+            except Exception:
+                self._metrics["accelerate_queue_failures"] += 1
+                if attempt < self._enrich_retry_budget:
+                    try:
+                        self._enrich_queue.put_nowait((item_id, attempt + 1))
+                    except queue.Full:
+                        self._metrics["accelerate_queue_dropped"] += 1
+            finally:
+                self._enrich_queue.task_done()
 
     def _enqueue_enrichment(self, item_id: str) -> Dict[str, Any]:
         try:
@@ -549,6 +564,7 @@ class IPFSDatasetsManager:
             "drained": drained,
             "queue_size": self._enrich_queue.qsize(),
             "worker_alive": is_alive,
+            "backend": self._async_backend,
         }
 
     def close(self) -> Dict[str, Any]:
@@ -1195,6 +1211,7 @@ class IPFSDatasetsManager:
             },
             "queue": {
                 "enabled": self._async_enrich,
+                "backend": self._async_backend,
                 "size": self._enrich_queue.qsize(),
                 "max": self._enrich_queue_max,
                 "circuit_open": time.time() < self._circuit_open_until,

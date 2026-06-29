@@ -318,3 +318,47 @@ def test_vfs_sync_from_ipfs_restores_via_transport_when_snapshot_missing(tmp_pat
     read_result = vfs.read("/tmp/sync-transport/doc.txt")
     assert read_result["success"] is True
     assert read_result["content"] == "restored-from-transport"
+
+
+def test_vfs_sync_snapshot_retention_prunes_to_max_count():
+    vfs = get_vfs()
+    original_max_count = vfs._sync_snapshot_max_count
+    original_max_age_sec = vfs._sync_snapshot_max_age_sec
+
+    try:
+        vfs._sync_snapshot_max_count = 1
+        vfs._sync_snapshot_max_age_sec = 0
+
+        vfs._sync_snapshots = {
+            "cid-old": {
+                "cid": "cid-old",
+                "synced_at": "2020-01-01T00:00:00+00:00",
+                "blobs": {},
+            },
+            "cid-new": {
+                "cid": "cid-new",
+                "synced_at": "2030-01-01T00:00:00+00:00",
+                "blobs": {},
+            },
+        }
+        vfs._sync_state_by_path = {
+            "/tmp/old": {"cid": "cid-old", "manifest_hash": "m1"},
+            "/tmp/new": {"cid": "cid-new", "manifest_hash": "m2"},
+        }
+
+        vfs._prune_sync_snapshots()
+
+        assert set(vfs._sync_snapshots.keys()) == {"cid-new"}
+        assert set(vfs._sync_state_by_path.keys()) == {"/tmp/new"}
+    finally:
+        vfs._sync_snapshot_max_count = original_max_count
+        vfs._sync_snapshot_max_age_sec = original_max_age_sec
+
+
+def test_vfs_observability_snapshot_includes_sync_retention_state():
+    vfs = get_vfs()
+    snapshot = vfs.observability_snapshot()
+
+    assert "sync_state" in snapshot
+    assert "snapshot_count" in snapshot["sync_state"]
+    assert "snapshot_max_count" in snapshot["sync_state"]
