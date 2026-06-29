@@ -27,13 +27,16 @@ Usage:
 import logging
 import os
 import sys
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, Tuple
 from pathlib import Path
 import json
 import datetime
 import importlib.util
 import csv
 import hashlib
+import tempfile
+import threading
+import concurrent.futures
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -423,6 +426,7 @@ class IPFSDatasetsManager:
         self.provenance_log = []
         self.metadata_index_path = self.backend.base_path / "metadata_index.json"
         self.metadata_index: Dict[str, Dict[str, Any]] = {}
+        self._index_lock = threading.RLock()
         self._metrics: Dict[str, int] = {
             "index_refresh": 0,
             "index_remove": 0,
@@ -432,6 +436,7 @@ class IPFSDatasetsManager:
         }
         self._accelerate_module: Optional[Any] = None
         self._accelerate_checked = False
+        self._accelerate_timeout_sec = float(os.environ.get("IPFS_KIT_ACCELERATE_TIMEOUT_SEC", "1.5"))
         self._load_metadata_index()
     
     def is_available(self) -> bool:
@@ -439,24 +444,48 @@ class IPFSDatasetsManager:
         return self.backend.is_available()
 
     def _load_metadata_index(self) -> None:
+        with self._index_lock:
+            self.metadata_index = {}
         try:
             if self.metadata_index_path.exists():
                 with open(self.metadata_index_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 if isinstance(data, dict):
-                    self.metadata_index = data
+                    with self._index_lock:
+                        self.metadata_index = data
         except Exception as e:
             logger.warning(f"Failed to load metadata index: {e}")
-            self.metadata_index = {}
+            with self._index_lock:
+                self.metadata_index = {}
 
     def _save_metadata_index(self) -> None:
         try:
+            with self._index_lock:
+                snapshot = dict(self.metadata_index)
+
             self.metadata_index_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.metadata_index_path, "w", encoding="utf-8") as f:
-                json.dump(self.metadata_index, f, indent=2, sort_keys=True)
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=str(self.metadata_index_path.parent),
+                prefix="metadata_index_",
+                suffix=".tmp",
+                delete=False,
+            ) as f:
+                tmp_path = Path(f.name)
+                json.dump(snapshot, f, indent=2, sort_keys=True)
+                f.flush()
+                os.fsync(f.fileno())
+
+            os.replace(tmp_path, self.metadata_index_path)
         except Exception as e:
             self._metrics["index_errors"] += 1
             logger.warning(f"Failed to save metadata index: {e}")
+            try:
+                if "tmp_path" in locals() and tmp_path.exists():
+                    tmp_path.unlink()
+            except Exception:
+                pass
 
     def _index_key(self, *, path: Optional[Union[str, Path]] = None, cid: Optional[str] = None) -> str:
         if cid:
@@ -583,6 +612,15 @@ class IPFSDatasetsManager:
             self._accelerate_module = None
         return self._accelerate_module
 
+    def _call_with_timeout(self, func: Any, *args: Any) -> Tuple[bool, Any]:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(func, *args)
+            try:
+                return False, future.result(timeout=self._accelerate_timeout_sec)
+            except concurrent.futures.TimeoutError:
+                future.cancel()
+                return True, None
+
     def _accelerate_enrich_index(self, entry: Dict[str, Any]) -> Dict[str, Any]:
         accelerate = self._get_accelerate_module()
         if accelerate is None:
@@ -592,15 +630,39 @@ class IPFSDatasetsManager:
             enrichment: Dict[str, Any] = {}
 
             if hasattr(accelerate, "discover_embedding_models") and callable(accelerate.discover_embedding_models):
-                models = accelerate.discover_embedding_models()
+                timed_out, models = self._call_with_timeout(accelerate.discover_embedding_models)
+                if timed_out:
+                    return {
+                        "attempted": True,
+                        "success": False,
+                        "reason": "accelerate_timeout",
+                        "mode": "discover_embedding_models",
+                        "timeout_seconds": self._accelerate_timeout_sec,
+                    }
                 enrichment["discovered_models"] = models
             elif hasattr(accelerate, "search_models") and callable(accelerate.search_models):
-                models = accelerate.search_models("embedding")
+                timed_out, models = self._call_with_timeout(accelerate.search_models, "embedding")
+                if timed_out:
+                    return {
+                        "attempted": True,
+                        "success": False,
+                        "reason": "accelerate_timeout",
+                        "mode": "search_models",
+                        "timeout_seconds": self._accelerate_timeout_sec,
+                    }
                 enrichment["discovered_models"] = models
 
             embed_text = entry.get("dataset_summary") or entry.get("path")
             if hasattr(accelerate, "create_embedding") and callable(accelerate.create_embedding) and embed_text:
-                vector = accelerate.create_embedding(str(embed_text))
+                timed_out, vector = self._call_with_timeout(accelerate.create_embedding, str(embed_text))
+                if timed_out:
+                    return {
+                        "attempted": True,
+                        "success": False,
+                        "reason": "accelerate_timeout",
+                        "mode": "create_embedding",
+                        "timeout_seconds": self._accelerate_timeout_sec,
+                    }
                 if isinstance(vector, list):
                     enrichment["embedding_dim"] = len(vector)
                 enrichment["embedding_preview"] = vector[:8] if isinstance(vector, list) else None
@@ -645,7 +707,9 @@ class IPFSDatasetsManager:
             "metadata": metadata,
             "dataset_summary": metadata.get("dataset_summary") or metadata.get("description"),
         }
-        self._accelerate_enrich_index(entry)
+        accelerate_status = self._accelerate_enrich_index(entry)
+        if isinstance(accelerate_status, dict):
+            entry["accelerate_status"] = accelerate_status
         return entry
 
     def refresh_metadata_index(
@@ -658,7 +722,8 @@ class IPFSDatasetsManager:
     ) -> Dict[str, Any]:
         try:
             entry = self._build_index_entry(path=path, cid=cid, operation=operation, metadata=metadata)
-            self.metadata_index[entry["id"]] = entry
+            with self._index_lock:
+                self.metadata_index[entry["id"]] = entry
             self._save_metadata_index()
             self._metrics["index_refresh"] += 1
             return {"success": True, "entry": entry}
@@ -688,22 +753,27 @@ class IPFSDatasetsManager:
         cid: Optional[str] = None,
     ) -> Dict[str, Any]:
         key = self._index_key(path=path, cid=cid)
-        removed = self.metadata_index.pop(key, None)
+        with self._index_lock:
+            removed = self.metadata_index.pop(key, None)
         self._save_metadata_index()
         self._metrics["index_remove"] += 1
         return {"success": True, "removed": removed is not None, "id": key}
 
     def list_metadata_index(self) -> Dict[str, Any]:
         self._metrics["index_list"] += 1
+        with self._index_lock:
+            ordered_items = [self.metadata_index[k] for k in sorted(self.metadata_index.keys())]
         return {
             "success": True,
-            "count": len(self.metadata_index),
-            "items": [self.metadata_index[k] for k in sorted(self.metadata_index.keys())],
+            "count": len(ordered_items),
+            "items": ordered_items,
         }
 
     def metadata_index_snapshot(self) -> Dict[str, Any]:
+        with self._index_lock:
+            count = len(self.metadata_index)
         return {
-            "count": len(self.metadata_index),
+            "count": count,
             "metrics": dict(self._metrics),
         }
     

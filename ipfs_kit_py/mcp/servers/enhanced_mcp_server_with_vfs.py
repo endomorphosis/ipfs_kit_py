@@ -44,6 +44,8 @@ import tempfile
 print("✓ tempfile imported", file=sys.stderr, flush=True)
 import threading
 print("✓ threading imported", file=sys.stderr, flush=True)
+import inspect
+print("✓ inspect imported", file=sys.stderr, flush=True)
 from datetime import datetime
 print("✓ datetime imported", file=sys.stderr, flush=True)
 from typing import Dict, List, Any, Optional, Union
@@ -72,9 +74,16 @@ if project_root not in sys.path:
 try:
     # Import VFS filesystem directly
     logger.info("Importing VFS filesystem...")
-    from ipfs_kit_py.ipfs_fsspec import IPFSFileSystem
+    from ipfs_kit_py.ipfs_fsspec import (
+        IPFSFileSystem,
+        vfs_mount as contract_vfs_mount,
+        vfs_unmount as contract_vfs_unmount,
+        vfs_list_mounts as contract_vfs_list_mounts,
+        vfs_resolve_path as contract_vfs_resolve_path,
+    )
     logger.info("✓ IPFSFileSystem imported successfully")
     HAS_VFS = True
+    HAS_CONTRACT_VFS = True
     
     # Import cache manager
     logger.info("Importing cache manager...")
@@ -128,6 +137,7 @@ try:
 except ImportError as e:
     logger.warning(f"VFS system imports failed: {e}")
     HAS_VFS = False
+    HAS_CONTRACT_VFS = False
     HAS_CACHE = False
     HAS_REPLICATION = False
     HAS_WAL = False
@@ -311,6 +321,12 @@ class VFSIntegration:
             # VFS Basic Operations
             if operation == "vfs_mount":
                 return await self._vfs_mount(**kwargs)
+            elif operation == "vfs_unmount":
+                return await self._vfs_unmount(**kwargs)
+            elif operation == "vfs_list_mounts":
+                return await self._vfs_list_mounts(**kwargs)
+            elif operation == "vfs_resolve_path":
+                return await self._vfs_resolve_path(**kwargs)
             elif operation == "vfs_ls":
                 return await self._vfs_ls(**kwargs)
             elif operation == "vfs_cat":
@@ -372,8 +388,25 @@ class VFSIntegration:
             }
     
     # VFS Basic Operations
+    async def _await_if_needed(self, maybe_awaitable: Any) -> Any:
+        if inspect.isawaitable(maybe_awaitable):
+            return await maybe_awaitable
+        return maybe_awaitable
+
     async def _vfs_mount(self, ipfs_path: str = "/", mount_point: str = "/ipfs") -> Dict[str, Any]:
         """Mount an IPFS path as a virtual filesystem."""
+        if HAS_CONTRACT_VFS:
+            try:
+                result = await self._await_if_needed(contract_vfs_mount(ipfs_path, mount_point))
+                result["operation"] = "vfs_mount"
+                return result
+            except Exception as e:
+                return {
+                    "success": False,
+                    "operation": "vfs_mount",
+                    "error": str(e)
+                }
+
         if not self.vfs_filesystem:
             return {"success": False, "error": "VFS filesystem not initialized"}
         
@@ -408,6 +441,63 @@ class VFSIntegration:
                 "success": False,
                 "operation": "vfs_mount",
                 "error": str(e)
+            }
+
+    async def _vfs_unmount(self, mount_point: str) -> Dict[str, Any]:
+        """Unmount an active VFS mount point."""
+        if not HAS_CONTRACT_VFS:
+            return {
+                "success": False,
+                "operation": "vfs_unmount",
+                "error": "contract VFS helpers unavailable",
+            }
+        try:
+            result = await self._await_if_needed(contract_vfs_unmount(mount_point))
+            result["operation"] = "vfs_unmount"
+            return result
+        except Exception as e:
+            return {
+                "success": False,
+                "operation": "vfs_unmount",
+                "error": str(e),
+            }
+
+    async def _vfs_list_mounts(self) -> Dict[str, Any]:
+        """List active VFS mounts from the canonical VFS core."""
+        if not HAS_CONTRACT_VFS:
+            return {
+                "success": False,
+                "operation": "vfs_list_mounts",
+                "error": "contract VFS helpers unavailable",
+            }
+        try:
+            result = await self._await_if_needed(contract_vfs_list_mounts())
+            result["operation"] = "vfs_list_mounts"
+            return result
+        except Exception as e:
+            return {
+                "success": False,
+                "operation": "vfs_list_mounts",
+                "error": str(e),
+            }
+
+    async def _vfs_resolve_path(self, local_path: str) -> Dict[str, Any]:
+        """Resolve a local VFS path to backend path."""
+        if not HAS_CONTRACT_VFS:
+            return {
+                "success": False,
+                "operation": "vfs_resolve_path",
+                "error": "contract VFS helpers unavailable",
+            }
+        try:
+            result = await self._await_if_needed(contract_vfs_resolve_path(local_path))
+            result["operation"] = "vfs_resolve_path"
+            return result
+        except Exception as e:
+            return {
+                "success": False,
+                "operation": "vfs_resolve_path",
+                "error": str(e),
             }
     
     async def _vfs_ls(self, path: str = "/") -> Dict[str, Any]:
@@ -1322,7 +1412,7 @@ class MCPServer:
                 }
             },
             
-            # Virtual Filesystem Integration (7 tools)
+            # Virtual Filesystem Integration (10 tools)
             "vfs_mount": {
                 "name": "vfs_mount",
                 "description": "Mount IPFS path as virtual filesystem",
@@ -1332,6 +1422,36 @@ class MCPServer:
                         "ipfs_path": {"type": "string", "description": "IPFS path to mount (default: /)"},
                         "mount_point": {"type": "string", "description": "Local mount point (default: /ipfs)"}
                     }
+                }
+            },
+            "vfs_unmount": {
+                "name": "vfs_unmount",
+                "description": "Unmount a VFS mount point",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "mount_point": {"type": "string", "description": "Mounted path to unmount"}
+                    },
+                    "required": ["mount_point"]
+                }
+            },
+            "vfs_list_mounts": {
+                "name": "vfs_list_mounts",
+                "description": "List all active VFS mounts",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
+            "vfs_resolve_path": {
+                "name": "vfs_resolve_path",
+                "description": "Resolve a local VFS path to backend path",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "local_path": {"type": "string", "description": "Local VFS path to resolve"}
+                    },
+                    "required": ["local_path"]
                 }
             },
             "vfs_ls": {

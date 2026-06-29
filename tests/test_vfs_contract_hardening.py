@@ -125,3 +125,35 @@ def test_vfs_write_graceful_when_accelerate_unavailable():
     assert write_result["integration"]["accelerate"]["attempted"] is False
     assert write_result["integration"]["accelerate"]["reason"] == "ipfs_accelerate_unavailable"
     assert write_result["integration"]["accelerate"]["fallback_order"][1] == "search_models"
+
+
+def test_vfs_write_accelerate_timeout_is_bounded(monkeypatch):
+    class FakeDatasetsManager:
+        def __init__(self):
+            self.event_log = []
+
+    class FakeAccelerate:
+        @staticmethod
+        def discover_embedding_models():
+            return ["would-have-worked"]
+
+    vfs = get_vfs()
+    for mount in list(vfs.mounts.keys()):
+        vfs.unmount(mount)
+
+    vfs.configure_integrations(
+        datasets_manager=FakeDatasetsManager(),
+        accelerate_module=FakeAccelerate(),
+    )
+    vfs.mount("/tmp/vfs-hooks-timeout", "memory", "/")
+
+    monkeypatch.setattr(vfs, "_call_with_timeout", lambda func, *args: (True, None))
+
+    write_result = vfs_write("/tmp/vfs-hooks-timeout/doc.txt", "hello")
+    assert write_result["success"] is True
+    assert write_result["integration"]["accelerate"]["attempted"] is True
+    assert write_result["integration"]["accelerate"]["success"] is False
+    assert write_result["integration"]["accelerate"]["reason"] == "accelerate_timeout"
+
+    snapshot = vfs.observability_snapshot()
+    assert snapshot["metrics"]["accelerate_timeouts"] >= 1

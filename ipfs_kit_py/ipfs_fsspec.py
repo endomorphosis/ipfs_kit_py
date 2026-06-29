@@ -12,6 +12,7 @@ import logging
 import io
 import tempfile
 import datetime
+import concurrent.futures
 from typing import Dict, List, Any, Optional, Union, Tuple, Callable, BinaryIO
 
 # Import fsspec (optional).
@@ -1870,12 +1871,14 @@ class VFSCore:
             "last_error": None,
             "dataset_events": 0,
             "accelerate_enrichment": 0,
+            "accelerate_timeouts": 0,
             "integration_errors": 0,
         }
         self._datasets_manager: Optional[Any] = None
         self._datasets_manager_checked = False
         self._accelerate_module: Optional[Any] = None
         self._accelerate_module_checked = False
+        self._accelerate_timeout_sec = float(os.environ.get("IPFS_KIT_ACCELERATE_TIMEOUT_SEC", "1.5"))
 
     def _record_metric(self, operation: str, *, error: Optional[str] = None) -> None:
         if operation in self._metrics and isinstance(self._metrics[operation], int):
@@ -1918,6 +1921,16 @@ class VFSCore:
         except Exception:
             self._accelerate_module = None
         return self._accelerate_module
+
+    def _call_with_timeout(self, func: Any, *args: Any) -> Tuple[bool, Any]:
+        """Return (timed_out, result) for a synchronous callable."""
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(func, *args)
+            try:
+                return False, future.result(timeout=self._accelerate_timeout_sec)
+            except concurrent.futures.TimeoutError:
+                future.cancel()
+                return True, None
 
     def _notify_dataset_metadata(
         self,
@@ -2062,24 +2075,36 @@ class VFSCore:
             }
 
     def _enrich_metadata_with_accelerate(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        fallback_order = [
+            "discover_embedding_models",
+            "search_models",
+            "AccelerateCompute.discover_embedding_models",
+            "AccelerateCompute.search_models",
+            "AccelerateCompute.list_models",
+        ]
+
         accelerate = self._get_accelerate_module()
         if accelerate is None:
             return {
                 "attempted": False,
                 "success": False,
                 "reason": "ipfs_accelerate_unavailable",
-                "fallback_order": [
-                    "discover_embedding_models",
-                    "search_models",
-                    "AccelerateCompute.discover_embedding_models",
-                    "AccelerateCompute.search_models",
-                    "AccelerateCompute.list_models",
-                ],
+                "fallback_order": fallback_order,
             }
 
         try:
             if hasattr(accelerate, "discover_embedding_models") and callable(accelerate.discover_embedding_models):
-                models = accelerate.discover_embedding_models()
+                timed_out, models = self._call_with_timeout(accelerate.discover_embedding_models)
+                if timed_out:
+                    self._metrics["accelerate_timeouts"] += 1
+                    return {
+                        "attempted": True,
+                        "success": False,
+                        "reason": "accelerate_timeout",
+                        "mode": "discover_embedding_models",
+                        "timeout_seconds": self._accelerate_timeout_sec,
+                        "fallback_order": fallback_order,
+                    }
                 metadata["accelerate_models"] = models
                 self._metrics["accelerate_enrichment"] += 1
                 return {
@@ -2087,17 +2112,21 @@ class VFSCore:
                     "success": True,
                     "mode": "discover_embedding_models",
                     "model_count": len(models) if isinstance(models, list) else None,
-                    "fallback_order": [
-                        "discover_embedding_models",
-                        "search_models",
-                        "AccelerateCompute.discover_embedding_models",
-                        "AccelerateCompute.search_models",
-                        "AccelerateCompute.list_models",
-                    ],
+                    "fallback_order": fallback_order,
                 }
 
             if hasattr(accelerate, "search_models") and callable(accelerate.search_models):
-                models = accelerate.search_models("embedding")
+                timed_out, models = self._call_with_timeout(accelerate.search_models, "embedding")
+                if timed_out:
+                    self._metrics["accelerate_timeouts"] += 1
+                    return {
+                        "attempted": True,
+                        "success": False,
+                        "reason": "accelerate_timeout",
+                        "mode": "search_models",
+                        "timeout_seconds": self._accelerate_timeout_sec,
+                        "fallback_order": fallback_order,
+                    }
                 metadata["accelerate_models"] = models
                 self._metrics["accelerate_enrichment"] += 1
                 return {
@@ -2105,13 +2134,7 @@ class VFSCore:
                     "success": True,
                     "mode": "search_models",
                     "model_count": len(models) if isinstance(models, list) else None,
-                    "fallback_order": [
-                        "discover_embedding_models",
-                        "search_models",
-                        "AccelerateCompute.discover_embedding_models",
-                        "AccelerateCompute.search_models",
-                        "AccelerateCompute.list_models",
-                    ],
+                    "fallback_order": fallback_order,
                 }
 
             cls = getattr(accelerate, "AccelerateCompute", None)
@@ -2120,7 +2143,18 @@ class VFSCore:
                 for method_name in ("discover_embedding_models", "search_models", "list_models"):
                     method = getattr(engine, method_name, None)
                     if callable(method):
-                        models = method("embedding") if method_name == "search_models" else method()
+                        args = ("embedding",) if method_name == "search_models" else tuple()
+                        timed_out, models = self._call_with_timeout(method, *args)
+                        if timed_out:
+                            self._metrics["accelerate_timeouts"] += 1
+                            return {
+                                "attempted": True,
+                                "success": False,
+                                "reason": "accelerate_timeout",
+                                "mode": f"AccelerateCompute.{method_name}",
+                                "timeout_seconds": self._accelerate_timeout_sec,
+                                "fallback_order": fallback_order,
+                            }
                         metadata["accelerate_models"] = models
                         self._metrics["accelerate_enrichment"] += 1
                         return {
@@ -2128,26 +2162,14 @@ class VFSCore:
                             "success": True,
                             "mode": f"AccelerateCompute.{method_name}",
                             "model_count": len(models) if isinstance(models, list) else None,
-                            "fallback_order": [
-                                "discover_embedding_models",
-                                "search_models",
-                                "AccelerateCompute.discover_embedding_models",
-                                "AccelerateCompute.search_models",
-                                "AccelerateCompute.list_models",
-                            ],
+                            "fallback_order": fallback_order,
                         }
 
             return {
                 "attempted": True,
                 "success": False,
                 "reason": "no_supported_accelerate_hook",
-                "fallback_order": [
-                    "discover_embedding_models",
-                    "search_models",
-                    "AccelerateCompute.discover_embedding_models",
-                    "AccelerateCompute.search_models",
-                    "AccelerateCompute.list_models",
-                ],
+                "fallback_order": fallback_order,
             }
         except Exception as exc:
             self._metrics["integration_errors"] += 1
