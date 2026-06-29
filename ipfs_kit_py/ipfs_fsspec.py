@@ -14,9 +14,11 @@ import tempfile
 import datetime
 import hashlib
 import json
+import base64
 import threading
 import uuid
 from typing import Dict, List, Any, Optional, Union, Tuple, Callable, BinaryIO
+from pathlib import Path
 
 # Import fsspec (optional).
 try:
@@ -1884,6 +1886,95 @@ class VFSCore:
         self._accelerate_timeout_sec = float(os.environ.get("IPFS_KIT_ACCELERATE_TIMEOUT_SEC", "1.5"))
         self._sync_snapshots: Dict[str, Dict[str, Any]] = {}
         self._sync_state_by_path: Dict[str, Dict[str, Any]] = {}
+        self._sync_transport_mode = os.environ.get("IPFS_KIT_SYNC_TRANSPORT", "auto").strip().lower()
+        self._sync_conflict_policy = os.environ.get("IPFS_KIT_SYNC_CONFLICT_POLICY", "overwrite").strip().lower()
+        state_path_default = Path.home() / ".ipfs_kit" / "vfs_sync_state.json"
+        self._sync_state_path = Path(os.environ.get("IPFS_KIT_VFS_SYNC_STATE_PATH", str(state_path_default)))
+        self._sync_state_lock = threading.RLock()
+        self._load_sync_state_from_disk()
+
+    def _serialize_sync_snapshot(self, snapshot: Dict[str, Any]) -> Dict[str, Any]:
+        serialized = dict(snapshot)
+        blobs = snapshot.get("blobs", {})
+        encoded_blobs: Dict[str, str] = {}
+        if isinstance(blobs, dict):
+            for rel, blob in blobs.items():
+                if isinstance(blob, (bytes, bytearray)):
+                    encoded_blobs[str(rel)] = base64.b64encode(bytes(blob)).decode("ascii")
+        serialized["blobs"] = encoded_blobs
+        return serialized
+
+    def _deserialize_sync_snapshot(self, snapshot: Dict[str, Any]) -> Dict[str, Any]:
+        deserialized = dict(snapshot)
+        blobs = snapshot.get("blobs", {})
+        decoded_blobs: Dict[str, bytes] = {}
+        if isinstance(blobs, dict):
+            for rel, blob in blobs.items():
+                if isinstance(blob, str):
+                    try:
+                        decoded_blobs[str(rel)] = base64.b64decode(blob.encode("ascii"))
+                    except Exception:
+                        continue
+        deserialized["blobs"] = decoded_blobs
+        return deserialized
+
+    def _save_sync_state_to_disk(self) -> None:
+        with self._sync_state_lock:
+            payload = {
+                "schema_version": "1",
+                "saved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "state_by_path": self._sync_state_by_path,
+                "snapshots": {
+                    cid: self._serialize_sync_snapshot(snapshot)
+                    for cid, snapshot in self._sync_snapshots.items()
+                    if isinstance(snapshot, dict)
+                },
+            }
+
+            self._sync_state_path.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=str(self._sync_state_path.parent),
+                prefix="vfs_sync_state_",
+                suffix=".tmp",
+                delete=False,
+            ) as f:
+                tmp_path = Path(f.name)
+                json.dump(payload, f, indent=2, sort_keys=True)
+                f.flush()
+                os.fsync(f.fileno())
+
+            os.replace(tmp_path, self._sync_state_path)
+
+    def _load_sync_state_from_disk(self) -> None:
+        with self._sync_state_lock:
+            if not self._sync_state_path.exists():
+                return
+            try:
+                with open(self._sync_state_path, "r", encoding="utf-8") as f:
+                    loaded = json.load(f)
+            except Exception:
+                self._sync_snapshots = {}
+                self._sync_state_by_path = {}
+                return
+
+            state_by_path = loaded.get("state_by_path", {}) if isinstance(loaded, dict) else {}
+            snapshots = loaded.get("snapshots", {}) if isinstance(loaded, dict) else {}
+
+            if isinstance(state_by_path, dict):
+                self._sync_state_by_path = {
+                    str(k): dict(v) for k, v in state_by_path.items() if isinstance(v, dict)
+                }
+            else:
+                self._sync_state_by_path = {}
+
+            rebuilt: Dict[str, Dict[str, Any]] = {}
+            if isinstance(snapshots, dict):
+                for cid, snapshot in snapshots.items():
+                    if isinstance(snapshot, dict):
+                        rebuilt[str(cid)] = self._deserialize_sync_snapshot(snapshot)
+            self._sync_snapshots = rebuilt
 
     def _record_metric(self, operation: str, *, error: Optional[str] = None) -> None:
         if operation in self._metrics and isinstance(self._metrics[operation], int):
@@ -1965,6 +2056,7 @@ class VFSCore:
     ) -> Dict[str, Any]:
         manager = self._get_datasets_manager()
         payload: Dict[str, Any] = {
+            "schema_version": "2",
             "operation": operation,
             "path": path,
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -2213,16 +2305,23 @@ class VFSCore:
     ) -> Dict[str, Any]:
         operation_id = f"op-{uuid.uuid4().hex}"
         metadata: Dict[str, Any] = {
+            "schema_version": "2",
             "operation_id": operation_id,
             "operation": operation,
             "path": path,
             "backend": (mount or {}).get("backend"),
+            "mount_point": (mount or {}).get("mount_point"),
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
         if extra:
             metadata.update(extra)
         metadata["operation_id"] = operation_id
 
         payload_extra = dict(extra or {})
+        payload_extra.setdefault("schema_version", "2")
+        payload_extra.setdefault("backend", (mount or {}).get("backend"))
+        payload_extra.setdefault("mount_point", (mount or {}).get("mount_point"))
+        payload_extra.setdefault("timestamp", datetime.datetime.now(datetime.timezone.utc).isoformat())
         payload_extra["operation_id"] = operation_id
         dataset_result = self._notify_dataset_metadata(
             operation=operation,
@@ -2237,6 +2336,62 @@ class VFSCore:
             "accelerate": accelerate_result,
             "metadata": metadata,
         }
+
+    def _should_overwrite_content(self, existing: bytes, incoming: bytes, policy: str) -> Tuple[bool, Optional[str]]:
+        if existing == incoming:
+            return True, None
+        normalized_policy = (policy or "overwrite").strip().lower()
+        if normalized_policy == "overwrite":
+            return True, None
+        if normalized_policy == "skip":
+            return False, None
+        if normalized_policy == "strict":
+            return False, "conflict_detected"
+        return True, None
+
+    def _transport_sync_to_ipfs(
+        self,
+        *,
+        normalized_path: str,
+        mount: Optional[Dict[str, Any]],
+        local_root: Optional[str],
+        blobs: Dict[str, bytes],
+    ) -> Optional[str]:
+        if self._sync_transport_mode == "deterministic":
+            return None
+        manager = self._get_datasets_manager()
+        if manager is None or not hasattr(manager, "store"):
+            return None
+
+        metadata = {
+            "schema_version": "2",
+            "operation": "sync_to_ipfs",
+            "path": normalized_path,
+            "backend": (mount or {}).get("backend"),
+        }
+
+        try:
+            if local_root and os.path.exists(local_root):
+                result = manager.store(local_root, metadata=metadata)
+                if isinstance(result, dict) and result.get("success") and result.get("cid"):
+                    return str(result.get("cid"))
+
+            if blobs:
+                with tempfile.TemporaryDirectory(prefix="vfs_sync_transport_") as tmp_dir:
+                    for rel, data in blobs.items():
+                        rel_path = rel if rel else "payload.bin"
+                        target = os.path.join(tmp_dir, rel_path)
+                        os.makedirs(os.path.dirname(target), exist_ok=True)
+                        with open(target, "wb") as f:
+                            f.write(data)
+
+                    result = manager.store(tmp_dir, metadata=metadata)
+                    if isinstance(result, dict) and result.get("success") and result.get("cid"):
+                        return str(result.get("cid"))
+        except Exception:
+            return None
+
+        return None
 
     def mount(self, mount_point: str, backend: str, target: str, read_only: bool = False) -> Dict[str, Any]:
         if not mount_point:
@@ -2691,12 +2846,21 @@ class VFSCore:
             resolved_path = str(resolved.get("resolved_path") or "")
             digest = hashlib.sha256(resolved_path.encode("utf-8")).hexdigest()
             cid = f"cidv1-{digest[:32]}"
+            transport_cid = self._transport_sync_to_ipfs(
+                normalized_path=normalized,
+                mount=mount,
+                local_root=None,
+                blobs={},
+            )
+            if transport_cid:
+                cid = transport_cid
             self._sync_state_by_path[normalized] = {"cid": cid, "manifest_hash": digest}
+            self._save_sync_state_to_disk()
             integration = self._run_content_mutation_integrations(
                 operation="sync_to_ipfs",
                 path=normalized,
                 mount=mount,
-                extra={"cid": cid, "entry_count": 1, "already_ipfs": True},
+                extra={"cid": cid, "entry_count": 1, "already_ipfs": True, "transport_mode": self._sync_transport_mode},
             )
             return {
                 "success": True,
@@ -2704,6 +2868,7 @@ class VFSCore:
                 "cid": cid,
                 "entry_count": 1,
                 "already_ipfs": True,
+                "transport_mode": self._sync_transport_mode,
                 "integration": integration,
             }
         else:
@@ -2731,6 +2896,16 @@ class VFSCore:
             cid = f"cidv1-{manifest_hash[:32]}"
             changed = True
 
+        local_root = self._to_local_path(normalized) if backend == "local" else None
+        transport_cid = self._transport_sync_to_ipfs(
+            normalized_path=normalized,
+            mount=mount,
+            local_root=local_root,
+            blobs=blobs,
+        )
+        if transport_cid:
+            cid = transport_cid
+
         self._sync_snapshots[cid] = {
             "cid": cid,
             "path": normalized,
@@ -2741,13 +2916,19 @@ class VFSCore:
             "synced_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
         self._sync_state_by_path[normalized] = {"cid": cid, "manifest_hash": manifest_hash}
+        self._save_sync_state_to_disk()
 
         integration = self._run_content_mutation_integrations(
             operation="sync_to_ipfs",
             path=normalized,
             mount=mount,
-            local_path=self._to_local_path(normalized) if backend == "local" else None,
-            extra={"cid": cid, "entry_count": len(entries), "changed": changed},
+            local_path=local_root,
+            extra={
+                "cid": cid,
+                "entry_count": len(entries),
+                "changed": changed,
+                "transport_mode": self._sync_transport_mode,
+            },
         )
 
         return {
@@ -2756,6 +2937,7 @@ class VFSCore:
             "cid": cid,
             "entry_count": len(entries),
             "changed": changed,
+            "transport_mode": self._sync_transport_mode,
             "integration": integration,
         }
 
@@ -2788,7 +2970,9 @@ class VFSCore:
             }
 
         restored = 0
+        skipped = 0
         blobs = snapshot.get("blobs", {})
+        conflict_policy = self._sync_conflict_policy
 
         if backend == "local":
             local_root = self._to_local_path(normalized)
@@ -2797,33 +2981,108 @@ class VFSCore:
 
             is_single_file = "" in blobs and len(blobs) == 1
             if is_single_file:
-                os.makedirs(os.path.dirname(local_root), exist_ok=True)
-                with open(local_root, "wb") as f:
-                    f.write(blobs[""])
-                self.cache_manager.put(normalized, backend, blobs[""])
+                incoming = blobs[""]
+                if os.path.exists(local_root):
+                    with open(local_root, "rb") as f:
+                        existing = f.read()
+                    should_write, conflict_error = self._should_overwrite_content(existing, incoming, conflict_policy)
+                    if conflict_error is not None:
+                        return {
+                            "success": False,
+                            "path": normalized,
+                            "cid": cid,
+                            "error": conflict_error,
+                            "code": "sync_conflict",
+                            "policy": conflict_policy,
+                        }
+                    if not should_write:
+                        skipped += 1
+                        incoming = existing
+                    else:
+                        os.makedirs(os.path.dirname(local_root), exist_ok=True)
+                        with open(local_root, "wb") as f:
+                            f.write(incoming)
+                else:
+                    os.makedirs(os.path.dirname(local_root), exist_ok=True)
+                    with open(local_root, "wb") as f:
+                        f.write(incoming)
+                self.cache_manager.put(normalized, backend, incoming)
                 restored = 1
             else:
                 os.makedirs(local_root, exist_ok=True)
                 for rel, data in blobs.items():
                     full_path = os.path.join(local_root, rel)
                     os.makedirs(os.path.dirname(full_path), exist_ok=True)
-                    with open(full_path, "wb") as f:
-                        f.write(data)
+                    to_cache = data
+                    if os.path.exists(full_path):
+                        with open(full_path, "rb") as f:
+                            existing = f.read()
+                        should_write, conflict_error = self._should_overwrite_content(existing, data, conflict_policy)
+                        if conflict_error is not None:
+                            return {
+                                "success": False,
+                                "path": normalized,
+                                "cid": cid,
+                                "error": conflict_error,
+                                "code": "sync_conflict",
+                                "policy": conflict_policy,
+                            }
+                        if not should_write:
+                            skipped += 1
+                            to_cache = existing
+                        else:
+                            with open(full_path, "wb") as f:
+                                f.write(data)
+                    else:
+                        with open(full_path, "wb") as f:
+                            f.write(data)
                     restored_path = _norm_path(f"{normalized.rstrip('/')}/{rel}")
-                    self.cache_manager.put(restored_path, backend, data)
+                    self.cache_manager.put(restored_path, backend, to_cache)
                     restored += 1
         elif backend == "memory":
             base = normalized.rstrip("/")
             is_single_file = "" in blobs and len(blobs) == 1
             if is_single_file:
-                self._memory.files[normalized] = blobs[""]
-                self.cache_manager.put(normalized, backend, blobs[""])
+                incoming = blobs[""]
+                existing = self._memory.files.get(normalized)
+                if isinstance(existing, (bytes, bytearray)):
+                    should_write, conflict_error = self._should_overwrite_content(bytes(existing), incoming, conflict_policy)
+                    if conflict_error is not None:
+                        return {
+                            "success": False,
+                            "path": normalized,
+                            "cid": cid,
+                            "error": conflict_error,
+                            "code": "sync_conflict",
+                            "policy": conflict_policy,
+                        }
+                    if not should_write:
+                        skipped += 1
+                        incoming = bytes(existing)
+                self._memory.files[normalized] = incoming
+                self.cache_manager.put(normalized, backend, incoming)
                 restored = 1
             else:
                 for rel, data in blobs.items():
                     key = _norm_path(f"{base}/{rel}")
-                    self._memory.files[key] = data
-                    self.cache_manager.put(key, backend, data)
+                    incoming = data
+                    existing = self._memory.files.get(key)
+                    if isinstance(existing, (bytes, bytearray)):
+                        should_write, conflict_error = self._should_overwrite_content(bytes(existing), data, conflict_policy)
+                        if conflict_error is not None:
+                            return {
+                                "success": False,
+                                "path": normalized,
+                                "cid": cid,
+                                "error": conflict_error,
+                                "code": "sync_conflict",
+                                "policy": conflict_policy,
+                            }
+                        if not should_write:
+                            skipped += 1
+                            incoming = bytes(existing)
+                    self._memory.files[key] = incoming
+                    self.cache_manager.put(key, backend, incoming)
                     restored += 1
         elif backend == "ipfs":
             restored = len(snapshot.get("manifest", {}).get("entries", []))
@@ -2840,7 +3099,7 @@ class VFSCore:
             path=normalized,
             mount=mount,
             local_path=self._to_local_path(normalized) if backend == "local" else None,
-            extra={"cid": cid, "restored_count": restored},
+            extra={"cid": cid, "restored_count": restored, "skipped_count": skipped, "policy": conflict_policy},
         )
 
         return {
@@ -2848,6 +3107,8 @@ class VFSCore:
             "path": normalized,
             "cid": cid,
             "restored_count": restored,
+            "skipped_count": skipped,
+            "policy": conflict_policy,
             "integration": integration,
         }
 

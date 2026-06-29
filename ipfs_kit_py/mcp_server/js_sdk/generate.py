@@ -32,6 +32,10 @@ export class IpfsKitMcpClient {{
 """
 
 
+SDK_PATH = Path(__file__).parent / "ipfs-kit-mcp-sdk.js"
+MANIFEST_PATH = Path(__file__).parent / "tools-manifest.json"
+
+
 def render() -> str:
     tm = HierarchicalToolManager()
     tools = {s["name"]: {"category": s["category"], "inputSchema": s["inputSchema"],
@@ -39,15 +43,17 @@ def render() -> str:
     return TEMPLATE.format(tools=json.dumps(tools, indent=2))
 
 
+def render_manifest() -> str:
+    tm = HierarchicalToolManager()
+    return json.dumps({"version": "0.1.0", "tools": tm.all_tool_schemas()}, indent=2)
+
+
 def main() -> None:
-    out = Path(__file__).parent / "ipfs-kit-mcp-sdk.js"
-    out.write_text(render())
+    SDK_PATH.write_text(render())
     # Emit a JSON manifest too, so non-JS consumers (e.g. the swissknife
     # dashboard descriptor pack) read the identical tool registry.
-    tm = HierarchicalToolManager()
-    manifest = {"version": "0.1.0", "tools": tm.all_tool_schemas()}
-    (Path(__file__).parent / "tools-manifest.json").write_text(json.dumps(manifest, indent=2))
-    print(f"wrote {out} + tools-manifest.json")
+    MANIFEST_PATH.write_text(render_manifest())
+    print(f"wrote {SDK_PATH} + tools-manifest.json")
 
 
 if __name__ == "__main__":

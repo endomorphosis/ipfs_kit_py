@@ -60,3 +60,9 @@ install-min:
 docs:
 	@echo "Building documentation..."
 	cd docs && make html
+# Regenerate the MCP++ JS SDK + tools manifest and sync to the swissknife dashboard
+.PHONY: mcp-sdk
+mcp-sdk:
+	python -m ipfs_kit_py.mcp_server.js_sdk.generate
+	@dash=../../swissknife/src/services/mcp-ipfs-kit-tools-manifest.json; \
+	if [ -f $$dash ]; then cp ipfs_kit_py/mcp_server/js_sdk/tools-manifest.json $$dash; echo "synced dashboard manifest"; fi

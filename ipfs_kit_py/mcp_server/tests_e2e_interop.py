@@ -108,3 +108,16 @@ def test_name_car_pinset_groups():
     assert anyio.run(tm.dispatch, "name_tools", "name_publish", {"path": "/ipfs/bafy"})["status"] == "success"
     assert anyio.run(tm.dispatch, "car_tools", "create_car", {"roots": ["bafy"]})["status"] == "success"
     assert anyio.run(tm.dispatch, "pin_tools", "get_pinset", {})["status"] == "success"
+
+
+def test_generated_artifacts_not_stale():
+    """The committed JS SDK + manifest must equal a fresh regeneration."""
+    assert generate.SDK_PATH.read_text() == generate.render(), "JS SDK stale: run generate"
+    assert generate.MANIFEST_PATH.read_text() == generate.render_manifest(), "manifest stale: run generate"
+
+
+def test_swissknife_manifest_in_sync():
+    """Dashboard manifest must match the server's generated manifest."""
+    dash = PKG.parents[2] / "swissknife" / "src" / "services" / "mcp-ipfs-kit-tools-manifest.json"
+    if dash.exists():
+        assert dash.read_text() == generate.render_manifest(), "swissknife manifest stale: resync"

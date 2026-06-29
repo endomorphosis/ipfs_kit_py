@@ -502,14 +502,11 @@ class UnifiedMCPServer:
                     "isError": not bool(payload.get("success", False)),
                 }
 
-            payload = {
-                "success": False,
-                "tool": name,
-                "arguments": arguments,
-                "error": "Tool registered but execution handler is not implemented in unified server",
-                "code": "not_implemented",
+            payload = await self._execute_non_vfs_tool(name, arguments)
+            return {
+                "content": [{"type": "text", "text": json.dumps(payload)}],
+                "isError": not bool(payload.get("success", False)),
             }
-            return {"content": [{"type": "text", "text": json.dumps(payload)}], "isError": True}
         except Exception as exc:
             payload = {
                 "success": False,
@@ -573,6 +570,46 @@ class UnifiedMCPServer:
             "tool": tool_name,
             "error": "VFS operation not supported by unified MCP dispatch",
             "code": "vfs_not_supported",
+        }
+
+    async def _execute_non_vfs_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Best-effort dispatch for selected non-VFS tools plus stable placeholders.
+
+        The unified server intentionally keeps broad tool execution conservative;
+        unsupported tools return a structured placeholder instead of throwing.
+        """
+        if tool_name == "system_health":
+            return {
+                "success": True,
+                "tool": tool_name,
+                "status": "ok",
+                "registered_tools": len(self.tools),
+                "vfs_available": bool(HAS_CANONICAL_VFS),
+            }
+
+        if tool_name == "ipfs_version":
+            return {
+                "success": True,
+                "tool": tool_name,
+                "version": "unified-mcp/0.0.0",
+                "mode": "compatibility",
+            }
+
+        if tool_name == "ipfs_id":
+            return {
+                "success": True,
+                "tool": tool_name,
+                "id": "unified-mcp-local",
+                "addresses": [],
+                "mode": "compatibility",
+            }
+
+        return {
+            "success": False,
+            "tool": tool_name,
+            "arguments": arguments,
+            "error": "Tool registered but execution handler is not implemented in unified server",
+            "code": "not_implemented",
         }
 
     async def execute_tool(self, tool_name: str, arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

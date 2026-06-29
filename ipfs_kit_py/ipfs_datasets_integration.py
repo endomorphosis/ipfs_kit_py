@@ -457,11 +457,18 @@ class IPFSDatasetsManager:
         with open(self.metadata_index_lock_path, "a+", encoding="utf-8") as lock_file:
             if fcntl is not None:
                 fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            elif msvcrt is not None:
+                # Windows fallback: lock first byte for exclusive access.
+                lock_file.seek(0)
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_LOCK, 1)
             try:
                 yield
             finally:
                 if fcntl is not None:
                     fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+                elif msvcrt is not None:
+                    lock_file.seek(0)
+                    msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
 
     def _read_index_from_disk_unlocked(self) -> Dict[str, Dict[str, Any]]:
         if not self.metadata_index_path.exists():
@@ -770,6 +777,7 @@ class IPFSDatasetsManager:
             inferred_provenance = self._infer_provenance(dataset_path, cid=cid)
 
         entry = {
+            "schema_version": "2",
             "id": self._index_key(path=path, cid=cid),
             "path": str(dataset_path) if dataset_path else metadata.get("path"),
             "cid": cid,
@@ -783,6 +791,7 @@ class IPFSDatasetsManager:
             "provenance": inferred_provenance,
             "metadata": metadata,
             "lineage": {
+                "schema_version": "2",
                 "operation_id": operation_id,
                 "source_operation_id": source_operation_id,
                 "cid": cid,

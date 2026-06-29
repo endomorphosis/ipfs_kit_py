@@ -24,8 +24,9 @@ thin async wrapper over `core_operations._call` (canonical biz logic over the
 `name_tools`, `car_tools`, `cluster_tools` (21 tools) — add via a new module
 under `tools/` + an entry in `TOOL_GROUPS`. Schemas auto-derive from signatures.
 The generator also emits `tools-manifest.json`, consumed by the swissknife
-dashboard descriptor pack (`mcp-ipfs-kit-descriptor-pack.ts`) so the dashboard
-reuses the same tool list.
+dashboard descriptor pack (`mcp-ipfs-kit-descriptor-pack.ts`). Run `make mcp-sdk`
+to regenerate the SDK/manifest and sync the dashboard; drift-guard tests fail if
+any committed artifact is stale.
 
 ## Runtime
 
