@@ -490,6 +490,8 @@ class IPFSDatasetsManager:
         self._queue_store_task_prefix = "accelerate_enrichment:"
         self._queue_store_tasks_table = "tasks"
         self._queue_store_task_queue: Optional[Any] = None
+        self._queue_store_car_bridge: Optional[Any] = None
+        self._queue_store_car_bridge_checked = False
         self._queue_store_pending_table = "accelerate_enrichment_pending"
         self._queue_store_dead_table = "accelerate_enrichment_dead_letter"
         self._queue_store_export_parquet = os.environ.get("IPFS_KIT_ACCELERATE_QUEUE_EXPORT_PARQUET", "0").strip().lower() in {
@@ -498,7 +500,14 @@ class IPFSDatasetsManager:
             "yes",
             "on",
         }
+        self._queue_store_export_car = os.environ.get("IPFS_KIT_ACCELERATE_QUEUE_EXPORT_CAR", "0").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
         self._queue_store_parquet_dir = self.backend.base_path / "queue_parquet"
+        self._queue_store_car_dir = self.backend.base_path / "queue_car"
         self._queue_worker: Optional[threading.Thread] = None
         self._queue_stop = threading.Event()
         self._circuit_failures = 0
@@ -550,6 +559,42 @@ class IPFSDatasetsManager:
         except Exception as exc:
             logger.debug("ipfs_datasets_py TaskQueue unavailable for queue store: %s", exc)
             self._queue_store_task_queue = None
+
+    def _queue_store_get_car_bridge(self) -> Optional[Any]:
+        if self._queue_store_car_bridge_checked:
+            return self._queue_store_car_bridge
+
+        self._queue_store_car_bridge_checked = True
+        try:
+            from .parquet_car_bridge import ParquetCARBridge
+
+            self._queue_store_car_dir.mkdir(parents=True, exist_ok=True)
+            self._queue_store_car_bridge = ParquetCARBridge(storage_path=str(self._queue_store_car_dir))
+        except Exception as exc:
+            logger.debug("ParquetCARBridge unavailable for queue CAR export: %s", exc)
+            self._queue_store_car_bridge = None
+        return self._queue_store_car_bridge
+
+    def _queue_store_export_to_car(self, parquet_paths: List[Path]) -> None:
+        if not self._queue_store_export_car:
+            return
+        bridge = self._queue_store_get_car_bridge()
+        if bridge is None:
+            return
+
+        for parquet_path in parquet_paths:
+            if not parquet_path.exists():
+                continue
+            car_path = self._queue_store_car_dir / f"{parquet_path.stem}.car"
+            try:
+                bridge.convert_parquet_to_car(
+                    str(parquet_path),
+                    str(car_path),
+                    include_metadata=True,
+                    compress_blocks=True,
+                )
+            except Exception as exc:
+                logger.debug("Queue CAR export failed for %s: %s", parquet_path, exc)
 
     def _init_queue_store(self) -> None:
         if not self._queue_store_enabled():
@@ -795,8 +840,10 @@ class IPFSDatasetsManager:
             return
         with self._queue_store_lock:
             self._queue_store_parquet_dir.mkdir(parents=True, exist_ok=True)
-            pending_path = str(self._queue_store_parquet_dir / "accelerate_enrichment_pending.parquet").replace("'", "''")
-            dead_path = str(self._queue_store_parquet_dir / "accelerate_enrichment_dead_letter.parquet").replace("'", "''")
+            pending_path_obj = self._queue_store_parquet_dir / "accelerate_enrichment_pending.parquet"
+            dead_path_obj = self._queue_store_parquet_dir / "accelerate_enrichment_dead_letter.parquet"
+            pending_path = str(pending_path_obj).replace("'", "''")
+            dead_path = str(dead_path_obj).replace("'", "''")
             conn = duckdb.connect(str(self._queue_store_path))
             try:
                 if self._queue_store_task_queue is not None:
@@ -830,6 +877,7 @@ class IPFSDatasetsManager:
                     )
             finally:
                 conn.close()
+        self._queue_store_export_to_car([pending_path_obj, dead_path_obj])
 
     def _hydrate_queue_from_store(self) -> None:
         if not self._queue_store_enabled():
@@ -1589,6 +1637,8 @@ class IPFSDatasetsManager:
                 "store_path": str(self._queue_store_path),
                 "pending_count": self._queue_store_pending_count(),
                 "dead_letter_count": self._queue_store_dead_letter_count(),
+                "export_parquet": self._queue_store_export_parquet,
+                "export_car": self._queue_store_export_car,
             },
         }
     

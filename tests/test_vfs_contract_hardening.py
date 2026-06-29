@@ -5,11 +5,14 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
 
 repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root))
 
 from ipfs_kit_py.ipfs_fsspec import (
+    VFSCore,
     get_vfs,
     vfs_list_mounts,
     vfs_mount,
@@ -200,6 +203,58 @@ def test_vfs_write_respects_accelerate_disabled_mode(monkeypatch):
         vfs._vfs_accelerate_mode = original_mode
 
 
+def test_vfs_write_skips_accelerate_when_datasets_async_enrichment_enabled():
+    class FakeDatasetsManager:
+        def __init__(self):
+            self.event_log = []
+            self._async_enrich = True
+
+    class FakeAccelerate:
+        @staticmethod
+        def discover_embedding_models():
+            return ["should-not-run"]
+
+    vfs = get_vfs()
+    for mount in list(vfs.mounts.keys()):
+        vfs.unmount(mount)
+
+    vfs.configure_integrations(
+        datasets_manager=FakeDatasetsManager(),
+        accelerate_module=FakeAccelerate(),
+    )
+    vfs.mount("/tmp/vfs-hooks-ownership", "memory", "/")
+
+    write_result = vfs_write("/tmp/vfs-hooks-ownership/doc.txt", "hello")
+    assert write_result["success"] is True
+    assert write_result["integration"]["dataset"]["success"] is True
+    assert write_result["integration"]["accelerate"]["attempted"] is False
+    assert write_result["integration"]["accelerate"]["reason"] == "datasets_async_enrichment_owner"
+
+
+def test_vfs_copy_and_move_emit_lineage_fields_in_metadata_envelope():
+    vfs = get_vfs()
+    for mount in list(vfs.mounts.keys()):
+        vfs.unmount(mount)
+
+    vfs.mount("/tmp/vfs-lineage", "memory", "/")
+    write = vfs_write("/tmp/vfs-lineage/original.txt", "seed")
+    assert write["success"] is True
+
+    copied = vfs.copy("/tmp/vfs-lineage/original.txt", "/tmp/vfs-lineage/copied.txt")
+    assert copied["success"] is True
+    copy_meta = copied["copy_integration"]["metadata"]
+    assert "source_operation_id" in copy_meta
+    assert "source_cid" in copy_meta
+    assert "cid" in copy_meta
+
+    moved = vfs.move("/tmp/vfs-lineage/copied.txt", "/tmp/vfs-lineage/moved.txt")
+    assert moved["success"] is True
+    move_meta = moved["integration"]["metadata"]
+    assert "source_operation_id" in move_meta
+    assert "source_cid" in move_meta
+    assert "cid" in move_meta
+
+
 def test_vfs_sync_roundtrip_for_memory_mount():
     vfs = get_vfs()
     original_policy = vfs._sync_conflict_policy
@@ -279,6 +334,38 @@ def test_vfs_sync_conflict_policy_strict_fails_on_conflict(monkeypatch):
         assert from_ipfs["success"] is False
         assert from_ipfs["code"] == "sync_conflict"
         assert from_ipfs["policy"] == "strict"
+    finally:
+        vfs._sync_conflict_policy = original_policy
+
+
+def test_vfs_startup_rejects_unknown_sync_conflict_policy(monkeypatch):
+    monkeypatch.setenv("IPFS_KIT_SYNC_CONFLICT_POLICY", "invalid_policy")
+    with pytest.raises(ValueError, match="IPFS_KIT_SYNC_CONFLICT_POLICY"):
+        VFSCore()
+
+
+def test_vfs_sync_from_ipfs_strict_rejects_manifest_integrity_mismatch():
+    vfs = get_vfs()
+    original_policy = vfs._sync_conflict_policy
+    for mount in list(vfs.mounts.keys()):
+        vfs.unmount(mount)
+
+    try:
+        vfs._sync_conflict_policy = "strict"
+        vfs.mount("/tmp/sync-strict-integrity", "memory", "/")
+        vfs.write("/tmp/sync-strict-integrity/doc.txt", "base")
+
+        to_ipfs = vfs_sync_to_ipfs("/tmp/sync-strict-integrity")
+        assert to_ipfs["success"] is True
+
+        # Simulate corrupted/incorrect stored state hash before restore.
+        vfs._sync_state_by_path["/tmp/sync-strict-integrity"]["manifest_hash"] = "deadbeef"
+
+        restored = vfs_sync_from_ipfs("/tmp/sync-strict-integrity")
+        assert restored["success"] is False
+        assert restored["code"] == "sync_integrity_mismatch"
+        assert restored["policy"] == "strict"
+        assert restored["error"] == "strict_restore_integrity_mismatch"
     finally:
         vfs._sync_conflict_policy = original_policy
 

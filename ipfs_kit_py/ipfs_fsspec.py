@@ -1861,6 +1861,8 @@ class VFSReplicationManager:
 class VFSCore:
     """A lightweight multi-backend VFS used by test harnesses."""
 
+    _ALLOWED_SYNC_CONFLICT_POLICIES = {"overwrite", "skip", "strict"}
+
     def __init__(self):
         self.registry = VFSBackendRegistry()
         self.cache_manager = VFSCacheManager()
@@ -1888,13 +1890,25 @@ class VFSCore:
         self._sync_snapshots: Dict[str, Dict[str, Any]] = {}
         self._sync_state_by_path: Dict[str, Dict[str, Any]] = {}
         self._sync_transport_mode = os.environ.get("IPFS_KIT_SYNC_TRANSPORT", "auto").strip().lower()
-        self._sync_conflict_policy = os.environ.get("IPFS_KIT_SYNC_CONFLICT_POLICY", "overwrite").strip().lower()
+        self._sync_conflict_policy = self._validate_sync_conflict_policy(
+            os.environ.get("IPFS_KIT_SYNC_CONFLICT_POLICY", "overwrite")
+        )
         self._sync_snapshot_max_count = int(os.environ.get("IPFS_KIT_VFS_SYNC_SNAPSHOT_MAX_COUNT", "256"))
         self._sync_snapshot_max_age_sec = float(os.environ.get("IPFS_KIT_VFS_SYNC_SNAPSHOT_MAX_AGE_SEC", "604800"))
         state_path_default = Path.home() / ".ipfs_kit" / "vfs_sync_state.json"
         self._sync_state_path = Path(os.environ.get("IPFS_KIT_VFS_SYNC_STATE_PATH", str(state_path_default)))
         self._sync_state_lock = threading.RLock()
         self._load_sync_state_from_disk()
+
+    _MUTATION_REQUIRED_FIELDS = {
+        "schema_version",
+        "operation_id",
+        "operation",
+        "path",
+        "backend",
+        "mount_point",
+        "timestamp",
+    }
 
     def _parse_snapshot_time(self, snapshot: Dict[str, Any]) -> Optional[datetime.datetime]:
         synced_at = snapshot.get("synced_at")
@@ -2200,6 +2214,17 @@ class VFSCore:
         if extra:
             payload.update(extra)
 
+        validation = self._validate_mutation_envelope(payload)
+        if not validation["valid"]:
+            self._metrics["integration_errors"] += 1
+            return {
+                "attempted": True,
+                "success": False,
+                "reason": "invalid_mutation_envelope",
+                "adapter": "datasets_notifier_v1",
+                "missing_fields": validation["missing_fields"],
+            }
+
         if manager is None:
             return {
                 "attempted": False,
@@ -2248,12 +2273,98 @@ class VFSCore:
                 "error": str(exc),
             }
 
+    def _validate_mutation_envelope(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        missing = sorted([field for field in self._MUTATION_REQUIRED_FIELDS if payload.get(field) is None])
+        return {
+            "valid": len(missing) == 0,
+            "missing_fields": missing,
+        }
+
+    def _validate_sync_conflict_policy(self, policy: Any) -> str:
+        normalized = str(policy or "overwrite").strip().lower()
+        if normalized not in self._ALLOWED_SYNC_CONFLICT_POLICIES:
+            allowed = ", ".join(sorted(self._ALLOWED_SYNC_CONFLICT_POLICIES))
+            raise ValueError(f"invalid IPFS_KIT_SYNC_CONFLICT_POLICY '{policy}'; allowed: {allowed}")
+        return normalized
+
+    def _compute_snapshot_manifest_hash(self, *, path: str, backend: str, blobs: Dict[str, bytes]) -> Optional[str]:
+        if not isinstance(blobs, dict) or not blobs:
+            return None
+
+        entries: List[Dict[str, Any]] = []
+        for rel in sorted(blobs.keys()):
+            blob = blobs.get(rel)
+            if not isinstance(blob, (bytes, bytearray)):
+                return None
+            data = bytes(blob)
+            entries.append(
+                {
+                    "path": str(rel),
+                    "size": len(data),
+                    "sha256": hashlib.sha256(data).hexdigest(),
+                    "type": "file",
+                }
+            )
+
+        manifest = {
+            "path": path,
+            "backend": backend,
+            "entry_count": len(entries),
+            "entries": entries,
+        }
+        manifest_bytes = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return hashlib.sha256(manifest_bytes).hexdigest()
+
+    def _validate_restore_integrity(
+        self,
+        *,
+        path: str,
+        backend: str,
+        state: Dict[str, Any],
+        snapshot: Dict[str, Any],
+        policy: str,
+    ) -> Optional[str]:
+        if (policy or "").strip().lower() != "strict":
+            return None
+
+        expected_hash = str(state.get("manifest_hash") or "")
+        snapshot_hash = str(snapshot.get("manifest_hash") or "")
+        computed_hash = self._compute_snapshot_manifest_hash(
+            path=path,
+            backend=backend,
+            blobs=snapshot.get("blobs", {}),
+        )
+
+        if not expected_hash or not snapshot_hash or computed_hash is None:
+            return "strict_restore_integrity_missing_manifest_hash"
+        if snapshot_hash != expected_hash or computed_hash != expected_hash:
+            return "strict_restore_integrity_mismatch"
+        return None
+
+    def _datasets_async_enrichment_enabled(self) -> bool:
+        manager = self._get_datasets_manager()
+        if manager is None:
+            return False
+        try:
+            return bool(getattr(manager, "_async_enrich", False))
+        except Exception:
+            return False
+
     def _enrich_metadata_with_accelerate(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
         if self._vfs_accelerate_mode in {"off", "disabled", "none"}:
             return {
                 "attempted": False,
                 "success": False,
                 "reason": "vfs_accelerate_disabled",
+                "adapter": "accelerate_discovery_v1",
+                "mode": self._vfs_accelerate_mode,
+            }
+
+        if self._vfs_accelerate_mode in {"metadata", "auto"} and self._datasets_async_enrichment_enabled():
+            return {
+                "attempted": False,
+                "success": False,
+                "reason": "datasets_async_enrichment_owner",
                 "adapter": "accelerate_discovery_v1",
                 "mode": self._vfs_accelerate_mode,
             }
@@ -2338,6 +2449,9 @@ class VFSCore:
         if extra:
             metadata.update(extra)
         metadata["operation_id"] = operation_id
+        metadata.setdefault("cid", None)
+        metadata.setdefault("source_operation_id", None)
+        metadata.setdefault("source_cid", None)
 
         payload_extra = dict(extra or {})
         payload_extra.setdefault("schema_version", "2")
@@ -2345,6 +2459,9 @@ class VFSCore:
         payload_extra.setdefault("mount_point", (mount or {}).get("mount_point"))
         payload_extra.setdefault("timestamp", datetime.datetime.now(datetime.timezone.utc).isoformat())
         payload_extra["operation_id"] = operation_id
+        payload_extra.setdefault("cid", None)
+        payload_extra.setdefault("source_operation_id", None)
+        payload_extra.setdefault("source_cid", None)
         dataset_result = self._notify_dataset_metadata(
             operation=operation,
             path=path,
@@ -2362,7 +2479,7 @@ class VFSCore:
     def _should_overwrite_content(self, existing: bytes, incoming: bytes, policy: str) -> Tuple[bool, Optional[str]]:
         if existing == incoming:
             return True, None
-        normalized_policy = (policy or "overwrite").strip().lower()
+        normalized_policy = self._validate_sync_conflict_policy(policy)
         if normalized_policy == "overwrite":
             return True, None
         if normalized_policy == "skip":
@@ -3067,7 +3184,24 @@ class VFSCore:
         restored = 0
         skipped = 0
         blobs = snapshot.get("blobs", {})
-        conflict_policy = self._sync_conflict_policy
+        conflict_policy = self._validate_sync_conflict_policy(self._sync_conflict_policy)
+
+        integrity_error = self._validate_restore_integrity(
+            path=normalized,
+            backend=backend,
+            state=state,
+            snapshot=snapshot,
+            policy=conflict_policy,
+        )
+        if integrity_error is not None:
+            return {
+                "success": False,
+                "path": normalized,
+                "cid": cid,
+                "error": integrity_error,
+                "code": "sync_integrity_mismatch",
+                "policy": conflict_policy,
+            }
 
         if backend == "local":
             local_root = self._to_local_path(normalized)
