@@ -1,8 +1,8 @@
 """CID-native execution artifact helpers for MCP++ Profile B (ipfs_kit_py).
 
-Byte-for-byte compatible with ipfs_accelerate_py's artifact model so receipts,
+Receipts, output and intent CIDs use the canonical Kubo CIDv1 base32 profile so
 output CIDs and intent CIDs are interoperable across servers. The canonical
-content address is ``cidv1-sha256-<hex>`` over deterministic JSON.
+content address is a Kubo-conformant CIDv1 (raw, sha2-256, base32) -> bafkrei…
 """
 
 from __future__ import annotations
@@ -17,10 +17,20 @@ def canonicalize_artifact(payload: Dict[str, Any]) -> bytes:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
 
 
+def _base32_lower_nopad(data: bytes) -> str:
+    import base64
+    return base64.b32encode(data).decode("ascii").rstrip("=").lower()
+
+
 def compute_artifact_cid(payload: Dict[str, Any]) -> str:
-    """Compute deterministic SHA-256 content address for an artifact."""
-    digest = hashlib.sha256(canonicalize_artifact(payload)).hexdigest()
-    return f"cidv1-sha256-{digest}"
+    """Kubo-conformant CIDv1 (raw codec, sha2-256, base32) -> bafkrei...
+
+    Bytes: multibase 'b' + base32(<0x01 cidv1><0x55 raw><0x12 sha256><0x20 len><digest>).
+    Dependency-free and identical to multiformats cid_for_obj(codec=raw, base32).
+    """
+    digest = hashlib.sha256(canonicalize_artifact(payload)).digest()
+    cid_bytes = bytes([0x01, 0x55, 0x12, 0x20]) + digest
+    return "b" + _base32_lower_nopad(cid_bytes)
 
 
 def build_intent(*, interface_cid: str, tool: str, input_cid: str, correlation_id: str = "") -> Dict[str, Any]:

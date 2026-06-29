@@ -80,7 +80,7 @@ class MCPServer:
                 from .mcplusplus import artifacts
                 parents = [n["event_cid"] for n in self._dag[-1:]]
                 meta = artifacts.envelope_from_payloads(
-                    interface_cid="cidv1-sha256-ipfs-kit-mcp",
+                    interface_cid=self._interface_cid(),
                     input_payload={"tool": name, "arguments": args},
                     tool=name,
                     output_payload=result if isinstance(result, dict) else {"value": result},
@@ -102,6 +102,11 @@ class MCPServer:
             if tool in tools:
                 return cat, "/", tool
         return "", "/", tool
+
+    def _interface_cid(self) -> str:
+        """Kubo CIDv1 over the canonical interface descriptor set (Profile A)."""
+        from .mcplusplus import artifacts
+        return artifacts.compute_artifact_cid({"interfaces": self._interface_descriptors()})
 
     def _interface_descriptors(self):
         """Profile A: canonical interface descriptors derived from the registry."""

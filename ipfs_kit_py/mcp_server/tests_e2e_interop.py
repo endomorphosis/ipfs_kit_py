@@ -132,21 +132,21 @@ def test_profile_b_receipt_emitted():
     meta = call["result"]["_mcppp"]
     for k in ("input_cid", "intent_cid", "decision_cid", "output_cid", "receipt_cid", "success"):
         assert k in meta
-    assert meta["receipt_cid"].startswith("cidv1-sha256-") and meta["success"] is True
+    assert meta["receipt_cid"].startswith("bafkrei") and meta["success"] is True
 
 
-def test_cid_algorithm_matches_accelerate():
-    """Kit's artifact CID must be byte-identical to ipfs_accelerate_py's."""
+def test_cid_algorithm_is_kubo_cidv1_base32():
+    """Kit's artifact CID is a Kubo-conformant CIDv1 (raw/sha256/base32)."""
     from ipfs_kit_py.mcp_server.mcplusplus import artifacts as kit_art
-    accel = PKG.parents[1] / "external" / "ipfs_accelerate" / "ipfs_accelerate_py" / "mcp_server" / "mcplusplus"
-    if not (accel / "artifacts.py").exists():
-        pytest.skip("accelerate artifacts not present")
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("_acc_art", accel / "artifacts.py")
-    acc_art = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(acc_art)
-    payload = {"b": 2, "a": 1, "tool": "pin_rm"}
-    assert kit_art.compute_artifact_cid(payload) == acc_art.compute_artifact_cid(payload)
+    cid = kit_art.compute_artifact_cid({"b": 2, "a": 1, "tool": "pin_rm"})
+    assert cid.startswith("bafkrei") and len(cid) == 59
+    try:
+        from multiformats import CID, multihash
+    except Exception:
+        pytest.skip("multiformats not installed")
+    body = kit_art.canonicalize_artifact({"b": 2, "a": 1, "tool": "pin_rm"})
+    mh = multihash.digest(body, "sha2-256")
+    assert cid == str(CID("base32", 1, "raw", mh))
 
 
 def test_profile_a_interfaces():
@@ -210,5 +210,5 @@ def test_all_five_profiles_smoke():
                                "params": {"chain": chain, "resource": "ipfs", "ability": "read", "actor": "did:c"}})["result"]["allowed"]
     call = anyio.run(s.handle, {"jsonrpc": "2.0", "id": 5, "method": "tools/call",
                                "params": {"name": "pin_tools/pin_rm", "arguments": {"cid": "bafy"}, "profile_b": True}})
-    assert call["result"]["_mcppp"]["receipt_cid"].startswith("cidv1-sha256-")
+    assert call["result"]["_mcppp"]["receipt_cid"].startswith("bafkrei")
     assert anyio.run(s.handle, {"jsonrpc": "2.0", "id": 6, "method": "mcp++/dag/frontier"})["result"]["count"] == 1
