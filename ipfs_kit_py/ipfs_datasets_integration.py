@@ -462,6 +462,7 @@ class IPFSDatasetsManager:
             "accelerate_queue_dropped": 0,
             "accelerate_queue_failures": 0,
             "accelerate_queue_replayed": 0,
+            "accelerate_queue_reclaimed": 0,
             "accelerate_queue_dead_letter": 0,
             "accelerate_circuit_open": 0,
             "index_errors": 0,
@@ -486,6 +487,9 @@ class IPFSDatasetsManager:
         self._queue_store_lock = threading.RLock()
         self._queue_store_backend = "duckdb" if duckdb is not None else "memory"
         self._queue_store_path = self.backend.base_path / "accelerate_enrichment_queue.duckdb"
+        self._queue_store_running_lease_timeout_sec = float(
+            os.environ.get("IPFS_KIT_ACCELERATE_QUEUE_RUNNING_LEASE_TIMEOUT_SEC", "120")
+        )
         self._queue_store_task_type = "accelerate_enrichment"
         self._queue_store_task_prefix = "accelerate_enrichment:"
         self._queue_store_tasks_table = "tasks"
@@ -754,6 +758,9 @@ class IPFSDatasetsManager:
             return []
 
         if self._queue_store_task_queue is not None:
+            reclaimed = self._queue_store_reclaim_stale_running()
+            if reclaimed > 0:
+                self._metrics["accelerate_queue_reclaimed"] += reclaimed
             with self._queue_store_lock:
                 conn = duckdb.connect(str(self._queue_store_path))
                 try:
@@ -793,6 +800,50 @@ class IPFSDatasetsManager:
             finally:
                 conn.close()
         return [(str(item_id), int(attempt)) for item_id, attempt in rows]
+
+    def _queue_store_reclaim_stale_running(self) -> int:
+        if not self._queue_store_enabled() or self._queue_store_task_queue is None:
+            return 0
+
+        lease_timeout = max(0.0, float(self._queue_store_running_lease_timeout_sec))
+        if lease_timeout <= 0:
+            return 0
+
+        cutoff_epoch = time.time() - lease_timeout
+        reclaimed = 0
+        stale_predicate = "COALESCE(TRY_CAST(updated_at AS DOUBLE), EPOCH(TRY_CAST(updated_at AS TIMESTAMP))) < ?"
+        with self._queue_store_lock:
+            conn = duckdb.connect(str(self._queue_store_path))
+            try:
+                row = conn.execute(
+                    f"""
+                    SELECT COUNT(*)
+                    FROM {self._queue_store_tasks_table}
+                    WHERE task_type = ?
+                      AND status = 'running'
+                                            AND {stale_predicate}
+                    """,
+                                        [self._queue_store_task_type, cutoff_epoch],
+                ).fetchone()
+                reclaimed = int(row[0]) if row else 0
+                if reclaimed > 0:
+                    conn.execute(
+                        f"""
+                        UPDATE {self._queue_store_tasks_table}
+                        SET status = 'queued',
+                                                        assigned_worker = NULL
+                        WHERE task_type = ?
+                          AND status = 'running'
+                                                    AND {stale_predicate}
+                        """,
+                                                [self._queue_store_task_type, cutoff_epoch],
+                    )
+            finally:
+                conn.close()
+
+        if reclaimed > 0 and self._queue_store_export_parquet:
+            self._queue_store_export_to_parquet()
+        return reclaimed
 
     def _queue_store_count(self, table_name: str) -> int:
         if not self._queue_store_enabled():
@@ -1635,6 +1686,7 @@ class IPFSDatasetsManager:
                 "worker_alive": bool(self._queue_worker and self._queue_worker.is_alive()),
                 "store_backend": self._queue_store_backend,
                 "store_path": str(self._queue_store_path),
+                "running_lease_timeout_sec": self._queue_store_running_lease_timeout_sec,
                 "pending_count": self._queue_store_pending_count(),
                 "dead_letter_count": self._queue_store_dead_letter_count(),
                 "export_parquet": self._queue_store_export_parquet,

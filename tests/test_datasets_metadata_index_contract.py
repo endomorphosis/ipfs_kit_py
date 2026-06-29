@@ -6,13 +6,14 @@ import json
 import os
 import multiprocessing
 import time
+import datetime
 from pathlib import Path
 
 
 repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root))
 
-from ipfs_kit_py.ipfs_datasets_integration import IPFSDatasetsManager
+from ipfs_kit_py.ipfs_datasets_integration import IPFSDatasetsManager, duckdb
 
 
 def _concurrent_index_writer(home_dir: str, dataset_path: str, idx: int) -> None:
@@ -448,3 +449,81 @@ def test_async_enrichment_duckdb_queue_persists_and_replays(tmp_path, monkeypatc
 
     snap_after = manager_restarted.metadata_index_snapshot()
     assert snap_after["queue"]["pending_count"] == 0
+
+
+def test_async_enrichment_reclaims_stale_running_tasks(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("IPFS_KIT_ACCELERATE_ASYNC_ENRICH", "1")
+    monkeypatch.setenv("IPFS_KIT_ASYNC_BACKEND", "asyncio")
+
+    manager = IPFSDatasetsManager(enable=False)
+    manager.stop_async_enrichment(drain=False, timeout_sec=1.0)
+
+    if duckdb is None or not manager._queue_store_enabled():
+        return
+
+    task_queue_adapter = manager._queue_store_task_queue
+    if task_queue_adapter is None or not hasattr(task_queue_adapter, "submit"):
+        return
+
+    manager._queue_store_running_lease_timeout_sec = 1.0
+
+    task_id = manager._queue_store_task_id("stale-running-item")
+    task_queue_adapter.submit(
+        task_type=manager._queue_store_task_type,
+        model_name="ipfs_kit_py.accelerate_enrichment",
+        payload={"item_id": "stale-running-item", "attempt": 1},
+        task_id=task_id,
+    )
+
+    conn = duckdb.connect(str(manager._queue_store_path))
+    try:
+        schema_rows = conn.execute(
+            f"PRAGMA table_info('{manager._queue_store_tasks_table}')"
+        ).fetchall()
+        updated_at_type = ""
+        for row in schema_rows:
+            if str(row[1]) == "updated_at":
+                updated_at_type = str(row[2]).upper()
+                break
+
+        if "DOUBLE" in updated_at_type or "FLOAT" in updated_at_type:
+            stale_time = float(time.time() - 30.0)
+        else:
+            stale_time = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(seconds=30)
+
+        conn.execute(
+            f"""
+            UPDATE {manager._queue_store_tasks_table}
+            SET status = 'running', assigned_worker = 'worker-1', updated_at = ?
+            WHERE task_id = ? AND task_type = ?
+            """,
+            [
+                stale_time,
+                task_id,
+                manager._queue_store_task_type,
+            ],
+        )
+    finally:
+        conn.close()
+
+    pending = manager._queue_store_load_pending(limit=10)
+    assert ("stale-running-item", 1) in pending
+
+    conn = duckdb.connect(str(manager._queue_store_path))
+    try:
+        row = conn.execute(
+            f"""
+            SELECT status, assigned_worker
+            FROM {manager._queue_store_tasks_table}
+            WHERE task_id = ?
+            """,
+            [task_id],
+        ).fetchone()
+    finally:
+        conn.close()
+
+    assert row is not None
+    assert str(row[0]) == "queued"
+    assert row[1] is None
+    assert manager.metadata_index_snapshot()["metrics"]["accelerate_queue_reclaimed"] >= 1
