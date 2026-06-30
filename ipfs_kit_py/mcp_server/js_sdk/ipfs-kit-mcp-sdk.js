@@ -381,7 +381,7 @@ export const TOOLS = {
 };
 
 export class IpfsKitMcpClient {
-  constructor(endpoint = "http://127.0.0.1:8004") { this.endpoint = endpoint; this._id = 0; }
+  constructor(endpoint = "http://127.0.0.1:8004/mcp") { this.endpoint = endpoint; this._id = 0; }
   async _rpc(method, params) {
     const res = await fetch(this.endpoint, {
       method: "POST", headers: { "content-type": "application/json" },

@@ -876,16 +876,14 @@ class ConsolidatedMCPDashboard:
 
     # --- Run helpers (restored) ---
     async def run(self) -> None:
-        """Run the dashboard with uvicorn."""
-        config = uvicorn.Config(
-            self.app,
-            host=self.host,
-            port=self.port,
-            log_level="info",
-            reload=False,
-            lifespan="off",
-        )
-        server = uvicorn.Server(config)
+        """Run the dashboard.
+
+        Uses Hypercorn (anyio/trio-aware) as the ASGI transport so the MCP++
+        server honours the trio/anyio + hypercorn stack, falling back to
+        uvicorn automatically when Hypercorn is unavailable.
+        """
+        from ipfs_kit_py.mcp.mcp_jsonrpc import serve_hypercorn
+
         with suppress(Exception):
             self._write_pid_file()
         with suppress(Exception):
@@ -899,7 +897,7 @@ class ConsolidatedMCPDashboard:
                 await self._realtime_task_group.__aenter__()
                 self._realtime_task_group.start_soon(self._broadcast_loop)
         try:
-            await server.serve()
+            await serve_hypercorn(self.app, self.host, self.port, log_level="info")
         finally:
             if self._realtime_task_group is not None:
                 self._realtime_task_group.cancel_scope.cancel()
@@ -915,7 +913,7 @@ class ConsolidatedMCPDashboard:
 
     def run_sync(self) -> None:  # pragma: no cover - integration helper
         """Synchronous convenience wrapper used by __main__ path."""
-        anyio.run(self.run())
+        anyio.run(self.run)
 
     # --- Realtime metrics ---
     def _gather_metrics_snapshot(self) -> Dict[str, Any]:
@@ -3129,6 +3127,46 @@ class ConsolidatedMCPDashboard:
                 raise
             except Exception as e:
                 return {"ok": False, "error": str(e), "action": action}
+
+        # Standard MCP JSON-RPC endpoint (spec-conformant, additive).
+        # Mounted at /mcp (canonical) and / (legacy JS SDK default) so that
+        # stock MCP clients can complete the initialize handshake and call
+        # tools without knowing the path-based REST routes below.
+        try:
+            from ipfs_kit_py.mcp.mcp_jsonrpc import (
+                MCPJSONRPCHandler,
+                MCPToolError,
+                register_mcp_jsonrpc,
+            )
+
+            async def _jsonrpc_list_tools() -> List[Dict[str, Any]]:
+                return self._tools_list().get("result", {}).get("tools", [])
+
+            async def _jsonrpc_call_tool(name: str, arguments: Dict[str, Any]) -> Any:
+                res = await self._tools_call(name, arguments)
+                if isinstance(res, dict) and res.get("error"):
+                    err = res["error"]
+                    raise MCPToolError(
+                        err.get("message", "tool error"),
+                        code=int(err.get("code", -32000) or -32000),
+                        data=err.get("data"),
+                    )
+                if isinstance(res, dict) and "result" in res and set(res.keys()) <= {"jsonrpc", "result", "id"}:
+                    return res["result"]
+                return res
+
+            self._mcp_jsonrpc_handler = MCPJSONRPCHandler(
+                server_name="mcp++",
+                server_version="1.0.0",
+                list_tools=_jsonrpc_list_tools,
+                call_tool=_jsonrpc_call_tool,
+                experimental_capabilities={
+                    "mcp++/server": {"package": "ipfs_kit_py"},
+                },
+            )
+            register_mcp_jsonrpc(app, self._mcp_jsonrpc_handler, paths=("/mcp", "/jsonrpc"))
+        except Exception:  # pragma: no cover - never block dashboard boot
+            self.log.exception("Failed to register MCP JSON-RPC endpoint")
 
         # Tools (JSON-RPC wrappers)
         @app.get("/mcp/tools/list")
