@@ -31,7 +31,11 @@ except ImportError:
     COMPREHENSIVE_SERVICE_MANAGER_AVAILABLE = False
     ComprehensiveServiceManager = None
 
-import uvicorn  # server
+# NOTE: uvicorn is imported lazily inside the ASGI runner (serve_hypercorn).
+# The MCP++ transport prefers Hypercorn (anyio/trio) and only falls back to
+# uvicorn when Hypercorn is unavailable, so importing uvicorn eagerly here would
+# crash the whole dashboard in a Hypercorn-only environment. Do NOT re-add a
+# top-level `import uvicorn`.
 try:
     import psutil  # type: ignore
 except Exception:
@@ -47,6 +51,51 @@ from fastapi.middleware.cors import CORSMiddleware
 import mimetypes
 
 UTC = timezone.utc
+
+
+def _as_call_tool_result(raw: Any) -> Dict[str, Any]:
+    """Coerce a raw tool result into a spec-conformant MCP ``CallToolResult``.
+
+    The MCP specification requires ``tools/call`` results to be an object with a
+    ``content`` array (a list of content blocks).  ``_tools_call`` historically
+    returns raw domain payloads (lists, dicts, scalars) or pre-built error
+    dicts, which stock MCP clients reject.  This wraps any such value:
+
+    * a value already shaped like a ``CallToolResult`` (a dict with a ``content``
+      list) is returned unchanged;
+    * an error dict (``{"error": ...}``) becomes ``isError: True`` with the
+      message surfaced as text content;
+    * anything else is JSON-encoded into a single ``text`` content block, with
+      the original value preserved under ``structuredContent`` for richer
+      clients and backward compatibility.
+    """
+    if isinstance(raw, dict) and isinstance(raw.get("content"), list):
+        # Already a CallToolResult-shaped object.
+        return raw
+
+    def _text(value: Any) -> str:
+        if isinstance(value, str):
+            return value
+        try:
+            return json.dumps(value, default=str)
+        except Exception:
+            return str(value)
+
+    if isinstance(raw, dict) and "error" in raw:
+        err = raw["error"]
+        message = err.get("message") if isinstance(err, dict) else str(err)
+        return {
+            "content": [{"type": "text", "text": message or "tool error"}],
+            "structuredContent": raw,
+            "isError": True,
+        }
+
+    return {
+        "content": [{"type": "text", "text": _text(raw)}],
+        "structuredContent": raw if isinstance(raw, (dict, list)) else None,
+        "isError": False,
+    }
+
 
 class InMemoryLogHandler(logging.Handler):
     def __init__(self, maxlen: int = 4000):
@@ -3189,21 +3238,26 @@ class ConsolidatedMCPDashboard:
                 name = payload.get("name") or payload.get("tool")
                 args = payload.get("args") or payload.get("params") or {}
                 request_id = None
-            
+
             result = await self._tools_call(name, args)
-            
+
+            # Normalise to a spec-conformant MCP ``CallToolResult`` (an object
+            # with a ``content`` array) so stock MCP clients can consume the
+            # response.  ``_tools_call`` returns raw domain payloads (lists,
+            # dicts, scalars) or pre-built error dicts, so wrap whatever we got.
+            call_result = _as_call_tool_result(result)
+
             # If this was a JSON-RPC request and we have a request_id, ensure proper JSON-RPC response format
             if request_id is not None:
                 if isinstance(result, dict) and result.get("jsonrpc") == "2.0":
-                    # Already in JSON-RPC format, just update the ID
+                    # Already a full JSON-RPC envelope, just update the ID
                     result["id"] = request_id
                     return result
-                # Convert to JSON-RPC format (support list/str/etc results too)
-                if isinstance(result, dict) and "error" in result:
+                if isinstance(result, dict) and "error" in result and "content" not in result:
                     return {"jsonrpc": "2.0", "error": result["error"], "id": request_id}
-                return {"jsonrpc": "2.0", "result": result, "id": request_id}
-            
-            return result
+                return {"jsonrpc": "2.0", "result": call_result, "id": request_id}
+
+            return call_result
 
         # Add compatibility endpoint for JavaScript SDK
         @app.post("/api/call_mcp_tool")
