@@ -97,6 +97,31 @@ def _as_call_tool_result(raw: Any) -> Dict[str, Any]:
     }
 
 
+def _parse_tools_call_payload(payload: Dict[str, Any]):
+    """Extract ``(name, arguments, request_id)`` from a ``/mcp/tools/call`` body.
+
+    Accepts both shapes stock MCP clients send:
+
+    * the JSON-RPC envelope
+      ``{"params": {"name": ..., "arguments": {...}}, "id": ...}``;
+    * the direct format
+      ``{"name"/"tool": ..., "arguments"/"args"/"params": {...}}``.
+
+    The direct branch honours a top-level ``arguments`` key — the MCP-canonical
+    name for a tool call's arguments — in addition to kit's historical ``args``/
+    ``params`` aliases.  Without it, a stock client that POSTs
+    ``{"name": ..., "arguments": {...}}`` *without* a JSON-RPC envelope reached
+    the tool with an empty argument dict (the arguments were silently dropped),
+    so only kit's own dashboard (which sends ``args``) worked.
+    """
+    if "params" in payload and isinstance(payload["params"], dict):
+        params = payload["params"]
+        return params.get("name"), params.get("arguments", {}), payload.get("id")
+    name = payload.get("name") or payload.get("tool")
+    args = payload.get("args") or payload.get("arguments") or payload.get("params") or {}
+    return name, args, None
+
+
 class InMemoryLogHandler(logging.Handler):
     def __init__(self, maxlen: int = 4000):
         super().__init__()
@@ -3231,17 +3256,11 @@ class ConsolidatedMCPDashboard:
 
         @app.post("/mcp/tools/call")
         async def mcp_tools_call(payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
-            # Handle both JSON-RPC and direct formats
-            if "params" in payload and isinstance(payload["params"], dict):
-                # JSON-RPC format: {"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "tool_name", "arguments": {...}}, "id": 1}
-                name = payload["params"].get("name")
-                args = payload["params"].get("arguments", {})
-                request_id = payload.get("id")
-            else:
-                # Direct format: {"name": "tool_name", "args": {...}}
-                name = payload.get("name") or payload.get("tool")
-                args = payload.get("args") or payload.get("params") or {}
-                request_id = None
+            # Accept both the JSON-RPC envelope and the direct format, honouring a
+            # top-level ``arguments`` key so stock MCP clients that POST
+            # {"name", "arguments"} without a JSON-RPC wrapper are not silently
+            # dispatched with empty args. See _parse_tools_call_payload.
+            name, args, request_id = _parse_tools_call_payload(payload)
 
             result = await self._tools_call(name, args)
 
