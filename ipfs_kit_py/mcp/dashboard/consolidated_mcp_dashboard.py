@@ -1138,7 +1138,7 @@ class ConsolidatedMCPDashboard:
                    "  try {\n" \
                    "    var g = (typeof window !== 'undefined' ? window : globalThis);\n" \
                    "    g.MCP = g.MCP || {};\n" \
-                   "    async function rpcList(){ const r = await fetch('/mcp/tools/list', {method:'POST', headers:{'x-api-token': (g.API_TOKEN||'')}}); return await r.json(); }\n" \
+                   "    async function rpcList(){ const r = await fetch('/mcp/tools/list?full=1', {method:'POST', headers:{'x-api-token': (g.API_TOKEN||'')}}); return await r.json(); }\n" \
                    "    async function rpcCall(name, args){ const r = await fetch('/mcp/tools/call', {method:'POST', headers:{'content-type':'application/json','x-api-token':(g.API_TOKEN||'')}, body: JSON.stringify({name, args})}); return await r.json(); }\n" \
                    "    if (!g.MCP.listTools) g.MCP.listTools = rpcList;\n" \
                    "    if (!g.MCP.callTool) g.MCP.callTool = (n,a)=>rpcCall(n, a||{});\n" \
@@ -3189,7 +3189,7 @@ class ConsolidatedMCPDashboard:
             )
 
             async def _jsonrpc_list_tools() -> List[Dict[str, Any]]:
-                return self._tools_list().get("result", {}).get("tools", [])
+                return self._hierarchical_tools_list().get("result", {}).get("tools", [])
 
             async def _jsonrpc_call_tool(name: str, arguments: Dict[str, Any]) -> Any:
                 res = await self._tools_call(name, arguments)
@@ -3219,11 +3219,15 @@ class ConsolidatedMCPDashboard:
 
         # Tools (JSON-RPC wrappers)
         @app.get("/mcp/tools/list")
-        async def mcp_tools_list_get() -> Dict[str, Any]:
-            return self._tools_list()
+        async def mcp_tools_list_get(request: Request) -> Dict[str, Any]:
+            if request.query_params.get("full") in ("1", "true", "yes"):
+                return self._tools_list()
+            return self._hierarchical_tools_list()
         @app.post("/mcp/tools/list")
-        async def mcp_tools_list() -> Dict[str, Any]:
-            return self._tools_list()
+        async def mcp_tools_list(request: Request) -> Dict[str, Any]:
+            if request.query_params.get("full") in ("1", "true", "yes"):
+                return self._tools_list()
+            return self._hierarchical_tools_list()
 
         @app.post("/mcp/tools/call")
         async def mcp_tools_call(payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
@@ -3313,6 +3317,120 @@ class ConsolidatedMCPDashboard:
     # Lifespan handles startup/shutdown
 
     # ---- tools ----
+    # ------------------------------------------------------------------
+    # Hierarchical tool facade (mirrors ipfs_datasets_py / ipfs_accelerate_py):
+    # the MCP tools/list advertises 4 meta-tools + a flat ``<category>.<tool>``
+    # surface with MINIMAL descriptors (name + description, no inputSchema).
+    # Full schemas are served lazily via tools_get_schema; execution goes
+    # through the existing domain-handler dispatch. This keeps the advertised
+    # surface small (context-bloat reduction) while every tool stays callable.
+    # The dashboard UI requests ?full=1 to keep rendering rich input forms.
+    # ------------------------------------------------------------------
+    _HIER_META_TOOLS = [
+        {"name": "tools_list_categories", "description": "Hierarchical facade: list all tool categories (optionally with per-category counts). Start here to discover the surface without loading every schema.", "inputSchema": {"type": "object", "properties": {"include_count": {"type": "boolean", "default": False}}}},
+        {"name": "tools_list_tools", "description": "Hierarchical facade: list the tools in a category (name + description). Use after tools_list_categories.", "inputSchema": {"type": "object", "required": ["category"], "properties": {"category": {"type": "string"}}}},
+        {"name": "tools_get_schema", "description": "Hierarchical facade: get the full input schema for a single tool. Accepts (category, tool) or a bare/dotted name.", "inputSchema": {"type": "object", "properties": {"category": {"type": "string"}, "tool": {"type": "string"}, "name": {"type": "string"}}}},
+        {"name": "tools_dispatch", "description": "Hierarchical facade: execute a tool by category+tool (or name) with params. Equivalent to calling the tool directly.", "inputSchema": {"type": "object", "properties": {"category": {"type": "string"}, "tool": {"type": "string"}, "name": {"type": "string"}, "params": {"type": "object"}, "arguments": {"type": "object"}}}},
+    ]
+    _HIER_META_NAMES = {"tools_list_categories", "tools_list_tools", "tools_get_schema", "tools_dispatch"}
+
+    def _categorize_tool(self, name: str) -> str:
+        """Map a tool name to a display category (grouping only; dispatch is by name)."""
+        n = (name or "").lower()
+        if "backend" in n:
+            return "Backends"
+        if ("car_" in n) or ("_car" in n) or n.endswith("cars") or ("cars_" in n):
+            return "CARs"
+        if "bucket" in n:
+            return "Buckets"
+        if n.startswith("ipfs_"):
+            return "IPFS"
+        if "peer" in n:
+            return "Peers"
+        if n.startswith("files_") or n in ("read_file", "write_file", "list_files", "resolve_bucket_path", "create_folder"):
+            return "Files"
+        if "pin" in n:
+            return "Pins"
+        if n.startswith("state_"):
+            return "State"
+        if "config" in n:
+            return "Config"
+        if any(k in n for k in ("service", "health", "system", "log", "shutdown")):
+            return "System"
+        if "parquet" in n:
+            return "Datasets"
+        return "Other"
+
+    def _tool_category_map(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Group the full tool list into {category: [{name, description}, ...]}."""
+        groups: Dict[str, List[Dict[str, Any]]] = {}
+        for t in self._tools_list().get("result", {}).get("tools", []):
+            cat = self._categorize_tool(t.get("name", ""))
+            groups.setdefault(cat, []).append({"name": t.get("name"), "description": t.get("description", "")})
+        for cat in groups:
+            groups[cat].sort(key=lambda x: x["name"])
+        return groups
+
+    def _hierarchical_tools_list(self) -> Dict[str, Any]:
+        """MCP tools/list: 4 meta-tools + flat <category>.<tool> minimal descriptors."""
+        tools = list(self._HIER_META_TOOLS)
+        for cat, entries in sorted(self._tool_category_map().items()):
+            for e in entries:
+                tools.append({
+                    "name": f"{cat}.{e['name']}",
+                    "description": e.get("description", "") or f"{e['name']} (category: {cat})",
+                    "inputSchema": {"type": "object"},
+                })
+        return {"jsonrpc": "2.0", "result": {"tools": tools}, "id": None}
+
+    def _resolve_tool_name(self, name: Optional[str]) -> Optional[str]:
+        """Resolve a bare or ``<category>.<tool>`` name to a dispatchable bare name."""
+        if not name:
+            return name
+        known = {t.get("name") for t in self._tools_list().get("result", {}).get("tools", [])}
+        if name in known:
+            return name
+        if "." in name:
+            _cat, _, tool = name.partition(".")
+            if tool in known:
+                return tool
+        return name
+
+    async def _handle_hierarchical_meta(self, name: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Handle the 4 hierarchical facade meta-tools; return None if not a meta-tool."""
+        if name == "tools_list_categories":
+            cmap = self._tool_category_map()
+            include = bool(args.get("include_count"))
+            cats = []
+            for c in sorted(cmap):
+                info = {"name": c}
+                if include:
+                    info["tool_count"] = len(cmap[c])
+                cats.append(info)
+            return {"jsonrpc": "2.0", "result": {"status": "success", "category_count": len(cats), "categories": cats}, "id": None}
+        if name == "tools_list_tools":
+            cmap = self._tool_category_map()
+            category = args.get("category")
+            if category not in cmap:
+                return {"jsonrpc": "2.0", "result": {"status": "error", "error": f"Category '{category}' not found", "available_categories": sorted(cmap)}, "id": None}
+            return {"jsonrpc": "2.0", "result": {"status": "success", "category": category, "tool_count": len(cmap[category]), "tools": cmap[category]}, "id": None}
+        if name == "tools_get_schema":
+            tool = args.get("tool") or args.get("name") or args.get("category")
+            resolved = self._resolve_tool_name(tool)
+            full = self._tools_list().get("result", {}).get("tools", [])
+            meta = next((x for x in full if x.get("name") == resolved), None)
+            if meta is None:
+                return {"jsonrpc": "2.0", "result": {"status": "error", "error": f"Tool '{tool}' not found"}, "id": None}
+            return {"jsonrpc": "2.0", "result": {"status": "success", "name": resolved, "category": self._categorize_tool(resolved), "description": meta.get("description", ""), "schema": meta.get("inputSchema") or {"type": "object"}}, "id": None}
+        if name == "tools_dispatch":
+            target = args.get("tool") or args.get("name") or args.get("category")
+            params = args.get("params")
+            if params is None:
+                params = args.get("arguments") or {}
+            resolved = self._resolve_tool_name(target)
+            return await self._tools_call(resolved, params)
+        return None
+
     def _tools_list(self) -> Dict[str, Any]:
         tools = [
             {"name": "health_check", "description": "Simple health check for MCP connection", "inputSchema": {}},
@@ -3415,6 +3533,13 @@ class ConsolidatedMCPDashboard:
     async def _tools_call(self, name: Optional[str], args: Dict[str, Any]) -> Dict[str, Any]:  # noqa: C901 - large dispatch function
         if not name:
             return {"jsonrpc": "2.0", "error": {"code": -32601, "message": "Missing tool name"}, "id": None}
+
+        # Hierarchical facade: handle meta-tools, then resolve <category>.<tool>.
+        if name in self._HIER_META_NAMES:
+            meta = await self._handle_hierarchical_meta(name, args or {})
+            if meta is not None:
+                return meta
+        name = self._resolve_tool_name(name)
 
         try:
             # Dispatch to domain handlers
@@ -9927,7 +10052,7 @@ class ConsolidatedMCPDashboard:
                     }
                 }catch(_e){}
             } else {
-                const r=await fetch('/mcp/tools/list',{method:'POST'}); const js=await r.json(); toolDefs=(js && js.result && js.result.tools)||[];
+                const r=await fetch('/mcp/tools/list?full=1',{method:'POST'}); const js=await r.json(); toolDefs=(js && js.result && js.result.tools)||[];
             }
             toolDefs.sort((a,b)=> (a.name||'').localeCompare(b.name||''));
             const tf=document.getElementById('tool-filter');
@@ -10138,7 +10263,7 @@ class ConsolidatedMCPDashboard:
         return { initialized: !!data, tools, ...data };
     }
 
-                const r=await fetch('/mcp/tools/list',{method:'POST'}); const js=await r.json(); toolDefs=(js && js.result && js.result.tools)||[];
+                const r=await fetch('/mcp/tools/list?full=1',{method:'POST'}); const js=await r.json(); toolDefs=(js && js.result && js.result.tools)||[];
     const Services = {
     control: (service, action, params) => rpcCall('service_control', {service, action, params}),
         status: (service) => rpcCall('service_status', {service}),
