@@ -384,21 +384,60 @@ export type ToolName = keyof typeof TOOLS;
 
 export interface RpcResult { status?: string; [k: string]: unknown; }
 
+/** Pluggable transport (e.g. MCP++ over libp2p). */
+export interface McpTransport {
+  request(req: { jsonrpc: string; id: number; method: string; params: Record<string, unknown> }): Promise<any>;
+}
+
+function _unwrapToolResult(result: any): any {
+  if (result && typeof result === "object" && !Array.isArray(result)
+      && Array.isArray(result.content) && "structuredContent" in result) {
+    const sc = result.structuredContent;
+    if (sc && typeof sc === "object" && !Array.isArray(sc)
+        && Object.keys(sc).length === 1 && "result" in sc) return sc.result;
+    return sc;
+  }
+  return result;
+}
+
 export class IpfsKitMcpClient {
   endpoint: string;
+  transport: McpTransport | null;
   private _id = 0;
-  constructor(endpoint = "http://127.0.0.1:8004") { this.endpoint = endpoint; }
+  constructor(endpoint = "http://127.0.0.1:8004/mcp", options: { transport?: McpTransport } = {}) {
+    this.endpoint = endpoint;
+    this.transport = options.transport ?? null;
+  }
   private async _rpc(method: string, params: Record<string, unknown>): Promise<any> {
-    const res = await fetch(this.endpoint, {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: ++this._id, method, params }),
-    });
-    const j = await res.json();
-    if (j.error) throw new Error(j.error.message);
-    return j.result;
+    const req = { jsonrpc: "2.0", id: ++this._id, method, params };
+    let j: any;
+    if (this.transport) {
+      j = await this.transport.request(req);
+    } else {
+      const res = await fetch(this.endpoint, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify(req),
+      });
+      j = await res.json();
+    }
+    if (j && j.error) throw new Error(j.error.message);
+    return j ? j.result : undefined;
+  }
+  private async _callUnwrapped(name: string, args: Record<string, unknown> = {}): Promise<any> {
+    return _unwrapToolResult(await this._rpc("tools/call", { name, arguments: args }));
   }
   listTools(): Promise<{ tools: unknown[] }> { return this._rpc("tools/list", {}); }
+  /** Accepts a bare name, a dotted `<category>.<tool>` name, or a meta-tool name. */
   call(name: ToolName | string, args: Record<string, unknown> = {}): Promise<RpcResult> {
     return this._rpc("tools/call", { name, arguments: args });
+  }
+  // Hierarchical tool facade helpers (meta-tools), unwrapped for convenience.
+  listCategories(includeCount = true): Promise<any> { return this._callUnwrapped("tools_list_categories", { include_count: includeCount }); }
+  listToolsInCategory(category: string): Promise<any> { return this._callUnwrapped("tools_list_tools", { category }); }
+  getToolSchema(nameOrTool: string | Record<string, unknown>): Promise<any> {
+    return this._callUnwrapped("tools_get_schema", typeof nameOrTool === "string" ? { name: nameOrTool } : (nameOrTool || {}));
+  }
+  dispatch(category: string, tool: string, params: Record<string, unknown> = {}): Promise<any> {
+    return this._callUnwrapped("tools_dispatch", { category, tool, params });
   }
 }

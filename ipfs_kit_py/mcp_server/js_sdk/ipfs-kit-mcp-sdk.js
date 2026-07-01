@@ -380,17 +380,51 @@ export const TOOLS = {
   }
 };
 
-export class IpfsKitMcpClient {
-  constructor(endpoint = "http://127.0.0.1:8004/mcp") { this.endpoint = endpoint; this._id = 0; }
-  async _rpc(method, params) {
-    const res = await fetch(this.endpoint, {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: ++this._id, method, params }),
-    });
-    const j = await res.json();
-    if (j.error) throw new Error(j.error.message);
-    return j.result;
+// Unwrap an MCP CallToolResult envelope back to the raw tool payload.
+function _unwrapToolResult(result) {
+  if (result && typeof result === "object" && !Array.isArray(result)
+      && Array.isArray(result.content) && "structuredContent" in result) {
+    const sc = result.structuredContent;
+    if (sc && typeof sc === "object" && !Array.isArray(sc)
+        && Object.keys(sc).length === 1 && "result" in sc) return sc.result;
+    return sc;
   }
+  return result;
+}
+
+export class IpfsKitMcpClient {
+  // `options.transport` may supply a pluggable transport exposing
+  // `async request(jsonRpcRequest) -> jsonRpcResponse` (e.g. MCP++ over libp2p
+  // via mcpp-client.js `Libp2pTransport`). When omitted, JSON-RPC is sent over
+  // HTTP fetch to `endpoint`.
+  constructor(endpoint = "http://127.0.0.1:8004/mcp", options = {}) {
+    this.endpoint = endpoint;
+    this._id = 0;
+    this.transport = (options && options.transport) || null;
+  }
+  async _rpc(method, params) {
+    const req = { jsonrpc: "2.0", id: ++this._id, method, params };
+    let j;
+    if (this.transport) {
+      j = await this.transport.request(req);
+    } else {
+      const res = await fetch(this.endpoint, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify(req),
+      });
+      j = await res.json();
+    }
+    if (j && j.error) throw new Error(j.error.message);
+    return j ? j.result : undefined;
+  }
+  async _callUnwrapped(name, args = {}) { return _unwrapToolResult(await this._rpc("tools/call", { name, arguments: args })); }
   listTools() { return this._rpc("tools/list", {}); }
+  // Accepts a bare name, a dotted `<category>.<tool>` name, or a meta-tool name.
   call(name, args = {}) { return this._rpc("tools/call", { name, arguments: args }); }
+  // Hierarchical tool facade helpers (meta-tools). Results are unwrapped from
+  // the CallToolResult envelope for convenience.
+  listCategories(includeCount = true) { return this._callUnwrapped("tools_list_categories", { include_count: includeCount }); }
+  listToolsInCategory(category) { return this._callUnwrapped("tools_list_tools", { category }); }
+  getToolSchema(nameOrTool) { return this._callUnwrapped("tools_get_schema", typeof nameOrTool === "string" ? { name: nameOrTool } : (nameOrTool || {})); }
+  dispatch(category, tool, params = {}) { return this._callUnwrapped("tools_dispatch", { category, tool, params }); }
 }
