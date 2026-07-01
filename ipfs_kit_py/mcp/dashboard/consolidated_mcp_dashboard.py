@@ -3326,15 +3326,6 @@ class ConsolidatedMCPDashboard:
             {"name": "delete_backend", "description": "Delete backend", "inputSchema": {"type":"object", "required":["name"], "confirm": {"message":"This will remove the backend. Continue?"}, "properties": {"name": {"type":"string", "title":"Backend", "ui": {"enumFrom":"backends", "valueKey":"name", "labelKey":"name"}}}}},
             {"name": "test_backend", "description": "Test backend reachability", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Backend", "ui": {"enumFrom":"backends", "valueKey":"name", "labelKey":"name"}}}}},
             {"name": "get_backend", "description": "Get backend by name", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Backend", "ui": {"enumFrom":"backends", "valueKey":"name", "labelKey":"name"}}}}},
-            # Advanced backend management tools
-            {"name": "list_backend_instances", "description": "List backend instances by type", "inputSchema": {}},
-            {"name": "create_backend_instance", "description": "Create new backend instance", "inputSchema": {"type":"object", "required":["service_type","instance_name"], "properties": {"service_type": {"type":"string", "title":"Backend Type", "enum":["local_storage","ipfs","s3","git","parquet","ipfs_cluster"]}, "instance_name": {"type":"string", "title":"Instance Name"}, "description": {"type":"string", "title":"Description"}}}},
-            {"name": "configure_backend_instance", "description": "Configure backend instance", "inputSchema": {"type":"object", "required":["instance_name"], "properties": {"instance_name": {"type":"string", "title":"Instance Name"}, "service_type": {"type":"string", "title":"Backend Type"}, "config": {"type":"object", "title":"Configuration"}}}},
-            {"name": "get_backend_performance_metrics", "description": "Get backend performance metrics", "inputSchema": {"type":"object", "required":["backend_name"], "properties": {"backend_name": {"type":"string", "title":"Backend Name"}, "time_range": {"type":"string", "title":"Time Range", "enum":["1h","6h","24h","7d"], "default":"1h"}, "include_history": {"type":"boolean", "title":"Include History", "default":False}}}},
-            {"name": "get_backend_configuration_template", "description": "Get configuration template for backend type", "inputSchema": {"type":"object", "required":["backend_type"], "properties": {"backend_type": {"type":"string", "title":"Backend Type", "enum":["local_storage","ipfs","s3","git","parquet","ipfs_cluster"]}, "template_type": {"type":"string", "title":"Template Type", "enum":["basic","enterprise","high_performance"], "default":"basic"}}}},
-            {"name": "clone_backend_configuration", "description": "Clone backend configuration", "inputSchema": {"type":"object", "required":["source_backend","new_backend_name"], "properties": {"source_backend": {"type":"string", "title":"Source Backend"}, "new_backend_name": {"type":"string", "title":"New Backend Name"}, "modify_config": {"type":"boolean", "title":"Modify Configuration", "default":False}}}},
-            {"name": "backup_backend_configuration", "description": "Backup backend configuration", "inputSchema": {"type":"object", "required":["backend_name"], "properties": {"backend_name": {"type":"string", "title":"Backend Name"}, "backup_name": {"type":"string", "title":"Backup Name"}, "include_data": {"type":"boolean", "title":"Include Data", "default":False}}}},
-            {"name": "restore_backend_configuration", "description": "Restore backend configuration from backup", "inputSchema": {"type":"object", "required":["backend_name","backup_id"], "properties": {"backend_name": {"type":"string", "title":"Backend Name"}, "backup_id": {"type":"string", "title":"Backup ID"}, "force_restore": {"type":"boolean", "title":"Force Restore", "default":False}}}},
             {"name": "list_buckets", "description": "List buckets", "inputSchema": {}},
             {"name": "create_bucket", "description": "Create bucket", "inputSchema": {"type":"object", "required":["name"], "properties": {"name": {"type":"string", "title":"Bucket Name", "ui": {"placeholder":"my-bucket"}}, "backend": {"type":"string", "title":"Backend", "description":"Optional backend id", "ui": {"enumFrom":"backends", "valueKey":"name", "labelKey":"name"}}}}},
             {"name": "delete_bucket", "description": "Delete bucket", "inputSchema": {"type":"object", "required":["name"], "confirm": {"message":"This will delete the bucket record. Continue?"}, "properties": {"name": {"type":"string", "title":"Bucket", "ui": {"enumFrom":"buckets", "valueKey":"name", "labelKey":"name"}}}}},
@@ -5001,6 +4992,48 @@ class ConsolidatedMCPDashboard:
             _atomic_write_json(metadata_file, metadata)
             
             return {"jsonrpc": "2.0", "result": {"ok": True, "src": src, "dst": dst, "bucket": bucket}, "id": None}
+
+        if name == "bucket_copy_file":
+            src_bucket = args.get("src_bucket")
+            src_path_arg = args.get("src_path")
+            dst_bucket = args.get("dst_bucket")
+            dst_path_arg = args.get("dst_path")
+            apply_dst_policy = args.get("apply_dst_policy", True)
+
+            if not src_bucket or not src_path_arg or not dst_bucket or not dst_path_arg:
+                raise HTTPException(400, "Missing src_bucket, src_path, dst_bucket, or dst_path")
+
+            src_bucket_root = self.paths.vfs_root / src_bucket
+            dst_bucket_root = self.paths.vfs_root / dst_bucket
+            src_path = _safe_vfs_path(src_bucket_root, src_path_arg)
+            dst_path = _safe_vfs_path(dst_bucket_root, dst_path_arg)
+
+            if not src_path.exists():
+                raise HTTPException(404, "Source file not found")
+
+            dst_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_path, dst_path)
+
+            # Copy metadata
+            metadata_file = self.paths.data_dir / "bucket_files.json"
+            metadata = _read_json(metadata_file, {})
+            src_key = f"{src_bucket}:{src_path_arg}"
+            dst_key = f"{dst_bucket}:{dst_path_arg}"
+
+            if src_key in metadata:
+                file_meta = dict(metadata[src_key])
+                file_meta["path"] = dst_path_arg
+                file_meta["bucket"] = dst_bucket
+                file_meta["copied_from"] = src_key
+                file_meta["copy_timestamp"] = datetime.now(UTC).isoformat()
+                if apply_dst_policy and "replicas" in file_meta:
+                    for replica in file_meta["replicas"]:
+                        replica["status"] = "sync_pending"
+                        replica["update_needed"] = True
+                metadata[dst_key] = file_meta
+                _atomic_write_json(metadata_file, metadata)
+
+            return {"jsonrpc": "2.0", "result": {"ok": True, "src_bucket": src_bucket, "src_path": src_path_arg, "dst_bucket": dst_bucket, "dst_path": dst_path_arg}, "id": None}
 
         if name == "bucket_mkdir":
             bucket = args.get("bucket")
