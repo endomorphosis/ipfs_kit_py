@@ -177,7 +177,8 @@ class EventDAGStore:
 
     def compact(self, max_events: Optional[int] = None, retain_recent: int = 0) -> Dict[str, Any]:
         entries = sorted(self._state["hot_events"].items(), key=lambda row: str(row[1].get("timestamp", "")))
-        selected = entries[:min(max(1, int(max_events or self.epoch_size)), max(0, len(entries) - max(0, int(retain_recent)))]
+        eligible_count = max(0, len(entries) - max(0, int(retain_recent)))
+        selected = entries[:min(max(1, int(max_events or self.epoch_size)), eligible_count)]
         if not selected:
             return {"compacted": False, "reason": "no_eligible_hot_events", "profile": self.profile_metadata()}
         cids = [cid for cid, _ in selected]
