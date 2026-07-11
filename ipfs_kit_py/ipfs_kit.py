@@ -456,38 +456,20 @@ class ipfs_kit:
         # Daemon management (initialized when needed)
         self.daemon_manager = None
 
-        # Check if we need to download binaries
-        # Default to NOT downloading binaries automatically. This avoids
-        # surprising network activity during imports/tests; users can opt-in
-        # via metadata["auto_download_binaries"] = True.
-        auto_download = self.metadata.get("auto_download_binaries", False)
-        if auto_download:
-            # Check if binaries directory exists and has the required binaries
-            this_dir = os.path.dirname(os.path.realpath(__file__))
-            bin_dir = os.path.join(this_dir, "bin")
-            ipfs_bin = os.path.join(bin_dir, "ipfs")
-            ipfs_cluster_service_bin = os.path.join(bin_dir, "ipfs-cluster-service")
+        # Kubo is the core runtime dependency. It is automatically installed or
+        # upgraded unless this instance explicitly opts out.
+        try:
+            from .kubo_runtime import ensure_kubo_binary
 
-            # On Windows, check for .exe files
-            if platform.system() == "Windows":
-                ipfs_bin += ".exe"
-                ipfs_cluster_service_bin += ".exe"
-
-            # Download binaries if they don't exist
-            if not os.path.exists(ipfs_bin) or not os.path.exists(ipfs_cluster_service_bin):
-                try:
-                    # Import from package root to ensure we get the package-level function
-                    from ipfs_kit_py import download_binaries
-
-                    download_binaries()
-                except Exception as e:
-                    self.logger.warning(f"Failed to download binaries: {e}")
-                    self.logger.info("Will attempt to continue with available binaries")
+            auto_install = self.metadata.get("auto_download_binaries", True)
+            self.kubo_binary = ensure_kubo_binary(install=bool(auto_install))
+        except Exception as e:
+            self.kubo_binary = None
+            self.logger.warning(f"Failed to initialize package-managed Kubo: {e}")
 
         # Initialize path variables
         this_dir = os.path.dirname(os.path.realpath(__file__))
         self.path = os.environ.get("PATH", "")
-        self.path = self.path + ":" + os.path.join(this_dir, "bin")
         self.path_string = "PATH=" + self.path
 
         # Set default role

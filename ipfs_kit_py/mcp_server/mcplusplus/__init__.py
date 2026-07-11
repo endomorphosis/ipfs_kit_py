@@ -41,7 +41,7 @@ def get_capabilities() -> Dict[str, Any]:
             "B_artifact_cids": True,
             "C_ucan_unsigned": True,
             "D_policy": True,
-            "E_dag_events": True,
+            "F_event_dag_archival_compaction": True,
             "C_ucan": HAVE_MCPLUSPLUS,
             "E_p2p_transport": HAVE_LIBP2P,
         },

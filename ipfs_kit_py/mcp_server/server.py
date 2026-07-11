@@ -16,6 +16,7 @@ import anyio
 
 from . import mcplusplus
 from .hierarchical_tool_manager import HierarchicalToolManager
+from .mcplusplus.event_dag import EventDAGStore
 
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_INFO = {"name": "ipfs_kit_py-mcpplusplus", "version": "0.1.0"}
@@ -28,7 +29,7 @@ def _now_iso() -> str:
 class MCPServer:
     def __init__(self) -> None:
         self.tm = HierarchicalToolManager()
-        self._dag: list = []  # Profile E: ordered event nodes
+        self._dag = EventDAGStore()
 
     async def handle(self, msg: Dict[str, Any]):
         method = msg.get("method")
@@ -55,19 +56,38 @@ class MCPServer:
             # accepted as no-ops; unknown ones are ignored rather than erroring.
             return None
         if method == "initialize":
+            requested = params.get("capabilities", {}).get("experimental", {})
+            experimental = {"mcp++": mcplusplus.get_capabilities()}
+            if requested.get("mcp++/event-dag") is True:
+                experimental["mcp++/event-dag"] = True
             return {
                 "protocolVersion": PROTOCOL_VERSION,
                 "serverInfo": SERVER_INFO,
-                "capabilities": {"tools": {}, "experimental": {"mcp++": mcplusplus.get_capabilities()}},
+                "capabilities": {"tools": {}, "experimental": experimental},
+                "profile_metadata": {"mcp++/event-dag": self._dag.profile_metadata()},
             }
         if method == "tools/list":
             return {"tools": self.tm.all_tool_schemas()}
         if method == "mcp++/interfaces":
             return {"interfaces": self._interface_descriptors()}
         if method == "mcp++/dag/frontier":
-            seen = {p for n in self._dag for p in n.get("parents", [])}
-            frontier = [n["event_cid"] for n in self._dag if n["event_cid"] not in seen]
-            return {"frontier": frontier, "count": len(self._dag)}
+            return self._dag.frontier()
+        if method == "mcp++/dag/history":
+            return self._dag.history(int(params.get("limit", 50)))
+        if method == "mcp++/dag/provenance":
+            return self._dag.provenance(str(params.get("event_cid") or params.get("cid") or ""), int(params.get("limit", 100)))
+        if method == "mcp++/dag/append":
+            return self._dag.append(params.get("event") or params)
+        if method in {"mcp++/dag/compact", "mcp++/dag/archive"}:
+            return self._dag.compact(params.get("max_events"), int(params.get("retain_recent", 0)))
+        if method == "mcp++/dag/archives":
+            return self._dag.archives()
+        if method == "mcp++/dag/certificate/get":
+            return self._dag.certificate(str(params.get("certificate_cid") or "")) or {"found": False}
+        if method == "mcp++/dag/certificate/verify":
+            return self._dag.verify(str(params.get("certificate_cid") or ""))
+        if method == "mcp++/dag/inclusion":
+            return self._dag.inclusion(str(params.get("event_cid") or params.get("cid") or "")) or {"found": False}
         if method in ("mcp++/ucan/validate", "mcp++/ucan/delegate"):
             from .mcplusplus import delegation
             return delegation.validate_raw_delegation_chain(
@@ -96,7 +116,7 @@ class MCPServer:
             result = await self.tm.dispatch(category, tool, args)
             if params.get("profile_b") or envelope is not None:
                 from .mcplusplus import artifacts
-                parents = [n["event_cid"] for n in self._dag[-1:]]
+                parents = self._dag.frontier()["frontier"]
                 meta = artifacts.envelope_from_payloads(
                     interface_cid=self._interface_cid(),
                     input_payload={"tool": name, "arguments": args},

@@ -68,7 +68,7 @@ arrow = [
     "pandas>=1.3.0",
 ]
 libp2p = [
-    "libp2p @ git+https://github.com/libp2p/py-libp2p.git@main",  # Track upstream main (moving target)
+    "libp2p",
     "multiaddr>=0.0.9",  # For peer addressing
     "multiformats>=0.2.0",  # For content addressing
     "base58>=2.1.1",  # Used by CIDs and peer IDs
@@ -118,7 +118,6 @@ ipld = [
 ipld-github = [
     # IPLD packages including GitHub-only dependencies
     # Install with: pip install -e .[ipld-github]
-    "ipld-unixfs @ git+https://github.com/storacha/py-ipld-unixfs.git",
     # Include all standard IPLD packages too
     "ipld-car>=0.0.1",
     "ipld-dag-pb>=0.0.1", 
@@ -203,7 +202,7 @@ full = [
     # Networking and protocols
     "multiformats>=0.2.0",
     "multiaddr>=0.0.9",
-    "libp2p @ git+https://github.com/libp2p/py-libp2p.git@main",
+    "libp2p",
     "protobuf>=5.26.0,<7.0.0",
     "eth-hash[pycryptodome]>=0.3.3",
     "eth-keys>=0.4.0",
