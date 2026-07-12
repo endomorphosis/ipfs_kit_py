@@ -88,6 +88,24 @@ class MCPServer:
             return self._dag.verify(str(params.get("certificate_cid") or ""))
         if method == "mcp++/dag/inclusion":
             return self._dag.inclusion(str(params.get("event_cid") or params.get("cid") or "")) or {"found": False}
+        if method == "mcp++/dag/zk/status":
+            from ipfs_datasets_py.mcp_server.event_dag_zkp import availability
+            return availability()
+        if method == "mcp++/dag/zk/prove":
+            from ipfs_datasets_py.mcp_server.event_dag_zkp import prove_event_dag_compaction
+            event_cids = params.get("event_cids", [])
+            if not isinstance(event_cids, list):
+                raise ValueError("event_cids must be an array")
+            return {"certificate": prove_event_dag_compaction(event_cids)}
+        if method == "mcp++/dag/zk/verify":
+            from ipfs_datasets_py.mcp_server.event_dag_zkp import verify_event_dag_compaction
+            certificate = params.get("certificate")
+            if not isinstance(certificate, dict):
+                raise ValueError("certificate must be an object")
+            event_cids = params.get("event_cids")
+            if event_cids is not None and not isinstance(event_cids, list):
+                raise ValueError("event_cids must be an array when supplied")
+            return verify_event_dag_compaction(certificate, event_cids)
         if method in ("mcp++/ucan/validate", "mcp++/ucan/delegate"):
             from .mcplusplus import delegation
             return delegation.validate_raw_delegation_chain(
