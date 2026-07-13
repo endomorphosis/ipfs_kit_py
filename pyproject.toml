@@ -55,6 +55,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+iroh = [
+    "blake3>=0.4.1",
+    "duckdb>=1.4.0",
+]
 transformers = [
     "transformers>=4.20.0",
     "huggingface-hub>=0.10.0"
@@ -255,6 +259,13 @@ full = [
 ipfs-kit = "ipfs_kit_py.cli:sync_main"
 ipfs-kit-mcp = "ipfs_kit_py.mcp_server.server:main"
 ipfs-kit-mcp-tools = "ipfs_kit_py.mcp_server.cli:main"
+ipfs-kit-iroh = "ipfs_kit_py.iroh_install_cli:main"
+ipfs-kit-iroh-diagnostics = "ipfs_kit_py.iroh.diagnostics_cli:main"
+ipfs-kit-iroh-manifest = "ipfs_kit_py.iroh.manifest_cli:main"
+
+[project.entry-points."fsspec.specs"]
+iroh = "ipfs_kit_py.iroh_fsspec:IrohFileSystem"
+"iroh+blob" = "ipfs_kit_py.iroh_fsspec:IrohFileSystem"
 
 [project.urls]
 Homepage = "https://github.com/endomorphosis/ipfs_kit_py/"

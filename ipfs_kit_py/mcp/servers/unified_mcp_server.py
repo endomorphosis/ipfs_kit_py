@@ -128,6 +128,7 @@ class UnifiedMCPServer:
         "system_health",
     ]
     EXECUTABLE_NON_VFS_TOOL_NAMES = {
+        "iroh_diagnostics",
         "system_health",
         "ipfs_version",
         "ipfs_id",
@@ -278,6 +279,12 @@ class UnifiedMCPServer:
             self._register_module_tools(secrets_mcp_tools, "Secrets")
         except ImportError as e:
             logger.warning(f"Could not import secrets tools: {e}")
+
+        try:
+            from ipfs_kit_py.mcp.servers import iroh_mcp_tools
+            self._register_module_tools(iroh_mcp_tools, "Iroh")
+        except ImportError as e:
+            logger.warning(f"Could not import Iroh tools: {e}")
     
     def _register_module_tools(self, module, category: str):
         """
@@ -601,6 +608,11 @@ class UnifiedMCPServer:
         The unified server intentionally keeps broad tool execution conservative;
         unsupported tools return a structured placeholder instead of throwing.
         """
+        if tool_name == "iroh_diagnostics":
+            from ipfs_kit_py.mcp.servers.iroh_mcp_tools import handle_iroh_diagnostics
+
+            return await handle_iroh_diagnostics(arguments)
+
         if tool_name == "system_health":
             return {
                 "success": True,

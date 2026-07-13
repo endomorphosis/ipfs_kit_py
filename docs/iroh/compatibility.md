@@ -1,238 +1,227 @@
 # Iroh upstream compatibility decision
 
-Decision: IROH-001  
-Status: accepted  
-Audit date: 2026-07-12  
-Machine-readable authority: [`ipfs_kit_py/resources/iroh-releases.json`](../../ipfs_kit_py/resources/iroh-releases.json)
+- Decision: IROH-001
+- Status: accepted for implementation; binary distribution gated
+- Audited: 2026-07-12
+- Release bundle: `iroh-1.0.2-ipfs-kit.1`
+- Sidecar protocol: 1
+- Machine record: [`../../ipfs_kit_py/resources/iroh-releases.json`](../../ipfs_kit_py/resources/iroh-releases.json)
 
 ## Decision
 
-IPFS Kit supports one exact Iroh source bundle:
+IPFS Kit will build its managed Iroh sidecar against one exact, audited bundle:
+`iroh` 1.0.2, `iroh-blobs` 0.103.0, `iroh-docs` 0.101.0, and
+`iroh-gossip` 0.101.0. Cargo's compatible-version resolution is not an
+authorization to change any member of this bundle. The lockfile, crate archive
+checksums, features, tags, commits, minimum Rust version, and sidecar protocol
+must all agree with the machine record.
 
-| Component | Version | Purpose | Enabled direct features |
-| --- | --- | --- | --- |
-| `iroh` | 1.0.2 | authenticated QUIC endpoints, discovery, and relay transport | `fast-apple-datapath`, `metrics`, `portmapper`, `tls-ring` |
-| `iroh-blobs` | 0.103.0 | BLAKE3 blob storage, transfer, ranged reads, and tags | `fs-store`, `hide-proto-docs`, `metrics`, `rpc` |
-| `iroh-docs` | 0.101.0 | signed, eventually consistent manifest replication | `fs-store`, `metrics`, `redb-v2-migration`, `rpc` |
-| `iroh-gossip` | 0.101.0 | live synchronization required by `iroh-docs` | `metrics`, `net` |
+The supported runtime is an IPFS Kit-owned binary named
+`ipfs-kit-iroh-sidecar`, not an upstream general-purpose CLI. Upstream Iroh is
+a protocol-library ecosystem. Its published `iroh-relay` and
+`iroh-dns-server` binaries provide relay and discovery infrastructure; neither
+provides the local blob, document, and filesystem-manifest service required by
+this backend.
 
-All four crate manifests declare Rust 1.91 as their minimum supported Rust
-version. Their exact crates.io SHA-256 checksums,
-repository tags, and commits are pinned in the machine-readable record. Cargo
-default features are enabled, and each crate's selected direct feature set is
-recorded above and in the machine-readable record. The dependency-unified
-feature graph remains lockfile/build evidence rather than part of this record.
-Cargo must build the bundle from a
-checked-in lockfile with `--locked`; a compatible semver range is not an
-acceptable production pin. Any feature-policy change creates a different
-bundle even when crate versions remain unchanged.
+The sidecar is currently **source-pinned**, not published. All selected target
+platforms are therefore `installable: false`. Installers and runtime discovery
+must fail closed until per-platform URLs, sizes, SHA-256 digests, attestations,
+and captured version fixtures are added in a new audited revision. A contract
+fixture does not assert that an artifact exists.
 
-This combination is selected because `iroh-docs` 0.101.0 explicitly updates
-its dependency set to Iroh 1.0, `iroh-blobs` 0.103, and `iroh-gossip` 0.101.
-Iroh 1.0.2 is the current 1.0 patch release at the audit date and includes the
-1.0.1 compatibility fix plus transport receive fixes. This is a bundle
-decision, not four independent version decisions.
+## Normative artifacts
 
-## Why there is an IPFS Kit sidecar
+The JSON record is the source consumed by installers and runtime compatibility
+checks. The schemas reject unknown fields and encode the supported component
+set, target matrix, artifact promotion gate, and exact version-output shape.
 
-Iroh 1.x is a protocol-library ecosystem. The official Iroh 1.0.2 release
-publishes `iroh-relay` and `iroh-dns-server` executables, but no general-purpose
-`iroh` blobs/docs daemon or filesystem CLI. Neither server provides the local
-blob store and document APIs required by this backend. Installing one under the
-name `iroh` would be both incorrect and unsafe.
+| Artifact | Purpose |
+| --- | --- |
+| `ipfs_kit_py/resources/iroh-releases.json` | Selected releases, checksums, interfaces, targets, formats, licenses, and upgrade policy |
+| `ipfs_kit_py/resources/iroh-releases.schema.json` | Draft 2020-12 schema for the compatibility record |
+| `ipfs_kit_py/resources/iroh-version-fixture.schema.json` | Draft 2020-12 schema for recorded `--version` results |
+| `tests/fixtures/iroh/version/*.json` | One version contract fixture for every selected target |
 
-The production runtime is therefore a project-owned binary named
-`ipfs-kit-iroh-sidecar`, initially version 0.1.0, compiled from the exact bundle
-above. It exposes protocol version 1 over local IPC. Its RPC is the operation
-path; its CLI surface selected by this decision is limited to the
-side-effect-free `--version` diagnostic.
-Subprocess CLI calls must never be the per-file read/write path.
+If this document and the JSON disagree, treat the configuration as invalid and
+stop. Correct both in one reviewed compatibility change; do not silently choose
+one.
 
-The selected RPC capability groups are:
+## Selected upstream components
 
-- `system.version`, `system.capabilities`, `system.health`, and graceful
-  shutdown;
-- blob ingest, stat, ranged read/export, reference protection, and delete;
-- manifest namespace open/create, read, compare-and-swap publication, and
-  history inspection; and
-- peer synchronization start, progress, cancellation, and status.
+| Crate | Version | Effective feature set | Rust | Archive SHA-256 | Tag commit |
+| --- | --- | --- | --- | --- | --- |
+| `iroh` | 1.0.2 | `fast-apple-datapath`, `metrics`, `portmapper`, `tls-ring` | 1.91 | `5fca9b4b462c343ff88fc0af4096c186f939b602a0bc08723536ef2c31c93971` | `c3ccf502c3881444811fbb3a3a0eeaf850594dba` |
+| `iroh-blobs` | 0.103.0 | `fs-store`, `hide-proto-docs`, `rpc` plus `metrics` | 1.91 | `5be50b0e2d0a9ba65cee4e0dfb708b3704e02ad12bd4c14c6307e94245943126` | `e82cbdcbdac9a78033174aad55e3199b2cf4c0dc` |
+| `iroh-docs` | 0.101.0 | `fs-store`, `metrics`, `redb-v2-migration`, `rpc` | 1.91 | `8fd1bd5e39d0321a3c4a2bcef9650476c076e2df41a0e84577eca23d6de6c8ab` | `091e8cac47bbc49cdb84b0bfed227cc163b61dfe` |
+| `iroh-gossip` | 0.101.0 | `metrics`, `net` | 1.91 | `4e1dc4b05f73e7a1b9e83b531eb63c3fd671b0af3aeb13b59c546dd7ca747515` | `2ce78afe09d89d41d123f28eac19bdc831609cc8` |
 
-The exact selected method identifiers are recorded under
-`sidecar.rpc.required_methods` in the machine-readable authority. Later
-contract work may define their request and response bodies, but it may not
-silently rename, omit, or add a required operation: doing so requires a new
-protocol version and compatibility decision. Likewise, health or bootstrap CLI
-subcommands are not assumed to exist merely because they are useful diagnostic
-concepts; adding one requires a schema and record update.
+The `metrics` feature is explicitly selected for `iroh-blobs`, although it is
+not part of that crate's defaults. Features listed in the JSON are the required
+effective feature set, not a suggestion to enable every available feature.
 
-IROH-002 and IROH-006 own the exact request, response, error, framing, and
-redaction contracts for these selected method identifiers. No unstable
-upstream Rust type or `irpc` message crosses
-the Python/sidecar boundary. Unknown RPC protocol versions, missing
-capabilities, malformed responses, or version mismatches fail before a storage
-operation is attempted.
+Audit evidence is available from the authoritative
+[crates.io version API](https://crates.io/api/v1/crates/iroh/1.0.2) and the
+upstream tagged repositories for
+[`iroh`](https://github.com/n0-computer/iroh/tree/v1.0.2),
+[`iroh-blobs`](https://github.com/n0-computer/iroh-blobs/tree/v0.103.0),
+[`iroh-docs`](https://github.com/n0-computer/iroh-docs/tree/v0.101.0), and
+[`iroh-gossip`](https://github.com/n0-computer/iroh-gossip/tree/v0.101.0).
+During this audit, each `.crate` download was hashed independently and matched
+the checksum published by crates.io.
 
-The required diagnostic command is:
+## Binary and interface contract
+
+The selected binary identity is:
 
 ```text
-$ ipfs-kit-iroh-sidecar --version
 ipfs-kit-iroh-sidecar 0.1.0 (protocol 1; iroh 1.0.2; iroh-blobs 0.103.0; iroh-docs 0.101.0; iroh-gossip 0.101.0)
 ```
 
-The command writes exactly one UTF-8 line to stdout, nothing to stderr, and
-returns zero. Golden records for every platform are under
-`tests/fixtures/iroh/version/`. They are contract fixtures while the
-distribution state is `source-pinned`; IROH-004 must replace/confirm each with
-a capture from its release artifact before changing that state to `published`.
+`ipfs-kit-iroh-sidecar --version` must exit 0, write exactly that line plus a
+single LF to stdout, and write nothing to stderr. Version parsing must be exact;
+extra prose, a different protocol, omitted component versions, malformed UTF-8,
+or a nonzero exit is incompatible.
 
-## Platforms and distribution gate
+The CLI is diagnostic-only. It must not become the per-operation filesystem
+transport. The production boundary is a versioned local IPC RPC service with
+these capability groups and required methods:
 
-The build matrix is:
+- `system`: `version`, `capabilities`, `health`, `shutdown`
+- `blobs`: `ingest`, `stat`, `read_range`, `protect`, `release`
+- `manifests`: `open`, `create`, `read`, `compare_and_swap`, `history`
+- `sync`: `start`, `progress`, `cancel`, `status`
 
-| OS | Architectures / ABI | Archive |
-| --- | --- | --- |
-| Linux | x86_64 and aarch64, GNU libc | `.tar.gz` |
-| Linux | x86_64 and aarch64, musl | `.tar.gz` |
-| macOS | x86_64 and Apple silicon | `.tar.gz` |
-| Windows | x86_64 MSVC | `.zip` |
+IROH-002 and IROH-006 will freeze request, response, error, framing, transport,
+timeout, cancellation, and redaction details. This decision reserves the method
+surface and establishes that protocol version 1 must be negotiated before any
+storage operation.
 
-These are supported build targets, not currently installable binary artifacts.
-Every platform deliberately has `installable: false` in the release record.
-The installer must reject the bundle until IROH-004 publishes an artifact for
-the detected target and atomically adds its HTTPS URL, nonzero byte size, and
-SHA-256 digest to the record. The JSON Schema makes those three fields
-mandatory when `installable` becomes true and forbids them when false. There is
-no source-build fallback during ordinary Python import or backend use.
+## Supported target matrix
 
-Archive names follow
-`ipfs-kit-iroh-sidecar-v{version}-{rust_target}.{archive_format}`. Archives may
-contain only the one appropriately named executable plus release metadata and
-license notices. Platform detection must distinguish GNU libc from musl and
-must reject 32-bit, unknown libc, and unlisted targets.
+“Supported” here means selected as a release target. It does not mean a binary
+is presently available. Each target has a golden contract fixture so builds can
+verify their output before promotion.
 
-## Supply-chain verification
+| Platform ID | Rust target | Archive | Executable | Fixture | Installable now |
+| --- | --- | --- | --- | --- | --- |
+| `linux_x86_64_gnu` | `x86_64-unknown-linux-gnu` | `tar.gz` | `ipfs-kit-iroh-sidecar` | contract golden | no |
+| `linux_x86_64_musl` | `x86_64-unknown-linux-musl` | `tar.gz` | `ipfs-kit-iroh-sidecar` | contract golden | no |
+| `linux_aarch64_gnu` | `aarch64-unknown-linux-gnu` | `tar.gz` | `ipfs-kit-iroh-sidecar` | contract golden | no |
+| `linux_aarch64_musl` | `aarch64-unknown-linux-musl` | `tar.gz` | `ipfs-kit-iroh-sidecar` | contract golden | no |
+| `macos_x86_64` | `x86_64-apple-darwin` | `tar.gz` | `ipfs-kit-iroh-sidecar` | contract golden | no |
+| `macos_aarch64` | `aarch64-apple-darwin` | `tar.gz` | `ipfs-kit-iroh-sidecar` | contract golden | no |
+| `windows_x86_64` | `x86_64-pc-windows-msvc` | `zip` | `ipfs-kit-iroh-sidecar.exe` | contract golden | no |
 
-Source checksums in the record come from each explicitly recorded crates.io
-version-API endpoint and identify the exact `.crate` archives. Repository tags
-and commits provide review
-provenance but do not replace those checksums. The selected crates are all
-dual-licensed under MIT or Apache-2.0; the upstream spelling differs between
-crate manifests (`MIT OR Apache-2.0` and `MIT/Apache-2.0`) but the licensing
-choice is the same. Redistributed binaries must include both upstream license
-notices and the IPFS Kit license/notice material.
+Linux aarch64 is the spelling used by the manifest even where a host reports
+`arm64`. Linux libc detection must distinguish GNU from musl. macOS targets have
+no libc selector. Windows arm64 and all 32-bit targets are unsupported by this
+bundle and must be rejected rather than mapped to a nearby target.
 
-At this audit date, the selected crates have no detached signature set, and the
-official Iroh release assets expose SHA-256 digests but no detached signatures.
-Consequently, project sidecar publication must provide both:
+### Artifact promotion gate
 
-1. the GitHub release asset SHA-256 digest pinned in this record; and
-2. a GitHub artifact attestation tied to the repository workflow and source
-   commit.
+Promotion from `source-pinned` to `published` is a single atomic record change:
 
-The machine record identifies crates.io as the source-archive checksum
-authority and the `endomorphosis/ipfs_kit_py` GitHub repository as the sidecar
-artifact and attestation authority. It also records the non-shell verification
-argument vector (`gh attestation verify ... --repo endomorphosis/ipfs_kit_py`)
-that IROH-004 must implement or invoke without interpolation. These authorities
-are part of the compatibility contract; an artifact from another repository is
-not equivalent even when its bytes have the expected digest.
+1. Build all seven targets from the pinned lockfile and source checksums.
+2. Publish immutable archives named by the manifest template.
+3. Add each archive's exact HTTPS URL, byte size, and lowercase SHA-256 digest.
+4. Produce GitHub artifact attestations for the repository and verify each with
+   the command recorded under `verification.sidecar_artifacts.attestation`.
+5. Run the extracted executable on its native target and replace that target's
+   `contract-golden` fixture with an `artifact-capture` containing UTC capture
+   time and the same archive SHA-256.
+6. Set the sidecar status to `published` and all seven targets to
+   `installable: true`; validate the complete record before release.
 
-IROH-004 must verify both before extraction. Verification failure, absent
-attestation support, a digest absent from this file, an archive-path escape,
-or an unexpected archive member is fatal. A tag, TLS download, or checksum
-fetched from the same mutable response as an unpinned artifact is insufficient
-on its own.
+The schema deliberately prevents a partial promotion: source-pinned or
+withdrawn releases cannot advertise installable targets, while published
+releases require artifact metadata for every target. Detached upstream
+signatures are not available for this IPFS Kit-owned binary. SHA-256 protects
+identity; the required repository-bound artifact attestation supplies
+provenance. An installer must verify both before extraction.
 
-Upstream audit sources:
+## Data-format decisions
 
-- [Iroh 1.0.2 release and assets](https://github.com/n0-computer/iroh/releases/tag/v1.0.2)
-- [Iroh 1.0.2 crate](https://crates.io/crates/iroh/1.0.2)
-- [iroh-blobs 0.103.0 source](https://github.com/n0-computer/iroh-blobs/tree/v0.103.0)
-- [iroh-docs 0.101.0 source](https://github.com/n0-computer/iroh-docs/tree/v0.101.0)
-- [iroh-gossip 0.101.0 source](https://github.com/n0-computer/iroh-gossip/tree/v0.101.0)
+- Blob identifiers are lowercase hexadecimal encodings of 32-byte BLAKE3-256
+  digests. They remain native Iroh hashes and must never be labeled as IPFS CIDs.
+- `iroh-docs` provides signed, eventually consistent key/value entries whose
+  values can reference `iroh-blobs` content.
+- A filesystem is an IPFS Kit versioned directory manifest layered over those
+  primitives. Iroh blobs are immutable content, not POSIX files.
+- Upstream persistent-store, Bao, redb, and irpc encodings are sidecar-private.
+  They are not Python API formats and cannot be exposed as a compatibility
+  promise. IROH-002 will define the portable manifest format.
+- Tickets, private keys, write capabilities, and other credential encodings are
+  opaque. Only credential references may cross persisted backend configuration.
 
-## Data-format boundaries
+## Supply-chain and license policy
 
-Iroh blob identifiers are native 32-byte BLAKE3 hashes and remain distinct
-from IPFS CIDs. Blob bytes are immutable. The Iroh blob store's file layout,
-Bao encoding, tags, and `irpc` wire types are private sidecar implementation
-details and must not be persisted in Python backend configuration.
+Crate archives must be downloaded over HTTPS from the exact crates.io URLs in
+the record and verified with SHA-256 before use. crates.io does not publish a
+detached signature for these four archives, so the machine record explicitly
+sets their signature source to `null`; a checksum is not misrepresented as a
+signature. Builds must use a committed lockfile, reject checksum or version
+drift, run the project's dependency audit, and avoid build-time network access
+after the verified inputs are staged.
 
-An Iroh document is a namespace containing signed entries keyed by application
-bytes. Entries identify an author, key, timestamp, content length, and BLAKE3
-content hash; blob content is stored and transferred separately. IPFS Kit will
-store its versioned directory-manifest format as document values only after
-IROH-002 freezes that format. Raw upstream entries are not a POSIX directory,
-and document convergence is not an atomic filesystem transaction.
+All selected upstream crates are dual-licensed under MIT or Apache-2.0. The
+spelling in crate metadata differs (`MIT OR Apache-2.0` versus
+`MIT/Apache-2.0`), but the redistribution decision is the SPDX expression
+`MIT OR Apache-2.0`. Every sidecar archive must ship the upstream
+`LICENSE-MIT` and `LICENSE-APACHE` texts together with applicable IPFS Kit
+license and notice material. Dependency license and vulnerability audits remain
+release gates; this record does not waive transitive obligations.
 
-Namespace secrets, author keys, write capabilities, node keys, and tickets are
-credentials. Their upstream binary/text encodings are opaque to IPFS Kit and
-must be handled through secret references. They may not appear in backend YAML,
-RPC logs, process arguments, metrics, fixtures, exceptions, or lineage. Ticket
-parsing is disabled until IROH-002 specifies an accepted grammar and redaction
-rules.
+## Breaking-version boundaries
 
-## Breaking boundaries
+- `iroh` before 1.0 is outside the stable endpoint, key, relay, and transport
+  line selected here.
+- `iroh-blobs` before 0.103 is from the pre-Iroh-1.0 integration line; its RPC
+  and store APIs are not compatible by assumption.
+- `iroh-docs` before 0.101 uses older Iroh dependencies and different redb
+  migration behavior. Never test migration on the only copy of live data.
+- Any component version outside the exact four-member bundle is incompatible,
+  including apparently compatible patch or minor releases.
+- Any sidecar RPC protocol other than 1 is incompatible. Refuse it before
+  issuing blob, manifest, or synchronization operations.
 
-The following boundaries require a new compatibility bundle:
-
-- Iroh releases before 1.0 use pre-stability endpoint, key, relay, and
-  transport APIs.
-- `iroh-blobs` before 0.103 is not the Iroh 1.0 dependency line. Its store and
-  RPC APIs are not assumed compatible.
-- `iroh-docs` before 0.101 uses older dependency and redb migration lines.
-  Versions 0.99 and 0.100 explicitly contain breaking dependency/wire changes.
-- Any newer minor release of blobs, docs, or gossip may change a Rust API,
-  storage format, or protocol. The 0.x components are never floated.
-- Any sidecar RPC protocol other than 1 is incompatible even if all upstream
-  crate versions happen to match.
-
-Patch upgrades are not automatic. A security fix can justify expedited review,
-but it cannot bypass the upgrade procedure.
+These are hard startup/build boundaries. There is no best-effort mode and no
+fallback to IPFS, local files, a different Iroh binary, or a different crate
+version.
 
 ## Upgrade and rollback procedure
 
-1. Open an upgrade change containing a proposed new bundle ID. Read every
-   component changelog from the current pin to the candidate and record API,
-   wire, ticket, hash, and persistent-store changes.
-2. Obtain crates.io checksums, tags, commits, Rust MSRV, licenses, and dependency
-   features independently. Update the lockfile and run the Rust supply-chain
-   audit. Never edit a checksum to make a failed download pass.
-3. Build each target in an isolated reproducible workflow. Run sidecar unit,
-   RPC contract, two-node transfer, manifest conflict, restart, corruption,
-   cancellation, and redaction tests.
-4. Copy a production-format data directory. Test old-sidecar read, new-sidecar
-   migration/read/write, restart, and peer sync against both old and new peers.
-   A migration must be one-way only after an explicit backup and receipt.
-5. Publish immutable draft artifacts, generate GitHub attestations, independently
-   verify them and their SHA-256 values, and capture `--version` on every target.
-   Update the platform fixtures and only then set those entries installable.
-6. Roll out as a canary without deleting the retained prior binary or backup.
-   Confirm capability negotiation, health, data integrity, and transfer metrics
-   before promotion.
-7. Roll back by stopping the sidecar and atomically restoring the prior binary.
-   Restore the pre-migration data-directory snapshot if the new release changed
-   persistent data. Never start an older binary on a migrated live directory
-   unless the migration test proved it safe.
+Every upgrade, including a patch-only change, gets a new bundle ID and repeats
+the compatibility audit:
 
-Changing the supported bundle requires updating this document, the JSON record,
-schema-valid platform artifacts, every version fixture, and the named
-conformance tests in the same change.
+1. Review all four changelogs and identify API, wire, ticket, hash, discovery,
+   and persistent-store changes.
+2. Pin versions, crate checksums, tags, commits, Rust minimum version, features,
+   licenses, and `Cargo.lock`.
+3. Build reproducibly for every selected target and complete dependency,
+   license, and provenance audits.
+4. Run RPC contract, two-node transfer, ranged read, manifest conflict,
+   restart, corruption, timeout, cancellation, and secret-redaction suites.
+5. Run migration tests on a disposable copy of production-format data and test
+   both mixed-version peers and interrupted migration.
+6. Publish immutable draft archives, add exact digests and sizes, attest them,
+   and capture native `--version` results for every target.
+7. Canary the new bundle while retaining the previous binary and a
+   pre-migration data snapshot.
+
+Rollback is an atomic restoration of the retained binary. If an upgrade changed
+storage, restore the pre-migration snapshot as well. Never open migrated live
+data with an older binary unless the upgrade audit explicitly proved downgrade
+safety. Failed canaries and withdrawn artifacts must update the machine record
+to fail closed before broad rollout.
 
 ## Validation
 
-From `external/ipfs_kit`:
+Run the offline compatibility suite from the `external/ipfs_kit` repository:
 
 ```bash
 python -m pytest -q tests/test_iroh_compatibility_record.py
 ```
 
-This validates the release file with JSON Schema Draft 2020-12, verifies exact
-source pins, ensures platform IDs/targets are unique, and requires a matching
-`--version` record for every supported target. The schema itself is shipped as
-`ipfs_kit_py/resources/iroh-releases.schema.json` alongside the release record.
-Each version record is independently validated by the shipped
-`ipfs_kit_py/resources/iroh-version-fixture.schema.json`. An
-`artifact-capture` fixture is invalid unless it records both its capture time
-and artifact digest; the current `contract-golden` fixtures intentionally omit
-both until IROH-004 publishes the first sidecar artifacts.
+The suite validates both schemas, the release record, the one-to-one target and
+fixture mapping, the exact version line, cross-field component consistency, and
+the fail-closed artifact promotion rules. Network access is not required.

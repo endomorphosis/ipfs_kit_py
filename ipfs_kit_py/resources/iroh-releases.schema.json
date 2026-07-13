@@ -113,12 +113,21 @@
         "source_archives": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["algorithm", "authority", "metadata_url_template", "download_url_template"],
+          "required": [
+            "algorithm",
+            "authority",
+            "metadata_url_template",
+            "download_url_template",
+            "detached_signatures_available",
+            "signature_source"
+          ],
           "properties": {
             "algorithm": { "const": "sha256" },
             "authority": { "const": "crates.io" },
             "metadata_url_template": { "const": "https://crates.io/api/v1/crates/{crate}/{version}" },
-            "download_url_template": { "const": "https://crates.io/api/v1/crates/{crate}/{version}/download" }
+            "download_url_template": { "const": "https://crates.io/api/v1/crates/{crate}/{version}/download" },
+            "detached_signatures_available": { "const": false },
+            "signature_source": { "type": "null" }
           }
         },
         "sidecar_artifacts": {

@@ -42,6 +42,10 @@ def get_backend_adapter(backend_type: str, backend_name: str, config_manager=Non
     Raises:
         ValueError: If backend type is not supported
     """
+    if backend_type == "iroh":
+        if config_manager is None:
+            raise ValueError("Iroh named backends require a backend manager")
+        return config_manager.get_backend_adapter(backend_name)
     if backend_type not in BACKEND_ADAPTERS:
         supported_types = list(BACKEND_ADAPTERS.keys())
         raise ValueError(f"Unsupported backend type '{backend_type}'. Supported types: {supported_types}")
@@ -51,4 +55,4 @@ def get_backend_adapter(backend_type: str, backend_name: str, config_manager=Non
 
 def list_supported_backends():
     """List all supported backend types."""
-    return list(BACKEND_ADAPTERS.keys())
+    return sorted([*BACKEND_ADAPTERS.keys(), "iroh"])

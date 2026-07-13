@@ -41,14 +41,11 @@ def get_analytics():
     return complex_analytics()
 ```
 
-## Automatic Binary Installation
+## Optional Binary Installation
 
-The package automatically downloads and installs required binaries when imported:
-
-- **IPFS**: ipfs, ipfs-cluster-service, ipfs-cluster-ctl, ipfs-cluster-follow
-- **Lotus**: lotus, lotus-miner  
-- **Lassie**: lassie
-- **Storacha**: Python and NPM dependencies
+Ordinary package imports do not download, install, or update executables. Set
+`IPFS_KIT_AUTO_INSTALL_BINARIES=1` to opt into package-managed Kubo setup;
+optional binary families remain available through their explicit installers.
 
 ## Quick Start
 
@@ -359,6 +356,23 @@ if _DOWNLOAD_BINARIES_AUTOMATICALLY:
         except Exception as e:
             logger.warning(f"Failed to auto-download binaries on import: {e}")
             logger.info("Binaries will be downloaded when specific functions are called")
+
+# Binary setup is an explicit opt-in.  In particular, importing an installer or
+# running a read-only CLI command must not perform unrelated network access.
+try:
+    from .kubo_runtime import ensure_kubo_binary, kubo_binary
+
+    _auto_install_binaries = os.environ.get("IPFS_KIT_AUTO_INSTALL_BINARIES", "").strip().lower()
+    if _auto_install_binaries in {"1", "true", "yes", "on"}:
+        KUBO_BINARY = ensure_kubo_binary(install=True)
+    else:
+        _managed_kubo = kubo_binary()
+        KUBO_BINARY = (
+            _managed_kubo if _managed_kubo.is_file() and os.access(_managed_kubo, os.X_OK) else None
+        )
+except Exception as e:
+    KUBO_BINARY = None
+    logger.warning(f"Unable to initialize package-managed Kubo: {e}")
 
 # Use try/except for all imports to handle optional dependencies gracefully
 # Import the transformers integration (DISABLED due to protobuf conflicts)

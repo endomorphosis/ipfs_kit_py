@@ -8,6 +8,7 @@ one async core.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from typing import Any, Dict
@@ -21,14 +22,58 @@ PROTOCOL_VERSION = "2025-06-18"
 SERVER_INFO = {"name": "ipfs_kit_py-mcpplusplus", "version": "0.1.0"}
 
 
+def _profile_g_rest_binding(http_method: str, path: str):
+    """Resolve normative Profile G REST paths without changing wire semantics."""
+    static = {
+        ("GET", "/mcp/risk/profile"): "mcp++/risk/profile",
+        ("POST", "/mcp/goals"): "mcp++/goals/create", ("GET", "/mcp/goals"): "mcp++/goals/list",
+        ("POST", "/mcp/tasks"): "mcp++/tasks/create", ("GET", "/mcp/tasks"): "mcp++/tasks/list",
+        ("GET", "/mcp/tasks/ready"): "mcp++/tasks/ready",
+        ("POST", "/mcp/risk/assess"): "mcp++/risk/assess", ("GET", "/mcp/risk/evidence"): "mcp++/risk/evidence",
+        ("GET", "/mcp/risk/history"): "mcp++/risk/history", ("POST", "/mcp/neighborhood/query"): "mcp++/neighborhood/query",
+        ("POST", "/mcp/neighborhood/attest"): "mcp++/neighborhood/attest", ("GET", "/mcp/schedule/frontier"): "mcp++/schedule/frontier",
+        ("POST", "/mcp/schedule/proposals"): "mcp++/schedule/propose", ("POST", "/mcp/schedule/claims"): "mcp++/schedule/claim",
+        ("POST", "/mcp/schedule/resolutions"): "mcp++/schedule/resolve", ("POST", "/mcp/schedule/reconcile"): "mcp++/schedule/reconcile",
+    }
+    method = static.get((http_method, path))
+    if method:
+        return method, {}
+    patterns = (
+        ("GET", r"/mcp/goals/([^/]+)$", "mcp++/goals/get", "goal_cid"),
+        ("POST", r"/mcp/goals/([^/]+)/(decompose|select)$", "goals", "goal_cid"),
+        ("GET", r"/mcp/tasks/([^/]+)$", "mcp++/tasks/get", "task_cid"),
+        ("GET", r"/mcp/schedule/status/([^/]+)$", "mcp++/schedule/status", "task_cid"),
+        ("POST", r"/mcp/schedule/claims/([^/]+)/(renew|release)$", "schedule", "claim_cid"),
+    )
+    for verb, pattern, rpc, key in patterns:
+        match = re.fullmatch(pattern, path) if verb == http_method else None
+        if match:
+            method = f"mcp++/{rpc}/{match.group(2)}" if rpc in {"goals", "schedule"} else rpc
+            return method, {key: match.group(1)}
+    return None
+
+
+def _agent_supervisor_rest_binding(http_method: str, path: str):
+    """Resolve the kit-owned Agent Supervisor immutable-receipt route."""
+    if http_method in {"GET", "POST"} and path == "/mcp/agent-supervisor/receipts":
+        return "agent_supervisor.receipts.read", {}
+    match = re.fullmatch(r"/mcp/agent-supervisor/receipts/([^/]+)", path)
+    if http_method == "GET" and match:
+        from urllib.parse import unquote
+        return "agent_supervisor.receipts.read", {"receipt_ids": [unquote(match.group(1))]}
+    return None
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
 class MCPServer:
-    def __init__(self) -> None:
+    def __init__(self, receipt_resolver: Any = None) -> None:
         self.tm = HierarchicalToolManager()
-        self._dag: list = []  # Profile E: ordered event nodes
+        self._dag = EventDAGStore()
+        from .agent_supervisor_receipts import AgentSupervisorReceiptResolver
+        self._agent_supervisor_receipts = receipt_resolver or AgentSupervisorReceiptResolver()
 
     async def handle(self, msg: Dict[str, Any]):
         method = msg.get("method")
@@ -47,7 +92,12 @@ class MCPServer:
             result = await self._route(method, params)
             return {"jsonrpc": "2.0", "id": mid, "result": result}
         except Exception as e:
-            return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32000, "message": str(e)}}
+            from .mcplusplus.profile_g_transport import ERROR_NUMBERS
+            wire_code = ERROR_NUMBERS.get(getattr(e, "code", ""), -32000)
+            error = {"code": wire_code, "message": str(e)}
+            if getattr(e, "code", None):
+                error["data"] = e.data()
+            return {"jsonrpc": "2.0", "id": mid, "error": error}
 
     async def _route(self, method: str, params: Dict[str, Any], notification: bool = False) -> Any:
         if notification or (method or "").startswith("notifications/"):
@@ -55,15 +105,32 @@ class MCPServer:
             # accepted as no-ops; unknown ones are ignored rather than erroring.
             return None
         if method == "initialize":
+            requested = params.get("capabilities", {}).get("experimental", {})
+            experimental = {"mcp++": mcplusplus.get_capabilities()}
+            if requested.get("mcp++/event-dag") is True:
+                experimental["mcp++/event-dag"] = True
+            if requested.get("mcp++/risk-scheduling") is True:
+                from .mcplusplus.profile_g_transport import get_dispatcher
+                experimental["mcp++/risk-scheduling"] = get_dispatcher().metadata
             return {
                 "protocolVersion": PROTOCOL_VERSION,
                 "serverInfo": SERVER_INFO,
-                "capabilities": {"tools": {}, "experimental": {"mcp++": mcplusplus.get_capabilities()}},
+                "capabilities": {"tools": {}, "experimental": experimental, "mcpPlusPlusProfiles": ["mcp++/event-dag", "mcp++/risk-scheduling"]},
+                "profile_metadata": {
+                    "mcp++/event-dag": self._dag.profile_metadata(),
+                    "agent_supervisor.receipts.read": {
+                        "owner": "ipfs_kit_py", "access": "read",
+                        "transports": ["mcp", "mcp++", "libp2p"],
+                    },
+                },
             }
         if method == "tools/list":
-            return {"tools": self.tm.all_tool_schemas()}
+            from .agent_supervisor_receipts import descriptor
+            return {"tools": [*self.tm.all_tool_schemas(), descriptor()]}
         if method == "mcp++/interfaces":
             return {"interfaces": self._interface_descriptors()}
+        if method == "agent_supervisor.receipts.read":
+            return self._agent_supervisor_receipts.read(params)
         if method == "mcp++/dag/frontier":
             seen = {p for n in self._dag for p in n.get("parents", [])}
             frontier = [n["event_cid"] for n in self._dag if n["event_cid"] not in seen]
@@ -84,9 +151,17 @@ class MCPServer:
                 risk=float(params.get("risk", 0.0)),
                 threshold=float(params.get("threshold", 0.7)),
             )
+        if method.startswith(("mcp++/goals/", "mcp++/tasks/", "mcp++/risk/", "mcp++/neighborhood/", "mcp++/schedule/")):
+            from .mcplusplus.profile_g_transport import get_dispatcher
+            return get_dispatcher().dispatch(method, params)
         if method == "tools/call":
             name = params.get("name", "")
             args = params.get("arguments") or {}
+            if name == "agent_supervisor.receipts.read":
+                receipt_params = dict(args) if isinstance(args, dict) else args
+                if isinstance(receipt_params, dict) and params.get("correlation_id") is not None:
+                    receipt_params.setdefault("correlation_id", params["correlation_id"])
+                return self._agent_supervisor_receipts.read(receipt_params)
             envelope = params.get("_mcppp_envelope")
             if envelope is not None:
                 err = mcplusplus.validate_packet(envelope)
@@ -140,6 +215,8 @@ class MCPServer:
                 "semantic_tags": s.get("tags", []),
                 "compatibility": {"mcp": True, "mcp++": True},
             })
+        from .agent_supervisor_receipts import descriptor
+        out.append(descriptor())
         return out
 
 
@@ -157,11 +234,9 @@ async def serve_stdio() -> None:
         sys.stdout.flush()
 
 
-async def serve_http(host: str = "127.0.0.1", port: int = 8004) -> None:
-    from hypercorn.config import Config
-    from hypercorn.trio import serve  # trio worker
-
-    server = MCPServer()
+def create_http_app(server: MCPServer | None = None):
+    """Build the shared ASGI application, allowing transport contract tests to inject storage."""
+    server = server or MCPServer()
 
     async def app(scope, receive, send):
         if scope["type"] == "lifespan":
@@ -180,7 +255,34 @@ async def serve_http(host: str = "127.0.0.1", port: int = 8004) -> None:
             body += ev.get("body", b"")
             if not ev.get("more_body"):
                 break
-        resp = await server.handle(json.loads(body or b"{}"))
+        path = scope.get("path", "")
+        binding = (_agent_supervisor_rest_binding(scope.get("method", "GET"), path)
+                   or _profile_g_rest_binding(scope.get("method", "GET"), path))
+        if binding is not None:
+            from urllib.parse import parse_qsl
+            method, path_params = binding
+            params = dict(parse_qsl(scope.get("query_string", b"").decode()))
+            decoded = None
+            if body:
+                decoded = json.loads(body)
+                if not isinstance(decoded, dict):
+                    decoded = {}
+            is_jsonrpc = bool(decoded and decoded.get("jsonrpc") == "2.0")
+            if is_jsonrpc:
+                nested = decoded.get("params")
+                if isinstance(nested, dict):
+                    params.update(nested)
+            elif decoded:
+                params.update(decoded)
+            params.update(path_params)
+            rpc_message = {"jsonrpc": "2.0", "method": method, "params": params}
+            if not is_jsonrpc or "id" in decoded:
+                rpc_message["id"] = decoded.get("id") if is_jsonrpc else 1
+            resp = await server.handle(rpc_message)
+            if not is_jsonrpc:
+                resp = resp.get("result", resp.get("error")) if isinstance(resp, dict) else resp
+        else:
+            resp = await server.handle(json.loads(body or b"{}"))
         if resp is None:  # JSON-RPC notification — HTTP 202, no body
             await send({"type": "http.response.start", "status": 202, "headers": []})
             await send({"type": "http.response.body", "body": b""})
@@ -190,9 +292,16 @@ async def serve_http(host: str = "127.0.0.1", port: int = 8004) -> None:
                     "headers": [(b"content-type", b"application/json")]})
         await send({"type": "http.response.body", "body": data})
 
+    return app
+
+
+async def serve_http(host: str = "127.0.0.1", port: int = 8004) -> None:
+    from hypercorn.config import Config
+    from hypercorn.trio import serve  # trio worker
+
     cfg = Config()
     cfg.bind = [f"{host}:{port}"]
-    await serve(app, cfg)
+    await serve(create_http_app(), cfg)
 
 
 async def serve_p2p() -> None:

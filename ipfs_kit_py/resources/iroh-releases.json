@@ -221,7 +221,9 @@
       "algorithm": "sha256",
       "authority": "crates.io",
       "metadata_url_template": "https://crates.io/api/v1/crates/{crate}/{version}",
-      "download_url_template": "https://crates.io/api/v1/crates/{crate}/{version}/download"
+      "download_url_template": "https://crates.io/api/v1/crates/{crate}/{version}/download",
+      "detached_signatures_available": false,
+      "signature_source": null
     },
     "sidecar_artifacts": {
       "algorithm": "sha256",

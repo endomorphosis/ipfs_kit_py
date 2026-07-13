@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "normalization": [
+    {
+      "system": "Linux",
+      "machine": "AMD64",
+      "libc": "glibc",
+      "expected": ["linux", "x86_64", "gnu"]
+    },
+    {
+      "system": "linux",
+      "machine": "x86-64",
+      "libc": "GNU",
+      "expected": ["linux", "x86_64", "gnu"]
+    },
+    {
+      "system": "Linux",
+      "machine": "arm64",
+      "libc": "musl",
+      "expected": ["linux", "aarch64", "musl"]
+    },
+    {
+      "system": "Darwin",
+      "machine": "arm64",
+      "libc": "ignored",
+      "expected": ["macos", "aarch64", "none"]
+    },
+    {
+      "system": "macOS",
+      "machine": "x86_64",
+      "libc": "ignored",
+      "expected": ["macos", "x86_64", "none"]
+    },
+    {
+      "system": "Windows",
+      "machine": "x64",
+      "libc": "ignored",
+      "expected": ["windows", "x86_64", "none"]
+    }
+  ],
+  "unsupported_architectures": [
+    "x86",
+    "i686",
+    "armv7l",
+    "riscv64",
+    "ppc64le"
+  ]
+}
