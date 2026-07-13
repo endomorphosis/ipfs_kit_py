@@ -114,6 +114,14 @@ async def test_http_libp2p_parity_and_replay(service, request_context, calls):
     assert status == 200 and "PAYMENT-RESPONSE" in headers and body["data"] == "ok"
     replay = await service.handle_libp2p({"operation": "storage/retrieve", "params": params}, request_context, lambda: pytest.fail("replayed effect"))
     assert replay["receipt_cid"] and calls["settle"] == 1
+    control = await service.handle_profile_h_libp2p({
+        "jsonrpc": "2.0", "id": 1, "method": "mcp++/payments/profile", "params": {},
+    })
+    assert control["result"]["ready"] is True
+    assert control["result"]["mode"] == "local-test"
+    assert control["result"]["upstreamX402HttpConformance"] is False
+    http_status, _, http_profile = await service.profile_h_http_app.handle("GET", "/mcp/payments/profile")
+    assert http_status == 200 and http_profile == control["result"]
 
 
 @pytest.mark.asyncio
@@ -130,4 +138,3 @@ async def test_restart_recovers_receipt_without_resettling(tmp_path, config, fac
     assert calls["settle"] == 1
     diagnostics = await restarted.diagnostics()
     assert diagnostics["catalogSignatureValid"] is True
-
