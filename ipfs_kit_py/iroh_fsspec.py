@@ -3647,14 +3647,19 @@ class IrohAsyncFileSystem(IrohFileSystem):
         import anyio
 
         results: list[Any] = [None] * len(calls)
+        # Bound task admission as well as individual collaborator calls.  This
+        # prevents one task releasing the operation limiter between manifest
+        # lookup and range I/O from allowing an extra transport request in.
+        admission = anyio.Semaphore(self.max_concurrency)
 
         async def run(index: int, call: Callable[[], Any]) -> None:
-            try:
-                results[index] = await call()
-            except Exception as exc:
-                if not return_exceptions:
-                    raise
-                results[index] = exc
+            async with admission:
+                try:
+                    results[index] = await call()
+                except Exception as exc:
+                    if not return_exceptions:
+                        raise
+                    results[index] = exc
 
         async with anyio.create_task_group() as group:
             for index, call in enumerate(calls):
