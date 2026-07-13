@@ -30,6 +30,8 @@ classifiers = [
     "Operating System :: MacOS",
 ]
 dependencies = [
+    # Canonical Profile F ZK provider used for Event-DAG compaction certificates.
+    "ipfs_datasets_py>=0.2.0",
     "requests>=2.28.0",
     "httpx>=0.24.0",  # For async HTTP requests
     "aiohttp>=3.8.4",  # For async HTTP operations

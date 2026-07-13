@@ -71,6 +71,22 @@ def verify_merkle_proof(cid: str, proof: List[Dict[str, str]], root: str) -> boo
     return current == root
 
 
+def _profile_f_zk_certificate(event_cids: List[str]) -> Optional[Dict[str, Any]]:
+    """Use the canonical datasets provider when a real verifier is provisioned."""
+    mode = os.environ.get("MCPPP_PROFILE_F_ZK", "0").strip().lower()
+    if mode not in {"1", "true", "yes", "required"}:
+        return None
+    try:
+        from ipfs_datasets_py.mcp_server.event_dag_zkp import availability, prove_event_dag_compaction
+        if not availability().get("available"):
+            raise RuntimeError("Profile F Groth16 provider is unavailable")
+        return prove_event_dag_compaction(event_cids)
+    except Exception as error:
+        if mode == "required":
+            raise RuntimeError("Profile F ZK proof is required but unavailable") from error
+        return None
+
+
 @dataclass(frozen=True)
 class ArchiveBoundary:
     event_cid: str
@@ -177,7 +193,8 @@ class EventDAGStore:
 
     def compact(self, max_events: Optional[int] = None, retain_recent: int = 0) -> Dict[str, Any]:
         entries = sorted(self._state["hot_events"].items(), key=lambda row: str(row[1].get("timestamp", "")))
-        selected = entries[:min(max(1, int(max_events or self.epoch_size)), max(0, len(entries) - max(0, int(retain_recent)))]
+        eligible_count = max(0, len(entries) - max(0, int(retain_recent)))
+        selected = entries[:min(max(1, int(max_events or self.epoch_size)), eligible_count)]
         if not selected:
             return {"compacted": False, "reason": "no_eligible_hot_events", "profile": self.profile_metadata()}
         cids = [cid for cid, _ in selected]
@@ -192,6 +209,7 @@ class EventDAGStore:
         epoch_id = len(self._state["certificates"])
         archive = {"schema": "mcp++/event-dag-archive@1", "epoch_id": epoch_id, "event_cids": cids, "events": events, "merkle_root": merkle_root, "merkle_layers": layers}
         archive_cid = _digest(archive)
+        zk_certificate = _profile_f_zk_certificate(cids)
         certificate_basis = {
             "schema": "mcp++/event-dag-compaction-certificate@1",
             "profile": PROFILE_CAPABILITY,
@@ -202,11 +220,24 @@ class EventDAGStore:
             "event_count": len(cids),
             "root_cids": roots,
             "frontier_cids": frontier,
-            "proof_system": "hash-commitment-v1",
-            "zero_knowledge": False,
+            "proof_system": (zk_certificate or {}).get("proof_system", "hash-commitment-v1"),
+            "zero_knowledge": bool((zk_certificate or {}).get("zero_knowledge", False)),
         }
+        if zk_certificate:
+            certificate_basis.update({
+                "zk_merkle_root": zk_certificate["zk_merkle_root"],
+                "verification_key_cid": zk_certificate["verification_key_cid"],
+                "verification_key_sha256": zk_certificate["verification_key_sha256"],
+                "circuit_version": zk_certificate["circuit_version"],
+                "ruleset_id": zk_certificate["ruleset_id"],
+                "proof_commitment": _digest(zk_certificate["proof"]),
+            })
         certificate_cid = _digest(certificate_basis)
-        certificate = {**certificate_basis, "certificate_cid": certificate_cid, "proof": _digest(certificate_basis)}
+        certificate = {
+            **certificate_basis,
+            "certificate_cid": certificate_cid,
+            "proof": zk_certificate["proof"] if zk_certificate else _digest(certificate_basis),
+        }
         archive_path = self.archive_dir / f"{archive_cid}.json"
         temporary = archive_path.with_suffix(".tmp")
         temporary.write_text(json.dumps(archive, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
@@ -233,8 +264,17 @@ class EventDAGStore:
         try:
             archive = json.loads((self.archive_dir / f"{certificate['archive_cid']}.json").read_text(encoding="utf-8"))
             root, _ = build_merkle_tree(archive["event_cids"])
-            basis = {key: certificate[key] for key in ("schema", "profile", "profile_name", "archive_cid", "merkle_root", "epoch_id", "event_count", "root_cids", "frontier_cids", "proof_system", "zero_knowledge")}
-            valid = root == certificate["merkle_root"] and len(archive["event_cids"]) == certificate["event_count"] and certificate["proof"] == _digest(basis)
+            basis_keys = ("schema", "profile", "profile_name", "archive_cid", "merkle_root", "epoch_id", "event_count", "root_cids", "frontier_cids", "proof_system", "zero_knowledge")
+            basis = {key: certificate[key] for key in basis_keys}
+            if certificate.get("zero_knowledge"):
+                zk_keys = ("zk_merkle_root", "verification_key_cid", "verification_key_sha256", "circuit_version", "ruleset_id", "proof_commitment")
+                basis.update({key: certificate[key] for key in zk_keys})
+                from ipfs_datasets_py.mcp_server.event_dag_zkp import verify_event_dag_compaction
+                zk_result = verify_event_dag_compaction({key: certificate[key] for key in (*zk_keys[:-1], "proof_system", "zero_knowledge", "event_count", "proof")}, archive["event_cids"])
+                proof_valid = bool(zk_result.get("valid")) and certificate["proof_commitment"] == _digest(certificate["proof"])
+            else:
+                proof_valid = certificate["proof"] == _digest(basis)
+            valid = root == certificate["merkle_root"] and len(archive["event_cids"]) == certificate["event_count"] and proof_valid
             return {"valid": valid, "certificate": certificate, "proof_system": certificate["proof_system"], "zero_knowledge": certificate["zero_knowledge"], "profile": self.profile_metadata()}
         except (OSError, ValueError, KeyError):
             return {"valid": False, "reason": "archive_unavailable", "profile": self.profile_metadata()}
