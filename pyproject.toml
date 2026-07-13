@@ -59,6 +59,7 @@ dependencies = [
 [project.optional-dependencies]
 iroh = [
     "blake3>=0.4.1",
+    "duckdb>=1.4.0",
 ]
 transformers = [
     "transformers>=4.20.0",
@@ -261,6 +262,7 @@ ipfs-kit-mcp = "ipfs_kit_py.mcp_server.server:main"
 ipfs-kit-mcp-tools = "ipfs_kit_py.mcp_server.cli:main"
 ipfs-kit-iroh = "ipfs_kit_py.iroh_install_cli:main"
 ipfs-kit-iroh-diagnostics = "ipfs_kit_py.iroh.diagnostics_cli:main"
+ipfs-kit-iroh-manifest = "ipfs_kit_py.iroh.manifest_cli:main"
 
 [project.urls]
 Homepage = "https://github.com/endomorphosis/ipfs_kit_py/"
