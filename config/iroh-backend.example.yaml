@@ -1,0 +1,25 @@
+# Versioned, secret-free named Iroh backend configuration.
+# Secret references name records; never replace them with secret values.
+schema_version: 1
+name: team_archive
+type: iroh
+enabled: false
+namespace:
+  id: a4d26868017c0ccffe2efe50944ef42125f9b8692f2a8f46f5f7d6c483ad127a
+  access: read-write
+service:
+  instance: primary
+  managed: true
+  rpc_endpoint: unix:///home/example/.local/state/ipfs-kit/iroh/instances/primary/run/sidecar.sock
+credentials:
+  node_key_ref: secretref:enhanced-secrets:iroh-primary-node-key
+  write_capability_ref: secretref:enhanced-secrets:team-archive-write-capability
+timeouts:
+  connect_seconds: 10
+  operation_seconds: 300
+  shutdown_seconds: 15
+sync:
+  enabled: true
+  on_open: false
+  read_consistency: local
+  conflict_policy: fail
