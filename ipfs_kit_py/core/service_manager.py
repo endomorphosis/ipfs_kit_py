@@ -9,7 +9,6 @@ This module provides comprehensive service management including:
 - Resource usage monitoring
 """
 
-import os
 import subprocess
 import psutil
 import time
@@ -251,8 +250,7 @@ class ServiceManager:
             return self.is_service_running(service_name)
         
         try:
-            request = requests.post if "/api/v0/" in config.health_check_url else requests.get
-            response = request(config.health_check_url, timeout=5)
+            response = requests.get(config.health_check_url, timeout=5)
             return response.status_code == 200
         except requests.RequestException:
             return False
@@ -413,12 +411,9 @@ class IPFSServiceManager(ServiceManager):
     
     def _register_ipfs_service(self):
         """Register IPFS daemon service"""
-        from ipfs_kit_py.kubo_runtime import ensure_kubo_binary
-
-        binary = ensure_kubo_binary()
         config = ServiceConfig(
             name="ipfs",
-            command=[str(binary or "ipfs"), "daemon", "--routing=dhtclient"],
+            command=["ipfs", "daemon", "--routing=dhtclient"],
             health_check_url="http://127.0.0.1:5001/api/v0/version",
             health_check_interval=10,
             restart_on_failure=True,
@@ -430,16 +425,6 @@ class IPFSServiceManager(ServiceManager):
     
     def ensure_ipfs_running(self) -> bool:
         """Ensure IPFS daemon is running"""
-        # A healthy daemon can be owned by another service manager. Do not try
-        # to bind its ports again merely because this manager did not spawn it.
-        if self.health_check("ipfs"):
-            return True
-
-        from ipfs_kit_py.kubo_runtime import ensure_kubo_binary
-
-        binary = ensure_kubo_binary()
-        if binary:
-            self.services["ipfs"].command = [str(binary), "daemon", "--routing=dhtclient"]
         if not self.is_service_running("ipfs"):
             logger.info("Starting IPFS daemon")
             return self.start_service("ipfs")
@@ -451,7 +436,7 @@ class IPFSServiceManager(ServiceManager):
             return None
         
         try:
-            response = requests.post("http://127.0.0.1:5001/api/v0/id", timeout=5)
+            response = requests.get("http://127.0.0.1:5001/api/v0/id", timeout=5)
             if response.status_code == 200:
                 return response.json()
         except requests.RequestException:

@@ -41,18 +41,19 @@ def get_analytics():
     return complex_analytics()
 ```
 
-## Automatic Kubo Installation
+## Automatic Binary Installation
 
-The package automatically prepends its managed binary directory to `PATH` and
-installs or upgrades **Kubo/IPFS** when imported. Set
-`IPFS_KIT_AUTO_INSTALL_BINARIES=0` to disable installation or
-`IPFS_KIT_AUTO_UPGRADE_KUBO=0` to retain the installed Kubo version. Optional
-binary families remain available through their explicit installers.
+The package automatically downloads and installs required binaries when imported:
+
+- **IPFS**: ipfs, ipfs-cluster-service, ipfs-cluster-ctl, ipfs-cluster-follow
+- **Lotus**: lotus, lotus-miner  
+- **Lassie**: lassie
+- **Storacha**: Python and NPM dependencies
 
 ## Quick Start
 
 ```python
-# Import triggers Kubo installation or upgrade and JIT system initialization
+# Import triggers automatic binary installation and JIT system initialization
 from ipfs_kit_py import install_ipfs, install_lotus, install_lassie, install_storacha
 
 # Check installation status
@@ -169,8 +170,7 @@ except Exception as e:
     def get_backend_statuses():
         return {}
 
-# Set up optional full binary auto-download flag. Kubo itself is managed
-# independently below so ordinary imports do not trigger Lotus or Storacha setup.
+# Set up binary auto-download flag
 _BINARIES_DOWNLOADED = False
 _DOWNLOAD_BINARIES_AUTOMATICALLY = False  # Changed to False for JIT optimization
 
@@ -359,17 +359,6 @@ if _DOWNLOAD_BINARIES_AUTOMATICALLY:
         except Exception as e:
             logger.warning(f"Failed to auto-download binaries on import: {e}")
             logger.info("Binaries will be downloaded when specific functions are called")
-
-# Kubo is the core runtime dependency. Keep its package-managed directory ahead
-# of PATH and install or upgrade it automatically unless explicitly disabled.
-try:
-    from .kubo_runtime import ensure_kubo_binary, prepend_managed_bin_to_path
-
-    prepend_managed_bin_to_path()
-    KUBO_BINARY = ensure_kubo_binary()
-except Exception as e:
-    KUBO_BINARY = None
-    logger.warning(f"Unable to initialize package-managed Kubo: {e}")
 
 # Use try/except for all imports to handle optional dependencies gracefully
 # Import the transformers integration (DISABLED due to protobuf conflicts)

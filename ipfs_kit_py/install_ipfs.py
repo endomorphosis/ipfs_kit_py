@@ -119,8 +119,6 @@ class install_ipfs:
             self.metadata["bin_dir"] = self.bin_path
         else:
             self.bin_path = os.path.normpath(os.path.join(self.this_dir, "bin"))
-        self._temporary_directory = tempfile.TemporaryDirectory(prefix="ipfs_kit_py_")
-        self.tmp_path = self._temporary_directory.name
         if platform.system() == "Windows":
             bin_path = str(self.bin_path).replace("/", "\\")
             self.path = f'"{self.path};{bin_path}"'
@@ -309,6 +307,9 @@ class install_ipfs:
             pass
 
         return fallback
+
+        # Set up tmp_path (bin_path is initialized earlier)
+        self.tmp_path = tempfile.mkdtemp()
 
         self.ipfs_cluster_follow_dists = {
             "macos arm64": "https://dist.ipfs.tech/ipfs-cluster-follow/v1.1.2/ipfs-cluster-follow_v1.1.2_darwin-amd64.tar.gz",
@@ -681,7 +682,13 @@ class install_ipfs:
             # Check for repository version compatibility
             repo_compatible = self.check_repo_compatibility(current_version)
             if not repo_compatible:
-                print("Repository version incompatibility detected. Leaving repository data unchanged.")
+                print("Repository version incompatibility detected. Attempting to resolve...")
+                # Try to migrate or reset the repository
+                if self.migrate_or_reset_repo():
+                    print("Repository reset successful. Proceeding with installation...")
+                else:
+                    print("Repository reset failed. Forcing update anyway...")
+                # Continue with installation regardless
             elif self.should_update_kubo(current_version, latest_version):
                 print(f"Update available: {current_version} -> {latest_version}")
                 print("Proceeding with update...")
@@ -2035,8 +2042,6 @@ class install_ipfs:
         """Get the expected repository version for a given Kubo version."""
         # Map Kubo versions to repository versions
         version_map = {
-            "v0.42.0": "18",
-            "v0.39.0": "18",
             "v0.35.0": "16",
             "v0.34.0": "16", 
             "v0.33.0": "16",
