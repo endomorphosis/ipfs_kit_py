@@ -1,0 +1,556 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/endomorphosis/ipfs_kit_py/schemas/iroh-releases.schema.json",
+  "title": "IPFS Kit Iroh compatibility decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "decision_id",
+    "audited_at",
+    "release_bundle",
+    "components",
+    "sidecar",
+    "platforms",
+    "verification",
+    "data_formats",
+    "licenses",
+    "breaking_boundaries",
+    "upgrade_policy"
+  ],
+  "properties": {
+    "$schema": { "type": "string", "format": "uri-reference" },
+    "schema_version": { "const": 1 },
+    "decision_id": { "const": "IROH-001" },
+    "audited_at": { "type": "string", "format": "date" },
+    "release_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "rust_version", "protocol_version"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]+$" },
+        "status": { "enum": ["supported", "deprecated", "blocked"] },
+        "rust_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$" },
+        "protocol_version": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "components": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/component" },
+      "allOf": [
+        { "contains": { "properties": { "crate": { "const": "iroh" } }, "required": ["crate"] }, "minContains": 1, "maxContains": 1 },
+        { "contains": { "properties": { "crate": { "const": "iroh-blobs" } }, "required": ["crate"] }, "minContains": 1, "maxContains": 1 },
+        { "contains": { "properties": { "crate": { "const": "iroh-docs" } }, "required": ["crate"] }, "minContains": 1, "maxContains": 1 },
+        { "contains": { "properties": { "crate": { "const": "iroh-gossip" } }, "required": ["crate"] }, "minContains": 1, "maxContains": 1 }
+      ]
+    },
+    "sidecar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binary",
+        "version",
+        "owner",
+        "distribution_status",
+        "archive_name_template",
+        "version_command",
+        "version_stdout",
+        "rpc",
+        "cli",
+        "upstream_binaries"
+      ],
+      "properties": {
+        "binary": { "const": "ipfs-kit-iroh-sidecar" },
+        "version": { "$ref": "#/$defs/semver" },
+        "owner": { "const": "ipfs-kit" },
+        "distribution_status": { "enum": ["source-pinned", "published", "withdrawn"] },
+        "archive_name_template": { "type": "string", "minLength": 1 },
+        "version_command": {
+          "type": "array",
+          "prefixItems": [
+            { "const": "ipfs-kit-iroh-sidecar" },
+            { "const": "--version" }
+          ],
+          "items": false
+        },
+        "version_stdout": { "type": "string", "pattern": "\\n$" },
+        "rpc": { "$ref": "#/$defs/rpcInterface" },
+        "cli": { "$ref": "#/$defs/interface" },
+        "upstream_binaries": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/upstreamBinary" },
+          "allOf": [
+            { "contains": { "properties": { "binary": { "const": "iroh-relay" } }, "required": ["binary"] }, "minContains": 1, "maxContains": 1 },
+            { "contains": { "properties": { "binary": { "const": "iroh-dns-server" } }, "required": ["binary"] }, "minContains": 1, "maxContains": 1 }
+          ]
+        }
+      }
+    },
+    "platforms": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": { "$ref": "#/$defs/platform" },
+      "allOf": [
+        { "contains": { "properties": { "id": { "const": "linux_x86_64_gnu" } }, "required": ["id"] }, "minContains": 1, "maxContains": 1 },
+        { "contains": { "properties": { "id": { "const": "linux_x86_64_musl" } }, "required": ["id"] }, "minContains": 1, "maxContains": 1 },
+        { "contains": { "properties": { "id": { "const": "linux_aarch64_gnu" } }, "required": ["id"] }, "minContains": 1, "maxContains": 1 },
+        { "contains": { "properties": { "id": { "const": "linux_aarch64_musl" } }, "required": ["id"] }, "minContains": 1, "maxContains": 1 },
+        { "contains": { "properties": { "id": { "const": "macos_x86_64" } }, "required": ["id"] }, "minContains": 1, "maxContains": 1 },
+        { "contains": { "properties": { "id": { "const": "macos_aarch64" } }, "required": ["id"] }, "minContains": 1, "maxContains": 1 },
+        { "contains": { "properties": { "id": { "const": "windows_x86_64" } }, "required": ["id"] }, "minContains": 1, "maxContains": 1 }
+      ]
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_archives", "sidecar_artifacts", "fail_closed"],
+      "properties": {
+        "source_archives": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "algorithm",
+            "authority",
+            "metadata_url_template",
+            "download_url_template",
+            "detached_signatures_available",
+            "signature_source"
+          ],
+          "properties": {
+            "algorithm": { "const": "sha256" },
+            "authority": { "const": "crates.io" },
+            "metadata_url_template": { "const": "https://crates.io/api/v1/crates/{crate}/{version}" },
+            "download_url_template": { "const": "https://crates.io/api/v1/crates/{crate}/{version}/download" },
+            "detached_signatures_available": { "const": false },
+            "signature_source": { "type": "null" }
+          }
+        },
+        "sidecar_artifacts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["algorithm", "authority", "release_repository", "digest_source", "attestation"],
+          "properties": {
+            "algorithm": { "const": "sha256" },
+            "authority": { "const": "github-release-assets" },
+            "release_repository": { "type": "string", "format": "uri", "pattern": "^https://github\\.com/[^/]+/[^/]+$" },
+            "digest_source": { "type": "string", "minLength": 1 },
+            "attestation": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["required", "authority", "detached_upstream_signatures_available", "verification_command"],
+              "properties": {
+                "required": { "const": true },
+                "authority": { "const": "github-artifact-attestations" },
+                "detached_upstream_signatures_available": { "const": false },
+                "verification_command": {
+                  "type": "array",
+                  "prefixItems": [
+                    { "const": "gh" },
+                    { "const": "attestation" },
+                    { "const": "verify" },
+                    { "const": "{artifact}" },
+                    { "const": "--repo" },
+                    { "type": "string", "pattern": "^[^/]+/[^/]+$" }
+                  ],
+                  "items": false
+                }
+              }
+            }
+          }
+        },
+        "fail_closed": { "const": true }
+      }
+    },
+    "data_formats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blob_identifier",
+        "blob_hash_algorithm",
+        "blob_hash_bytes",
+        "document_model",
+        "filesystem_mapping",
+        "persistent_store",
+        "hash_domain",
+        "credential_encodings"
+      ],
+      "properties": {
+        "blob_identifier": { "type": "string", "minLength": 1 },
+        "blob_hash_algorithm": { "const": "BLAKE3-256" },
+        "blob_hash_bytes": { "const": 32 },
+        "document_model": { "type": "string", "minLength": 1 },
+        "filesystem_mapping": { "type": "string", "minLength": 1 },
+        "persistent_store": { "type": "string", "minLength": 1 },
+        "hash_domain": { "type": "string", "minLength": 1 },
+        "credential_encodings": { "type": "string", "minLength": 1 }
+      }
+    },
+    "licenses": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spdx_expression", "upstream_notice_files", "redistribution_requirement"],
+      "properties": {
+        "spdx_expression": { "const": "MIT OR Apache-2.0" },
+        "upstream_notice_files": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "enum": ["LICENSE-MIT", "LICENSE-APACHE"] }
+        },
+        "redistribution_requirement": { "type": "string", "minLength": 1 }
+      }
+    },
+    "breaking_boundaries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["boundary", "effect", "action"],
+        "properties": {
+          "boundary": { "type": "string", "minLength": 1 },
+          "effect": { "type": "string", "minLength": 1 },
+          "action": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "upgrade_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "automatic_patch_upgrades",
+        "requires_new_bundle_id",
+        "required_steps",
+        "rollback"
+      ],
+      "properties": {
+        "automatic_patch_upgrades": { "const": false },
+        "requires_new_bundle_id": { "const": true },
+        "required_steps": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "rollback": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "sidecar": {
+            "properties": {
+              "distribution_status": { "enum": ["source-pinned", "withdrawn"] }
+            },
+            "required": ["distribution_status"]
+          }
+        },
+        "required": ["sidecar"]
+      },
+      "then": {
+        "properties": {
+          "platforms": {
+            "items": {
+              "properties": { "installable": { "const": false } },
+              "required": ["installable"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "sidecar": {
+            "properties": { "distribution_status": { "const": "published" } },
+            "required": ["distribution_status"]
+          }
+        },
+        "required": ["sidecar"]
+      },
+      "then": {
+        "properties": {
+          "platforms": {
+            "items": {
+              "properties": { "installable": { "const": true } },
+              "required": ["installable"]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "semver": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "crate",
+        "version",
+        "role",
+        "default_features",
+        "features",
+        "rust_version",
+        "license",
+        "source",
+        "checksum_source",
+        "checksum_sha256",
+        "repository",
+        "tag",
+        "commit"
+      ],
+      "properties": {
+        "crate": { "enum": ["iroh", "iroh-blobs", "iroh-docs", "iroh-gossip"] },
+        "version": { "$ref": "#/$defs/semver" },
+        "role": { "type": "string", "minLength": 1 },
+        "default_features": { "const": true },
+        "features": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "rust_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$" },
+        "license": { "enum": ["MIT OR Apache-2.0", "MIT/Apache-2.0"] },
+        "source": { "type": "string", "format": "uri" },
+        "checksum_source": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://crates\\.io/api/v1/crates/[^/]+/[0-9]"
+        },
+        "checksum_sha256": { "$ref": "#/$defs/sha256" },
+        "repository": { "type": "string", "format": "uri" },
+        "tag": { "type": "string", "pattern": "^v[0-9]" },
+        "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" }
+      }
+    },
+    "interface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "contract", "commands"],
+      "properties": {
+        "status": { "enum": ["selected", "diagnostic-only", "unsupported"] },
+        "contract": { "type": "string", "minLength": 1 },
+        "commands": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/cliCommand" }
+        }
+      }
+    },
+    "cliCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "argv", "stdout_format", "side_effect_free"],
+      "properties": {
+        "name": { "const": "version" },
+        "argv": {
+          "type": "array",
+          "prefixItems": [
+            { "const": "ipfs-kit-iroh-sidecar" },
+            { "const": "--version" }
+          ],
+          "items": false
+        },
+        "stdout_format": { "const": "version-line-v1" },
+        "side_effect_free": { "const": true }
+      }
+    },
+    "rpcInterface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "contract", "transport", "capability_groups", "required_methods"],
+      "properties": {
+        "status": { "const": "selected" },
+        "contract": { "type": "string", "minLength": 1 },
+        "transport": { "const": "local-ipc" },
+        "capability_groups": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": { "enum": ["system", "blobs", "manifests", "sync"] }
+        },
+        "required_methods": {
+          "type": "array",
+          "minItems": 18,
+          "maxItems": 18,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "system.version",
+              "system.capabilities",
+              "system.health",
+              "system.shutdown",
+              "blobs.ingest",
+              "blobs.stat",
+              "blobs.read_range",
+              "blobs.protect",
+              "blobs.release",
+              "manifests.open",
+              "manifests.create",
+              "manifests.read",
+              "manifests.compare_and_swap",
+              "manifests.history",
+              "sync.start",
+              "sync.progress",
+              "sync.cancel",
+              "sync.status"
+            ]
+          }
+        }
+      }
+    },
+    "upstreamBinary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binary", "version", "decision", "reason"],
+      "properties": {
+        "binary": { "enum": ["iroh-relay", "iroh-dns-server"] },
+        "version": { "$ref": "#/$defs/semver" },
+        "decision": { "const": "not-a-backend-runtime" },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "os",
+        "arch",
+        "libc",
+        "rust_target",
+        "archive_format",
+        "executable",
+        "version_fixture",
+        "installable"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "linux_x86_64_gnu",
+            "linux_x86_64_musl",
+            "linux_aarch64_gnu",
+            "linux_aarch64_musl",
+            "macos_x86_64",
+            "macos_aarch64",
+            "windows_x86_64"
+          ]
+        },
+        "os": { "enum": ["linux", "macos", "windows"] },
+        "arch": { "enum": ["x86_64", "aarch64"] },
+        "libc": { "enum": ["gnu", "musl", "none"] },
+        "rust_target": { "type": "string", "minLength": 1 },
+        "archive_format": { "enum": ["tar.gz", "zip"] },
+        "executable": { "enum": ["ipfs-kit-iroh-sidecar", "ipfs-kit-iroh-sidecar.exe"] },
+        "version_fixture": { "type": "string", "pattern": "^tests/fixtures/iroh/version/.+\\.json$" },
+        "installable": { "type": "boolean" },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://github\\.com/endomorphosis/ipfs_kit_py/releases/download/[^/]+/[^/]+$"
+        },
+        "size": { "type": "integer", "minimum": 1 },
+        "checksum_sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "allOf": [
+        {
+          "oneOf": [
+            { "$ref": "#/$defs/linuxX8664GnuPlatform" },
+            { "$ref": "#/$defs/linuxX8664MuslPlatform" },
+            { "$ref": "#/$defs/linuxAarch64GnuPlatform" },
+            { "$ref": "#/$defs/linuxAarch64MuslPlatform" },
+            { "$ref": "#/$defs/macosX8664Platform" },
+            { "$ref": "#/$defs/macosAarch64Platform" },
+            { "$ref": "#/$defs/windowsX8664Platform" }
+          ]
+        },
+        {
+          "if": { "properties": { "installable": { "const": true } } },
+          "then": { "required": ["url", "size", "checksum_sha256"] },
+          "else": {
+            "not": {
+              "anyOf": [
+                { "required": ["url"] },
+                { "required": ["size"] },
+                { "required": ["checksum_sha256"] }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "linuxX8664GnuPlatform": {
+      "properties": {
+        "id": { "const": "linux_x86_64_gnu" }, "os": { "const": "linux" },
+        "arch": { "const": "x86_64" }, "libc": { "const": "gnu" },
+        "rust_target": { "const": "x86_64-unknown-linux-gnu" },
+        "archive_format": { "const": "tar.gz" }, "executable": { "const": "ipfs-kit-iroh-sidecar" },
+        "version_fixture": { "const": "tests/fixtures/iroh/version/linux_x86_64_gnu.json" }
+      }
+    },
+    "linuxX8664MuslPlatform": {
+      "properties": {
+        "id": { "const": "linux_x86_64_musl" }, "os": { "const": "linux" },
+        "arch": { "const": "x86_64" }, "libc": { "const": "musl" },
+        "rust_target": { "const": "x86_64-unknown-linux-musl" },
+        "archive_format": { "const": "tar.gz" }, "executable": { "const": "ipfs-kit-iroh-sidecar" },
+        "version_fixture": { "const": "tests/fixtures/iroh/version/linux_x86_64_musl.json" }
+      }
+    },
+    "linuxAarch64GnuPlatform": {
+      "properties": {
+        "id": { "const": "linux_aarch64_gnu" }, "os": { "const": "linux" },
+        "arch": { "const": "aarch64" }, "libc": { "const": "gnu" },
+        "rust_target": { "const": "aarch64-unknown-linux-gnu" },
+        "archive_format": { "const": "tar.gz" }, "executable": { "const": "ipfs-kit-iroh-sidecar" },
+        "version_fixture": { "const": "tests/fixtures/iroh/version/linux_aarch64_gnu.json" }
+      }
+    },
+    "linuxAarch64MuslPlatform": {
+      "properties": {
+        "id": { "const": "linux_aarch64_musl" }, "os": { "const": "linux" },
+        "arch": { "const": "aarch64" }, "libc": { "const": "musl" },
+        "rust_target": { "const": "aarch64-unknown-linux-musl" },
+        "archive_format": { "const": "tar.gz" }, "executable": { "const": "ipfs-kit-iroh-sidecar" },
+        "version_fixture": { "const": "tests/fixtures/iroh/version/linux_aarch64_musl.json" }
+      }
+    },
+    "macosX8664Platform": {
+      "properties": {
+        "id": { "const": "macos_x86_64" }, "os": { "const": "macos" },
+        "arch": { "const": "x86_64" }, "libc": { "const": "none" },
+        "rust_target": { "const": "x86_64-apple-darwin" },
+        "archive_format": { "const": "tar.gz" }, "executable": { "const": "ipfs-kit-iroh-sidecar" },
+        "version_fixture": { "const": "tests/fixtures/iroh/version/macos_x86_64.json" }
+      }
+    },
+    "macosAarch64Platform": {
+      "properties": {
+        "id": { "const": "macos_aarch64" }, "os": { "const": "macos" },
+        "arch": { "const": "aarch64" }, "libc": { "const": "none" },
+        "rust_target": { "const": "aarch64-apple-darwin" },
+        "archive_format": { "const": "tar.gz" }, "executable": { "const": "ipfs-kit-iroh-sidecar" },
+        "version_fixture": { "const": "tests/fixtures/iroh/version/macos_aarch64.json" }
+      }
+    },
+    "windowsX8664Platform": {
+      "properties": {
+        "id": { "const": "windows_x86_64" }, "os": { "const": "windows" },
+        "arch": { "const": "x86_64" }, "libc": { "const": "none" },
+        "rust_target": { "const": "x86_64-pc-windows-msvc" },
+        "archive_format": { "const": "zip" }, "executable": { "const": "ipfs-kit-iroh-sidecar.exe" },
+        "version_fixture": { "const": "tests/fixtures/iroh/version/windows_x86_64.json" }
+      }
+    }
+  }
+}

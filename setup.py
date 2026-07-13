@@ -52,6 +52,17 @@ def _try_install_binaries() -> None:
     except Exception as e:
         print(f"WARNING: Lotus auto-install during setup failed: {e}", file=sys.stderr)
 
+    # Iroh remains optional and fail-closed.  Even this setup hook only runs
+    # after the caller explicitly opts in with IPFS_KIT_AUTO_INSTALL_BINARIES.
+    try:
+        from ipfs_kit_py.iroh_install_cli import IrohInstallManager
+
+        manager = IrohInstallManager(bin_dir=bin_dir)
+        if not manager.binary_path.is_file() and not manager.receipt_path.exists():
+            manager.install()
+    except Exception as e:
+        print(f"WARNING: Iroh auto-install during setup failed: {e}", file=sys.stderr)
+
 
 def _warn_missing_lotus_packages() -> None:
     """Emit a friendly warning if Lotus system dependencies are missing."""

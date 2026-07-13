@@ -15,6 +15,7 @@ from . import (
     cluster_tools,
     dag_tools,
     ipfs_tools,
+    iroh_tools,
     mfs_tools,
     name_tools,
     pin_tools,
@@ -40,6 +41,7 @@ TOOL_GROUPS: Dict[str, Dict[str, Callable[..., Awaitable]]] = {
     "bitswap_tools": {"bitswap_stat": bitswap_tools.bitswap_stat,
                       "bitswap_wantlist": bitswap_tools.bitswap_wantlist},
     "stats_tools": {"stats_bw": stats_tools.stats_bw, "stats_repo": stats_tools.stats_repo},
+    "iroh_tools": {"iroh_diagnostics": iroh_tools.iroh_diagnostics},
 }
 
 __all__ = ["TOOL_GROUPS"]

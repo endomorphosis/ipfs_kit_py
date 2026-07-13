@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "namespace_id": "a4d26868017c0ccffe2efe50944ef42125f9b8692f2a8f46f5f7d6c483ad127a",
+  "blob_hash": "6b810c93f52f325176a6ac52c1420ca94390b0bd0e16f1e98a66f514ebf60a3a",
+  "valid_urls": [
+    {
+      "url": "iroh://a4d26868017c0ccffe2efe50944ef42125f9b8692f2a8f46f5f7d6c483ad127a/",
+      "kind": "namespace",
+      "normalized_path": ""
+    },
+    {
+      "url": "iroh://a4d26868017c0ccffe2efe50944ef42125f9b8692f2a8f46f5f7d6c483ad127a/reports/summary.txt",
+      "kind": "namespace",
+      "normalized_path": "reports/summary.txt"
+    },
+    {
+      "url": "iroh://a4d26868017c0ccffe2efe50944ef42125f9b8692f2a8f46f5f7d6c483ad127a/reports/%E2%9C%93.txt",
+      "kind": "namespace",
+      "normalized_path": "reports/✓.txt"
+    },
+    {
+      "url": "iroh+blob://6b810c93f52f325176a6ac52c1420ca94390b0bd0e16f1e98a66f514ebf60a3a",
+      "kind": "blob",
+      "normalized_path": null
+    },
+    {
+      "url": "iroh+ticket://quarterly-read/reports/summary.txt",
+      "kind": "ticket-reference",
+      "normalized_path": "reports/summary.txt"
+    }
+  ],
+  "invalid_urls": [
+    {
+      "url": "iroh://A4D26868017C0CCFFE2EFE50944EF42125F9B8692F2A8F46F5F7D6C483AD127A/reports",
+      "error": "IROH_INVALID_NAMESPACE"
+    },
+    {
+      "url": "iroh://a4d26868017c0ccffe2efe50944ef42125f9b8692f2a8f46f5f7d6c483ad127a/reports/../secret",
+      "error": "IROH_INVALID_PATH"
+    },
+    {
+      "url": "iroh://a4d26868017c0ccffe2efe50944ef42125f9b8692f2a8f46f5f7d6c483ad127a/reports%2Fsecret",
+      "error": "IROH_INVALID_PATH"
+    },
+    {
+      "url": "iroh+blob://6B810C93F52F325176A6AC52C1420CA94390B0BD0E16F1E98A66F514EBF60A3A",
+      "error": "IROH_INVALID_HASH"
+    },
+    {
+      "url": "iroh+blob://6b810c93f52f325176a6ac52c1420ca94390b0bd0e16f1e98a66f514ebf60a3a/path",
+      "error": "IROH_INVALID_URL"
+    },
+    {
+      "url": "iroh+ticket://raw-ticket-material/reports?ticket=secret",
+      "error": "IROH_INVALID_URL"
+    }
+  ],
+  "error_codes": [
+    "IROH_INVALID_URL",
+    "IROH_INVALID_PATH",
+    "IROH_INVALID_NAMESPACE",
+    "IROH_INVALID_HASH",
+    "IROH_UNSUPPORTED_SCHEMA",
+    "IROH_CONFIG_INVALID",
+    "IROH_CREDENTIAL_REQUIRED",
+    "IROH_CREDENTIAL_INVALID",
+    "IROH_PERMISSION_DENIED",
+    "IROH_NOT_FOUND",
+    "IROH_ALREADY_EXISTS",
+    "IROH_NOT_DIRECTORY",
+    "IROH_IS_DIRECTORY",
+    "IROH_NOT_EMPTY",
+    "IROH_CONFLICT",
+    "IROH_SERVICE_UNAVAILABLE",
+    "IROH_VERSION_MISMATCH",
+    "IROH_TIMEOUT",
+    "IROH_CANCELLED",
+    "IROH_INTEGRITY_ERROR",
+    "IROH_IO_ERROR",
+    "IROH_UNSUPPORTED_OPERATION",
+    "IROH_SYNC_FAILED"
+  ]
+}

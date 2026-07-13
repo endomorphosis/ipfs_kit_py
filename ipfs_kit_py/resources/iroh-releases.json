@@ -1,0 +1,305 @@
+{
+  "$schema": "./iroh-releases.schema.json",
+  "schema_version": 1,
+  "decision_id": "IROH-001",
+  "audited_at": "2026-07-12",
+  "release_bundle": {
+    "id": "iroh-1.0.2-ipfs-kit.1",
+    "status": "supported",
+    "rust_version": "1.91",
+    "protocol_version": 1
+  },
+  "components": [
+    {
+      "crate": "iroh",
+      "version": "1.0.2",
+      "role": "authenticated QUIC endpoint, discovery, and relay transport",
+      "default_features": true,
+      "features": ["fast-apple-datapath", "metrics", "portmapper", "tls-ring"],
+      "rust_version": "1.91",
+      "license": "MIT OR Apache-2.0",
+      "source": "https://crates.io/api/v1/crates/iroh/1.0.2/download",
+      "checksum_source": "https://crates.io/api/v1/crates/iroh/1.0.2",
+      "checksum_sha256": "5fca9b4b462c343ff88fc0af4096c186f939b602a0bc08723536ef2c31c93971",
+      "repository": "https://github.com/n0-computer/iroh",
+      "tag": "v1.0.2",
+      "commit": "c3ccf502c3881444811fbb3a3a0eeaf850594dba"
+    },
+    {
+      "crate": "iroh-blobs",
+      "version": "0.103.0",
+      "role": "BLAKE3-addressed blob store, transfer protocol, tags, and ranged reads",
+      "default_features": true,
+      "features": ["fs-store", "hide-proto-docs", "metrics", "rpc"],
+      "rust_version": "1.91",
+      "license": "MIT OR Apache-2.0",
+      "source": "https://crates.io/api/v1/crates/iroh-blobs/0.103.0/download",
+      "checksum_source": "https://crates.io/api/v1/crates/iroh-blobs/0.103.0",
+      "checksum_sha256": "5be50b0e2d0a9ba65cee4e0dfb708b3704e02ad12bd4c14c6307e94245943126",
+      "repository": "https://github.com/n0-computer/iroh-blobs",
+      "tag": "v0.103.0",
+      "commit": "e82cbdcbdac9a78033174aad55e3199b2cf4c0dc"
+    },
+    {
+      "crate": "iroh-docs",
+      "version": "0.101.0",
+      "role": "eventually consistent signed manifest key/value replication",
+      "default_features": true,
+      "features": ["fs-store", "metrics", "redb-v2-migration", "rpc"],
+      "rust_version": "1.91",
+      "license": "MIT/Apache-2.0",
+      "source": "https://crates.io/api/v1/crates/iroh-docs/0.101.0/download",
+      "checksum_source": "https://crates.io/api/v1/crates/iroh-docs/0.101.0",
+      "checksum_sha256": "8fd1bd5e39d0321a3c4a2bcef9650476c076e2df41a0e84577eca23d6de6c8ab",
+      "repository": "https://github.com/n0-computer/iroh-docs",
+      "tag": "v0.101.0",
+      "commit": "091e8cac47bbc49cdb84b0bfed227cc163b61dfe"
+    },
+    {
+      "crate": "iroh-gossip",
+      "version": "0.101.0",
+      "role": "live document synchronization dependency",
+      "default_features": true,
+      "features": ["metrics", "net"],
+      "rust_version": "1.91",
+      "license": "MIT/Apache-2.0",
+      "source": "https://crates.io/api/v1/crates/iroh-gossip/0.101.0/download",
+      "checksum_source": "https://crates.io/api/v1/crates/iroh-gossip/0.101.0",
+      "checksum_sha256": "4e1dc4b05f73e7a1b9e83b531eb63c3fd671b0af3aeb13b59c546dd7ca747515",
+      "repository": "https://github.com/n0-computer/iroh-gossip",
+      "tag": "v0.101.0",
+      "commit": "2ce78afe09d89d41d123f28eac19bdc831609cc8"
+    }
+  ],
+  "sidecar": {
+    "binary": "ipfs-kit-iroh-sidecar",
+    "version": "0.1.0",
+    "owner": "ipfs-kit",
+    "distribution_status": "source-pinned",
+    "archive_name_template": "ipfs-kit-iroh-sidecar-v{version}-{rust_target}.{archive_format}",
+    "version_command": ["ipfs-kit-iroh-sidecar", "--version"],
+    "version_stdout": "ipfs-kit-iroh-sidecar 0.1.0 (protocol 1; iroh 1.0.2; iroh-blobs 0.103.0; iroh-docs 0.101.0; iroh-gossip 0.101.0)\n",
+    "rpc": {
+      "status": "selected",
+      "contract": "local versioned RPC owned by ipfs-kit; exact methods are frozen by IROH-002/IROH-006",
+      "transport": "local-ipc",
+      "capability_groups": [
+        "system",
+        "blobs",
+        "manifests",
+        "sync"
+      ],
+      "required_methods": [
+        "system.version",
+        "system.capabilities",
+        "system.health",
+        "system.shutdown",
+        "blobs.ingest",
+        "blobs.stat",
+        "blobs.read_range",
+        "blobs.protect",
+        "blobs.release",
+        "manifests.open",
+        "manifests.create",
+        "manifests.read",
+        "manifests.compare_and_swap",
+        "manifests.history",
+        "sync.start",
+        "sync.progress",
+        "sync.cancel",
+        "sync.status"
+      ]
+    },
+    "cli": {
+      "status": "diagnostic-only",
+      "contract": "Only the side-effect-free --version command is selected by this decision; never the per-operation filesystem transport.",
+      "commands": [
+        {
+          "name": "version",
+          "argv": ["ipfs-kit-iroh-sidecar", "--version"],
+          "stdout_format": "version-line-v1",
+          "side_effect_free": true
+        }
+      ]
+    },
+    "upstream_binaries": [
+      {
+        "binary": "iroh-relay",
+        "version": "1.0.2",
+        "decision": "not-a-backend-runtime",
+        "reason": "Relay infrastructure only; it does not expose a local blob or document store API."
+      },
+      {
+        "binary": "iroh-dns-server",
+        "version": "1.0.2",
+        "decision": "not-a-backend-runtime",
+        "reason": "Discovery infrastructure only; it does not expose a local blob or document store API."
+      }
+    ]
+  },
+  "platforms": [
+    {
+      "id": "linux_x86_64_gnu",
+      "os": "linux",
+      "arch": "x86_64",
+      "libc": "gnu",
+      "rust_target": "x86_64-unknown-linux-gnu",
+      "archive_format": "tar.gz",
+      "executable": "ipfs-kit-iroh-sidecar",
+      "version_fixture": "tests/fixtures/iroh/version/linux_x86_64_gnu.json",
+      "installable": false
+    },
+    {
+      "id": "linux_x86_64_musl",
+      "os": "linux",
+      "arch": "x86_64",
+      "libc": "musl",
+      "rust_target": "x86_64-unknown-linux-musl",
+      "archive_format": "tar.gz",
+      "executable": "ipfs-kit-iroh-sidecar",
+      "version_fixture": "tests/fixtures/iroh/version/linux_x86_64_musl.json",
+      "installable": false
+    },
+    {
+      "id": "linux_aarch64_gnu",
+      "os": "linux",
+      "arch": "aarch64",
+      "libc": "gnu",
+      "rust_target": "aarch64-unknown-linux-gnu",
+      "archive_format": "tar.gz",
+      "executable": "ipfs-kit-iroh-sidecar",
+      "version_fixture": "tests/fixtures/iroh/version/linux_aarch64_gnu.json",
+      "installable": false
+    },
+    {
+      "id": "linux_aarch64_musl",
+      "os": "linux",
+      "arch": "aarch64",
+      "libc": "musl",
+      "rust_target": "aarch64-unknown-linux-musl",
+      "archive_format": "tar.gz",
+      "executable": "ipfs-kit-iroh-sidecar",
+      "version_fixture": "tests/fixtures/iroh/version/linux_aarch64_musl.json",
+      "installable": false
+    },
+    {
+      "id": "macos_x86_64",
+      "os": "macos",
+      "arch": "x86_64",
+      "libc": "none",
+      "rust_target": "x86_64-apple-darwin",
+      "archive_format": "tar.gz",
+      "executable": "ipfs-kit-iroh-sidecar",
+      "version_fixture": "tests/fixtures/iroh/version/macos_x86_64.json",
+      "installable": false
+    },
+    {
+      "id": "macos_aarch64",
+      "os": "macos",
+      "arch": "aarch64",
+      "libc": "none",
+      "rust_target": "aarch64-apple-darwin",
+      "archive_format": "tar.gz",
+      "executable": "ipfs-kit-iroh-sidecar",
+      "version_fixture": "tests/fixtures/iroh/version/macos_aarch64.json",
+      "installable": false
+    },
+    {
+      "id": "windows_x86_64",
+      "os": "windows",
+      "arch": "x86_64",
+      "libc": "none",
+      "rust_target": "x86_64-pc-windows-msvc",
+      "archive_format": "zip",
+      "executable": "ipfs-kit-iroh-sidecar.exe",
+      "version_fixture": "tests/fixtures/iroh/version/windows_x86_64.json",
+      "installable": false
+    }
+  ],
+  "verification": {
+    "source_archives": {
+      "algorithm": "sha256",
+      "authority": "crates.io",
+      "metadata_url_template": "https://crates.io/api/v1/crates/{crate}/{version}",
+      "download_url_template": "https://crates.io/api/v1/crates/{crate}/{version}/download",
+      "detached_signatures_available": false,
+      "signature_source": null
+    },
+    "sidecar_artifacts": {
+      "algorithm": "sha256",
+      "authority": "github-release-assets",
+      "release_repository": "https://github.com/endomorphosis/ipfs_kit_py",
+      "digest_source": "GitHub release asset digest field, pinned per platform in this record",
+      "attestation": {
+        "required": true,
+        "authority": "github-artifact-attestations",
+        "detached_upstream_signatures_available": false,
+        "verification_command": [
+          "gh",
+          "attestation",
+          "verify",
+          "{artifact}",
+          "--repo",
+          "endomorphosis/ipfs_kit_py"
+        ]
+      }
+    },
+    "fail_closed": true
+  },
+  "data_formats": {
+    "blob_identifier": "lowercase hexadecimal encoding of a 32-byte BLAKE3 digest",
+    "blob_hash_algorithm": "BLAKE3-256",
+    "blob_hash_bytes": 32,
+    "document_model": "iroh-docs signed eventually-consistent key/value entries whose values reference iroh-blobs content",
+    "filesystem_mapping": "IPFS Kit versioned directory manifests stored as document values; frozen by IROH-002",
+    "persistent_store": "private sidecar implementation detail; no upstream store, Bao, redb, or irpc encoding is part of the Python contract",
+    "hash_domain": "Iroh hashes are never represented or labeled as IPFS CIDs",
+    "credential_encodings": "opaque; only credential references may cross the backend configuration boundary"
+  },
+  "licenses": {
+    "spdx_expression": "MIT OR Apache-2.0",
+    "upstream_notice_files": ["LICENSE-MIT", "LICENSE-APACHE"],
+    "redistribution_requirement": "Ship both upstream license texts and IPFS Kit license/notice material with every sidecar archive."
+  },
+  "breaking_boundaries": [
+    {
+      "boundary": "iroh < 1.0",
+      "effect": "pre-1.0 endpoint, relay, key, and transport APIs are outside the stable 1.x contract",
+      "action": "reject at startup; migration requires a new audited bundle and conformance run"
+    },
+    {
+      "boundary": "iroh-blobs < 0.103",
+      "effect": "not the release line updated for iroh 1.0; RPC and store APIs are version-sensitive",
+      "action": "reject at build and runtime version handshake"
+    },
+    {
+      "boundary": "iroh-docs < 0.101",
+      "effect": "older releases use pre-1.0 Iroh dependencies and older redb migration behavior",
+      "action": "open a copy of the data directory with the pinned release before any in-place upgrade"
+    },
+    {
+      "boundary": "any component version outside this exact bundle",
+      "effect": "minor releases of protocol crates may contain breaking API or wire/storage changes",
+      "action": "fail closed; do not rely on Cargo semver resolution or CLI output compatibility"
+    },
+    {
+      "boundary": "sidecar RPC protocol != 1",
+      "effect": "request, response, capability, or error semantics may differ",
+      "action": "refuse the connection before issuing storage operations"
+    }
+  ],
+  "upgrade_policy": {
+    "automatic_patch_upgrades": false,
+    "requires_new_bundle_id": true,
+    "required_steps": [
+      "review component changelogs and record API, wire, ticket, hash, and persistent-store changes",
+      "pin crate checksums, tags, commits, MSRV, features, licenses, and Cargo.lock",
+      "run supply-chain audit and cross-platform reproducible builds",
+      "run RPC, two-node transfer, manifest conflict, restart, corruption, cancellation, and redaction tests",
+      "test migration using a copy of production-format data and mixed-version peers",
+      "publish immutable draft artifacts, attest them, verify digests, and capture --version on every target",
+      "canary while retaining the previous binary and pre-migration data snapshot"
+    ],
+    "rollback": "Atomically restore the retained binary and, if storage migrated, the pre-migration snapshot; never open migrated live data with an older binary unless downgrade safety was proven."
+  }
+}

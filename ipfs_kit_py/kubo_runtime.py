@@ -64,14 +64,14 @@ def ensure_kubo_binary(
 ) -> Optional[Path]:
     """Ensure that the package-managed Kubo binary exists and is current.
 
-    Installation and upgrade are enabled by default. Set
-    ``IPFS_KIT_AUTO_INSTALL_BINARIES=0`` to opt out, or
+    Installation and upgrade are disabled by default. Set
+    ``IPFS_KIT_AUTO_INSTALL_BINARIES=1`` to opt in, or
     ``IPFS_KIT_AUTO_UPGRADE_KUBO=0`` to retain the installed package binary.
     The managed directory is always prepended to ``PATH`` for this process.
     """
     directory = prepend_managed_bin_to_path(bin_dir)
     binary = kubo_binary(directory)
-    install_enabled = _enabled("IPFS_KIT_AUTO_INSTALL_BINARIES", True) if install is None else install
+    install_enabled = _enabled("IPFS_KIT_AUTO_INSTALL_BINARIES", False) if install is None else install
     upgrade_enabled = _enabled("IPFS_KIT_AUTO_UPGRADE_KUBO", True) if upgrade is None else upgrade
     key = str(directory)
 

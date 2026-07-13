@@ -44,6 +44,7 @@ def get_capabilities() -> Dict[str, Any]:
             "F_event_dag_archival_compaction": True,
             "C_ucan": HAVE_MCPLUSPLUS,
             "E_p2p_transport": HAVE_LIBP2P,
+            "G_risk_scheduling": True,
         },
     }
 

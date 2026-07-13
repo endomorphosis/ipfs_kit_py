@@ -1,0 +1,47 @@
+{
+  "enabled": false,
+  "identity": {
+    "node_identity_ref": "credential://iroh/default/node-key"
+  },
+  "instance": "default",
+  "kind": "ipfs-kit-iroh-service",
+  "logging": {
+    "crash_receipt_path": "/home/example/.local/state/ipfs-kit/iroh/instances/default/receipts/crash.json",
+    "health_receipt_path": "/home/example/.local/state/ipfs-kit/iroh/instances/default/receipts/health.json",
+    "log_path": "/home/example/.local/state/ipfs-kit/iroh/instances/default/logs/sidecar.log"
+  },
+  "network": {
+    "discovery": {
+      "policy": "local"
+    },
+    "endpoint_bind": [
+      "0.0.0.0:0",
+      "[::]:0"
+    ],
+    "relay": {
+      "policy": "default",
+      "urls": []
+    }
+  },
+  "ownership": {
+    "directory_mode": "0700",
+    "file_mode": "0600",
+    "gid": null,
+    "uid": null
+  },
+  "protocol_version": 1,
+  "release_bundle": "iroh-1.0.2-ipfs-kit.1",
+  "resources": {
+    "max_concurrent_transfers": 16,
+    "max_connections": 256,
+    "max_open_files": 1024,
+    "max_staging_bytes": 10737418240,
+    "max_storage_bytes": 107374182400
+  },
+  "rpc": {
+    "endpoint": "unix:///home/example/.local/state/ipfs-kit/iroh/instances/default/run/sidecar.sock",
+    "kind": "local"
+  },
+  "schema_version": 1,
+  "state_root": "/home/example/.local/state/ipfs-kit/iroh"
+}

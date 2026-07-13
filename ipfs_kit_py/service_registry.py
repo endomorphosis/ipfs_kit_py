@@ -7,7 +7,6 @@ proper storage services like IPFS, S3, Storacha, etc.
 """
 
 import logging
-import importlib
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Dict, Any, List, Optional, Type, Protocol
@@ -380,6 +379,10 @@ class ServiceRegistry:
     """Registry for managing all services."""
     
     def __init__(self):
+        # Imported lazily so importing the registry remains side-effect free
+        # and the optional managed Iroh lifecycle does not create state.
+        from .iroh.service import IrohService
+
         self.services: Dict[str, BaseService] = {}
         self.service_classes: Dict[str, Type[BaseService]] = {
             "ipfs": IPFSService,
@@ -387,6 +390,7 @@ class ServiceRegistry:
             "s3": S3Service,
             "storacha": StorachaService,
             "huggingface": HuggingFaceService,
+            "iroh": IrohService,
             # Add more services here as they're implemented
         }
         self.metadata_manager = get_metadata_manager()

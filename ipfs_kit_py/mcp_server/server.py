@@ -8,6 +8,7 @@ one async core.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from typing import Any, Dict
@@ -20,6 +21,37 @@ from .mcplusplus.event_dag import EventDAGStore
 
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_INFO = {"name": "ipfs_kit_py-mcpplusplus", "version": "0.1.0"}
+
+
+def _profile_g_rest_binding(http_method: str, path: str):
+    """Resolve normative Profile G REST paths without changing wire semantics."""
+    static = {
+        ("GET", "/mcp/risk/profile"): "mcp++/risk/profile",
+        ("POST", "/mcp/goals"): "mcp++/goals/create", ("GET", "/mcp/goals"): "mcp++/goals/list",
+        ("POST", "/mcp/tasks"): "mcp++/tasks/create", ("GET", "/mcp/tasks"): "mcp++/tasks/list",
+        ("GET", "/mcp/tasks/ready"): "mcp++/tasks/ready",
+        ("POST", "/mcp/risk/assess"): "mcp++/risk/assess", ("GET", "/mcp/risk/evidence"): "mcp++/risk/evidence",
+        ("GET", "/mcp/risk/history"): "mcp++/risk/history", ("POST", "/mcp/neighborhood/query"): "mcp++/neighborhood/query",
+        ("POST", "/mcp/neighborhood/attest"): "mcp++/neighborhood/attest", ("GET", "/mcp/schedule/frontier"): "mcp++/schedule/frontier",
+        ("POST", "/mcp/schedule/proposals"): "mcp++/schedule/propose", ("POST", "/mcp/schedule/claims"): "mcp++/schedule/claim",
+        ("POST", "/mcp/schedule/resolutions"): "mcp++/schedule/resolve", ("POST", "/mcp/schedule/reconcile"): "mcp++/schedule/reconcile",
+    }
+    method = static.get((http_method, path))
+    if method:
+        return method, {}
+    patterns = (
+        ("GET", r"/mcp/goals/([^/]+)$", "mcp++/goals/get", "goal_cid"),
+        ("POST", r"/mcp/goals/([^/]+)/(decompose|select)$", "goals", "goal_cid"),
+        ("GET", r"/mcp/tasks/([^/]+)$", "mcp++/tasks/get", "task_cid"),
+        ("GET", r"/mcp/schedule/status/([^/]+)$", "mcp++/schedule/status", "task_cid"),
+        ("POST", r"/mcp/schedule/claims/([^/]+)/(renew|release)$", "schedule", "claim_cid"),
+    )
+    for verb, pattern, rpc, key in patterns:
+        match = re.fullmatch(pattern, path) if verb == http_method else None
+        if match:
+            method = f"mcp++/{rpc}/{match.group(2)}" if rpc in {"goals", "schedule"} else rpc
+            return method, {key: match.group(1)}
+    return None
 
 
 def _now_iso() -> str:
@@ -48,7 +80,12 @@ class MCPServer:
             result = await self._route(method, params)
             return {"jsonrpc": "2.0", "id": mid, "result": result}
         except Exception as e:
-            return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32000, "message": str(e)}}
+            from .mcplusplus.profile_g_transport import ERROR_NUMBERS
+            wire_code = ERROR_NUMBERS.get(getattr(e, "code", ""), -32000)
+            error = {"code": wire_code, "message": str(e)}
+            if getattr(e, "code", None):
+                error["data"] = e.data()
+            return {"jsonrpc": "2.0", "id": mid, "error": error}
 
     async def _route(self, method: str, params: Dict[str, Any], notification: bool = False) -> Any:
         if notification or (method or "").startswith("notifications/"):
@@ -60,10 +97,13 @@ class MCPServer:
             experimental = {"mcp++": mcplusplus.get_capabilities()}
             if requested.get("mcp++/event-dag") is True:
                 experimental["mcp++/event-dag"] = True
+            if requested.get("mcp++/risk-scheduling") is True:
+                from .mcplusplus.profile_g_transport import get_dispatcher
+                experimental["mcp++/risk-scheduling"] = get_dispatcher().metadata
             return {
                 "protocolVersion": PROTOCOL_VERSION,
                 "serverInfo": SERVER_INFO,
-                "capabilities": {"tools": {}, "experimental": experimental},
+                "capabilities": {"tools": {}, "experimental": experimental, "mcpPlusPlusProfiles": ["mcp++/event-dag", "mcp++/risk-scheduling"]},
                 "profile_metadata": {"mcp++/event-dag": self._dag.profile_metadata()},
             }
         if method == "tools/list":
@@ -122,6 +162,9 @@ class MCPServer:
                 risk=float(params.get("risk", 0.0)),
                 threshold=float(params.get("threshold", 0.7)),
             )
+        if method.startswith(("mcp++/goals/", "mcp++/tasks/", "mcp++/risk/", "mcp++/neighborhood/", "mcp++/schedule/")):
+            from .mcplusplus.profile_g_transport import get_dispatcher
+            return get_dispatcher().dispatch(method, params)
         if method == "tools/call":
             name = params.get("name", "")
             args = params.get("arguments") or {}
@@ -218,7 +261,22 @@ async def serve_http(host: str = "127.0.0.1", port: int = 8004) -> None:
             body += ev.get("body", b"")
             if not ev.get("more_body"):
                 break
-        resp = await server.handle(json.loads(body or b"{}"))
+        path = scope.get("path", "")
+        binding = _profile_g_rest_binding(scope.get("method", "GET"), path)
+        if binding is not None:
+            from urllib.parse import parse_qsl
+            method, path_params = binding
+            params = dict(parse_qsl(scope.get("query_string", b"").decode()))
+            if body:
+                decoded = json.loads(body)
+                if not isinstance(decoded, dict):
+                    decoded = {}
+                params.update(decoded)
+            params.update(path_params)
+            resp = await server.handle({"jsonrpc": "2.0", "id": 1, "method": method, "params": params})
+            resp = resp.get("result", resp.get("error")) if isinstance(resp, dict) else resp
+        else:
+            resp = await server.handle(json.loads(body or b"{}"))
         if resp is None:  # JSON-RPC notification — HTTP 202, no body
             await send({"type": "http.response.start", "status": 202, "headers": []})
             await send({"type": "http.response.body", "body": b""})
