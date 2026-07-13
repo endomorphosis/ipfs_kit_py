@@ -24,6 +24,8 @@ ERROR_CODES = frozenset(
         "unsupported_operation",
         "not_found",
         "already_exists",
+        "not_directory",
+        "is_directory",
         "not_empty",
         "permission_denied",
         "conflict",
@@ -109,6 +111,14 @@ class IrohAlreadyExistsError(IrohError, FileExistsError):
     code = "already_exists"
 
 
+class IrohNotDirectoryError(IrohError, NotADirectoryError):
+    code = "not_directory"
+
+
+class IrohIsDirectoryError(IrohError, IsADirectoryError):
+    code = "is_directory"
+
+
 class IrohNotEmptyError(IrohError, OSError):
     code = "not_empty"
 
@@ -157,6 +167,8 @@ _ERROR_TYPES: dict[str, type[IrohError]] = {
         IrohUnsupportedOperationError,
         IrohNotFoundError,
         IrohAlreadyExistsError,
+        IrohNotDirectoryError,
+        IrohIsDirectoryError,
         IrohNotEmptyError,
         IrohPermissionDeniedError,
         IrohConflictError,
@@ -204,6 +216,8 @@ UnsupportedVersionError = IrohUnsupportedVersionError
 UnsupportedOperationError = IrohUnsupportedOperationError
 NotFoundError = IrohNotFoundError
 AlreadyExistsError = IrohAlreadyExistsError
+NotDirectoryError = IrohNotDirectoryError
+IsDirectoryError = IrohIsDirectoryError
 NotEmptyError = IrohNotEmptyError
 PermissionDeniedError = IrohPermissionDeniedError
 ConflictError = IrohConflictError
@@ -227,6 +241,8 @@ __all__ = [
     "IrohUnsupportedOperationError",
     "IrohNotFoundError",
     "IrohAlreadyExistsError",
+    "IrohNotDirectoryError",
+    "IrohIsDirectoryError",
     "IrohNotEmptyError",
     "IrohPermissionDeniedError",
     "IrohConflictError",
