@@ -262,6 +262,7 @@ ipfs-kit-mcp-tools = "ipfs_kit_py.mcp_server.cli:main"
 ipfs-kit-iroh = "ipfs_kit_py.iroh_install_cli:main"
 ipfs-kit-iroh-diagnostics = "ipfs_kit_py.iroh.diagnostics_cli:main"
 ipfs-kit-iroh-manifest = "ipfs_kit_py.iroh.manifest_cli:main"
+ipfs-kit-iroh-interop = "ipfs_kit_py.iroh.multinode:main"
 
 [project.entry-points."fsspec.specs"]
 iroh = "ipfs_kit_py.iroh_fsspec:IrohFileSystem"
@@ -284,6 +285,23 @@ include = ["ipfs_kit_py*", "external*"]
 "ipfs_kit_py" = ["**/*"]
 "external" = ["**/*"]
 
+# Developer-local daemon downloads are runtime state, never Python package
+# data.  Keep the broad legacy package-data rule above for compatibility while
+# explicitly excluding executable/cache/credential material from wheels.
+[tool.setuptools.exclude-package-data]
+"*" = [
+    "**/__pycache__/*",
+    "**/*.pyc",
+    "**/*.pyo",
+]
+"ipfs_kit_py" = [
+    "bin/*",
+    "bin/**/*",
+    "**/*.receipt.json",
+    "**/*.key",
+    "**/*.pem",
+]
+
 [tool.black]
 line-length = 100
 target-version = ["py312", "py313"]
@@ -305,3 +323,26 @@ ignore = ["E203", "E501"]
 testpaths = ["tests"]
 python_files = "test_*.py"
 python_functions = "test_*"
+
+[tool.coverage.run]
+branch = true
+relative_files = true
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
+
+[tool.coverage.html]
+directory = "build/coverage/iroh-html"
+
+[tool.coverage.xml]
+output = "build/coverage/iroh-coverage.xml"
+
+[tool.coverage.json]
+output = "build/coverage/iroh-coverage.json"

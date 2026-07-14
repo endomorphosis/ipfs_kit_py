@@ -1,0 +1,126 @@
+{
+  "$schema": "./iroh-release-readiness.schema.json",
+  "schema_version": 1,
+  "kind": "ipfs-kit-iroh-release-readiness",
+  "task_id": "IROH-027",
+  "generated_at": "2026-07-13T00:00:00Z",
+  "release_bundle": "iroh-1.0.2-ipfs-kit.1",
+  "receipt_resource": "iroh-release-receipts.json",
+  "release_decision": {
+    "decision": "go",
+    "approved_stage": "disabled",
+    "blockers": [],
+    "receipt_ids": [
+      "iroh-offline-contracts-20260713",
+      "iroh-security-hardening-20260713"
+    ],
+    "statement": "Approved for release only with Iroh disabled by default. This is not approval for experimental, canary, or supported operation."
+  },
+  "rollout": {
+    "default_enabled": false,
+    "configuration_key": "iroh.enabled",
+    "promotion_authority": "IPFS Kit release manager and storage on-call",
+    "stages": [
+      {
+        "name": "disabled",
+        "order": 0,
+        "automatic_promotion": false,
+        "audience": "All installations; imports and non-Iroh backends remain functional without a sidecar.",
+        "entry_criteria": ["Offline release and security receipts pass", "Default configuration is iroh.enabled=false"],
+        "exit_criteria": ["Experimental owner and cohort are named", "Installable sidecar provenance is reviewed or an explicit source-build procedure is approved"],
+        "rollback_triggers": ["Iroh becomes enabled without explicit operator action", "Base package import or non-Iroh storage regresses"]
+      },
+      {
+        "name": "experimental",
+        "order": 1,
+        "automatic_promotion": false,
+        "audience": "Explicitly opted-in development and disposable test environments; no production durability claim.",
+        "entry_criteria": ["Operator sets iroh.enabled=true", "Test, benchmark, security, and recovery receipts pass", "Backup and export are rehearsed on representative data"],
+        "exit_criteria": ["No critical/high findings", "At least 14 days of SLO observations", "Real-node interoperability and signed artifact receipts pass"],
+        "rollback_triggers": ["Any integrity mismatch", "Unbounded resource use", "Credential disclosure", "Recovery rehearsal fails"]
+      },
+      {
+        "name": "canary",
+        "order": 2,
+        "automatic_promotion": false,
+        "audience": "At most 5% of production backends with an IPFS fallback and named on-call owner.",
+        "entry_criteria": ["Experimental exit criteria pass", "Linux and macOS real-node evidence passes", "Attested sidecar artifacts are immutable", "Canary rollback drill preserves blobs and manifests"],
+        "exit_criteria": ["At least 30 consecutive days meeting every SLO", "No severity-1/2 Iroh incidents", "Previous-version compatibility and data export are rehearsed"],
+        "rollback_triggers": ["Any integrity failure", "Availability or error-budget breach", "P95 latency breach for two windows", "Unrecoverable sync divergence", "Critical/high security finding"]
+      },
+      {
+        "name": "supported",
+        "order": 3,
+        "automatic_promotion": false,
+        "audience": "Production use on the published support matrix with normal support commitments.",
+        "entry_criteria": ["Canary exit criteria pass", "Release manager and storage on-call sign off", "Runbooks, compatibility window, migration, deprecation, and portability contracts are current"],
+        "exit_criteria": ["Replacement backend is supported", "Deprecation notice and portability window complete", "Every retained namespace is exported or migrated"],
+        "rollback_triggers": ["Any integrity failure", "Critical/high security finding", "SLO error budget exhausted", "Supported recovery objective cannot be met"]
+      }
+    ]
+  },
+  "slos": [
+    {"id": "read-integrity", "metric": "verified_reads_ratio", "operator": "eq", "target": 100.0, "unit": "percent", "window": "rolling 30 days", "applies_from": "experimental"},
+    {"id": "availability", "metric": "successful_storage_operations_ratio", "operator": "gte", "target": 99.9, "unit": "percent", "window": "rolling 30 days", "applies_from": "canary"},
+    {"id": "operation-errors", "metric": "unexpected_operation_error_ratio", "operator": "lte", "target": 0.1, "unit": "percent", "window": "rolling 24 hours", "applies_from": "canary"},
+    {"id": "local-metadata-p95", "metric": "local_metadata_latency_p95", "operator": "lte", "target": 50.0, "unit": "milliseconds", "window": "rolling 1 hour", "applies_from": "experimental"},
+    {"id": "recovery-time", "metric": "service_recovery_time", "operator": "lte", "target": 30.0, "unit": "minutes", "window": "per incident", "applies_from": "canary"},
+    {"id": "recovery-point", "metric": "committed_manifest_revisions_lost", "operator": "eq", "target": 0, "unit": "revisions", "window": "per recovery", "applies_from": "experimental"}
+  ],
+  "rollback": {
+    "disable_before_rollback": true,
+    "preserve_blob_data": true,
+    "preserve_manifests": true,
+    "preserve_identity_backup": true,
+    "require_pre_migration_snapshot": true,
+    "forbid_destructive_uninstall": true,
+    "procedure": [
+      "Freeze writes and set iroh.enabled=false for the affected backend.",
+      "Capture health, version, manifest-head, operation-ID, and redacted diagnostic receipts.",
+      "Stop only the managed sidecar; retain the entire state directory, blob store, manifests, identity backup, and pre-migration snapshot.",
+      "Restore the previously attested binary and configuration; restore the snapshot only when the newer format is not downgrade-safe.",
+      "Start in read-only isolation, verify every manifest head and referenced blob hash, then export representative files.",
+      "Re-enable traffic only after the storage owner signs the verification receipt; otherwise route to the fallback backend and escalate."
+    ],
+    "verification": [
+      "Manifest count, namespace IDs, revisions, heads, and canonical manifest hashes match the pre-change inventory.",
+      "Every referenced blob is present and its BLAKE3 hash verifies; no GC runs until comparison completes.",
+      "Representative portable exports byte-compare with the pre-change export and identity files retain owner-only permissions."
+    ]
+  },
+  "compatibility": {
+    "minimum_window_days": 90,
+    "supported_bundles": ["current", "immediately previous"],
+    "python_versions": ["3.12", "3.13"],
+    "policy": "Maintain read/export and peer-transfer compatibility with the immediately previous supported bundle for at least 90 days after replacement. Reject unknown RPC protocols before storage access.",
+    "version_skew_gate": "A passing real-node version_skew receipt is required before canary promotion."
+  },
+  "migration": {
+    "automatic": false,
+    "policy": "Inventory and export first, stop writes, snapshot state, migrate a copy, verify manifests and blobs, then atomically select the new bundle.",
+    "downgrade_policy": "Never open migrated live data with an older binary unless the exact downgrade was proven on a copy.",
+    "failure_action": "Disable Iroh, retain both state copies, restore the previous binary and snapshot, and verify before reopening."
+  },
+  "deprecation": {
+    "minimum_notice_days": 90,
+    "channels": ["CHANGELOG.md", "docs/iroh/release-notes.md", "runtime diagnostic warning"],
+    "policy": "Announce the affected bundle or capability, last supported date, replacement, export procedure, and support contact. Never delete data when support ends."
+  },
+  "data_portability": {
+    "export_without_sidecar": true,
+    "formats": ["byte-identical file tree", "canonical JSON manifest inventory", "BLAKE3 checksum inventory"],
+    "requirements": ["Export is non-destructive", "Every exported file is hash-verified", "IPFS CIDs and Iroh hashes remain distinct", "Uninstall retains state unless an operator separately confirms deletion"]
+  },
+  "support": {
+    "owners": ["IPFS Kit storage maintainers", "IPFS Kit security maintainers"],
+    "primary_queue": "IPFS Kit issue tracker with the iroh label",
+    "escalation": "Page the storage on-call for integrity, data-loss, credential, or supported-stage SLO incidents; include only redacted receipts.",
+    "severity_one": ["Verified-read hash mismatch", "Committed manifest loss", "Private key or capability disclosure"],
+    "handoff_requirements": ["Operation and runbook links", "Release bundle and platform", "Redacted operation/health receipts", "Last known-good manifest revision", "Rollback status"]
+  },
+  "known_promotion_blockers": [
+    "The sidecar release is source-pinned and has no installable, attested platform artifacts.",
+    "The checked-in real multi-node interoperability evidence has status not_run.",
+    "No 14-day experimental or 30-day canary SLO observation window has been completed."
+  ]
+}

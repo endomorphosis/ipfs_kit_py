@@ -1,0 +1,412 @@
+name: Iroh CI and Packaging Gates
+
+on:
+  pull_request:
+    paths:
+      - "ipfs_kit_py/**iroh**"
+      - "ipfs_kit_py/iroh/**"
+      - "ipfs_kit_py/resources/iroh-*"
+      - "tests/test_iroh*.py"
+      - "tests/test_install_iroh.py"
+      - "scripts/ci/*iroh*"
+      - "scripts/ci/verify_iroh_distributions.py"
+      - "docs/iroh/**"
+      - "pyproject.toml"
+      - "setup.py"
+      - "MANIFEST.in"
+      - ".github/workflows/iroh-ci.yml"
+  push:
+    branches: [main, develop]
+    paths:
+      - "ipfs_kit_py/**iroh**"
+      - "ipfs_kit_py/iroh/**"
+      - "ipfs_kit_py/resources/iroh-*"
+      - "tests/test_iroh*.py"
+      - "tests/test_install_iroh.py"
+      - "scripts/ci/*iroh*"
+      - "scripts/ci/verify_iroh_distributions.py"
+      - "docs/iroh/**"
+      - "pyproject.toml"
+      - "setup.py"
+      - "MANIFEST.in"
+      - ".github/workflows/iroh-ci.yml"
+  workflow_dispatch:
+    inputs:
+      run_multinode:
+        description: Run the environment-protected real multi-node lane
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iroh-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONUNBUFFERED: "1"
+  IPFS_KIT_AUTO_INSTALL_BINARIES: "0"
+
+jobs:
+  offline-lanes:
+    name: ${{ matrix.lane }} (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: unit
+            python: "3.12"
+            tests: >-
+              tests/test_iroh_backend_manager.py tests/test_iroh_blob_store.py
+              tests/test_iroh_capability_matrix.py tests/test_iroh_compatibility_record.py
+              tests/test_iroh_cli_gates.py
+              tests/test_iroh_filesystem_contract.py tests/test_iroh_gc.py
+              tests/test_iroh_manifest.py tests/test_iroh_observability.py
+              tests/test_iroh_performance.py tests/test_iroh_runtime_client.py
+              tests/test_iroh_vfs_integration.py
+          - lane: unit
+            python: "3.13"
+            tests: >-
+              tests/test_iroh_backend_manager.py tests/test_iroh_blob_store.py
+              tests/test_iroh_capability_matrix.py tests/test_iroh_compatibility_record.py
+              tests/test_iroh_cli_gates.py
+              tests/test_iroh_filesystem_contract.py tests/test_iroh_gc.py
+              tests/test_iroh_manifest.py tests/test_iroh_observability.py
+              tests/test_iroh_performance.py tests/test_iroh_runtime_client.py
+              tests/test_iroh_vfs_integration.py
+          - lane: async
+            python: "3.12"
+            tests: >-
+              tests/test_iroh_fsspec_async.py tests/test_iroh_blob_store.py
+              tests/test_iroh_runtime_client.py
+          - lane: service
+            python: "3.12"
+            tests: tests/test_iroh_config.py tests/test_iroh_service.py tests/test_iroh_observability.py
+          - lane: installer
+            python: "3.12"
+            tests: tests/test_install_iroh.py tests/test_iroh_install_cli.py
+          - lane: security
+            python: "3.12"
+            tests: >-
+              tests/test_install_iroh.py tests/test_iroh_filesystem_contract.py
+              tests/test_iroh_config.py tests/test_iroh_observability.py tests/test_iroh_gc.py
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - name: Install Iroh and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[iroh]" pytest pytest-asyncio pytest-trio pytest-timeout
+      - name: Assert no Iroh binary was installed implicitly
+        shell: bash
+        run: |
+          ! command -v ipfs-kit-iroh-sidecar
+          test ! -e "${IPFS_KIT_BIN_DIR:-$HOME/.local/share/ipfs_kit_py/bin}/ipfs-kit-iroh-sidecar"
+      - name: Run ${{ matrix.lane }} gate
+        run: python -m pytest -q ${{ matrix.tests }}
+
+  fsspec-conformance:
+    name: fsspec (${{ matrix.mode }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        mode: [external, vendored]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project and conformance dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[iroh]" pytest pytest-asyncio pytest-trio pytest-timeout
+          if [ "${{ matrix.mode }}" = external ]; then
+            python -m pip install "fsspec>=2023.3.0" requests-unixsocket
+          else
+            python -m pip uninstall -y fsspec || true
+          fi
+      - name: Run fsspec conformance gate
+        run: >-
+          python -m pytest -q
+          tests/test_iroh_fsspec_registration.py
+          tests/test_iroh_fsspec_reads.py
+          tests/test_iroh_fsspec_writes.py
+          tests/test_iroh_fsspec_async.py
+
+  supported-platform-contracts:
+    name: Platform contract (${{ matrix.os }}, Py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: "3.12"
+          - os: ubuntu-latest
+            python: "3.13"
+          - os: macos-latest
+            python: "3.13"
+          - os: windows-latest
+            python: "3.13"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -e . pytest requests
+      - name: Validate all frozen OS/architecture targets without a sidecar
+        run: >-
+          python -m pytest -q
+          tests/test_iroh_compatibility_record.py
+          tests/test_install_iroh.py
+          tests/test_iroh_install_cli.py
+
+  linux-architecture-contracts:
+    name: Linux runtime contract (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: amd64,arm64
+      - name: Run target detection and installer contracts under QEMU
+        shell: bash
+        run: |
+          docker run --rm --platform "${{ matrix.platform }}" \
+            -e IPFS_KIT_AUTO_INSTALL_BINARIES=0 \
+            -v "$PWD:/workspace" -w /workspace python:3.12-slim \
+            sh -ec 'python -m pip install --disable-pip-version-check -e . pytest requests && python -m pytest -q tests/test_iroh_compatibility_record.py tests/test_install_iroh.py'
+
+  build-distributions:
+    name: Build and audit wheel/sdist
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install isolated build tooling
+        run: python -m pip install --upgrade build setuptools wheel twine
+      - name: Build distributions twice
+        shell: bash
+        run: |
+          export SOURCE_DATE_EPOCH="$(git log -1 --pretty=%ct)"
+          python -m build --outdir build/iroh-dist-a
+          rm -rf build/lib build/bdist.* ipfs_kit_py.egg-info
+          python -m build --outdir build/iroh-dist-b
+      - name: Validate metadata and archive reproducibility
+        run: >-
+          python scripts/ci/verify_iroh_distributions.py
+          --compare build/iroh-dist-a build/iroh-dist-b
+          --report build/iroh-packaging-report.json
+      - name: Validate package metadata rendering
+        run: python -m twine check build/iroh-dist-a/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iroh-distributions
+          path: |
+            build/iroh-dist-a/*
+            build/iroh-packaging-report.json
+          if-no-files-found: error
+          retention-days: 14
+
+  distribution-smoke:
+    name: ${{ matrix.artifact }} smoke (${{ matrix.os }}, Py${{ matrix.python }}, ${{ matrix.fsspec }})
+    needs: build-distributions
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: "3.12"
+            artifact: wheel
+            pattern: "*.whl"
+            fsspec: vendored
+            venv_python: smoke-venv/bin/python
+          - os: ubuntu-latest
+            python: "3.13"
+            artifact: sdist
+            pattern: "*.tar.gz"
+            fsspec: external
+            venv_python: smoke-venv/bin/python
+          - os: macos-latest
+            python: "3.12"
+            artifact: sdist
+            pattern: "*.tar.gz"
+            fsspec: external
+            venv_python: smoke-venv/bin/python
+          - os: macos-latest
+            python: "3.13"
+            artifact: wheel
+            pattern: "*.whl"
+            fsspec: vendored
+            venv_python: smoke-venv/bin/python
+          - os: windows-latest
+            python: "3.12"
+            artifact: wheel
+            pattern: "*.whl"
+            fsspec: external
+            venv_python: smoke-venv/Scripts/python.exe
+          - os: windows-latest
+            python: "3.13"
+            artifact: sdist
+            pattern: "*.tar.gz"
+            fsspec: vendored
+            venv_python: smoke-venv/Scripts/python.exe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: iroh-distributions
+          path: downloaded-dist
+      - name: Install only the selected built artifact
+        shell: bash
+        run: |
+          python -m venv smoke-venv
+          artifact="$(find downloaded-dist -type f -name '${{ matrix.pattern }}' -print -quit)"
+          test -n "$artifact"
+          "${{ matrix.venv_python }}" -m pip install --upgrade pip setuptools wheel
+          "${{ matrix.venv_python }}" -m pip install --no-deps "$artifact"
+          "${{ matrix.venv_python }}" -m pip install blake3 duckdb
+          if [ "${{ matrix.fsspec }}" = external ]; then
+            "${{ matrix.venv_python }}" -m pip install fsspec
+          fi
+      - name: Import and no-side-effect smoke test
+        shell: bash
+        run: >-
+          "${{ matrix.venv_python }}" scripts/ci/iroh_install_smoke.py
+          --fsspec ${{ matrix.fsspec }}
+          --iroh-extra present
+          --bin-dir "$RUNNER_TEMP/iroh-bin"
+          --report "$RUNNER_TEMP/iroh-${{ matrix.artifact }}-smoke.json"
+
+  coverage:
+    name: Iroh coverage report
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: >-
+          python -m pip install -e ".[iroh,fsspec]"
+          pytest pytest-cov pytest-asyncio pytest-trio pytest-timeout
+      - name: Run offline Iroh suite with branch coverage
+        shell: bash
+        run: |
+          mkdir -p build/coverage
+          python -m pytest -q tests/test_install_iroh.py tests/test_iroh_*.py \
+            --cov=ipfs_kit_py.iroh --cov=ipfs_kit_py.iroh_fsspec \
+            --cov=ipfs_kit_py.install_iroh --cov=ipfs_kit_py.iroh_install_cli \
+            --cov=ipfs_kit_py.iroh_vfs --cov=ipfs_kit_py.backends.iroh_backend \
+            --cov-report=term-missing \
+            --cov-report=xml:build/coverage/iroh-coverage.xml \
+            --cov-report=json:build/coverage/iroh-coverage.json \
+            --cov-report=html:build/coverage/iroh-html \
+            --cov-fail-under=70
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iroh-coverage-report
+          path: build/coverage/
+          if-no-files-found: error
+          retention-days: 14
+
+  multi-node:
+    name: Opt-in real multi-node interoperability
+    if: github.event_name == 'workflow_dispatch' && inputs.run_multinode
+    runs-on: [self-hosted, iroh-interop]
+    environment: iroh-interoperability
+    timeout-minutes: 45
+    env:
+      IPFS_KIT_IROH_INTEROP: "1"
+      IPFS_KIT_IROH_INTEROP_DRIVER: ${{ vars.IROH_INTEROP_DRIVER }}
+      IPFS_KIT_IROH_INTEROP_BINARY: ${{ vars.IROH_INTEROP_BINARY }}
+      IPFS_KIT_IROH_INTEROP_PREVIOUS_BINARY: ${{ vars.IROH_INTEROP_PREVIOUS_BINARY }}
+      IPFS_KIT_IROH_INTEROP_RELAY_URL: ${{ secrets.IROH_INTEROP_RELAY_URL }}
+      IPFS_KIT_IROH_INTEROP_EVIDENCE: ${{ runner.temp }}/iroh-interoperability-evidence.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[iroh,fsspec]" pytest pytest-asyncio pytest-timeout
+      - name: Run bounded real-node scenarios
+        run: >-
+          python -m pytest -q
+          tests/test_iroh_multinode.py::test_real_multinode_interoperability_lane
+      - name: Validate and upload evidence
+        run: python -m ipfs_kit_py.iroh.multinode --check-evidence "$IPFS_KIT_IROH_INTEROP_EVIDENCE"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iroh-interoperability-evidence
+          path: ${{ runner.temp }}/iroh-interoperability-evidence.json
+          if-no-files-found: error
+          retention-days: 30
+
+  release-readiness:
+    name: Disabled-stage release sign-off
+    needs:
+      - offline-lanes
+      - fsspec-conformance
+      - supported-platform-contracts
+      - linux-architecture-contracts
+      - distribution-smoke
+      - coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install release validation dependencies
+        run: python -m pip install -e . pytest jsonschema pyyaml
+      - name: Validate staged policy, receipts, rollback, and release notes
+        run: python -m pytest -q tests/test_iroh_release_readiness.py
+      - name: Materialize disabled-stage verification receipt
+        run: >-
+          python scripts/ci/verify_iroh_release_readiness.py
+          --target-stage disabled
+          --output build/iroh-release-verification.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iroh-release-signoff
+          path: |
+            build/iroh-release-verification.json
+            ipfs_kit_py/resources/iroh-release-readiness.json
+            ipfs_kit_py/resources/iroh-release-receipts.json
+            docs/iroh/release-readiness.md
+            docs/iroh/release-notes.md
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ipfs-kit.example/schemas/iroh-interoperability-evidence-v1.json",
+  "title": "IPFS Kit Iroh interoperability evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "task_id",
+    "status",
+    "harness_version",
+    "generated_at",
+    "run_id",
+    "platform",
+    "release_bundles",
+    "resource_bounds",
+    "scenario_matrix",
+    "results"
+  ],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "kind": {"const": "ipfs-kit-iroh-interoperability-evidence"},
+    "task_id": {"const": "IROH-025"},
+    "status": {"enum": ["passed", "failed", "skipped", "not_run"]},
+    "harness_version": {"const": "1.0.0"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "run_id": {"type": "string", "minLength": 1, "maxLength": 64},
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "architecture", "python"],
+      "properties": {
+        "os": {"enum": ["linux", "darwin", "pending"]},
+        "architecture": {"type": "string", "minLength": 1, "maxLength": 64},
+        "python": {"type": "string", "minLength": 1, "maxLength": 32}
+      }
+    },
+    "release_bundles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current", "previous"],
+      "properties": {
+        "current": {"type": "string", "minLength": 1, "maxLength": 128},
+        "previous": {"type": ["string", "null"], "minLength": 1, "maxLength": 128}
+      }
+    },
+    "resource_bounds": {"$ref": "#/$defs/resourceBounds"},
+    "scenario_matrix": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {"$ref": "#/$defs/scenario"}
+    },
+    "results": {
+      "type": "array",
+      "maxItems": 7,
+      "items": {"$ref": "#/$defs/result"}
+    },
+    "not_run_reason": {"type": "string", "minLength": 1, "maxLength": 256}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "not_run"}}},
+      "then": {
+        "required": ["not_run_reason"],
+        "properties": {"results": {"maxItems": 0}}
+      },
+      "else": {"not": {"required": ["not_run_reason"]}}
+    },
+    {
+      "if": {"properties": {"status": {"const": "passed"}}},
+      "then": {"properties": {"results": {"minItems": 7, "maxItems": 7}}}
+    }
+  ],
+  "$defs": {
+    "resourceBounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario_timeout_seconds",
+        "max_peak_rss_bytes",
+        "max_transfer_chunk_bytes",
+        "max_active_transfers",
+        "max_node_count",
+        "max_driver_output_bytes"
+      ],
+      "properties": {
+        "scenario_timeout_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "max_peak_rss_bytes": {"type": "integer", "minimum": 1},
+        "max_transfer_chunk_bytes": {"type": "integer", "minimum": 1},
+        "max_active_transfers": {"type": "integer", "minimum": 1},
+        "max_node_count": {"type": "integer", "minimum": 2},
+        "max_driver_output_bytes": {"type": "integer", "minimum": 1}
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario_id",
+        "topology",
+        "expected_transport",
+        "node_count",
+        "payload_size",
+        "interrupt_after_bytes",
+        "requires_previous_binary",
+        "requires_identity_rotation",
+        "direct_path_blocked"
+      ],
+      "properties": {
+        "scenario_id": {
+          "enum": [
+            "direct_lan",
+            "relay_fallback",
+            "nat_container",
+            "interruption_resume",
+            "version_skew",
+            "key_rotation",
+            "large_data"
+          ]
+        },
+        "topology": {"type": "string", "minLength": 1, "maxLength": 64},
+        "expected_transport": {"enum": ["direct", "relay", "none"]},
+        "node_count": {"type": "integer", "minimum": 2, "maximum": 4},
+        "payload_size": {"type": "integer", "minimum": 1},
+        "interrupt_after_bytes": {"type": ["integer", "null"], "minimum": 1},
+        "requires_previous_binary": {"type": "boolean"},
+        "requires_identity_rotation": {"type": "boolean"},
+        "direct_path_blocked": {"type": "boolean"}
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario_id",
+        "status",
+        "transport",
+        "node_count",
+        "payload_hash",
+        "payload_bytes",
+        "content_verified",
+        "versions",
+        "assertions",
+        "metrics"
+      ],
+      "properties": {
+        "scenario_id": {"type": "string"},
+        "status": {"enum": ["passed", "failed", "skipped"]},
+        "transport": {"enum": ["direct", "relay", "none"]},
+        "node_count": {"type": "integer", "minimum": 2, "maximum": 4},
+        "payload_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "payload_bytes": {"type": "integer", "minimum": 1},
+        "content_verified": {"type": "boolean"},
+        "versions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source", "target"],
+          "properties": {
+            "source": {"type": "string", "minLength": 1, "maxLength": 128},
+            "target": {"type": "string", "minLength": 1, "maxLength": 128}
+          }
+        },
+        "assertions": {
+          "type": "object",
+          "minProperties": 3,
+          "additionalProperties": {"type": "boolean"}
+        },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "duration_ms",
+            "peak_rss_bytes",
+            "max_transfer_chunk_bytes",
+            "max_active_transfers",
+            "reconnect_count"
+          ],
+          "properties": {
+            "duration_ms": {"type": "number", "minimum": 0},
+            "peak_rss_bytes": {"type": "integer", "minimum": 0},
+            "max_transfer_chunk_bytes": {"type": "integer", "minimum": 1},
+            "max_active_transfers": {"type": "integer", "minimum": 1},
+            "reconnect_count": {"type": "integer", "minimum": 0}
+          }
+        },
+        "skip_code": {"type": "string", "minLength": 1, "maxLength": 64},
+        "failure_code": {"type": "string", "minLength": 1, "maxLength": 64}
+      }
+    }
+  }
+}

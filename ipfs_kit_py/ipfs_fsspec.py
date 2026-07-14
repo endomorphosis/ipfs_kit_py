@@ -1597,6 +1597,7 @@ class VFSBackendRegistry:
         "lotus": {"available": False},
         "lassie": {"available": False},
         "arrow": {"available": True},
+        "iroh": {"available": True},
     }
 
     def __init__(self):
@@ -1630,6 +1631,10 @@ class VFSBackendRegistry:
             return IPFSFileSystem(*args, **kwargs)
         if backend == "arrow":
             return ArrowFileSystem()
+        if backend == "iroh":
+            from .iroh_fsspec import IrohFileSystem
+
+            return IrohFileSystem(*args, **kwargs)
         # Placeholder backends
         return object()
 
@@ -1863,8 +1868,17 @@ class VFSCore:
 
     _ALLOWED_SYNC_CONFLICT_POLICIES = {"overwrite", "skip", "strict"}
 
-    def __init__(self):
+    def __init__(
+        self,
+        *,
+        backend_manager: Optional[Any] = None,
+        mount_state_path: Optional[Union[str, os.PathLike[str]]] = None,
+        persist_mounts: bool = False,
+    ):
         self.registry = VFSBackendRegistry()
+        self.backend_manager = backend_manager
+        self._mount_state_path = Path(mount_state_path).expanduser() if mount_state_path else None
+        self._persist_mounts = bool(persist_mounts or self._mount_state_path is not None)
         self.cache_manager = VFSCacheManager()
         self.replication_manager = VFSReplicationManager(self)
         self.mounts: Dict[str, Dict[str, Any]] = {}
@@ -1899,6 +1913,72 @@ class VFSCore:
         self._sync_state_path = Path(os.environ.get("IPFS_KIT_VFS_SYNC_STATE_PATH", str(state_path_default)))
         self._sync_state_lock = threading.RLock()
         self._load_sync_state_from_disk()
+        self._load_mount_state()
+
+    @staticmethod
+    def _public_mount(mount: Dict[str, Any]) -> Dict[str, Any]:
+        """Return the serializable, credential-free part of a mount record."""
+
+        return {key: value for key, value in mount.items() if not key.startswith("_")}
+
+    def _save_mount_state(self) -> None:
+        if not self._persist_mounts or self._mount_state_path is None:
+            return
+        path = self._mount_state_path
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        payload = {
+            "schema_version": 1,
+            "mounts": [self._public_mount(mount) for _, mount in sorted(self.mounts.items())],
+        }
+        fd, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=str(path.parent))
+        temporary = Path(temporary_name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(payload, handle, sort_keys=True, separators=(",", ":"))
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.chmod(temporary, 0o600)
+            os.replace(temporary, path)
+            os.chmod(path, 0o600)
+        finally:
+            if temporary.exists():
+                temporary.unlink()
+
+    def _load_mount_state(self) -> None:
+        if not self._persist_mounts or self._mount_state_path is None or not self._mount_state_path.is_file():
+            return
+        try:
+            payload = json.loads(self._mount_state_path.read_text(encoding="utf-8"))
+            if payload.get("schema_version") != 1 or not isinstance(payload.get("mounts"), list):
+                return
+            for saved in payload["mounts"]:
+                if not isinstance(saved, dict):
+                    continue
+                mount_point = saved.get("mount_point")
+                backend = saved.get("backend")
+                target = saved.get("target")
+                if not all(isinstance(value, str) and value for value in (mount_point, backend, target)):
+                    continue
+                if backend == "iroh":
+                    from .iroh_vfs import IrohVFSAdapter
+
+                    adapter = IrohVFSAdapter.create(
+                        target,
+                        backend_manager=self.backend_manager,
+                        backend_name=saved.get("backend_name"),
+                        read_only=bool(saved.get("read_only")),
+                    )
+                    restored = dict(saved)
+                    restored["target"] = adapter.target
+                    restored["read_only"] = adapter.read_only
+                    restored["_adapter"] = adapter
+                    restored["_filesystem"] = adapter.filesystem
+                    self.mounts[_norm_path(mount_point)] = restored
+                elif backend in {"local", "memory", "ipfs"}:
+                    self.mounts[_norm_path(mount_point)] = dict(saved)
+        except Exception as exc:
+            logger.warning("Unable to restore VFS mount state: %s", exc)
 
     _MUTATION_REQUIRED_FIELDS = {
         "schema_version",
@@ -2595,13 +2675,22 @@ class VFSCore:
         except Exception:
             return False
 
-    def mount(self, mount_point: str, backend: str, target: str, read_only: bool = False) -> Dict[str, Any]:
+    def mount(
+        self,
+        mount_point: str,
+        backend: str,
+        target: str,
+        read_only: bool = False,
+        *,
+        filesystem: Optional[Any] = None,
+        **storage_options: Any,
+    ) -> Dict[str, Any]:
         if not mount_point:
             self._record_metric("mount", error="mount_point_required")
             return {"success": False, "error": "mount_point is required"}
 
         backend_name = (backend or "").strip().lower()
-        if backend_name not in {"ipfs", "local", "memory"}:
+        if backend_name not in {"ipfs", "local", "memory", "iroh"}:
             self._record_metric("mount", error="unsupported_backend")
             return {
                 "success": False,
@@ -2618,12 +2707,39 @@ class VFSCore:
             }
 
         mount_point = _norm_path(mount_point)
-        self.mounts[mount_point] = {
+        mount: Dict[str, Any] = {
             "mount_point": mount_point,
             "backend": backend_name,
             "target": str(target),
             "read_only": bool(read_only),
         }
+        if backend_name == "iroh":
+            try:
+                from .iroh_vfs import IrohVFSAdapter
+
+                adapter = IrohVFSAdapter.create(
+                    str(target),
+                    filesystem=filesystem,
+                    backend_manager=self.backend_manager,
+                    read_only=read_only,
+                    storage_options=storage_options,
+                )
+            except Exception as exc:
+                self._record_metric("mount", error="iroh_mount_invalid")
+                return {"success": False, "error": str(exc), "backend": backend_name}
+            mount.update(
+                {
+                    "target": adapter.target,
+                    "read_only": adapter.read_only,
+                    "backend_name": adapter.backend_name,
+                    "_adapter": adapter,
+                    "_filesystem": adapter.filesystem,
+                }
+            )
+        elif filesystem is not None:
+            mount["_filesystem"] = filesystem
+        self.mounts[mount_point] = mount
+        self._save_mount_state()
         self._record_metric("mount")
         return {"success": True, "mount_point": mount_point, "backend": backend_name, "mounted": True}
 
@@ -2644,11 +2760,12 @@ class VFSCore:
             }
 
         self.mounts.pop(mount_point, None)
+        self._save_mount_state()
         self._record_metric("unmount")
         return {"success": True, "unmounted": True, "mount_point": mount_point}
 
     def list_mounts(self) -> Dict[str, Any]:
-        mounts = [dict(v) for _, v in sorted(self.mounts.items())]
+        mounts = [self._public_mount(v) for _, v in sorted(self.mounts.items())]
         self._record_metric("list_mounts")
         return {"success": True, "count": len(mounts), "mounts": mounts}
 
@@ -2675,7 +2792,18 @@ class VFSCore:
 
         target = str(mount.get("target") or "/")
         backend = str(mount.get("backend") or "")
-        if backend == "ipfs":
+        if backend == "iroh":
+            try:
+                resolved_path = mount["_adapter"].resolve(rel)
+            except Exception as exc:
+                self._record_metric("resolve_path", error="invalid_path")
+                return {
+                    "success": False,
+                    "resolved": False,
+                    "local_path": local_path,
+                    "error": str(exc),
+                }
+        elif backend == "ipfs":
             base = target.rstrip("/") or "/"
             resolved_path = base if not rel else f"{base}/{rel}"
         elif backend == "local":
@@ -2723,6 +2851,13 @@ class VFSCore:
                 if best is None or len(mp) > len(best["mount_point"]):
                     best = info
         return best
+
+    @staticmethod
+    def _mount_relative_path(path: str, mount: Dict[str, Any]) -> str:
+        normalized = _norm_path(path)
+        mount_point = mount["mount_point"]
+        relative = normalized[len(mount_point) :]
+        return relative[1:] if relative.startswith("/") else relative
 
     def _map_path_to_mount(self, path: str, mount: Dict[str, Any]) -> Optional[str]:
         path = _norm_path(path)
@@ -2785,6 +2920,17 @@ class VFSCore:
                 extra={"parents": bool(parents)},
             )
             return {"success": True, "path": path, "integration": integration}
+        if mount["backend"] == "iroh":
+            try:
+                info = mount["_adapter"].mkdir(
+                    self._mount_relative_path(path, mount), parents=parents
+                )
+            except Exception as exc:
+                return {"success": False, "error": str(exc)}
+            integration = self._run_content_mutation_integrations(
+                operation="mkdir", path=path, mount=mount, extra={"parents": bool(parents)}
+            )
+            return {"success": True, "path": path, "info": info, "integration": integration}
         return {"success": False, "error": f"backend not supported: {mount['backend']}"}
 
     def write(self, path: str, content: Union[str, bytes], auto_replicate: bool = False) -> Dict[str, Any]:
@@ -2809,19 +2955,45 @@ class VFSCore:
             self._memory.files[path] = data
             parent = os.path.dirname(path) or "/"
             self._memory.mkdir(parent, parents=True)
+        elif mount["backend"] == "iroh":
+            try:
+                relative = self._mount_relative_path(path, mount)
+                info = mount["_adapter"].write_bytes(relative, data)
+                lineage = mount["_adapter"].lineage(relative)
+            except Exception as exc:
+                return {"success": False, "error": str(exc)}
+        elif mount["backend"] == "ipfs" and mount.get("_filesystem") is not None:
+            resolved = self.resolve_path(path)
+            if not resolved.get("success"):
+                return resolved
+            try:
+                mount["_filesystem"].pipe_file(resolved["resolved_path"], data)
+                info = mount["_filesystem"].info(resolved["resolved_path"])
+            except Exception as exc:
+                return {"success": False, "error": str(exc)}
         else:
             return {"success": False, "error": f"backend not supported: {mount['backend']}"}
 
-        # Populate cache
-        self.cache_manager.put(path, mount["backend"], data)
+        # Iroh's adapter owns content-hash-keyed caching and must observe a new
+        # namespace head immediately. Other simple backends use the VFS cache.
+        if mount["backend"] != "iroh":
+            self.cache_manager.put(path, mount["backend"], data)
 
         result: Dict[str, Any] = {"success": True, "path": path}
+        extra: Dict[str, Any] = {"size": len(data)}
+        if mount["backend"] == "iroh":
+            extra.update(lineage)
+            extra["lineage"] = dict(lineage)
+            extra["cid"] = None
+            result["info"] = info
+        elif mount["backend"] == "ipfs" and isinstance(locals().get("info"), dict):
+            extra["cid"] = info.get("cid")
         result["integration"] = self._run_content_mutation_integrations(
             operation="write",
             path=path,
             mount=mount,
             local_path=local_path,
-            extra={"size": len(data)},
+            extra=extra,
         )
         if auto_replicate:
             result["replication"] = self.replication_manager.replicate_file(path)
@@ -2833,7 +3005,7 @@ class VFSCore:
         if not mount:
             return {"success": False, "error": "no mount for path"}
 
-        cached = self.cache_manager.get(path, mount["backend"])
+        cached = None if mount["backend"] == "iroh" else self.cache_manager.get(path, mount["backend"])
         if cached is not None:
             try:
                 text = cached.decode("utf-8")
@@ -2851,10 +3023,24 @@ class VFSCore:
             if path not in self._memory.files:
                 return {"success": False, "error": "not found"}
             data = self._memory.files[path]
+        elif mount["backend"] == "iroh":
+            try:
+                data = mount["_adapter"].read_bytes(self._mount_relative_path(path, mount))
+            except Exception as exc:
+                return {"success": False, "error": str(exc)}
+        elif mount["backend"] == "ipfs" and mount.get("_filesystem") is not None:
+            resolved = self.resolve_path(path)
+            if not resolved.get("success"):
+                return resolved
+            try:
+                data = mount["_filesystem"].cat_file(resolved["resolved_path"])
+            except Exception as exc:
+                return {"success": False, "error": str(exc)}
         else:
             return {"success": False, "error": f"backend not supported: {mount['backend']}"}
 
-        self.cache_manager.put(path, mount["backend"], data)
+        if mount["backend"] != "iroh":
+            self.cache_manager.put(path, mount["backend"], data)
         try:
             return {"success": True, "path": path, "content": data.decode("utf-8"), "cached": False}
         except Exception:
@@ -2872,6 +3058,20 @@ class VFSCore:
             return {"success": True, "exists": os.path.exists(local_path)}
         if mount["backend"] == "memory":
             return {"success": True, "exists": (path in self._memory.files or path in self._memory.dirs)}
+        if mount["backend"] == "iroh":
+            try:
+                info = mount["_adapter"].info(self._mount_relative_path(path, mount))
+                return {"success": True, "exists": True, "info": info}
+            except Exception:
+                return {"success": True, "exists": False}
+        if mount["backend"] == "ipfs" and mount.get("_filesystem") is not None:
+            resolved = self.resolve_path(path)
+            if not resolved.get("success"):
+                return {"success": False, "exists": False, "error": resolved.get("error")}
+            return {
+                "success": True,
+                "exists": bool(mount["_filesystem"].exists(resolved["resolved_path"])),
+            }
         return {"success": False, "exists": False, "error": "unsupported backend"}
 
     def ls(self, path: str) -> Dict[str, Any]:
@@ -2895,6 +3095,12 @@ class VFSCore:
                     candidate = _norm_path(prefix + head)
                     if candidate not in entries:
                         entries.append(candidate)
+        elif mount["backend"] == "iroh":
+            try:
+                relative = self._mount_relative_path(path, mount)
+                entries = [item["vfs_relative_path"] for item in mount["_adapter"].list(relative)]
+            except Exception as exc:
+                return {"success": False, "error": str(exc)}
         else:
             return {"success": False, "error": "unsupported backend"}
         return {"success": True, "entries": entries}
@@ -2939,14 +3145,45 @@ class VFSCore:
         write_result = self.write(dst, read_result.get("content", ""), auto_replicate=False)
         if not write_result.get("success", True):
             return write_result
+        raw_content = read_result.get("content", b"")
+        content_bytes = raw_content.encode("utf-8") if isinstance(raw_content, str) else bytes(raw_content)
+        src_mount = self._find_mount_for_path(src)
         dst_mount = self._find_mount_for_path(dst)
+        source_lineage: Dict[str, Any] = {}
+        destination_lineage: Dict[str, Any] = {}
+        try:
+            if src_mount and src_mount.get("backend") == "iroh":
+                source_lineage = src_mount["_adapter"].lineage(
+                    self._mount_relative_path(src, src_mount)
+                )
+            elif src_mount and src_mount.get("backend") == "ipfs" and src_mount.get("_filesystem"):
+                resolved = self.resolve_path(src)
+                source_lineage = dict(src_mount["_filesystem"].info(resolved["resolved_path"]))
+            if dst_mount and dst_mount.get("backend") == "iroh":
+                destination_lineage = dst_mount["_adapter"].lineage(
+                    self._mount_relative_path(dst, dst_mount)
+                )
+            elif dst_mount and dst_mount.get("backend") == "ipfs" and dst_mount.get("_filesystem"):
+                resolved = self.resolve_path(dst)
+                destination_lineage = dict(dst_mount["_filesystem"].info(resolved["resolved_path"]))
+        except Exception as exc:
+            return {"success": False, "error": f"copy lineage failed: {exc}"}
+        write_result["lineage"] = {
+            "content_sha256": hashlib.sha256(content_bytes).hexdigest(),
+            "source": source_lineage,
+            "destination": destination_lineage,
+        }
         dst_local = self._to_local_path(dst) if dst_mount and dst_mount.get("backend") == "local" else None
+        copy_extra: Dict[str, Any] = {"source": src}
+        copy_extra.update(destination_lineage)
+        if dst_mount and dst_mount.get("backend") == "iroh":
+            copy_extra["cid"] = None
         write_result["copy_integration"] = self._run_content_mutation_integrations(
             operation="copy",
             path=dst,
             mount=dst_mount,
             local_path=dst_local,
-            extra={"source": src},
+            extra=copy_extra,
         )
         return write_result
 

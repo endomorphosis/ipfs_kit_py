@@ -44,6 +44,11 @@ jobs:
     
     - name: Check distribution
       run: twine check dist/*
+
+    - name: Enforce Iroh distribution contract
+      run: |
+        python scripts/ci/verify_iroh_distributions.py dist/* \
+          --report build/iroh-packaging-report.json
     
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -60,6 +65,8 @@ jobs:
         python-version: ["3.12", "3.13"]
     
     steps:
+    - uses: actions/checkout@v4
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
@@ -79,6 +86,14 @@ jobs:
     - name: Test import
       run: |
         python -c "import ipfs_kit_py; print('Package imported successfully')"
+
+    - name: Test optional Iroh backend remains inert without its extra or sidecar
+      shell: bash
+      run: |
+        python scripts/ci/iroh_install_smoke.py \
+          --fsspec vendored \
+          --iroh-extra absent \
+          --bin-dir "$RUNNER_TEMP/iroh-bin"
 
   publish-test-pypi:
     needs: [build, test-install]

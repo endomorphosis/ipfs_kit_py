@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/endomorphosis/ipfs_kit_py/schemas/iroh-tier-policy.schema.json",
+  "title": "IPFS Kit virtual-bucket tier policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "replication_factor", "read_order", "cache_on_read", "cache_ttl_seconds", "archive_after_seconds"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "replication_factor": { "type": "integer", "minimum": 1 },
+    "read_order": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": { "enum": ["primary", "replica", "cache", "archive"] },
+      "allOf": [
+        { "contains": { "const": "primary" } },
+        { "contains": { "const": "replica" } },
+        { "contains": { "const": "cache" } },
+        { "contains": { "const": "archive" } }
+      ]
+    },
+    "cache_on_read": { "type": "boolean" },
+    "cache_ttl_seconds": { "type": ["integer", "null"], "minimum": 0 },
+    "archive_after_seconds": { "type": ["integer", "null"], "minimum": 0 }
+  }
+}

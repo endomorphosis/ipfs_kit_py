@@ -89,6 +89,7 @@ class BackendType(Enum):
     SYNAPSE = "synapse"
     IPFS_CLUSTER = "ipfs_cluster"
     CLUSTER_FOLLOW = "cluster_follow"
+    IROH = "iroh"
 
 
 class PinStatus(Enum):

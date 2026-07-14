@@ -86,5 +86,11 @@ class BackendManager:
         return {"changed": True, "backup": str(backup), "backend": redact_backend_config(migrated)}
     def get_backend_adapter(self, name, **storage_options):
         config = self.get_backend_config(name, redact=False); return self.registry.get(config["type"]).create_filesystem(config, **storage_options)
+    def get_bucket_tiering_manager(self, state_path=None, **kwargs):
+        """Create the canonical virtual-bucket tiering manager for these backends."""
+        from .iroh.bucket_tiering import IrohBucketTieringManager
+        if state_path is None:
+            state_path = self.ipfs_kit_path / "bucket_tiering.duckdb"
+        return IrohBucketTieringManager(self, state_path, **kwargs)
 
 __all__ = ["BackendManager", "list_supported_backends"]

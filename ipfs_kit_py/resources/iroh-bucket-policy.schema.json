@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/endomorphosis/ipfs_kit_py/schemas/iroh-bucket-policy.schema.json",
+  "title": "IPFS Kit Iroh-capable virtual-bucket policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "bucket", "quota_bytes", "bindings", "tier_policy"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "bucket": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+    "quota_bytes": { "type": ["integer", "null"], "minimum": 0 },
+    "bindings": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/binding" },
+      "contains": {
+        "type": "object",
+        "required": ["role", "enabled"],
+        "properties": {
+          "role": { "const": "primary" },
+          "enabled": { "const": true }
+        }
+      },
+      "minContains": 1,
+      "maxContains": 1
+    },
+    "tier_policy": { "$ref": "#/$defs/tierPolicy" }
+  },
+  "$defs": {
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend", "role", "tier", "priority", "enabled", "quota_bytes", "minimum_free_bytes", "prefix"],
+      "properties": {
+        "backend": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z0-9][a-z0-9_-]*$" },
+        "role": { "enum": ["primary", "replica", "cache", "archive"] },
+        "tier": { "enum": ["hot", "warm", "cold", "archive"] },
+        "priority": { "type": "integer", "minimum": 0 },
+        "enabled": { "type": "boolean" },
+        "quota_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "minimum_free_bytes": { "type": "integer", "minimum": 0 },
+        "prefix": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000]*$" }
+      }
+    },
+    "tierPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "replication_factor", "read_order", "cache_on_read", "cache_ttl_seconds", "archive_after_seconds"],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "replication_factor": { "type": "integer", "minimum": 1 },
+        "read_order": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": { "enum": ["primary", "replica", "cache", "archive"] },
+          "allOf": [
+            { "contains": { "const": "primary" } },
+            { "contains": { "const": "replica" } },
+            { "contains": { "const": "cache" } },
+            { "contains": { "const": "archive" } }
+          ]
+        },
+        "cache_on_read": { "type": "boolean" },
+        "cache_ttl_seconds": { "type": ["integer", "null"], "minimum": 0 },
+        "archive_after_seconds": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    }
+  }
+}

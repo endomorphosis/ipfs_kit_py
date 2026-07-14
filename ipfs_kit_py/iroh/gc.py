@@ -558,8 +558,7 @@ class ReferenceTracker:
                 event_at DOUBLE NOT NULL,
                 state VARCHAR NOT NULL CHECK(state IN
                     ('prepared', 'released', 'committed', 'skipped', 'failed', 'interrupted')),
-                error_code VARCHAR,
-                FOREIGN KEY(run_id, blob_hash) REFERENCES gc_actions(run_id, blob_hash)
+                error_code VARCHAR
             );
             CREATE INDEX IF NOT EXISTS revision_refs_hash ON revision_refs(blob_hash);
             CREATE INDEX IF NOT EXISTS leases_hash_expiry ON leases(blob_hash, expires_at);
@@ -674,7 +673,7 @@ class ReferenceTracker:
                 for row in self._db.execute(
                     "SELECT blob_hash FROM revision_refs WHERE namespace_id=? AND revision=?",
                     (value.namespace_id, value.revision),
-                )
+                ).fetchall()
             }
             if existing is not None and old != set(references):
                 raise IrohIntegrityError(
@@ -912,7 +911,9 @@ class ReferenceTracker:
         }
         current = {
             tuple(row)
-            for row in self._db.execute("SELECT namespace_id,revision,blob_hash FROM revision_refs")
+            for row in self._db.execute(
+                "SELECT namespace_id,revision,blob_hash FROM revision_refs"
+            ).fetchall()
         }
         missing = (
             tuple(sorted({item[2] for item in desired} - set(inventory)))

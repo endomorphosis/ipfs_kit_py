@@ -124,6 +124,45 @@ from .gc import (
     RepairReceipt,
     verify_gc_receipt,
 )
+from .bucket_tiering import (
+    BUCKET_POLICY_SCHEMA_VERSION,
+    RECONCILIATION_RECEIPT_KIND,
+    RECONCILIATION_RECEIPT_SCHEMA_VERSION,
+    TIER_POLICY_SCHEMA_VERSION,
+    BackendBinding,
+    BindingRole,
+    BucketBinding,
+    BucketPolicy,
+    BucketReconciliationReceipt,
+    BucketTieringManager,
+    CapacityReport,
+    BucketTieringReconciler,
+    IrohBucketManager,
+    IrohBucketTieringManager,
+    ReconciliationAction,
+    ReconciliationReceipt,
+    StorageTier,
+    TierPolicy,
+    VirtualBucketTieringManager,
+    bucket_policy_schema,
+    migrate_bucket_policy,
+    reconciliation_receipt_schema,
+    tier_policy_schema,
+    validate_bucket_policy,
+    validate_tier_policy,
+    verify_reconciliation_receipt,
+)
+from .release import (
+    READINESS_RESOURCE,
+    RECEIPTS_RESOURCE,
+    RELEASE_STAGES,
+    REQUIRED_RECEIPT_TYPES,
+    ReleaseReadinessError,
+    load_release_readiness,
+    load_release_receipts,
+    promotion_blockers,
+    validate_release_readiness,
+)
 
 
 def __getattr__(name: str):
@@ -137,6 +176,28 @@ def __getattr__(name: str):
         from .service import IrohService, LifecycleMode
 
         return {"IrohService": IrohService, "LifecycleMode": LifecycleMode}[name]
+    if name in {
+        "CommandScenarioDriver",
+        "HarnessConfig",
+        "MultiNodeInteropHarness",
+        "ResourceBounds",
+        "ScenarioPlan",
+    }:
+        from .multinode import (
+            CommandScenarioDriver,
+            HarnessConfig,
+            MultiNodeInteropHarness,
+            ResourceBounds,
+            ScenarioPlan,
+        )
+
+        return {
+            "CommandScenarioDriver": CommandScenarioDriver,
+            "HarnessConfig": HarnessConfig,
+            "MultiNodeInteropHarness": MultiNodeInteropHarness,
+            "ResourceBounds": ResourceBounds,
+            "ScenarioPlan": ScenarioPlan,
+        }[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 __all__ = [
@@ -198,6 +259,11 @@ __all__ = [
     "migrate_config_file",
     "IrohService",
     "LifecycleMode",
+    "ResourceBounds",
+    "ScenarioPlan",
+    "HarnessConfig",
+    "CommandScenarioDriver",
+    "MultiNodeInteropHarness",
     "HEALTH_KIND",
     "HEALTH_SCHEMA_VERSION",
     "HealthReceipt",
@@ -249,4 +315,39 @@ __all__ = [
     "IrohGarbageCollector",
     "GarbageCollector",
     "verify_gc_receipt",
+    "BUCKET_POLICY_SCHEMA_VERSION",
+    "TIER_POLICY_SCHEMA_VERSION",
+    "RECONCILIATION_RECEIPT_SCHEMA_VERSION",
+    "RECONCILIATION_RECEIPT_KIND",
+    "BindingRole",
+    "StorageTier",
+    "BackendBinding",
+    "BucketBinding",
+    "TierPolicy",
+    "BucketPolicy",
+    "CapacityReport",
+    "ReconciliationAction",
+    "ReconciliationReceipt",
+    "BucketReconciliationReceipt",
+    "IrohBucketTieringManager",
+    "IrohBucketManager",
+    "BucketTieringReconciler",
+    "BucketTieringManager",
+    "VirtualBucketTieringManager",
+    "validate_tier_policy",
+    "validate_bucket_policy",
+    "migrate_bucket_policy",
+    "bucket_policy_schema",
+    "tier_policy_schema",
+    "reconciliation_receipt_schema",
+    "verify_reconciliation_receipt",
+    "READINESS_RESOURCE",
+    "RECEIPTS_RESOURCE",
+    "RELEASE_STAGES",
+    "REQUIRED_RECEIPT_TYPES",
+    "ReleaseReadinessError",
+    "load_release_readiness",
+    "load_release_receipts",
+    "validate_release_readiness",
+    "promotion_blockers",
 ] + list(_errors.__all__)

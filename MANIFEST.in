@@ -1,0 +1,7 @@
+# Source distributions must be source-only. Package resources are selected by
+# setuptools from pyproject.toml; these rules prevent local runtime state from
+# leaking into an sdist assembled from a developer checkout.
+recursive-exclude ipfs_kit_py/bin *
+recursive-exclude ipfs_kit_py __pycache__ *.py[cod]
+recursive-exclude ipfs_kit_py *.receipt.json *.key *.pem
+global-exclude .DS_Store
