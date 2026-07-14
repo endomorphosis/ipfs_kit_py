@@ -11,6 +11,7 @@ Available storage backends:
 - HuggingFace - AI model and dataset storage
 - Filecoin - Decentralized storage network
 - Lassie - Retrieval client for IPFS/Filecoin
+- Iroh - Governed immutable blobs and managed sidecar operations
 """
 
 import logging
@@ -48,6 +49,15 @@ logger = logging.getLogger(__name__)
 
 # Create router
 storage_router = fastapi.APIRouter(prefix="/api/v0/storage", tags=["storage"])
+
+# Iroh operations use their own governed boundary while remaining part of the
+# unified storage API and its generated route inventory.
+try:
+    from .iroh_api import iroh_router
+
+    storage_router.include_router(iroh_router)
+except ImportError:  # pragma: no cover - FastAPI is optional in minimal builds
+    logger.debug("Governed Iroh storage API is unavailable", exc_info=True)
 
 @storage_router.get("/backends", response_model=Dict[str, Any])
 async def list_storage_backends():

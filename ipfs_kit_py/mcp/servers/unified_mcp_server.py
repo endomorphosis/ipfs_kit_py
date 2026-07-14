@@ -129,6 +129,13 @@ class UnifiedMCPServer:
     ]
     EXECUTABLE_NON_VFS_TOOL_NAMES = {
         "iroh_diagnostics",
+        "iroh_service_status",
+        "iroh_blob_stat",
+        "iroh_service_start",
+        "iroh_blob_fetch",
+        "iroh_ticket_import",
+        "iroh_service_stop",
+        "iroh_service_restart",
         "system_health",
         "ipfs_version",
         "ipfs_id",
@@ -167,6 +174,9 @@ class UnifiedMCPServer:
         auto_start_daemons: bool = True,
         auto_start_lotus_daemon: bool = True,
         register_all_tools: bool = True,
+        iroh_permissions: Any = None,
+        iroh_actor: str = "mcp",
+        iroh_controller: Any = None,
         **_kwargs,
     ):
         """
@@ -185,6 +195,11 @@ class UnifiedMCPServer:
         self.auto_start_daemons = auto_start_daemons
         self.auto_start_lotus_daemon = auto_start_lotus_daemon
         self.register_all_tools = register_all_tools
+        # Transport authentication maps identities to these server-side
+        # permissions. They are never accepted from tool arguments.
+        self.iroh_permissions = iroh_permissions
+        self.iroh_actor = iroh_actor
+        self.iroh_controller = iroh_controller
         
         # Ensure data directory exists
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -608,10 +623,17 @@ class UnifiedMCPServer:
         The unified server intentionally keeps broad tool execution conservative;
         unsupported tools return a structured placeholder instead of throwing.
         """
-        if tool_name == "iroh_diagnostics":
-            from ipfs_kit_py.mcp.servers.iroh_mcp_tools import handle_iroh_diagnostics
+        if isinstance(tool_name, str) and tool_name.startswith("iroh_"):
+            from ipfs_kit_py.mcp.servers.iroh_mcp_tools import handle_iroh_tool
 
-            return await handle_iroh_diagnostics(arguments)
+            return await handle_iroh_tool(
+                tool_name,
+                arguments,
+                permissions=self.iroh_permissions,
+                actor=self.iroh_actor,
+                controller=self.iroh_controller,
+                state_root=self.data_dir / "iroh",
+            )
 
         if tool_name == "system_health":
             return {

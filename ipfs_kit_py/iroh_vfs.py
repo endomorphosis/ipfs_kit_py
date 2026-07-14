@@ -88,9 +88,16 @@ class IrohVFSAdapter:
             config = backend_manager.get_backend_config(selected_name, redact=False)
             if not isinstance(config, Mapping) or config.get("type") != "iroh":
                 raise ValueError(f"named backend is not a valid Iroh backend: {selected_name}")
+            if config.get("enabled") is False:
+                raise ValueError(f"named Iroh backend is disabled: {selected_name}")
             namespace = config.get("namespace")
             if isinstance(namespace, Mapping):
                 read_only = bool(read_only or namespace.get("access") == "read-only")
+                if namespace.get("id"):
+                    # The validated backend registry is authoritative after a
+                    # restart. This also makes namespace rotation take effect
+                    # without rewriting the credential-free mount record.
+                    selected_target = f"iroh://{namespace['id']}/"
             filesystem = backend_manager.get_backend_adapter(selected_name, **options)
 
         if not str(target).lower().startswith(("iroh://", "iroh+blob://")):
@@ -102,6 +109,8 @@ class IrohVFSAdapter:
             config = backend_manager.get_backend_config(selected_name, redact=False)
             if not isinstance(config, Mapping) or config.get("type") != "iroh":
                 raise ValueError(f"named backend is not a valid Iroh backend: {selected_name}")
+            if config.get("enabled") is False:
+                raise ValueError(f"named Iroh backend is disabled: {selected_name}")
             namespace = config.get("namespace")
             if not isinstance(namespace, Mapping) or not namespace.get("id"):
                 raise ValueError(f"named Iroh backend has no namespace: {selected_name}")

@@ -163,6 +163,21 @@ from .release import (
     promotion_blockers,
     validate_release_readiness,
 )
+from .security import (
+    DEFAULT_MAX_LOG_BYTES,
+    DEFAULT_MAX_STATE_ENTRIES,
+    SECURITY_REPORT_KIND,
+    SECURITY_REPORT_SCHEMA_VERSION,
+    SecurityFinding,
+    SecurityReport,
+    audit_release_manifest,
+    audit_resource_limits,
+    audit_state_permissions,
+    combine_security_reports,
+    run_security_audit,
+    scan_log,
+    scan_log_bytes,
+)
 
 
 def __getattr__(name: str):
@@ -350,4 +365,17 @@ __all__ = [
     "load_release_receipts",
     "validate_release_readiness",
     "promotion_blockers",
+    "SECURITY_REPORT_KIND",
+    "SECURITY_REPORT_SCHEMA_VERSION",
+    "DEFAULT_MAX_LOG_BYTES",
+    "DEFAULT_MAX_STATE_ENTRIES",
+    "SecurityFinding",
+    "SecurityReport",
+    "audit_state_permissions",
+    "scan_log",
+    "scan_log_bytes",
+    "audit_resource_limits",
+    "audit_release_manifest",
+    "combine_security_reports",
+    "run_security_audit",
 ] + list(_errors.__all__)

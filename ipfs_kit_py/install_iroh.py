@@ -13,7 +13,6 @@ import hmac
 import json
 import os
 import platform
-import shutil
 import stat
 import subprocess
 import tarfile
@@ -30,6 +29,7 @@ DEFAULT_BIN_DIR = "~/.local/share/ipfs_kit_py/bin"
 DOWNLOAD_CHUNK_SIZE = 1024 * 1024
 MAX_ARCHIVE_MEMBERS = 1024
 MAX_EXECUTABLE_SIZE = 512 * 1024 * 1024
+MAX_COMPRESSION_RATIO = 200
 
 
 class IrohInstallError(RuntimeError):
@@ -159,6 +159,27 @@ def _safe_member_name(name: str) -> PurePosixPath:
     ):
         raise UnsafeArchiveError(f"unsafe archive member path: {name}")
     return member
+
+
+def _validate_expansion(uncompressed_size: int, compressed_size: int) -> None:
+    """Reject declared archive expansion that is implausible for a binary."""
+
+    if compressed_size <= 0 or uncompressed_size > compressed_size * MAX_COMPRESSION_RATIO:
+        raise UnsafeArchiveError("sidecar executable has an unsafe compression ratio")
+
+
+def _copy_bounded(source: BinaryIO, destination: BinaryIO, expected_size: int) -> None:
+    """Copy exactly the declared member size and reject decoder overrun."""
+
+    remaining = expected_size
+    while remaining:
+        chunk = source.read(min(DOWNLOAD_CHUNK_SIZE, remaining))
+        if not chunk:
+            raise UnsafeArchiveError("sidecar executable is truncated")
+        destination.write(chunk)
+        remaining -= len(chunk)
+    if source.read(1):
+        raise UnsafeArchiveError("sidecar executable exceeds its declared size")
 
 
 class IrohInstaller:
@@ -408,8 +429,9 @@ class IrohInstaller:
                     source = bundle.extractfile(candidates[0])
                     if source is None:
                         raise UnsafeArchiveError("cannot read sidecar archive member")
+                    _validate_expansion(candidates[0].size, archive.stat().st_size)
                     with source, output.open("xb") as destination:
-                        shutil.copyfileobj(source, destination, DOWNLOAD_CHUNK_SIZE)
+                        _copy_bounded(source, destination, candidates[0].size)
                         destination.flush()
                         os.fsync(destination.fileno())
             elif archive_format == "zip":
@@ -441,9 +463,10 @@ class IrohInstaller:
                         raise UnsafeArchiveError(
                             "archive must contain exactly one sidecar executable"
                         )
+                    _validate_expansion(candidates[0].file_size, candidates[0].compress_size)
                     with bundle.open(candidates[0], mode="r") as source:
                         with output.open("xb") as destination:
-                            shutil.copyfileobj(source, destination, DOWNLOAD_CHUNK_SIZE)
+                            _copy_bounded(source, destination, candidates[0].file_size)
                             destination.flush()
                             os.fsync(destination.fileno())
             else:  # Guarded by metadata validation; retained for direct method callers.
