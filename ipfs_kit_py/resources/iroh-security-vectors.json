@@ -1,0 +1,127 @@
+{
+  "$schema": "./iroh-security-vectors.schema.json",
+  "schema_version": 1,
+  "kind": "ipfs-kit-iroh-security-vectors",
+  "release_bundle": "iroh-1.0.2-ipfs-kit.1",
+  "vectors": [
+    {
+      "id": "IROH-SEC-001",
+      "threat": "malicious-ticket",
+      "surface": "governed ticket import",
+      "input": {"ticket": "ticket-with-newline\nsecond-frame"},
+      "expected": {"outcome": "reject", "control": "validate_ticket", "signal": "invalid_ticket"}
+    },
+    {
+      "id": "IROH-SEC-002",
+      "threat": "malicious-ticket",
+      "surface": "governed ticket import",
+      "input": {"size_bytes": 1048577},
+      "expected": {"outcome": "bound", "control": "MAX_TICKET_BYTES", "signal": "invalid_ticket"}
+    },
+    {
+      "id": "IROH-SEC-003",
+      "threat": "malicious-peer",
+      "surface": "sidecar RPC response",
+      "input": {"field": "peer_id", "value": "synthetic-peer-identifier"},
+      "expected": {"outcome": "redact", "control": "redact", "signal": "<redacted>"}
+    },
+    {
+      "id": "IROH-SEC-004",
+      "threat": "malicious-manifest",
+      "surface": "manifest decoder",
+      "input": {"mutation": "unknown-field", "field": "attacker_extension"},
+      "expected": {"outcome": "reject", "control": "DirectoryManifest.from_dict", "signal": "invalid_manifest"}
+    },
+    {
+      "id": "IROH-SEC-005",
+      "threat": "path-traversal",
+      "surface": "manifest path",
+      "input": {"paths": ["../escape", "/absolute", "a//b", "a/%2f/b", "a\\b"]},
+      "expected": {"outcome": "reject", "control": "validate_manifest_path", "signal": "invalid_manifest"}
+    },
+    {
+      "id": "IROH-SEC-006",
+      "threat": "symlink",
+      "surface": "state and export filesystem",
+      "input": {"entry_type": "symbolic-link", "target": "outside-approved-root"},
+      "expected": {"outcome": "reject", "control": "audit_state_permissions", "signal": "state.symlink"}
+    },
+    {
+      "id": "IROH-SEC-007",
+      "threat": "archive",
+      "surface": "sidecar tar/zip installer",
+      "input": {"member": "../ipfs-kit-iroh-sidecar", "entry_type": "regular"},
+      "expected": {"outcome": "reject", "control": "_safe_member_name", "signal": "UnsafeArchiveError"}
+    },
+    {
+      "id": "IROH-SEC-008",
+      "threat": "archive",
+      "surface": "sidecar decompressor",
+      "input": {"compressed_bytes": 1024, "declared_uncompressed_bytes": 524288000},
+      "expected": {"outcome": "bound", "control": "MAX_COMPRESSION_RATIO", "signal": "UnsafeArchiveError"}
+    },
+    {
+      "id": "IROH-SEC-009",
+      "threat": "key-theft",
+      "surface": "logs and support bundles",
+      "input": {"log": "iroh-private-key=synthetic-secret-fixture"},
+      "expected": {"outcome": "redact", "control": "scan_log_bytes", "signal": "log.secret.iroh-authority"}
+    },
+    {
+      "id": "IROH-SEC-010",
+      "threat": "replay",
+      "surface": "manifest publication",
+      "input": {"mutation": "reuse-stale-expected-head"},
+      "expected": {"outcome": "reject", "control": "manifests.compare_and_swap", "signal": "conflict"}
+    },
+    {
+      "id": "IROH-SEC-011",
+      "threat": "rollback",
+      "surface": "manifest recovery",
+      "input": {"mutation": "valid-older-head-after-newer-head"},
+      "expected": {"outcome": "fail-closed", "control": "recover_head verified chain", "signal": "newest unique revision required"}
+    },
+    {
+      "id": "IROH-SEC-012",
+      "threat": "resource-exhaustion",
+      "surface": "service configuration",
+      "input": {"max_connections": 65536, "max_concurrent_transfers": 1025},
+      "expected": {"outcome": "bound", "control": "RESOURCE_LIMIT_MAXIMUMS", "signal": "invalid_config"}
+    },
+    {
+      "id": "IROH-SEC-013",
+      "threat": "rpc-exposure",
+      "surface": "service configuration",
+      "input": {"rpc_endpoint": "tcp://0.0.0.0:4919"},
+      "expected": {"outcome": "reject", "control": "local RPC endpoint validation", "signal": "invalid_config"}
+    },
+    {
+      "id": "IROH-SEC-014",
+      "threat": "relay-metadata",
+      "surface": "health metrics and diagnostics",
+      "input": {"fields": ["peer_id", "peer_addresses", "relay_url", "ticket_ref"]},
+      "expected": {"outcome": "redact", "control": "bounded health schema", "signal": "fields omitted"}
+    },
+    {
+      "id": "IROH-SEC-015",
+      "threat": "supply-chain",
+      "surface": "release bundle",
+      "input": {"mutation": "crate checksum differs from audited pin"},
+      "expected": {"outcome": "fail-closed", "control": "audit_release_manifest", "signal": "supply-chain.checksum"}
+    },
+    {
+      "id": "IROH-SEC-016",
+      "threat": "supply-chain",
+      "surface": "release bundle",
+      "input": {"mutation": "unapproved component license"},
+      "expected": {"outcome": "fail-closed", "control": "audit_release_manifest", "signal": "license.disallowed"}
+    },
+    {
+      "id": "IROH-SEC-017",
+      "threat": "resource-exhaustion",
+      "surface": "sidecar RPC framing",
+      "input": {"frame_bytes": 16777217},
+      "expected": {"outcome": "bound", "control": "MAX_FRAME_BYTES", "signal": "protocol_error"}
+    }
+  ]
+}

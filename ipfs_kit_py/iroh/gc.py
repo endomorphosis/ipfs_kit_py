@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import math
 import os
 import time
 import threading
@@ -34,14 +35,16 @@ from blake3 import blake3
 import duckdb
 
 from .blob_store import validate_blob_hash
-from .errors import IrohConflictError, IrohIntegrityError, IrohProtocolError
+from .errors import ERROR_CODES, IrohConflictError, IrohIntegrityError, IrohProtocolError
 from .manifest import DirectoryManifest, validate_manifest
 
-GC_SCHEMA_VERSION = 1
+GC_SCHEMA_VERSION = 2
 GC_RECEIPT_SCHEMA_VERSION = 1
 GC_RECEIPT_KIND = "ipfs-kit-iroh-gc-receipt"
 DEFAULT_RETENTION_SECONDS = 24 * 60 * 60
 MAX_LEASE_SECONDS = 30 * 24 * 60 * 60
+MAX_UINT64 = 2**64 - 1
+GC_FAILURE_CODES = ERROR_CODES | {"release_failed"}
 
 
 class Clock(Protocol):
@@ -159,6 +162,70 @@ class GCReceipt:
     kind: str = GC_RECEIPT_KIND
     schema_version: int = GC_RECEIPT_SCHEMA_VERSION
 
+    def __post_init__(self) -> None:
+        """Reject internally inconsistent evidence before it is persisted."""
+
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != GC_RECEIPT_SCHEMA_VERSION
+            or self.kind != GC_RECEIPT_KIND
+        ):
+            raise ValueError("receipt kind or schema version is unsupported")
+        _identifier(self.run_id, "run_id", max_length=255)
+        started = _rfc3339_epoch(self.started_at, "started_at")
+        completed = _rfc3339_epoch(self.completed_at, "completed_at")
+        if completed < started:
+            raise ValueError("completed_at must not precede started_at")
+        if type(self.dry_run) is not bool or type(self.interrupted) is not bool:
+            raise TypeError("receipt flags must be booleans")
+        _non_negative_number(self.retention_seconds, "retention_seconds")
+        for name, value in (
+            ("tracked_bytes", self.tracked_bytes),
+            ("referenced_bytes", self.referenced_bytes),
+            ("leased_bytes", self.leased_bytes),
+            ("reclaimed_bytes", self.reclaimed_bytes),
+        ):
+            _uint(value, name)
+        _optional_uint(self.quota_bytes, "quota_bytes")
+        if self.referenced_bytes > self.tracked_bytes or self.leased_bytes > self.tracked_bytes:
+            raise ValueError("receipt byte totals are inconsistent")
+
+        marked: dict[str, GCCandidate] = {}
+        for item in self.marked:
+            if not isinstance(item, GCCandidate):
+                raise TypeError("marked entries must be GC candidates")
+            digest = validate_blob_hash(item.blob_hash)
+            _uint(item.size, "candidate size")
+            if _rfc3339_epoch(item.unreferenced_at, "unreferenced_at") > started:
+                raise ValueError("candidate became unreferenced after the mark")
+            _identifier(item.operation_id, "operation_id", max_length=255)
+            if digest in marked:
+                raise ValueError("receipt candidates must be unique")
+            marked[digest] = item
+
+        deleted = _validated_hash_set(self.deleted, "deleted")
+        skipped = _validated_hash_set(self.skipped, "skipped")
+        failed_hashes: set[str] = set()
+        for failure in self.failures:
+            if not isinstance(failure, GCFailure):
+                raise TypeError("failures must be GC failures")
+            digest = validate_blob_hash(failure.blob_hash)
+            if failure.code not in GC_FAILURE_CODES:
+                raise ValueError("GC failure code is invalid")
+            if digest in failed_hashes:
+                raise ValueError("failed hashes must be unique")
+            failed_hashes.add(digest)
+        outcomes = deleted | skipped | failed_hashes
+        if not outcomes <= marked.keys():
+            raise ValueError("receipt outcome is not a marked candidate")
+        if deleted & skipped or deleted & failed_hashes or skipped & failed_hashes:
+            raise ValueError("receipt outcomes must be disjoint")
+        if not self.dry_run and not self.interrupted and outcomes != marked.keys():
+            raise ValueError("live receipt must account for every candidate")
+        reclaimed = sum(marked[digest].size for digest in deleted)
+        if reclaimed != self.reclaimed_bytes:
+            raise ValueError("reclaimed byte total is inconsistent")
+
     @property
     def candidate_count(self) -> int:
         return len(self.marked)
@@ -216,10 +283,11 @@ class GCReceipt:
             raise IrohIntegrityError("GC receipt must be an object", operation="gc.receipt")
         document = dict(value)
         declared_digest = document.pop("receipt_digest", None)
-        if (
-            not isinstance(declared_digest, str)
-            or declared_digest != blake3(_canonical_json(document)).hexdigest()
-        ):
+        try:
+            expected_digest = blake3(_canonical_json(document)).hexdigest()
+        except (TypeError, ValueError) as exc:
+            raise IrohIntegrityError("GC receipt is malformed", operation="gc.receipt") from exc
+        if not isinstance(declared_digest, str) or declared_digest != expected_digest:
             raise IrohIntegrityError("GC receipt digest is invalid", operation="gc.receipt")
         allowed = {
             "schema_version",
@@ -511,17 +579,14 @@ class ReferenceTracker:
                 namespace_id VARCHAR NOT NULL,
                 revision UBIGINT NOT NULL,
                 blob_hash VARCHAR NOT NULL,
-                PRIMARY KEY(namespace_id, revision, blob_hash),
-                FOREIGN KEY(namespace_id, revision) REFERENCES revisions(namespace_id, revision),
-                FOREIGN KEY(blob_hash) REFERENCES blobs(blob_hash)
+                PRIMARY KEY(namespace_id, revision, blob_hash)
             );
             CREATE TABLE IF NOT EXISTS leases (
                 lease_id VARCHAR NOT NULL,
                 blob_hash VARCHAR NOT NULL,
                 owner VARCHAR NOT NULL,
                 expires_at DOUBLE NOT NULL,
-                PRIMARY KEY(lease_id, blob_hash),
-                FOREIGN KEY(blob_hash) REFERENCES blobs(blob_hash)
+                PRIMARY KEY(lease_id, blob_hash)
             );
             CREATE TABLE IF NOT EXISTS namespace_quotas (
                 namespace_id VARCHAR PRIMARY KEY,
@@ -547,8 +612,7 @@ class ReferenceTracker:
                 state VARCHAR NOT NULL DEFAULT 'marked' CHECK(state IN
                     ('marked', 'deleting', 'deleted', 'skipped', 'failed')),
                 error_code VARCHAR,
-                PRIMARY KEY(run_id, blob_hash),
-                FOREIGN KEY(run_id) REFERENCES gc_runs(run_id)
+                PRIMARY KEY(run_id, blob_hash)
             );
             CREATE TABLE IF NOT EXISTS gc_recovery_journal (
                 journal_id VARCHAR PRIMARY KEY,
@@ -558,14 +622,8 @@ class ReferenceTracker:
                 event_at DOUBLE NOT NULL,
                 state VARCHAR NOT NULL CHECK(state IN
                     ('prepared', 'released', 'committed', 'skipped', 'failed', 'interrupted')),
-                error_code VARCHAR,
-                FOREIGN KEY(run_id, blob_hash) REFERENCES gc_actions(run_id, blob_hash)
+                error_code VARCHAR
             );
-            CREATE INDEX IF NOT EXISTS revision_refs_hash ON revision_refs(blob_hash);
-            CREATE INDEX IF NOT EXISTS leases_hash_expiry ON leases(blob_hash, expires_at);
-            CREATE INDEX IF NOT EXISTS gc_actions_state ON gc_actions(run_id, state);
-            CREATE INDEX IF NOT EXISTS gc_journal_action
-                ON gc_recovery_journal(run_id, blob_hash, event_at);
             """
         )
         row = self._db.execute(
@@ -576,8 +634,93 @@ class ReferenceTracker:
                 "INSERT INTO gc_metadata(key, value) VALUES('schema_version', ?)",
                 (str(GC_SCHEMA_VERSION),),
             )
+        elif row[0] == "1":
+            self._migrate_v1()
         elif row[0] != str(GC_SCHEMA_VERSION):
             raise IrohIntegrityError("unsupported GC index schema", operation="gc.open")
+        self._db.execute(
+            """
+            CREATE INDEX IF NOT EXISTS revision_refs_hash ON revision_refs(blob_hash);
+            CREATE INDEX IF NOT EXISTS leases_hash_expiry ON leases(blob_hash, expires_at);
+            CREATE INDEX IF NOT EXISTS gc_actions_state ON gc_actions(run_id, state);
+            CREATE INDEX IF NOT EXISTS gc_journal_action
+                ON gc_recovery_journal(run_id, blob_hash, event_at);
+            """
+        )
+
+    def _migrate_v1(self) -> None:
+        """Remove v1 foreign keys that prevent journal state transitions.
+
+        DuckDB validates referencing rows when any parent row is updated, even
+        when the key itself is unchanged.  The v1 constraints consequently
+        made normal revision retirement and GC action transitions fail.  The
+        tracker already creates and removes related records transactionally,
+        so v2 keeps the same DuckDB-native tables and primary/check constraints
+        while enforcing cross-table invariants in those transactions.
+        """
+
+        try:
+            self._db.execute("BEGIN TRANSACTION")
+            self._db.execute(
+                """
+                CREATE TABLE revision_refs_v2 (
+                    namespace_id VARCHAR NOT NULL,
+                    revision UBIGINT NOT NULL,
+                    blob_hash VARCHAR NOT NULL,
+                    PRIMARY KEY(namespace_id, revision, blob_hash)
+                );
+                INSERT INTO revision_refs_v2 SELECT * FROM revision_refs;
+                CREATE TABLE leases_v2 (
+                    lease_id VARCHAR NOT NULL,
+                    blob_hash VARCHAR NOT NULL,
+                    owner VARCHAR NOT NULL,
+                    expires_at DOUBLE NOT NULL,
+                    PRIMARY KEY(lease_id, blob_hash)
+                );
+                INSERT INTO leases_v2 SELECT * FROM leases;
+                CREATE TABLE gc_actions_v2 (
+                    run_id VARCHAR NOT NULL,
+                    blob_hash VARCHAR NOT NULL,
+                    size UBIGINT NOT NULL,
+                    unreferenced_at DOUBLE NOT NULL,
+                    operation_id VARCHAR NOT NULL,
+                    state VARCHAR NOT NULL DEFAULT 'marked' CHECK(state IN
+                        ('marked', 'deleting', 'deleted', 'skipped', 'failed')),
+                    error_code VARCHAR,
+                    PRIMARY KEY(run_id, blob_hash)
+                );
+                INSERT INTO gc_actions_v2 SELECT * FROM gc_actions;
+                CREATE TABLE gc_recovery_journal_v2 (
+                    journal_id VARCHAR PRIMARY KEY,
+                    run_id VARCHAR NOT NULL,
+                    blob_hash VARCHAR NOT NULL,
+                    operation_id VARCHAR NOT NULL,
+                    event_at DOUBLE NOT NULL,
+                    state VARCHAR NOT NULL CHECK(state IN
+                        ('prepared', 'released', 'committed', 'skipped', 'failed', 'interrupted')),
+                    error_code VARCHAR
+                );
+                INSERT INTO gc_recovery_journal_v2 SELECT * FROM gc_recovery_journal;
+                DROP TABLE gc_recovery_journal;
+                DROP TABLE gc_actions;
+                DROP TABLE revision_refs;
+                DROP TABLE leases;
+                ALTER TABLE revision_refs_v2 RENAME TO revision_refs;
+                ALTER TABLE leases_v2 RENAME TO leases;
+                ALTER TABLE gc_actions_v2 RENAME TO gc_actions;
+                ALTER TABLE gc_recovery_journal_v2 RENAME TO gc_recovery_journal;
+                UPDATE gc_metadata SET value='2' WHERE key='schema_version';
+                COMMIT;
+                """
+            )
+        except Exception as exc:
+            try:
+                self._db.execute("ROLLBACK")
+            except Exception:
+                pass
+            raise IrohIntegrityError(
+                "failed to migrate GC index schema", operation="gc.open"
+            ) from exc
 
     def register_blob(
         self, blob_hash: str, size: int, *, first_seen: float | datetime | None = None
@@ -604,14 +747,15 @@ class ReferenceTracker:
             )
 
     def register_blobs(self, blobs: Iterable[Any]) -> None:
-        for blob in blobs:
-            if isinstance(blob, Mapping):
-                self.register_blob(blob.get("blob_hash", blob.get("hash")), blob["size"])
-            elif hasattr(blob, "hash") and hasattr(blob, "size"):
-                self.register_blob(blob.hash, blob.size)
-            else:
-                digest, size = blob
-                self.register_blob(digest, size)
+        with self._transaction():
+            for blob in blobs:
+                if isinstance(blob, Mapping):
+                    self.register_blob(blob.get("blob_hash", blob.get("hash")), blob["size"])
+                elif hasattr(blob, "hash") and hasattr(blob, "size"):
+                    self.register_blob(blob.hash, blob.size)
+                else:
+                    digest, size = blob
+                    self.register_blob(digest, size)
 
     def track_manifest(
         self,
@@ -656,11 +800,26 @@ class ReferenceTracker:
                     "revision is already tracked with a different manifest",
                     operation="gc.track_manifest",
                 )
+            old = {
+                row[0]
+                for row in self._db.execute(
+                    "SELECT blob_hash FROM revision_refs WHERE namespace_id=? AND revision=?",
+                    (value.namespace_id, value.revision),
+                ).fetchall()
+            }
+            if existing is not None and old != set(references):
+                raise IrohIntegrityError(
+                    "tracked revision references do not match its manifest",
+                    operation="gc.track_manifest",
+                )
+            if existing is not None:
+                # Idempotent replay must not reactivate a revision retired by a
+                # later operation or restart the blob's unreferenced grace.
+                return len(references)
             self._db.execute(
-                """INSERT INTO revisions(namespace_id,revision,manifest_hash,created_at,retained_until,active)
-                   VALUES(?,?,?,?,?,TRUE)
-                   ON CONFLICT(namespace_id,revision) DO UPDATE SET active=TRUE,
-                       retained_until=excluded.retained_until""",
+                """INSERT INTO revisions(
+                     namespace_id,revision,manifest_hash,created_at,retained_until,active
+                   ) VALUES(?,?,?,?,?,TRUE)""",
                 (
                     value.namespace_id,
                     value.revision,
@@ -669,18 +828,6 @@ class ReferenceTracker:
                     until,
                 ),
             )
-            old = {
-                row[0]
-                for row in self._db.execute(
-                    "SELECT blob_hash FROM revision_refs WHERE namespace_id=? AND revision=?",
-                    (value.namespace_id, value.revision),
-                )
-            }
-            if existing is not None and old != set(references):
-                raise IrohIntegrityError(
-                    "tracked revision references do not match its manifest",
-                    operation="gc.track_manifest",
-                )
             for digest, size in references.items():
                 validate_blob_hash(digest)
                 _uint(size, "blob size")
@@ -790,12 +937,14 @@ class ReferenceTracker:
     def renew_lease(self, lease_id: str, ttl_seconds: float) -> Lease:
         _identifier(lease_id, "lease_id", max_length=255)
         _lease_ttl(ttl_seconds)
-        expires = self.clock() + float(ttl_seconds)
+        now = self.clock()
+        expires = now + float(ttl_seconds)
         with self._transaction():
             rows = self._db.execute(
-                "SELECT blob_hash,owner FROM leases WHERE lease_id=?", (lease_id,)
+                "SELECT blob_hash,owner,expires_at FROM leases WHERE lease_id=?", (lease_id,)
             ).fetchall()
-            if not rows:
+            if not rows or any(row[2] <= now for row in rows):
+                self._db.execute("DELETE FROM leases WHERE lease_id=?", (lease_id,))
                 raise KeyError(lease_id)
             self._db.execute("UPDATE leases SET expires_at=? WHERE lease_id=?", (expires, lease_id))
         return Lease(lease_id, tuple(sorted(row[0] for row in rows)), rows[0][1], _rfc3339(expires))
@@ -813,20 +962,21 @@ class ReferenceTracker:
         """Return unique live bytes globally or for one namespace."""
 
         now = self.clock()
-        if namespace_id is None:
-            row = self._db.execute(
-                "SELECT COALESCE(SUM(size),0) FROM blobs WHERE deleted_at IS NULL"
-            ).fetchone()
-        else:
-            _identifier(namespace_id, "namespace_id")
-            row = self._db.execute(
-                """SELECT COALESCE(SUM(b.size),0) FROM blobs b WHERE b.deleted_at IS NULL
-                   AND EXISTS (SELECT 1 FROM revision_refs rr JOIN revisions r
-                     ON r.namespace_id=rr.namespace_id AND r.revision=rr.revision
-                     WHERE rr.blob_hash=b.blob_hash AND r.namespace_id=?
-                       AND (r.active=1 OR r.retained_until>?))""",
-                (namespace_id, now),
-            ).fetchone()
+        with self._transaction():
+            if namespace_id is None:
+                row = self._db.execute(
+                    "SELECT COALESCE(SUM(size),0) FROM blobs WHERE deleted_at IS NULL"
+                ).fetchone()
+            else:
+                _identifier(namespace_id, "namespace_id")
+                row = self._db.execute(
+                    """SELECT COALESCE(SUM(b.size),0) FROM blobs b WHERE b.deleted_at IS NULL
+                       AND EXISTS (SELECT 1 FROM revision_refs rr JOIN revisions r
+                         ON r.namespace_id=rr.namespace_id AND r.revision=rr.revision
+                         WHERE rr.blob_hash=b.blob_hash AND r.namespace_id=?
+                           AND (r.active=1 OR r.retained_until>?))""",
+                    (namespace_id, now),
+                ).fetchone()
         return int(row[0])
 
     def set_quota(self, namespace_id: str, quota_bytes: int | None) -> None:
@@ -849,15 +999,16 @@ class ReferenceTracker:
     def quota_status(self, namespace_id: str, *, additional_bytes: int = 0) -> QuotaStatus:
         _identifier(namespace_id, "namespace_id")
         _uint(additional_bytes, "additional_bytes")
-        row = self._db.execute(
-            "SELECT quota_bytes FROM namespace_quotas WHERE namespace_id=?", (namespace_id,)
-        ).fetchone()
-        return QuotaStatus(
-            namespace_id,
-            self.quota_usage(namespace_id),
-            None if row is None else int(row[0]),
-            additional_bytes,
-        )
+        with self._transaction():
+            row = self._db.execute(
+                "SELECT quota_bytes FROM namespace_quotas WHERE namespace_id=?", (namespace_id,)
+            ).fetchone()
+            return QuotaStatus(
+                namespace_id,
+                self.quota_usage(namespace_id),
+                None if row is None else int(row[0]),
+                additional_bytes,
+            )
 
     def check_quota(self, namespace_id: str, *, additional_bytes: int = 0) -> bool:
         return self.quota_status(namespace_id, additional_bytes=additional_bytes).allowed
@@ -889,14 +1040,23 @@ class ReferenceTracker:
         inventory: dict[str, int] = {}
         for item in blobs or ():
             if isinstance(item, Mapping):
-                inventory[validate_blob_hash(item.get("blob_hash", item.get("hash")))] = item[
-                    "size"
-                ]
+                digest = validate_blob_hash(item.get("blob_hash", item.get("hash")))
+                size = item["size"]
             elif hasattr(item, "hash"):
-                inventory[validate_blob_hash(item.hash)] = item.size
+                digest = validate_blob_hash(item.hash)
+                size = item.size
             else:
                 digest, size = item
-                inventory[validate_blob_hash(digest)] = size
+                digest = validate_blob_hash(digest)
+            _uint(size, "blob size")
+            previous = inventory.get(digest)
+            if previous is not None and previous != size:
+                raise IrohIntegrityError(
+                    "inventory contains inconsistent blob sizes",
+                    operation="gc.repair",
+                    metadata={"blob_hash": digest},
+                )
+            inventory[digest] = size
         desired = {
             (manifest.namespace_id, manifest.revision, digest)
             for manifest in values
@@ -912,7 +1072,9 @@ class ReferenceTracker:
         }
         current = {
             tuple(row)
-            for row in self._db.execute("SELECT namespace_id,revision,blob_hash FROM revision_refs")
+            for row in self._db.execute(
+                "SELECT namespace_id,revision,blob_hash FROM revision_refs"
+            ).fetchall()
         }
         missing = (
             tuple(sorted({item[2] for item in desired} - set(inventory)))
@@ -932,7 +1094,6 @@ class ReferenceTracker:
         now = self.clock()
         with self._transaction():
             for digest, size in inventory.items():
-                _uint(size, "size")
                 self._db.execute(
                     """INSERT INTO blobs(blob_hash,size,first_seen,unreferenced_at)
                        VALUES(?,?,?,?) ON CONFLICT(blob_hash) DO UPDATE SET
@@ -1053,8 +1214,10 @@ class IrohGarbageCollector:
             # Dry-run-only collectors are useful for audits.  A live sweep will
             # fail explicitly rather than pretending bytes were reclaimed.
             self._delete_blob = None
+            self._strict_release_receipt = False
         elif delete_blob is not None:
             self._delete_blob = delete_blob
+            self._strict_release_receipt = False
         else:
 
             async def release(digest: str, operation_id: str) -> Any:
@@ -1069,6 +1232,7 @@ class IrohGarbageCollector:
                 )
 
             self._delete_blob = release
+            self._strict_release_receipt = True
         self.index = index
         self.clock = clock or index.clock
         self._lock = asyncio.Lock()
@@ -1081,6 +1245,8 @@ class IrohGarbageCollector:
         run_id: str | None = None,
     ) -> GCMark:
         policy = policy or GCPolicy()
+        if type(dry_run) is not bool:
+            raise TypeError("dry_run must be a boolean")
         run_id = run_id or str(uuid.uuid4())
         _identifier(run_id, "run_id", max_length=255)
         now = self.clock()
@@ -1188,9 +1354,12 @@ class IrohGarbageCollector:
             raise KeyError(run_id)
         if run[7] is not None:
             return verify_gc_receipt(run[7])
-        actual_dry_run = bool(run[3]) if dry_run is None else dry_run
-        if not isinstance(actual_dry_run, bool):
+        recorded_dry_run = bool(run[3])
+        if dry_run is not None and type(dry_run) is not bool:
             raise TypeError("dry_run must be a boolean")
+        # An explicit sweep policy is an operator decision; resume(), in
+        # contrast, never upgrades a persisted dry run to a destructive one.
+        actual_dry_run = recorded_dry_run if dry_run is None else dry_run
         rows = db.execute(
             """SELECT run_id,blob_hash,size,unreferenced_at,operation_id,state,error_code
                FROM gc_actions WHERE run_id=? ORDER BY unreferenced_at,blob_hash""",
@@ -1252,7 +1421,9 @@ class IrohGarbageCollector:
                 result = _call_delete(self._delete_blob, row[1], row[4])
                 if inspect.isawaitable(result):
                     result = await result
-                if not _release_confirmed(result, row[1]):
+                if not _release_confirmed(
+                    result, row[1], strict=self._strict_release_receipt
+                ):
                     with self.index._transaction():
                         db.execute(
                             "UPDATE gc_actions SET state='skipped' WHERE run_id=? AND blob_hash=?",
@@ -1367,6 +1538,18 @@ class IrohGarbageCollector:
     async def resume(self, run_id: str) -> GCReceipt:
         """Resume an interrupted live run using its stable operation ids."""
 
+        _identifier(run_id, "run_id", max_length=255)
+        with self.index._transaction():
+            row = self.index._db.execute(
+                "SELECT dry_run,receipt_json FROM gc_runs WHERE run_id=?", (run_id,)
+            ).fetchone()
+        if row is None:
+            raise KeyError(run_id)
+        if bool(row[0]) and row[1] is None:
+            raise IrohConflictError(
+                "a persisted dry-run mark cannot be resumed as a live sweep",
+                operation="gc.resume",
+            )
         return await self.sweep(run_id, dry_run=False)
 
 
@@ -1411,9 +1594,21 @@ def _rfc3339(value: float) -> str:
     )
 
 
+def _rfc3339_epoch(value: Any, name: str) -> float:
+    if not isinstance(value, str) or not value.endswith("Z"):
+        raise ValueError(f"{name} must be an RFC 3339 UTC timestamp")
+    try:
+        result = datetime.fromisoformat(value[:-1] + "+00:00").timestamp()
+    except (ValueError, OverflowError) as exc:
+        raise ValueError(f"{name} must be an RFC 3339 UTC timestamp") from exc
+    if not math.isfinite(result):
+        raise ValueError(f"{name} must be a finite timestamp")
+    return result
+
+
 def _timestamp_epoch(value: str) -> float:
     try:
-        return datetime.fromisoformat(value[:-1] + "+00:00").timestamp()
+        return _rfc3339_epoch(value, "manifest timestamp")
     except (ValueError, TypeError) as exc:
         raise IrohProtocolError(
             "manifest timestamp is invalid", operation="gc.track_manifest"
@@ -1426,14 +1621,16 @@ def _epoch(value: float | datetime | None, default: float | None) -> float | Non
     if isinstance(value, datetime):
         if value.tzinfo is None:
             raise ValueError("datetime must be timezone-aware")
-        return value.timestamp()
+        result = value.timestamp()
+        _non_negative_number(result, "timestamp")
+        return result
     _non_negative_number(value, "timestamp")
     return float(value)
 
 
 def _uint(value: Any, name: str) -> int:
-    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-        raise ValueError(f"{name} must be a non-negative integer")
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= MAX_UINT64:
+        raise ValueError(f"{name} must be an unsigned 64-bit integer")
     return value
 
 
@@ -1443,8 +1640,17 @@ def _optional_uint(value: Any, name: str) -> None:
 
 
 def _non_negative_number(value: Any, name: str) -> None:
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
-        raise ValueError(f"{name} must be a non-negative number")
+    try:
+        valid = (
+            not isinstance(value, bool)
+            and isinstance(value, (int, float))
+            and math.isfinite(float(value))
+            and value >= 0
+        )
+    except (OverflowError, ValueError):
+        valid = False
+    if not valid:
+        raise ValueError(f"{name} must be a finite non-negative number")
 
 
 def _identifier(value: Any, name: str, *, max_length: int = 1024) -> str:
@@ -1461,7 +1667,7 @@ def _lease_ttl(value: Any) -> None:
 
 def _failure_code(exc: Exception) -> str:
     code = getattr(exc, "code", None)
-    if isinstance(code, str) and code:
+    if isinstance(code, str) and code in GC_FAILURE_CODES:
         return code
     if isinstance(exc, TimeoutError):
         return "timeout"
@@ -1470,10 +1676,12 @@ def _failure_code(exc: Exception) -> str:
     return "release_failed"
 
 
-def _release_confirmed(value: Any, expected_hash: str) -> bool:
+def _release_confirmed(value: Any, expected_hash: str, *, strict: bool = False) -> bool:
     """Validate sidecar release receipts while allowing simple callback hooks."""
 
     if value is None or isinstance(value, bool):
+        if strict:
+            raise IrohProtocolError("invalid blob release receipt", operation="gc.sweep")
         return value is not False
     if not isinstance(value, Mapping):
         raise IrohProtocolError("invalid blob release receipt", operation="gc.sweep")
@@ -1484,6 +1692,15 @@ def _release_confirmed(value: Any, expected_hash: str) -> bool:
     if not isinstance(released, bool):
         raise IrohProtocolError("invalid blob release receipt", operation="gc.sweep")
     return released
+
+
+def _validated_hash_set(values: tuple[str, ...], name: str) -> set[str]:
+    if not isinstance(values, tuple):
+        raise TypeError(f"{name} hashes must be a tuple")
+    result = {validate_blob_hash(value) for value in values}
+    if len(result) != len(values):
+        raise ValueError(f"{name} hashes must be unique")
+    return result
 
 
 def _call_delete(callback: DeleteBlob, digest: str, operation_id: str) -> Any:

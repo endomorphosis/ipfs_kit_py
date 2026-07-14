@@ -31,6 +31,7 @@ from .config import (
     DEFAULT_RELEASE_BUNDLE,
     DIRECTORY_MODE,
     FILE_MODE,
+    RESOURCE_LIMIT_MAXIMUMS,
     IrohServiceConfig,
     IrohStateLayout,
     OwnershipPolicy,
@@ -124,6 +125,21 @@ from .gc import (
     RepairReceipt,
     verify_gc_receipt,
 )
+from .security import (
+    DEFAULT_MAX_LOG_BYTES,
+    DEFAULT_MAX_STATE_ENTRIES,
+    SECURITY_REPORT_KIND,
+    SECURITY_REPORT_SCHEMA_VERSION,
+    SecurityFinding,
+    SecurityReport,
+    audit_release_manifest,
+    audit_resource_limits,
+    audit_state_permissions,
+    combine_security_reports,
+    run_security_audit,
+    scan_log,
+    scan_log_bytes,
+)
 
 
 def __getattr__(name: str):
@@ -176,6 +192,7 @@ __all__ = [
     "DEFAULT_INSTANCE",
     "DIRECTORY_MODE",
     "FILE_MODE",
+    "RESOURCE_LIMIT_MAXIMUMS",
     "IrohStateLayout",
     "IrohServiceConfig",
     "ResourceLimits",
@@ -249,4 +266,17 @@ __all__ = [
     "IrohGarbageCollector",
     "GarbageCollector",
     "verify_gc_receipt",
+    "SECURITY_REPORT_KIND",
+    "SECURITY_REPORT_SCHEMA_VERSION",
+    "DEFAULT_MAX_LOG_BYTES",
+    "DEFAULT_MAX_STATE_ENTRIES",
+    "SecurityFinding",
+    "SecurityReport",
+    "audit_state_permissions",
+    "scan_log",
+    "scan_log_bytes",
+    "audit_resource_limits",
+    "audit_release_manifest",
+    "combine_security_reports",
+    "run_security_audit",
 ] + list(_errors.__all__)

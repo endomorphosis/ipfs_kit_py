@@ -1213,6 +1213,147 @@ openapi_schema = {
     ]
 }
 
+# The application intentionally serves this maintained schema instead of
+# FastAPI's generated schema. Keep governed Iroh routes explicit here so SDKs
+# see their authorization and destructive-confirmation contract.
+openapi_schema["paths"].update({
+    "/api/v0/storage/iroh/operations": {
+        "get": {
+            "summary": "List governed Iroh operations",
+            "operationId": "listIrohOperations",
+            "tags": ["Iroh"],
+            "responses": {
+                "200": {
+                    "description": "Implemented Iroh operation allowlist",
+                    "content": {"application/json": {"schema": {"type": "object", "properties": {
+                        "success": {"type": "boolean"},
+                        "count": {"type": "integer"},
+                        "operations": {"type": "array", "items": {"$ref": "#/components/schemas/IrohOperationDescriptor"}},
+                    }, "required": ["success", "count", "operations"]}}},
+                }
+            },
+        }
+    },
+    "/api/v0/storage/iroh/operations/{operation}": {
+        "post": {
+            "summary": "Execute a governed Iroh operation",
+            "description": "Executes only an implemented allowlisted operation. Permissions are assigned by server authentication; destructive operations additionally require confirm=true.",
+            "operationId": "executeIrohOperation",
+            "tags": ["Iroh"],
+            "parameters": [{
+                "name": "operation",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "enum": [
+                    "diagnostics", "service.status", "blob.stat", "service.start",
+                    "blob.fetch", "ticket.import", "service.stop", "service.restart",
+                ]},
+            }],
+            "requestBody": {
+                "required": False,
+                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IrohOperationRequest"}}},
+            },
+            "responses": {
+                "200": {"description": "Completed operation", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IrohOperationResponse"}}}},
+                "400": {"description": "Invalid operation input", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IrohOperationResponse"}}}},
+                "403": {"description": "Required Iroh permission is absent", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IrohOperationResponse"}}}},
+                "409": {"description": "Confirmation required or state conflict", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IrohOperationResponse"}}}},
+                "422": {"description": "Integrity verification failed", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IrohOperationResponse"}}}},
+                "503": {"description": "Managed Iroh service unavailable", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IrohOperationResponse"}}}},
+            },
+        }
+    },
+})
+
+openapi_schema["components"]["schemas"].update({
+    "IrohOperationDescriptor": {
+        "type": "object",
+        "required": ["name", "description", "permission", "destructive", "input_schema"],
+        "properties": {
+            "name": {"type": "string"},
+            "description": {"type": "string"},
+            "permission": {"$ref": "#/components/schemas/IrohPermission"},
+            "destructive": {"type": "boolean"},
+            "input_schema": {"type": "object", "additionalProperties": True},
+        },
+    },
+    "IrohPermission": {
+        "type": "string",
+        "enum": ["iroh.read", "iroh.control", "iroh.destructive"],
+        "description": "Permission assigned by trusted authentication middleware.",
+    },
+    "IrohOperationRequest": {
+        "type": "object",
+        "additionalProperties": True,
+        "properties": {
+            "instance": {"type": "string", "pattern": "^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$", "default": "default"},
+            "operation_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+            "confirm": {"type": "boolean", "description": "Must be true for destructive operations."},
+            "arguments": {"type": "object", "additionalProperties": True},
+        },
+    },
+    "IrohProgress": {
+        "type": "object",
+        "required": ["sequence", "state", "at"],
+        "properties": {
+            "sequence": {"type": "integer", "minimum": 0},
+            "state": {"type": "string", "enum": ["accepted", "running", "completed", "failed"]},
+            "at": {"type": "string", "format": "date-time"},
+            "phase": {"type": "string"},
+            "completed": {"type": "integer", "minimum": 0},
+            "total": {"type": "integer", "minimum": 0, "nullable": True},
+            "resumed": {"type": "boolean"},
+            "code": {"type": "string"},
+        },
+    },
+    "IrohAuditRecord": {
+        "type": "object",
+        "required": ["audit_id", "operation_id", "operation", "permission", "outcome", "started_at", "finished_at", "actor"],
+        "properties": {
+            "audit_id": {"type": "string", "format": "uuid"},
+            "operation_id": {"type": "string"},
+            "operation": {"type": "string"},
+            "permission": {"$ref": "#/components/schemas/IrohPermission"},
+            "outcome": {"type": "string", "enum": ["success", "failure"]},
+            "started_at": {"type": "string", "format": "date-time"},
+            "finished_at": {"type": "string", "format": "date-time"},
+            "actor": {"type": "string"},
+            "error_code": {"type": "string", "nullable": True},
+        },
+    },
+    "IrohTypedError": {
+        "type": "object",
+        "required": ["code", "type", "message", "status", "retryable"],
+        "properties": {
+            "code": {"type": "string"},
+            "type": {"type": "string"},
+            "message": {"type": "string"},
+            "status": {"type": "integer"},
+            "retryable": {"type": "boolean"},
+        },
+    },
+    "IrohOperationResponse": {
+        "type": "object",
+        "required": ["success", "operation", "operation_id", "progress", "audit"],
+        "properties": {
+            "success": {"type": "boolean"},
+            "operation": {"type": "string"},
+            "operation_id": {"type": "string"},
+            "permission": {"allOf": [{"$ref": "#/components/schemas/IrohPermission"}], "nullable": True},
+            "progress": {"type": "array", "items": {"$ref": "#/components/schemas/IrohProgress"}},
+            "result": {"type": "object", "additionalProperties": True},
+            "error": {"$ref": "#/components/schemas/IrohTypedError"},
+            "audit": {"$ref": "#/components/schemas/IrohAuditRecord"},
+        },
+    },
+})
+
+if not any(tag.get("name") == "Iroh" for tag in openapi_schema["tags"]):
+    openapi_schema["tags"].append({
+        "name": "Iroh",
+        "description": "Governed Iroh storage operations with independent read, control, and destructive permissions.",
+    })
+
 # Function to get the OpenAPI schema
 def get_openapi_schema():
     """

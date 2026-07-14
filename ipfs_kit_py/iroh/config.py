@@ -32,6 +32,13 @@ DEFAULT_PROTOCOL_VERSION = 1
 DEFAULT_INSTANCE = "default"
 DIRECTORY_MODE = 0o700
 FILE_MODE = 0o600
+RESOURCE_LIMIT_MAXIMUMS = {
+    "max_storage_bytes": 1024 * 1024**4,  # 1 PiB
+    "max_staging_bytes": 1024**4,  # 1 TiB
+    "max_concurrent_transfers": 1024,
+    "max_connections": 65_535,
+    "max_open_files": 1_048_576,
+}
 
 _INSTANCE_RE = re.compile(r"^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$")
 _CREDENTIAL_RE = re.compile(
@@ -258,12 +265,16 @@ class ResourceLimits:
         }
         _only(value, fields, "resources")
         defaults = cls()
-        return cls(
+        result = cls(
             **{
                 name: _positive_int(value.get(name, getattr(defaults, name)), f"resources.{name}")
                 for name in fields
             }
         )
+        for name, maximum in RESOURCE_LIMIT_MAXIMUMS.items():
+            if getattr(result, name) > maximum:
+                raise _invalid(f"resources.{name} must not exceed {maximum}")
+        return result
 
     def to_dict(self) -> dict[str, int]:
         return {
@@ -969,7 +980,7 @@ migrate_service_config = migrate_config
 
 __all__ = [
     "CONFIG_SCHEMA_VERSION", "DEFAULT_RELEASE_BUNDLE", "DEFAULT_PROTOCOL_VERSION",
-    "DEFAULT_INSTANCE", "DIRECTORY_MODE", "FILE_MODE", "IrohStateLayout",
+    "DEFAULT_INSTANCE", "DIRECTORY_MODE", "FILE_MODE", "RESOURCE_LIMIT_MAXIMUMS", "IrohStateLayout",
     "IrohServiceConfig", "ResourceLimits", "OwnershipPolicy", "ServiceConfig",
     "StateLayout", "default_state_root", "validate_instance_name", "default_config",
     "parse_config", "loads_config", "load_config", "load_service_config",

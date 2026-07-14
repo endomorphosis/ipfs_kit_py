@@ -158,6 +158,15 @@ def test_registry_factory_and_direct_iroh_mount_are_canonical() -> None:
     )
     assert vfs.read("/archive/docs/seed.bin")["content"] == "seed"
 
+    inferred = vfs.mount(
+        "/direct-url", "auto", f"iroh://{NAMESPACE}/docs", filesystem=fs
+    )
+    assert inferred["success"] is True
+    assert inferred["backend"] == "iroh"
+    assert vfs.resolve_path("/direct-url/seed.bin")["resolved_path"] == (
+        f"iroh://{NAMESPACE}/docs/seed.bin"
+    )
+
 
 def test_mount_subtree_isolation_and_path_policy() -> None:
     fs, _manifests, _blobs = filesystem()

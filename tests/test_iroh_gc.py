@@ -123,6 +123,23 @@ async def test_reference_added_between_mark_and_sweep_wins() -> None:
 
 
 @pytest.mark.asyncio
+async def test_replaying_retired_manifest_does_not_reactivate_or_restart_grace() -> None:
+    clock = Clock()
+    index = ReferenceTracker(clock=clock)
+    manifest = make_manifest(NAMESPACE_A, 0, {"old": (BLOB_A, 10)})
+    index.track_manifest(manifest)
+    index.retire_revision(NAMESPACE_A, 0, retain_for=0)
+    clock.advance(10)
+
+    # Manifest publication/recovery can replay an already-indexed revision.
+    # The replay is idempotent and must not make its blobs young again.
+    index.track_manifest(manifest)
+    mark = await IrohGarbageCollector(index).mark(GCPolicy(retention_seconds=5))
+
+    assert tuple(item.blob_hash for item in mark.candidates) == (BLOB_A,)
+
+
+@pytest.mark.asyncio
 async def test_quota_and_sweep_limits_never_override_references() -> None:
     index = ReferenceTracker(clock=Clock())
     index.track_manifest(make_manifest(NAMESPACE_A, 0, {"live": (BLOB_A, 10)}))
@@ -164,6 +181,35 @@ async def test_interrupted_sweep_resumes_with_idempotent_operation_id() -> None:
     clock.advance(60)
     assert await collector.resume(mark.run_id) == receipt
     assert len(calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_sidecar_release_requires_a_structured_confirmation() -> None:
+    index = ReferenceTracker(clock=Clock())
+    index.register_blob(BLOB_A, 10)
+
+    class Client:
+        async def request(self, method: str, params: dict[str, Any]) -> None:
+            assert method == "blobs.release"
+
+    receipt = await IrohGarbageCollector(index, Client()).collect(
+        dry_run=False, policy=GCPolicy(0)
+    )
+
+    assert receipt.deleted == ()
+    assert receipt.failures[0].code == "protocol_error"
+    assert index.quota_usage() == 10
+
+
+@pytest.mark.asyncio
+async def test_resume_never_promotes_an_unfinished_dry_run() -> None:
+    index = ReferenceTracker(clock=Clock())
+    index.register_blob(BLOB_A, 10)
+    collector = IrohGarbageCollector(index, delete_blob=lambda digest: None)
+    mark = await collector.mark(GCPolicy(0), dry_run=True)
+
+    with pytest.raises(IrohConflictError):
+        await collector.resume(mark.run_id)
 
 
 @pytest.mark.asyncio
