@@ -1,5 +1,3 @@
-<<<<<<< HEAD:final_mcp_server.py
-=======
 #!/usr/bin/env python3
 """
 Final MCP Server Implementation
@@ -463,4 +461,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
->>>>>>> 8a0fb83a3a6bbf5fa6d90dd457f2ae42f880c647:patches/mcp/final_mcp_server.py
