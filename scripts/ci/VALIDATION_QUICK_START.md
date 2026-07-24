@@ -197,10 +197,10 @@ Success rate: 90%
 ## 📚 Documentation
 
 For detailed information, see:
-- [CI/CD Validation Guide](../../CI_CD_VALIDATION_GUIDE.md) - Complete guide
+- [CI/CD Validation Guide](../../docs/ci-cd/CI_CD_VALIDATION_GUIDE.md) - Complete guide
 - [Workflow Monitoring](WORKFLOW_MONITORING.md) - Monitoring details
-- [AMD64 Workflows](../../AMD64_WORKFLOWS_QUICK_REF.md) - AMD64 specific
-- [ARM64 Monitoring](../../ARM64_MONITORING_GUIDE.md) - ARM64 specific
+- [AMD64 Workflows](../../docs/ci-cd/amd64/AMD64_WORKFLOWS_QUICK_REF.md) - AMD64 specific
+- [ARM64 Monitoring](../../docs/deployment/arm64/ARM64_MONITORING_GUIDE.md) - ARM64 specific
 
 ## 🔧 Development
 
