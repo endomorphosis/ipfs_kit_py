@@ -6,7 +6,7 @@
 
 IPFS Kit integrates with external storage systems like S3-compatible services and Storacha (formerly Web3.Storage) to provide additional options for content persistence and retrieval, functioning as deeper tiers in a comprehensive storage hierarchy. The system now includes comprehensive **policy management** for storage quotas, traffic quotas, replication, retention, and cache policies.
 
-> **New**: [Backend Policy Management](backend_policy_management.md) - Configure and monitor storage quotas, replication policies, retention policies, and cache policies for all storage backends.
+> **New**: [Backend Policy Management](../implementation/THREE_TIER_POLICY_IMPLEMENTATION_COMPLETE.md) - Configure and monitor storage quotas, replication policies, retention policies, and cache policies for all storage backends.
 
 ## Architecture: Multi-Tier Storage Strategy
 
