@@ -124,9 +124,9 @@ Track these to measure effectiveness:
 ## 🔗 Quick Links
 
 - [Full Guide](./COPILOT_AUTO_HEALING_GUIDE.md) - Comprehensive documentation
-- [Original Auto-Healing](./AUTO_HEALING_WORKFLOWS.md) - Pattern-based system
-- [Quick Start](./AUTO_HEALING_QUICK_START.md) - 5-minute setup
-- [Examples](./AUTO_HEALING_EXAMPLES.md) - Real-world scenarios
+- [Original Auto-Healing](../auto-healing/AUTO_HEALING_WORKFLOWS.md) - Pattern-based system
+- [Quick Start](../auto-healing/AUTO_HEALING_QUICK_START.md) - 5-minute setup
+- [Examples](../auto-healing/AUTO_HEALING_EXAMPLES.md) - Real-world scenarios
 
 ## 💡 Tips
 
