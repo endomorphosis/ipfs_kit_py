@@ -596,7 +596,7 @@ print(report["report"])
 
 A complete example demonstrating the WAL telemetry AI/ML integration is available in the `examples` directory:
 
-- [wal_telemetry_ai_ml_example.py](../examples/wal_telemetry_ai_ml_example.py): Demonstrates how to use the WAL telemetry AI/ML integration with a FastAPI server for metrics visualization.
+- [wal_telemetry_ai_ml_example.py](../../examples/wal_telemetry_ai_ml_example.py): Demonstrates how to use the WAL telemetry AI/ML integration with a FastAPI server for metrics visualization.
 
 To run the example:
 
@@ -788,5 +788,5 @@ If you encounter issues not covered in this documentation, please:
 ## Additional Resources
 
 - [WAL Telemetry API Documentation](./wal_telemetry_api.md): Documentation for the base WAL telemetry system
-- [AI/ML Metrics Documentation](./ai_ml_metrics.md): Documentation for the AI/ML metrics system
-- [High-Level API Documentation](./high_level_api.md): Documentation for the high-level API
+- [AI/ML Metrics Documentation](../integration/ai-ml/ai_ml_metrics.md): Documentation for the AI/ML metrics system
+- [High-Level API Documentation](../api/high_level_api.md): Documentation for the high-level API
