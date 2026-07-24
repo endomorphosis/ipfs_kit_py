@@ -337,10 +337,10 @@ chmod 777 /tmp/arm64_monitor /tmp/arm64_install_logs
 
 ### Detailed Guides
 
-- [Workflow Monitoring Guide](./scripts/ci/WORKFLOW_MONITORING.md) - Complete workflow and installation monitoring documentation
-- [ARM64 Monitoring Guide](./ARM64_MONITORING_GUIDE.md) - ARM64-specific monitoring guide
-- [ARM64 Implementation Details](./ARM64_MONITORING_IMPLEMENTATION.md) - Technical implementation details
-- [CI Scripts README](./scripts/ci/README.md) - Overview of all CI monitoring scripts
+- [Workflow Monitoring Guide](../../scripts/ci/WORKFLOW_MONITORING.md) - Complete workflow and installation monitoring documentation
+- [ARM64 Monitoring Guide](../deployment/arm64/ARM64_MONITORING_GUIDE.md) - ARM64-specific monitoring guide
+- [ARM64 Implementation Details](../deployment/arm64/ARM64_MONITORING_IMPLEMENTATION.md) - Technical implementation details
+- [CI Scripts README](../../scripts/ci/README.md) - Overview of all CI monitoring scripts
 
 ### Example Workflows
 
@@ -388,7 +388,7 @@ For issues or questions:
 
 ## License
 
-See the main repository [LICENSE](./LICENSE) file.
+See the main repository [LICENSE](../../LICENSE) file.
 
 ## Changelog
 
@@ -412,4 +412,4 @@ See the main repository [LICENSE](./LICENSE) file.
 - [GitHub CLI Documentation](https://cli.github.com/manual/)
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
 - [Python Packaging Guide](https://packaging.python.org/)
-- [ARM64 Development Guide](./ARM64_BUILD_SUMMARY.md)
+- [ARM64 Development Guide](../deployment/arm64/ARM64_BUILD_SUMMARY.md)
