@@ -764,7 +764,7 @@ For more detailed information on specific components, refer to these documentati
 - [High-Level API](high_level_api.md): Simplified interface for common operations
 - [FSSpec Integration](../integration/fsspec_integration.md): Filesystem-like interface for IPFS
 - [Tiered Cache System](../reference/tiered_cache.md): Multi-tier caching architecture
-- [Cluster Management](cluster_management.md): Advanced cluster coordination
-- [AI/ML Integration](ai_ml.md): Machine learning tools and integrations
-- [Knowledge Graph](knowledge_graph.md): IPLD-based knowledge representation
+- [Cluster Management](../operations/cluster_management.md): Advanced cluster coordination
+- [AI/ML Integration](../integration/ai-ml/ai_ml.md): Machine learning tools and integrations
+- [Knowledge Graph](../knowledge_graph.md): IPLD-based knowledge representation
 - [Storage Backends](../reference/storage_backends.md): External storage system integrations
