@@ -1,6 +1,6 @@
 # Filesystem Backend Architecture - Quick Reference
 
-> **Full Review**: See [FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md](./FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md) for complete documentation
+> **Full Review**: See [FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md](../architecture/FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md) for complete documentation
 
 ---
 
@@ -404,7 +404,7 @@ Config files:
 
 ## Next Steps
 
-1. **Read full review**: [FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md](./FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md)
+1. **Read full review**: [FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md](../architecture/FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md)
 2. **Stakeholder review**: Validate findings and recommendations
 3. **Plan Phase 2**: Begin interface unification design
 4. **Track progress**: Create issues for each migration phase
@@ -414,7 +414,7 @@ Config files:
 
 ## Questions?
 
-- **Full documentation**: [FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md](./FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md)
+- **Full documentation**: [FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md](../architecture/FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md)
 - **Architecture issues**: See Section 4 of full review
 - **Migration plan**: See Section 7 of full review
 - **Code examples**: See Section 8 of full review
