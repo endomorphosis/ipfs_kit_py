@@ -684,9 +684,9 @@ widget = manager.create_widget(config, data_provider=get_data)
 ## Support and Resources
 
 ### Documentation
-- [Complete Roadmap](COMPLETE_ROADMAP_IMPLEMENTATION.md)
-- [API Reference](api/api_reference.md)
-- [Examples](../examples/)
+- [Roadmap Implementation Summary](../../project/ROADMAP_IMPLEMENTATION_SUMMARY.md)
+- [API Reference](../../api/api_reference.md)
+- [Examples](../../../examples/)
 
 ### Community
 - GitHub Issues: Report bugs or request features
