@@ -2,7 +2,7 @@
 
 **Version**: 2.0  
 **Last Updated**: February 2, 2026  
-**Related**: [BACKEND_TESTS_IMPLEMENTATION.md](../BACKEND_TESTS_IMPLEMENTATION.md)
+**Related**: [BACKEND_TESTS_IMPLEMENTATION.md](../docs/testing/BACKEND_TESTS_IMPLEMENTATION.md)
 
 ---
 
@@ -612,8 +612,8 @@ from tests.backend_fixtures import temp_dir, temp_file
 - [pytest Documentation](https://docs.pytest.org/)
 - [pytest-cov Documentation](https://pytest-cov.readthedocs.io/)
 - [unittest.mock Documentation](https://docs.python.org/3/library/unittest.mock.html)
-- [Backend Architecture Review](../FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md)
-- [Backend Tests Implementation](../BACKEND_TESTS_IMPLEMENTATION.md)
+- [Backend Architecture Review](../docs/architecture/FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md)
+- [Backend Tests Implementation](../docs/testing/BACKEND_TESTS_IMPLEMENTATION.md)
 
 ---
 
