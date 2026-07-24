@@ -342,7 +342,7 @@ chmod +x ~/actions-runner/*.sh
 - [Runner security](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions)
 
 ### Repository Documentation
-- [Full Setup Guide](docs/GITHUB_RUNNER_SETUP.md) - Comprehensive documentation
+- [Full Setup Guide](../deployment/ci-cd/GITHUB_RUNNER_SETUP.md) - Comprehensive documentation
 - [Quick Start](RUNNER_QUICK_START.md) - 5-minute setup guide
 - [Workflow Status Report](WORKFLOW_STATUS_REPORT.md) - Current workflow analysis
 
@@ -401,4 +401,4 @@ chmod +x scripts/*.sh
 
 ---
 
-**Questions?** Check the full documentation in `docs/GITHUB_RUNNER_SETUP.md`
+**Questions?** Check the full documentation in `../deployment/ci-cd/GITHUB_RUNNER_SETUP.md`
