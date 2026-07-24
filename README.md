@@ -813,6 +813,8 @@ pytest tests/test_cluster_startup.py -v
 
 We welcome contributions! Fork the repository, create a feature branch, and open a pull request with your changes.
 
+Use the [pull request template](.github/PULL_REQUEST_TEMPLATE.md) when opening a PR, and refer to the [documentation index](docs/index.md) for the project’s maintained guides and references.
+
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
