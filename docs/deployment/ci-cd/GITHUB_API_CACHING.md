@@ -322,7 +322,7 @@ ipfs-kit autoheal status
 - [GitHub API Rate Limiting](https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting)
 - [IPFS Documentation](https://docs.ipfs.io/)
 - [libp2p Gossipsub Spec](https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/README.md)
-- [IPFS Kit Caching](../ipfs_kit_py/gh_cache.py)
+- [IPFS Kit Caching](../../../ipfs_kit_py/gh_cache.py)
 
 ---
 
