@@ -12,17 +12,17 @@
 
 | Audience | Start Here | Purpose |
 |----------|------------|---------|
-| **Executives/Managers** | [Visual Summary](./BACKEND_ARCHITECTURE_VISUAL_SUMMARY.md) | Quick overview with diagrams |
+| **Executives/Managers** | [Visual Summary](../architecture/BACKEND_ARCHITECTURE_VISUAL_SUMMARY.md) | Quick overview with diagrams |
 | **Developers (new)** | [Quick Reference](../status_reports/BACKEND_REVIEW_QUICK_REFERENCE.md) | How to use backends now |
-| **Architects/Leads** | [Full Review](./FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md) | Complete analysis |
-| **Contributors** | [Full Review § 8](./FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md#8-best-practices-guide) | Best practices for new code |
+| **Architects/Leads** | [Full Review](../architecture/FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md) | Complete analysis |
+| **Contributors** | [Full Review § 8](../architecture/FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md#8-best-practices-guide) | Best practices for new code |
 
 ---
 
 ## 📚 Document Overview
 
 ### 1. Visual Summary (23KB) ⭐ START HERE
-**File**: [BACKEND_ARCHITECTURE_VISUAL_SUMMARY.md](./BACKEND_ARCHITECTURE_VISUAL_SUMMARY.md)
+**File**: [BACKEND_ARCHITECTURE_VISUAL_SUMMARY.md](../architecture/BACKEND_ARCHITECTURE_VISUAL_SUMMARY.md)
 
 **Contents**:
 - Architecture diagrams (ASCII art)
@@ -59,7 +59,7 @@
 ---
 
 ### 3. Comprehensive Review (38KB) 📖 COMPLETE ANALYSIS
-**File**: [FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md](./FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md)
+**File**: [FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md](../architecture/FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md)
 
 **Contents**:
 - Executive summary
