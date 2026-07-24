@@ -43,18 +43,18 @@ python servers/enhanced_mcp_server_with_full_config.py
 ### **Essential Guides**
 
 - **[MCP Development Status](ARCHIVE/status-reports/MCP_DEVELOPMENT_STATUS.md)** - **Primary reference for current implementation**
-- **[Production Readiness Report](PRODUCTION_READINESS_REPORT.md)** - Deployment validation and operational readiness
-- **[Getting Started Guide](GETTING_STARTED.md)** - Quick setup and deployment instructions
+- **[Production Readiness Summary](project/FINAL_PROJECT_COMPLETION.md)** - Deployment validation and operational readiness
+- **[Getting Started Guide](guides/README.md)** - Quick setup and deployment instructions
 - **[Installation Guide](installation_guide.md)** - Comprehensive installation and setup
-- **[Project Structure](../PROJECT_STRUCTURE.md)** - File organization and navigation guide
+- **[Project Structure](DOCUMENTATION_INDEX.md)** - File organization and navigation guide
 
 ### **Architecture & Implementation**
 
-- **[Architecture Overview](ARCHITECTURE.md)** - System design and component interaction
+- **[Architecture Overview](architecture/REFACTORED_ARCHITECTURE_README.md)** - System design and component interaction
 - **[API Reference](api/api_reference.md)** - Complete REST API documentation
 - **[Core Concepts](api/core_concepts.md)** - Fundamental principles and implementation
 - **[Storage Backends](reference/storage_backends.md)** - Multi-backend integration details
-- **[MCP Roadmap](mcp_roadmap.md)** - Detailed technical development roadmap
+- **[MCP Roadmap](ROADMAP_FEATURES.md)** - Detailed technical development roadmap
 
 ### **Operations & Development**
 
@@ -65,10 +65,10 @@ python servers/enhanced_mcp_server_with_full_config.py
 
 ### **Advanced Features**
 
-- **[Authentication Extension](auth_extension.md)** - Security and access control (planned Q3 2025)
+- **[Authentication Extension](operations/cluster_authentication.md)** - Security and access control
 - **[AI/ML Integration](integration/ai-ml/ai_ml_integration.md)** - Machine learning and dataset management
 - **[Streaming Guide](reference/streaming_guide.md)** - WebSocket and WebRTC real-time communication
-- **[Migration Guide](routing_migration_guide.md)** - Data routing and backend migration
+- **[Migration Guide](MCP_SERVER_MIGRATION_GUIDE.md)** - Data routing and backend migration
 - [Knowledge Graph](knowledge_graph.md) - IPLD-based knowledge representation
 - [libp2p Integration](integration/libp2p_integration.md) - Direct peer-to-peer communication
 - [Cluster State](operations/cluster_state_helpers.md) - Distributed state management
@@ -77,11 +77,11 @@ python servers/enhanced_mcp_server_with_full_config.py
 ### **Reference Materials**
 
 - **[Changelog](../CHANGELOG.md)** - Version history and feature updates
-- **[Contributing Guide](CONTRIBUTING.md)** - Development workflow and contribution guidelines
-- **[Release Notes](RELEASE_NOTES.md)** - Detailed release information and breaking changes
+- **[Contributing Guide](../README.md#-contributing)** - Development workflow and contribution guidelines
+- **[Release Notes](../CHANGELOG.md)** - Detailed release information and breaking changes
 - [PyPI Release Guide](pypi_release.md) - Publishing to PyPI
 - [Containerization and Deployment](containerization.md) - Docker and Kubernetes deployment
-- [CI/CD Pipeline](ci_cd_pipeline.md) - Continuous integration and deployment
+- [CI/CD Pipeline](deployment/ci-cd/ci_cd_pipeline.md) - Continuous integration and deployment
 
 ## 🏗️ **Current Implementation Status**
 
