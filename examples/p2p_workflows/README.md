@@ -280,6 +280,6 @@ To add new example workflows:
 
 ## Further Reading
 
-- [P2P Workflow Guide](../../P2P_WORKFLOW_GUIDE.md)
+- [P2P Workflow Guide](../../docs/features/P2P_WORKFLOW_GUIDE.md)
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
 - [IPFS Documentation](https://docs.ipfs.tech/)
