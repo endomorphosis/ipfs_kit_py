@@ -337,7 +337,7 @@ See `examples/p2p_workflows/` for:
 ## Further Reading
 
 - [Full Guide](P2P_WORKFLOW_GUIDE.md)
-- [Examples](examples/p2p_workflows/README.md)
+- [Examples](../../examples/p2p_workflows/README.md)
 - [GitHub Actions Docs](https://docs.github.com/en/actions)
 - [IPFS Docs](https://docs.ipfs.tech/)
 
