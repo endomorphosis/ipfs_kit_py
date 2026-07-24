@@ -1,6 +1,8 @@
 ### Short Description:
 <!--Provide a brief description of the purpose of the pull request. What does this PR aim to achieve? -->
 
+<!-- See the [contribution guide](../README.md#-contributing) and [documentation index](../docs/index.md) for the project workflow and maintained documentation. -->
+
 ### What Has Changed:
 <!--Outline the key changes made in this PR. What was added, removed, or refactored? Mention any new features, bug fixes, or important changes to the project.-->
 - Describe first change
@@ -14,11 +16,12 @@
 
 ### Relevant documentation:
 <!--Documentation that is relevant to the code changes. If it wasn't updated provide a short explanation as to why.--> 
-- docs/example
+- [Documentation index](../docs/index.md)
+- Add links to any guides or references changed by this PR, or explain why documentation did not need to change.
 
 ### Relevant tests:
 <!--Tests that are relevant to the code changes. If the test wasn't written provide a short explanation as to why.-->
-- tests/test
+- Add links to relevant test files and commands, or explain why no test was added.
 
 ### Checklist
 - [ ] My code follows the code style of this project
