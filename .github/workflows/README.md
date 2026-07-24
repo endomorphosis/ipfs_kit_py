@@ -70,7 +70,7 @@ For these workflows to function properly, the following secrets must be configur
 
 ## Additional Resources
 
-For more detailed information on how to use these workflows, please refer to the [CI/CD documentation](/docs/CI_CD.md).
+For more detailed information on how to use these workflows, please refer to the [CI/CD documentation](../../docs/deployment/ci-cd/CI_CD.md).
 
 ## Architecture-Specific Workflows
 
