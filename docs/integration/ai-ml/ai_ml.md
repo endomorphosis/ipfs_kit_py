@@ -8,7 +8,7 @@ The core AI/ML components are found in `ipfs_kit_py/ai_ml_integration.py` and in
 
 -   **`ModelRegistry`**: Store, version, and retrieve ML models using IPFS CIDs with automatic framework detection
 -   **`DatasetManager`**: Manage ML datasets with versioning, metadata tracking, and format detection
--   **`IPFSDataLoader`**: High-performance data loader with background prefetching and framework adapters ([See Separate Docs](ipfs_dataloader.md))
+-   **`IPFSDataLoader`**: High-performance data loader with background prefetching and framework adapters ([See Separate Docs](../../ipfs_dataloader.md))
 -   **`LangchainIntegration` / `LlamaIndexIntegration`**: Bridge IPFS content with popular LLM frameworks
 -   **`DistributedTraining`**: Coordinate ML training tasks across IPFS Kit clusters with result aggregation
 
@@ -376,7 +376,7 @@ if hasattr(data_loader, 'to_tensorflow'):
 data_loader.close()
 ```
 
-For more details about the `IPFSDataLoader`, see the dedicated documentation: [IPFS DataLoader Docs](ipfs_dataloader.md).
+For more details about the `IPFSDataLoader`, see the dedicated documentation: [IPFS DataLoader Docs](../../ipfs_dataloader.md).
 
 ## Langchain Integration
 
@@ -1089,7 +1089,7 @@ viz.plot_comprehensive_dashboard(output_file="ai_ml_dashboard.html")
 
 ## Related Documentation
 
-- [IPFS DataLoader Documentation](ipfs_dataloader.md) - Detailed guide for the data loading component
-- [Cluster Management](cluster_management.md) - Information about the cluster architecture used by distributed training
-- [Knowledge Graph](knowledge_graph.md) - Documentation for the IPLD knowledge graph system that can be integrated with AI/ML
-- [Tiered Cache System](../reference/tiered_cache.md) - Details about the caching system used by AI/ML components
+- [IPFS DataLoader Documentation](../../ipfs_dataloader.md) - Detailed guide for the data loading component
+- [Cluster Management](../../operations/cluster_management.md) - Information about the cluster architecture used by distributed training
+- [Knowledge Graph](../../knowledge_graph.md) - Documentation for the IPLD knowledge graph system that can be integrated with AI/ML
+- [Tiered Cache System](../../reference/tiered_cache.md) - Details about the caching system used by AI/ML components
