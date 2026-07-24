@@ -434,4 +434,4 @@ All tests are CI/CD ready with mock mode support and follow established best pra
 **Related Documents**:
 - [BACKEND_TESTS_REVIEW.md](./BACKEND_TESTS_REVIEW.md) - Original review
 - [BACKEND_TESTS_QUICK_REFERENCE.md](./BACKEND_TESTS_QUICK_REFERENCE.md) - Quick guide
-- [FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md](./FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md) - Architecture
+- [FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md](../architecture/FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md) - Architecture
