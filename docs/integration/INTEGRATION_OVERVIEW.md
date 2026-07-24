@@ -5,11 +5,11 @@
 This document provides an overview of the comprehensive integration of `ipfs_datasets_py` and `ipfs_accelerate_py` across the IPFS Kit Python repository.
 
 **Related Documentation:**
-- [COMPLETE_INTEGRATION_SUMMARY.md](../COMPLETE_INTEGRATION_SUMMARY.md) - Detailed summary with statistics
-- [MCP_INTEGRATION_ARCHITECTURE.md](../MCP_INTEGRATION_ARCHITECTURE.md) - MCP tool architecture guide
+- [COMPLETE_INTEGRATION_SUMMARY.md](../status_reports/COMPLETE_INTEGRATION_SUMMARY.md) - Detailed summary with statistics
+- [MCP_INTEGRATION_ARCHITECTURE.md](../architecture/MCP_INTEGRATION_ARCHITECTURE.md) - MCP tool architecture guide
 - [IPFS_DATASETS_INTEGRATION.md](./IPFS_DATASETS_INTEGRATION.md) - Base integration patterns
 - [IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md](./IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md) - Complete reference
-- [VFS_BUCKET_GRAPHRAG_INTEGRATION.md](./VFS_BUCKET_GRAPHRAG_INTEGRATION.md) - GraphRAG architecture
+- [VFS_BUCKET_GRAPHRAG_INTEGRATION.md](../features/graphrag/VFS_BUCKET_GRAPHRAG_INTEGRATION.md) - GraphRAG architecture
 
 ---
 
@@ -393,19 +393,19 @@ git submodule update --init external/ipfs_accelerate_py
 ## 📚 Documentation Index
 
 ### Integration Documentation
-- [COMPLETE_INTEGRATION_SUMMARY.md](../COMPLETE_INTEGRATION_SUMMARY.md) - Summary with statistics
-- [MCP_INTEGRATION_ARCHITECTURE.md](../MCP_INTEGRATION_ARCHITECTURE.md) - Architecture guide
+- [COMPLETE_INTEGRATION_SUMMARY.md](../status_reports/COMPLETE_INTEGRATION_SUMMARY.md) - Summary with statistics
+- [MCP_INTEGRATION_ARCHITECTURE.md](../architecture/MCP_INTEGRATION_ARCHITECTURE.md) - Architecture guide
 - [INTEGRATION_OVERVIEW.md](./INTEGRATION_OVERVIEW.md) - This document
 
 ### Detailed Guides
 - [IPFS_DATASETS_INTEGRATION.md](./IPFS_DATASETS_INTEGRATION.md) - Base patterns
 - [IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md](./IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md) - Complete reference
-- [VFS_BUCKET_GRAPHRAG_INTEGRATION.md](./VFS_BUCKET_GRAPHRAG_INTEGRATION.md) - GraphRAG architecture
+- [VFS_BUCKET_GRAPHRAG_INTEGRATION.md](../features/graphrag/VFS_BUCKET_GRAPHRAG_INTEGRATION.md) - GraphRAG architecture
 
 ### Core Documentation
 - [README.md](../README.md) - Main repository documentation
-- [core_concepts.md](./core_concepts.md) - Core concepts
-- [api_reference.md](./api_reference.md) - API reference
+- [core_concepts.md](../api/core_concepts.md) - Core concepts
+- [api_reference.md](../api/api_reference.md) - API reference
 
 ---
 
@@ -418,7 +418,7 @@ When adding new features to IPFS Kit Python, consider integrating with ipfs_data
 3. **Update docs**: Document the new integration
 4. **Graceful fallbacks**: Ensure CI/CD compatibility
 
-See [MCP_INTEGRATION_ARCHITECTURE.md](../MCP_INTEGRATION_ARCHITECTURE.md) for detailed guidelines.
+See [MCP_INTEGRATION_ARCHITECTURE.md](../architecture/MCP_INTEGRATION_ARCHITECTURE.md) for detailed guidelines.
 
 ---
 
