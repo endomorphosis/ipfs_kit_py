@@ -254,9 +254,9 @@ docker run --rm ipfs-kit-py:amd64 python -c "import ipfs_kit_py"
 ## Related Documentation
 
 - [AMD64 CI Setup Guide](AMD64_CI_SETUP.md) - Detailed setup instructions
-- [ARM64 Quick Reference](ARM64_MONITORING_QUICK_REF.md) - ARM64 equivalent
-- [Multi-Arch Quick Reference](MULTI_ARCH_QUICK_REF.md) - Multi-arch overview
-- [Workflow README](.github/workflows/README.md) - All workflows
+- [ARM64 Quick Reference](../../deployment/arm64/ARM64_MONITORING_QUICK_REF.md) - ARM64 equivalent
+- [Multi-Arch Quick Reference](../../deployment/multi-arch/MULTI_ARCH_QUICK_REF.md) - Multi-arch overview
+- [Workflow README](../../../.github/workflows/README.md) - All workflows
 
 ## Quick Checks
 
