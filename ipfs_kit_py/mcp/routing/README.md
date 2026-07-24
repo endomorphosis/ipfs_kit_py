@@ -230,7 +230,7 @@ For global deployments, the system can:
 
 ## Further Reading
 
-- [MCP Server Architecture](../architecture.md)
-- [Storage Backend Integration](../storage/backends.md)
-- [Migration Controller Documentation](../migration/readme.md)
-- [Advanced Configuration Options](../configuration.md)
+- [MCP Server Architecture](../../../docs/architecture/MCP_INTEGRATION_ARCHITECTURE.md)
+- [Storage Backend Integration](../../../docs/reference/storage_backends.md)
+- [Migration Controller Documentation](../../../docs/migration/MCP_SERVER_MIGRATION_GUIDE.md)
+- [Advanced Configuration Options](../../../docs/README.md#configuration-secrets-management)
