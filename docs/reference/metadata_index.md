@@ -374,7 +374,7 @@ kit = ipfs_kit(
 )
 ```
 
-For more details, see the [Metadata Replication](metadata_replication.md) documentation.
+For more details, see the [Metadata Replication](../metadata_replication.md) documentation.
 
 ## Implementation Details
 
