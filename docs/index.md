@@ -84,6 +84,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - [CI/CD Pipeline](deployment/ci-cd/ci_cd_pipeline.md) - Continuous integration and deployment
 - [GitHub Actions Workflow Syntax Guidelines](../.github/WORKFLOW_SYNTAX_GUIDELINES.md) - Avoid JavaScript and YAML interpolation syntax errors in workflow scripts
 - [CI/CD Issue Template](../.github/ISSUE_TEMPLATE/ci_cd_issue.md) - Report CI/CD workflow failures
+- [GitHub Copilot Instructions](../.github/copilot-instructions.md) - Guidance for automatically diagnosing and fixing failed workflows
 
 ## 🏗️ **Current Implementation Status**
 
