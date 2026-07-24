@@ -266,11 +266,11 @@ The system checks for recent issues but may create duplicates under load.
 ### Quick Reference
 - **[Quick Reference Guide](./COPILOT_AUTO_HEALING_QUICK_REF.md)** - One-page reference
 - **[Full Documentation](./COPILOT_AUTO_HEALING_GUIDE.md)** - Comprehensive guide
-- **[Original System](./AUTO_HEALING_WORKFLOWS.md)** - Pattern-based system
+- **[Original System](../auto-healing/AUTO_HEALING_WORKFLOWS.md)** - Pattern-based system
 
 ### Examples
-- **[Real-World Examples](./AUTO_HEALING_EXAMPLES.md)** - Example scenarios
-- **[Demo Workflow](./.github/workflows/auto-healing-demo.yml)** - Test the system
+- **[Real-World Examples](../auto-healing/AUTO_HEALING_EXAMPLES.md)** - Example scenarios
+- **[Demo Workflow](../../../.github/workflows/auto-healing-demo.yml)** - Test the system
 
 ### Testing
 ```bash
