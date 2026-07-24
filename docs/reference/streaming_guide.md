@@ -86,7 +86,20 @@ The WebSocket streaming architecture in IPFS Kit uses a tiered approach:
 3. **Content Streaming**: Efficient content transfer from IPFS sources
 4. **Progress Monitoring**: Real-time status updates during transfers
 
-![WebSocket Streaming Architecture](./images/websocket_streaming_architecture.png)
+The request flow is:
+
+```text
+Client
+  │ WebSocket connection
+  ▼
+FastAPI WebSocket endpoint
+  │
+  ▼
+Streaming handler ───────► Progress notifications
+  │
+  ▼
+IPFS content source
+```
 
 ### WebRTC Media Streaming
 
@@ -105,7 +118,18 @@ The WebRTC architecture in IPFS Kit consists of:
 3. **Peer Connection Management**: Efficient management of WebRTC connections
 4. **Quality Adaptation**: Dynamic quality adjustment based on network conditions
 
-![WebRTC Streaming Architecture](./images/webrtc_streaming_architecture.png)
+The media flow is:
+
+```text
+Client A ── WebSocket signaling ──► IPFS Kit
+   │                                  │
+   └──────────── WebRTC peer connection ────────────┐
+                                                    ▼
+                                      IPFS media stream tracks
+                                                    │
+                                                    ▼
+                                                Client B
+```
 
 ### Real-time Notifications
 
@@ -123,7 +147,14 @@ The notification system architecture consists of:
 3. **Subscription Registry**: Tracks which clients are subscribed to which notifications
 4. **Event Emitters**: Various components that generate notification events
 
-![Notification System Architecture](./images/notification_system_architecture.png)
+The notification flow is:
+
+```text
+Event emitters ──► Notification manager ──► Subscription registry
+                           │                         │
+                           └──── WebSocket clients ◄─┘
+                                  (filtered events)
+```
 
 ## WebSocket Streaming Implementation
 
