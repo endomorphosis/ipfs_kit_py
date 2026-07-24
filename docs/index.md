@@ -82,6 +82,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - [PyPI Release Guide](pypi_release.md) - Publishing to PyPI
 - [Containerization and Deployment](containerization.md) - Docker and Kubernetes deployment
 - [CI/CD Pipeline](deployment/ci-cd/ci_cd_pipeline.md) - Continuous integration and deployment
+- [CI/CD Issue Template](../.github/ISSUE_TEMPLATE/ci_cd_issue.md) - Report CI/CD workflow failures
 
 ## 🏗️ **Current Implementation Status**
 
