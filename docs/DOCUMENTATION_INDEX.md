@@ -285,7 +285,7 @@ Core documentation files at the root of docs directory.
 **Implementing Features:**
 1. [Phase 8-12 Features](implementation/phases/PHASE_8_12_FEATURES.md)
 2. [Implementation Blueprint](implementation/phases/MEDIUM_TERM_IMPLEMENTATION_BLUEPRINT.md)
-3. [Feature-specific docs](features/)
+3. [Feature-specific docs](features/STORAGE_FEATURES_DOCUMENTATION_COMPLETE.md)
 
 **Testing:**
 1. [Test Coverage Report](testing/TEST_COVERAGE_COMPREHENSIVE.md)
