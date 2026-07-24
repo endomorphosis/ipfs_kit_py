@@ -1,7 +1,7 @@
 # ipfs_kit_py MCP++ server
 
 A canonical MCP++ server for `ipfs_kit_py`, aligned to the
-[Mcp-Plus-Plus](../../../../Mcp-Plus-Plus) packet spec so third parties
+[Mcp-Plus-Plus](https://github.com/endomorphosis/Mcp-Plus-Plus) packet spec so third parties
 interoperate via the standard. It mirrors the tool-group architecture used in
 `ipfs_datasets_py` and exposes **one** tool registry across four surfaces.
 
