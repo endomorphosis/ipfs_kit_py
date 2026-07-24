@@ -111,7 +111,7 @@ This example shows how to:
 - Collect detailed metrics on API operations
 - Generate performance reports with optimization recommendations
 
-For more details, see the [Performance Profiling Guide](PERFORMANCE_PROFILING.md).
+For more details, see the [Performance Metrics and Benchmarking Guide](../docs/operations/performance_metrics.md).
 
 ### `performance_optimizations.py`
 
@@ -540,9 +540,9 @@ When matplotlib is not available, the example gracefully falls back to data coll
 For complete documentation on all IPFS Kit features:
 
 1. Start with the [Documentation Index](../docs/README.md)
-2. Review the [Core Concepts](../docs/core_concepts.md) document
-3. Read the [High-Level API](../docs/high_level_api.md) documentation
-4. Explore feature-specific guides like [Tiered Cache](../docs/tiered_cache.md)
+2. Review the [Core Concepts](../docs/api/core_concepts.md) document
+3. Read the [High-Level API](../docs/api/high_level_api.md) documentation
+4. Explore feature-specific guides like [Tiered Cache](../docs/reference/tiered_cache.md)
 
 ## Adding More Examples
 
