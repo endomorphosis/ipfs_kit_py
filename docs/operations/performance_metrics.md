@@ -478,7 +478,7 @@ The comprehensive dashboard provides:
 - Interactive controls (with Plotly)
 
 For more detailed information and advanced usage, see:
-- [AI/ML Visualization Guide](ai_ml_visualization.md)
+- [AI/ML Visualization Guide](../integration/ai-ml/ai_ml_visualization.md)
 - Example: `examples/ai_ml_visualization_example.py`
 
 ## Performance Optimization
