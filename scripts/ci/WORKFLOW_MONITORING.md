@@ -301,7 +301,7 @@ fi
 
 ## Related Documentation
 
-- [ARM64 Monitoring Guide](../../ARM64_MONITORING_GUIDE.md)
-- [ARM64 Monitoring Implementation](../../ARM64_MONITORING_IMPLEMENTATION.md)
+- [ARM64 Monitoring Guide](../../docs/deployment/arm64/ARM64_MONITORING_GUIDE.md)
+- [ARM64 Monitoring Implementation](../../docs/deployment/arm64/ARM64_MONITORING_IMPLEMENTATION.md)
 - [GitHub Actions Workflows](../../.github/workflows/README.md)
 - [CI/CD Documentation](../README.md)
