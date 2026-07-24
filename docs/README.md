@@ -34,7 +34,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - Troubleshooting tips
 - **Answers:** "How do I...?" "What's the command for...?"
 
-**[Validation Quick Start](VALIDATION_QUICK_START.md)** - *Verify your setup*
+**[Validation Quick Start](guides/VALIDATION_QUICK_START.md)** - *Verify your setup*
 - Test installation
 - Run example operations
 - Check cluster connectivity
@@ -93,7 +93,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - Min/max replica constraints with auto-repair
 - **Answers:** "How do replicas work?" "Replication strategies?" "High availability setup?"
 
-**[Pin Management](features/pin-management/)** - *Keep content available*
+**[Pin Management](features/pin-management/PIN_MANAGEMENT_GUIDE.md)** - *Keep content available*
 - [Pin Management Guide](features/pin-management/PIN_MANAGEMENT_GUIDE.md) - Complete guide
 - [Quick Start](features/pin-management/PIN_QUICK_START.md) - Get started fast
 - [Filecoin Integration](features/pin-management/FILECOIN_PIN_USER_GUIDE.md) - Filecoin pinning
@@ -102,25 +102,25 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 #### Advanced Features
 
-**[Auto-Healing](features/auto-healing/)** - *Automatic error recovery*
+**[Auto-Healing](features/auto-healing/AUTO_HEALING.md)** - *Automatic error recovery*
 - [Auto-Healing Guide](features/auto-healing/AUTO_HEALING.md) - System overview
 - [Quick Start](features/auto-healing/AUTO_HEALING_QUICKSTART.md) - Setup in 5 minutes
 - [MCP Auto-Healing](features/auto-healing/MCP_AUTO_HEALING.md) - MCP integration
 - **Answers:** "Can it fix itself?" "How does error recovery work?"
 
-**[MCP Server](features/mcp/)** - *Model Context Protocol server*
+**[MCP Server](features/mcp/MCP_DASHBOARD_VALIDATION_REPORT.md)** - *Model Context Protocol server*
 - MCP tool integration
 - Server configuration
 - Custom tools development
 - **Answers:** "What's MCP?" "How do I use it with AI?"
 
-**[Dashboard](features/dashboard/)** - *Web-based management*
+**[Dashboard](features/dashboard/DASHBOARD_CLARIFICATION.md)** - *Web-based management*
 - Dashboard setup
 - Monitoring and metrics
 - Configuration management
 - **Answers:** "Is there a GUI?" "How do I monitor?"
 
-**[VFS (Virtual File System)](features/vfs/)** - *POSIX-like virtual filesystem on IPFS*
+**[VFS (Virtual File System)](features/vfs/VFS_MANAGEMENT_CONSOLIDATION.md)** - *POSIX-like virtual filesystem on IPFS*
 - [VFS Management](features/vfs/VFS_MANAGEMENT_CONSOLIDATION.md) - Complete VFS system
 - [Filesystem Journal](filesystem_journal.md) - Change tracking and journaling
 - POSIX-like operations: mkdir, ls, mv, rm, cp
@@ -129,7 +129,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - Journal replication across nodes
 - **Answers:** "How do I use IPFS like a filesystem?" "What are VFS buckets?" "Filesystem operations?"
 
-**[GraphRAG](features/graphrag/)** - *Knowledge graphs & intelligent search*
+**[GraphRAG](features/graphrag/ENHANCED_GRAPHRAG_MCP_DOCUMENTATION.md)** - *Knowledge graphs & intelligent search*
 - [GraphRAG Documentation](features/graphrag/ENHANCED_GRAPHRAG_MCP_DOCUMENTATION.md) - Complete guide
 - [VFS Integration](features/graphrag/VFS_BUCKET_GRAPHRAG_INTEGRATION.md) - Auto-indexing
 - [Knowledge Graph](knowledge_graph.md) - Graph-based knowledge management
@@ -153,7 +153,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 #### AI/ML Features
 
-**[AI/ML Integration](integration/ai-ml/)** - *Machine learning support*
+**[AI/ML Integration](integration/ai-ml/ai_ml_integration.md)** - *Machine learning support*
 - [AI/ML Integration Guide](integration/ai-ml/ai_ml_integration.md) - Overview
 - [Distributed Training](integration/ai-ml/ai_ml_distributed_training.md) - Train models
 - [Metrics & Visualization](integration/ai-ml/ai_ml_metrics.md) - Track performance
@@ -226,7 +226,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - Container configuration
 - **Answers:** "How do I use Docker?" "Is there an image?"
 
-**[CI/CD Automation](deployment/ci-cd/)** - *Continuous deployment*
+**[CI/CD Automation](deployment/ci-cd/CI_CD.md)** - *Continuous deployment*
 - [CI/CD Summary](deployment/ci-cd/CI_CD_AUTOMATION_SUMMARY.md)
 - [Quick Reference](deployment/ci-cd/CI_CD_AUTOMATION_QUICK_REFERENCE.md)
 - [Integration Plan](deployment/ci-cd/CI_CD_AUTOMATION_INTEGRATION_PLAN.md)
@@ -234,14 +234,14 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - [GitHub API Caching](deployment/ci-cd/GITHUB_API_CACHING.md)
 - **Answers:** "How do I automate deployment?" "CI/CD setup?"
 
-**[Docker Deployment](deployment/docker/)** - *Docker-specific*
+**[Docker Deployment](deployment/docker/DOCKER_QUICK_START.md)** - *Docker-specific*
 
-**[ARM64 Support](deployment/arm64/)** - *ARM architecture*
+**[ARM64 Support](deployment/arm64/ARM64_BUILD_FROM_SOURCE.md)** - *ARM architecture*
 - ARM64 builds
 - Raspberry Pi deployment
 - **Answers:** "Does it run on ARM?" "Raspberry Pi support?"
 
-**[Multi-Architecture](deployment/multi-arch/)** - *Multi-platform*
+**[Multi-Architecture](deployment/multi-arch/MULTI_ARCH_SUPPORT.md)** - *Multi-platform*
 
 **[Observability](operations/observability.md)** - *Monitoring & logging*
 - Logging configuration
@@ -263,7 +263,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 ### Technical Reference
 
-**[Architecture](architecture/)** - *System design*
+**[Architecture](architecture/ARCHITECTURE_MODULE_ORGANIZATION.md)** - *System design*
 - [MCP Integration Architecture](architecture/MCP_INTEGRATION_ARCHITECTURE.md)
 - [Backend Architecture](architecture/BACKEND_ARCHITECTURE_VISUAL_SUMMARY.md)
 - [Filesystem Backend](architecture/FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md)
@@ -392,12 +392,12 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 ### Historical & Archive
 
-**[Testing](testing/)** - *Test documentation*
+**[Testing](testing/BACKEND_TESTING_PROJECT_SUMMARY.md)** - *Test documentation*
 - [100% Coverage Initiative](testing/100_PERCENT_COVERAGE_INITIATIVE.md)
 - [Test Health Matrix](testing/TEST_HEALTH_MATRIX.md)
 - Test reports and summaries
 
-**[ARCHIVE](ARCHIVE/)** - *Historical documentation*
+**[ARCHIVE](ARCHIVE/summaries/README.md)** - *Historical documentation*
 - Previous implementations
 - Old status reports
 - Deprecated features
@@ -416,7 +416,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 2. [Cluster Management](operations/cluster_management.md)
 3. [Cluster Monitoring](operations/cluster_monitoring.md)
 4. [Observability](operations/observability.md)
-5. [Deployment Guides](deployment/)
+5. [Deployment Guides](deployment/READY_TO_TEST_DOCKER.md)
 
 ### Path 3: AI/ML Integration (1 hour)
 1. [Quick Reference](QUICK_REFERENCE.md)
@@ -428,14 +428,14 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 ### Path 4: Production Deployment (3 hours)
 1. [Installation Guide](installation_guide.md)
 2. [Containerization](containerization.md)
-3. [CI/CD Automation](deployment/ci-cd/)
+3. [CI/CD Automation](deployment/ci-cd/CI_CD.md)
 4. [Observability](operations/observability.md)
 5. [Performance Metrics](operations/performance_metrics.md)
-6. [Auto-Healing](features/auto-healing/)
+6. [Auto-Healing](features/auto-healing/AUTO_HEALING.md)
 
 ### Path 5: Advanced Development (4+ hours)
 1. [Core Concepts](api/core_concepts.md)
-2. [Architecture](architecture/)
+2. [Architecture](architecture/ARCHITECTURE_MODULE_ORGANIZATION.md)
 3. [Storage Backends](reference/storage_backends.md)
 4. [Async Architecture](development/async_architecture.md)
 5. [Testing Guide](development/testing_guide.md)
@@ -452,10 +452,10 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 → [Quick Reference](QUICK_REFERENCE.md) → [API Reference](api/api_reference.md)
 
 **"How does X work internally?"**
-→ [Core Concepts](api/core_concepts.md) → [Architecture](architecture/)
+→ [Core Concepts](api/core_concepts.md) → [Architecture](architecture/ARCHITECTURE_MODULE_ORGANIZATION.md)
 
 **"How do I deploy to production?"**
-→ [Containerization](containerization.md) → [CI/CD](deployment/ci-cd/)
+→ [Containerization](containerization.md) → [CI/CD](deployment/ci-cd/CI_CD.md)
 
 **"How do I integrate with Y?"**
 → [Integration Overview](integration/INTEGRATION_OVERVIEW.md) → Specific integration
@@ -464,7 +464,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 → [Examples](../examples/) → [Use Cases in main README](../README.md)
 
 **"Something's not working"**
-→ [Auto-Healing](features/auto-healing/) → [Observability](operations/observability.md)
+→ [Auto-Healing](features/auto-healing/AUTO_HEALING.md) → [Observability](operations/observability.md)
 
 **"How do I contribute?"**
 → [Testing Guide](development/testing_guide.md) → [GitHub](https://github.com/endomorphosis/ipfs_kit_py)
@@ -474,23 +474,23 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 **Application Developers**
 - [API Reference](api/api_reference.md)
 - [Quick Reference](QUICK_REFERENCE.md)
-- [Integration](integration/)
+- [Integration](integration/INTEGRATION_OVERVIEW.md)
 - [Examples](../examples/)
 
 **Data Scientists**
-- [AI/ML Integration](integration/ai-ml/)
+- [AI/ML Integration](integration/ai-ml/ai_ml_integration.md)
 - [IPFS Datasets](integration/IPFS_DATASETS_INTEGRATION.md)
 - [LangChain](integration/langchain_integration.md)
 - [LlamaIndex](integration/llamaindex_integration.md)
 
 **DevOps/SRE**
 - [Cluster Management](operations/cluster_management.md)
-- [Deployment](deployment/)
+- [Deployment](deployment/READY_TO_TEST_DOCKER.md)
 - [Observability](operations/observability.md)
-- [Auto-Healing](features/auto-healing/)
+- [Auto-Healing](features/auto-healing/AUTO_HEALING.md)
 
 **System Architects**
-- [Architecture](architecture/)
+- [Architecture](architecture/ARCHITECTURE_MODULE_ORGANIZATION.md)
 - [Core Concepts](api/core_concepts.md)
 - [Storage Backends](reference/storage_backends.md)
 - [Performance](operations/performance_metrics.md)
@@ -498,7 +498,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 **Contributors**
 - [Testing Guide](development/testing_guide.md)
 - [API Stability](api_stability.md)
-- [Development](development/)
+- [Development](development/testing_guide.md)
 - [GitHub](https://github.com/endomorphosis/ipfs_kit_py)
 
 ## 📖 Documentation Conventions
@@ -530,7 +530,7 @@ Found an issue or want to help?
 3. **Add Examples** - Share your use cases
 4. **Fill Gaps** - Help document undocumented features
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
+See the [Documentation Guide](guides/DOCUMENTATION_GUIDE.md) for contribution guidelines.
 
 ## 📝 Version & Updates
 
