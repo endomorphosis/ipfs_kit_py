@@ -275,11 +275,11 @@ Planned improvements for AMD64 workflows:
 
 ## Related Documentation
 
-- [ARM64 Build Summary](ARM64_BUILD_SUMMARY.md)
-- [ARM64 Testing Guide](ARM64_TESTING.md)
-- [Multi-Architecture Quick Reference](MULTI_ARCH_QUICK_REF.md)
-- [Workflow README](.github/workflows/README.md)
-- [CI/CD Monitoring](../../.github/scripts/ci/WORKFLOW_MONITORING.md)
+- [ARM64 Build Summary](../../deployment/arm64/ARM64_BUILD_SUMMARY.md)
+- [ARM64 Testing Guide](../../deployment/arm64/ARM64_TESTING.md)
+- [Multi-Architecture Quick Reference](../../deployment/multi-arch/MULTI_ARCH_QUICK_REF.md)
+- [Workflow README](../../../.github/workflows/README.md)
+- [CI/CD Monitoring](../../../scripts/ci/WORKFLOW_MONITORING.md)
 
 ## Contributing
 
