@@ -94,7 +94,7 @@ export RUNNER_LABELS="self-hosted,linux,x64,amd64,fast,ssd"
 ## 📚 Full Documentation
 
 - **Script Guide**: [RUNNER_SCRIPTS_GUIDE.md](RUNNER_SCRIPTS_GUIDE.md)
-- **Complete Setup**: [docs/GITHUB_RUNNER_SETUP.md](docs/GITHUB_RUNNER_SETUP.md)
+- **Complete Setup**: [GITHUB_RUNNER_SETUP.md](../deployment/ci-cd/GITHUB_RUNNER_SETUP.md)
 - **Quick Reference**: [RUNNER_QUICK_START.md](RUNNER_QUICK_START.md)
 
 ---
