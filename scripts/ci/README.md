@@ -395,8 +395,8 @@ python scripts/ci/verify_arm64_dependencies.py
 ## Documentation
 
 - [Workflow Monitoring Guide](./WORKFLOW_MONITORING.md) - Detailed documentation for workflow and installation monitoring
-- [ARM64 Monitoring Guide](../../ARM64_MONITORING_GUIDE.md) - ARM64-specific monitoring documentation
-- [ARM64 Implementation](../../ARM64_MONITORING_IMPLEMENTATION.md) - Implementation details
+- [ARM64 Monitoring Guide](../../docs/deployment/arm64/ARM64_MONITORING_GUIDE.md) - ARM64-specific monitoring documentation
+- [ARM64 Implementation](../../docs/deployment/arm64/ARM64_MONITORING_IMPLEMENTATION.md) - Implementation details
 
 ## License
 
