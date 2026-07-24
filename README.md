@@ -251,7 +251,7 @@ api.enable_auto_repair(
 )
 ```
 
-**See Also:** [Cluster Management](docs/operations/cluster_management.md), [Pin Management](docs/features/pin-management/)
+**See Also:** [Cluster Management](docs/operations/cluster_management.md), [Pin Management](docs/features/pin-management/PIN_MANAGEMENT_GUIDE.md)
 
 ## 💾 Multi-Tier Caching System
 
@@ -393,7 +393,7 @@ vfs.write("/docs/paper.pdf", pdf_data,
 results = vfs.search(query="machine learning", content_type="pdf")
 ```
 
-**See Also:** [VFS Management](docs/features/vfs/), [Filesystem Journal](docs/filesystem_journal.md)
+**See Also:** [VFS Management](docs/features/vfs/VFS_MANAGEMENT_CONSOLIDATION.md), [Filesystem Journal](docs/filesystem_journal.md)
 
 ## 🧠 GraphRAG & Knowledge Graphs
 
@@ -462,7 +462,7 @@ print(f"Indexed documents: {stats['document_count']}")
 important = api.get_top_entities(limit=10, metric="centrality")
 ```
 
-**See Also:** [GraphRAG Documentation](docs/features/graphrag/), [Knowledge Graph](docs/knowledge_graph.md)
+**See Also:** [GraphRAG Documentation](docs/features/graphrag/ENHANCED_GRAPHRAG_MCP_DOCUMENTATION.md), [Knowledge Graph](docs/knowledge_graph.md)
 
 ## 🔐 Configuration & Secrets Management
 
@@ -701,8 +701,8 @@ Comprehensive documentation available in [docs/](docs/):
 - **[Quick Reference](docs/QUICK_REFERENCE.md)** - Common operations
 - **[API Reference](docs/api/api_reference.md)** - Complete API docs
 - **[Cluster Guide](docs/operations/cluster_management.md)** - Cluster setup
-- **[AI/ML Integration](docs/integration/ai-ml/)** - Machine learning features
-- **[MCP Server](docs/features/mcp/)** - MCP server documentation
+- **[AI/ML Integration](docs/integration/ai-ml/ai_ml.md)** - Machine learning features
+- **[MCP Server](docs/features/mcp/MCP_DASHBOARD_VALIDATION_REPORT.md)** - MCP server documentation
 - **[Examples](examples/)** - Code examples and tutorials
 
 ## 🎓 Use Cases & Examples
@@ -811,7 +811,7 @@ pytest tests/test_cluster_startup.py -v
 
 ## 🤝 Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+We welcome contributions! Fork the repository, create a feature branch, and open a pull request with your changes.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
