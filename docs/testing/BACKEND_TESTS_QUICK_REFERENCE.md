@@ -366,7 +366,7 @@ def test_operation(self):
 ## Quick Links
 
 - **Full Review**: [BACKEND_TESTS_REVIEW.md](./BACKEND_TESTS_REVIEW.md)
-- **Architecture Review**: [FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md](./FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md)
+- **Architecture Review**: [FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md](../architecture/FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md)
 - **Test Templates**: See Section 8 of full review
 - **Recommendations**: See Section 7 of full review
 
