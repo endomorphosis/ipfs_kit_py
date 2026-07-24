@@ -618,7 +618,7 @@ pytest tests/test_roadmap_features.py::TestMultiRegionCluster -v
 
 ## Contributing
 
-Contributions to these features are welcome! Please see [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
+Contributions to these features are welcome! Please see the [Contributing](../README.md#-contributing) section for guidelines.
 
 ## License
 
