@@ -206,7 +206,7 @@ print(f"Failed operations: {recovery_info['failed_operations']}")
 
 ### Complete Example: fs_journal_example.py
 
-IPFS Kit includes a comprehensive example that demonstrates the filesystem journal functionality in action. You can find this example at `/examples/fs_journal_example.py`.
+IPFS Kit includes a comprehensive example that demonstrates the filesystem journal functionality in action. You can find this [example](../examples/fs_journal_example.py) in the repository.
 
 The example demonstrates:
 
@@ -681,8 +681,8 @@ except Exception as e:
 
 - [Write-Ahead Log (WAL)](reference/write_ahead_log.md): Comprehensive documentation on the Write-Ahead Log system
 - [High-Level API](api/high_level_api.md): Details on using the high-level API
-- [Error Handling](error_handling.md): Information on error handling in IPFS Kit
-- [IPFS Content Addressing](ipfs_content_addressing.md): Understanding IPFS content addressing
-- [Distributed Coordination](distributed_coordination.md): Coordinating filesystem operations across distributed nodes
+- [Error Handling](api/core_concepts.md#error-handling-pattern): Information on error handling in IPFS Kit
+- [IPFS Content Addressing](api/core_concepts.md#content-addressing-the-foundation): Understanding IPFS content addressing
+- [Distributed Coordination](coordination-storage.md): Coordinating filesystem operations across distributed nodes
 
 **Note:** IPFS Cluster specific storage logic is not yet implemented.
