@@ -259,8 +259,8 @@ The monitoring system is ready for use in both local development and CI/CD envir
    ```
 
 3. **Read documentation:**
-   - [MONITORING_GUIDE.md](./MONITORING_GUIDE.md)
-   - [scripts/ci/WORKFLOW_MONITORING.md](./scripts/ci/WORKFLOW_MONITORING.md)
+   - [MONITORING_GUIDE.md](../features/MONITORING_GUIDE.md)
+   - [scripts/ci/WORKFLOW_MONITORING.md](../../scripts/ci/WORKFLOW_MONITORING.md)
 
 4. **Integrate into workflows:**
    - See examples in documentation
