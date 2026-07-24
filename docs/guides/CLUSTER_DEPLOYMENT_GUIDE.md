@@ -503,19 +503,19 @@ env:
 ## 📚 Complete Documentation
 
 ### Core Documentation
-- **[Getting Started Guide](./docs/GETTING_STARTED.md)**: Step-by-step setup tutorial
-- **[API Reference](./docs/API_REFERENCE.md)**: Complete REST API documentation
-- **[Architecture Overview](./docs/ARCHITECTURE.md)**: System design and components
-- **[Test Results](./CLUSTER_TEST_RESULTS.md)**: Comprehensive validation results
+- **[Getting Started Guide](../index.md)**: Step-by-step setup tutorial
+- **[API Reference](../api/api_reference.md)**: Complete REST API documentation
+- **[Architecture Overview](../architecture/REFACTORED_ARCHITECTURE_README.md)**: System design and components
+- **[Test Results](../test_reports/CLUSTER_TEST_RESULTS.md)**: Comprehensive validation results
 
 ### Advanced Guides
-- **[Cluster Management](./docs/CLUSTER_MANAGEMENT.md)**: Advanced cluster operations
-- **[VFS Integration](./docs/VFS_INTEGRATION.md)**: Virtual filesystem usage
-- **[Production Deployment](./docs/PRODUCTION_DEPLOYMENT.md)**: Production best practices
-- **[Performance Tuning](./docs/PERFORMANCE_TUNING.md)**: Optimization guide
-- **[Troubleshooting](./docs/TROUBLESHOOTING.md)**: Common issues and solutions
+- **[Cluster Management](../operations/cluster_management.md)**: Advanced cluster operations
+- **[VFS Integration](../features/vfs/VFS_MANAGEMENT_CONSOLIDATION.md)**: Virtual filesystem usage
+- **[Production Deployment](../deployment/SYSTEMD_MCP_SERVICE_SETUP.md)**: Production best practices
+- **[Performance Tuning](../operations/performance_metrics.md)**: Optimization guide
+- **[Troubleshooting](../README.md)**: Common issues and solutions
 
 ### Development Resources
-- **[Contributing Guide](./CONTRIBUTING.md)**: How to contribute to the project
-- **[Development Setup](./docs/DEVELOPMENT.md)**: Local development environment
-- **[Testing Guide](./docs/TESTING.md)**: Testing procedures and automation
+- **[Contributing Guide](../README.md)**: How to contribute to the project
+- **[Development Setup](../development/async_architecture.md)**: Local development environment
+- **[Testing Guide](../development/testing_guide.md)**: Testing procedures and automation
