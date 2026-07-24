@@ -33,7 +33,7 @@ The comprehensive three-tier policy system for IPFS-Kit has been successfully im
 
 ## ✅ Implementation Details
 
-### 1. Global Pinset Policies (/cli.py lines 875-905)
+### 1. Global Pinset Policies (`ipfs_kit_py/cli.py`, lines 875-905)
 **Command**: `ipfs-kit config pinset-policy {show,set,reset}`
 
 **Features Implemented**:
@@ -46,7 +46,7 @@ The comprehensive three-tier policy system for IPFS-Kit has been successfully im
 - ✅ Backend preferences (weights, exclusions, priorities)
 - ✅ Automatic garbage collection with configurable thresholds
 
-### 2. Bucket-Level Policies (/cli.py lines 970-1025)
+### 2. Bucket-Level Policies (`ipfs_kit_py/cli.py`, lines 970-1025)
 **Command**: `ipfs-kit bucket policy {show,set,copy,template,reset}`
 
 **Features Implemented**:
@@ -133,26 +133,26 @@ The comprehensive three-tier policy system for IPFS-Kit has been successfully im
 ## 📚 Documentation Complete
 
 ### ✅ Core Documentation Files Created
-1. **[POLICY_SYSTEM_DOCUMENTATION.md](./POLICY_SYSTEM_DOCUMENTATION.md)** (7,000+ words)
+1. **[Policy system CLI documentation](../guides/CLI_POLICY_USAGE_GUIDE.md)** (7,000+ words)
    - Complete architecture overview
    - Detailed command reference
    - Backend characteristics matrix
    - Policy inheritance rules
    - Advanced use cases and best practices
 
-2. **[CLI_POLICY_USAGE_GUIDE.md](./CLI_POLICY_USAGE_GUIDE.md)** (8,000+ words)  
+2. **[CLI_POLICY_USAGE_GUIDE.md](../guides/CLI_POLICY_USAGE_GUIDE.md)** (8,000+ words)
    - Comprehensive CLI command examples
    - Backend-specific configuration guides
    - Troubleshooting and error resolution
    - Monitoring and analytics commands
 
-3. **[Updated README.md](./README.md)**
+3. **[Updated README.md](../../README.md)**
    - Policy system overview in key features
    - Enhanced quick start with policy examples
    - Comprehensive configuration section
    - Updated API reference with policy commands
 
-4. **[Updated CHANGELOG.md](./CHANGELOG.md)**
+4. **[Updated CHANGELOG.md](../../CHANGELOG.md)**
    - Complete v3.1.0 release notes
    - Feature descriptions and benefits
    - Documentation updates summary
@@ -186,7 +186,7 @@ The comprehensive three-tier policy system for IPFS-Kit has been successfully im
 
 ## 🛠️ Technical Implementation
 
-### ✅ CLI Integration (/cli.py)
+### ✅ CLI Integration (`ipfs_kit_py/cli.py`)
 - **Lines 875-905**: Global pinset policy command parser
 - **Lines 970-1025**: Bucket policy command parser  
 - **Lines 200-900**: Enhanced all backend configure parsers with quotas
@@ -295,5 +295,5 @@ The three-tier policy system transforms IPFS-Kit from a basic storage tool into 
 1. **Start with global policies**: `ipfs-kit config pinset-policy set --help`
 2. **Configure bucket policies**: `ipfs-kit bucket policy set --help`  
 3. **Set backend quotas**: `ipfs-kit backend <name> configure --help`
-4. **Read the documentation**: [POLICY_SYSTEM_DOCUMENTATION.md](./POLICY_SYSTEM_DOCUMENTATION.md)
-5. **Follow the CLI guide**: [CLI_POLICY_USAGE_GUIDE.md](./CLI_POLICY_USAGE_GUIDE.md)
+4. **Read the documentation**: [policy system CLI documentation](../guides/CLI_POLICY_USAGE_GUIDE.md)
+5. **Follow the CLI guide**: [CLI_POLICY_USAGE_GUIDE.md](../guides/CLI_POLICY_USAGE_GUIDE.md)
