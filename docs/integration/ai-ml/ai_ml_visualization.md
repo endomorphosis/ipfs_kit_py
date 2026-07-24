@@ -62,7 +62,7 @@ viz.plot_training_metrics(
 )
 ```
 
-![Training Metrics Example](../examples/ai_ml_viz_output/training_metrics.png)
+[Training Metrics Example](../../../examples/ai_ml_visualization_example.py)
 
 ### Inference Latency
 
@@ -361,7 +361,7 @@ viz.plot_training_metrics(
 )
 ```
 
-![Training Metrics Example](../examples/ai_ml_viz_output/training_metrics.png)
+[Training Metrics Example](../../../examples/ai_ml_visualization_example.py)
 
 ### Inference Latency
 
