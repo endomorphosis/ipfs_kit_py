@@ -782,10 +782,10 @@ These recording rules provide:
 - [API Integration](/ipfs_kit_py/api.py): FastAPI integration for the Prometheus metrics endpoint
 
 ### Example Dashboards
-- [System Dashboard](/kubernetes/grafana-dashboard-configmap.yaml): Pre-configured system metrics dashboard
-- [Operations Dashboard](/kubernetes/grafana-dashboard-configmap.yaml): Pre-configured operations metrics dashboard
-- [IPFS Core Dashboard](/kubernetes/grafana-dashboard-configmap.yaml): Pre-configured IPFS-specific metrics dashboard
+- [System Dashboard](../../config/deployment/kubernetes/grafana-dashboard-configmap.yaml): Pre-configured system metrics dashboard
+- [Operations Dashboard](../../config/deployment/kubernetes/grafana-dashboard-configmap.yaml): Pre-configured operations metrics dashboard
+- [IPFS Core Dashboard](../../config/deployment/kubernetes/grafana-dashboard-configmap.yaml): Pre-configured IPFS-specific metrics dashboard
 
 ### Deployment Examples
-- [Prometheus Deployment](/kubernetes/prometheus-deployment.yaml): Kubernetes deployment for Prometheus
-- [Grafana Deployment](/kubernetes/grafana-deployment.yaml): Kubernetes deployment for Grafana
+- [Prometheus Deployment](../../config/deployment/kubernetes/prometheus-deployment.yaml): Kubernetes deployment for Prometheus
+- [Grafana Deployment](../../config/deployment/kubernetes/grafana-deployment.yaml): Kubernetes deployment for Grafana
