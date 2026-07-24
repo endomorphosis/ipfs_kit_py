@@ -438,8 +438,8 @@ logging.getLogger("ipfs_kit_py.wal_telemetry_tracing").setLevel(logging.DEBUG)
 
 ## Further Reading
 
-- [WAL Telemetry Documentation](wal_telemetry.md)
-- [WAL Telemetry Prometheus Integration](wal_telemetry_prometheus.md) 
+- [WAL Telemetry Documentation](../telemetry_api.md)
+- [WAL Telemetry Prometheus Integration](wal_telemetry_ai_ml.md#prometheus-integration)
 - [WAL Telemetry Distributed Tracing](wal_telemetry_tracing.md)
 - [OpenTelemetry Documentation](https://opentelemetry.io/docs/)
 - [Prometheus Documentation](https://prometheus.io/docs/)
