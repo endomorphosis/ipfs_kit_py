@@ -234,4 +234,4 @@ To improve the build-from-source functionality:
 
 - [ARM64 Testing Guide](ARM64_TESTING.md)
 - [ARM64 Compatibility Report](ARM64_COMPATIBILITY_REPORT.md)
-- [GitHub Actions Workflows](../.github/workflows/README.md)
+- [GitHub Actions Workflows](../../../.github/workflows/README.md)
