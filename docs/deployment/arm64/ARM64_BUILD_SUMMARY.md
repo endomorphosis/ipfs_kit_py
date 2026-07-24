@@ -228,5 +228,5 @@ Currently supported for automatic build-from-source:
 ## Related Files
 
 - [ARM64_BUILD_FROM_SOURCE.md](ARM64_BUILD_FROM_SOURCE.md) - Detailed documentation
-- [tests/test_arm64_build_from_source.py](tests/test_arm64_build_from_source.py) - Test script
-- [.github/workflows/arm64-ci.yml](.github/workflows/arm64-ci.yml) - CI workflow
+- [tests/test_arm64_build_from_source.py](../../../tests/test_arm64_build_from_source.py) - Test script
+- [.github/workflows/arm64-ci.yml](../../../.github/workflows/arm64-ci.yml) - CI workflow
