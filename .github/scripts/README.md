@@ -2,6 +2,9 @@
 
 This directory contains Python scripts for automated workflow failure analysis and fix generation.
 
+This guide is part of the project’s maintained CI/CD documentation. Return to the
+[IPFS Kit documentation index](../../docs/index.md) for the complete documentation map.
+
 ## Scripts
 
 ### 1. analyze_workflow_failure.py
