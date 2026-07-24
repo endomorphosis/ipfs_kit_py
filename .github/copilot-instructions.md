@@ -3,6 +3,11 @@
 ## Context
 You are helping to automatically fix failed GitHub Actions workflows in this repository.
 
+## Documentation Navigation
+Use the [IPFS Kit documentation index](../docs/index.md) as the canonical entrypoint for
+repository documentation. It includes this Copilot guidance alongside the maintained
+user, developer, and operations guides.
+
 ## Your Role
 When invoked by the auto-healing system, you should:
 
