@@ -165,6 +165,11 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - Graph analytics (centrality, importance scoring)
 - **Answers:** "What's GraphRAG?" "How do I search semantically?" "Knowledge graph setup?" "Vector search?"
 
+**[P2P Workflow Guide](features/P2P_WORKFLOW_GUIDE.md)** - *Distributed workflow coordination*
+- [P2P Workflow Quick Reference](features/P2P_WORKFLOW_QUICK_REF.md) - CLI, Python API, MCP tools, and common patterns
+- Peer coordination, workflow assignment, tagging, and status management
+- **Answers:** "How do I submit a distributed workflow?" "How are workflows assigned to peers?"
+
 ### Integration (Connect with Other Tools)
 
 **[Integration Overview](integration/INTEGRATION_OVERVIEW.md)** - *Third-party integrations*

@@ -2,6 +2,8 @@
 
 Quick reference guide for using the P2P Workflow Management system.
 
+**Navigation:** [P2P Workflow Guide](P2P_WORKFLOW_GUIDE.md) · [Feature documentation](../README.md) · [Documentation home](../index.md)
+
 ## Installation
 
 ```bash
