@@ -35,6 +35,11 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - Verification steps
 - **Answers:** "How do I install?" "What do I need?"
 
+**[Installer Documentation](INSTALLER_DOCUMENTATION.md)** - *Install optional IPFS Kit dependencies*
+- Installer entry points exposed by the package
+- Optional dependency and external-daemon considerations
+- CI and system-safety notes before downloading binaries
+
 **[Quick Reference](QUICK_REFERENCE.md)** - *Your cheat sheet*
 - Common operations with examples
 - CLI commands
