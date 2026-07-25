@@ -4,6 +4,8 @@
 **Branch:** copilot/validate-cicd-changes  
 **Status:** ✅ **VALIDATION COMPLETE - ALL SYSTEMS OPERATIONAL**
 
+> **Documentation navigation:** This maintained summary is indexed from the repository's [documentation index](../index.md) and [documentation README](../README.md). See the [documentation guide](../guides/DOCUMENTATION_GUIDE.md) for the broader documentation map.
+
 ---
 
 ## Objective
