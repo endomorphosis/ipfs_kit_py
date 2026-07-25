@@ -393,6 +393,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Documentation Plan](documentation_plan.md)** - *Doc strategy*
 
+**[100% Coverage Roadmap](100_PERCENT_COVERAGE_ROADMAP.md)** - *Test coverage plan and progress*
+
 **[Performance Optimization](performance_optimization_roadmap.md)** - *Optimization roadmap*
 
 **[Telemetry API](telemetry_api.md)** - *Telemetry endpoints*
