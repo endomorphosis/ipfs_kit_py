@@ -403,6 +403,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Complete AnyIO Migration Summary](COMPLETE_ANYIO_MIGRATION_SUMMARY.md)** - *Migration results, test coverage, and implementation details*
 
+**[Comprehensive Columnar IPLD Implementation](implementation/COMPREHENSIVE_COLUMNAR_IPLD_IMPLEMENTATION_COMPLETE.md)** - *Columnar IPLD storage, Parquet-CAR conversion, peer distribution, and dashboard integration*
+
 **[CI/CD Workflows Completion Summary](implementation/COMPLETION_SUMMARY.txt)** - *CI/CD workflow validation results, tooling, and continuous-monitoring coverage*
 
 **[Apache Arrow IPC Zero-Copy Implementation](implementation/ARROW_IPC_ZERO_COPY_IMPLEMENTATION.md)** - *Zero-copy daemon access, fallback behavior, and validation*
