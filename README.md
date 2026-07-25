@@ -706,6 +706,7 @@ Comprehensive documentation available in [docs/](docs/):
 - **[CI/CD Automation Validation Complete](docs/deployment/ci-cd/CI_CD_AUTOMATION_VALIDATION_COMPLETE.md)** - Validation results and resolved automation issues
 - **[Complete Auto-Healing Implementation Summary](docs/deployment/ci-cd/COMPLETE_AUTO_HEALING_SUMMARY.md)** - Comprehensive auto-healing architecture, coverage, and usage
 - **[Comprehensive Error Fixes](docs/implementation/COMPREHENSIVE_ERROR_FIXES_COMPLETE.md)** - Import compatibility, daemon management, filesystem access, libp2p fallbacks, and resilient error handling
+- **[Comprehensive IPFS Kit Improvements](docs/implementation/COMPREHENSIVE_IMPROVEMENTS_COMPLETE.md)** - Enhanced cluster daemon management, health monitoring, LibP2P recovery, dashboard APIs, and integration testing
 - **[Copilot Auto-Healing Guide](COPILOT_AUTO_HEALING_GUIDE.md)** - Root-level guide for configuring and operating Copilot-powered workflow recovery
 - **[AI/ML Integration](docs/integration/ai-ml/ai_ml.md)** - Machine learning features
 - **[MCP Server](docs/features/mcp/MCP_DASHBOARD_VALIDATION_REPORT.md)** - MCP server documentation
