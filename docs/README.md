@@ -13,7 +13,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 **Building something specific?** Jump to:
 - [Cluster Setup](#cluster--distributed-storage) - Multi-node deployments
 - [AI/ML Integration](#aiml-features) - Machine learning workloads
-- [MCP Server](#mcp-server--tools) - Model Context Protocol
+- [MCP Server](#features-capabilities-you-can-use) - Model Context Protocol
 - [Production Deployment](#deployment--operations) - Docker, Kubernetes, CI/CD
 
 ## 📚 Documentation Map
