@@ -417,6 +417,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Daemon Architecture Refactoring](implementation/DAEMON_ARCHITECTURE_REFACTORING_COMPLETE.md)** - *Daemon-based architecture, lightweight clients, service launcher, and backend management*
 
+**[Daemon Filesystem Fixes](implementation/DAEMON_FILESYSTEM_FIXES_COMPLETE.md)** - *Filesystem initialization fixes, daemon startup fallbacks, and resilient configuration handling*
+
 **[CI/CD Workflows Completion Summary](implementation/COMPLETION_SUMMARY.txt)** - *CI/CD workflow validation results, tooling, and continuous-monitoring coverage*
 
 **[Apache Arrow IPC Zero-Copy Implementation](implementation/ARROW_IPC_ZERO_COPY_IMPLEMENTATION.md)** - *Zero-copy daemon access, fallback behavior, and validation*
