@@ -133,6 +133,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - [Workflow Examples](features/auto-healing/AUTO_HEALING_EXAMPLES.md) - Real-world auto-healing scenarios
 - [MCP Auto-Healing](features/auto-healing/MCP_AUTO_HEALING.md) - MCP integration
 - [GitHub Copilot Auto-Healing Guide](features/copilot/COPILOT_AUTO_HEALING_GUIDE.md) - Configure and operate Copilot-powered workflow recovery
+- [GitHub Copilot Auto-Healing Implementation Summary](features/copilot/COPILOT_AUTO_HEALING_IMPLEMENTATION_SUMMARY.md) - Implementation, validation, architecture, and deployment summary
 - **Answers:** "Can it fix itself?" "How does error recovery work?"
 
 **[MCP Server](features/mcp/MCP_DASHBOARD_VALIDATION_REPORT.md)** - *Model Context Protocol server*
