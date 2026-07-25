@@ -40,6 +40,11 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - Optional dependency and external-daemon considerations
 - CI and system-safety notes before downloading binaries
 
+**[Submodule-Scope Release Checklist](RELEASE_CHECKLIST_SUBMODULE_SCOPE.md)** - *Prepare submodule-scoped VFS integration releases and merges*
+- Scope and runtime policy checks
+- Required test evidence
+- Metadata, sync, conflict-policy, and sign-off checks
+
 **[Quick Reference](QUICK_REFERENCE.md)** - *Your cheat sheet*
 - Common operations with examples
 - CLI commands

@@ -86,6 +86,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - **[Complete PR Summary](COMPLETE_PR_SUMMARY.md)** - Implementation, test coverage, and deployment summary for the completed roadmap feature work
 - **[Final Comprehensive PR Summary](FINAL_COMPREHENSIVE_PR_SUMMARY.md)** - Detailed implementation, testing, documentation, and roadmap coverage summary
 - **[Final Test Coverage Report](FINAL_TEST_COVERAGE_REPORT.md)** - Detailed final test statistics and feature coverage
+- **[Submodule-Scope Release Checklist](RELEASE_CHECKLIST_SUBMODULE_SCOPE.md)** - Release and merge checks for submodule-scoped VFS integration work
 - **[Contributing Guide](../README.md#-contributing)** - Development workflow and contribution guidelines
 - **[Configuration Requirements](../config/requirements.txt)** - WebRTC monitoring and async runtime dependencies
 - **[Release Notes](../CHANGELOG.md)** - Detailed release information and breaking changes
