@@ -127,6 +127,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - [GitHub Actions Auto-Healing Scripts](../.github/scripts/README.md) - Analyze workflow failures and generate fix proposals
 - [GitHub Actions Auto-Healing Workflows](../.github/workflows/AUTO_HEAL_README.md) - Configure and troubleshoot automatic workflow failure recovery
 - [GitHub Actions Workflow Syntax Guidelines](../.github/WORKFLOW_SYNTAX_GUIDELINES.md) - Avoid JavaScript and YAML interpolation syntax errors in workflow scripts
+- [Workflow Failure Auto-Fix Summary](fixes/AUTOFIX_WORKFLOW_FIX_SUMMARY.md) - Root cause, fixes, validation, and operation flow for workflow failure auto-healing
 - [CI/CD Issue Template](../.github/ISSUE_TEMPLATE/ci_cd_issue.md) - Report CI/CD workflow failures
 - [GitHub Copilot Instructions](../.github/copilot-instructions.md) - Guidance for automatically diagnosing and fixing failed workflows
 
