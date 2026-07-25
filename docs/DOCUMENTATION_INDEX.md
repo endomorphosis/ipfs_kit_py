@@ -226,6 +226,7 @@ Deployment guides for various platforms.
 | File | Description |
 |------|-------------|
 | [DOCKER_QUICK_START.md](deployment/docker/DOCKER_QUICK_START.md) | Docker quick start |
+| [DOCKER_ARCH_TESTS.md](deployment/docker/DOCKER_ARCH_TESTS.md) | Docker architecture test workflow and validation |
 | [DOCKER_MULTIARCH_SUMMARY.md](deployment/docker/DOCKER_MULTIARCH_SUMMARY.md) | Multi-architecture Docker |
 | [TAILWIND_BUILD.md](deployment/TAILWIND_BUILD.md) | Build the production dashboard stylesheet |
 
