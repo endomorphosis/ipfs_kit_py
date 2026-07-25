@@ -64,6 +64,7 @@ Detailed implementation summaries for specific features.
 | [IMPLEMENTATION_COMPLETE_SUMMARY.md](implementation/IMPLEMENTATION_COMPLETE_SUMMARY.md) | Overall implementation summary |
 | [COMPREHENSIVE_COLUMNAR_IPLD_IMPLEMENTATION_COMPLETE.md](implementation/COMPREHENSIVE_COLUMNAR_IPLD_IMPLEMENTATION_COMPLETE.md) | Columnar IPLD storage, Parquet-CAR conversion, and dashboard integration |
 | [COMPREHENSIVE_DASHBOARD_ENHANCEMENT_COMPLETE.md](implementation/COMPREHENSIVE_DASHBOARD_ENHANCEMENT_COMPLETE.md) | Comprehensive monitoring, VFS observability, vector and knowledge-base analytics, configuration management, and real-time dashboard capabilities |
+| [DASHBOARD_IMPLEMENTATION_SUMMARY.md](implementation/DASHBOARD_IMPLEMENTATION_SUMMARY.md) | Centralized dashboard architecture, monitoring, analytics, APIs, configuration, and web interface implementation |
 | [COMPREHENSIVE_ERROR_FIXES_COMPLETE.md](implementation/COMPREHENSIVE_ERROR_FIXES_COMPLETE.md) | Import compatibility, daemon management, filesystem access, libp2p fallbacks, and resilient error handling |
 | [COMPREHENSIVE_LOGGING_IMPLEMENTATION.md](implementation/COMPREHENSIVE_LOGGING_IMPLEMENTATION.md) | Backend log collection, aggregation, API access, rotation, and dashboard observability |
 | [COMPREHENSIVE_IMPROVEMENTS_COMPLETE.md](implementation/COMPREHENSIVE_IMPROVEMENTS_COMPLETE.md) | Enhanced cluster daemon management, health monitoring, LibP2P recovery, dashboard APIs, and integration testing |
