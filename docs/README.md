@@ -408,6 +408,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Comprehensive Dashboard Enhancement](implementation/COMPREHENSIVE_DASHBOARD_ENHANCEMENT_COMPLETE.md)** - *Comprehensive monitoring, VFS observability, vector and knowledge-base analytics, configuration management, and real-time dashboard capabilities*
 
+**[Service Configuration Diagnostic Summary](implementation/DIAGNOSTIC_SUMMARY.md)** - *Diagnostic evidence and troubleshooting steps for dashboard service-configuration forms*
+
 **[Comprehensive Error Fixes](implementation/COMPREHENSIVE_ERROR_FIXES_COMPLETE.md)** - *Import compatibility, daemon management, filesystem access, libp2p fallbacks, and resilient error handling*
 
 **[Comprehensive Logging System](implementation/COMPREHENSIVE_LOGGING_IMPLEMENTATION.md)** - *Backend log collection, aggregation, API access, rotation, and dashboard observability*
