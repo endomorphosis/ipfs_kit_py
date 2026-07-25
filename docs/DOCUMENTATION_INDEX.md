@@ -72,6 +72,7 @@ Detailed implementation summaries for specific features.
 | [COMPLETION_SUMMARY.txt](implementation/COMPLETION_SUMMARY.txt) | CI/CD workflow validation results and continuous-monitoring coverage |
 | [CLUSTER_CONFIG_IMPLEMENTATION_COMPLETE.md](implementation/CLUSTER_CONFIG_IMPLEMENTATION_COMPLETE.md) | Cluster Service and Cluster Follow configuration implementation, MCP integration, and deployment usage |
 | [CLUSTER_FOLLOW_ENHANCEMENT_COMPLETE.md](implementation/CLUSTER_FOLLOW_ENHANCEMENT_COMPLETE.md) | Enhanced Cluster Follow daemon management, worker/follower synchronization, health monitoring, and Kubernetes deployment support |
+| [DUCKDB_PARQUET_CONVERSION_COMPLETE.md](implementation/DUCKDB_PARQUET_CONVERSION_COMPLETE.md) | Pin metadata index migration from SQLite to DuckDB and Parquet-backed analytical storage |
 | *(140+ additional implementation docs in subdirectories)* | Various feature implementations |
 
 ---

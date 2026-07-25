@@ -436,6 +436,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Cluster Follow Enhancement](implementation/CLUSTER_FOLLOW_ENHANCEMENT_COMPLETE.md)** - *Enhanced Cluster Follow daemon management, worker/follower synchronization, health monitoring, and Kubernetes deployment support*
 
+**[DuckDB + Parquet Conversion](implementation/DUCKDB_PARQUET_CONVERSION_COMPLETE.md)** - *Pin metadata index migration, columnar persistence, analytical queries, and API compatibility*
+
 **[Reorganization Guide](guides/REORGANIZATION_GUIDE.md)** - *Project structure*
 
 ### Configuration & Secrets Management
