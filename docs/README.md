@@ -475,6 +475,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Dashboard Configuration Form Pre-fill Fix](fixes/DASHBOARD_CONFIG_FIX.md)** - *Technical details for loading saved dashboard credentials into service configuration forms*
 
+**[Lotus Dependencies Docker Pre-installation Fix](fixes/LOTUS_DEPS_DOCKER_FIX.md)** - *Pre-install Lotus and OpenCL dependencies in Docker images and detect them across supported architectures*
+
 **[100% Coverage Roadmap](100_PERCENT_COVERAGE_ROADMAP.md)** - *Test coverage plan and progress*
 
 **[Test Coverage Improvements](TEST_COVERAGE_IMPROVEMENTS.md)** - *GraphRAG and bucket metadata export/import coverage improvements*
