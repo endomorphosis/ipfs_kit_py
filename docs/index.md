@@ -60,6 +60,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 
 - **[Testing Guide](development/testing_guide.md)** - Comprehensive testing infrastructure and validation
 - **[Test Coverage Improvements](TEST_COVERAGE_IMPROVEMENTS.md)** - GraphRAG and bucket metadata export/import coverage improvements
+- **[Test Coverage Phase 3](TEST_COVERAGE_PHASE3.md)** - Deep coverage analysis and targeted tests for S3 Gateway, WASM, GraphRAG, and analytics
 - **[Final Test Coverage Report](TEST_COVERAGE_FINAL.md)** - Final roadmap-feature test results and module coverage
 - **[Test Coverage Extension](TEST_COVERAGE_EXTENSION.md)** - Extended coverage details and follow-up work
 - **[100% Coverage Roadmap](100_PERCENT_COVERAGE_ROADMAP.md)** - Test coverage plan and progress
