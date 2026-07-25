@@ -229,6 +229,7 @@ Deployment guides for various platforms.
 | [DOCKER_ARCH_TESTS.md](deployment/docker/DOCKER_ARCH_TESTS.md) | Docker architecture test workflow and validation |
 | [DOCKER_MULTIARCH_SUMMARY.md](deployment/docker/DOCKER_MULTIARCH_SUMMARY.md) | Multi-architecture Docker |
 | [DOCKER_TEST_RESULTS.md](deployment/docker/DOCKER_TEST_RESULTS.md) | Docker dependency pre-installation test results |
+| [MULTI_ARCH_IMPLEMENTATION_SUMMARY.md](deployment/multi-arch/MULTI_ARCH_IMPLEMENTATION_SUMMARY.md) | Multi-architecture CI/CD, Docker, package, and architecture-test implementation |
 | [TAILWIND_BUILD.md](deployment/TAILWIND_BUILD.md) | Build the production dashboard stylesheet |
 
 ### CI/CD

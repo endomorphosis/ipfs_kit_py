@@ -294,6 +294,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Multi-Architecture](deployment/multi-arch/MULTI_ARCH_SUPPORT.md)** - *Multi-platform*
 - [Multi-Architecture CI/CD Fix](deployment/multi-arch/MULTI_ARCH_CI_FIX.md) - Dependency, package-manager lock, and cross-architecture CI guidance
+- [Multi-Architecture Implementation Summary](deployment/multi-arch/MULTI_ARCH_IMPLEMENTATION_SUMMARY.md) - CI/CD, Docker, package, and architecture-test implementation details
 
 **[Observability](operations/observability.md)** - *Monitoring & logging*
 - Logging configuration
