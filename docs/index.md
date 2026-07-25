@@ -82,6 +82,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - [PyPI Release Guide](pypi_release.md) - Publishing to PyPI
 - [Containerization and Deployment](containerization.md) - Docker and Kubernetes deployment
 - [CI/CD Pipeline](deployment/ci-cd/ci_cd_pipeline.md) - Continuous integration and deployment
+- [Security Scanning Workflow](../.github/workflows/security.yml) - Dependency, code, and container security scans
 - [GitHub Actions Auto-Healing Scripts](../.github/scripts/README.md) - Analyze workflow failures and generate fix proposals
 - [GitHub Actions Auto-Healing Workflows](../.github/workflows/AUTO_HEAL_README.md) - Configure and troubleshoot automatic workflow failure recovery
 - [GitHub Actions Workflow Syntax Guidelines](../.github/WORKFLOW_SYNTAX_GUIDELINES.md) - Avoid JavaScript and YAML interpolation syntax errors in workflow scripts

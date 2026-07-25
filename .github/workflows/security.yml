@@ -1,5 +1,8 @@
 name: Security Scanning
 
+# Documentation navigation: see the [IPFS Kit documentation index](../../docs/index.md)
+# and the [CI/CD workflow map](README.md) for this workflow's maintained entrypoints.
+
 on:
   push:
     branches: [ main, develop ]
