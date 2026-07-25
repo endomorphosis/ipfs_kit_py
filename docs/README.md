@@ -325,6 +325,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - CI integration
 - **Answers:** "How do I test?" "Where are the tests?"
 
+**[Final Test Coverage Report](TEST_COVERAGE_FINAL.md)** - *Final roadmap-feature test results and module coverage*
+
 **[Test Coverage Extension](TEST_COVERAGE_EXTENSION.md)** - *Extended coverage details and follow-up work*
 - Coverage additions for S3 Gateway, WASM, analytics, and multi-region features
 - Known API mismatches and optional dependency considerations
