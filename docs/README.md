@@ -465,6 +465,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Backend Configuration Modal Fix](fixes/BACKEND_MODAL_FIX_SUMMARY.md)** - *Backend configuration modal button wiring, MCP tool integration, and end-to-end validation*
 
+**[Configuration Save and Persistence Fix](fixes/CONFIGURATION_FIX_DOCUMENTATION.md)** - *Detailed dashboard configuration persistence, service application, API, and validation documentation*
+
 **[100% Coverage Roadmap](100_PERCENT_COVERAGE_ROADMAP.md)** - *Test coverage plan and progress*
 
 **[Test Coverage Improvements](TEST_COVERAGE_IMPROVEMENTS.md)** - *GraphRAG and bucket metadata export/import coverage improvements*
