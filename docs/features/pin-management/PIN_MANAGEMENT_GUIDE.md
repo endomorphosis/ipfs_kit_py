@@ -1,5 +1,7 @@
 # Pin Management Dashboard - Implementation Guide
 
+> For dashboard mockups, responsive layouts, and interaction flows, see the [Pin Management Visual Guide](PIN_VISUAL_GUIDE.md).
+
 ## Overview
 
 The Pin Management Dashboard provides comprehensive tools for managing IPFS pins through the MCP (Model Context Protocol) server. This implementation connects the dashboard UI to backend MCP tools for real-time pin management.

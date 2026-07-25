@@ -123,6 +123,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - [Filecoin Integration](features/pin-management/FILECOIN_PIN_USER_GUIDE.md) - Filecoin pinning
 - [Filecoin Pin Configuration](features/pin-management/FILECOIN_PIN_CONFIGURATION.md) - Configuration examples for Filecoin-backed pinning
 - [Dashboard Features](features/pin-management/PIN_DASHBOARD_FEATURES.md) - Web interface
+- [Visual Guide](features/pin-management/PIN_VISUAL_GUIDE.md) - Dashboard mockups, flows, and interaction states
 - **Answers:** "How do I keep content?" "What's pinning?" "How does replication work?"
 
 #### Advanced Features
