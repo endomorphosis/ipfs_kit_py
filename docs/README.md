@@ -22,6 +22,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Installation Guide](installation_guide.md)** - *Start here if you're new*
 - System requirements and dependencies
+- [Configuration Requirements](../config/requirements.txt) - WebRTC monitoring and async runtime dependencies
 - Installation methods (pip, source, Docker)
 - Initial configuration
 - Verification steps
