@@ -98,6 +98,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - **[Cluster Configuration Implementation](implementation/CLUSTER_CONFIG_IMPLEMENTATION_COMPLETE.md)** - Cluster Service and Cluster Follow configuration APIs, MCP tools, dashboard access, and deployment examples
 - **[Cluster Follow Enhancement](implementation/CLUSTER_FOLLOW_ENHANCEMENT_COMPLETE.md)** - Enhanced Cluster Follow daemon management, worker/follower synchronization, health monitoring, and Kubernetes deployment support
 - **[DuckDB + Parquet Conversion](implementation/DUCKDB_PARQUET_CONVERSION_COMPLETE.md)** - Pin metadata index migration, columnar persistence, analytical queries, and API compatibility
+- **[Encrypted Configuration Storage](implementation/ENCRYPTED_CONFIG_SUMMARY.md)** - Encrypted credential storage, configuration migration, key rotation, and secure configuration access
 - [Knowledge Graph](knowledge_graph.md) - IPLD-based knowledge representation
 - [libp2p Integration](integration/libp2p_integration.md) - Direct peer-to-peer communication
 - [Cluster State](operations/cluster_state_helpers.md) - Distributed state management
