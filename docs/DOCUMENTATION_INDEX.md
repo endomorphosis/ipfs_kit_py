@@ -168,6 +168,7 @@ Feature-specific documentation organized by feature area.
 |------|-------------|
 | [PIN_MANAGEMENT_GUIDE.md](features/pin-management/PIN_MANAGEMENT_GUIDE.md) | Pin management guide |
 | [PIN_QUICK_START.md](features/pin-management/PIN_QUICK_START.md) | Quick start guide |
+| [PIN_IMPLEMENTATION_README.md](features/pin-management/PIN_IMPLEMENTATION_README.md) | Pin dashboard implementation summary |
 | [FILECOIN_PIN_USER_GUIDE.md](features/pin-management/FILECOIN_PIN_USER_GUIDE.md) | Filecoin pin guide |
 
 ### VFS Features
