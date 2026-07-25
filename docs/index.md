@@ -87,6 +87,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - **[Comprehensive Columnar IPLD Implementation](implementation/COMPREHENSIVE_COLUMNAR_IPLD_IMPLEMENTATION_COMPLETE.md)** - Columnar IPLD storage, Parquet-CAR conversion, peer distribution, and dashboard integration
 - **[Comprehensive Dashboard Enhancement](implementation/COMPREHENSIVE_DASHBOARD_ENHANCEMENT_COMPLETE.md)** - Comprehensive monitoring, VFS observability, vector and knowledge-base analytics, configuration management, and real-time dashboard capabilities
 - **[Dashboard Implementation Summary](implementation/DASHBOARD_IMPLEMENTATION_SUMMARY.md)** - Centralized dashboard architecture, monitoring, analytics, APIs, configuration, and web interface implementation
+- **[Service Configuration Diagnostic Summary](implementation/DIAGNOSTIC_SUMMARY.md)** - Diagnostic evidence and troubleshooting steps for dashboard service-configuration forms
 - **[Comprehensive Error Fixes](implementation/COMPREHENSIVE_ERROR_FIXES_COMPLETE.md)** - Import compatibility, daemon management, filesystem access, libp2p fallbacks, and resilient error handling
 - **[Comprehensive Logging System](implementation/COMPREHENSIVE_LOGGING_IMPLEMENTATION.md)** - Backend log collection, aggregation, API access, rotation, and dashboard observability
 - **[Comprehensive IPFS Kit Improvements](implementation/COMPREHENSIVE_IMPROVEMENTS_COMPLETE.md)** - Enhanced cluster daemon management, health monitoring, LibP2P recovery, dashboard APIs, and integration testing
