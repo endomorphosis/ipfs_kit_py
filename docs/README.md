@@ -442,6 +442,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Enhanced VFS Download System](implementation/ENHANCED_VFS_DOWNLOAD_COMPLETE.md)** - *CLI-integrated, metadata-aware, parallel VFS downloads with backend selection and progress reporting*
 
+**[Enhanced VFS Package Refactoring](implementation/ENHANCED_VFS_PACKAGE_REFACTORING_COMPLETE.md)** - *Package integration, CLI wiring, multiprocessing compatibility, and migration guidance for the enhanced VFS extractor*
+
 **[Encrypted Configuration Storage](implementation/ENCRYPTED_CONFIG_SUMMARY.md)** - *Encrypted credential storage, configuration migration, key rotation, and secure configuration access*
 
 **[Enhanced Parquet Metadata](implementation/ENHANCED_PARQUET_METADATA_COMPLETE.md)** - *Git VFS translation, remote backend metadata, health monitoring, snapshots, and extended pin tracking*
