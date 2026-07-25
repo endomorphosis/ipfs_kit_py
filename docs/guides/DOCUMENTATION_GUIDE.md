@@ -106,6 +106,7 @@ This guide helps you navigate the comprehensive documentation for IPFS Kit Pytho
 - Performance guidelines
 - Troubleshooting
 - CI/CD compatibility
+- [GitHub Actions Runner Quick Start](../ci-cd/START_RUNNER_HERE.md) - Set up a self-hosted runner
 - Testing information
 
 ### For Managers/Decision Makers
