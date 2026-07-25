@@ -99,6 +99,7 @@ Test coverage reports, migration guides, and testing strategies.
 | [TEST_ARCHITECTURE_COMPATIBILITY_REVIEW.md](testing/TEST_ARCHITECTURE_COMPATIBILITY_REVIEW.md) | Test architecture review |
 | [100_PERCENT_COVERAGE_INITIATIVE.md](testing/100_PERCENT_COVERAGE_INITIATIVE.md) | Path to 100% coverage |
 | [ROADMAP_TO_100_PERCENT_COVERAGE.md](testing/ROADMAP_TO_100_PERCENT_COVERAGE.md) | Coverage improvement roadmap |
+| [PHASE6_TESTING_GUIDE.md](PHASE6_TESTING_GUIDE.md) | Phase 6 test-suite guide |
 
 ---
 

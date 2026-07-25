@@ -61,6 +61,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - **[Testing Guide](development/testing_guide.md)** - Comprehensive testing infrastructure and validation
 - **[100% Coverage Roadmap](100_PERCENT_COVERAGE_ROADMAP.md)** - Test coverage plan and progress
 - **[Final Test Coverage Report](FINAL_TEST_COVERAGE_REPORT.md)** - Final test results and coverage by feature
+- **[Phase 6 Testing Guide](PHASE6_TESTING_GUIDE.md)** - How to run, maintain, and extend the Phase 6 test suite
 - **[Phase 6 Final Summary](PHASE6_FINAL_SUMMARY.md)** - Final Phase 6 test-suite inventory, coverage targets, and maintenance guidance
 - **[Server Selection Guide](../servers/README.md)** - Production vs. development server guidance
 - **[Deployment Guide](guides/CLUSTER_DEPLOYMENT_GUIDE.md)** - Production cluster deployment instructions
