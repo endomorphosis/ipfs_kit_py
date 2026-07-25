@@ -411,6 +411,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Phase 6 Complete Coverage Report](PHASE6_COMPLETE_COVERAGE_REPORT.md)** - *Complete Phase 6 test coverage achievement by module and test category*
 
+**[Phase 6 Final Summary](PHASE6_FINAL_SUMMARY.md)** - *Final inventory of the Phase 6 test suite, coverage targets, and maintenance guidance*
+
 **[Final Test Coverage Report](FINAL_TEST_COVERAGE_REPORT.md)** - *Final test results and coverage by feature*
 
 **[Performance Optimization](performance_optimization_roadmap.md)** - *Optimization roadmap*
