@@ -293,6 +293,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - **Answers:** "Does it run on ARM?" "Raspberry Pi support?"
 
 **[Multi-Architecture](deployment/multi-arch/MULTI_ARCH_SUPPORT.md)** - *Multi-platform*
+- [Multi-Architecture CI/CD Fix](deployment/multi-arch/MULTI_ARCH_CI_FIX.md) - Dependency, package-manager lock, and cross-architecture CI guidance
 
 **[Observability](operations/observability.md)** - *Monitoring & logging*
 - Logging configuration
