@@ -129,6 +129,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - [GitHub Actions Workflow Syntax Guidelines](../.github/WORKFLOW_SYNTAX_GUIDELINES.md) - Avoid JavaScript and YAML interpolation syntax errors in workflow scripts
 - [Workflow Failure Auto-Fix Summary](fixes/AUTOFIX_WORKFLOW_FIX_SUMMARY.md) - Root cause, fixes, validation, and operation flow for workflow failure auto-healing
 - [Backend Integration Fix](fixes/BACKEND_INTEGRATION_FIX.md) - Backend-compatible service configuration formats and dashboard integration flow
+- [Backend Configuration Modal Fix](fixes/BACKEND_MODAL_FIX_SUMMARY.md) - Backend configuration modal button wiring, MCP tool integration, and end-to-end validation
 - [CI/CD Issue Template](../.github/ISSUE_TEMPLATE/ci_cd_issue.md) - Report CI/CD workflow failures
 - [GitHub Copilot Instructions](../.github/copilot-instructions.md) - Guidance for automatically diagnosing and fixing failed workflows
 
