@@ -408,6 +408,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Comprehensive IPFS/Filecoin Backend Implementation Plan](implementation/FILECOIN_IPFS_BACKEND_IMPLEMENTATION_PLAN.md)** - *Seven-phase roadmap for Filecoin pinning, retrieval, CAR/IPLD support, discovery, routing, and developer tooling*
 
+**[Filecoin Pin Backend Final Summary](implementation/FILECOIN_PIN_FINAL_SUMMARY.md)** - *Final implementation status, integrations, CLI/MCP capabilities, and validation results for Filecoin-backed pinning*
+
 **[Comprehensive Columnar IPLD Implementation](implementation/COMPREHENSIVE_COLUMNAR_IPLD_IMPLEMENTATION_COMPLETE.md)** - *Columnar IPLD storage, Parquet-CAR conversion, peer distribution, and dashboard integration*
 
 **[Comprehensive Dashboard Enhancement](implementation/COMPREHENSIVE_DASHBOARD_ENHANCEMENT_COMPLETE.md)** - *Comprehensive monitoring, VFS observability, vector and knowledge-base analytics, configuration management, and real-time dashboard capabilities*
