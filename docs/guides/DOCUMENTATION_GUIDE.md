@@ -109,6 +109,7 @@ This guide helps you navigate the comprehensive documentation for IPFS Kit Pytho
 - [GitHub Actions Runner Quick Start](../ci-cd/START_RUNNER_HERE.md) - Set up a self-hosted runner
 - [CI/CD Automation Validation Complete](../deployment/ci-cd/CI_CD_AUTOMATION_VALIDATION_COMPLETE.md) - Review CI/CD automation validation results
 - [Complete Auto-Healing Implementation Summary](../deployment/ci-cd/COMPLETE_AUTO_HEALING_SUMMARY.md) - Review the auto-healing architecture, coverage, and usage
+- [Comprehensive Error Fixes](../implementation/COMPREHENSIVE_ERROR_FIXES_COMPLETE.md) - Review import compatibility, daemon management, filesystem access, libp2p fallbacks, and error handling
 - Testing information
 
 ### For Managers/Decision Makers
