@@ -440,6 +440,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Enhanced Pin Integration](implementation/ENHANCED_PIN_INTEGRATION_COMPLETE.md)** - *Unified enhanced pin metadata, VFS integration, multi-tier storage analytics, and operational tooling*
 
+**[Enhanced VFS Download System](implementation/ENHANCED_VFS_DOWNLOAD_COMPLETE.md)** - *CLI-integrated, metadata-aware, parallel VFS downloads with backend selection and progress reporting*
+
 **[Encrypted Configuration Storage](implementation/ENCRYPTED_CONFIG_SUMMARY.md)** - *Encrypted credential storage, configuration migration, key rotation, and secure configuration access*
 
 **[Enhanced Parquet Metadata](implementation/ENHANCED_PARQUET_METADATA_COMPLETE.md)** - *Git VFS translation, remote backend metadata, health monitoring, snapshots, and extended pin tracking*
