@@ -13,5 +13,7 @@ below to find the maintained contents:
 Additional maintained artifacts are organized by their purpose:
 
 - `screenshots/` contains visual validation artifacts.
-- `test_results/` contains test-run outputs and recommendations.
+- `test_results/` contains test-run outputs and recommendations, including the
+  [ARM64 support recommendations](test_results/arm64_recommendations.txt) for
+  the repository's GitHub Actions workflows.
 - `deprecations_report.schema.json` defines the deprecation report format.
