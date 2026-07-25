@@ -411,6 +411,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Cluster Configuration Implementation](implementation/CLUSTER_CONFIG_IMPLEMENTATION_COMPLETE.md)** - *Cluster Service and Cluster Follow configuration APIs, MCP tools, dashboard access, and deployment examples*
 
+**[Cluster Follow Enhancement](implementation/CLUSTER_FOLLOW_ENHANCEMENT_COMPLETE.md)** - *Enhanced Cluster Follow daemon management, worker/follower synchronization, health monitoring, and Kubernetes deployment support*
+
 **[Reorganization Guide](guides/REORGANIZATION_GUIDE.md)** - *Project structure*
 
 ### Configuration & Secrets Management

@@ -85,6 +85,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - **[Complete AnyIO Migration Summary](COMPLETE_ANYIO_MIGRATION_SUMMARY.md)** - Migration results, test coverage, and implementation details
 - **[AnyIO Migration Batch 7 Verification](implementation/BATCH7_VERIFICATION.txt)** - Verification report for the Batch 7 migration
 - **[Cluster Configuration Implementation](implementation/CLUSTER_CONFIG_IMPLEMENTATION_COMPLETE.md)** - Cluster Service and Cluster Follow configuration APIs, MCP tools, dashboard access, and deployment examples
+- **[Cluster Follow Enhancement](implementation/CLUSTER_FOLLOW_ENHANCEMENT_COMPLETE.md)** - Enhanced Cluster Follow daemon management, worker/follower synchronization, health monitoring, and Kubernetes deployment support
 - [Knowledge Graph](knowledge_graph.md) - IPLD-based knowledge representation
 - [libp2p Integration](integration/libp2p_integration.md) - Direct peer-to-peer communication
 - [Cluster State](operations/cluster_state_helpers.md) - Distributed state management
