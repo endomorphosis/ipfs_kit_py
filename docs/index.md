@@ -84,6 +84,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - **[AnyIO Migration Guide](ANYIO_MIGRATION.md)** - Migrating asynchronous code and tests from `asyncio` to AnyIO
 - **[Complete AnyIO Migration Summary](COMPLETE_ANYIO_MIGRATION_SUMMARY.md)** - Migration results, test coverage, and implementation details
 - **[AnyIO Migration Batch 7 Verification](implementation/BATCH7_VERIFICATION.txt)** - Verification report for the Batch 7 migration
+- **[Comprehensive Columnar IPLD Implementation](implementation/COMPREHENSIVE_COLUMNAR_IPLD_IMPLEMENTATION_COMPLETE.md)** - Columnar IPLD storage, Parquet-CAR conversion, peer distribution, and dashboard integration
 - **[CI/CD Workflows Completion Summary](implementation/COMPLETION_SUMMARY.txt)** - CI/CD workflow validation results, tooling, and continuous-monitoring coverage
 - **[Cluster Configuration Implementation](implementation/CLUSTER_CONFIG_IMPLEMENTATION_COMPLETE.md)** - Cluster Service and Cluster Follow configuration APIs, MCP tools, dashboard access, and deployment examples
 - **[Cluster Follow Enhancement](implementation/CLUSTER_FOLLOW_ENHANCEMENT_COMPLETE.md)** - Enhanced Cluster Follow daemon management, worker/follower synchronization, health monitoring, and Kubernetes deployment support
