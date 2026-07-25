@@ -405,6 +405,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[100% Coverage Roadmap](100_PERCENT_COVERAGE_ROADMAP.md)** - *Test coverage plan and progress*
 
+**[Path to 100% Test Coverage](PATH_TO_100_PERCENT_COVERAGE.md)** - *Detailed test coverage progress report and remaining work*
+
 **[Final Test Coverage Report](FINAL_TEST_COVERAGE_REPORT.md)** - *Final test results and coverage by feature*
 
 **[Performance Optimization](performance_optimization_roadmap.md)** - *Optimization roadmap*
