@@ -274,6 +274,11 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Docker Deployment](deployment/docker/DOCKER_QUICK_START.md)** - *Docker-specific*
 
+**[Tailwind CSS Production Build](deployment/TAILWIND_BUILD.md)** - *Build the dashboard stylesheet locally*
+- Run the production, development, or watch-mode CSS build
+- Review Tailwind content paths, custom styles, and safelisted classes
+- **Answers:** "How do I build the dashboard CSS?" "How is Tailwind deployed?"
+
 **[ARM64 Support](deployment/arm64/ARM64_BUILD_FROM_SOURCE.md)** - *ARM architecture*
 - ARM64 builds
 - Raspberry Pi deployment
