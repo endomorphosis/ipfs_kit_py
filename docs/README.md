@@ -438,6 +438,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[DuckDB + Parquet Conversion](implementation/DUCKDB_PARQUET_CONVERSION_COMPLETE.md)** - *Pin metadata index migration, columnar persistence, analytical queries, and API compatibility*
 
+**[Enhanced Pin Integration](implementation/ENHANCED_PIN_INTEGRATION_COMPLETE.md)** - *Unified enhanced pin metadata, VFS integration, multi-tier storage analytics, and operational tooling*
+
 **[Encrypted Configuration Storage](implementation/ENCRYPTED_CONFIG_SUMMARY.md)** - *Encrypted credential storage, configuration migration, key rotation, and secure configuration access*
 
 **[Enhanced Parquet Metadata](implementation/ENHANCED_PARQUET_METADATA_COMPLETE.md)** - *Git VFS translation, remote backend metadata, health monitoring, snapshots, and extended pin tracking*

@@ -116,6 +116,7 @@ This guide helps you navigate the comprehensive documentation for IPFS Kit Pytho
 - [Daemon Architecture Refactoring](../implementation/DAEMON_ARCHITECTURE_REFACTORING_COMPLETE.md) - Review the daemon-based architecture, lightweight clients, service launcher, and backend management
 - [Daemon State Management Verification](../implementation/DAEMON_STATE_MANAGEMENT_VERIFICATION_COMPLETE.md) - Review daemon startup, persisted state, metadata indexes, and WAL ingestion verification
 - [DuckDB + Parquet Conversion](../implementation/DUCKDB_PARQUET_CONVERSION_COMPLETE.md) - Review the pin metadata index migration, columnar persistence, and analytical query support
+- [Enhanced Pin Integration](../implementation/ENHANCED_PIN_INTEGRATION_COMPLETE.md) - Review the unified pin metadata, VFS integration, multi-tier storage analytics, and operational tooling
 - [Enhanced Parquet Metadata](../implementation/ENHANCED_PARQUET_METADATA_COMPLETE.md) - Review Git VFS translation, remote backend metadata, health monitoring, snapshots, and extended pin tracking
 - Testing information
 
