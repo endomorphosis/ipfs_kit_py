@@ -719,6 +719,7 @@ Comprehensive documentation available in [docs/](docs/):
 - **[MCP Server](docs/features/mcp/MCP_DASHBOARD_VALIDATION_REPORT.md)** - MCP server documentation
 - **[CI/CD and MCP Dashboard Validation Executive Summary](docs/implementation/EXECUTIVE_SUMMARY.md)** - High-level dashboard validation results and CI/CD architecture coverage
 - **[Comprehensive IPFS/Filecoin Backend Implementation Plan](docs/implementation/FILECOIN_IPFS_BACKEND_IMPLEMENTATION_PLAN.md)** - Seven-phase roadmap for Filecoin pinning, retrieval, CAR/IPLD support, discovery, routing, and developer tooling
+- **[Filecoin Pin Backend Phase 1 Implementation Summary](docs/implementation/FILECOIN_PIN_IMPLEMENTATION_SUMMARY.md)** - Phase 1 Filecoin pinning backend, unified pinning service, gateway chain, storage types, dependencies, and test coverage
 - **[Filecoin Pin Backend Final Summary](docs/implementation/FILECOIN_PIN_FINAL_SUMMARY.md)** - Final implementation status, integrations, CLI/MCP capabilities, and validation results for Filecoin-backed pinning
 - **[Test Coverage Extension](docs/TEST_COVERAGE_EXTENSION.md)** - Extended test coverage details and follow-up work
 - **[Submodule-Scope Release Checklist](docs/RELEASE_CHECKLIST_SUBMODULE_SCOPE.md)** - Release and merge checks for submodule-scoped VFS integration work
