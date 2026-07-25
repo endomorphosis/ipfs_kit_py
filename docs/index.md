@@ -131,6 +131,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - [Workflow Failure Auto-Fix Summary](fixes/AUTOFIX_WORKFLOW_FIX_SUMMARY.md) - Root cause, fixes, validation, and operation flow for workflow failure auto-healing
 - [Go Build Tools Installation Fix](fixes/GO_BUILD_TOOLS_FIX.md) - Install and verify Go and native build dependencies for self-hosted runners and Docker builds
 - [Backend Integration Fix](fixes/BACKEND_INTEGRATION_FIX.md) - Backend-compatible service configuration formats and dashboard integration flow
+- [MCP Dashboard Fix Summary](fixes/MCP_DASHBOARD_FIX_SUMMARY.md) - MCP dashboard fallback-resource fixes, verification, and production configuration details
 - [Configuration Form Field Handlers Fix](fixes/CONFIG_FORM_FIELDS_FIX.md) - Complete service configuration form fields, field types, and context-sensitive hints
 - [Service Configuration Form Fix](fixes/CONFIG_FORM_FIX_SUMMARY.md) - Correct the dashboard service-configuration payload and capture textarea fields
 - [Backend Configuration Modal Fix](fixes/BACKEND_MODAL_FIX_SUMMARY.md) - Backend configuration modal button wiring, MCP tool integration, and end-to-end validation

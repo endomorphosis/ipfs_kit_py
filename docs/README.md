@@ -463,6 +463,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Backend Integration Fix](fixes/BACKEND_INTEGRATION_FIX.md)** - *Backend-compatible service configuration formats and dashboard integration flow*
 
+**[MCP Dashboard Fix Summary](fixes/MCP_DASHBOARD_FIX_SUMMARY.md)** - *MCP dashboard fallback-resource fixes, verification, and production configuration details*
+
 **[Configuration Form Field Handlers Fix](fixes/CONFIG_FORM_FIELDS_FIX.md)** - *Complete service configuration form fields, field types, and context-sensitive hints*
 
 **[Service Configuration Form Fix](fixes/CONFIG_FORM_FIX_SUMMARY.md)** - *Correct the dashboard service-configuration payload and capture textarea fields*
