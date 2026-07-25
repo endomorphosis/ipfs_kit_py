@@ -233,6 +233,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - [GitHub Runner Setup](deployment/ci-cd/GITHUB_RUNNER_SETUP.md)
 - [GitHub API Caching](deployment/ci-cd/GITHUB_API_CACHING.md)
 - [GitHub Actions Auto-Healing Scripts](../.github/scripts/README.md) - Analyze workflow failures and generate fix proposals
+- [GitHub Actions Auto-Healing Workflows](../.github/workflows/AUTO_HEAL_README.md) - Configure and troubleshoot automatic workflow failure recovery
 - **Answers:** "How do I automate deployment?" "CI/CD setup?"
 
 **[Docker Deployment](deployment/docker/DOCKER_QUICK_START.md)** - *Docker-specific*

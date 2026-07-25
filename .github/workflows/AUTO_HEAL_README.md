@@ -1,5 +1,7 @@
 # Auto-Healing Workflows Documentation
 
+> **Documentation navigation:** Return to the [IPFS Kit documentation index](../../docs/index.md) or the [CI/CD documentation map](../../docs/README.md#deployment--operations).
+
 ## Overview
 
 This repository has multiple auto-healing workflows designed to automatically detect, report, and fix failed GitHub Actions workflows. This document explains how they work and how to use them.
