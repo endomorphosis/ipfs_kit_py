@@ -403,6 +403,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Complete AnyIO Migration Summary](COMPLETE_ANYIO_MIGRATION_SUMMARY.md)** - *Migration results, test coverage, and implementation details*
 
+**[CI/CD Workflows Completion Summary](implementation/COMPLETION_SUMMARY.txt)** - *CI/CD workflow validation results, tooling, and continuous-monitoring coverage*
+
 **[Apache Arrow IPC Zero-Copy Implementation](implementation/ARROW_IPC_ZERO_COPY_IMPLEMENTATION.md)** - *Zero-copy daemon access, fallback behavior, and validation*
 
 **[Bucket VFS CLI and MCP Interface Implementation](implementation/BUCKET_VFS_INTERFACES_COMPLETE.md)** - *CLI and MCP interfaces for multi-bucket virtual filesystem operations*
