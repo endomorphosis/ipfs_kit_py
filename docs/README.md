@@ -407,6 +407,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Path to 100% Test Coverage](PATH_TO_100_PERCENT_COVERAGE.md)** - *Detailed test coverage progress report and remaining work*
 
+**[Phase 5 Final Report](PHASE5_FINAL_REPORT.md)** - *Final report on Phase 5 test coverage improvements*
+
 **[Final Test Coverage Report](FINAL_TEST_COVERAGE_REPORT.md)** - *Final test results and coverage by feature*
 
 **[Performance Optimization](performance_optimization_roadmap.md)** - *Optimization roadmap*
