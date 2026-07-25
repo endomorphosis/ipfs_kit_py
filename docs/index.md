@@ -59,6 +59,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 ### **Operations & Development**
 
 - **[Testing Guide](development/testing_guide.md)** - Comprehensive testing infrastructure and validation
+- **[100% Coverage Roadmap](100_PERCENT_COVERAGE_ROADMAP.md)** - Test coverage plan and progress
 - **[Server Selection Guide](../servers/README.md)** - Production vs. development server guidance
 - **[Deployment Guide](guides/CLUSTER_DEPLOYMENT_GUIDE.md)** - Production cluster deployment instructions
 - **[Performance Monitoring](operations/performance_metrics.md)** - Metrics, monitoring, and optimization
