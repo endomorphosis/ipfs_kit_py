@@ -1,5 +1,7 @@
 # Complete anyio Migration Summary
 
+> **Navigation:** See the [AnyIO Migration Guide](ANYIO_MIGRATION.md) for migration instructions, or return to the [documentation home](index.md).
+
 ## Executive Summary
 
 Successfully completed comprehensive migration from asyncio to anyio across all PR features and tests, achieving **160 passing tests** with **100% success rate** and **zero breaking changes**.

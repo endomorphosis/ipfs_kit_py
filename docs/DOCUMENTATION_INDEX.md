@@ -115,6 +115,10 @@ Migration guides for upgrading components.
 | [ANYIO_MIGRATION_COMPLETE.md](migration/ANYIO_MIGRATION_COMPLETE.md) | Anyio migration completion |
 | [ANYIO_MIGRATION_STATUS.md](migration/ANYIO_MIGRATION_STATUS.md) | Anyio migration status |
 
+### AnyIO Migration Summary
+
+The complete migration results and test coverage are documented in [COMPLETE_ANYIO_MIGRATION_SUMMARY.md](COMPLETE_ANYIO_MIGRATION_SUMMARY.md).
+
 ---
 
 ## Integration

@@ -71,6 +71,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - **[Streaming Guide](reference/streaming_guide.md)** - WebSocket and WebRTC real-time communication
 - **[Migration Guide](MCP_SERVER_MIGRATION_GUIDE.md)** - Data routing and backend migration
 - **[AnyIO Migration Guide](ANYIO_MIGRATION.md)** - Migrating asynchronous code and tests from `asyncio` to AnyIO
+- **[Complete AnyIO Migration Summary](COMPLETE_ANYIO_MIGRATION_SUMMARY.md)** - Migration results, test coverage, and implementation details
 - [Knowledge Graph](knowledge_graph.md) - IPLD-based knowledge representation
 - [libp2p Integration](integration/libp2p_integration.md) - Direct peer-to-peer communication
 - [Cluster State](operations/cluster_state_helpers.md) - Distributed state management
