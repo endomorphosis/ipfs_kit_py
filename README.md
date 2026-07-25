@@ -709,6 +709,7 @@ Comprehensive documentation available in [docs/](docs/):
 - **[Comprehensive IPFS Kit Improvements](docs/implementation/COMPREHENSIVE_IMPROVEMENTS_COMPLETE.md)** - Enhanced cluster daemon management, health monitoring, LibP2P recovery, dashboard APIs, and integration testing
 - **[Comprehensive Real Implementations](docs/implementation/COMPREHENSIVE_REAL_IMPLEMENTATIONS_COMPLETE.md)** - Real backend health monitoring, VFS observability, analytics APIs, and dashboard data integration
 - **[Daemon Architecture Refactoring](docs/implementation/DAEMON_ARCHITECTURE_REFACTORING_COMPLETE.md)** - Daemon-based architecture, lightweight clients, service launcher, and backend management
+- **[Daemon State Management Verification](docs/implementation/DAEMON_STATE_MANAGEMENT_VERIFICATION_COMPLETE.md)** - Verification of daemon startup, persisted state, metadata indexes, and WAL ingestion
 - **[Copilot Auto-Healing Guide](COPILOT_AUTO_HEALING_GUIDE.md)** - Root-level guide for configuring and operating Copilot-powered workflow recovery
 - **[AI/ML Integration](docs/integration/ai-ml/ai_ml.md)** - Machine learning features
 - **[MCP Server](docs/features/mcp/MCP_DASHBOARD_VALIDATION_REPORT.md)** - MCP server documentation

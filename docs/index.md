@@ -91,6 +91,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - **[Comprehensive IPFS Kit Improvements](implementation/COMPREHENSIVE_IMPROVEMENTS_COMPLETE.md)** - Enhanced cluster daemon management, health monitoring, LibP2P recovery, dashboard APIs, and integration testing
 - **[Comprehensive Real Implementations](implementation/COMPREHENSIVE_REAL_IMPLEMENTATIONS_COMPLETE.md)** - Real backend health monitoring, VFS observability, analytics APIs, and dashboard data integration
 - **[Daemon Architecture Refactoring](implementation/DAEMON_ARCHITECTURE_REFACTORING_COMPLETE.md)** - Daemon-based architecture, lightweight clients, service launcher, and backend management
+- **[Daemon State Management Verification](implementation/DAEMON_STATE_MANAGEMENT_VERIFICATION_COMPLETE.md)** - Verification of daemon startup, persisted state, metadata indexes, and WAL ingestion
 - **[CI/CD Workflows Completion Summary](implementation/COMPLETION_SUMMARY.txt)** - CI/CD workflow validation results, tooling, and continuous-monitoring coverage
 - **[Cluster Configuration Implementation](implementation/CLUSTER_CONFIG_IMPLEMENTATION_COMPLETE.md)** - Cluster Service and Cluster Follow configuration APIs, MCP tools, dashboard access, and deployment examples
 - **[Cluster Follow Enhancement](implementation/CLUSTER_FOLLOW_ENHANCEMENT_COMPLETE.md)** - Enhanced Cluster Follow daemon management, worker/follower synchronization, health monitoring, and Kubernetes deployment support

@@ -113,6 +113,7 @@ This guide helps you navigate the comprehensive documentation for IPFS Kit Pytho
 - [Comprehensive IPFS Kit Improvements](../implementation/COMPREHENSIVE_IMPROVEMENTS_COMPLETE.md) - Review enhanced cluster daemon management, health monitoring, LibP2P recovery, dashboard APIs, and integration testing
 - [Comprehensive Real Implementations](../implementation/COMPREHENSIVE_REAL_IMPLEMENTATIONS_COMPLETE.md) - Review real backend health monitoring, VFS observability, analytics APIs, and dashboard data integration
 - [Daemon Architecture Refactoring](../implementation/DAEMON_ARCHITECTURE_REFACTORING_COMPLETE.md) - Review the daemon-based architecture, lightweight clients, service launcher, and backend management
+- [Daemon State Management Verification](../implementation/DAEMON_STATE_MANAGEMENT_VERIFICATION_COMPLETE.md) - Review daemon startup, persisted state, metadata indexes, and WAL ingestion verification
 - Testing information
 
 ### For Managers/Decision Makers
