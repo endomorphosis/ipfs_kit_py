@@ -703,6 +703,7 @@ Comprehensive documentation available in [docs/](docs/):
 - **[Cluster Guide](docs/operations/cluster_management.md)** - Cluster setup
 - **[AI/ML Integration](docs/integration/ai-ml/ai_ml.md)** - Machine learning features
 - **[MCP Server](docs/features/mcp/MCP_DASHBOARD_VALIDATION_REPORT.md)** - MCP server documentation
+- **[GitHub Copilot Auto-Healing Guide](COPILOT_AUTO_HEALING_GUIDE.md)** - Configure and operate automated workflow failure recovery with Copilot
 - **[Examples](examples/)** - Code examples and tutorials
 
 ## 🎓 Use Cases & Examples
