@@ -180,6 +180,7 @@ Feature-specific documentation organized by feature area.
 - [MONITORING_GUIDE.md](features/MONITORING_GUIDE.md) - Monitoring setup
 - [ENCRYPTED_CONFIG_GUIDE.md](features/ENCRYPTED_CONFIG_GUIDE.md) - Encrypted configuration
 - [P2P_WORKFLOW_GUIDE.md](features/P2P_WORKFLOW_GUIDE.md) - P2P workflows
+- [P2P_WORKFLOW_QUICK_REF.md](features/P2P_WORKFLOW_QUICK_REF.md) - P2P workflow quick reference
 - [DEPENDENCY_MANAGEMENT.md](features/DEPENDENCY_MANAGEMENT.md) - Dependency management
 
 ---

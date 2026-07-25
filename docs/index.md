@@ -68,6 +68,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - **[Phase 6 Testing Guide](PHASE6_TESTING_GUIDE.md)** - How to run, maintain, and extend the Phase 6 test suite
 - **[Phase 6 Final Summary](PHASE6_FINAL_SUMMARY.md)** - Final Phase 6 test-suite inventory, coverage targets, and maintenance guidance
 - **[Server Selection Guide](../servers/README.md)** - Production vs. development server guidance
+- **[P2P Workflow Quick Reference](features/P2P_WORKFLOW_QUICK_REF.md)** - Distributed workflow CLI, API, and MCP commands
 - **[Deployment Guide](guides/CLUSTER_DEPLOYMENT_GUIDE.md)** - Production cluster deployment instructions
 - **[ARM64 Testing Parity Implementation](deployment/arm64/ARM64_PARITY_IMPLEMENTATION.md)** - Cross-architecture CI testing parity and validation
 - **[Tailwind CSS Production Build](deployment/TAILWIND_BUILD.md)** - Build and maintain the dashboard stylesheet locally
