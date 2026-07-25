@@ -9,6 +9,8 @@
 
 This document explains the multi-architecture testing setup and how to enable ARM64 testing with self-hosted runners.
 
+Use this guide when you need to configure native ARM64 jobs or verify the QEMU fallback. For the broader platform and Docker overview, see [Multi-Architecture Support](MULTI_ARCH_SUPPORT.md); for the CI/CD implementation details, see [Multi-Architecture Implementation Summary](MULTI_ARCH_IMPLEMENTATION_SUMMARY.md).
+
 ---
 
 ## Current Configuration
