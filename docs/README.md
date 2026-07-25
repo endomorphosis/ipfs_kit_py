@@ -18,6 +18,13 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 ## 📚 Documentation Map
 
+### Repository Data
+
+**[Data Directory](../data/README.md)** - *Maintained configuration, sample, and validation data*
+- [Configuration files](../data/configs/README.md)
+- [Sample data](../data/samples/README.md)
+- [Test and analysis results](../data/results/README.md)
+
 ### Getting Started (For Everyone)
 
 **[Installation Guide](installation_guide.md)** - *Start here if you're new*
