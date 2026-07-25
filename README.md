@@ -712,6 +712,7 @@ Comprehensive documentation available in [docs/](docs/):
 - **[Daemon Architecture Refactoring](docs/implementation/DAEMON_ARCHITECTURE_REFACTORING_COMPLETE.md)** - Daemon-based architecture, lightweight clients, service launcher, and backend management
 - **[Daemon State Management Verification](docs/implementation/DAEMON_STATE_MANAGEMENT_VERIFICATION_COMPLETE.md)** - Verification of daemon startup, persisted state, metadata indexes, and WAL ingestion
 - **[DuckDB + Parquet Conversion](docs/implementation/DUCKDB_PARQUET_CONVERSION_COMPLETE.md)** - Pin metadata index migration, columnar persistence, analytical queries, and API compatibility
+- **[Enhanced Parquet Metadata](docs/implementation/ENHANCED_PARQUET_METADATA_COMPLETE.md)** - Git VFS translation, remote backend metadata, health monitoring, snapshots, and extended pin tracking
 - **[Copilot Auto-Healing Guide](COPILOT_AUTO_HEALING_GUIDE.md)** - Root-level guide for configuring and operating Copilot-powered workflow recovery
 - **[AI/ML Integration](docs/integration/ai-ml/ai_ml.md)** - Machine learning features
 - **[MCP Server](docs/features/mcp/MCP_DASHBOARD_VALIDATION_REPORT.md)** - MCP server documentation

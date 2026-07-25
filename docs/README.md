@@ -440,6 +440,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Encrypted Configuration Storage](implementation/ENCRYPTED_CONFIG_SUMMARY.md)** - *Encrypted credential storage, configuration migration, key rotation, and secure configuration access*
 
+**[Enhanced Parquet Metadata](implementation/ENHANCED_PARQUET_METADATA_COMPLETE.md)** - *Git VFS translation, remote backend metadata, health monitoring, snapshots, and extended pin tracking*
+
 **[Reorganization Guide](guides/REORGANIZATION_GUIDE.md)** - *Project structure*
 
 ### Configuration & Secrets Management
