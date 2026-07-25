@@ -129,6 +129,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - [Auto-Healing Guide](features/auto-healing/AUTO_HEALING.md) - System overview
 - [Quick Start](features/auto-healing/AUTO_HEALING_QUICKSTART.md) - Setup in 5 minutes
 - [Workflow Quick Start](../AUTO_HEALING_QUICK_START.md) - Recover from failed GitHub Actions workflows
+- [Workflow Examples](features/auto-healing/AUTO_HEALING_EXAMPLES.md) - Real-world auto-healing scenarios
 - [MCP Auto-Healing](features/auto-healing/MCP_AUTO_HEALING.md) - MCP integration
 - **Answers:** "Can it fix itself?" "How does error recovery work?"
 
