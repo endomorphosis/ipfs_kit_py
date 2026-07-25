@@ -459,6 +459,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Documentation Plan](documentation_plan.md)** - *Doc strategy*
 
+**[Workflow Failure Auto-Fix Summary](fixes/AUTOFIX_WORKFLOW_FIX_SUMMARY.md)** - *Root cause, fixes, validation, and operation flow for workflow failure auto-healing*
+
 **[100% Coverage Roadmap](100_PERCENT_COVERAGE_ROADMAP.md)** - *Test coverage plan and progress*
 
 **[Test Coverage Improvements](TEST_COVERAGE_IMPROVEMENTS.md)** - *GraphRAG and bucket metadata export/import coverage improvements*
