@@ -293,6 +293,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - **Answers:** "Does it run on ARM?" "Raspberry Pi support?"
 
 **[Multi-Architecture](deployment/multi-arch/MULTI_ARCH_SUPPORT.md)** - *Multi-platform*
+- [Multi-Architecture Runner Setup](deployment/multi-arch/MULTI_ARCH_RUNNER_SETUP.md) - Configure optional ARM64 self-hosted runners and QEMU-based testing
 - [Multi-Architecture CI/CD Fix](deployment/multi-arch/MULTI_ARCH_CI_FIX.md) - Dependency, package-manager lock, and cross-architecture CI guidance
 - [Multi-Architecture Implementation Summary](deployment/multi-arch/MULTI_ARCH_IMPLEMENTATION_SUMMARY.md) - CI/CD, Docker, package, and architecture-test implementation details
 

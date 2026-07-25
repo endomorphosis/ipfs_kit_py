@@ -102,6 +102,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - [Docker Architecture Tests](deployment/docker/DOCKER_ARCH_TESTS.md) - Multi-architecture Docker test workflow and validation
 - [Docker Testing Summary](deployment/docker/DOCKER_TESTING_SUMMARY.md) - Container test results and GitHub Actions runner setup
 - [Docker Dependency Pre-installation Test Results](deployment/docker/DOCKER_TEST_RESULTS.md) - Verification of pre-installed Lotus dependencies and runtime detection
+- [Multi-Architecture Runner Setup](deployment/multi-arch/MULTI_ARCH_RUNNER_SETUP.md) - Configure optional ARM64 self-hosted runners and QEMU-based testing
 - [Multi-Architecture CI/CD Fix](deployment/multi-arch/MULTI_ARCH_CI_FIX.md) - Dependency, package-manager lock, and cross-architecture CI guidance
 - [Multi-Architecture Implementation Summary](deployment/multi-arch/MULTI_ARCH_IMPLEMENTATION_SUMMARY.md) - CI/CD, Docker, package, and architecture-test implementation details
 - [CI/CD Pipeline](deployment/ci-cd/ci_cd_pipeline.md) - Continuous integration and deployment
