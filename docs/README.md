@@ -278,6 +278,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - **Answers:** "How do I automate deployment?" "CI/CD setup?"
 
 **[Docker Deployment](deployment/docker/DOCKER_QUICK_START.md)** - *Docker-specific*
+- [Docker Architecture Tests](deployment/docker/DOCKER_ARCH_TESTS.md) - Multi-architecture Docker test workflow and validation
 
 **[Tailwind CSS Production Build](deployment/TAILWIND_BUILD.md)** - *Build the dashboard stylesheet locally*
 - Run the production, development, or watch-mode CSS build
