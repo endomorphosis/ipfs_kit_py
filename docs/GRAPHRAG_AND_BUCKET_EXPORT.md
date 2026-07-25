@@ -6,7 +6,7 @@ This document provides comprehensive documentation for the improved GraphRAG sys
 
 1. [GraphRAG Improvements](#graphrag-improvements)
 2. [Bucket Metadata Export/Import](#bucket-metadata-exportimport)
-3. [Usage Examples](#usage-examples)
+3. [Usage Examples](#use-cases)
 4. [API Reference](#api-reference)
 
 ---
