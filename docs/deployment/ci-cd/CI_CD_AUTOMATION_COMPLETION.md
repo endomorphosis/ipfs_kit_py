@@ -4,6 +4,8 @@
 **Status**: ✅ Documentation Complete - Ready for Implementation  
 **Repository**: endomorphosis/ipfs_kit_py
 
+For the maintained documentation map, see [IPFS Kit Documentation](../../README.md#deployment--operations).
+
 ---
 
 ## 🎉 What Was Accomplished
