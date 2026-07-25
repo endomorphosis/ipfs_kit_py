@@ -78,6 +78,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 
 - **[Changelog](../CHANGELOG.md)** - Version history and feature updates
 - **[Contributing Guide](../README.md#-contributing)** - Development workflow and contribution guidelines
+- **[Configuration Requirements](../config/requirements.txt)** - WebRTC monitoring and async runtime dependencies
 - **[Release Notes](../CHANGELOG.md)** - Detailed release information and breaking changes
 - [PyPI Release Guide](pypi_release.md) - Publishing to PyPI
 - [Containerization and Deployment](containerization.md) - Docker and Kubernetes deployment

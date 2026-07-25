@@ -1,4 +1,8 @@
 # Requirements for WebRTC Event Loop Fixes and Monitoring
+#
+# Documentation navigation: see [Dependency Management](../docs/features/DEPENDENCY_MANAGEMENT.md)
+# for the supported installation workflow and the [IPFS Kit documentation index](../docs/index.md)
+# for the canonical documentation map.
 
 # AnyIO Solution (Recommended)
 anyio>=3.6.2       # Universal asynchronous I/O support for multiple backends
