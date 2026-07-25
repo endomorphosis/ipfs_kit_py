@@ -68,7 +68,7 @@ sudo ~/actions-runner/svc.sh start
 
 ## 📚 Full Documentation
 
-See `docs/GITHUB_RUNNER_SETUP.md` for:
+See the [complete GitHub Actions runner setup guide](../deployment/ci-cd/GITHUB_RUNNER_SETUP.md) for:
 - Detailed setup instructions
 - Troubleshooting guide
 - Security best practices
