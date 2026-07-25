@@ -140,6 +140,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - [Configuration Save and Persistence Fix](fixes/CONFIGURATION_FIX_DOCUMENTATION.md) - Detailed dashboard configuration persistence, service application, API, and validation documentation
 - [Dashboard Configuration Fix Quick Start](fixes/CONFIGURATION_FIX_README.md) - Quick verification, testing, and troubleshooting for dashboard configuration loading and persistence
 - [Dashboard Configuration Form Pre-fill Fix](fixes/DASHBOARD_CONFIG_FIX.md) - Technical details for loading saved dashboard credentials into service configuration forms
+- [Test Collection Error Fix](fixes/TEST_COLLECTION_FIX.md) - Keep dashboard tests collectible when optional dependencies are unavailable
 - [CI/CD Issue Template](../.github/ISSUE_TEMPLATE/ci_cd_issue.md) - Report CI/CD workflow failures
 - [GitHub Copilot Instructions](../.github/copilot-instructions.md) - Guidance for automatically diagnosing and fixing failed workflows
 
