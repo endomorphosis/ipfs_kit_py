@@ -130,6 +130,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - [Workflow Failure Auto-Fix Summary](fixes/AUTOFIX_WORKFLOW_FIX_SUMMARY.md) - Root cause, fixes, validation, and operation flow for workflow failure auto-healing
 - [Backend Integration Fix](fixes/BACKEND_INTEGRATION_FIX.md) - Backend-compatible service configuration formats and dashboard integration flow
 - [Backend Configuration Modal Fix](fixes/BACKEND_MODAL_FIX_SUMMARY.md) - Backend configuration modal button wiring, MCP tool integration, and end-to-end validation
+- [Configuration Save and Persistence Fix](fixes/CONFIGURATION_FIX_DOCUMENTATION.md) - Detailed dashboard configuration persistence, service application, API, and validation documentation
 - [CI/CD Issue Template](../.github/ISSUE_TEMPLATE/ci_cd_issue.md) - Report CI/CD workflow failures
 - [GitHub Copilot Instructions](../.github/copilot-instructions.md) - Guidance for automatically diagnosing and fixing failed workflows
 

@@ -1,5 +1,7 @@
 # Configuration Save and Persistence Fix
 
+> Canonical navigation: [IPFS Kit Documentation](../index.md) · [Complete Documentation Map](../README.md)
+
 ## Overview
 
 This fix addresses the issue where configuration settings in the IPFS Kit MCP server dashboard were not being saved or persisted when users clicked the "Save Configuration" button.
