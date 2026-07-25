@@ -119,6 +119,7 @@ This guide helps you navigate the comprehensive documentation for IPFS Kit Pytho
 - [Enhanced Pin Integration](../implementation/ENHANCED_PIN_INTEGRATION_COMPLETE.md) - Review the unified pin metadata, VFS integration, multi-tier storage analytics, and operational tooling
 - [Enhanced Parquet Metadata](../implementation/ENHANCED_PARQUET_METADATA_COMPLETE.md) - Review Git VFS translation, remote backend metadata, health monitoring, snapshots, and extended pin tracking
 - [CI/CD and MCP Dashboard Validation Executive Summary](../implementation/EXECUTIVE_SUMMARY.md) - Review the high-level dashboard validation results and CI/CD architecture coverage
+- [Comprehensive IPFS/Filecoin Backend Implementation Plan](../implementation/FILECOIN_IPFS_BACKEND_IMPLEMENTATION_PLAN.md) - Review the seven-phase roadmap for Filecoin pinning, retrieval, CAR/IPLD support, discovery, routing, and developer tooling
 - Testing information
 
 ### For Managers/Decision Makers

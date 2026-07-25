@@ -406,6 +406,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[CI/CD and MCP Dashboard Validation Executive Summary](implementation/EXECUTIVE_SUMMARY.md)** - *High-level validation results for the MCP dashboard and multi-architecture CI/CD workflows*
 
+**[Comprehensive IPFS/Filecoin Backend Implementation Plan](implementation/FILECOIN_IPFS_BACKEND_IMPLEMENTATION_PLAN.md)** - *Seven-phase roadmap for Filecoin pinning, retrieval, CAR/IPLD support, discovery, routing, and developer tooling*
+
 **[Comprehensive Columnar IPLD Implementation](implementation/COMPREHENSIVE_COLUMNAR_IPLD_IMPLEMENTATION_COMPLETE.md)** - *Columnar IPLD storage, Parquet-CAR conversion, peer distribution, and dashboard integration*
 
 **[Comprehensive Dashboard Enhancement](implementation/COMPREHENSIVE_DASHBOARD_ENHANCEMENT_COMPLETE.md)** - *Comprehensive monitoring, VFS observability, vector and knowledge-base analytics, configuration management, and real-time dashboard capabilities*

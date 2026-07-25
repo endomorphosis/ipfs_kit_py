@@ -76,6 +76,7 @@ Detailed implementation summaries for specific features.
 | [ENHANCED_PIN_INTEGRATION_COMPLETE.md](implementation/ENHANCED_PIN_INTEGRATION_COMPLETE.md) | Unified enhanced pin metadata, VFS integration, multi-tier storage analytics, and operational tooling |
 | [ENHANCED_VFS_PACKAGE_REFACTORING_COMPLETE.md](implementation/ENHANCED_VFS_PACKAGE_REFACTORING_COMPLETE.md) | Enhanced VFS extractor package integration, CLI wiring, multiprocessing compatibility, and migration guidance |
 | [ENHANCED_PARQUET_METADATA_COMPLETE.md](implementation/ENHANCED_PARQUET_METADATA_COMPLETE.md) | Git VFS translation, remote backend metadata, health monitoring, snapshots, and extended pin tracking |
+| [FILECOIN_IPFS_BACKEND_IMPLEMENTATION_PLAN.md](implementation/FILECOIN_IPFS_BACKEND_IMPLEMENTATION_PLAN.md) | Seven-phase roadmap for Filecoin pinning, retrieval, CAR/IPLD support, discovery, routing, and developer tooling |
 | *(140+ additional implementation docs in subdirectories)* | Various feature implementations |
 
 ---

@@ -84,6 +84,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - **[AnyIO Migration Guide](ANYIO_MIGRATION.md)** - Migrating asynchronous code and tests from `asyncio` to AnyIO
 - **[Complete AnyIO Migration Summary](COMPLETE_ANYIO_MIGRATION_SUMMARY.md)** - Migration results, test coverage, and implementation details
 - **[CI/CD and MCP Dashboard Validation Executive Summary](implementation/EXECUTIVE_SUMMARY.md)** - High-level validation results for the MCP dashboard and multi-architecture CI/CD workflows
+- **[Comprehensive IPFS/Filecoin Backend Implementation Plan](implementation/FILECOIN_IPFS_BACKEND_IMPLEMENTATION_PLAN.md)** - Seven-phase roadmap for Filecoin pinning, retrieval, CAR/IPLD support, discovery, routing, and developer tooling
 - **[AnyIO Migration Batch 7 Verification](implementation/BATCH7_VERIFICATION.txt)** - Verification report for the Batch 7 migration
 - **[Comprehensive Columnar IPLD Implementation](implementation/COMPREHENSIVE_COLUMNAR_IPLD_IMPLEMENTATION_COMPLETE.md)** - Columnar IPLD storage, Parquet-CAR conversion, peer distribution, and dashboard integration
 - **[Comprehensive Dashboard Enhancement](implementation/COMPREHENSIVE_DASHBOARD_ENHANCEMENT_COMPLETE.md)** - Comprehensive monitoring, VFS observability, vector and knowledge-base analytics, configuration management, and real-time dashboard capabilities
