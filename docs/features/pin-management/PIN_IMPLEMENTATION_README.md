@@ -212,9 +212,11 @@ grep -c "async def _.*pin" mcp/enhanced_unified_mcp_server.py
 ## Documentation
 
 Comprehensive documentation available in:
-1. `docs/PIN_MANAGEMENT_GUIDE.md` - Full implementation guide
-2. `docs/PIN_DASHBOARD_FEATURES.md` - Feature documentation
-3. `docs/PIN_QUICK_START.md` - Quick reference guide
+1. [Pin Management Guide](PIN_MANAGEMENT_GUIDE.md) - Full implementation guide
+2. [Dashboard Features](PIN_DASHBOARD_FEATURES.md) - Feature documentation
+3. [Pin Quick Start](PIN_QUICK_START.md) - Quick reference guide
+
+This implementation summary is indexed from the [Pin Management](../../README.md) section of the canonical documentation entrypoint.
 
 ## Success Metrics
 
