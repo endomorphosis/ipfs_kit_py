@@ -256,6 +256,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - [CI/CD Summary](deployment/ci-cd/CI_CD_AUTOMATION_SUMMARY.md)
 - [CI/CD Automation Completion](deployment/ci-cd/CI_CD_AUTOMATION_COMPLETION.md) - Project completion report and implementation roadmap
 - [CI/CD Automation Phase 1 Complete](deployment/ci-cd/CI_CD_AUTOMATION_PHASE1_COMPLETE.md) - Phase 1 implementation summary and automation capabilities
+- [CI/CD Automation Validation Complete](deployment/ci-cd/CI_CD_AUTOMATION_VALIDATION_COMPLETE.md) - Validation results and resolved automation issues
 - [Quick Reference](deployment/ci-cd/CI_CD_AUTOMATION_QUICK_REFERENCE.md)
 - [CI/CD Workflow Validation Guide](ci-cd/CI_CD_VALIDATION_GUIDE.md) - Validate workflows and CI scripts locally
 - [AMD64 Workflow Implementation Summary](ci-cd/amd64/AMD64_WORKFLOW_IMPLEMENTATION_SUMMARY.md) - Self-hosted AMD64 workflow implementation and validation coverage
