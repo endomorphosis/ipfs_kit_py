@@ -407,6 +407,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Bucket VFS CLI and MCP Interface Implementation](implementation/BUCKET_VFS_INTERFACES_COMPLETE.md)** - *CLI and MCP interfaces for multi-bucket virtual filesystem operations*
 
+**[Circular Import Fixes](implementation/CIRCULAR_IMPORT_FIXES_COMPLETE.md)** - *Resolved import-cycle, compatibility-alias, and optional pubsub dependency issues*
+
 **[Reorganization Guide](guides/REORGANIZATION_GUIDE.md)** - *Project structure*
 
 ### Configuration & Secrets Management
