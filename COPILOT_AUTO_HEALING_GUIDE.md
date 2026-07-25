@@ -2,7 +2,11 @@
 
 ## Overview
 
-This repository now features an advanced auto-healing system that uses **GitHub Copilot agents** to automatically fix failed GitHub Actions workflows. When a workflow fails, the system:
+This repository now features an advanced auto-healing system that uses **GitHub Copilot agents** to automatically fix failed GitHub Actions workflows.
+
+This guide is maintained at the repository root and is linked from the canonical [repository README](README.md). For the broader documentation map, see the [documentation index](docs/index.md).
+
+When a workflow fails, the system:
 
 1. ✅ Detects the failure automatically
 2. 🔍 Analyzes logs and error messages  
