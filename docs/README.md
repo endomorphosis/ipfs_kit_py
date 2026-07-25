@@ -405,6 +405,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Apache Arrow IPC Zero-Copy Implementation](implementation/ARROW_IPC_ZERO_COPY_IMPLEMENTATION.md)** - *Zero-copy daemon access, fallback behavior, and validation*
 
+**[Bucket VFS CLI and MCP Interface Implementation](implementation/BUCKET_VFS_INTERFACES_COMPLETE.md)** - *CLI and MCP interfaces for multi-bucket virtual filesystem operations*
+
 **[Reorganization Guide](guides/REORGANIZATION_GUIDE.md)** - *Project structure*
 
 ### Configuration & Secrets Management
