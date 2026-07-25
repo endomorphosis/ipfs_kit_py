@@ -325,6 +325,11 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - CI integration
 - **Answers:** "How do I test?" "Where are the tests?"
 
+**[Test Coverage Extension](TEST_COVERAGE_EXTENSION.md)** - *Extended coverage details and follow-up work*
+- Coverage additions for S3 Gateway, WASM, analytics, and multi-region features
+- Known API mismatches and optional dependency considerations
+- Recommended next steps for completing the coverage improvements
+
 **[Async Architecture](development/async_architecture.md)** - *Async patterns*
 - Async/await usage
 - Concurrency patterns
