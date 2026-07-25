@@ -62,6 +62,7 @@ Detailed implementation summaries for specific features.
 | File | Description |
 |------|-------------|
 | [IMPLEMENTATION_COMPLETE_SUMMARY.md](implementation/IMPLEMENTATION_COMPLETE_SUMMARY.md) | Overall implementation summary |
+| [CLUSTER_CONFIG_IMPLEMENTATION_COMPLETE.md](implementation/CLUSTER_CONFIG_IMPLEMENTATION_COMPLETE.md) | Cluster Service and Cluster Follow configuration implementation, MCP integration, and deployment usage |
 | *(140+ additional implementation docs in subdirectories)* | Various feature implementations |
 
 ---
