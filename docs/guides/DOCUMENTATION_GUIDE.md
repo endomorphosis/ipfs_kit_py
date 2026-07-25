@@ -118,6 +118,7 @@ This guide helps you navigate the comprehensive documentation for IPFS Kit Pytho
 - [DuckDB + Parquet Conversion](../implementation/DUCKDB_PARQUET_CONVERSION_COMPLETE.md) - Review the pin metadata index migration, columnar persistence, and analytical query support
 - [Enhanced Pin Integration](../implementation/ENHANCED_PIN_INTEGRATION_COMPLETE.md) - Review the unified pin metadata, VFS integration, multi-tier storage analytics, and operational tooling
 - [Enhanced Parquet Metadata](../implementation/ENHANCED_PARQUET_METADATA_COMPLETE.md) - Review Git VFS translation, remote backend metadata, health monitoring, snapshots, and extended pin tracking
+- [CI/CD and MCP Dashboard Validation Executive Summary](../implementation/EXECUTIVE_SUMMARY.md) - Review the high-level dashboard validation results and CI/CD architecture coverage
 - Testing information
 
 ### For Managers/Decision Makers
