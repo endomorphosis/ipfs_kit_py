@@ -1,6 +1,6 @@
 # CI/CD Automation - Quick Reference Guide
 
-**Quick Links**: [Full Integration Plan](CI_CD_AUTOMATION_INTEGRATION_PLAN.md) | [VS Code Tasks](#vs-code-tasks) | [Workflows](#automation-workflows)
+**Quick Links**: [Full Integration Plan](CI_CD_AUTOMATION_INTEGRATION_PLAN.md) | [VS Code Tasks](#vs-code-tasks) | [Workflows](#workflows-available-from-ipfs-datasets-py)
 
 ---
 
