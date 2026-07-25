@@ -3,6 +3,8 @@
 **Date**: 2026-01-29  
 **Status**: ✅ Phase 1 Complete - Scripts and Enhanced Workflow Ready
 
+For the maintained documentation map, see [IPFS Kit Documentation](../../README.md#deployment--operations).
+
 ---
 
 ## 🎉 What Was Accomplished
