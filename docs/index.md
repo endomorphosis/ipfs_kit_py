@@ -131,6 +131,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - [Backend Integration Fix](fixes/BACKEND_INTEGRATION_FIX.md) - Backend-compatible service configuration formats and dashboard integration flow
 - [Backend Configuration Modal Fix](fixes/BACKEND_MODAL_FIX_SUMMARY.md) - Backend configuration modal button wiring, MCP tool integration, and end-to-end validation
 - [Configuration Save and Persistence Fix](fixes/CONFIGURATION_FIX_DOCUMENTATION.md) - Detailed dashboard configuration persistence, service application, API, and validation documentation
+- [Dashboard Configuration Fix Quick Start](fixes/CONFIGURATION_FIX_README.md) - Quick verification, testing, and troubleshooting for dashboard configuration loading and persistence
 - [CI/CD Issue Template](../.github/ISSUE_TEMPLATE/ci_cd_issue.md) - Report CI/CD workflow failures
 - [GitHub Copilot Instructions](../.github/copilot-instructions.md) - Guidance for automatically diagnosing and fixing failed workflows
 

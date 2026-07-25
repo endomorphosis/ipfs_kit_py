@@ -467,6 +467,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Configuration Save and Persistence Fix](fixes/CONFIGURATION_FIX_DOCUMENTATION.md)** - *Detailed dashboard configuration persistence, service application, API, and validation documentation*
 
+**[Dashboard Configuration Fix Quick Start](fixes/CONFIGURATION_FIX_README.md)** - *Quick verification, testing, and troubleshooting for dashboard configuration loading and persistence*
+
 **[100% Coverage Roadmap](100_PERCENT_COVERAGE_ROADMAP.md)** - *Test coverage plan and progress*
 
 **[Test Coverage Improvements](TEST_COVERAGE_IMPROVEMENTS.md)** - *GraphRAG and bucket metadata export/import coverage improvements*
