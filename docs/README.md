@@ -403,6 +403,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Complete AnyIO Migration Summary](COMPLETE_ANYIO_MIGRATION_SUMMARY.md)** - *Migration results, test coverage, and implementation details*
 
+**[Apache Arrow IPC Zero-Copy Implementation](implementation/ARROW_IPC_ZERO_COPY_IMPLEMENTATION.md)** - *Zero-copy daemon access, fallback behavior, and validation*
+
 **[Reorganization Guide](guides/REORGANIZATION_GUIDE.md)** - *Project structure*
 
 ### Configuration & Secrets Management
