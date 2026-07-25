@@ -399,6 +399,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[100% Coverage Roadmap](100_PERCENT_COVERAGE_ROADMAP.md)** - *Test coverage plan and progress*
 
+**[Final Test Coverage Report](FINAL_TEST_COVERAGE_REPORT.md)** - *Final test results and coverage by feature*
+
 **[Performance Optimization](performance_optimization_roadmap.md)** - *Optimization roadmap*
 
 **[Telemetry API](telemetry_api.md)** - *Telemetry endpoints*
@@ -417,6 +419,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 **[Complete PR Summary](COMPLETE_PR_SUMMARY.md)** - *Implementation, test coverage, and deployment summary for the completed roadmap feature work*
 
 **[Final Comprehensive PR Summary](FINAL_COMPREHENSIVE_PR_SUMMARY.md)** - *Detailed implementation, testing, documentation, and roadmap coverage summary*
+
+**[Final Test Coverage Report](FINAL_TEST_COVERAGE_REPORT.md)** - *Detailed final test statistics and feature coverage*
 
 **[ARCHIVE](ARCHIVE/summaries/README.md)** - *Historical documentation*
 - Previous implementations

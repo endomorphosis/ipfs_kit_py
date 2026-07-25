@@ -795,6 +795,8 @@ export IPFS_KIT_MAX_CONNECTIONS=50
 
 ## 🧪 Testing
 
+See the [Final Test Coverage Report](docs/FINAL_TEST_COVERAGE_REPORT.md) for the final test statistics and feature-level coverage summary.
+
 ```bash
 # Run all tests
 pytest
