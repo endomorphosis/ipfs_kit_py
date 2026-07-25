@@ -160,6 +160,7 @@ Feature-specific documentation organized by feature area.
 | [AUTO_HEALING.md](features/auto-healing/AUTO_HEALING.md) | Auto-healing overview |
 | [AUTO_HEALING_QUICKSTART.md](features/auto-healing/AUTO_HEALING_QUICKSTART.md) | Quick start guide |
 | [AUTO_HEALING_WORKFLOWS.md](features/auto-healing/AUTO_HEALING_WORKFLOWS.md) | Workflow configuration |
+| [AUTO_HEALING_EXAMPLES.md](features/auto-healing/AUTO_HEALING_EXAMPLES.md) | Real-world workflow scenarios |
 
 ### Pin Management
 
