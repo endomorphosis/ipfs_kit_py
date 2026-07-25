@@ -129,6 +129,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - [GitHub Actions Auto-Healing Workflows](../.github/workflows/AUTO_HEAL_README.md) - Configure and troubleshoot automatic workflow failure recovery
 - [GitHub Actions Workflow Syntax Guidelines](../.github/WORKFLOW_SYNTAX_GUIDELINES.md) - Avoid JavaScript and YAML interpolation syntax errors in workflow scripts
 - [Workflow Failure Auto-Fix Summary](fixes/AUTOFIX_WORKFLOW_FIX_SUMMARY.md) - Root cause, fixes, validation, and operation flow for workflow failure auto-healing
+- [Syntax Error Fix Status](fixes/SYNTAX_ERROR_FIX_STATUS.md) - Status, verification results, and follow-up options for the Lotus Kit syntax-error investigation
 - [Go Build Tools Installation Fix](fixes/GO_BUILD_TOOLS_FIX.md) - Install and verify Go and native build dependencies for self-hosted runners and Docker builds
 - [Backend Integration Fix](fixes/BACKEND_INTEGRATION_FIX.md) - Backend-compatible service configuration formats and dashboard integration flow
 - [Peer Manager Fix Summary](fixes/PEER_MANAGER_FIX_SUMMARY.md) - Multihash compatibility, thread-safe peer-manager singleton behavior, and MCP peer-management handlers

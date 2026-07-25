@@ -461,6 +461,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Workflow Failure Auto-Fix Summary](fixes/AUTOFIX_WORKFLOW_FIX_SUMMARY.md)** - *Root cause, fixes, validation, and operation flow for workflow failure auto-healing*
 
+**[Syntax Error Fix Status](fixes/SYNTAX_ERROR_FIX_STATUS.md)** - *Status, verification results, and follow-up options for the Lotus Kit syntax-error investigation*
+
 **[Backend Integration Fix](fixes/BACKEND_INTEGRATION_FIX.md)** - *Backend-compatible service configuration formats and dashboard integration flow*
 
 **[Peer Manager Fix Summary](fixes/PEER_MANAGER_FIX_SUMMARY.md)** - *Multihash compatibility, thread-safe peer-manager singleton behavior, and MCP peer-management handlers*
