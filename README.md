@@ -703,6 +703,7 @@ Comprehensive documentation available in [docs/](docs/):
 - **[Cluster Guide](docs/operations/cluster_management.md)** - Cluster setup
 - **[AI/ML Integration](docs/integration/ai-ml/ai_ml.md)** - Machine learning features
 - **[MCP Server](docs/features/mcp/MCP_DASHBOARD_VALIDATION_REPORT.md)** - MCP server documentation
+- **[Test Coverage Extension](docs/TEST_COVERAGE_EXTENSION.md)** - Extended test coverage details and follow-up work
 - **[Submodule-Scope Release Checklist](docs/RELEASE_CHECKLIST_SUBMODULE_SCOPE.md)** - Release and merge checks for submodule-scoped VFS integration work
 - **[GitHub Copilot Auto-Healing Guide](COPILOT_AUTO_HEALING_GUIDE.md)** - Configure and operate automated workflow failure recovery with Copilot
 - **[Examples](examples/)** - Code examples and tutorials
