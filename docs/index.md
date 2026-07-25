@@ -112,6 +112,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - [CI/CD Automation Validation Complete](deployment/ci-cd/CI_CD_AUTOMATION_VALIDATION_COMPLETE.md) - Validation results and resolved automation issues
 - [Complete Auto-Healing Implementation Summary](deployment/ci-cd/COMPLETE_AUTO_HEALING_SUMMARY.md) - Comprehensive auto-healing architecture, coverage, and usage
 - [GitHub Copilot Auto-Healing Guide](features/copilot/COPILOT_AUTO_HEALING_GUIDE.md) - Configure and operate Copilot-powered workflow recovery
+- [GitHub Copilot Auto-Healing Implementation Summary](features/copilot/COPILOT_AUTO_HEALING_IMPLEMENTATION_SUMMARY.md) - Implementation, validation, architecture, and deployment summary
 - [AMD64 Workflow Implementation Summary](ci-cd/amd64/AMD64_WORKFLOW_IMPLEMENTATION_SUMMARY.md) - Self-hosted AMD64 workflow implementation and validation coverage
 - [Set Up Your GitHub Actions Runner](ci-cd/SETUP_RUNNER_NOW.md) - Quick self-hosted runner setup
 - [GitHub Actions Runner Setup (Complete)](ci-cd/GITHUB_RUNNER_SETUP_COMPLETE.md) - Verified self-hosted runner configuration and operations

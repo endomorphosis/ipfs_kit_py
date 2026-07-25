@@ -4,6 +4,10 @@
 
 Successfully implemented a comprehensive GitHub Copilot agent auto-healing system that automatically fixes failed GitHub Actions workflows.
 
+## Documentation Navigation
+
+This implementation summary is maintained as part of the repository’s canonical documentation set. Start with the [GitHub Copilot Auto-Healing Guide](./COPILOT_AUTO_HEALING_GUIDE.md) for operational guidance, or use the [Copilot Auto-Healing Quick Reference](./COPILOT_AUTO_HEALING_QUICK_REF.md) for common commands. The [setup guide](./COPILOT_AUTO_HEALING_SETUP.md) covers installation and validation steps. This summary is also listed in the [documentation index](../../index.md) and the [documentation README](../../README.md).
+
 ## 📊 Deliverables
 
 ### Code (11 Files)
