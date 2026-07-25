@@ -233,6 +233,7 @@ Deployment guides for various platforms.
 | File | Description |
 |------|-------------|
 | [CI_CD.md](deployment/ci-cd/CI_CD.md) | CI/CD overview |
+| [AMD64_WORKFLOW_IMPLEMENTATION_SUMMARY.md](ci-cd/amd64/AMD64_WORKFLOW_IMPLEMENTATION_SUMMARY.md) | AMD64 workflow implementation and validation summary |
 | [AUTO_HEALING_COMPLETE.md](deployment/ci-cd/AUTO_HEALING_COMPLETE.md) | Auto-healing CI/CD |
 | [GITHUB_RUNNER_SETUP.md](deployment/ci-cd/GITHUB_RUNNER_SETUP.md) | GitHub runner setup |
 

@@ -256,6 +256,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - [CI/CD Summary](deployment/ci-cd/CI_CD_AUTOMATION_SUMMARY.md)
 - [Quick Reference](deployment/ci-cd/CI_CD_AUTOMATION_QUICK_REFERENCE.md)
 - [CI/CD Workflow Validation Guide](ci-cd/CI_CD_VALIDATION_GUIDE.md) - Validate workflows and CI scripts locally
+- [AMD64 Workflow Implementation Summary](ci-cd/amd64/AMD64_WORKFLOW_IMPLEMENTATION_SUMMARY.md) - Self-hosted AMD64 workflow implementation and validation coverage
 - [CI/CD Verification Report](ci-cd/CI_CD_VERIFICATION_REPORT.md) - Recorded workflow validation results and maintenance findings
 - [GitHub Workflow Fixes Summary](ci-cd/WORKFLOW_FIXES_SUMMARY.md) - Summary of CI configuration and workflow corrections
 - [GitHub Workflow Test Fixes](ci-cd/WORKFLOW_TEST_FIXES.md) - Diagnose and address broken workflow test imports, dependencies, and CI exclusions
