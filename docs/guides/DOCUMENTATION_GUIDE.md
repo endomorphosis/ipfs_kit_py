@@ -181,6 +181,7 @@ This guide helps you navigate the comprehensive documentation for IPFS Kit Pytho
 ### Testing
 
 - **[COMPLETE_INTEGRATION_SUMMARY.md](../status_reports/COMPLETE_INTEGRATION_SUMMARY.md)** - Test coverage (77 tests)
+- **[FINAL_TEST_COVERAGE_REPORT.md](../FINAL_TEST_COVERAGE_REPORT.md)** - Final test results and coverage by feature
 - **[docs/INTEGRATION_CHEAT_SHEET.md](../../docs/integration/INTEGRATION_CHEAT_SHEET.md)** - Testing section
 - **[README.md](../../README.md)** - Testing section in TOC
 
