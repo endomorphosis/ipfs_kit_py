@@ -409,6 +409,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Comprehensive Error Fixes](implementation/COMPREHENSIVE_ERROR_FIXES_COMPLETE.md)** - *Import compatibility, daemon management, filesystem access, libp2p fallbacks, and resilient error handling*
 
+**[Comprehensive IPFS Kit Improvements](implementation/COMPREHENSIVE_IMPROVEMENTS_COMPLETE.md)** - *Enhanced cluster daemon management, health monitoring, LibP2P recovery, dashboard APIs, and integration testing*
+
 **[CI/CD Workflows Completion Summary](implementation/COMPLETION_SUMMARY.txt)** - *CI/CD workflow validation results, tooling, and continuous-monitoring coverage*
 
 **[Apache Arrow IPC Zero-Copy Implementation](implementation/ARROW_IPC_ZERO_COPY_IMPLEMENTATION.md)** - *Zero-copy daemon access, fallback behavior, and validation*
