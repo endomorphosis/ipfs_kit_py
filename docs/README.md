@@ -257,6 +257,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - [Quick Reference](deployment/ci-cd/CI_CD_AUTOMATION_QUICK_REFERENCE.md)
 - [CI/CD Workflow Validation Guide](ci-cd/CI_CD_VALIDATION_GUIDE.md) - Validate workflows and CI scripts locally
 - [CI/CD Verification Report](ci-cd/CI_CD_VERIFICATION_REPORT.md) - Recorded workflow validation results and maintenance findings
+- [GitHub Actions Runner Setup (Complete)](ci-cd/GITHUB_RUNNER_SETUP_COMPLETE.md) - Verified self-hosted runner configuration and operations
 - [Integration Plan](deployment/ci-cd/CI_CD_AUTOMATION_INTEGRATION_PLAN.md)
 - [GitHub Runner Setup](deployment/ci-cd/GITHUB_RUNNER_SETUP.md)
 - [GitHub API Caching](deployment/ci-cd/GITHUB_API_CACHING.md)

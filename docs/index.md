@@ -98,6 +98,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - [PyPI Release Guide](pypi_release.md) - Publishing to PyPI
 - [Containerization and Deployment](containerization.md) - Docker and Kubernetes deployment
 - [CI/CD Pipeline](deployment/ci-cd/ci_cd_pipeline.md) - Continuous integration and deployment
+- [GitHub Actions Runner Setup (Complete)](ci-cd/GITHUB_RUNNER_SETUP_COMPLETE.md) - Verified self-hosted runner configuration and operations
 - [CI/CD Verification Report](ci-cd/CI_CD_VERIFICATION_REPORT.md) - Workflow validation results and maintenance findings
 - [GitHub Actions Runners Status Report](ci-cd/GITHUB_RUNNERS_STATUS_REPORT.md) - Current runner services, startup configuration, and ARM64 CI/CD health
 - [Auto-Healing Workflows Quick Start](../AUTO_HEALING_QUICK_START.md) - Get started with automatic workflow failure recovery
