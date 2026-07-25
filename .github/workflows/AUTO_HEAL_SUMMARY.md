@@ -1,5 +1,7 @@
 # Auto-Healing Implementation Summary
 
+> **Documentation navigation:** See the [full auto-healing workflow documentation](AUTO_HEAL_README.md) or return to the [IPFS Kit documentation index](../../docs/index.md).
+
 ## What Was Implemented
 
 ### 1. Simple Auto-Heal Workflow (NEW - Recommended)

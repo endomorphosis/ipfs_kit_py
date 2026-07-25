@@ -1,6 +1,6 @@
 # Auto-Healing Workflows Documentation
 
-> **Documentation navigation:** Return to the [IPFS Kit documentation index](../../docs/index.md) or the [CI/CD documentation map](../../docs/README.md#deployment--operations).
+> **Documentation navigation:** Return to the [IPFS Kit documentation index](../../docs/index.md) or the [CI/CD documentation map](../../docs/README.md#deployment--operations). See the [implementation summary](AUTO_HEAL_SUMMARY.md) for a concise overview of the current workflow setup.
 
 ## Overview
 
