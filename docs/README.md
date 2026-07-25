@@ -86,6 +86,11 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - Best practices
 - **Answers:** "What's the easiest way?" "Are there shortcuts?"
 
+**[Agent Integration Guide](api_generated/AGENT_GUIDE.md)** - *Programming-agent quick reference*
+- Project entry points and common operations
+- Configuration, testing, and development commands
+- Links to generated module and example references
+
 ### Features (Capabilities You Can Use)
 
 #### Content Management & Storage

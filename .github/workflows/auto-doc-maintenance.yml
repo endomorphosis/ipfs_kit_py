@@ -375,10 +375,12 @@ jobs:
           
           ## Documentation Resources
           
-          - **API Reference**: See `docs/api_reference.md`
-          - **Module Structure**: See `docs/api_generated/module_structure.md`
-          - **Examples**: See `examples/` directory
-          - **Tests**: See `tests/` for usage patterns
+          - **Documentation Index**: See [`../README.md`](../README.md) for the canonical documentation map
+          - **Generated Documentation Index**: See [`README.md`](README.md) for generated reference material
+          - **API Reference**: See [`../api/api_reference.md`](../api/api_reference.md)
+          - **Module Structure**: See [`module_structure.md`](module_structure.md)
+          - **Examples**: See the [`examples/`](../../examples/) directory
+          - **Tests**: See [`tests/`](../../tests/) for usage patterns
           
           ## Build and Test Commands
           
