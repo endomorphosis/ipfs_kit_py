@@ -409,6 +409,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Circular Import Fixes](implementation/CIRCULAR_IMPORT_FIXES_COMPLETE.md)** - *Resolved import-cycle, compatibility-alias, and optional pubsub dependency issues*
 
+**[Cluster Configuration Implementation](implementation/CLUSTER_CONFIG_IMPLEMENTATION_COMPLETE.md)** - *Cluster Service and Cluster Follow configuration APIs, MCP tools, dashboard access, and deployment examples*
+
 **[Reorganization Guide](guides/REORGANIZATION_GUIDE.md)** - *Project structure*
 
 ### Configuration & Secrets Management
