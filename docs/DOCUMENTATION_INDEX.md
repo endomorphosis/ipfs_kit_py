@@ -227,6 +227,7 @@ Deployment guides for various platforms.
 |------|-------------|
 | [DOCKER_QUICK_START.md](deployment/docker/DOCKER_QUICK_START.md) | Docker quick start |
 | [DOCKER_MULTIARCH_SUMMARY.md](deployment/docker/DOCKER_MULTIARCH_SUMMARY.md) | Multi-architecture Docker |
+| [TAILWIND_BUILD.md](deployment/TAILWIND_BUILD.md) | Build the production dashboard stylesheet |
 
 ### CI/CD
 

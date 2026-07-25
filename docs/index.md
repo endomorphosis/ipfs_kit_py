@@ -69,6 +69,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - **[Phase 6 Final Summary](PHASE6_FINAL_SUMMARY.md)** - Final Phase 6 test-suite inventory, coverage targets, and maintenance guidance
 - **[Server Selection Guide](../servers/README.md)** - Production vs. development server guidance
 - **[Deployment Guide](guides/CLUSTER_DEPLOYMENT_GUIDE.md)** - Production cluster deployment instructions
+- **[Tailwind CSS Production Build](deployment/TAILWIND_BUILD.md)** - Build and maintain the dashboard stylesheet locally
 - **[Performance Monitoring](operations/performance_metrics.md)** - Metrics, monitoring, and optimization
 
 ### **Advanced Features**

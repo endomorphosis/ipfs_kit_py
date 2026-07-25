@@ -2,6 +2,8 @@
 
 This project uses Tailwind CSS with a local build process instead of loading from a CDN.
 
+For the complete documentation map, see the [IPFS Kit Documentation](../README.md#deployment--operations).
+
 ## Quick Start
 
 ### Install Dependencies
