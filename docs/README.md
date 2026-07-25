@@ -258,6 +258,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 - [CI/CD Automation Phase 1 Complete](deployment/ci-cd/CI_CD_AUTOMATION_PHASE1_COMPLETE.md) - Phase 1 implementation summary and automation capabilities
 - [CI/CD Automation Validation Complete](deployment/ci-cd/CI_CD_AUTOMATION_VALIDATION_COMPLETE.md) - Validation results and resolved automation issues
 - [Complete Auto-Healing Implementation Summary](deployment/ci-cd/COMPLETE_AUTO_HEALING_SUMMARY.md) - Comprehensive auto-healing architecture, coverage, and usage
+- [Final Auto-Healing Implementation Summary](deployment/ci-cd/FINAL_AUTO_HEALING_SUMMARY.md) - Final implementation status, caching configuration, and operational details
 - [Quick Reference](deployment/ci-cd/CI_CD_AUTOMATION_QUICK_REFERENCE.md)
 - [CI/CD Workflow Validation Guide](ci-cd/CI_CD_VALIDATION_GUIDE.md) - Validate workflows and CI scripts locally
 - [AMD64 Workflow Implementation Summary](ci-cd/amd64/AMD64_WORKFLOW_IMPLEMENTATION_SUMMARY.md) - Self-hosted AMD64 workflow implementation and validation coverage

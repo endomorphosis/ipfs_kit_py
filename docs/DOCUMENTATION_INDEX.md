@@ -238,6 +238,7 @@ Deployment guides for various platforms.
 | [CI_CD_AUTOMATION_PHASE1_COMPLETE.md](deployment/ci-cd/CI_CD_AUTOMATION_PHASE1_COMPLETE.md) | CI/CD automation Phase 1 implementation summary |
 | [AMD64_WORKFLOW_IMPLEMENTATION_SUMMARY.md](ci-cd/amd64/AMD64_WORKFLOW_IMPLEMENTATION_SUMMARY.md) | AMD64 workflow implementation and validation summary |
 | [AUTO_HEALING_COMPLETE.md](deployment/ci-cd/AUTO_HEALING_COMPLETE.md) | Auto-healing CI/CD |
+| [FINAL_AUTO_HEALING_SUMMARY.md](deployment/ci-cd/FINAL_AUTO_HEALING_SUMMARY.md) | Final auto-healing implementation summary |
 | [GITHUB_RUNNER_SETUP.md](deployment/ci-cd/GITHUB_RUNNER_SETUP.md) | GitHub runner setup |
 
 ### ARM64 Support
