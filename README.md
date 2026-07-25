@@ -701,6 +701,7 @@ Comprehensive documentation available in [docs/](docs/):
 - **[Quick Reference](docs/QUICK_REFERENCE.md)** - Common operations
 - **[API Reference](docs/api/api_reference.md)** - Complete API docs
 - **[Cluster Guide](docs/operations/cluster_management.md)** - Cluster setup
+- **[CI/CD Verification Report](docs/ci-cd/CI_CD_VERIFICATION_REPORT.md)** - Workflow validation results and maintenance findings
 - **[AI/ML Integration](docs/integration/ai-ml/ai_ml.md)** - Machine learning features
 - **[MCP Server](docs/features/mcp/MCP_DASHBOARD_VALIDATION_REPORT.md)** - MCP server documentation
 - **[Test Coverage Extension](docs/TEST_COVERAGE_EXTENSION.md)** - Extended test coverage details and follow-up work
