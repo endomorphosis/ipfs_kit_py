@@ -417,6 +417,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[100% Coverage Roadmap](100_PERCENT_COVERAGE_ROADMAP.md)** - *Test coverage plan and progress*
 
+**[Test Coverage Improvements](TEST_COVERAGE_IMPROVEMENTS.md)** - *GraphRAG and bucket metadata export/import coverage improvements*
+
 **[Path to 100% Test Coverage](PATH_TO_100_PERCENT_COVERAGE.md)** - *Detailed test coverage progress report and remaining work*
 
 **[Phase 5 Final Report](PHASE5_FINAL_REPORT.md)** - *Final report on Phase 5 test coverage improvements*
