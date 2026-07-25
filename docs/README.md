@@ -339,6 +339,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[AnyIO Migration Guide](ANYIO_MIGRATION.md)** - *Migrating asynchronous code and tests from `asyncio` to AnyIO*
 
+**[Complete AnyIO Migration Summary](COMPLETE_ANYIO_MIGRATION_SUMMARY.md)** - *Migration results, test coverage, and implementation details*
+
 **[Reorganization Guide](guides/REORGANIZATION_GUIDE.md)** - *Project structure*
 
 ### Configuration & Secrets Management
