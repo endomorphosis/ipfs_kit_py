@@ -116,3 +116,9 @@ Failure examples:
 ## Runtime Policy
 
 Production runtime MUST use `unified_mcp_server`. Legacy MCP servers are deprecated and blocked in production mode unless `IPFS_KIT_ALLOW_LEGACY_MCP=1` is explicitly set.
+
+## Related Documentation
+
+- [VFS Management Consolidation](features/vfs/VFS_MANAGEMENT_CONSOLIDATION.md) - User-facing VFS operations and management guidance
+- [Filesystem Journal](filesystem_journal.md) - Change tracking and journaling for filesystem mutations
+- [MCP Server Migration Guide](MCP_SERVER_MIGRATION_GUIDE.md) - Canonical MCP runtime and migration policy

@@ -141,6 +141,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[VFS (Virtual File System)](features/vfs/VFS_MANAGEMENT_CONSOLIDATION.md)** - *POSIX-like virtual filesystem on IPFS*
 - [VFS Management](features/vfs/VFS_MANAGEMENT_CONSOLIDATION.md) - Complete VFS system
+- [VFS Contract Specification](VFS_CONTRACT_SPEC.md) - Canonical request, response, and synchronization contracts
 - [Filesystem Journal](filesystem_journal.md) - Change tracking and journaling
 - POSIX-like operations: mkdir, ls, mv, rm, cp
 - VFS buckets with quotas and policies

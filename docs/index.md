@@ -77,6 +77,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - **[AI/ML Integration](integration/ai-ml/ai_ml_integration.md)** - Machine learning and dataset management
 - **[Streaming Guide](reference/streaming_guide.md)** - WebSocket and WebRTC real-time communication
 - **[Migration Guide](MCP_SERVER_MIGRATION_GUIDE.md)** - Data routing and backend migration
+- **[VFS Contract Specification](VFS_CONTRACT_SPEC.md)** - Canonical VFS request, response, and sync contracts
 - **[AnyIO Migration Guide](ANYIO_MIGRATION.md)** - Migrating asynchronous code and tests from `asyncio` to AnyIO
 - **[Complete AnyIO Migration Summary](COMPLETE_ANYIO_MIGRATION_SUMMARY.md)** - Migration results, test coverage, and implementation details
 - [Knowledge Graph](knowledge_graph.md) - IPLD-based knowledge representation
