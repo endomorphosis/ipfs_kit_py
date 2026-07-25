@@ -415,6 +415,8 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 
 **[Comprehensive Real Implementations](implementation/COMPREHENSIVE_REAL_IMPLEMENTATIONS_COMPLETE.md)** - *Real backend health monitoring, VFS observability, analytics APIs, and dashboard data integration*
 
+**[Daemon Architecture Refactoring](implementation/DAEMON_ARCHITECTURE_REFACTORING_COMPLETE.md)** - *Daemon-based architecture, lightweight clients, service launcher, and backend management*
+
 **[CI/CD Workflows Completion Summary](implementation/COMPLETION_SUMMARY.txt)** - *CI/CD workflow validation results, tooling, and continuous-monitoring coverage*
 
 **[Apache Arrow IPC Zero-Copy Implementation](implementation/ARROW_IPC_ZERO_COPY_IMPLEMENTATION.md)** - *Zero-copy daemon access, fallback behavior, and validation*
