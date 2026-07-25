@@ -2,6 +2,10 @@
 
 This guide will help you get started with the auto-healing workflow system in 5 minutes.
 
+> **Documentation navigation:** Return to the [IPFS Kit documentation index](docs/index.md)
+> or browse the [complete documentation map](docs/README.md#advanced-features) for related
+> auto-healing guides.
+
 ## What is Auto-Healing?
 
 When a GitHub Actions workflow fails, the system:
