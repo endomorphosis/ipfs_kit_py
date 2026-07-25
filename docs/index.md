@@ -102,6 +102,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - [GitHub Actions Runner Setup (Complete)](ci-cd/GITHUB_RUNNER_SETUP_COMPLETE.md) - Verified self-hosted runner configuration and operations
 - [GitHub Actions Runner Scripts Guide](ci-cd/RUNNER_SCRIPTS_GUIDE.md) - Manage, monitor, restart, and remove self-hosted runners
 - [CI/CD Verification Report](ci-cd/CI_CD_VERIFICATION_REPORT.md) - Workflow validation results and maintenance findings
+- [GitHub Workflow Fixes Summary](ci-cd/WORKFLOW_FIXES_SUMMARY.md) - Summary of CI configuration and workflow corrections
 - [GitHub Actions Runner Quick Start](ci-cd/START_RUNNER_HERE.md) - Start here when setting up a self-hosted runner
 - [GitHub Actions Runners Status Report](ci-cd/GITHUB_RUNNERS_STATUS_REPORT.md) - Current runner services, startup configuration, and ARM64 CI/CD health
 - [Auto-Healing Workflows Quick Start](../AUTO_HEALING_QUICK_START.md) - Get started with automatic workflow failure recovery
