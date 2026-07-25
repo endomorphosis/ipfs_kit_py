@@ -141,6 +141,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 **[GraphRAG](features/graphrag/ENHANCED_GRAPHRAG_MCP_DOCUMENTATION.md)** - *Knowledge graphs & intelligent search*
 - [GraphRAG Documentation](features/graphrag/ENHANCED_GRAPHRAG_MCP_DOCUMENTATION.md) - Complete guide
 - [VFS Integration](features/graphrag/VFS_BUCKET_GRAPHRAG_INTEGRATION.md) - Auto-indexing
+- [GraphRAG & Bucket Metadata Export](GRAPHRAG_AND_BUCKET_EXPORT.md) - GraphRAG improvements and bucket metadata export/import
 - [Knowledge Graph](knowledge_graph.md) - Graph-based knowledge management
 - Automatic entity extraction and relationship mapping
 - 5 search methods: text, graph, vector, SPARQL, hybrid
