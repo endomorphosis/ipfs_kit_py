@@ -99,6 +99,7 @@ python servers/enhanced_mcp_server_with_full_config.py
 - **[Cluster Follow Enhancement](implementation/CLUSTER_FOLLOW_ENHANCEMENT_COMPLETE.md)** - Enhanced Cluster Follow daemon management, worker/follower synchronization, health monitoring, and Kubernetes deployment support
 - **[DuckDB + Parquet Conversion](implementation/DUCKDB_PARQUET_CONVERSION_COMPLETE.md)** - Pin metadata index migration, columnar persistence, analytical queries, and API compatibility
 - **[Enhanced Pin Integration](implementation/ENHANCED_PIN_INTEGRATION_COMPLETE.md)** - Unified enhanced pin metadata, VFS integration, multi-tier storage analytics, and operational tooling
+- **[Enhanced VFS Download System](implementation/ENHANCED_VFS_DOWNLOAD_COMPLETE.md)** - CLI-integrated, metadata-aware, parallel VFS downloads with backend selection and progress reporting
 - **[Enhanced Parquet Metadata](implementation/ENHANCED_PARQUET_METADATA_COMPLETE.md)** - Git VFS translation, remote backend metadata, health monitoring, snapshots, and extended pin tracking
 - **[Encrypted Configuration Storage](implementation/ENCRYPTED_CONFIG_SUMMARY.md)** - Encrypted credential storage, configuration migration, key rotation, and secure configuration access
 - [Knowledge Graph](knowledge_graph.md) - IPLD-based knowledge representation
