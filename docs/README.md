@@ -280,6 +280,7 @@ Welcome to the comprehensive documentation for **IPFS Kit Python**. This guide w
 **[Docker Deployment](deployment/docker/DOCKER_QUICK_START.md)** - *Docker-specific*
 - [Docker Architecture Tests](deployment/docker/DOCKER_ARCH_TESTS.md) - Multi-architecture Docker test workflow and validation
 - [Docker Testing Summary](deployment/docker/DOCKER_TESTING_SUMMARY.md) - Container test results and GitHub Actions runner setup
+- [Docker Dependency Pre-installation Test Results](deployment/docker/DOCKER_TEST_RESULTS.md) - Verification of pre-installed Lotus dependencies and runtime detection
 
 **[Tailwind CSS Production Build](deployment/TAILWIND_BUILD.md)** - *Build the dashboard stylesheet locally*
 - Run the production, development, or watch-mode CSS build
