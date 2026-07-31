@@ -531,7 +531,15 @@ class ipfs_kit:
                 disabled_components = metadata.get("disabled_components", [])
                 
                 # Leecher only needs IPFS daemon
-                self.ipfs = ipfs_py(metadata={"role": self.role, "testing": False}) # Explicitly set testing to False
+                self.ipfs = ipfs_py(
+                    resources=resources,
+                    metadata={
+                        "role": self.role,
+                        "testing": False,
+                        "ipfs_path": metadata.get("ipfs_path"),
+                        "config": metadata.get("config"),
+                    },
+                )
                 # Add storage kit for S3 connectivity
                 self.s3_kit = s3_kit(resources=resources)
                 self.storacha_kit = storacha_kit(resources=resources, metadata=metadata)
@@ -571,7 +579,15 @@ class ipfs_kit:
                 disabled_components = metadata.get("disabled_components", [])
                 
                 # Worker needs IPFS daemon and cluster-follow
-                self.ipfs = ipfs_py(metadata={"role": self.role, "testing": False}) # Explicitly set testing to False
+                self.ipfs = ipfs_py(
+                    resources=resources,
+                    metadata={
+                        "role": self.role,
+                        "testing": False,
+                        "ipfs_path": metadata.get("ipfs_path"),
+                        "config": metadata.get("config"),
+                    },
+                )
                 
                 # Initialize cluster-follow if not disabled
                 if "ipfs_cluster_follow" not in disabled_components:
@@ -623,7 +639,15 @@ class ipfs_kit:
                 disabled_components = metadata.get("disabled_components", [])
                 
                 # Master needs IPFS daemon, cluster-service, and cluster-ctl
-                self.ipfs = ipfs_py(metadata={"role": self.role, "testing": False}) # Explicitly set testing to False
+                self.ipfs = ipfs_py(
+                    resources=resources,
+                    metadata={
+                        "role": self.role,
+                        "testing": False,
+                        "ipfs_path": metadata.get("ipfs_path"),
+                        "config": metadata.get("config"),
+                    },
+                )
                 
                 # Initialize cluster service if not disabled
                 if "ipfs_cluster" not in disabled_components:
@@ -2190,6 +2214,38 @@ class ipfs_kit:
             dag_result = self.ipfs.dag_put(data, **kwargs) # type: ignore
             result.update(dag_result) # type: ignore
             result["success"] = dag_result.get("success", False) # type: ignore
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+
+    @auto_retry_on_daemon_failure(daemon_type="ipfs", max_retries=3)
+    def ipfs_block_put(self, data, codec="raw", **kwargs):
+        """Store exact block bytes through the configured Kubo API."""
+        operation = "ipfs_block_put"
+        correlation_id = kwargs.pop("correlation_id", None)
+        result = create_result_dict(operation, correlation_id)
+        try:
+            if not hasattr(self, "ipfs"):
+                return handle_error(result, IPFSError("IPFS instance not initialized"))
+            block_result = self.ipfs.block_put(data, codec=codec, **kwargs)  # type: ignore
+            result.update(block_result)
+            result["success"] = block_result.get("success", False)
+            return result
+        except Exception as e:
+            return handle_error(result, e)
+
+    @auto_retry_on_daemon_failure(daemon_type="ipfs", max_retries=3)
+    def ipfs_block_get(self, cid, **kwargs):
+        """Fetch exact block bytes through the configured Kubo API."""
+        operation = "ipfs_block_get"
+        correlation_id = kwargs.pop("correlation_id", None)
+        result = create_result_dict(operation, correlation_id)
+        try:
+            if not hasattr(self, "ipfs"):
+                return handle_error(result, IPFSError("IPFS instance not initialized"))
+            block_result = self.ipfs.block_get(cid, **kwargs)  # type: ignore
+            result.update(block_result)
+            result["success"] = block_result.get("success", False)
             return result
         except Exception as e:
             return handle_error(result, e)
