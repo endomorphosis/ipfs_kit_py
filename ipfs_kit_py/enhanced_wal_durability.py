@@ -67,6 +67,10 @@ class DurableWAL:
             checkpoint_interval: Operations between checkpoints
             max_segment_size: Maximum size for a single segment file
         """
+        if fsync_mode not in {"always", "batch", "periodic"}:
+            raise ValueError("fsync_mode must be always, batch, or periodic")
+        if batch_size <= 0 or checkpoint_interval <= 0 or max_segment_size <= 0:
+            raise ValueError("batch_size, checkpoint_interval, and max_segment_size must be positive")
         self.base_path = Path(base_path).expanduser()
         self.fsync_mode = fsync_mode
         self.batch_size = batch_size
@@ -107,10 +111,6 @@ class DurableWAL:
         
         # Initialize WAL
         self._initialize_wal()
-        
-        # Start batch flush thread if using batch mode
-        if self.fsync_mode == "batch":
-            self._start_batch_flush_thread()
         
         logger.info(
             f"Initialized durable WAL at {base_path} "
@@ -210,11 +210,11 @@ class DurableWAL:
             self.batch_buffer.append(operation_with_meta)
             self.stats['total_operations'] += 1
             
-            # Flush based on mode
-            if self.fsync_mode == "always":
-                self._flush_batch()
-            elif len(self.batch_buffer) >= self.batch_size:
-                self._flush_batch()
+            # An append is not accepted until its record and its containing
+            # directory entry are durable.  Delayed modes may still be useful
+            # to callers that build their own batches, but must not turn this
+            # method into an unacknowledged in-memory success.
+            self._flush_batch()
             
             # Check for checkpoint
             self.operations_since_checkpoint += 1
@@ -275,9 +275,11 @@ class DurableWAL:
                 line = json.dumps(operation) + '\n'
                 self.current_segment_file.write(line)
             
-            # Fsync based on mode
-            if self.fsync_mode in ("always", "batch"):
-                self._fsync_current_segment()
+            # Every successful append has the same durability boundary.  A
+            # periodic fsync may improve throughput only for APIs that do not
+            # report success before it occurs; this API does report success.
+            self._fsync_current_segment()
+            self._fsync_directory(self.segments_dir)
             
             self.stats['total_batches'] += 1
             batch_size = len(self.batch_buffer)
@@ -300,6 +302,17 @@ class DurableWAL:
             except Exception as e:
                 logger.error(f"Failed to fsync segment: {e}")
                 raise
+
+    @staticmethod
+    def _fsync_directory(path: Path) -> None:
+        try:
+            descriptor = os.open(path, os.O_RDONLY)
+        except OSError:
+            return
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
     
     def _create_checkpoint(self):
         """Create a checkpoint for faster recovery."""
@@ -329,10 +342,15 @@ class DurableWAL:
                 f"checkpoint_{checkpoint.timestamp:.0f}_{checkpoint.sequence_number:010d}.json"
             )
             
-            with open(checkpoint_file, 'w') as f:
+            temporary_checkpoint = checkpoint_file.with_name(
+                f".{checkpoint_file.name}.{hashlib.sha256(os.urandom(16)).hexdigest()[:12]}.tmp"
+            )
+            with open(temporary_checkpoint, 'w') as f:
                 json.dump(asdict(checkpoint), f, indent=2)
                 f.flush()
                 os.fsync(f.fileno())
+            os.replace(temporary_checkpoint, checkpoint_file)
+            self._fsync_directory(self.checkpoints_dir)
             
             self.checkpoints.append(checkpoint)
             self.operations_since_checkpoint = 0
@@ -409,6 +427,7 @@ class DurableWAL:
             List of recovered operations
         """
         recovered_operations = []
+        seen_sequences: set[int] = set()
         
         try:
             # Find checkpoint to start from
@@ -454,7 +473,8 @@ class DurableWAL:
                             entry = json.loads(line.strip())
                             seq_num = entry.get('sequence_number', 0)
                             
-                            if seq_num > start_sequence:
+                            if seq_num > start_sequence and seq_num not in seen_sequences:
+                                seen_sequences.add(seq_num)
                                 recovered_operations.append(entry['operation'])
                                 self.stats['recovery_operations'] += 1
                         except json.JSONDecodeError as e:

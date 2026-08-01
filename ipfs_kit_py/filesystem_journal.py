@@ -26,7 +26,7 @@ import tempfile
 import shutil
 import hashlib
 from collections import deque
-from typing import Dict, List, Any, Optional, Tuple, Union, Set
+from typing import Dict, List, Any, Optional, Tuple, Union, Set, Callable
 from enum import Enum
 import atexit
 
@@ -139,6 +139,10 @@ class FilesystemJournal:
         self.journal_entries = []
         self.in_transaction = False
         self.transaction_entries = []
+        self.current_transaction_id: Optional[str] = None
+        # Effects register their inverse here.  An abort marker is never
+        # persisted until every recorded external effect has been compensated.
+        self._transaction_compensations: List[Callable[[], Any]] = []
         self.last_sync_time = 0
         self.last_checkpoint_time = 0
         self.entry_count = 0
@@ -241,9 +245,20 @@ class FilesystemJournal:
 
             with open(temp_path, 'w') as f:
                 json.dump(self.journal_entries, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
             
-            # Move to final location (atomic operation)
-            shutil.move(temp_path, self.current_journal_path)
+            # Replacement is atomic on one filesystem.  Sync the containing
+            # directory too, otherwise a power loss can lose the rename.
+            os.replace(temp_path, self.current_journal_path)
+            try:
+                directory_fd = os.open(self.journal_dir, os.O_RDONLY)
+                try:
+                    os.fsync(directory_fd)
+                finally:
+                    os.close(directory_fd)
+            except OSError:
+                pass
             
             self.last_sync_time = time.time()
             return True
@@ -343,7 +358,7 @@ class FilesystemJournal:
             "data": data or {},
             "metadata": metadata or {},
             "status": status,
-            "transaction_id": None  # Will be set if in a transaction
+            "transaction_id": self.current_transaction_id if self.in_transaction else None
         }
         
         # Add to journal or transaction
@@ -363,6 +378,13 @@ class FilesystemJournal:
                     self._write_journal()
         
         return entry
+
+    def register_compensation(self, compensate: Callable[[], Any]) -> None:
+        """Register the inverse of an effect performed in the active transaction."""
+        with self._lock:
+            if not self.in_transaction:
+                raise RuntimeError("no active transaction for compensation")
+            self._transaction_compensations.append(compensate)
 
     def record_operation(
         self,
@@ -477,18 +499,24 @@ class FilesystemJournal:
             if self.in_transaction:
                 raise RuntimeError("Transaction already in progress")
                 
-            self.in_transaction = True
-            self.transaction_entries = []
             transaction_id = str(uuid.uuid4())
-            
-            # Add a special entry to mark the start of the transaction
-            self.add_journal_entry(
-                operation_type=JournalOperationType.CHECKPOINT,
-                path="transaction_begin",
-                data={"transaction_id": transaction_id},
-                status=JournalEntryStatus.COMPLETED
-            )
-            
+            begin_marker = {
+                "entry_id": str(uuid.uuid4()), "timestamp": time.time(),
+                "operation_type": JournalOperationType.CHECKPOINT.value,
+                "path": "transaction_begin", "data": {"transaction_id": transaction_id},
+                "metadata": {"marker": "begin"}, "status": JournalEntryStatus.COMPLETED.value,
+                "transaction_id": transaction_id,
+            }
+            self.journal_entries.append(begin_marker)
+            self.entry_count += 1
+            if not self._write_journal():
+                self.journal_entries.pop()
+                self.entry_count -= 1
+                raise RuntimeError("could not durably persist transaction begin")
+            self.in_transaction = True
+            self.current_transaction_id = transaction_id
+            self.transaction_entries = []
+            self._transaction_compensations = []
             return transaction_id
     
     def commit_transaction(self) -> bool:
@@ -502,29 +530,30 @@ class FilesystemJournal:
             if not self.in_transaction:
                 return False
                 
-            # Set transaction ID on all entries
-            transaction_id = self.transaction_entries[0]["transaction_id"] if self.transaction_entries else str(uuid.uuid4())
-            for entry in self.transaction_entries:
+            transaction_id = self.current_transaction_id
+            if not transaction_id:
+                raise RuntimeError("active transaction has no transaction ID")
+            entries = list(self.transaction_entries)
+            for entry in entries:
                 entry["transaction_id"] = transaction_id
-            
-            # Add all transaction entries to the journal
-            self.journal_entries.extend(self.transaction_entries)
-            self.entry_count += len(self.transaction_entries)
-            
-            # Add a special entry to mark the end of the transaction
-            self.add_journal_entry(
-                operation_type=JournalOperationType.CHECKPOINT,
-                path="transaction_commit",
-                data={"transaction_id": transaction_id},
-                status=JournalEntryStatus.COMPLETED
-            )
-            
-            # Reset transaction state
+            commit_marker = {
+                "entry_id": str(uuid.uuid4()), "timestamp": time.time(),
+                "operation_type": JournalOperationType.CHECKPOINT.value,
+                "path": "transaction_commit", "data": {"transaction_id": transaction_id},
+                "metadata": {"marker": "commit"}, "status": JournalEntryStatus.COMPLETED.value,
+                "transaction_id": transaction_id,
+            }
+            self.journal_entries.extend(entries + [commit_marker])
+            self.entry_count += len(entries) + 1
+            if not self._write_journal():
+                del self.journal_entries[-(len(entries) + 1):]
+                self.entry_count -= len(entries) + 1
+                return False
             self.in_transaction = False
+            self.current_transaction_id = None
             self.transaction_entries = []
-            
-            # Write journal to disk
-            return self._write_journal()
+            self._transaction_compensations = []
+            return True
     
     def rollback_transaction(self) -> bool:
         """
@@ -537,21 +566,31 @@ class FilesystemJournal:
             if not self.in_transaction:
                 return False
                 
-            # Get transaction ID if available
-            transaction_id = self.transaction_entries[0]["transaction_id"] if self.transaction_entries else str(uuid.uuid4())
-            
-            # Add a special entry to mark the rollback
-            self.add_journal_entry(
-                operation_type=JournalOperationType.CHECKPOINT,
-                path="transaction_rollback",
-                data={"transaction_id": transaction_id},
-                status=JournalEntryStatus.COMPLETED
-            )
-            
-            # Clear transaction entries
+            transaction_id = self.current_transaction_id
+            if not transaction_id:
+                raise RuntimeError("active transaction has no transaction ID")
+            # A rollback marker is a claim about the actual world, not merely
+            # metadata.  Perform inverses first and retain state on failure.
+            for compensate in reversed(self._transaction_compensations):
+                if compensate() is False:
+                    return False
+            abort_marker = {
+                "entry_id": str(uuid.uuid4()), "timestamp": time.time(),
+                "operation_type": JournalOperationType.CHECKPOINT.value,
+                "path": "transaction_abort", "data": {"transaction_id": transaction_id},
+                "metadata": {"marker": "abort"}, "status": JournalEntryStatus.ROLLED_BACK.value,
+                "transaction_id": transaction_id,
+            }
+            self.journal_entries.append(abort_marker)
+            self.entry_count += 1
+            if not self._write_journal():
+                self.journal_entries.pop()
+                self.entry_count -= 1
+                return False
             self.in_transaction = False
+            self.current_transaction_id = None
             self.transaction_entries = []
-            
+            self._transaction_compensations = []
             return True
     
     def create_checkpoint(self, description: Optional[str] = None) -> Union[str, bool]:
@@ -1357,8 +1396,9 @@ class FilesystemJournalManager:
                     result=result
                 )
                 
-                # Commit transaction
-                self.journal.commit_transaction()
+                # Never report success until the commit marker is durable.
+                if not self.journal.commit_transaction():
+                    raise RuntimeError("filesystem journal commit was not durable")
                 
                 return {
                     "success": True,
@@ -1433,8 +1473,9 @@ class FilesystemJournalManager:
                     result=result
                 )
                 
-                # Commit transaction
-                self.journal.commit_transaction()
+                # Never report success until the commit marker is durable.
+                if not self.journal.commit_transaction():
+                    raise RuntimeError("filesystem journal commit was not durable")
                 
                 return {
                     "success": True,
@@ -1512,8 +1553,9 @@ class FilesystemJournalManager:
                     result=result
                 )
                 
-                # Commit transaction
-                self.journal.commit_transaction()
+                # Never report success until the commit marker is durable.
+                if not self.journal.commit_transaction():
+                    raise RuntimeError("filesystem journal commit was not durable")
                 
                 return {
                     "success": True,
@@ -1585,8 +1627,9 @@ class FilesystemJournalManager:
                     result=result
                 )
                 
-                # Commit transaction
-                self.journal.commit_transaction()
+                # Never report success until the commit marker is durable.
+                if not self.journal.commit_transaction():
+                    raise RuntimeError("filesystem journal commit was not durable")
                 
                 return {
                     "success": True,
@@ -1680,8 +1723,9 @@ class FilesystemJournalManager:
                     result=result
                 )
                 
-                # Commit transaction
-                self.journal.commit_transaction()
+                # Never report success until the commit marker is durable.
+                if not self.journal.commit_transaction():
+                    raise RuntimeError("filesystem journal commit was not durable")
                 
                 return {
                     "success": True,
@@ -1753,8 +1797,9 @@ class FilesystemJournalManager:
                     result=result
                 )
                 
-                # Commit transaction
-                self.journal.commit_transaction()
+                # Never report success until the commit marker is durable.
+                if not self.journal.commit_transaction():
+                    raise RuntimeError("filesystem journal commit was not durable")
                 
                 return {
                     "success": True,
@@ -1834,8 +1879,9 @@ class FilesystemJournalManager:
                     result=result
                 )
                 
-                # Commit transaction
-                self.journal.commit_transaction()
+                # Never report success until the commit marker is durable.
+                if not self.journal.commit_transaction():
+                    raise RuntimeError("filesystem journal commit was not durable")
                 
                 return {
                     "success": True,
@@ -1906,8 +1952,9 @@ class FilesystemJournalManager:
                     result=result
                 )
                 
-                # Commit transaction
-                self.journal.commit_transaction()
+                # Never report success until the commit marker is durable.
+                if not self.journal.commit_transaction():
+                    raise RuntimeError("filesystem journal commit was not durable")
                 
                 return {
                     "success": True,
