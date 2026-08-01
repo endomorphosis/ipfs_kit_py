@@ -115,6 +115,11 @@ class StorageWriteAheadLog:
         self.archive_completed = archive_completed
         self.process_interval = process_interval
         self.health_monitor = health_monitor
+        # Production users must explicitly install the backend operations they
+        # want this WAL to execute.  Returning invented success here is worse
+        # than leaving an operation pending: it silently acknowledges data
+        # that was never sent to its backend.
+        self._operation_handlers: Dict[Tuple[str, str], Callable] = {}
         
         # Create directories if they don't exist
         os.makedirs(self.partitions_path, exist_ok=True)
@@ -437,60 +442,32 @@ class StorageWriteAheadLog:
             )
             logger.error(f"Error processing operation {operation_id}: {e}")
     
-    def _get_operation_handler(self, operation: Dict[str, Any]) -> Optional[Callable]:
-        """Get the handler function for an operation type.
-        
-        In a real implementation, this would return the actual handler function
-        from the API or storage backend. For demonstration purposes, we return
-        a mock handler that simulates success or failure.
+    def register_operation_handler(self, backend: Union[str, BackendType],
+                                   operation_type: Union[str, OperationType],
+                                   handler: Callable[[Dict[str, Any]], Dict[str, Any]]) -> None:
+        """Register the real backend implementation for a WAL operation.
+
+        ``"*"`` may be used for either selector as a deliberately configured
+        fallback.  A handler must return a mapping whose ``success`` member is
+        true only after the backend effect has completed.
         """
-        # This is a placeholder - in a real implementation, you would return
-        # the actual handler function from your API or backend
-        def mock_handler(op):
-            # Simulate some processing time
-            time.sleep(0.1)
-            
-            # Simulate success or failure (90% success rate)
-            if operation.get("backend") == "ipfs" and operation.get("operation_type") == "add":
-                # Simulate a specific operation
-                return {
-                    "success": True,
-                    "cid": f"Qm{''.join(['abcdef0123456789'[i % 16] for i in range(44)])}"
-                }
-            elif operation.get("backend") == "s3":
-                # S3 backend - always succeeds in this demo
-                return {
-                    "success": True,
-                    "destination": f"s3://bucket/key-{uuid.uuid4()}"
-                }
-            elif operation.get("backend") == "storacha":
-                # Storacha backend - has occasional failures
-                if operation.get("retry_count", 0) > 1:
-                    # Succeed after a retry
-                    return {
-                        "success": True,
-                        "cid": f"Qm{''.join(['abcdef0123456789'[i % 16] for i in range(44)])}"
-                    }
-                else:
-                    # Fail on first attempt
-                    return {
-                        "success": False,
-                        "error": "Temporary service unavailable",
-                        "error_type": "service_unavailable"
-                    }
-            else:
-                # Other operations - random success/failure
-                import random
-                if random.random() < 0.9:
-                    return {"success": True}
-                else:
-                    return {
-                        "success": False,
-                        "error": "Operation failed",
-                        "error_type": "generic_error"
-                    }
-        
-        return mock_handler
+        if not callable(handler):
+            raise TypeError("operation handler must be callable")
+        backend_value = backend.value if isinstance(backend, BackendType) else str(backend)
+        operation_value = (operation_type.value if isinstance(operation_type, OperationType)
+                           else str(operation_type))
+        self._operation_handlers[(backend_value, operation_value)] = handler
+
+    def _get_operation_handler(self, operation: Dict[str, Any]) -> Optional[Callable]:
+        """Return only an explicitly registered production handler."""
+        backend = str(operation.get("backend", ""))
+        operation_type = str(operation.get("operation_type", ""))
+        for key in ((backend, operation_type), (backend, "*"),
+                    ("*", operation_type), ("*", "*")):
+            handler = self._operation_handlers.get(key)
+            if handler is not None:
+                return handler
+        return None
     
     def add_operation(self, operation_type: Union[str, OperationType], 
                      backend: Union[str, BackendType],
@@ -534,8 +511,19 @@ class StorageWriteAheadLog:
             "max_retries": max_retries if max_retries is not None else self.max_retries
         }
         
-        # Store the operation
-        self._store_operation(operation)
+        # Store and fsync before letting callers observe an accepted request or
+        # scheduling work.  A failed append is a failed submission.
+        if not self._store_operation(operation):
+            return {
+                "success": False,
+                "operation_id": operation_id,
+                "operation_type": operation_type,
+                "backend": backend,
+                "status": None,
+                "timestamp": timestamp,
+                "error": "WAL append was not durable",
+                "error_type": "wal_append_failed",
+            }
         
         # Queue for processing if backend is healthy
         if self.health_monitor:
@@ -580,6 +568,55 @@ class StorageWriteAheadLog:
             return self._append_to_partition_arrow(operation)
         else:
             return self._append_to_partition_json(operation)
+
+    @staticmethod
+    def _fsync_directory(path: str) -> None:
+        """Persist a replace/unlink directory entry where the platform allows."""
+        try:
+            descriptor = os.open(path, os.O_RDONLY)
+        except (AttributeError, OSError):
+            return
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+
+    def _atomic_write_parquet(self, table: Any, destination: str) -> None:
+        """Write a complete replacement beside the old file, then publish it."""
+        destination_path = Path(destination)
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = destination_path.with_name(
+            f".{destination_path.name}.{uuid.uuid4().hex}.tmp"
+        )
+        try:
+            pq.write_table(table, temporary)
+            with open(temporary, "rb") as handle:
+                os.fsync(handle.fileno())
+            os.replace(temporary, destination_path)
+            self._fsync_directory(str(destination_path.parent))
+        finally:
+            if temporary.exists():
+                temporary.unlink()
+
+    def _atomic_write_json_lines(self, operations: List[Dict[str, Any]],
+                                 destination: str) -> None:
+        """Atomically publish JSON fallback data with file and parent fsync."""
+        destination_path = Path(destination)
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = destination_path.with_name(
+            f".{destination_path.name}.{uuid.uuid4().hex}.tmp"
+        )
+        try:
+            with open(temporary, "w", encoding="utf-8") as handle:
+                for item in operations:
+                    handle.write(json.dumps(item, default=str) + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, destination_path)
+            self._fsync_directory(str(destination_path.parent))
+        finally:
+            if temporary.exists():
+                temporary.unlink()
     
     def _append_to_partition_arrow(self, operation: Dict[str, Any]) -> bool:
         """Append an operation to the current partition using Arrow."""
@@ -705,11 +742,11 @@ class StorageWriteAheadLog:
                 # Concatenate with new data
                 combined_table = pa.concat_tables([existing_table, table])
                 
-                # Write back to file
-                pq.write_table(combined_table, self.current_partition_path)
+                # Publish a complete replacement; never rewrite the live
+                # Parquet file in place.
+                self._atomic_write_parquet(combined_table, self.current_partition_path)
             else:
-                # Create new file
-                pq.write_table(table, self.current_partition_path)
+                self._atomic_write_parquet(table, self.current_partition_path)
                 
             return True
             
@@ -722,24 +759,15 @@ class StorageWriteAheadLog:
     def _append_to_partition_json(self, operation: Dict[str, Any]) -> bool:
         """Append an operation to the current partition using JSON (fallback)."""
         try:
-            # Ensure the operation is serializable
-            operation_json = json.dumps(operation)
-            
-            # Check if the file exists
+            operations: List[Dict[str, Any]] = []
             if os.path.exists(self.current_partition_path):
-                # Open in append mode
-                mode = 'a'
-            else:
-                # Create new file
-                mode = 'w'
-                
-            # Write to file (one JSON object per line)
-            with open(self.current_partition_path, mode) as f:
-                if mode == 'a':
-                    # Add a newline before appending
-                    f.write('\n')
-                f.write(operation_json)
-                
+                with open(self.current_partition_path, encoding="utf-8") as handle:
+                    for line in handle:
+                        line = line.strip()
+                        if line:
+                            operations.append(json.loads(line))
+            operations.append(operation)
+            self._atomic_write_json_lines(operations, self.current_partition_path)
             return True
             
         except Exception as e:
@@ -1005,17 +1033,14 @@ class StorageWriteAheadLog:
                         updated_table = pa.Table.from_batches([batch])
                         
                         # If the operation status is completed and archiving is enabled,
-                        # move it to the archive instead of updating in-place
+                        # archive it *before* removing it from the live WAL.
+                        # Otherwise a failed archive would acknowledge and lose
+                        # a completed operation.
                         if new_status == OperationStatus.COMPLETED.value and self.archive_completed:
-                            # Write the filtered table back to the partition (without the completed operation)
-                            if filtered_out.num_rows > 0:
-                                pq.write_table(filtered_out, partition_path)
-                            else:
-                                # If this was the only operation in the partition, delete the file
-                                os.remove(partition_path)
-                            
-                            # Add to archive
-                            self._archive_operation(updated_op)
+                            if not self._archive_operation(updated_op):
+                                logger.error("Refusing to remove %s before durable archive", operation_id)
+                                return False
+                            self._atomic_write_parquet(filtered_out, partition_path)
                         else:
                             # Concatenate with filtered table
                             if filtered_out.num_rows > 0:
@@ -1023,8 +1048,7 @@ class StorageWriteAheadLog:
                             else:
                                 combined_table = updated_table
                             
-                            # Write back to partition
-                            pq.write_table(combined_table, partition_path)
+                            self._atomic_write_parquet(combined_table, partition_path)
                         
                         return True
                 except Exception as e:
@@ -1061,16 +1085,13 @@ class StorageWriteAheadLog:
                                 continue
                     
                     if found:
-                        # Write operations back to file
-                        with open(partition_path, 'w') as f:
-                            for op in operations:
-                                f.write(json.dumps(op) + '\n')
-                        
                         # If the operation status is completed and archiving is enabled,
-                        # add it to the archive
+                        # archive first, then atomically publish the removal.
                         if new_status == OperationStatus.COMPLETED.value and self.archive_completed:
-                            self._archive_operation(updated_op)
-                            
+                            if not self._archive_operation(updated_op):
+                                logger.error("Refusing to remove %s before durable archive", operation_id)
+                                return False
+                        self._atomic_write_json_lines(operations, partition_path)
                         return True
                 except Exception as e:
                     logger.error(f"Error updating operation in partition {partition_path}: {e}")
@@ -1169,10 +1190,9 @@ class StorageWriteAheadLog:
                     # Append to existing file
                     existing_table = pq.read_table(archive_path)
                     combined_table = pa.concat_tables([existing_table, table])
-                    pq.write_table(combined_table, archive_path)
+                    self._atomic_write_parquet(combined_table, archive_path)
                 else:
-                    # Create new file
-                    pq.write_table(table, archive_path)
+                    self._atomic_write_parquet(table, archive_path)
                     
                 return True
                 
@@ -1182,24 +1202,15 @@ class StorageWriteAheadLog:
         else:
             # Fallback to JSON
             try:
-                # Ensure the operation is serializable
-                operation_json = json.dumps(operation)
-                
-                # Check if the file exists
+                operations: List[Dict[str, Any]] = []
                 if os.path.exists(archive_path):
-                    # Open in append mode
-                    mode = 'a'
-                else:
-                    # Create new file
-                    mode = 'w'
-                    
-                # Write to file (one JSON object per line)
-                with open(archive_path, mode) as f:
-                    if mode == 'a':
-                        # Add a newline before appending
-                        f.write('\n')
-                    f.write(operation_json)
-                    
+                    with open(archive_path, encoding="utf-8") as handle:
+                        for line in handle:
+                            line = line.strip()
+                            if line:
+                                operations.append(json.loads(line))
+                operations.append(operation)
+                self._atomic_write_json_lines(operations, archive_path)
                 return True
                 
             except Exception as e:
@@ -1669,8 +1680,10 @@ class StorageWriteAheadLog:
                         except Exception:
                             pass
                     
-                    # Remove the file
-                    os.remove(archive_path)
+                    # Archive retention cleanup is intentionally separate from
+                    # moving live WAL records; fsync the directory afterwards.
+                    Path(archive_path).unlink()
+                    self._fsync_directory(self.archives_path)
                     result["removed_files"].append(archive_file)
             except Exception as e:
                 logger.error(f"Error cleaning up archive {archive_file}: {e}")
@@ -1963,13 +1976,10 @@ class StorageWriteAheadLog:
                             inverse_mask = pc.invert(mask)
                             filtered_table = table.filter(inverse_mask)
                             
-                            # Write the table back to the partition file if there are remaining operations
-                            if filtered_table.num_rows > 0:
-                                pq.write_table(filtered_table, partition_path)
-                            else:
-                                # Remove empty partition files
-                                os.remove(partition_path)
-                                
+                            # Keep an empty atomic Parquet replacement rather
+                            # than deleting a live partition before any archive
+                            # or recovery decision can observe it.
+                            self._atomic_write_parquet(filtered_table, partition_path)
                             return True
                     except Exception as e:
                         logger.error(f"Error filtering partition {partition_file} for operation {operation_id}: {str(e)}")
@@ -2001,13 +2011,7 @@ class StorageWriteAheadLog:
                                 inverse_mask = pc.invert(mask)
                                 filtered_table = table.filter(inverse_mask)
                                 
-                                # Write the table back to the archive file if there are remaining operations
-                                if filtered_table.num_rows > 0:
-                                    pq.write_table(filtered_table, archive_filepath)
-                                else:
-                                    # Remove empty archive files
-                                    os.remove(archive_filepath)
-                                    
+                                self._atomic_write_parquet(filtered_table, archive_filepath)
                                 return True
                         except Exception as e:
                             logger.error(f"Error filtering archive {archive_file} for operation {operation_id}: {str(e)}")
@@ -2147,15 +2151,7 @@ class BackendHealthMonitor:
         Returns:
             True if IPFS is healthy, False otherwise
         """
-        # This is a placeholder - in a real implementation, you would
-        # check the IPFS daemon health with appropriate API calls
-        
-        # Simulate some network latency
-        time.sleep(0.1)
-        
-        # In this example, we'll simulate IPFS being healthy 95% of the time
-        import random
-        return random.random() < 0.95
+        return self._configured_health_check(config)
     
     def _check_s3_health(self, config: Dict[str, Any]) -> bool:
         """
@@ -2167,15 +2163,7 @@ class BackendHealthMonitor:
         Returns:
             True if S3 is healthy, False otherwise
         """
-        # This is a placeholder - in a real implementation, you would
-        # check the S3 service health with appropriate API calls
-        
-        # Simulate some network latency
-        time.sleep(0.1)
-        
-        # In this example, we'll simulate S3 being healthy 99% of the time
-        import random
-        return random.random() < 0.99
+        return self._configured_health_check(config)
     
     def _check_storacha_health(self, config: Dict[str, Any]) -> bool:
         """
@@ -2187,15 +2175,15 @@ class BackendHealthMonitor:
         Returns:
             True if Storacha is healthy, False otherwise
         """
-        # This is a placeholder - in a real implementation, you would
-        # check the Storacha service health with appropriate API calls
-        
-        # Simulate some network latency
-        time.sleep(0.2)
-        
-        # In this example, we'll simulate Storacha being healthy 90% of the time
-        import random
-        return random.random() < 0.9
+        return self._configured_health_check(config)
+
+    @staticmethod
+    def _configured_health_check(config: Dict[str, Any]) -> bool:
+        """Run a supplied backend probe; unknown backends fail closed."""
+        check = config.get("health_check")
+        if not callable(check):
+            return False
+        return bool(check())
     
     def _check_local_health(self, config: Dict[str, Any]) -> bool:
         """
@@ -2218,7 +2206,7 @@ class BackendHealthMonitor:
             # Try to create a temporary file
             fd, temp_path = tempfile.mkstemp(dir=path)
             os.close(fd)
-            os.remove(temp_path)
+            Path(temp_path).unlink()
             
             return True
         except Exception:
