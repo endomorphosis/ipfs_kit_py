@@ -6,9 +6,46 @@ to manage quotas, replication, retention, and cache policies.
 """
 
 import time
+from dataclasses import replace
+from collections.abc import Mapping, Sequence
 from typing import Dict, Any, Optional, List, Union
 from pydantic import BaseModel, Field
 from enum import Enum
+
+from ipfs_kit_py.core.replication.contracts import BackendInventory, ReplicaObservation, ReplicaPolicy as CanonicalReplicaPolicy
+from ipfs_kit_py.core.replication.integrity import ReplicaContent
+from ipfs_kit_py.core.replication.reconciler import (
+    ReplicaReconciler,
+    ReconciliationActionKind,
+    ReconciliationReceipt,
+)
+
+
+LEGACY_REPLICATION_ADAPTER_SCHEMA = "ipfs_kit_py/legacy-replication-adapter@1"
+LegacyReplicationAdapter_V1 = LEGACY_REPLICATION_ADAPTER_SCHEMA
+
+
+class LegacyReplicationConfigurationError(ValueError):
+    """A legacy caller lacks the immutable data needed for reconciliation."""
+
+
+class LegacyPolicyMigrationError(LegacyReplicationConfigurationError):
+    """A legacy policy asks for semantics the canonical policy cannot express."""
+
+    def __init__(self, unsupported_fields: Mapping[str, Any]):
+        self.unsupported_fields = dict(unsupported_fields)
+        fields = ", ".join(sorted(self.unsupported_fields)) or "unknown"
+        super().__init__(f"legacy replication policy has unsupported fields: {fields}")
+
+
+class LegacyReplicationCleanupBlockedError(LegacyReplicationConfigurationError):
+    """Legacy cleanup is refused until dynamic callers have migrated."""
+
+    def __init__(self, receipt: ReconciliationReceipt):
+        self.receipt = receipt
+        super().__init__(
+            "legacy replication cleanup is blocked because dynamic callers have not been resolved"
+        )
 
 
 class QuotaUnit(str, Enum):
@@ -79,6 +116,141 @@ class ReplicationPolicy(BaseModel):
     preferred_backends: List[str] = Field(default_factory=list)
     excluded_backends: List[str] = Field(default_factory=list)
     replication_delay_seconds: int = Field(0, description="Delay before replication")
+
+
+def _legacy_policy_values(policy: ReplicationPolicy | Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize a Pydantic v1/v2 model or mapping without silently dropping keys."""
+
+    if isinstance(policy, ReplicationPolicy):
+        if hasattr(policy, "model_dump"):
+            return dict(policy.model_dump())
+        return dict(policy.dict())
+    if isinstance(policy, Mapping):
+        return dict(policy)
+    raise LegacyReplicationConfigurationError(
+        "legacy replication policy must be a ReplicationPolicy or mapping"
+    )
+
+
+def migrate_legacy_replication_policy(
+    policy: ReplicationPolicy | Mapping[str, Any], *, policy_id: str = "legacy-replication"
+) -> CanonicalReplicaPolicy:
+    """Translate the small compatible subset of ``ReplicationPolicy`` explicitly.
+
+    The old policy surface contained scheduling, geographic, and strategy
+    semantics that are not equivalent to a replica placement contract.  Those
+    fields fail closed rather than being quietly ignored.
+    """
+
+    values = _legacy_policy_values(policy)
+    known = {
+        "enabled",
+        "strategy",
+        "min_redundancy",
+        "max_redundancy",
+        "critical_redundancy",
+        "geo_distribution",
+        "preferred_backends",
+        "excluded_backends",
+        "replication_delay_seconds",
+    }
+    unsupported = {name: value for name, value in values.items() if name not in known}
+    if values.get("enabled", True) is not True:
+        unsupported["enabled"] = values.get("enabled")
+    strategy = values.get("strategy", ReplicationStrategy.SIMPLE)
+    strategy_value = strategy.value if isinstance(strategy, ReplicationStrategy) else strategy
+    if strategy_value != ReplicationStrategy.SIMPLE.value:
+        unsupported["strategy"] = strategy
+    if values.get("geo_distribution", False) is not False:
+        unsupported["geo_distribution"] = values.get("geo_distribution")
+    if values.get("replication_delay_seconds", 0) != 0:
+        unsupported["replication_delay_seconds"] = values.get("replication_delay_seconds")
+    if unsupported:
+        raise LegacyPolicyMigrationError(unsupported)
+
+    try:
+        minimum = int(values.get("min_redundancy", 2))
+        maximum = int(values.get("max_redundancy", 4))
+        critical = int(values.get("critical_redundancy", 5))
+        return CanonicalReplicaPolicy(
+            policy_id=policy_id,
+            min_replicas=minimum,
+            desired_replicas=minimum,
+            max_replicas=maximum,
+            critical_replicas=critical,
+            preferred_backends=tuple(values.get("preferred_backends", ())),
+            excluded_backends=tuple(values.get("excluded_backends", ())),
+        )
+    except (TypeError, ValueError) as exc:
+        raise LegacyReplicationConfigurationError(
+            f"legacy replication policy cannot be migrated: {exc}"
+        ) from exc
+
+
+class LegacyReplicationAdapter:
+    """Caller-complete bridge from legacy entry points to ``ReplicaReconciler``.
+
+    A queued observation is passed through to the reconciler only as evidence;
+    it cannot become a counted replica.  Potential removals are first planned
+    dry-run and then blocked, because legacy entry points may still have
+    unresolved dynamic callers that expect the old destructive behavior.
+    """
+
+    interface_version = LEGACY_REPLICATION_ADAPTER_SCHEMA
+
+    def __init__(
+        self,
+        reconciler: ReplicaReconciler,
+        policy: CanonicalReplicaPolicy,
+        inventory: BackendInventory,
+    ) -> None:
+        if not isinstance(reconciler, ReplicaReconciler):
+            raise LegacyReplicationConfigurationError("reconciler must be a ReplicaReconciler")
+        if not isinstance(policy, CanonicalReplicaPolicy):
+            raise LegacyReplicationConfigurationError("policy must be a canonical ReplicaPolicy")
+        if not isinstance(inventory, BackendInventory):
+            raise LegacyReplicationConfigurationError("inventory must be a BackendInventory")
+        self._reconciler = reconciler
+        self._policy = policy
+        self._inventory = inventory
+
+    def reconcile(
+        self,
+        *,
+        content_ref: str,
+        content_size_bytes: int,
+        expected_digest: str,
+        expected_version_id: str,
+        replicas: Sequence[ReplicaObservation] = (),
+        source: ReplicaContent | None = None,
+        target_redundancy: int | None = None,
+    ) -> ReconciliationReceipt:
+        policy = self._policy_for_target(target_redundancy)
+        arguments = {
+            "content_ref": content_ref,
+            "content_size_bytes": content_size_bytes,
+            "policy": policy,
+            "inventory": self._inventory,
+            "expected_digest": expected_digest,
+            "expected_version_id": expected_version_id,
+            "replicas": replicas,
+            "source": source,
+        }
+        preview = self._reconciler.reconcile(**arguments, dry_run=True)
+        if any(action.kind is ReconciliationActionKind.REMOVE for action in preview.actions):
+            raise LegacyReplicationCleanupBlockedError(preview)
+        return self._reconciler.reconcile(**arguments)
+
+    def _policy_for_target(self, target_redundancy: int | None) -> CanonicalReplicaPolicy:
+        if target_redundancy is None:
+            return self._policy
+        if isinstance(target_redundancy, bool) or not isinstance(target_redundancy, int):
+            raise LegacyReplicationConfigurationError("target_redundancy must be an integer")
+        if not self._policy.min_replicas <= target_redundancy <= self._policy.max_replicas:
+            raise LegacyReplicationConfigurationError(
+                "target_redundancy must be within the canonical policy bounds"
+            )
+        return replace(self._policy, desired_replicas=target_redundancy)
 
 
 class RetentionPolicy(BaseModel):
