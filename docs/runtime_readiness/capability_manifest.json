@@ -1,0 +1,1432 @@
+{
+  "schema": "CapabilityManifest@1",
+  "schema_version": "ipfs_kit_py.runtime_readiness.capability_manifest@1",
+  "task_id": "KITA-001",
+  "title": "Repository, capability, backend, and test-gate inventory",
+  "interfaces": [
+    "CapabilityManifest@1",
+    "RepositoryForestDescriptor@1",
+    "BackendSupportTier@1"
+  ],
+  "generated_for_program": "ipfs-kit-runtime-readiness-v1",
+  "policy": {
+    "id": "CapabilityInventoryPolicy@1",
+    "checked_in": true,
+    "correctness_from_presence": false,
+    "presence_is_not_support": true,
+    "support_tiers": [
+      "production",
+      "conditional",
+      "configuration-only",
+      "experimental",
+      "unsupported",
+      "unknown-pending-proof"
+    ],
+    "tier_definitions": {
+      "production": "Complete required operations and live conformance with current receipts.",
+      "conditional": "Complete declared subset when a named capability/extra/config is available.",
+      "configuration-only": "Validated configuration and health discovery only; no live data-plane claim.",
+      "experimental": "Explicitly opt-in and excluded from production routing.",
+      "unsupported": "Typed rejection expected before side effects, or construction/path is known broken.",
+      "unknown-pending-proof": "Advertised or present in tree but without admitted current-tree correctness evidence."
+    },
+    "production_requires": [
+      "live_conformance_receipt",
+      "complete_required_operations",
+      "current_tree_evidence",
+      "no_open_p0_defect_on_required_path"
+    ],
+    "forbidden_inferences": [
+      "registry_presence_implies_support",
+      "import_success_implies_correctness",
+      "schema_form_implies_runtime",
+      "test_file_presence_implies_gate_coverage",
+      "optional_extra_installed_implies_backend_ready"
+    ],
+    "exhaustiveness_scope": [
+      "repository_forest",
+      "version_and_dependency_identity",
+      "public_exports",
+      "cli_console_scripts",
+      "mcp_and_mcpplusplus_surfaces",
+      "vfs_variants",
+      "bucket_planes",
+      "wal_journal_variants",
+      "arc_cache",
+      "replica_policy",
+      "graphrag_variants",
+      "backend_registry_types",
+      "backend_schema_keys",
+      "backend_adapter_registry",
+      "optional_dependencies",
+      "test_gate_exclusions",
+      "confirmed_baseline_defects",
+      "duplicate_implementations"
+    ]
+  },
+  "repository_forest": {
+    "schema": "RepositoryForestDescriptor@1",
+    "planning_bound": {
+      "ipfs_accelerate_py": "f25e5719cb738a50fb96bac4bea3f66ebca9800b",
+      "ipfs_kit_py_gitlink": "f6a574375febbcf9a46fcd24bbc7bc5cfb551de5",
+      "ipfs_datasets_py_gitlink": "7415adc5100192ee35676778f1018f6b072378f9",
+      "source": "docs/architecture/IPFS_KIT_RUNTIME_READINESS_PLAN.md \u00a7 Frozen planning baseline"
+    },
+    "inventory_observation": {
+      "note": "Recorded at KITA-001 implementation time in the supervisor worktree. A changed revision invalidates historical findings and requires a fresh inventory; it is not automatically a failure.",
+      "workspace_tree_id": "26b8e4e0375428e11f1490b0c57ab33f9f67213b",
+      "repositories": [
+        {
+          "id": "repo:ipfs_kit_py",
+          "path": "ipfs_kit_py",
+          "role": "primary_storage_runtime",
+          "gitlink_in_parent": true,
+          "observed_revision": "06cd826431cf8fb6f155942fa1345e69b9fb3100",
+          "planning_bound_revision": "f6a574375febbcf9a46fcd24bbc7bc5cfb551de5",
+          "revision_match_planning_bound": false,
+          "dirty_overlay": false
+        },
+        {
+          "id": "repo:ipfs_datasets_py",
+          "path": "ipfs_datasets_py",
+          "role": "datasets_graphrag_logic_provider",
+          "gitlink_in_parent": true,
+          "observed_revision": "7415adc5100192ee35676778f1018f6b072378f9",
+          "planning_bound_revision": "7415adc5100192ee35676778f1018f6b072378f9",
+          "revision_match_planning_bound": true,
+          "dirty_overlay": false
+        },
+        {
+          "id": "repo:ipfs_accelerate_py",
+          "path": "ipfs_accelerate_py",
+          "role": "parent_accelerator_and_supervisor",
+          "gitlink_in_parent": false,
+          "observed_revision": "26b8e4e0375428e11f1490b0c57ab33f9f67213b",
+          "planning_bound_revision": "f25e5719cb738a50fb96bac4bea3f66ebca9800b",
+          "revision_match_planning_bound": false,
+          "dirty_overlay": false
+        }
+      ],
+      "dirty_overlay_policy": "Dirty overlays invalidate content-bound findings until re-inventoried. This inventory records clean nested trees at observation time."
+    }
+  },
+  "version_identity": {
+    "runtime_version": {
+      "field": "ipfs_kit_py.__version__",
+      "value": "0.2.0",
+      "path": "ipfs_kit_py/__init__.py"
+    },
+    "metadata_versions": [
+      {
+        "field": "pyproject.toml:[project].version",
+        "value": "0.3.0"
+      },
+      {
+        "field": "setup.py:version",
+        "value": "0.3.0"
+      }
+    ],
+    "mismatch": true,
+    "related_defects": [
+      "defect:lazy-import-dependency-version-drift"
+    ]
+  },
+  "confirmed_defects": [
+    {
+      "id": "defect:vfs-noop-rename-journal-mismatch",
+      "title": "VFS no-op rename/move with journal method mismatch",
+      "category": "vfs",
+      "severity": "P0",
+      "status": "confirmed-observation",
+      "locations": [
+        {
+          "path": "ipfs_kit_py/vfs_manager.py",
+          "symbols": [
+            "IPFSVFSManager.rename_item",
+            "IPFSVFSManager.move_item"
+          ],
+          "observation": "Returns success=True as an explicit placeholder without mutating namespace state; calls filesystem_journal.log_operation."
+        },
+        {
+          "path": "ipfs_kit_py/filesystem_journal.py",
+          "symbols": [
+            "FilesystemJournal.record_operation"
+          ],
+          "observation": "FilesystemJournal exposes record_operation and related transaction methods but does not define log_operation, so the VFS rename/move journal call site is mismatched."
+        }
+      ],
+      "summary": "Primary VFS rename_item/move_item report success without mutating state and invoke a journal method that does not exist on FilesystemJournal.",
+      "planning_reference": "IPFS_KIT_RUNTIME_READINESS_PLAN.md \u00a7 Confirmed baseline blockers"
+    },
+    {
+      "id": "defect:overlapping-bucket-planes",
+      "title": "Overlapping virtual-bucket management planes",
+      "category": "buckets",
+      "severity": "P0",
+      "status": "confirmed-observation",
+      "locations": [
+        {
+          "path": "ipfs_kit_py/bucket_manager.py",
+          "role": "bucket plane"
+        },
+        {
+          "path": "ipfs_kit_py/bucket_vfs_manager.py",
+          "role": "bucket+VFS plane"
+        },
+        {
+          "path": "ipfs_kit_py/vfs_bucket_manager.py",
+          "role": "VFS-bucket plane"
+        },
+        {
+          "path": "ipfs_kit_py/simple_bucket_manager.py",
+          "role": "simplified plane"
+        },
+        {
+          "path": "ipfs_kit_py/simplified_bucket_manager.py",
+          "role": "simplified plane"
+        },
+        {
+          "path": "ipfs_kit_py/unified_bucket_interface.py",
+          "role": "unification attempt"
+        },
+        {
+          "path": "ipfs_kit_py/iroh/bucket_tiering.py",
+          "role": "Iroh tiering plane"
+        },
+        {
+          "path": "ipfs_kit_py/enhanced_bucket_index.py",
+          "role": "index plane"
+        },
+        {
+          "path": "ipfs_kit_py/enhanced_bucket_index_fixed.py",
+          "role": "index plane variant"
+        }
+      ],
+      "summary": "Multiple bucket management planes maintain overlapping state. Creation crosses directory/index/registry writes without full rollback; Iroh tiering can perform external placement before DuckDB transaction completion without a complete compensation protocol.",
+      "planning_reference": "IPFS_KIT_RUNTIME_READINESS_PLAN.md \u00a7 Confirmed baseline blockers"
+    },
+    {
+      "id": "defect:wal-transaction-protocol",
+      "title": "WAL/journal transaction protocol defects",
+      "category": "wal",
+      "severity": "P0",
+      "status": "confirmed-observation",
+      "locations": [
+        {
+          "path": "ipfs_kit_py/storage_wal.py",
+          "symbols": [
+            "mock_handler",
+            "random success paths"
+          ],
+          "observation": "Production path returns a mock_handler and uses random.random() thresholds for simulated success/failure."
+        },
+        {
+          "path": "ipfs_kit_py/filesystem_journal.py",
+          "symbols": [
+            "begin_transaction",
+            "commit_transaction",
+            "create_checkpoint"
+          ],
+          "observation": "Journal API coexists with other WAL variants without shared protocol."
+        },
+        {
+          "path": "ipfs_kit_py/wal.py",
+          "role": "alternate WAL implementation"
+        },
+        {
+          "path": "ipfs_kit_py/car_wal_manager.py",
+          "role": "CAR-oriented WAL variant"
+        },
+        {
+          "path": "ipfs_kit_py/enhanced_wal_durability.py",
+          "role": "durability wrapper variant"
+        }
+      ],
+      "summary": "Journal/WAL variants do not share a valid transaction protocol: begin/commit IDs and markers can be lost, mutation may precede durable intent, file/parent-directory durability is incomplete, a production path contains a random/mock handler, and checkpoint/archive behavior can skip or delete unrecovered work.",
+      "planning_reference": "IPFS_KIT_RUNTIME_READINESS_PLAN.md \u00a7 Confirmed baseline blockers"
+    },
+    {
+      "id": "defect:arc-accounting-concurrency",
+      "title": "ARC byte accounting and concurrency defects",
+      "category": "arc",
+      "severity": "P0",
+      "status": "confirmed-observation",
+      "locations": [
+        {
+          "path": "ipfs_kit_py/arc_cache.py",
+          "symbols": [
+            "ARCache"
+          ]
+        },
+        {
+          "path": "ipfs_kit_py/arc_cache_anyio.py",
+          "role": "async wrapper"
+        },
+        {
+          "path": "ipfs_kit_py/tiered_cache_manager.py",
+          "role": "tiered cache integration"
+        }
+      ],
+      "summary": "ARC update and ghost-hit paths can leave live byte accounting stale and violate capacity; mutable lists are not synchronized even though wrappers may dispatch them to threads.",
+      "planning_reference": "IPFS_KIT_RUNTIME_READINESS_PLAN.md \u00a7 Confirmed baseline blockers"
+    },
+    {
+      "id": "defect:shadowed-replica-methods",
+      "title": "Shadowed ensure_replication methods",
+      "category": "replica",
+      "severity": "P0",
+      "status": "confirmed-observation",
+      "locations": [
+        {
+          "path": "ipfs_kit_py/tiered_cache_manager.py",
+          "symbols": [
+            "TieredCacheManager.ensure_replication@~1509",
+            "TieredCacheManager.ensure_replication@~2703"
+          ],
+          "observation": "Two methods with the same name in one class body; the later definition shadows the earlier copying implementation. Pending replication can be counted as successful redundancy; cross-field/capability validation is incomplete."
+        }
+      ],
+      "summary": "A later ensure_replication definition shadows the implementation that performs copying, while pending replication can be counted as successful redundancy.",
+      "planning_reference": "IPFS_KIT_RUNTIME_READINESS_PLAN.md \u00a7 Confirmed baseline blockers"
+    },
+    {
+      "id": "defect:backend-registry-factory-fracture",
+      "title": "Backend registry/schema/adapter factory fracture",
+      "category": "backends",
+      "severity": "P0",
+      "status": "confirmed-observation",
+      "locations": [
+        {
+          "path": "ipfs_kit_py/backend_registry.py",
+          "symbols": [
+            "BackendTypeRegistry.LEGACY_TYPES",
+            "LegacyBackendPlugin",
+            "IrohBackendPlugin"
+          ],
+          "observation": "22 registered type plugins (21 legacy + iroh). Planning notes estimated 23."
+        },
+        {
+          "path": "ipfs_kit_py/backend_manager.py",
+          "symbols": [
+            "BackendManager.get_backend_adapter"
+          ],
+          "observation": "Calls registry plugin create_filesystem; LegacyBackendPlugin does not implement it, so most named backends cannot use this path."
+        },
+        {
+          "path": "ipfs_kit_py/backends/__init__.py",
+          "symbols": [
+            "BACKEND_ADAPTERS",
+            "get_backend_adapter"
+          ],
+          "observation": "Smaller adapter registry (ipfs, filesystem, sshfs, s3, minio, digitalocean + iroh special-case)."
+        },
+        {
+          "path": "ipfs_kit_py/backend_schemas.py",
+          "symbols": [
+            "SCHEMAS"
+          ],
+          "observation": "15 dashboard schema keys including aliases (ipfs-cluster) and non-registry types (lotus, arrow, ipfs-cluster-follow)."
+        }
+      ],
+      "summary": "BackendManager.get_backend_adapter requires create_filesystem absent from the legacy plugin protocol. Registry names, dashboard schemas, and the smaller adapter registry diverge.",
+      "planning_reference": "IPFS_KIT_RUNTIME_READINESS_PLAN.md \u00a7 Confirmed baseline blockers"
+    },
+    {
+      "id": "defect:mcplusplus-construction-failure",
+      "title": "MCP++ server construction failure (EventDAGStore)",
+      "category": "mcpplusplus",
+      "severity": "P0",
+      "status": "confirmed-observation",
+      "locations": [
+        {
+          "path": "ipfs_kit_py/mcp_server/server.py",
+          "symbols": [
+            "EventDAGStore"
+          ],
+          "observation": "Constructor assigns self._dag = EventDAGStore() without importing EventDAGStore in the module, causing NameError on construction."
+        }
+      ],
+      "summary": "ipfs_kit_py/mcp_server/server.py constructs EventDAGStore without importing it. Focused Profile C/D/MCP++ runs observed construction failures.",
+      "planning_reference": "IPFS_KIT_RUNTIME_READINESS_PLAN.md \u00a7 Confirmed baseline blockers"
+    },
+    {
+      "id": "defect:mcplusplus-policy-route",
+      "title": "MCP++ policy routed away from datasets Profile D",
+      "category": "mcpplusplus",
+      "severity": "P0",
+      "status": "confirmed-observation",
+      "locations": [
+        {
+          "path": "ipfs_kit_py/mcp_server/server.py",
+          "symbols": [
+            "mcp++/policy/evaluate",
+            "delegation.evaluate_policy"
+          ],
+          "observation": "Active server routes policy evaluation through a permissive competing evaluator path; canonical datasets Profile D bridge and advertised profile expectations are not enforced."
+        }
+      ],
+      "summary": "Active MCP++ server routes policy to a permissive competing evaluator instead of the canonical datasets Profile D bridge; UCAN/policy evaluation remains advisory with fail-open risk.",
+      "planning_reference": "IPFS_KIT_RUNTIME_READINESS_PLAN.md \u00a7 Confirmed baseline blockers"
+    },
+    {
+      "id": "defect:graphrag-persistence-safety-drift",
+      "title": "GraphRAG persistence, safety, and schema drift",
+      "category": "graphrag",
+      "severity": "P0",
+      "status": "confirmed-observation",
+      "locations": [
+        {
+          "path": "ipfs_kit_py/graphrag.py",
+          "symbols": [
+            "GraphRAGSearchEngine"
+          ],
+          "observation": "Loads caller-selected pickle cache files, brute-force scans embeddings, eagerly imports optional ML stacks, may load models during construction."
+        },
+        {
+          "path": "ipfs_kit_py/mcp/ipfs_kit/graphrag.py",
+          "role": "MCP GraphRAG wrapper with potentially incompatible schema"
+        },
+        {
+          "path": "ipfs_kit_py/vfs_bucket_graphrag_integration.py",
+          "role": "VFS/bucket GraphRAG integration variant"
+        }
+      ],
+      "summary": "Unsafe pickle deserialization; non-durable in-memory NetworkX/RDF views vs SQLite; update history records replacement as prior version; incompatible multi-implementation schemas; no MCP++ GraphRAG tool category.",
+      "planning_reference": "IPFS_KIT_RUNTIME_READINESS_PLAN.md \u00a7 Confirmed baseline blockers"
+    },
+    {
+      "id": "defect:lazy-import-dependency-version-drift",
+      "title": "Lazy-import, dependency projection, and version drift",
+      "category": "packaging",
+      "severity": "P0",
+      "status": "confirmed-observation",
+      "locations": [
+        {
+          "path": "ipfs_kit_py/__init__.py",
+          "observation": "Runtime __version__ is 0.2.0 while packaging metadata is 0.3.0."
+        },
+        {
+          "path": "pyproject.toml",
+          "observation": "project.version = 0.3.0 (source of truth candidate)."
+        },
+        {
+          "path": "setup.py",
+          "observation": "version = 0.3.0 (must remain a projection of pyproject)."
+        },
+        {
+          "path": "ipfs_kit_py/mcp_server/server.py",
+          "observation": "MCP server module eagerly imports anyio, mcplusplus, HierarchicalToolManager."
+        }
+      ],
+      "summary": "Root/CLI/MCP/installed-package exports, versions, and dependency projections disagree; MCP import eagerly loads heavy optional modules; root package import surface remains broad.",
+      "planning_reference": "IPFS_KIT_RUNTIME_READINESS_PLAN.md \u00a7 Confirmed baseline blockers; KITA-004 observation anchors"
+    },
+    {
+      "id": "defect:default-test-exclusions",
+      "title": "Default pytest excludes integration WAL/ARC/replica/backend coverage",
+      "category": "test-gates",
+      "severity": "P0",
+      "status": "confirmed-observation",
+      "locations": [
+        {
+          "path": "pytest.ini",
+          "observation": "norecursedirs = tests/integration tests/archived_stale_tests"
+        },
+        {
+          "path": "tests/integration/",
+          "observation": "Hundreds of integration tests including storage_wal, WAL telemetry, filesystem journal, backends, replication \u2014 excluded from default collection."
+        }
+      ],
+      "summary": "Default pytest configuration excludes the integration tree containing most WAL, ARC, replication, and backend coverage. Remaining tests may skip, print, accept either success or failure, permit zero recovered operations, omit assertions, or mock the transaction/recovery methods the release gate must exercise.",
+      "planning_reference": "IPFS_KIT_RUNTIME_READINESS_PLAN.md \u00a7 Confirmed baseline blockers"
+    }
+  ],
+  "required_defect_ids": [
+    "defect:vfs-noop-rename-journal-mismatch",
+    "defect:overlapping-bucket-planes",
+    "defect:wal-transaction-protocol",
+    "defect:arc-accounting-concurrency",
+    "defect:shadowed-replica-methods",
+    "defect:backend-registry-factory-fracture",
+    "defect:mcplusplus-construction-failure",
+    "defect:graphrag-persistence-safety-drift",
+    "defect:lazy-import-dependency-version-drift",
+    "defect:default-test-exclusions"
+  ],
+  "capabilities": [
+    {
+      "id": "capability:vfs",
+      "name": "VFS namespace and file operations",
+      "primary_modules": [
+        "ipfs_kit_py.vfs_manager",
+        "ipfs_kit_py.mcp.ipfs_kit.vfs",
+        "ipfs_kit_py.iroh_vfs",
+        "ipfs_kit_py.bucket_vfs_manager",
+        "ipfs_kit_py.vfs_bucket_manager"
+      ],
+      "support_tier": "unknown-pending-proof",
+      "notes": "Multiple VFS planes exist. Primary vfs_manager.rename_item/move_item are confirmed no-op placeholders reporting success.",
+      "related_defects": [
+        "defect:vfs-noop-rename-journal-mismatch"
+      ]
+    },
+    {
+      "id": "capability:virtual-buckets",
+      "name": "Virtual bucket lifecycle",
+      "primary_modules": [
+        "ipfs_kit_py.bucket_manager",
+        "ipfs_kit_py.bucket_vfs_manager",
+        "ipfs_kit_py.vfs_bucket_manager",
+        "ipfs_kit_py.simple_bucket_manager",
+        "ipfs_kit_py.simplified_bucket_manager",
+        "ipfs_kit_py.unified_bucket_interface",
+        "ipfs_kit_py.iroh.bucket_tiering",
+        "ipfs_kit_py.iroh_bucket_tiering",
+        "ipfs_kit_py.enhanced_bucket_index",
+        "ipfs_kit_py.enhanced_bucket_index_fixed"
+      ],
+      "support_tier": "unknown-pending-proof",
+      "notes": "At least five overlapping bucket management planes with incomplete saga/rollback.",
+      "related_defects": [
+        "defect:overlapping-bucket-planes"
+      ]
+    },
+    {
+      "id": "capability:wal-journal",
+      "name": "Write-ahead log and filesystem journal",
+      "primary_modules": [
+        "ipfs_kit_py.wal",
+        "ipfs_kit_py.storage_wal",
+        "ipfs_kit_py.filesystem_journal",
+        "ipfs_kit_py.car_wal_manager",
+        "ipfs_kit_py.enhanced_wal_durability",
+        "ipfs_kit_py.fs_journal_integration",
+        "ipfs_kit_py.fs_journal_backends",
+        "ipfs_kit_py.fs_journal_replication",
+        "ipfs_kit_py.wal_integration",
+        "ipfs_kit_py.pin_wal"
+      ],
+      "support_tier": "unknown-pending-proof",
+      "notes": "Multiple WAL/journal variants without a shared valid transaction protocol; storage_wal contains mock/random success handlers on a production path.",
+      "related_defects": [
+        "defect:wal-transaction-protocol"
+      ]
+    },
+    {
+      "id": "capability:arc-cache",
+      "name": "Adaptive Replacement Cache",
+      "primary_modules": [
+        "ipfs_kit_py.arc_cache",
+        "ipfs_kit_py.arc_cache_anyio",
+        "ipfs_kit_py.tiered_cache_manager",
+        "ipfs_kit_py.cache_manager"
+      ],
+      "support_tier": "unknown-pending-proof",
+      "notes": "Byte accounting and concurrency defects observed under ghost-hit/update paths.",
+      "related_defects": [
+        "defect:arc-accounting-concurrency"
+      ]
+    },
+    {
+      "id": "capability:replica-policy",
+      "name": "Replica placement and repair policy",
+      "primary_modules": [
+        "ipfs_kit_py.tiered_cache_manager",
+        "ipfs_kit_py.fs_journal_replication"
+      ],
+      "support_tier": "unknown-pending-proof",
+      "notes": "Later ensure_replication definition shadows the earlier copying implementation in tiered_cache_manager.",
+      "related_defects": [
+        "defect:shadowed-replica-methods"
+      ]
+    },
+    {
+      "id": "capability:graphrag",
+      "name": "GraphRAG index and query",
+      "primary_modules": [
+        "ipfs_kit_py.graphrag",
+        "ipfs_kit_py.mcp.ipfs_kit.graphrag",
+        "ipfs_kit_py.vfs_bucket_graphrag_integration"
+      ],
+      "support_tier": "experimental",
+      "notes": "Pickle cache load, brute-force embedding scan, eager optional ML imports; SQLite vs NetworkX/RDF rehydration split; history prior-version bug; no canonical MCP++ GraphRAG tool category.",
+      "related_defects": [
+        "defect:graphrag-persistence-safety-drift"
+      ]
+    },
+    {
+      "id": "capability:mcpplusplus-ucan-profile-d",
+      "name": "MCP++ UCAN and datasets Profile D authorization",
+      "primary_modules": [
+        "ipfs_kit_py.mcp_server.server",
+        "ipfs_kit_py.mcp_server.mcplusplus"
+      ],
+      "support_tier": "unsupported",
+      "notes": "Construction fails (EventDAGStore unbound); policy routes to a permissive competing evaluator; UCAN/policy advisory and fail-open risks on tools/call.",
+      "related_defects": [
+        "defect:mcplusplus-construction-failure",
+        "defect:mcplusplus-policy-route"
+      ]
+    },
+    {
+      "id": "capability:storage-backend-conformance",
+      "name": "Storage backend put/get/list conformance",
+      "primary_modules": [
+        "ipfs_kit_py.backend_registry",
+        "ipfs_kit_py.backend_manager",
+        "ipfs_kit_py.backends",
+        "ipfs_kit_py.backend_schemas"
+      ],
+      "support_tier": "unknown-pending-proof",
+      "notes": "Registry/factory/schema/adapter fracture: 22 registered types, 15 dashboard schemas, 6 adapter-registry keys; most registry types cannot use BackendManager.get_backend_adapter.",
+      "related_defects": [
+        "defect:backend-registry-factory-fracture"
+      ]
+    },
+    {
+      "id": "capability:package-interface-parity",
+      "name": "Python/CLI/MCP/MCP++ and wheel parity",
+      "primary_modules": [
+        "ipfs_kit_py",
+        "ipfs_kit_py.cli",
+        "ipfs_kit_py.mcp_server"
+      ],
+      "support_tier": "unknown-pending-proof",
+      "notes": "Version/dependency/export drift across runtime, metadata, and surfaces.",
+      "related_defects": [
+        "defect:lazy-import-dependency-version-drift"
+      ]
+    }
+  ],
+  "backends": {
+    "schema": "BackendSupportTier@1",
+    "registry_module": "ipfs_kit_py.backend_registry",
+    "registry_class": "BackendTypeRegistry",
+    "legacy_types_constant": "BackendTypeRegistry.LEGACY_TYPES",
+    "registered_type_count": 22,
+    "planning_estimate_type_count": 23,
+    "planning_estimate_note": "Objective heap evidence subset cited 23 backend types. Live BackendTypeRegistry with entry points disabled or enabled registers exactly 22 types (21 LEGACY_TYPES + iroh). Inventory uses live count; does not invent a 23rd type.",
+    "registered_types": [
+      "cluster",
+      "digitalocean",
+      "estuary",
+      "filecoin",
+      "filecoin_pin",
+      "filesystem",
+      "ftp",
+      "gdrive",
+      "github",
+      "huggingface",
+      "ipfs",
+      "ipfs_cluster",
+      "iroh",
+      "lassie",
+      "local",
+      "local_fs",
+      "local_storage",
+      "minio",
+      "parquet",
+      "s3",
+      "sshfs",
+      "storacha"
+    ],
+    "legacy_types": [
+      "cluster",
+      "digitalocean",
+      "estuary",
+      "filecoin",
+      "filecoin_pin",
+      "filesystem",
+      "ftp",
+      "gdrive",
+      "github",
+      "huggingface",
+      "ipfs",
+      "ipfs_cluster",
+      "lassie",
+      "local",
+      "local_fs",
+      "local_storage",
+      "minio",
+      "parquet",
+      "s3",
+      "sshfs",
+      "storacha"
+    ],
+    "types": [
+      {
+        "id": "backend:cluster",
+        "type_name": "cluster",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": null,
+        "schema_dashboard_key": null,
+        "optional_extra": null,
+        "support_tier": "configuration-only",
+        "support_tier_rationale": "Registered only as LegacyBackendPlugin: JSON-compatible config validation and not-probed health. Plugin has no create_filesystem; BackendManager.get_backend_adapter therefore cannot construct a live adapter for this type via the registry factory. No production conformance evidence.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:digitalocean",
+        "type_name": "digitalocean",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": "digitalocean",
+        "schema_dashboard_key": null,
+        "optional_extra": null,
+        "support_tier": "experimental",
+        "support_tier_rationale": "Registered as LegacyBackendPlugin (configuration validation only; no create_filesystem on the type plugin). A separate backends.BACKEND_ADAPTERS entry maps to S3BackendAdapter, but that path is not the BackendManager.get_backend_adapter canonical factory and lacks current live conformance receipts. Registry presence is not production support.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:estuary",
+        "type_name": "estuary",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": null,
+        "schema_dashboard_key": null,
+        "optional_extra": null,
+        "support_tier": "configuration-only",
+        "support_tier_rationale": "Registered only as LegacyBackendPlugin: JSON-compatible config validation and not-probed health. Plugin has no create_filesystem; BackendManager.get_backend_adapter therefore cannot construct a live adapter for this type via the registry factory. No production conformance evidence.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:filecoin",
+        "type_name": "filecoin",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": null,
+        "schema_dashboard_key": "filecoin",
+        "optional_extra": null,
+        "support_tier": "configuration-only",
+        "support_tier_rationale": "Registered only as LegacyBackendPlugin: JSON-compatible config validation and not-probed health. Plugin has no create_filesystem; BackendManager.get_backend_adapter therefore cannot construct a live adapter for this type via the registry factory. No production conformance evidence.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:filecoin_pin",
+        "type_name": "filecoin_pin",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": null,
+        "schema_dashboard_key": null,
+        "optional_extra": null,
+        "support_tier": "configuration-only",
+        "support_tier_rationale": "Registered only as LegacyBackendPlugin: JSON-compatible config validation and not-probed health. Plugin has no create_filesystem; BackendManager.get_backend_adapter therefore cannot construct a live adapter for this type via the registry factory. No production conformance evidence.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:filesystem",
+        "type_name": "filesystem",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": "filesystem",
+        "schema_dashboard_key": null,
+        "optional_extra": null,
+        "support_tier": "experimental",
+        "support_tier_rationale": "Registered as LegacyBackendPlugin (configuration validation only; no create_filesystem on the type plugin). A separate backends.BACKEND_ADAPTERS entry maps to FilesystemBackendAdapter, but that path is not the BackendManager.get_backend_adapter canonical factory and lacks current live conformance receipts. Registry presence is not production support.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:ftp",
+        "type_name": "ftp",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": null,
+        "schema_dashboard_key": "ftp",
+        "optional_extra": null,
+        "support_tier": "configuration-only",
+        "support_tier_rationale": "Registered only as LegacyBackendPlugin: JSON-compatible config validation and not-probed health. Plugin has no create_filesystem; BackendManager.get_backend_adapter therefore cannot construct a live adapter for this type via the registry factory. No production conformance evidence.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:gdrive",
+        "type_name": "gdrive",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": null,
+        "schema_dashboard_key": "gdrive",
+        "optional_extra": null,
+        "support_tier": "configuration-only",
+        "support_tier_rationale": "Registered only as LegacyBackendPlugin: JSON-compatible config validation and not-probed health. Plugin has no create_filesystem; BackendManager.get_backend_adapter therefore cannot construct a live adapter for this type via the registry factory. No production conformance evidence.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:github",
+        "type_name": "github",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": null,
+        "schema_dashboard_key": "github",
+        "optional_extra": null,
+        "support_tier": "configuration-only",
+        "support_tier_rationale": "Registered only as LegacyBackendPlugin: JSON-compatible config validation and not-probed health. Plugin has no create_filesystem; BackendManager.get_backend_adapter therefore cannot construct a live adapter for this type via the registry factory. No production conformance evidence.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:huggingface",
+        "type_name": "huggingface",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": null,
+        "schema_dashboard_key": "huggingface",
+        "optional_extra": null,
+        "support_tier": "configuration-only",
+        "support_tier_rationale": "Registered only as LegacyBackendPlugin: JSON-compatible config validation and not-probed health. Plugin has no create_filesystem; BackendManager.get_backend_adapter therefore cannot construct a live adapter for this type via the registry factory. No production conformance evidence.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:ipfs",
+        "type_name": "ipfs",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": "ipfs",
+        "schema_dashboard_key": "ipfs",
+        "optional_extra": null,
+        "support_tier": "experimental",
+        "support_tier_rationale": "Registered as LegacyBackendPlugin (configuration validation only; no create_filesystem on the type plugin). A separate backends.BACKEND_ADAPTERS entry maps to IPFSBackendAdapter, but that path is not the BackendManager.get_backend_adapter canonical factory and lacks current live conformance receipts. Registry presence is not production support.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:ipfs_cluster",
+        "type_name": "ipfs_cluster",
+        "aliases": [
+          "ipfs-cluster"
+        ],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": null,
+        "schema_dashboard_key": "ipfs-cluster",
+        "optional_extra": null,
+        "support_tier": "configuration-only",
+        "support_tier_rationale": "Registered only as LegacyBackendPlugin: JSON-compatible config validation and not-probed health. Plugin has no create_filesystem; BackendManager.get_backend_adapter therefore cannot construct a live adapter for this type via the registry factory. No production conformance evidence.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:iroh",
+        "type_name": "iroh",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "IrohBackendPlugin",
+        "schema_validated": true,
+        "has_create_filesystem": true,
+        "adapter_registry_key": null,
+        "optional_extra": "iroh",
+        "support_tier": "conditional",
+        "support_tier_rationale": "Named-backend configuration plugin validates and migrates documents and exposes create_filesystem, but live put/get/conformance receipts are not yet admitted. Tier is conditional on the iroh optional extra and a validated named config; not production because presence is not support.",
+        "runtime_via_backend_manager_get_backend_adapter": "conditional",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:lassie",
+        "type_name": "lassie",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": null,
+        "schema_dashboard_key": "lassie",
+        "optional_extra": null,
+        "support_tier": "configuration-only",
+        "support_tier_rationale": "Registered only as LegacyBackendPlugin: JSON-compatible config validation and not-probed health. Plugin has no create_filesystem; BackendManager.get_backend_adapter therefore cannot construct a live adapter for this type via the registry factory. No production conformance evidence.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:local",
+        "type_name": "local",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": null,
+        "schema_dashboard_key": null,
+        "optional_extra": null,
+        "support_tier": "configuration-only",
+        "support_tier_rationale": "Registered only as LegacyBackendPlugin: JSON-compatible config validation and not-probed health. Plugin has no create_filesystem; BackendManager.get_backend_adapter therefore cannot construct a live adapter for this type via the registry factory. No production conformance evidence.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:local_fs",
+        "type_name": "local_fs",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": null,
+        "schema_dashboard_key": null,
+        "optional_extra": null,
+        "support_tier": "configuration-only",
+        "support_tier_rationale": "Registered only as LegacyBackendPlugin: JSON-compatible config validation and not-probed health. Plugin has no create_filesystem; BackendManager.get_backend_adapter therefore cannot construct a live adapter for this type via the registry factory. No production conformance evidence.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:local_storage",
+        "type_name": "local_storage",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": null,
+        "schema_dashboard_key": null,
+        "optional_extra": null,
+        "support_tier": "configuration-only",
+        "support_tier_rationale": "Registered only as LegacyBackendPlugin: JSON-compatible config validation and not-probed health. Plugin has no create_filesystem; BackendManager.get_backend_adapter therefore cannot construct a live adapter for this type via the registry factory. No production conformance evidence.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:minio",
+        "type_name": "minio",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": "minio",
+        "schema_dashboard_key": null,
+        "optional_extra": null,
+        "support_tier": "experimental",
+        "support_tier_rationale": "Registered as LegacyBackendPlugin (configuration validation only; no create_filesystem on the type plugin). A separate backends.BACKEND_ADAPTERS entry maps to S3BackendAdapter, but that path is not the BackendManager.get_backend_adapter canonical factory and lacks current live conformance receipts. Registry presence is not production support.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:parquet",
+        "type_name": "parquet",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": null,
+        "schema_dashboard_key": "parquet",
+        "optional_extra": null,
+        "support_tier": "configuration-only",
+        "support_tier_rationale": "Registered only as LegacyBackendPlugin: JSON-compatible config validation and not-probed health. Plugin has no create_filesystem; BackendManager.get_backend_adapter therefore cannot construct a live adapter for this type via the registry factory. No production conformance evidence.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:s3",
+        "type_name": "s3",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": "s3",
+        "schema_dashboard_key": "s3",
+        "optional_extra": null,
+        "support_tier": "experimental",
+        "support_tier_rationale": "Registered as LegacyBackendPlugin (configuration validation only; no create_filesystem on the type plugin). A separate backends.BACKEND_ADAPTERS entry maps to S3BackendAdapter, but that path is not the BackendManager.get_backend_adapter canonical factory and lacks current live conformance receipts. Registry presence is not production support.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:sshfs",
+        "type_name": "sshfs",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": "sshfs",
+        "schema_dashboard_key": "sshfs",
+        "optional_extra": null,
+        "support_tier": "experimental",
+        "support_tier_rationale": "Registered as LegacyBackendPlugin (configuration validation only; no create_filesystem on the type plugin). A separate backends.BACKEND_ADAPTERS entry maps to FilesystemBackendAdapter, but that path is not the BackendManager.get_backend_adapter canonical factory and lacks current live conformance receipts. Registry presence is not production support.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend:storacha",
+        "type_name": "storacha",
+        "aliases": [],
+        "registry_present": true,
+        "plugin_class": "LegacyBackendPlugin",
+        "schema_validated": false,
+        "has_create_filesystem": false,
+        "adapter_registry_key": null,
+        "schema_dashboard_key": "storacha",
+        "optional_extra": null,
+        "support_tier": "configuration-only",
+        "support_tier_rationale": "Registered only as LegacyBackendPlugin: JSON-compatible config validation and not-probed health. Plugin has no create_filesystem; BackendManager.get_backend_adapter therefore cannot construct a live adapter for this type via the registry factory. No production conformance evidence.",
+        "runtime_via_backend_manager_get_backend_adapter": "unsupported",
+        "evidence_status": "unknown-pending-proof"
+      }
+    ],
+    "schema_only_advertisements": [
+      {
+        "id": "backend-schema:ipfs-cluster-follow",
+        "type_name": "ipfs-cluster-follow",
+        "registry_present": false,
+        "schema_dashboard_key": "ipfs-cluster-follow",
+        "support_tier": "unsupported",
+        "support_tier_rationale": "Advertised only in backend_schemas.SCHEMAS dashboard forms; not registered in BackendTypeRegistry.LEGACY_TYPES or as Iroh. Presence of a form schema is not runtime support.",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend-schema:lotus",
+        "type_name": "lotus",
+        "registry_present": false,
+        "schema_dashboard_key": "lotus",
+        "support_tier": "unsupported",
+        "support_tier_rationale": "Advertised only in backend_schemas.SCHEMAS dashboard forms; not registered in BackendTypeRegistry.LEGACY_TYPES or as Iroh. Presence of a form schema is not runtime support.",
+        "evidence_status": "unknown-pending-proof"
+      },
+      {
+        "id": "backend-schema:arrow",
+        "type_name": "arrow",
+        "registry_present": false,
+        "schema_dashboard_key": "arrow",
+        "support_tier": "unsupported",
+        "support_tier_rationale": "Advertised only in backend_schemas.SCHEMAS dashboard forms; not registered in BackendTypeRegistry.LEGACY_TYPES or as Iroh. Presence of a form schema is not runtime support.",
+        "evidence_status": "unknown-pending-proof"
+      }
+    ],
+    "adapter_registry": {
+      "module": "ipfs_kit_py.backends",
+      "mapping": {
+        "ipfs": "IPFSBackendAdapter",
+        "filesystem": "FilesystemBackendAdapter",
+        "sshfs": "FilesystemBackendAdapter",
+        "s3": "S3BackendAdapter",
+        "minio": "S3BackendAdapter",
+        "digitalocean": "S3BackendAdapter"
+      },
+      "iroh_special_case": "Delegates to BackendManager.get_backend_adapter when config_manager provided",
+      "divergence_from_type_registry": true
+    },
+    "dashboard_schemas": {
+      "module": "ipfs_kit_py.backend_schemas",
+      "keys": [
+        "s3",
+        "huggingface",
+        "storacha",
+        "ipfs",
+        "filecoin",
+        "gdrive",
+        "github",
+        "ipfs-cluster",
+        "ipfs-cluster-follow",
+        "lotus",
+        "lassie",
+        "arrow",
+        "parquet",
+        "sshfs",
+        "ftp"
+      ],
+      "divergence_from_type_registry": true
+    },
+    "production_count": 0,
+    "production_claim_policy": "Zero backends are marked production in this inventory. No live conformance receipts are admitted at freeze time."
+  },
+  "surfaces": {
+    "python_package": {
+      "package": "ipfs_kit_py",
+      "entry_module": "ipfs_kit_py",
+      "declared_all_exports": [
+        "MerkleClock",
+        "FibonacciHeap",
+        "WorkflowPriorityQueue",
+        "P2PWorkflowCoordinator",
+        "WorkflowStatus",
+        "WorkflowTask",
+        "hamming_distance",
+        "select_task_owner",
+        "create_task_hash",
+        "P2PWorkflowTools",
+        "jit_manager",
+        "require_feature",
+        "optional_feature",
+        "initialize_backend_config",
+        "get_backend_statuses",
+        "get_ipfs_datasets",
+        "get_ipfs_accelerate",
+        "get_ipfs_transformers",
+        "ipfs_datasets_py",
+        "ipfs_accelerate_py",
+        "ipfs_transformers_py"
+      ],
+      "support_tier": "unknown-pending-proof",
+      "notes": "JIT/import surface is broad; optional binary install gated by env var."
+    },
+    "cli": {
+      "console_scripts": [
+        {
+          "name": "ipfs-kit",
+          "target": "ipfs_kit_py.cli:sync_main",
+          "support_tier": "unknown-pending-proof"
+        },
+        {
+          "name": "ipfs-kit-mcp",
+          "target": "ipfs_kit_py.mcp_server.server:main",
+          "support_tier": "unsupported",
+          "related_defects": [
+            "defect:mcplusplus-construction-failure"
+          ]
+        },
+        {
+          "name": "ipfs-kit-mcp-tools",
+          "target": "ipfs_kit_py.mcp_server.cli:main",
+          "support_tier": "unknown-pending-proof"
+        },
+        {
+          "name": "ipfs-kit-iroh",
+          "target": "ipfs_kit_py.iroh_install_cli:main",
+          "support_tier": "conditional"
+        },
+        {
+          "name": "ipfs-kit-iroh-ops",
+          "target": "ipfs_kit_py.iroh.cli:main",
+          "support_tier": "conditional"
+        },
+        {
+          "name": "ipfs-kit-iroh-diagnostics",
+          "target": "ipfs_kit_py.iroh.diagnostics_cli:main",
+          "support_tier": "conditional"
+        },
+        {
+          "name": "ipfs-kit-iroh-manifest",
+          "target": "ipfs_kit_py.iroh.manifest_cli:main",
+          "support_tier": "conditional"
+        },
+        {
+          "name": "ipfs-kit-iroh-interop",
+          "target": "ipfs_kit_py.iroh.multinode:main",
+          "support_tier": "experimental"
+        }
+      ],
+      "modules": [
+        "ipfs_kit_py.cli",
+        "ipfs_kit_py.cli_commands",
+        "ipfs_kit_py.cli_old",
+        "ipfs_kit_py.cli_secure_config"
+      ]
+    },
+    "mcp": {
+      "legacy_mcp_tree": "ipfs_kit_py/mcp/",
+      "tool_modules_sample": [
+        "mcp/servers/backend_mcp_tools.py",
+        "mcp/servers/wal_mcp_tools.py",
+        "mcp/servers/fs_journal_mcp_tools.py",
+        "mcp/servers/bucket_vfs_mcp_tools.py",
+        "mcp/servers/iroh_mcp_tools.py",
+        "mcp/ipfs_kit/mcp_tools.py",
+        "mcp/ipfs_kit/core/tool_registry.py"
+      ],
+      "support_tier": "unknown-pending-proof",
+      "notes": "Multiple MCP tool registration planes; not yet reduced to one operation registry."
+    },
+    "mcpplusplus": {
+      "server_module": "ipfs_kit_py.mcp_server.server",
+      "profiles_advertised_in_code": [
+        "mcp++/event-dag",
+        "mcp++/risk-scheduling"
+      ],
+      "support_tier": "unsupported",
+      "related_defects": [
+        "defect:mcplusplus-construction-failure",
+        "defect:mcplusplus-policy-route"
+      ]
+    }
+  },
+  "test_gates": {
+    "default_pytest_ini": {
+      "path": "pytest.ini",
+      "testpaths": [
+        "tests"
+      ],
+      "norecursedirs": [
+        "tests/integration",
+        "tests/archived_stale_tests"
+      ],
+      "markers": [
+        "integration",
+        "unit",
+        "slow",
+        "requires_network",
+        "timeout"
+      ],
+      "effect": "Default collection excludes integration and archived_stale_tests. WAL, ARC, replication, and backend integration coverage is not in the default gate.",
+      "related_defects": [
+        "defect:default-test-exclusions"
+      ]
+    },
+    "pyproject_pytest": {
+      "path": "pyproject.toml",
+      "section": "tool.pytest.ini_options",
+      "testpaths": [
+        "tests"
+      ],
+      "notes": "Does not restate norecursedirs; pytest.ini remains the practical default for addopts/norecursedirs."
+    },
+    "config_pytest_ini": {
+      "path": "config/pytest.ini",
+      "testpaths": [
+        "test",
+        "tests"
+      ],
+      "notes": "Alternate config under config/; not the package-root default."
+    },
+    "runtime_readiness_lane": {
+      "path": "tests/runtime_readiness/",
+      "support_tier": "experimental",
+      "notes": "New KITA foundations tests; not yet a release gate for storage correctness."
+    },
+    "integration_tree": {
+      "path": "tests/integration/",
+      "default_collected": false,
+      "approximate_test_module_count": 426,
+      "coverage_families": [
+        "storage_wal",
+        "wal_api",
+        "wal_telemetry",
+        "filesystem_journal",
+        "fs_journal_replication",
+        "storage_backends",
+        "s3_backend",
+        "storacha_backend",
+        "replication_policy",
+        "mcp_vfs"
+      ]
+    }
+  },
+  "optional_dependencies": {
+    "source_of_truth": "pyproject.toml:[project.optional-dependencies]",
+    "extras": [
+      {
+        "name": "iroh",
+        "support_tier": "conditional"
+      },
+      {
+        "name": "transformers",
+        "support_tier": "experimental"
+      },
+      {
+        "name": "fsspec",
+        "support_tier": "conditional"
+      },
+      {
+        "name": "arrow",
+        "support_tier": "conditional"
+      },
+      {
+        "name": "libp2p",
+        "support_tier": "experimental"
+      },
+      {
+        "name": "ai_ml",
+        "support_tier": "experimental"
+      },
+      {
+        "name": "huggingface",
+        "support_tier": "conditional"
+      },
+      {
+        "name": "filecoin_pin",
+        "support_tier": "conditional"
+      },
+      {
+        "name": "car_files",
+        "support_tier": "conditional"
+      },
+      {
+        "name": "saturn",
+        "support_tier": "configuration-only"
+      },
+      {
+        "name": "ipni",
+        "support_tier": "configuration-only"
+      },
+      {
+        "name": "enhanced_ipfs",
+        "support_tier": "configuration-only"
+      },
+      {
+        "name": "ipld",
+        "support_tier": "conditional"
+      },
+      {
+        "name": "ipfs_datasets",
+        "support_tier": "configuration-only"
+      },
+      {
+        "name": "ipfs_accelerate",
+        "support_tier": "configuration-only"
+      },
+      {
+        "name": "api",
+        "support_tier": "configuration-only"
+      },
+      {
+        "name": "webrtc",
+        "support_tier": "experimental"
+      },
+      {
+        "name": "graphql",
+        "support_tier": "experimental"
+      },
+      {
+        "name": "s3",
+        "support_tier": "conditional"
+      },
+      {
+        "name": "performance",
+        "support_tier": "experimental"
+      },
+      {
+        "name": "dev",
+        "support_tier": "configuration-only"
+      },
+      {
+        "name": "full",
+        "support_tier": "configuration-only"
+      }
+    ],
+    "notes": "Optional extras advertise install sets only. Extra presence does not prove backend or capability support. Dependency projection may drift from declared pins (see defect:lazy-import-dependency-version-drift)."
+  },
+  "duplicate_implementations": {
+    "vfs_managers": [
+      "vfs_manager.py",
+      "mcp/ipfs_kit/vfs.py",
+      "iroh_vfs.py",
+      "bucket_vfs_manager.py",
+      "vfs_bucket_manager.py"
+    ],
+    "bucket_managers": [
+      "bucket_manager.py",
+      "bucket_vfs_manager.py",
+      "vfs_bucket_manager.py",
+      "simple_bucket_manager.py",
+      "simplified_bucket_manager.py",
+      "unified_bucket_interface.py",
+      "iroh/bucket_tiering.py",
+      "iroh_bucket_tiering.py"
+    ],
+    "wal_journal_variants": [
+      "wal.py",
+      "storage_wal.py",
+      "filesystem_journal.py",
+      "car_wal_manager.py",
+      "enhanced_wal_durability.py",
+      "fs_journal_integration.py",
+      "pin_wal.py",
+      "wal_integration.py"
+    ],
+    "graphrag_variants": [
+      "graphrag.py",
+      "mcp/ipfs_kit/graphrag.py",
+      "vfs_bucket_graphrag_integration.py"
+    ],
+    "backend_registries": [
+      "backend_registry.BackendTypeRegistry",
+      "backends.BACKEND_ADAPTERS",
+      "backend_schemas.SCHEMAS",
+      "storage_backends_api (API listing plane)"
+    ],
+    "cli_modules": [
+      "cli.py",
+      "cli_commands.py",
+      "cli_old.py",
+      "cli.py.broken"
+    ]
+  },
+  "daemons_and_providers": {
+    "notes": "Ordinary package imports must not download binaries or start daemons. IPFS_KIT_AUTO_INSTALL_BINARIES=1 opts into package-managed Kubo setup. Daemon/provider availability is configuration-only until health probes and conformance receipts exist.",
+    "items": [
+      {
+        "id": "provider:kubo-ipfs",
+        "support_tier": "conditional",
+        "notes": "Optional binary / external daemon"
+      },
+      {
+        "id": "provider:ipfs-cluster",
+        "support_tier": "configuration-only"
+      },
+      {
+        "id": "provider:lotus-filecoin",
+        "support_tier": "configuration-only"
+      },
+      {
+        "id": "provider:iroh",
+        "support_tier": "conditional",
+        "optional_extra": "iroh"
+      },
+      {
+        "id": "provider:s3-compatible",
+        "support_tier": "experimental"
+      },
+      {
+        "id": "provider:storacha",
+        "support_tier": "experimental"
+      },
+      {
+        "id": "provider:lassie",
+        "support_tier": "experimental"
+      }
+    ]
+  },
+  "cross_references": {
+    "surface_inventory_md": "docs/runtime_readiness/surface_inventory.md",
+    "plan": "docs/architecture/IPFS_KIT_RUNTIME_READINESS_PLAN.md",
+    "objectives": "docs/architecture/ipfs_kit_runtime_readiness.objectives.md",
+    "related_baselines": [
+      "benchmarks/runtime_readiness/reference_floors.json",
+      "benchmarks/runtime_readiness/workloads.json"
+    ]
+  }
+}
