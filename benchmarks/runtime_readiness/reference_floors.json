@@ -1,0 +1,197 @@
+{
+  "schema": "RuntimeReferenceFloors@1",
+  "schema_version": "ipfs_kit_py.runtime_readiness.reference_floors@1",
+  "task_id": "KITA-004",
+  "status": "provisional",
+  "status_rationale": "Absolute per-profile floors are recorded from the initial bound-revision baseline for honest later comparison. They remain explicitly provisional until a reviewed ratification. They must not be lowered in the same change that fails them, and they must not be treated as release gates until status becomes 'reviewed'.",
+  "reviewed": false,
+  "reviewed_by": null,
+  "reviewed_at": null,
+  "review_receipt_cid": null,
+  "bound_revision_policy": {
+    "repository": "ipfs_kit_py",
+    "planning_bound_gitlink": "f6a574375febbcf9a46fcd24bbc7bc5cfb551de5",
+    "note": "A changed revision invalidates historical findings and requires a fresh baseline; it is not automatically a failure."
+  },
+  "comparison_rules": {
+    "immutable": true,
+    "rule_id": "RuntimeComparisonRules@1",
+    "rules": [
+      {
+        "id": "identity_bind",
+        "statement": "Comparisons require exact match on hardware class, OS family/version class, Python version, dependency digest, repository revision, dataset id, seed, concurrency, durability mode, warmup count, sample count, confidence level, resource profile, workload id, path_class, and ack_state."
+      },
+      {
+        "id": "committed_not_accepted",
+        "statement": "Primary transaction throughput is committed_tps. accepted_tps may be reported alongside but must never satisfy a committed floor or regression gate."
+      },
+      {
+        "id": "path_class_separation",
+        "statement": "cold, warm, and cache path results are incomparable across classes. Cache/index speedups are reported separately from cold correctness paths."
+      },
+      {
+        "id": "throughput_regression_tolerance",
+        "statement": "Default regression gate: no more than 5% throughput regression versus the pinned accepted baseline unless an approved variance receipt explains it."
+      },
+      {
+        "id": "p99_regression_tolerance",
+        "statement": "Default regression gate: no more than 10% p99 latency regression versus the pinned accepted baseline unless an approved variance receipt explains it."
+      },
+      {
+        "id": "absolute_floor_lock",
+        "statement": "After floors are reviewed, absolute per-profile floors cannot be lowered in the same change that fails them."
+      },
+      {
+        "id": "provisional_non_gate",
+        "statement": "While status is provisional, floors are diagnostic anchors for comparison and must not be enforced as release failures solely by absolute magnitude."
+      },
+      {
+        "id": "partial_samples_fail",
+        "statement": "Benchmark errors or partial sample sets cannot pass a comparison gate."
+      },
+      {
+        "id": "no_durability_relaxation",
+        "statement": "No durability, authorization, consistency, or correctness relaxation may accompany a performance claim."
+      },
+      {
+        "id": "no_secret_metrics",
+        "statement": "Metrics must have bounded cardinality and must not embed secrets, tokens, or absolute home paths."
+      }
+    ],
+    "default_tolerances": {
+      "throughput_regression_max_fraction": 0.05,
+      "p99_regression_max_fraction": 0.10
+    }
+  },
+  "observation_anchors": {
+    "description": "Non-numeric observations captured at the bound revision. These are diagnostics, not performance floors.",
+    "root_eager_imports": {
+      "status": "observed",
+      "summary": "Root package import initializes JIT manager and backend_config helpers; binary auto-download is gated but import surface remains broad."
+    },
+    "mcp_eager_imports": {
+      "status": "observed",
+      "summary": "MCP++ server module eagerly imports anyio, mcplusplus, and HierarchicalToolManager; constructor references EventDAGStore without a local import (confirmed baseline blocker)."
+    },
+    "runtime_metadata_version_mismatch": {
+      "status": "observed",
+      "summary": "ipfs_kit_py.__version__ disagrees with pyproject.toml / setup.py project version at the bound revision.",
+      "runtime_version_field": "ipfs_kit_py.__version__",
+      "metadata_version_fields": ["pyproject.toml:[project].version", "setup.py:version"]
+    },
+    "dependency_projection_drift": {
+      "status": "observed",
+      "summary": "Runtime dependency projection (importable distribution versions) may drift from declared pyproject dependencies and optional extras; baseline records both digests."
+    },
+    "transaction_specific_slo": {
+      "status": "absent",
+      "summary": "No transaction-specific SLO is defined at the bound revision. KITA-004 establishes measurement identity only; RuntimeSLO@1 is owned by a later harness task.",
+      "slo_present": false
+    }
+  },
+  "profiles": {
+    "ci-reference": {
+      "status": "provisional",
+      "path_class": "warm",
+      "ack_state": "committed",
+      "floors": {
+        "metadata_txn": {
+          "committed_tps_min": null,
+          "accepted_tps_min": null,
+          "p99_ms_max": null,
+          "note": "Numeric floor deferred until first full baseline run is reviewed; identity and metric names are pinned."
+        },
+        "small_object_txn": {
+          "committed_tps_min": null,
+          "accepted_tps_min": null,
+          "p99_ms_max": null,
+          "note": "Numeric floor deferred until first full baseline run is reviewed; identity and metric names are pinned."
+        },
+        "mixed_vfs": {
+          "committed_tps_min": null,
+          "p99_ms_max": null,
+          "note": "Numeric floor deferred until first full baseline run is reviewed."
+        },
+        "wal_commit": {
+          "committed_tps_min": null,
+          "p99_ms_max": null,
+          "note": "Must use committed durability metrics only."
+        },
+        "cold_import_root": {
+          "import_seconds_max": null,
+          "eager_heavy_optional_imports_max": null,
+          "note": "Import budgets provisional; cold path only."
+        },
+        "cold_import_mcp": {
+          "import_seconds_max": null,
+          "eager_heavy_optional_imports_max": null,
+          "note": "Import budgets provisional; cold path only."
+        }
+      },
+      "resource_ceilings": {
+        "rss_bytes_max": null,
+        "fds_max": null,
+        "threads_max": null,
+        "note": "Resource ceilings provisional until soak evidence exists."
+      }
+    },
+    "memory-reference": {
+      "status": "provisional",
+      "path_class": "warm",
+      "ack_state": "committed",
+      "floors": {
+        "metadata_txn": {"committed_tps_min": null, "p99_ms_max": null},
+        "small_object_txn": {"committed_tps_min": null, "p99_ms_max": null},
+        "mixed_vfs": {"committed_tps_min": null, "p99_ms_max": null},
+        "wal_commit": {"committed_tps_min": null, "p99_ms_max": null}
+      }
+    },
+    "local-nvme": {
+      "status": "provisional",
+      "path_class": "warm",
+      "ack_state": "committed",
+      "floors": {
+        "metadata_txn": {"committed_tps_min": null, "p99_ms_max": null},
+        "small_object_txn": {"committed_tps_min": null, "p99_ms_max": null},
+        "wal_commit": {"committed_tps_min": null, "p99_ms_max": null}
+      }
+    },
+    "local-daemon": {
+      "status": "provisional",
+      "path_class": "warm",
+      "ack_state": "committed",
+      "floors": {
+        "metadata_txn": {"committed_tps_min": null, "p99_ms_max": null},
+        "small_object_txn": {"committed_tps_min": null, "p99_ms_max": null}
+      }
+    },
+    "networked-provider": {
+      "status": "provisional",
+      "path_class": "warm",
+      "ack_state": "committed",
+      "environment_gated": true,
+      "floors": {
+        "small_object_txn": {"committed_tps_min": null, "p99_ms_max": null}
+      }
+    }
+  },
+  "metric_definitions": {
+    "committed_tps": {
+      "unit": "transactions_per_second",
+      "ack_state": "committed",
+      "higher_is_better": true,
+      "description": "Completed transactions that survived the declared durability protocol."
+    },
+    "accepted_tps": {
+      "unit": "transactions_per_second",
+      "ack_state": "accepted",
+      "higher_is_better": true,
+      "description": "Accepted but not necessarily durable transactions. Diagnostic only for transaction floors."
+    },
+    "p50_ms": {"unit": "milliseconds", "higher_is_better": false},
+    "p95_ms": {"unit": "milliseconds", "higher_is_better": false},
+    "p99_ms": {"unit": "milliseconds", "higher_is_better": false},
+    "import_seconds": {"unit": "seconds", "higher_is_better": false},
+    "rss_bytes": {"unit": "bytes", "higher_is_better": false}
+  }
+}
