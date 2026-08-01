@@ -22,8 +22,20 @@ import os
 import threading
 import time
 import uuid
+from collections.abc import Mapping
 from enum import Enum
 from typing import Dict, List, Any, Optional, Union, Set, Tuple, Callable
+
+from ipfs_kit_py.backend_policies import (
+    LegacyReplicationAdapter,
+    LegacyReplicationCleanupBlockedError,
+    LegacyReplicationConfigurationError,
+    ReplicationPolicy,
+    migrate_legacy_replication_policy,
+)
+from ipfs_kit_py.core.replication.contracts import BackendInventory, ReplicaPolicy as CanonicalReplicaPolicy
+from ipfs_kit_py.core.replication.integrity import IntegrityVerifier, ReplicaContent
+from ipfs_kit_py.core.replication.reconciler import ReplicaReconciler
 
 # Import our own modules
 from ipfs_kit_py.filesystem_journal import (
@@ -569,21 +581,18 @@ class MetadataReplicationManager:
             logger.error(f"Error in progressive tier replication for {cid}: {e}")
     
     def _replicate_to_peer(self, peer_id, data, data_type):
-        """Replicate data to a specific peer node."""
+        """Replicate through an explicitly configured peer transport."""
+        transport = self.config.get("peer_replication_transport")
+        if not callable(transport):
+            logger.warning("No peer replication transport is configured for %s", peer_id)
+            return False
         try:
-            # In a real implementation, this would use a transport mechanism
-            # such as libp2p, IPFS pubsub, or a direct API call
-            
-            # For now, we'll simulate successful replication
-            logger.debug(f"Simulated replication of {data_type} to peer {peer_id}")
-            
-            # Update our vector clock
-            self.vector_clock = VectorClock.increment(self.vector_clock, self.node_id)
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error replicating to peer {peer_id}: {e}")
+            replicated = bool(transport(peer_id, data, data_type))
+            if replicated:
+                self.vector_clock = VectorClock.increment(self.vector_clock, self.node_id)
+            return replicated
+        except Exception as exc:
+            logger.error("Error replicating to peer %s: %s", peer_id, exc)
             return False
     
     def _sync_with_peers(self):
@@ -694,171 +703,6 @@ class MetadataReplicationManager:
             else:
                 logger.warning(f"Attempted to update unknown peer {peer_id}")
                 return False
-    
-    def replicate_journal_entry(self, journal_entry, replication_level=None):
-        """
-        Replicate a filesystem journal entry according to the specified replication level.
-        
-        Args:
-            journal_entry: The journal entry to replicate
-            replication_level: Level of replication to ensure
-            
-        Returns:
-            Dictionary with replication status
-        """
-        # Default result
-        result = {
-            "success": False,
-            "operation": "replicate_journal_entry",
-            "timestamp": time.time(),
-            "entry_id": journal_entry.get("entry_id")
-        }
-        
-        try:
-            # Use default replication level if not specified
-            if replication_level is None:
-                replication_level = self.config["default_replication_level"]
-                
-            # Ensure replication level is a proper enum
-            if isinstance(replication_level, str):
-                replication_level = ReplicationLevel(replication_level)
-            
-            # Entry ID is required
-            entry_id = journal_entry.get("entry_id")
-            if not entry_id:
-                result["error"] = "Missing entry_id in journal entry"
-                return result
-            
-            # Initialize replication tracking
-            replication_id = str(uuid.uuid4())
-            replication_data = {
-                "replication_id": replication_id,
-                "entry_id": entry_id,
-                "started_at": time.time(),
-                "status": ReplicationStatus.IN_PROGRESS.value,
-                "replication_level": replication_level.value,
-                "node_id": self.node_id,
-                "target_nodes": [],
-                "successful_nodes": [],
-                "failed_nodes": [],
-                "vector_clock": self.vector_clock.copy()
-            }
-            
-            # Store in active replications
-            with self._locks["replications"]:
-                self.active_replications[entry_id] = replication_data
-            
-            # Update replication status
-            with self._locks["status"]:
-                self.replication_status[entry_id] = {
-                    "entry_id": entry_id,
-                    "status": ReplicationStatus.IN_PROGRESS.value,
-                    "replication_id": replication_id,
-                    "timestamp": time.time()
-                }
-            
-            # Perform replication based on level
-            if replication_level == ReplicationLevel.SINGLE:
-                # Only replicate to master node
-                self._replicate_to_master(entry_id, journal_entry, replication_data)
-                
-            elif replication_level == ReplicationLevel.QUORUM:
-                # Replicate to majority of nodes
-                self._replicate_to_quorum(entry_id, journal_entry, replication_data)
-                
-            elif replication_level == ReplicationLevel.ALL:
-                # Replicate to all available nodes
-                self._replicate_to_all(entry_id, journal_entry, replication_data)
-                
-            elif replication_level == ReplicationLevel.TIERED:
-                # Replicate across storage tiers
-                self._replicate_to_tiers(entry_id, journal_entry, replication_data)
-                
-            elif replication_level == ReplicationLevel.PROGRESSIVE:
-                # Progressive replication (both nodes and tiers)
-                self._replicate_progressively(entry_id, journal_entry, replication_data)
-                
-            else:
-                # Default to local durability
-                self._ensure_local_durability(entry_id, journal_entry, replication_data)
-            
-            # Get updated replication data
-            with self._locks["replications"]:
-                if entry_id in self.active_replications:
-                    replication_data = self.active_replications[entry_id]
-            
-            # Determine overall status using more sophisticated metrics
-            success_count = len(replication_data.get("successful_nodes", []))
-            failure_count = len(replication_data.get("failed_nodes", []))
-            target_nodes_count = len(replication_data.get("target_nodes", []))
-            
-            # Get replication targets
-            quorum_size = replication_data.get("quorum_size", self.config["quorum_size"])
-            target_factor = replication_data.get("target_factor", self.config["target_replication_factor"])
-            max_factor = replication_data.get("max_factor", self.config["max_replication_factor"])
-            
-            # Set success level based on achieved replication
-            if success_count >= target_factor:
-                status = ReplicationStatus.COMPLETE
-                success_level = "TARGET_ACHIEVED"
-            elif success_count >= quorum_size:
-                status = ReplicationStatus.COMPLETE
-                success_level = "QUORUM_ACHIEVED"
-            elif success_count > 0:
-                status = ReplicationStatus.PARTIAL
-                success_level = "BELOW_QUORUM"
-            else:
-                status = ReplicationStatus.FAILED
-                success_level = "NO_REPLICATION"
-                
-            # Store success level
-            replication_data["success_level"] = success_level
-            
-            # Update status with comprehensive metrics
-            with self._locks["status"]:
-                self.replication_status[entry_id]["status"] = status.value
-                self.replication_status[entry_id]["completed_at"] = time.time()
-                self.replication_status[entry_id]["success_count"] = success_count
-                self.replication_status[entry_id]["failure_count"] = failure_count
-                self.replication_status[entry_id]["target_nodes_count"] = target_nodes_count
-                self.replication_status[entry_id]["quorum_size"] = quorum_size
-                self.replication_status[entry_id]["target_factor"] = target_factor
-                self.replication_status[entry_id]["max_factor"] = max_factor
-                self.replication_status[entry_id]["success_level"] = success_level
-            
-            # Clean up active replication
-            with self._locks["replications"]:
-                if entry_id in self.active_replications:
-                    # Move to history storage for future reference
-                    replication_data = self.active_replications[entry_id]
-                    replication_data["status"] = status.value
-                    replication_data["completed_at"] = time.time()
-                    
-                    # Remove from active replications
-                    del self.active_replications[entry_id]
-            
-            # Update result with comprehensive metrics
-            result["success"] = status != ReplicationStatus.FAILED
-            result["status"] = status.value
-            result["replication_id"] = replication_id
-            result["success_count"] = success_count
-            result["failure_count"] = failure_count
-            result["target_nodes_count"] = target_nodes_count
-            result["quorum_size"] = quorum_size
-            result["target_factor"] = target_factor
-            result["max_factor"] = max_factor
-            result["success_level"] = success_level
-            
-            # Update vector clock
-            self.vector_clock = VectorClock.increment(self.vector_clock, self.node_id)
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"Error replicating journal entry: {e}")
-            result["error"] = str(e)
-            result["error_type"] = type(e).__name__
-            return result
     
     def _replicate_to_master(self, entry_id, journal_entry, replication_data):
         """Replicate entry to the master node only."""
@@ -1344,6 +1188,134 @@ class MetadataReplicationManager:
             result["error_type"] = type(e).__name__
             return result
     
+    def _legacy_replication_adapter(self) -> LegacyReplicationAdapter:
+        """Build the canonical adapter from explicit journal configuration."""
+
+        config = self.config if isinstance(self.config, Mapping) else {}
+        adapter = config.get("legacy_replication_adapter")
+        if isinstance(adapter, LegacyReplicationAdapter):
+            return adapter
+
+        policy_config = config.get("replication_policy", {})
+        nested = policy_config if isinstance(policy_config, Mapping) else {}
+        reconciler = config.get("replica_reconciler") or nested.get("replica_reconciler")
+        inventory = config.get("replica_inventory") or nested.get("replica_inventory")
+        policy = config.get("replica_policy") or nested.get("replica_policy")
+        if policy is None and policy_config:
+            policy = policy_config
+        if not isinstance(reconciler, ReplicaReconciler):
+            raise LegacyReplicationConfigurationError(
+                "replica_reconciler must be configured for journal replication"
+            )
+        if not isinstance(inventory, BackendInventory):
+            raise LegacyReplicationConfigurationError(
+                "replica_inventory must be configured for journal replication"
+            )
+        if isinstance(policy, CanonicalReplicaPolicy):
+            canonical_policy = policy
+        elif isinstance(policy, (ReplicationPolicy, Mapping)):
+            canonical_policy = migrate_legacy_replication_policy(policy)
+        else:
+            raise LegacyReplicationConfigurationError(
+                "replica_policy must be a canonical or migratable legacy policy"
+            )
+        return LegacyReplicationAdapter(reconciler, canonical_policy, inventory)
+
+    def replicate_journal_entry(self, journal_entry, replication_level=None):
+        """Reconcile an immutable journal-entry payload through the canonical API.
+
+        The former replication levels depended on a dynamically discovered peer
+        set, so they cannot safely prescribe deletion or success.  A migrated
+        canonical policy supplies the stable redundancy target instead.
+        """
+
+        result = {
+            "success": False,
+            "operation": "replicate_journal_entry",
+            "timestamp": time.time(),
+            "entry_id": journal_entry.get("entry_id") if isinstance(journal_entry, Mapping) else None,
+        }
+        try:
+            if not isinstance(journal_entry, Mapping):
+                raise LegacyReplicationConfigurationError("journal_entry must be a mapping")
+            if replication_level is not None:
+                raise LegacyReplicationConfigurationError(
+                    "replication_level is unsupported; configure a canonical replica_policy"
+                )
+            entry_id = journal_entry.get("entry_id")
+            if not isinstance(entry_id, str) or not entry_id.strip():
+                raise LegacyReplicationConfigurationError("journal_entry requires a non-empty entry_id")
+            payload = json.dumps(
+                dict(journal_entry), sort_keys=True, separators=(",", ":"), ensure_ascii=False
+            ).encode("utf-8")
+            digest = IntegrityVerifier().digest(payload)
+            receipt = self._legacy_replication_adapter().reconcile(
+                content_ref=f"journal:{entry_id}",
+                content_size_bytes=len(payload),
+                expected_digest=digest,
+                expected_version_id=entry_id,
+                source=ReplicaContent(payload, version_id=entry_id, digest=digest),
+            )
+            actions = [
+                {
+                    "kind": action.kind.value,
+                    "backend_id": action.backend_id,
+                    "state": action.state.value,
+                    "idempotency_key": action.idempotency_key,
+                    "reason": action.reason,
+                }
+                for action in receipt.actions
+            ]
+            result.update(
+                success=receipt.converged,
+                operation_id=receipt.operation_id,
+                verified_backend_ids=list(receipt.verified_backend_ids),
+                verified_redundancy=len(receipt.verified_backend_ids),
+                target_redundancy=receipt.plan.desired_replicas,
+                actions=actions,
+            )
+            self._record_canonical_replication_status(entry_id, receipt.converged, result)
+        except LegacyReplicationCleanupBlockedError as exc:
+            actions = [
+                {
+                    "kind": action.kind.value,
+                    "backend_id": action.backend_id,
+                    "state": action.state.value,
+                    "idempotency_key": action.idempotency_key,
+                    "reason": action.reason,
+                }
+                for action in exc.receipt.actions
+            ]
+            result.update(
+                error=str(exc),
+                error_type=type(exc).__name__,
+                cleanup_blocked=True,
+                operation_id=exc.receipt.operation_id,
+                actions=actions,
+            )
+            self._record_canonical_replication_status(entry_id if 'entry_id' in locals() else None, False, result)
+        except Exception as exc:
+            result.update(error=str(exc), error_type=type(exc).__name__)
+            self._record_canonical_replication_status(entry_id if 'entry_id' in locals() else None, False, result)
+            logger.error("Error replicating journal entry: %s", exc)
+        return result
+
+    def _record_canonical_replication_status(self, entry_id, succeeded, result):
+        """Record actual reconciliation evidence when this manager owns state."""
+
+        if not isinstance(entry_id, str) or not hasattr(self, "replication_status"):
+            return
+        record = dict(result)
+        record["status"] = (
+            ReplicationStatus.COMPLETE.value if succeeded else ReplicationStatus.FAILED.value
+        )
+        lock = getattr(self, "_locks", {}).get("status")
+        if lock is None:
+            self.replication_status[entry_id] = record
+            return
+        with lock:
+            self.replication_status[entry_id] = record
+
     def close(self):
         """Clean up resources and stop background threads."""
         try:
