@@ -23,8 +23,12 @@ import stat
 import json
 import threading
 import inspect
+import uuid
+from collections.abc import Mapping
 from typing import Dict, Any, List, Optional, Union, TYPE_CHECKING
 from pathlib import Path
+
+from .core.vfs.adapters import LegacyVFSAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -196,15 +200,17 @@ class VFSManager:
         self.pin_index = None
         self.arrow_metadata_index = None
         self.filesystem_journal = None
+        self._legacy_vfs_adapter = LegacyVFSAdapter()
         self.initialized = False
         self.last_init_attempt = 0
         self.init_retry_interval = 30  # Retry every 30 seconds
         
         # Dataset storage configuration
         self.enable_dataset_storage = enable_dataset_storage and HAS_DATASETS
-        self.dataset_batch_size = dataset_batch_size
+        self.dataset_batch_size = max(1, int(dataset_batch_size))
         self.dataset_manager = None
         self._operation_buffer = []
+        self._operation_buffer_lock = threading.Lock()
         
         # Compute layer configuration
         self.enable_compute_layer = enable_compute_layer and HAS_ACCELERATE
@@ -342,60 +348,108 @@ class VFSManager:
             if not _ensure_core_imports() or FilesystemJournal is None:
                 logger.warning("Filesystem journal unavailable; skipping initialization")
                 self.filesystem_journal = None
+                self._legacy_vfs_adapter.set_journal(None)
                 return
             self.filesystem_journal = await anyio.to_thread.run_sync(FilesystemJournal)
+            self._legacy_vfs_adapter.set_journal(self.filesystem_journal)
             logger.info("✓ Filesystem journal initialized")
         except Exception as e:
             logger.warning(f"Filesystem journal initialization failed: {e}")
             self.filesystem_journal = None
+            self._legacy_vfs_adapter.set_journal(None)
     
-    def _track_vfs_operation(self, operation: str, path: str, metadata: Optional[Dict[str, Any]] = None):
+    def _track_vfs_operation(self, operation: str, path: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
         """Track VFS operation to dataset storage if enabled."""
         if not self.enable_dataset_storage:
-            return
+            return False
         
         operation_data = {
+            "operation_id": f"vfs-operation-{uuid.uuid4().hex}",
             "operation": operation,
             "path": path,
             "timestamp": time.time(),
             "metadata": metadata or {}
         }
         
-        self._operation_buffer.append(operation_data)
-        
-        # Flush buffer if it reaches batch size
-        if len(self._operation_buffer) >= self.dataset_batch_size:
-            self._flush_operation_buffer()
+        with self._operation_buffer_lock:
+            self._operation_buffer.append(operation_data)
+            should_flush = len(self._operation_buffer) >= self.dataset_batch_size
+        if should_flush:
+            return self._flush_operation_buffer()
+        return True
     
-    def _flush_operation_buffer(self):
-        """Flush buffered operations to dataset storage."""
+    def _flush_operation_buffer(self) -> bool:
+        """Flush a committed snapshot, retaining it unless storage acknowledges it."""
         if not self.enable_dataset_storage or not self._operation_buffer:
-            return
+            return False
+        if self.dataset_manager is None:
+            return False
+        is_available = getattr(self.dataset_manager, "is_available", None)
+        try:
+            available = callable(is_available) and is_available()
+        except Exception as exc:
+            logger.warning("Unable to determine dataset availability: %s", exc)
+            return False
+        if not available:
+            return False
         
         try:
             import tempfile
-            # Write operations to temp file
-            temp_file = Path(tempfile.gettempdir()) / f"vfs_operations_{int(time.time())}.json"
-            with open(temp_file, 'w') as f:
-                json.dump(self._operation_buffer, f)
-            
-            # Store in dataset manager
-            if self.dataset_manager and self.dataset_manager.is_available():
-                self.dataset_manager.store(temp_file, metadata={
+            with self._operation_buffer_lock:
+                snapshot = list(self._operation_buffer)
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as handle:
+                json.dump(snapshot, handle)
+                temp_file = Path(handle.name)
+            try:
+                result = self.dataset_manager.store(temp_file, metadata={
                     "type": "vfs_operations",
-                    "count": len(self._operation_buffer),
+                    "count": len(snapshot),
                     "timestamp": time.time()
                 })
-            
-            # Clear buffer
-            self._operation_buffer.clear()
-            
-            # Clean up temp file
-            if temp_file.exists():
-                temp_file.unlink()
+                if not LegacyVFSAdapter.is_committed_result(result):
+                    return False
+                snapshot_ids = {item["operation_id"] for item in snapshot}
+                with self._operation_buffer_lock:
+                    self._operation_buffer = [
+                        item for item in self._operation_buffer
+                        if item.get("operation_id") not in snapshot_ids
+                    ]
+                return True
+            finally:
+                if temp_file.exists():
+                    temp_file.unlink()
                 
         except Exception as e:
             logger.warning(f"Failed to flush operation buffer to dataset: {e}")
+            return False
+
+    async def _publish_committed_operation(
+        self,
+        result: Mapping[str, Any],
+        operation: str,
+        path: str,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Publish compatibility side effects only after canonical success.
+
+        A journal or dataset outage must not rewrite the already committed VFS
+        result.  Dataset records remain buffered for retry and journal errors
+        are reported rather than being treated as an operation failure.
+        """
+        if not LegacyVFSAdapter.is_committed_result(result):
+            return
+
+        self._legacy_vfs_adapter.set_journal(self.filesystem_journal)
+        try:
+            await anyio.to_thread.run_sync(
+                lambda: self._legacy_vfs_adapter.record_committed_operation(
+                    result, operation, path, details
+                )
+            )
+        except Exception as exc:
+            logger.warning("Failed to journal committed VFS operation: %s", exc)
+
+        self._track_vfs_operation(operation, path, details)
     
     # =================================================================
     # ARROW IPC ZERO-COPY ACCESS
@@ -569,53 +623,16 @@ class VFSManager:
         Returns:
             Dictionary with operation results
         """
-        if not await self.initialize():
-            return {"success": False, "error": "VFS Manager not initialized"}
-        
-        if not self.api:
-            return {"success": False, "error": "IPFS API not available"}
-        
-        # Handle special operations
+        # Non-filesystem diagnostic calls retain their legacy helpers.  The
+        # closed adapter owns every resolved VFS operation; in particular no
+        # provider-specific ``getattr`` dispatch is permitted after cutover.
         if operation == 'cache_stats':
             return await self.get_cache_statistics()
         elif operation == 'performance_metrics':
             return await self.get_performance_metrics()
         elif operation == 'index_status':
             return await self.get_index_status()
-        
-        # Map operation to API method
-        op_name = operation
-        if operation in ['ls', 'cat', 'write', 'mkdir', 'rm', 'info']:
-            if hasattr(self.api, f"vfs_{operation}"):
-                op_name = f"vfs_{operation}"
-            elif hasattr(self.api.fs, operation):
-                # Use filesystem directly
-                try:
-                    method = getattr(self.api.fs, operation)
-                    if inspect.iscoroutinefunction(method):
-                        return await method(**kwargs)
-                    else:
-                        return await anyio.to_thread.run_sync(lambda: method(**kwargs))
-                except Exception as e:
-                    logger.error(f"VFS operation '{operation}' failed: {e}")
-                    return {"success": False, "error": str(e), "operation": operation}
-        
-        # Try to execute on API
-        if not hasattr(self.api, op_name):
-            logger.error(f"VFS operation '{op_name}' not found in IPFSSimpleAPI")
-            return {"success": False, "error": f"Unknown VFS operation: {op_name}"}
-        
-        try:
-            method = getattr(self.api, op_name)
-            
-            if inspect.iscoroutinefunction(method):
-                return await method(**kwargs)
-            else:
-                return await anyio.to_thread.run_sync(lambda: method(**kwargs))
-                
-        except Exception as e:
-            logger.error(f"VFS operation '{operation}' failed: {e}")
-            return {"success": False, "error": str(e), "operation": operation}
+        return await self._legacy_vfs_adapter.execute(operation, **kwargs)
     
     # =================================================================
     # FILE SYSTEM OPERATIONS
@@ -625,7 +642,7 @@ class VFSManager:
         """List files and directories at the specified path."""
         try:
             result = await self.execute_vfs_operation('ls', path=path)
-            if result.get("success", True) and "error" not in result:
+            if LegacyVFSAdapter.is_committed_result(result):
                 return {
                     "success": True,
                     "path": path,
@@ -645,20 +662,15 @@ class VFSManager:
     async def create_folder(self, path: str, name: str) -> Dict[str, Any]:
         """Create a new folder at the specified path."""
         try:
-            full_path = f"{path.rstrip('/')}/{name}"
+            parent_path = path.strip("/")
+            full_path = f"{parent_path}/{name}" if parent_path else name
             result = await self.execute_vfs_operation('mkdir', path=full_path)
             
-            # Log to filesystem journal
-            if self.filesystem_journal:
-                await anyio.to_thread.run_sync(lambda: self.filesystem_journal.log_operation(
-                        "mkdir", full_path, {"parent": path, "name": name})
-                )
-            
-            # Track operation in dataset
-            self._track_vfs_operation("create_folder", full_path, {"parent": path, "name": name})
+            details = {"parent": path, "name": name}
+            await self._publish_committed_operation(result, "mkdir", full_path, details)
             
             return {
-                "success": result.get("success", True),
+                "success": LegacyVFSAdapter.is_committed_result(result),
                 "path": full_path,
                 "error": result.get("error"),
                 "timestamp": time.time()
@@ -672,17 +684,11 @@ class VFSManager:
         try:
             result = await self.execute_vfs_operation('rm', path=path)
             
-            # Log to filesystem journal
-            if self.filesystem_journal:
-                await anyio.to_thread.run_sync(lambda: self.filesystem_journal.log_operation(
-                        "rm", path, {"action": "delete"})
-                )
-            
-            # Track operation in dataset
-            self._track_vfs_operation("delete_item", path)
+            details = {"action": "delete"}
+            await self._publish_committed_operation(result, "rm", path, details)
             
             return {
-                "success": result.get("success", True),
+                "success": LegacyVFSAdapter.is_committed_result(result),
                 "path": path,
                 "error": result.get("error"),
                 "timestamp": time.time()
@@ -694,22 +700,20 @@ class VFSManager:
     async def rename_item(self, old_path: str, new_name: str) -> Dict[str, Any]:
         """Rename a file or directory."""
         try:
-            parent_path = str(Path(old_path).parent)
-            new_path = f"{parent_path}/{new_name}"
-            
-            # This would need to be implemented as copy + delete
-            # For now, return a placeholder implementation
-            
-            # Log to filesystem journal
-            if self.filesystem_journal:
-                await anyio.to_thread.run_sync(lambda: self.filesystem_journal.log_operation(
-                        "rename", old_path, {"new_name": new_name, "new_path": new_path})
-                )
+            normalized_old_path = old_path.strip("/")
+            parent_path, separator, _basename = normalized_old_path.rpartition("/")
+            new_path = f"{parent_path}/{new_name}" if separator else new_name
+            result = await self.execute_vfs_operation(
+                "rename", source_path=old_path, target_path=new_path
+            )
+            details = {"new_name": new_name, "new_path": new_path}
+            await self._publish_committed_operation(result, "rename", old_path, details)
             
             return {
-                "success": True,  # Placeholder
+                "success": LegacyVFSAdapter.is_committed_result(result),
                 "old_path": old_path,
                 "new_path": new_path,
+                "error": result.get("error"),
                 "timestamp": time.time()
             }
         except Exception as e:
@@ -719,19 +723,17 @@ class VFSManager:
     async def move_item(self, source_path: str, target_path: str) -> Dict[str, Any]:
         """Move a file or directory from source to target path."""
         try:
-            # This would need to be implemented as copy + delete
-            # For now, return a placeholder implementation
-            
-            # Log to filesystem journal
-            if self.filesystem_journal:
-                await anyio.to_thread.run_sync(lambda: self.filesystem_journal.log_operation(
-                        "move", source_path, {"target_path": target_path})
-                )
+            result = await self.execute_vfs_operation(
+                "move", source_path=source_path, target_path=target_path
+            )
+            details = {"target_path": target_path}
+            await self._publish_committed_operation(result, "move", source_path, details)
             
             return {
-                "success": True,  # Placeholder
+                "success": LegacyVFSAdapter.is_committed_result(result),
                 "source_path": source_path,
                 "target_path": target_path,
+                "error": result.get("error"),
                 "timestamp": time.time()
             }
         except Exception as e:
@@ -982,25 +984,13 @@ class VFSManager:
         Returns:
             List of journal entries
         """
-        if not await self.initialize():
-            return []
-        
         try:
-            entries = []
-            
-            # Get entries from filesystem journal
-            if self.filesystem_journal:
-                journal_entries = await anyio.to_thread.run_sync(lambda: self.filesystem_journal.get_recent_entries(limit=limit)
-                )
-                entries.extend(journal_entries)
-            
-            # Get entries from pin index journal if available
-            if self.pin_index and hasattr(self.pin_index, 'journal'):
-                journal = self.pin_index.journal
-                if journal:
-                    pin_entries = await anyio.to_thread.run_sync(lambda: journal.get_recent_entries(limit=limit)
-                    )
-                    entries.extend(pin_entries)
+            if self.filesystem_journal is None:
+                await self._initialize_filesystem_journal()
+            self._legacy_vfs_adapter.set_journal(self.filesystem_journal)
+            entries = await anyio.to_thread.run_sync(
+                lambda: self._legacy_vfs_adapter.get_entries(limit=limit)
+            )
             
             # Apply filters
             filtered_entries = []
