@@ -666,6 +666,15 @@ class IrohBucketTieringManager:
                 receipt_id VARCHAR PRIMARY KEY, bucket VARCHAR NOT NULL,
                 operation VARCHAR NOT NULL, status VARCHAR NOT NULL,
                 receipt_json VARCHAR NOT NULL, created_at DOUBLE NOT NULL
+            );
+            -- An action is recorded *before* an external placement handler is
+            -- called.  Thus a process death between the handler and catalog
+            -- commit is recoverable rather than silently divergent.
+            CREATE TABLE IF NOT EXISTS bucket_placement_sagas (
+                saga_id VARCHAR PRIMARY KEY, bucket VARCHAR NOT NULL,
+                action_json VARCHAR NOT NULL, content_json VARCHAR NOT NULL,
+                inverse_json VARCHAR NOT NULL, state VARCHAR NOT NULL,
+                error VARCHAR, created_at DOUBLE NOT NULL, updated_at DOUBLE NOT NULL
             )
         """)
 
@@ -755,6 +764,74 @@ class IrohBucketTieringManager:
             (policy.bucket, _canonical_json(policy.to_dict()).decode(), policy.policy_digest, self.clock()),
         )
 
+    def _external_action(self, bucket: str, action: ReconciliationAction, content: Mapping[str, Any], sagas: list[str]) -> ReconciliationAction:
+        """Apply a handler action with a durable inverse prepared first."""
+        if self.placement_handler is None:
+            return action
+        inverse_kind = "remove" if action.action == "place" else "place"
+        inverse = replace(action, action=inverse_kind, status="planned", reason="saga_compensation")
+        saga_id = uuid.uuid4().hex
+        now = self.clock()
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO bucket_placement_sagas VALUES(?,?,?,?,?,?,?,?,?)",
+                (saga_id, bucket, _canonical_json(action.to_dict()).decode(),
+                 _canonical_json(dict(content)).decode(), _canonical_json(inverse.to_dict()).decode(),
+                 "prepared", None, now, now),
+            )
+        sagas.append(saga_id)
+        try:
+            outcome = self.placement_handler(action.to_dict(), copy.deepcopy(dict(content)))
+            if outcome is False or (isinstance(outcome, Mapping) and outcome.get("success") is False):
+                raise RuntimeError("placement_handler_failed")
+        except Exception as exc:
+            with self._lock:
+                self._db.execute("UPDATE bucket_placement_sagas SET state='compensation_pending',error=?,updated_at=? WHERE saga_id=?", (str(exc), self.clock(), saga_id))
+            return replace(action, status="failed", reason="placement_handler_failed" if str(exc) == "placement_handler_failed" else "placement_handler_error")
+        with self._lock:
+            self._db.execute("UPDATE bucket_placement_sagas SET state='applied',updated_at=? WHERE saga_id=?", (self.clock(), saga_id))
+        return action
+
+    def recover_pending_compensations(self, saga_ids: Sequence[str] | None = None) -> tuple[str, ...]:
+        """Retry inverses for actions whose catalog transaction never committed."""
+        if self.placement_handler is None:
+            return ()
+        clause = "state IN ('prepared','applied','compensation_pending')"
+        params: tuple[Any, ...] = ()
+        if saga_ids is not None:
+            if not saga_ids:
+                return ()
+            marks = ",".join("?" for _ in saga_ids)
+            clause += f" AND saga_id IN ({marks})"
+            params = tuple(saga_ids)
+        with self._lock:
+            rows = self._db.execute(
+                f"SELECT saga_id,inverse_json,content_json FROM bucket_placement_sagas WHERE {clause} ORDER BY created_at",
+                params,
+            ).fetchall()
+        recovered: list[str] = []
+        for saga_id, inverse_raw, content_raw in rows:
+            try:
+                outcome = self.placement_handler(json.loads(inverse_raw), json.loads(content_raw))
+                if outcome is False or (isinstance(outcome, Mapping) and outcome.get("success") is False):
+                    raise RuntimeError("compensation_handler_failed")
+                with self._lock:
+                    self._db.execute("UPDATE bucket_placement_sagas SET state='compensated',updated_at=? WHERE saga_id=?", (self.clock(), saga_id))
+                recovered.append(saga_id)
+            except Exception as exc:
+                with self._lock:
+                    self._db.execute("UPDATE bucket_placement_sagas SET state='recovery_required',error=?,updated_at=? WHERE saga_id=?", (str(exc), self.clock(), saga_id))
+        return tuple(recovered)
+
+    def _compensate_sagas(self, saga_ids: Sequence[str]) -> bool:
+        if not saga_ids:
+            return True
+        self.recover_pending_compensations(saga_ids)
+        marks = ",".join("?" for _ in saga_ids)
+        with self._lock:
+            row = self._db.execute(f"SELECT count(*) FROM bucket_placement_sagas WHERE saga_id IN ({marks}) AND state <> 'compensated'", tuple(saga_ids)).fetchone()
+        return int(row[0]) == 0
+
     def get_policy(self, bucket: str) -> BucketPolicy:
         _bucket_name(bucket)
         with self._lock:
@@ -782,6 +859,15 @@ class IrohBucketTieringManager:
         with self._lock:
             self._persist_policy(policy)
         receipt = self.reconcile(bucket, operation="policy_migration", previous_policy=old)
+        if not receipt.success:
+            # Desired state is authoritative: never leave a rejected candidate
+            # published.  Reconciliation has already compensated its external
+            # work; a second pass makes the old desired state explicit.
+            with self._lock:
+                self._persist_policy(old)
+            rollback = self.reconcile(bucket, operation="policy_rollback", previous_policy=policy)
+            if not rollback.success:
+                receipt = replace(receipt, status="recovery_required", operation="policy_migration_recovery_required")
         return receipt
 
     def migrate_policy(
@@ -979,6 +1065,7 @@ class IrohBucketTieringManager:
                 unique[item["iroh_hash"]] = item
 
         actions: list[ReconciliationAction] = []
+        external_sagas: list[str] = []
         projected = before
         rejected = False
         desired_bindings = self._desired_bindings(policy)
@@ -1037,37 +1124,27 @@ class IrohBucketTieringManager:
                     continue
                 status = "planned" if dry_run else "placed"
                 action = ReconciliationAction("place", digest, item["size"], binding.backend, binding.role.value, binding.storage_tier.value, status, "policy_requires_placement")
-                if not dry_run and self.placement_handler is not None:
-                    try:
-                        outcome = self.placement_handler(action.to_dict(), copy.deepcopy(item))
-                        if outcome is False or (isinstance(outcome, Mapping) and outcome.get("success") is False):
-                            action = replace(action, status="failed", reason="placement_handler_failed")
-                            rejected = True
-                            object_rejected = True
-                    except Exception:
-                        action = replace(action, status="failed", reason="placement_handler_error")
+                if not dry_run:
+                    action = self._external_action(bucket, action, item, external_sagas)
+                    if action.status == "failed":
                         rejected = True
                         object_rejected = True
                 actions.append(action)
                 if action.status in {"planned", "placed"}:
                     capacity_reserved[binding.backend] = reserved + item["size"]
             desired_backend_names = {binding.backend for binding in desired_bindings}
-            for stale_backend, stale in sorted(placed.items()):
+            # Never remove a known-good placement if this object's desired
+            # placement failed.  Doing so was the source of data-loss windows.
+            for stale_backend, stale in sorted(placed.items()) if not object_rejected else ():
                 if stale_backend in desired_backend_names:
                     continue
                 stale_action = ReconciliationAction(
                     "remove", digest, int(stale[3]), stale_backend, stale[1], stale[2],
                     "planned" if dry_run else "removed", "binding_no_longer_in_policy",
                 )
-                if not dry_run and self.placement_handler is not None:
-                    try:
-                        outcome = self.placement_handler(stale_action.to_dict(), copy.deepcopy(item))
-                        if outcome is False or (isinstance(outcome, Mapping) and outcome.get("success") is False):
-                            stale_action = replace(stale_action, status="failed", reason="placement_handler_failed")
-                            rejected = True
-                            object_rejected = True
-                    except Exception:
-                        stale_action = replace(stale_action, status="failed", reason="placement_handler_error")
+                if not dry_run:
+                    stale_action = self._external_action(bucket, stale_action, item, external_sagas)
+                    if stale_action.status == "failed":
                         rejected = True
                         object_rejected = True
                 actions.append(stale_action)
@@ -1085,12 +1162,22 @@ class IrohBucketTieringManager:
                 if digest not in desired_hashes:
                     actions.append(ReconciliationAction("remove", digest, int(size), backend_name, role, tier, "planned" if dry_run else "removed", "content_not_desired"))
 
-        if not dry_run:
+        failed = any(item.status == "failed" for item in actions)
+        # A policy migration is all-or-nothing: capacity and quota rejection
+        # must not leave a subset of its desired state in the catalog.
+        policy_transition_failed = operation == "policy_migration" and rejected
+        if not dry_run and (failed or policy_transition_failed):
+            # Handler outcomes can be ambiguous, including a false/exception
+            # after the remote side has acted.  Compensate every prepared saga.
+            recovered = self._compensate_sagas(external_sagas)
+            if not recovered:
+                operation = f"{operation}_recovery_required"
+        if not dry_run and not failed and not policy_transition_failed:
             with self._lock:
                 self._db.execute("BEGIN TRANSACTION")
                 try:
                     for item in unique.values():
-                        if any(action.iroh_hash == item["iroh_hash"] and action.action == "reject" for action in actions):
+                        if any(action.iroh_hash == item["iroh_hash"] and action.status in {"reject", "rejected", "failed"} for action in actions):
                             continue
                         self._db.execute(
                             "INSERT INTO bucket_content VALUES(?,?,?,?,?) ON CONFLICT(bucket,iroh_hash) DO NOTHING",
@@ -1111,14 +1198,17 @@ class IrohBucketTieringManager:
                             remaining = self._db.execute("SELECT 1 FROM bucket_placements WHERE bucket=? AND iroh_hash=?", (bucket, digest)).fetchone()
                             if not remaining:
                                 self._db.execute("DELETE FROM bucket_content WHERE bucket=? AND iroh_hash=?", (bucket, digest))
+                    if external_sagas:
+                        marks = ",".join("?" for _ in external_sagas)
+                        self._db.execute(f"UPDATE bucket_placement_sagas SET state='committed',updated_at=? WHERE saga_id IN ({marks})", (self.clock(), *external_sagas))
                     self._db.execute("COMMIT")
                 except Exception:
                     self._db.execute("ROLLBACK")
+                    self._compensate_sagas(external_sagas)
                     raise
 
         after = projected if dry_run else self.logical_usage(bucket)
-        failed = any(item.status == "failed" for item in actions)
-        status = "dry-run" if dry_run and not rejected else ("partial" if failed else ("rejected" if rejected else "converged"))
+        status = "dry-run" if dry_run and not rejected else ("recovery_required" if operation.endswith("_recovery_required") else ("partial" if failed else ("rejected" if rejected else "converged")))
         receipt = ReconciliationReceipt(
             uuid.uuid4().hex, bucket, operation, status, policy.policy_digest,
             _rfc3339(started_epoch), _rfc3339(self.clock()), dry_run, tuple(actions),
@@ -1146,7 +1236,7 @@ class IrohBucketTieringManager:
         raise_on_rejection: bool = True,
     ) -> ReconciliationReceipt:
         receipt = self.reconcile(bucket, [{"iroh_hash": iroh_hash, "size": size, "metadata": dict(metadata or {})}], dry_run=dry_run)
-        if raise_on_rejection and receipt.status in {"rejected", "partial"}:
+        if raise_on_rejection and receipt.status in {"rejected", "partial", "recovery_required"}:
             reason = next((item.reason for item in receipt.actions if item.status in {"rejected", "failed"}), "placement_rejected")
             raise IrohConflictError(
                 "bucket placement was rejected", operation="bucket.place",
