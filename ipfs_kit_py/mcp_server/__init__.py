@@ -8,6 +8,9 @@ from typing import Any
 from ipfs_kit_py import OptionalDependencyError
 
 _LAZY_EXPORTS = {
+    "MCPServer": (".server", "MCPServer"),
+    "create_http_app": (".server", "create_http_app"),
+    "serve_p2p": (".server", "serve_p2p"),
     "HierarchicalToolManager": (".hierarchical_tool_manager", "HierarchicalToolManager"),
     "TOOL_GROUPS": (".tools", "TOOL_GROUPS"),
 }
@@ -30,4 +33,4 @@ def __dir__() -> list[str]:
     return sorted(set(globals()) | set(_LAZY_EXPORTS))
 
 
-__all__ = ["HierarchicalToolManager", "TOOL_GROUPS"]
+__all__ = ["MCPServer", "create_http_app", "serve_p2p", "HierarchicalToolManager", "TOOL_GROUPS"]

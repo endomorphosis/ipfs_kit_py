@@ -8,8 +8,10 @@ one async core.
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
+import tempfile
 from datetime import datetime, timezone
 from typing import Any, Dict
 
@@ -17,6 +19,7 @@ import anyio
 
 from . import mcplusplus
 from .hierarchical_tool_manager import HierarchicalToolManager
+from .mcplusplus.event_dag import EventDAGStore
 
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_INFO = {"name": "ipfs_kit_py-mcpplusplus", "version": "0.1.0"}
@@ -71,7 +74,16 @@ def _now_iso() -> str:
 class MCPServer:
     def __init__(self, receipt_resolver: Any = None) -> None:
         self.tm = HierarchicalToolManager()
-        self._dag = EventDAGStore()
+        # Do not let the default EventDAGStore location leak mutable state
+        # between server instances.  Deployments that need durable provenance
+        # opt in with a directory managed by their runtime environment.
+        configured_dag_directory = os.environ.get("MCPPLUSPLUS_EVENT_DAG_DIR")
+        self._dag_directory: tempfile.TemporaryDirectory[str] | None = None
+        if configured_dag_directory:
+            self._dag = EventDAGStore(storage_dir=configured_dag_directory)
+        else:
+            self._dag_directory = tempfile.TemporaryDirectory(prefix="ipfs-kit-mcpp-dag-")
+            self._dag = EventDAGStore(storage_dir=self._dag_directory.name)
         from .agent_supervisor_receipts import AgentSupervisorReceiptResolver
         self._agent_supervisor_receipts = receipt_resolver or AgentSupervisorReceiptResolver()
 
@@ -115,7 +127,18 @@ class MCPServer:
             return {
                 "protocolVersion": PROTOCOL_VERSION,
                 "serverInfo": SERVER_INFO,
-                "capabilities": {"tools": {}, "experimental": experimental, "mcpPlusPlusProfiles": ["mcp++/event-dag", "mcp++/risk-scheduling"]},
+                "capabilities": {
+                    "tools": {},
+                    "experimental": experimental,
+                    # Profile D is implemented by the built-in deterministic
+                    # evaluator, so advertise it independently of optional
+                    # accelerator or HTTP dependencies.
+                    "mcpPlusPlusProfiles": [
+                        "mcp++/event-dag",
+                        "mcp++/deontic-policy",
+                        "mcp++/risk-scheduling",
+                    ],
+                },
                 "profile_metadata": {
                     "mcp++/event-dag": self._dag.profile_metadata(),
                     "agent_supervisor.receipts.read": {
@@ -132,9 +155,8 @@ class MCPServer:
         if method == "agent_supervisor.receipts.read":
             return self._agent_supervisor_receipts.read(params)
         if method == "mcp++/dag/frontier":
-            seen = {p for n in self._dag for p in n.get("parents", [])}
-            frontier = [n["event_cid"] for n in self._dag if n["event_cid"] not in seen]
-            return {"frontier": frontier, "count": len(self._dag)}
+            frontier = self._dag.frontier()
+            return {**frontier, "count": self._dag.history(limit=1)["count"]}
         if method in ("mcp++/ucan/validate", "mcp++/ucan/delegate"):
             from .mcplusplus import delegation
             return delegation.validate_raw_delegation_chain(
@@ -167,11 +189,13 @@ class MCPServer:
                 err = mcplusplus.validate_packet(envelope)
                 if err:
                     raise ValueError(f"mcp++ envelope invalid: {err}")
+            self._repair_minimal_ipfs_backend()
             category, _, tool = name.rpartition("/") if "/" in name else self._resolve(name)
             result = await self.tm.dispatch(category, tool, args)
             if params.get("profile_b") or envelope is not None:
                 from .mcplusplus import artifacts
-                parents = [n["event_cid"] for n in self._dag[-1:]]
+                recent_events = self._dag.history(limit=1)["events"]
+                parents = [recent_events[0]["event_cid"]] if recent_events else []
                 meta = artifacts.envelope_from_payloads(
                     interface_cid=self._interface_cid(),
                     input_payload={"tool": name, "arguments": args},
@@ -190,6 +214,28 @@ class MCPServer:
         if method == "ping":
             return {}
         raise ValueError(f"unknown method: {method}")
+
+    @staticmethod
+    def _repair_minimal_ipfs_backend() -> None:
+        """Bridge the minimal client's unpin spelling without changing full backends.
+
+        The bundled minimal client exposes ``ipfs_pin_rm`` while the legacy
+        tool wrapper calls ``pin_rm`` on a nested IPFS backend.  This adapter
+        is deliberately narrow: a backend that already provides ``pin_rm``
+        remains untouched.
+        """
+        from . import core_operations
+
+        kit = core_operations.get_kit()
+        backend = getattr(kit, "ipfs", None)
+        minimal_unpin = getattr(backend, "ipfs_pin_rm", None)
+        if callable(getattr(backend, "pin_rm", None)) or not callable(minimal_unpin):
+            return
+
+        def ipfs_pin_rm(cid: str, recursive: bool = True, **kwargs: Any) -> Any:
+            return minimal_unpin(cid)
+
+        setattr(kit, "ipfs_pin_rm", ipfs_pin_rm)
 
     def _resolve(self, tool: str):
         for cat, tools in self.tm._groups.items():

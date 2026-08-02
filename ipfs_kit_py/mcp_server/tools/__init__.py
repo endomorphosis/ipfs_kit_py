@@ -23,6 +23,8 @@ from . import (
     swarm_tools,
 )
 
+# This is the sole category-to-tool registry.  MCP, CLI, FastMCP, and SDK
+# generation consume this object through HierarchicalToolManager.
 TOOL_GROUPS: Dict[str, Dict[str, Callable[..., Awaitable]]] = {
     "ipfs_tools": {"ipfs_add": ipfs_tools.ipfs_add, "ipfs_cat": ipfs_tools.ipfs_cat,
                    "ipfs_ls": ipfs_tools.ipfs_ls},
