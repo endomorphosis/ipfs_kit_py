@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import inspect
 import json
 import math
 import os
@@ -13,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from ..backend_registry import BackendConfigError, ensure_json_compatible, validate_backend_name
+from .client import redact
 
 
 IROH_BACKEND_SCHEMA_VERSION = 1
@@ -293,6 +295,12 @@ class IrohBackendPlugin:
             "async": True,
             "immutable_blobs": True,
             "sync": bool(value["sync"]["enabled"]),
+            # Keep provider-neutral capability names from implying global
+            # transaction or rename semantics that Iroh does not provide.
+            "operation_limits": {
+                "transactions": "single-namespace",
+                "move": "not-atomic-cross-namespace",
+            },
             "schema_version": IROH_BACKEND_SCHEMA_VERSION,
         }
 
@@ -304,6 +312,7 @@ class IrohBackendPlugin:
                 "healthy": True,
                 "ready": False,
                 "status": "disabled",
+                "certification_status": "blocked",
                 "endpoint": endpoint,
                 "managed": value["service"]["managed"],
             }
@@ -318,9 +327,57 @@ class IrohBackendPlugin:
             "healthy": reachable,
             "ready": reachable,
             "status": "available" if reachable else "unavailable",
+            "certification_status": "blocked" if not reachable else "unverified",
             "endpoint": endpoint,
             "managed": value["service"]["managed"],
         }
+
+    async def certify_live_service(
+        self, config: Mapping[str, Any], *, client: Any = None, client_factory: Any = None
+    ) -> dict[str, Any]:
+        """Prove a local sidecar by RPC, not merely by a socket pathname.
+
+        Construction is intentionally lazy; this is the explicit operation that
+        connects, performs health and version/capability negotiation, and fails
+        closed as ``blocked`` when no pinned sidecar is available.
+        """
+        value = self.validate(config)
+        endpoint = value["service"]["rpc_endpoint"]
+        if not value["enabled"]:
+            return {"status": "blocked", "healthy": False, "reason": "Iroh backend is disabled"}
+        try:
+            if client is None:
+                if client_factory is not None:
+                    client = client_factory()
+                else:
+                    from .client import IrohRuntimeClient
+                    client = IrohRuntimeClient(endpoint=endpoint, timeout=value["timeouts"]["operation_seconds"])
+            timeout = value["timeouts"]["connect_seconds"]
+            health = client.health(timeout=timeout)
+            if inspect.isawaitable(health):
+                health = await health
+            negotiated = client.negotiate(timeout=timeout)
+            if inspect.isawaitable(negotiated):
+                await negotiated
+            return {
+                "status": "passed", "healthy": True, "provider": "iroh-local-rpc",
+                "endpoint": endpoint, "health": redact(dict(health)),
+                # Iroh moves may be copy/remove and transactions are namespace scoped.
+                "limitations": {"transactions": "single-namespace", "move": "not-atomic-cross-namespace"},
+            }
+        except Exception as exc:
+            # The client redactor protects structured values and common URI
+            # forms.  Exception text is unstructured, so also mask familiar
+            # key=value credentials before exposing a diagnostic receipt.
+            reason = re.sub(
+                r"(?i)(\b(?:secret|token|ticket|password|credential|capability|authorization)[^=:\s]*[=:]\s*)[^\s,&]+",
+                r"\1<redacted>",
+                str(redact(str(exc))),
+            )
+            return {
+                "status": "blocked", "healthy": False, "provider": "iroh-local-rpc",
+                "endpoint": endpoint, "reason": reason,
+            }
 
     def create_filesystem(
         self,

@@ -6,7 +6,10 @@ Implements the isomorphic backend interface for S3-compatible storage.
 """
 
 import anyio
+import hashlib
 import json
+import logging
+import re
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -21,16 +24,28 @@ class S3BackendAdapter(BackendAdapter):
     Supports AWS S3 and S3-compatible storage providers.
     """
     
-    def __init__(self, backend_name: str, config_manager=None):
-        """Initialize S3 backend adapter."""
-        super().__init__(backend_name, config_manager)
+    # These aliases deliberately describe the shared S3 API only.  In
+    # particular, a DigitalOcean token is not an S3 signing credential.
+    SERVICE_OPERATIONS = frozenset({"put", "get", "range", "list", "delete"})
+
+    def __init__(self, backend_name: str = "s3", config_manager=None, *, client=None,
+                 client_factory=None):
+        """Construct lazily; no directory, client, or network work happens here."""
+        self.backend_name = backend_name
+        self.config_manager = config_manager
+        self.logger = logging.getLogger(__name__).getChild(f"{self.__class__.__name__}.{backend_name}")
+        # Do not call BackendAdapter.__init__: it writes under the caller's home.
+        self.ipfs_kit_dir = Path.home() / '.ipfs_kit'
+        self.backend_metadata_dir = self.ipfs_kit_dir / 'backends' / backend_name
+        self.pin_metadata_dir = self.ipfs_kit_dir / 'pins'
+        self.config = self._load_backend_config_inert()
         
         # S3-specific configuration
         self.bucket_name = self.config.get('bucket_name', f'ipfs-kit-{backend_name}')
         self.endpoint_url = self.config.get('endpoint_url', '')
         self.region = self.config.get('region', 'us-east-1')
-        self.access_key = self.config.get('access_key_id', '')
-        self.secret_key = self.config.get('secret_access_key', '')
+        self.access_key = self.config.get('access_key_id', self.config.get('access_key', ''))
+        self.secret_key = self.config.get('secret_access_key', self.config.get('secret_key', ''))
         self.use_ssl = self.config.get('use_ssl', True)
         
         # S3 prefixes for organization
@@ -39,14 +54,43 @@ class S3BackendAdapter(BackendAdapter):
         self.metadata_prefix = 'metadata/'
         
         # Initialize S3 client (lazy loading)
-        self.s3_client = None
+        self.s3_client = client
+        self._client_factory = client_factory
+        # A caller-provided test/client object is deliberately not discarded
+        # between retries.  Factory-created and SDK-created clients are
+        # recreated after transport failures to exercise reconnect behaviour.
+        self._injected_client = client is not None and client_factory is None
         
-        self.logger.info(f"Initialized S3 adapter for {backend_name} (bucket: {self.bucket_name})")
+        self.logger.debug("Initialized lazy S3-compatible adapter for %s", backend_name)
+
+    def _load_backend_config_inert(self) -> Dict[str, Any]:
+        try:
+            value = self.config_manager.get_backend_config(self.backend_name) if self.config_manager else None
+            return dict(value) if value else {'enabled': True, 'timeout': 30, 'retry_count': 3}
+        except Exception as exc:
+            self.logger.warning("Could not load S3 configuration: %s", self._redact(exc))
+            return {'enabled': False, 'timeout': 30, 'retry_count': 0}
+
+    def _redact(self, value: Any) -> str:
+        text = str(value)
+        for secret in (self.__dict__.get('access_key', ''), self.__dict__.get('secret_key', '')):
+            if secret:
+                text = text.replace(str(secret), '<redacted>')
+        text = re.sub(r'(?i)(\b(?:secret|token|password|access[_-]?key|credential)[^=:\s]*[=:]\s*)[^\s,&]+', r'\1<redacted>', text)
+        return re.sub(r'([a-z][a-z0-9+.-]*://)[^/@\s]+@', r'\1<redacted>@', text)
+
+    def _save_metadata(self, metadata_type: str, data: Dict[str, Any]) -> None:
+        """Retain legacy persistence, but make it an explicit I/O operation."""
+        self.backend_metadata_dir.mkdir(parents=True, exist_ok=True)
+        return super()._save_metadata(metadata_type, data)
     
     def _get_s3_client(self):
         """Get S3 client with lazy initialization."""
         if self.s3_client is None:
             try:
+                if self._client_factory is not None:
+                    self.s3_client = self._client_factory()
+                    return self.s3_client
                 import boto3
                 from botocore.config import Config
                 
@@ -69,84 +113,108 @@ class S3BackendAdapter(BackendAdapter):
             except ImportError:
                 raise Exception("boto3 library is required for S3 backend. Install with: pip install boto3")
             except Exception as e:
-                raise Exception(f"Failed to initialize S3 client: {e}")
+                raise RuntimeError(f"Failed to initialize S3 client: {self._redact(e)}")
         
         return self.s3_client
     
-    async def health_check(self) -> Dict[str, Any]:
-        """Check S3 backend health."""
-        start_time = time.time()
-        
-        try:
-            s3_client = self._get_s3_client()
-            
-            # Test bucket access
+    async def _call(self, method: str, **kwargs: Any) -> Any:
+        """Call the blocking SDK off-loop and retry only transient transport errors."""
+        attempts = max(1, int(self.config.get('retry_count', 3)) + 1)
+        last_error = None
+        for attempt in range(attempts):
             try:
-                s3_client.head_bucket(Bucket=self.bucket_name)
-            except s3_client.exceptions.NoSuchBucket:
-                # Try to create bucket if it doesn't exist
-                if self.region == 'us-east-1':
-                    s3_client.create_bucket(Bucket=self.bucket_name)
-                else:
-                    s3_client.create_bucket(
-                        Bucket=self.bucket_name,
-                        CreateBucketConfiguration={'LocationConstraint': self.region}
-                    )
-            
-            # Test read/write access
-            test_key = 'health_check_test'
-            test_content = f"health_check_{int(time.time())}"
-            
-            s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=test_key,
-                Body=test_content.encode()
-            )
-            
-            response = s3_client.get_object(Bucket=self.bucket_name, Key=test_key)
-            read_content = response['Body'].read().decode()
-            
-            s3_client.delete_object(Bucket=self.bucket_name, Key=test_key)
-            
-            if read_content != test_content:
-                raise Exception("Read/write test failed")
-            
-            # Get storage statistics
-            storage_usage = await self._get_storage_usage_internal()
-            pin_count = await self._get_pin_count()
-            
-            # Check sync needs
-            needs_pin_sync = await self._check_pin_sync_needed()
-            needs_bucket_backup = await self._check_bucket_backup_needed()
-            needs_metadata_backup = await self._check_metadata_backup_needed()
-            
-            response_time = (time.time() - start_time) * 1000
-            
-            return {
-                'healthy': True,
-                'response_time_ms': response_time,
-                'error': None,
-                'pin_count': pin_count,
-                'storage_usage': storage_usage.get('total_usage', 0),
-                'needs_pin_sync': needs_pin_sync,
-                'needs_bucket_backup': needs_bucket_backup,
-                'needs_metadata_backup': needs_metadata_backup,
-                'bucket_name': self.bucket_name,
-                'region': self.region
-            }
-            
-        except Exception as e:
-            response_time = (time.time() - start_time) * 1000
-            return {
-                'healthy': False,
-                'response_time_ms': response_time,
-                'error': str(e),
-                'pin_count': 0,
-                'storage_usage': 0,
-                'needs_pin_sync': False,
-                'needs_bucket_backup': False,
-                'needs_metadata_backup': False
-            }
+                client = self._get_s3_client()
+                return await anyio.to_thread.run_sync(lambda: getattr(client, method)(**kwargs), abandon_on_cancel=True)
+            except BaseException as exc:
+                if isinstance(exc, anyio.get_cancelled_exc_class()):
+                    raise
+                last_error = exc
+                # Recreate a client after a connection failure; never substitute local storage.
+                if not self._injected_client:
+                    self.s3_client = None
+                if attempt + 1 < attempts:
+                    await anyio.sleep(min(.05 * (2 ** attempt), .25))
+        raise RuntimeError(self._redact(last_error)) from last_error
+
+    async def certify_live_service(self) -> Dict[str, Any]:
+        """Non-mutating endpoint proof.  An absent bucket/service is blocked."""
+        started = time.monotonic()
+        try:
+            await self._call('head_bucket', Bucket=self.bucket_name)
+            return {'status': 'passed', 'healthy': True, 'provider': 's3-compatible',
+                    'alias': self.backend_name, 'operations': sorted(self.SERVICE_OPERATIONS),
+                    'response_time_ms': round((time.monotonic() - started) * 1000, 2)}
+        except Exception as exc:
+            return {'status': 'blocked', 'healthy': False, 'provider': 's3-compatible',
+                    'alias': self.backend_name, 'reason': self._redact(exc),
+                    'response_time_ms': round((time.monotonic() - started) * 1000, 2)}
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Check only a pre-provisioned bucket; certification never mutates it."""
+        receipt = await self.certify_live_service()
+        return {
+            'healthy': receipt['healthy'], 'response_time_ms': receipt['response_time_ms'],
+            'error': receipt.get('reason'), 'certification': receipt,
+            'pin_count': 0, 'storage_usage': 0, 'needs_pin_sync': False,
+            'needs_bucket_backup': False, 'needs_metadata_backup': False,
+            'bucket_name': self.bucket_name, 'region': self.region,
+        }
+
+    async def put_object(self, key: str, data: bytes, *, expected_sha256: Optional[str] = None,
+                         multipart_threshold: int = 8 * 1024 * 1024,
+                         part_size: int = 5 * 1024 * 1024) -> Dict[str, Any]:
+        if not isinstance(data, bytes):
+            raise TypeError('data must be bytes')
+        digest = hashlib.sha256(data).hexdigest()
+        if expected_sha256 and expected_sha256 != digest:
+            raise ValueError('source SHA-256 does not match expected_sha256')
+        if len(data) < multipart_threshold:
+            result = await self._call('put_object', Bucket=self.bucket_name, Key=key, Body=data)
+            return {'key': key, 'size': len(data), 'sha256': digest, 'etag': result.get('ETag') if isinstance(result, dict) else None, 'multipart': False}
+        upload = await self._call('create_multipart_upload', Bucket=self.bucket_name, Key=key)
+        upload_id = upload['UploadId']
+        parts = []
+        try:
+            for number, start in enumerate(range(0, len(data), part_size), 1):
+                result = await self._call('upload_part', Bucket=self.bucket_name, Key=key, UploadId=upload_id,
+                                          PartNumber=number, Body=data[start:start + part_size])
+                parts.append({'PartNumber': number, 'ETag': result['ETag']})
+            await self._call('complete_multipart_upload', Bucket=self.bucket_name, Key=key, UploadId=upload_id,
+                             MultipartUpload={'Parts': parts})
+        except BaseException:
+            try:
+                await self._call('abort_multipart_upload', Bucket=self.bucket_name, Key=key, UploadId=upload_id)
+            finally:
+                raise
+        return {'key': key, 'size': len(data), 'sha256': digest, 'multipart': True}
+
+    async def get_object(self, key: str, *, byte_range: Optional[tuple[int, int]] = None,
+                         expected_sha256: Optional[str] = None) -> bytes:
+        kwargs: Dict[str, Any] = {'Bucket': self.bucket_name, 'Key': key}
+        if byte_range is not None:
+            start, end = byte_range
+            if isinstance(start, bool) or isinstance(end, bool) or start < 0 or end < start:
+                raise ValueError('byte_range must be an inclusive non-negative range')
+            kwargs['Range'] = f'bytes={start}-{end}'
+        result = await self._call('get_object', **kwargs)
+        body = result['Body']
+        payload = await anyio.to_thread.run_sync(body.read, abandon_on_cancel=True)
+        digest = hashlib.sha256(payload).hexdigest()
+        if expected_sha256 and digest != expected_sha256:
+            raise ValueError('download SHA-256 does not match expected_sha256')
+        return payload
+
+    async def list_objects(self, prefix: str = '', *, continuation_token: Optional[str] = None,
+                           page_size: int = 1000) -> Dict[str, Any]:
+        kwargs: Dict[str, Any] = {'Bucket': self.bucket_name, 'Prefix': prefix, 'MaxKeys': page_size}
+        if continuation_token:
+            kwargs['ContinuationToken'] = continuation_token
+        result = await self._call('list_objects_v2', **kwargs)
+        return {'objects': result.get('Contents', []), 'next_token': result.get('NextContinuationToken'),
+                'truncated': bool(result.get('IsTruncated'))}
+
+    async def delete_object(self, key: str) -> None:
+        await self._call('delete_object', Bucket=self.bucket_name, Key=key)
     
     async def sync_pins(self) -> bool:
         """Synchronize pins with S3 storage."""

@@ -6,7 +6,10 @@ Implements the isomorphic backend interface for IPFS storage.
 """
 
 import anyio
+import hashlib
 import json
+import logging
+import re
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -22,19 +25,140 @@ class IPFSBackendAdapter(BackendAdapter):
     IPFS backend adapter implementing the isomorphic interface.
     """
     
-    def __init__(self, backend_name: str, config_manager=None):
-        """Initialize IPFS backend adapter."""
-        super().__init__(backend_name, config_manager)
+    SERVICE_OPERATIONS = frozenset({"add", "cat", "range", "pin", "unpin", "list-pins"})
+
+    def __init__(self, backend_name: str = "ipfs", config_manager=None, *, http_client=None):
+        """Construct without touching the API, filesystem, or a gateway."""
+        self.backend_name = backend_name
+        self.config_manager = config_manager
+        self.logger = logging.getLogger(__name__).getChild(f"{self.__class__.__name__}.{backend_name}")
+        # BackendAdapter.__init__ persists metadata.  Service adapters must be inert.
+        self.ipfs_kit_dir = Path.home() / '.ipfs_kit'
+        self.backend_metadata_dir = self.ipfs_kit_dir / 'backends' / backend_name
+        self.pin_metadata_dir = self.ipfs_kit_dir / 'pins'
+        self.config = self._load_backend_config_inert()
         
         # IPFS-specific configuration
         self.api_url = self.config.get('api_url', 'http://localhost:5001')
         self.gateway_url = self.config.get('gateway_url', 'http://localhost:8080')
         self.timeout = self.config.get('timeout', 30)
+        self.service_kind = self.config.get('service_kind', 'kubo')
+        self.http_client = http_client
         
-        self.logger.info(f"Initialized IPFS adapter for {backend_name}")
+        self.logger.debug("Initialized lazy %s IPFS adapter", self.service_kind)
+
+    def _load_backend_config_inert(self) -> Dict[str, Any]:
+        try:
+            value = self.config_manager.get_backend_config(self.backend_name) if self.config_manager else None
+            return dict(value) if value else {'enabled': True, 'timeout': 30, 'retry_count': 2}
+        except Exception as exc:
+            self.logger.warning("Could not load IPFS configuration: %s", self._redact(exc))
+            return {'enabled': False, 'timeout': 30, 'retry_count': 0}
+
+    def _redact(self, value: Any) -> str:
+        text = str(value)
+        for secret_key in ('token', 'secret', 'password', 'api_key', 'authorization'):
+            text = re.sub(rf'(?i)({secret_key}[^=:\s]*[=:]\s*)[^\s,&]+', r'\1<redacted>', text)
+        return re.sub(r'([a-z][a-z0-9+.-]*://)[^/@\s]+@', r'\1<redacted>@', text)
+
+    def _save_metadata(self, metadata_type: str, data: Dict[str, Any]) -> None:
+        self.backend_metadata_dir.mkdir(parents=True, exist_ok=True)
+        return super()._save_metadata(metadata_type, data)
+
+    async def _request(self, method: str, path: str, **kwargs: Any) -> Any:
+        attempts = max(1, int(self.config.get('retry_count', 2)) + 1)
+        error = None
+        for attempt in range(attempts):
+            try:
+                client = self.http_client or requests
+                response = await anyio.to_thread.run_sync(
+                    lambda: client.request(method, f"{self.api_url}{path}", timeout=self.timeout, **kwargs),
+                    abandon_on_cancel=True,
+                )
+                if getattr(response, 'status_code', 200) >= 400:
+                    raise RuntimeError(f"IPFS API returned status {response.status_code}")
+                return response
+            except BaseException as exc:
+                if isinstance(exc, anyio.get_cancelled_exc_class()):
+                    raise
+                error = exc
+                if attempt + 1 < attempts:
+                    await anyio.sleep(min(.05 * (2 ** attempt), .25))
+        raise RuntimeError(self._redact(error)) from error
+
+    @staticmethod
+    def _content(response: Any) -> bytes:
+        value = getattr(response, 'content', None)
+        if value is not None:
+            return bytes(value)
+        return bytes(getattr(response, 'text', ''), 'utf-8')
+
+    async def certify_live_service(self) -> Dict[str, Any]:
+        started = time.monotonic()
+        path = '/api/v0/version' if self.service_kind == 'kubo' else '/version'
+        try:
+            response = await self._request('GET', path)
+            payload = response.json() if hasattr(response, 'json') else {}
+            return {'status': 'passed', 'healthy': True, 'provider': self.service_kind,
+                    'alias': self.backend_name, 'operations': sorted(self.SERVICE_OPERATIONS),
+                    'version': payload.get('Version', payload.get('version', 'unknown')),
+                    'response_time_ms': round((time.monotonic() - started) * 1000, 2)}
+        except Exception as exc:
+            return {'status': 'blocked', 'healthy': False, 'provider': self.service_kind,
+                    'alias': self.backend_name, 'reason': self._redact(exc),
+                    'response_time_ms': round((time.monotonic() - started) * 1000, 2)}
     
     async def health_check(self) -> Dict[str, Any]:
-        """Check IPFS node health."""
+        """Return a non-mutating certification receipt for this IPFS API kind."""
+        receipt = await self.certify_live_service()
+        return {
+            'healthy': receipt['healthy'], 'response_time_ms': receipt['response_time_ms'],
+            'error': receipt.get('reason'), 'certification': receipt, 'pin_count': 0,
+            'storage_usage': 0, 'needs_pin_sync': False, 'needs_bucket_backup': False,
+            'needs_metadata_backup': False, 'version': receipt.get('version', 'unknown'),
+            'peer_id': None,
+        }
+
+    async def add_bytes(self, data: bytes, *, expected_sha256: Optional[str] = None) -> Dict[str, Any]:
+        if not isinstance(data, bytes):
+            raise TypeError('data must be bytes')
+        digest = hashlib.sha256(data).hexdigest()
+        if expected_sha256 and digest != expected_sha256:
+            raise ValueError('source SHA-256 does not match expected_sha256')
+        response = await self._request('POST', '/api/v0/add', files={'file': ('payload', data)})
+        result = response.json()
+        return {'cid': result.get('Hash', result.get('Cid')), 'size': len(data), 'sha256': digest}
+
+    async def cat(self, cid: str, *, byte_range: Optional[tuple[int, int]] = None,
+                  expected_sha256: Optional[str] = None) -> bytes:
+        headers = {}
+        if byte_range is not None:
+            start, end = byte_range
+            if isinstance(start, bool) or isinstance(end, bool) or start < 0 or end < start:
+                raise ValueError('byte_range must be an inclusive non-negative range')
+            headers['Range'] = f'bytes={start}-{end}'
+        response = await self._request('POST', '/api/v0/cat', params={'arg': cid}, headers=headers)
+        payload = self._content(response)
+        if expected_sha256 and hashlib.sha256(payload).hexdigest() != expected_sha256:
+            raise ValueError('download SHA-256 does not match expected_sha256')
+        return payload
+
+    async def pin(self, cid: str) -> None:
+        await self._request('POST', '/api/v0/pin/add', params={'arg': cid})
+
+    async def unpin(self, cid: str) -> None:
+        await self._request('POST', '/api/v0/pin/rm', params={'arg': cid})
+
+    async def list_pins_page(self, *, offset: int = 0, limit: int = 1000) -> Dict[str, Any]:
+        if offset < 0 or limit < 1:
+            raise ValueError('offset must be non-negative and limit must be positive')
+        response = await self._request('POST', '/api/v0/pin/ls', params={'offset': offset, 'limit': limit})
+        pins = response.json().get('Keys', {})
+        keys = list(pins)
+        return {'pins': keys[:limit], 'next_offset': offset + len(keys) if len(keys) == limit else None}
+
+    async def legacy_health_check(self) -> Dict[str, Any]:
+        """Deprecated historical probe retained only for callers that explicitly need it."""
         start_time = time.time()
         
         try:
