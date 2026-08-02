@@ -148,8 +148,35 @@ except Exception as e:
 # LibP2P integration is applied by IPFSSimpleAPI at instantiation time.
 # Deferring avoids circular imports during package initialization.
 
+# The registry-derived adapters are inert: importing them does not import a
+# provider or instantiate a legacy high-level API implementation.
+from .operation_adapter import (
+    ADAPTER_RESPONSE_SCHEMA,
+    ASYNC_PYTHON_ADAPTER_SCHEMA,
+    PYTHON_ADAPTER_SCHEMA,
+    AsyncPythonAdapter,
+    AdapterOperationProjection,
+    AdapterResponse,
+    PythonAdapter,
+    build_async_python_adapter,
+    build_python_adapter,
+)
+
 # Export components
 __all__ = ['IPFSSimpleAPI']
+__all__.extend(
+    [
+        'ADAPTER_RESPONSE_SCHEMA',
+        'ASYNC_PYTHON_ADAPTER_SCHEMA',
+        'PYTHON_ADAPTER_SCHEMA',
+        'AsyncPythonAdapter',
+        'AdapterOperationProjection',
+        'AdapterResponse',
+        'PythonAdapter',
+        'build_async_python_adapter',
+        'build_python_adapter',
+    ]
+)
 
 if WebRTCBenchmarkIntegration is not None:
     __all__.append('WebRTCBenchmarkIntegration')

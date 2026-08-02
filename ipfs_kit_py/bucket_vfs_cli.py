@@ -68,6 +68,31 @@ except Exception as e:
 
 LEGACY_BUCKET_MODE = False
 
+# These historical commands predate OperationRegistry and are deliberately
+# not advertised as registry operations.  Keep the boundary explicit while
+# exposing the generated adapter for applications that do have a registry and
+# canonical service binding.
+REGISTRY_CLI_NON_APPLICABLE_REASON = (
+    "legacy bucket-vfs commands are not declared OperationRegistry transports; "
+    "use build_registry_cli_adapter with registered operations"
+)
+
+
+def build_registry_cli_adapter(registry, router, *, program_name="ipfs-kit-operation"):
+    """Build the canonical registry CLI without importing legacy handlers."""
+
+    from .cli.operation_adapter import build_cli_adapter
+
+    return build_cli_adapter(registry, router, program_name=program_name)
+
+
+def run_registry_cli(registry, router, argv=None, *, stdout=None, stderr=None) -> int:
+    """Run only commands advertised by the supplied operation registry."""
+
+    return build_registry_cli_adapter(registry, router).run(
+        argv, stdout=stdout, stderr=stderr
+    )
+
 
 def get_global_bucket_manager(**kwargs):
     """Return the global bucket manager.
