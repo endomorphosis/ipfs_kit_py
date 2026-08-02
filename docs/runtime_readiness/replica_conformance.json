@@ -1,0 +1,22 @@
+{
+  "schema": "ipfs_kit_py/runtime-readiness/replica-conformance@1",
+  "contract_version": 1,
+  "suite": "tests/runtime_readiness/replication/test_joined_convergence.py",
+  "exclusion_policy": {
+    "excluded_only_gate": false,
+    "mandatory_in_default_ci": true
+  },
+  "seeded_chaos": {
+    "seed_count": 64,
+    "generator": "deterministic Python random.Random(seed) permutations with dependency deferral",
+    "desired_state": "committed version-2"
+  },
+  "invariants": {
+    "replica_verification": "Read-back digest and version verification reaches exactly the desired replica count.",
+    "wal_idempotency": "Committed WAL recovery delivers one effect and a second recovery produces no duplicate effects.",
+    "deletion": "Tombstoned GraphRAG content is absent from rebuilt projections and later active versions are rejected.",
+    "cache_and_index": "The stale exact cache binding is invalidated while cache and GraphRAG expose the committed version.",
+    "partial_placement": "A failed bucket placement either compensates immediately or leaves a durable, recoverable receipt.",
+    "provider_capability": "Unsupported storage capability returns a typed unsupported result and cannot fall back."
+  }
+}
