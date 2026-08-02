@@ -6,12 +6,33 @@ Implements the isomorphic backend interface for filesystem storage (including SS
 """
 
 import anyio
+import asyncio
+import base64
 import json
+import hashlib
+import os
 import shutil
 import time
+import uuid
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from pathlib import PurePosixPath
+from typing import Any, AsyncIterator, Dict, List, Mapping, Optional
+
+from ..core.operation_contracts import (
+    DurabilityEvidence,
+    DurabilityMode,
+    EffectEvidence,
+    EffectKind,
+    ErrorCategory,
+    ErrorCode,
+    EvidenceKind,
+    OperationResult,
+    OperationState,
+    Retryability,
+    StorageError,
+)
 
 from .base_adapter import BackendAdapter
 
@@ -674,3 +695,596 @@ class FilesystemBackendAdapter(BackendAdapter):
         except Exception as e:
             self.logger.error(f"Error calculating directory checksum: {e}")
             return ""
+
+
+# The legacy adapter above remains integration-facing.  The classes below are
+# explicit, local-only references used to exercise runtime operation contracts.
+HERMITIC_REFERENCE_OPERATIONS = frozenset(
+    {
+        "health", "put", "get", "stream", "read_range", "list",
+        "get_metadata", "set_metadata", "delete", "close",
+    }
+)
+
+
+@dataclass(frozen=True)
+class HermeticOperationResult:
+    operation: str
+    canonical_result: OperationResult
+    data: bytes = b""
+    items: tuple[str, ...] = ()
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+    observed_effect_count: int = 0
+
+    @property
+    def success(self) -> bool:
+        return self.canonical_result.success
+
+    @property
+    def state(self) -> OperationState:
+        return self.canonical_result.state
+
+    @property
+    def resulting_content_cid(self) -> str:
+        return self.canonical_result.resulting_content_cid
+
+    @property
+    def resulting_version_cid(self) -> str:
+        return self.canonical_result.resulting_version_cid
+
+
+class HermeticBackendError(RuntimeError):
+    """Exception carrying the public typed StorageError."""
+
+    def __init__(self, error: StorageError) -> None:
+        self.error = error
+        super().__init__(error.message)
+
+
+class HermeticFilesystemAdapter:
+    """Capability-declared filesystem reference with no provider dependencies."""
+
+    backend_id = "hermetic_filesystem_reference"
+    provider_kind = "filesystem"
+    is_hermetic = True
+    live_provider = False
+    provider_certified = False
+    certification_scope = "local-hermetic-reference-only"
+    _secret_key_fragments = (
+        "secret", "token", "password", "credential", "authorization",
+        "api_key", "private_key", "bearer",
+    )
+
+    def __init__(
+        self,
+        root: str | Path,
+        *,
+        declared_operations: Optional[set[str] | frozenset[str] | list[str]] = None,
+        configuration: Optional[Mapping[str, Any]] = None,
+    ) -> None:
+        self.validate_configuration({} if configuration is None else configuration)
+        operations = (
+            HERMITIC_REFERENCE_OPERATIONS
+            if declared_operations is None
+            else frozenset(declared_operations)
+        )
+        if operations.difference(HERMITIC_REFERENCE_OPERATIONS):
+            self._raise(
+                ErrorCode.INVALID_REQUEST, ErrorCategory.VALIDATION,
+                "declared operations include an unknown operation",
+                state=OperationState.REJECTED,
+            )
+        self.declared_operations = frozenset(operations)
+        self.root = Path(root).resolve()
+        self._objects_root = self.root / "objects"
+        self._objects_root.mkdir(parents=True, exist_ok=True)
+        self._content_cids: dict[Path, str] = {}
+        self._metadata: dict[Path, dict[str, Any]] = {}
+        self._idempotency: dict[str, tuple[str, HermeticOperationResult]] = {}
+        self._transient_failures: dict[str, int] = {}
+        self._effect_count = 0
+        self._closed = False
+
+    @property
+    def effect_count(self) -> int:
+        return self._effect_count
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    @classmethod
+    def validate_configuration(cls, configuration: Mapping[str, Any]) -> bool:
+        if not isinstance(configuration, Mapping):
+            cls._raise(
+                ErrorCode.INVALID_REQUEST, ErrorCategory.VALIDATION,
+                "configuration must be a mapping", state=OperationState.REJECTED,
+            )
+        cls._reject_secret_keys(configuration)
+        return True
+
+    @classmethod
+    def _reject_secret_keys(cls, value: Any) -> None:
+        if isinstance(value, Mapping):
+            for key, nested in value.items():
+                normalized = str(key).casefold().replace("-", "_")
+                if any(part in normalized for part in cls._secret_key_fragments):
+                    cls._raise(
+                        ErrorCode.SECRET_MATERIAL, ErrorCategory.AUTHORIZATION,
+                        "secret-bearing configuration is forbidden",
+                        state=OperationState.REJECTED,
+                    )
+                cls._reject_secret_keys(nested)
+        elif isinstance(value, (list, tuple, set, frozenset)):
+            for nested in value:
+                cls._reject_secret_keys(nested)
+
+    @staticmethod
+    def _raise(
+        code: ErrorCode,
+        category: ErrorCategory,
+        message: str,
+        *,
+        state: OperationState = OperationState.FAILED,
+        retryability: Retryability = Retryability.NEVER,
+    ) -> None:
+        raise HermeticBackendError(
+            StorageError(
+                code=code, category=category, message=message,
+                retryability=retryability, state=state,
+            )
+        )
+
+    def inject_transient_failure(self, operation: str, count: int = 1) -> None:
+        if operation not in HERMITIC_REFERENCE_OPERATIONS or count < 1:
+            self._raise(
+                ErrorCode.INVALID_REQUEST, ErrorCategory.VALIDATION,
+                "invalid transient-failure request", state=OperationState.REJECTED,
+            )
+        self._transient_failures[operation] = count
+
+    def _check_operation(self, operation: str, cancel_event: Any = None) -> None:
+        if operation not in self.declared_operations:
+            self._raise(
+                ErrorCode.UNSUPPORTED, ErrorCategory.UNSUPPORTED,
+                "operation is not declared by this adapter",
+                state=OperationState.UNSUPPORTED,
+            )
+        if self._closed and operation != "close":
+            self._raise(
+                ErrorCode.UNAVAILABLE, ErrorCategory.UNAVAILABLE,
+                "adapter is closed", state=OperationState.UNAVAILABLE,
+            )
+        if cancel_event is not None and bool(cancel_event.is_set()):
+            self._raise(
+                ErrorCode.CANCELLED, ErrorCategory.CANCELLATION,
+                "operation was cancelled", state=OperationState.CANCELLED,
+            )
+        remaining = self._transient_failures.get(operation, 0)
+        if remaining:
+            if remaining == 1:
+                self._transient_failures.pop(operation, None)
+            else:
+                self._transient_failures[operation] = remaining - 1
+            self._raise(
+                ErrorCode.UNAVAILABLE, ErrorCategory.UNAVAILABLE,
+                "hermetic transient failure", state=OperationState.UNAVAILABLE,
+                retryability=Retryability.IDEMPOTENT_SAFE,
+            )
+
+    def _logical_path(self, path: str, *, allow_empty: bool = False) -> str:
+        if not isinstance(path, str) or "\x00" in path or "\\" in path:
+            self._raise(
+                ErrorCode.INVALID_REQUEST, ErrorCategory.VALIDATION,
+                "path is invalid", state=OperationState.REJECTED,
+            )
+        if not path:
+            if allow_empty:
+                return ""
+            self._raise(
+                ErrorCode.INVALID_REQUEST, ErrorCategory.VALIDATION,
+                "path is required", state=OperationState.REJECTED,
+            )
+        pure = PurePosixPath(path)
+        if pure.is_absolute() or any(part in {".", ".."} for part in pure.parts):
+            self._raise(
+                ErrorCode.INVALID_REQUEST, ErrorCategory.VALIDATION,
+                "path escapes the hermetic root", state=OperationState.REJECTED,
+            )
+        normalized = pure.as_posix()
+        if normalized in {"", "."}:
+            self._raise(
+                ErrorCode.INVALID_REQUEST, ErrorCategory.VALIDATION,
+                "path is required", state=OperationState.REJECTED,
+            )
+        return normalized
+
+    def _target(self, logical_path: str) -> Path:
+        target = self._objects_root.joinpath(*logical_path.split("/"))
+        if not target.resolve().is_relative_to(self._objects_root.resolve()):
+            self._raise(
+                ErrorCode.INVALID_REQUEST, ErrorCategory.VALIDATION,
+                "path escapes the hermetic root", state=OperationState.REJECTED,
+            )
+        return target
+
+    @staticmethod
+    def _cid(data: bytes) -> str:
+        multihash = b"\x01\x55\x12\x20" + hashlib.sha256(data).digest()
+        return "b" + base64.b32encode(multihash).decode("ascii").rstrip("=").lower()
+
+    def _success(
+        self,
+        operation: str,
+        *,
+        content_cid: str = "",
+        data: bytes = b"",
+        items: tuple[str, ...] = (),
+        metadata: Optional[Mapping[str, Any]] = None,
+        effect_kind: Optional[EffectKind] = None,
+        idempotency_key: str = "",
+    ) -> HermeticOperationResult:
+        evidence: tuple[EffectEvidence, ...] = ()
+        durability = None
+        state = OperationState.ACCEPTED
+        if effect_kind is not None:
+            effect_id = f"effect-{uuid.uuid4().hex}"
+            acknowledgement = f"ack-{uuid.uuid4().hex}"
+            evidence = (
+                EffectEvidence(
+                    evidence_id=effect_id, kind=EvidenceKind.BACKEND_ACK,
+                    effect_kind=effect_kind, reference=acknowledgement,
+                    backend_id=self.backend_id,
+                ),
+            )
+            durability = DurabilityEvidence(
+                mode=DurabilityMode.BACKEND_DURABLE,
+                backend_ack_id=acknowledgement,
+                effect_evidence_ids=(effect_id,),
+            )
+            state = OperationState.COMMITTED
+        canonical = OperationResult(
+            request_id=f"request-{uuid.uuid4().hex}",
+            operation_id=f"operation-{uuid.uuid4().hex}",
+            state=state, success=True, resulting_content_cid=content_cid,
+            durability=durability, effect_evidence=evidence,
+            backend_id=self.backend_id, idempotency_key=idempotency_key,
+        )
+        return HermeticOperationResult(
+            operation=operation, canonical_result=canonical, data=data, items=items,
+            metadata=dict(metadata or {}), observed_effect_count=self._effect_count,
+        )
+
+    @staticmethod
+    def _idempotency_signature(
+        operation: str, path: str, data: bytes = b"", metadata: Optional[Mapping[str, Any]] = None
+    ) -> str:
+        encoded = json.dumps(
+            {
+                "operation": operation,
+                "path": path,
+                "data": base64.b64encode(data).decode("ascii"),
+                "metadata": dict(metadata or {}),
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        ).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    def _read_verified(self, target: Path) -> tuple[bytes, str]:
+        """Read content and reject mutation outside this adapter's effect log."""
+        data = target.read_bytes()
+        content_cid = self._cid(data)
+        expected = self._content_cids.get(target)
+        if expected is not None and expected != content_cid:
+            self._raise(
+                ErrorCode.INTEGRITY_FAILURE, ErrorCategory.INTEGRITY,
+                "content integrity check failed", state=OperationState.FAILED,
+            )
+        self._content_cids[target] = content_cid
+        return data, content_cid
+
+    def _existing_cid(self, target: Path) -> str:
+        return self._read_verified(target)[1]
+
+    async def invoke(self, operation: str, **kwargs: Any) -> Any:
+        dispatch = {
+            "health": self.health,
+            "put": self.put,
+            "get": self.get,
+            "stream": self.stream,
+            "read_range": self.read_range,
+            "list": self.list,
+            "get_metadata": self.get_metadata,
+            "set_metadata": self.set_metadata,
+            "delete": self.delete,
+            "close": self.close,
+        }
+        method = dispatch.get(operation)
+        if method is None:
+            self._check_operation(operation, kwargs.get("cancel_event"))
+            self._raise(
+                ErrorCode.UNSUPPORTED, ErrorCategory.UNSUPPORTED,
+                "operation is not implemented by this reference adapter",
+                state=OperationState.UNSUPPORTED,
+            )
+        return await method(**kwargs)
+
+    async def health(self, *, cancel_event: Any = None) -> HermeticOperationResult:
+        self._check_operation("health", cancel_event)
+        return self._success(
+            "health", metadata={
+                "hermetic": True,
+                "live_provider": False,
+                "provider_certified": False,
+                "root": str(self.root),
+            }
+        )
+
+    async def put(
+        self,
+        path: str,
+        data: bytes,
+        *,
+        metadata: Optional[Mapping[str, Any]] = None,
+        if_match: str = "",
+        idempotency_key: str = "",
+        cancel_event: Any = None,
+    ) -> HermeticOperationResult:
+        self._check_operation("put", cancel_event)
+        logical_path = self._logical_path(path)
+        if not isinstance(data, bytes):
+            self._raise(
+                ErrorCode.INVALID_REQUEST, ErrorCategory.VALIDATION,
+                "data must be bytes", state=OperationState.REJECTED,
+            )
+        if metadata is not None and not isinstance(metadata, Mapping):
+            self._raise(
+                ErrorCode.INVALID_REQUEST, ErrorCategory.VALIDATION,
+                "metadata must be a mapping", state=OperationState.REJECTED,
+            )
+        self._reject_secret_keys(metadata or {})
+        target = self._target(logical_path)
+        signature = self._idempotency_signature("put", logical_path, data, metadata)
+        if idempotency_key:
+            cached = self._idempotency.get(idempotency_key)
+            if cached is not None:
+                prior_signature, prior_result = cached
+                if prior_signature != signature:
+                    self._raise(
+                        ErrorCode.CONFLICT, ErrorCategory.CONFLICT,
+                        "idempotency key was reused with different input",
+                        state=OperationState.CONFLICT,
+                    )
+                return prior_result
+        if target.exists() and if_match and self._existing_cid(target) != if_match:
+            self._raise(
+                ErrorCode.PRECONDITION_FAILED, ErrorCategory.PRECONDITION,
+                "content precondition did not match",
+                state=OperationState.PRECONDITION_FAILED,
+            )
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary = target.with_name(f".{target.name}.{uuid.uuid4().hex}.tmp")
+        try:
+            with temporary.open("xb") as handle:
+                handle.write(data)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, target)
+        finally:
+            if temporary.exists():
+                temporary.unlink()
+        content_cid = self._cid(data)
+        self._content_cids[target] = content_cid
+        self._metadata[target] = dict(metadata or {})
+        self._effect_count += 1
+        result = self._success(
+            "put", content_cid=content_cid, metadata=self._metadata[target],
+            effect_kind=EffectKind.BACKEND_WRITE, idempotency_key=idempotency_key,
+        )
+        if idempotency_key:
+            self._idempotency[idempotency_key] = (signature, result)
+        return result
+
+    async def get(
+        self, path: str, *, cancel_event: Any = None
+    ) -> HermeticOperationResult:
+        self._check_operation("get", cancel_event)
+        target = self._target(self._logical_path(path))
+        if not target.is_file():
+            self._raise(
+                ErrorCode.NOT_FOUND, ErrorCategory.NOT_FOUND,
+                "content does not exist", state=OperationState.FAILED,
+            )
+        data, content_cid = self._read_verified(target)
+        metadata = {"size": len(data), **self._metadata.get(target, {})}
+        return self._success("get", content_cid=content_cid, data=data, metadata=metadata)
+
+    async def stream(
+        self,
+        path: str,
+        *,
+        chunk_size: int = 65536,
+        cancel_event: Any = None,
+    ) -> AsyncIterator[bytes]:
+        self._check_operation("stream", cancel_event)
+        if isinstance(chunk_size, bool) or not isinstance(chunk_size, int) or chunk_size < 1:
+            self._raise(
+                ErrorCode.INVALID_REQUEST, ErrorCategory.VALIDATION,
+                "chunk size must be a positive integer", state=OperationState.REJECTED,
+            )
+        target = self._target(self._logical_path(path))
+        if not target.is_file():
+            self._raise(
+                ErrorCode.NOT_FOUND, ErrorCategory.NOT_FOUND,
+                "content does not exist", state=OperationState.FAILED,
+            )
+        data, _content_cid = self._read_verified(target)
+
+        async def chunks() -> AsyncIterator[bytes]:
+            for offset in range(0, len(data), chunk_size):
+                self._check_operation("stream", cancel_event)
+                yield data[offset:offset + chunk_size]
+
+        return chunks()
+
+    async def read_range(
+        self,
+        path: str,
+        start: int,
+        end: int,
+        *,
+        cancel_event: Any = None,
+    ) -> HermeticOperationResult:
+        self._check_operation("read_range", cancel_event)
+        if (
+            isinstance(start, bool) or isinstance(end, bool)
+            or not isinstance(start, int) or not isinstance(end, int)
+            or start < 0 or end < start
+        ):
+            self._raise(
+                ErrorCode.INVALID_REQUEST, ErrorCategory.VALIDATION,
+                "range is invalid", state=OperationState.REJECTED,
+            )
+        target = self._target(self._logical_path(path))
+        if not target.is_file():
+            self._raise(
+                ErrorCode.NOT_FOUND, ErrorCategory.NOT_FOUND,
+                "content does not exist", state=OperationState.FAILED,
+            )
+        data, content_cid = self._read_verified(target)
+        if end > len(data):
+            self._raise(
+                ErrorCode.INVALID_REQUEST, ErrorCategory.VALIDATION,
+                "range exceeds content length", state=OperationState.REJECTED,
+            )
+        return self._success(
+            "read_range", content_cid=content_cid, data=data[start:end],
+            metadata={"range_start": start, "range_end": end, "size": len(data)},
+        )
+
+    async def list(
+        self, prefix: str = "", *, cancel_event: Any = None
+    ) -> HermeticOperationResult:
+        self._check_operation("list", cancel_event)
+        prefix = self._logical_path(prefix, allow_empty=True)
+        paths: list[str] = []
+        if self._objects_root.exists():
+            for candidate in self._objects_root.rglob("*"):
+                if candidate.is_file():
+                    relative = candidate.relative_to(self._objects_root).as_posix()
+                    if not prefix or relative == prefix or relative.startswith(prefix + "/"):
+                        paths.append(relative)
+        return self._success("list", items=tuple(sorted(paths)), metadata={"prefix": prefix})
+
+    async def get_metadata(
+        self, path: str, *, cancel_event: Any = None
+    ) -> HermeticOperationResult:
+        self._check_operation("get_metadata", cancel_event)
+        target = self._target(self._logical_path(path))
+        if not target.is_file():
+            self._raise(
+                ErrorCode.NOT_FOUND, ErrorCategory.NOT_FOUND,
+                "content does not exist", state=OperationState.FAILED,
+            )
+        data, content_cid = self._read_verified(target)
+        return self._success(
+            "get_metadata", content_cid=content_cid,
+            metadata={"size": len(data), **self._metadata.get(target, {})},
+        )
+
+    async def set_metadata(
+        self,
+        path: str,
+        metadata: Mapping[str, Any],
+        *,
+        cancel_event: Any = None,
+    ) -> HermeticOperationResult:
+        self._check_operation("set_metadata", cancel_event)
+        target = self._target(self._logical_path(path))
+        if not target.is_file():
+            self._raise(
+                ErrorCode.NOT_FOUND, ErrorCategory.NOT_FOUND,
+                "content does not exist", state=OperationState.FAILED,
+            )
+        if not isinstance(metadata, Mapping):
+            self._raise(
+                ErrorCode.INVALID_REQUEST, ErrorCategory.VALIDATION,
+                "metadata must be a mapping", state=OperationState.REJECTED,
+            )
+        self._reject_secret_keys(metadata)
+        replacement = dict(metadata)
+        if replacement == self._metadata.get(target, {}):
+            return self._success(
+                "set_metadata", content_cid=self._existing_cid(target),
+                metadata=replacement,
+            )
+        self._metadata[target] = replacement
+        self._effect_count += 1
+        return self._success(
+            "set_metadata", content_cid=self._existing_cid(target),
+            metadata=replacement, effect_kind=EffectKind.METADATA_MUTATE,
+        )
+
+    async def delete(
+        self,
+        path: str,
+        *,
+        if_match: str = "",
+        idempotency_key: str = "",
+        cancel_event: Any = None,
+    ) -> HermeticOperationResult:
+        self._check_operation("delete", cancel_event)
+        logical_path = self._logical_path(path)
+        target = self._target(logical_path)
+        signature = self._idempotency_signature("delete", logical_path)
+        if idempotency_key:
+            cached = self._idempotency.get(idempotency_key)
+            if cached is not None:
+                prior_signature, prior_result = cached
+                if prior_signature != signature:
+                    self._raise(
+                        ErrorCode.CONFLICT, ErrorCategory.CONFLICT,
+                        "idempotency key was reused with different input",
+                        state=OperationState.CONFLICT,
+                    )
+                return prior_result
+        if not target.is_file():
+            self._raise(
+                ErrorCode.NOT_FOUND, ErrorCategory.NOT_FOUND,
+                "content does not exist", state=OperationState.FAILED,
+            )
+        content_cid = self._existing_cid(target)
+        if if_match and if_match != content_cid:
+            self._raise(
+                ErrorCode.PRECONDITION_FAILED, ErrorCategory.PRECONDITION,
+                "content precondition did not match",
+                state=OperationState.PRECONDITION_FAILED,
+            )
+        target.unlink()
+        self._content_cids.pop(target, None)
+        self._metadata.pop(target, None)
+        self._effect_count += 1
+        result = self._success(
+            "delete", content_cid=content_cid, effect_kind=EffectKind.BACKEND_DELETE,
+            idempotency_key=idempotency_key,
+        )
+        if idempotency_key:
+            self._idempotency[idempotency_key] = (signature, result)
+        return result
+
+    async def close(self, *, cancel_event: Any = None) -> HermeticOperationResult:
+        self._check_operation("close", cancel_event)
+        self._closed = True
+        return self._success("close", metadata={"closed": True})
+
+    def corrupt_for_test(self, path: str, data: bytes) -> None:
+        logical_path = self._logical_path(path)
+        target = self._target(logical_path)
+        if not target.is_file() or not isinstance(data, bytes):
+            self._raise(
+                ErrorCode.INVALID_REQUEST, ErrorCategory.VALIDATION,
+                "invalid integrity fixture request", state=OperationState.REJECTED,
+            )
+        target.write_bytes(data)

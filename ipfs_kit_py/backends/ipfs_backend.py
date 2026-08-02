@@ -596,3 +596,35 @@ class IPFSBackendAdapter(BackendAdapter):
             'metadata_backup_usage': 0,
             'available_space': 0
         }
+
+
+# This fixture intentionally shares only the hermetic local semantics of the
+# reference filesystem adapter.  It never contacts a daemon, gateway, or other
+# network provider and must not be used to certify a live IPFS deployment.
+from .filesystem_backend import HermeticFilesystemAdapter
+
+
+class HermeticIPFSFixtureAdapter(HermeticFilesystemAdapter):
+    """An IPFS-shaped, hermetic fixture for adapter conformance tests."""
+
+    backend_id = "hermetic_ipfs_fixture"
+    provider_kind = "ipfs"
+    fixture_kind = "hermetic-ipfs-reference"
+    is_hermetic = True
+    live_provider = False
+    provider_certified = False
+    certification_scope = "fixture-only; not live IPFS provider certification"
+
+    def provider_identity(self) -> Dict[str, Any]:
+        return {
+            "backend_id": self.backend_id,
+            "provider_kind": self.provider_kind,
+            "fixture_kind": self.fixture_kind,
+            "is_hermetic": self.is_hermetic,
+            "live_provider": self.live_provider,
+            "provider_certified": self.provider_certified,
+            "certification_scope": self.certification_scope,
+        }
+
+
+HermeticIPFSAdapter = HermeticIPFSFixtureAdapter
