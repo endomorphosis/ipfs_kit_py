@@ -224,8 +224,17 @@ class BucketService:
         self._lock = threading.RLock()
 
     def create_bucket(self, manifest: BucketManifest, *, idempotency_key: str | None = None) -> BucketManifest:
-        self._require_manifest(manifest)
-        return self._idempotent("create_bucket", idempotency_key, manifest.content_id, lambda: self._create(manifest))
+        # KITA-044: bounded admission before catalog/backend work.
+        from ipfs_kit_py.core.performance import HotPathGate
+
+        with HotPathGate(payload_bytes=0, fairness_class="bucket-create"):
+            self._require_manifest(manifest)
+            return self._idempotent(
+                "create_bucket",
+                idempotency_key,
+                manifest.content_id,
+                lambda: self._create(manifest),
+            )
 
     def _create(self, manifest: BucketManifest) -> BucketManifest:
         with self._lock, self.catalog.operation_lock():

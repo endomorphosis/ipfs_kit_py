@@ -385,15 +385,22 @@ class ExactVectorIndex(VectorIndex):
         self, query: Sequence[float], k: int = 10, *, filters: Mapping[str, Any] | None = None,
         identity: VectorIndexIdentity | None = None, max_candidates: int | None = None,
     ) -> tuple[VectorSearchResult, ...]:
-        query, k, filters = self._validate_query(query, k, filters, identity)
-        candidate_count = sum(_matches_filters(record.metadata, filters) for record in self._records.values())
-        if max_candidates is not None:
-            max_candidates = _bounded_positive(max_candidates, "max_candidates", self.max_records)
-            if candidate_count > max_candidates:
-                raise ExactFallbackLimitError(
-                    f"exact candidate count {candidate_count} exceeds explicit limit {max_candidates}"
-                )
-        return self._exact_results(query, k, filters)
+        # KITA-044: admit under the shared hot-path bound; scoring and identity
+        # validation semantics are unchanged.
+        from ipfs_kit_py.core.performance import HotPathGate
+
+        with HotPathGate(payload_bytes=0, fairness_class="vector-exact-search"):
+            query, k, filters = self._validate_query(query, k, filters, identity)
+            candidate_count = sum(
+                _matches_filters(record.metadata, filters) for record in self._records.values()
+            )
+            if max_candidates is not None:
+                max_candidates = _bounded_positive(max_candidates, "max_candidates", self.max_records)
+                if candidate_count > max_candidates:
+                    raise ExactFallbackLimitError(
+                        f"exact candidate count {candidate_count} exceeds explicit limit {max_candidates}"
+                    )
+            return self._exact_results(query, k, filters)
 
     def search(
         self, query: Sequence[float], k: int = 10, *, filters: Mapping[str, Any] | None = None,
@@ -456,19 +463,23 @@ class ANNVectorIndex(ExactVectorIndex):
         self, query: Sequence[float], k: int = 10, *, filters: Mapping[str, Any] | None = None,
         identity: VectorIndexIdentity | None = None,
     ) -> tuple[VectorSearchResult, ...]:
-        query, k, filters = self._validate_query(query, k, filters, identity)
-        limit = min(self.max_ann_candidates, max(k, k * self.candidate_multiplier))
-        raw = self.backend.search(query, limit, filters)
-        if isinstance(raw, (str, bytes)) or not isinstance(raw, Sequence):
-            raise VectorIndexError("ANN backend returned a non-sequence candidate response")
-        ids: list[str] = []
-        for candidate in raw[:limit]:
-            record_id = candidate.record_id if isinstance(candidate, VectorSearchResult) else candidate
-            if not isinstance(record_id, str):
-                raise VectorIndexError("ANN backend returned a non-string candidate id")
-            if record_id in self._records:
-                ids.append(record_id)
-        return self._exact_results(query, k, filters, ids)
+        # KITA-044: bound ANN candidate generation; exact re-rank semantics stay.
+        from ipfs_kit_py.core.performance import HotPathGate
+
+        with HotPathGate(payload_bytes=0, fairness_class="vector-ann-search"):
+            query, k, filters = self._validate_query(query, k, filters, identity)
+            limit = min(self.max_ann_candidates, max(k, k * self.candidate_multiplier))
+            raw = self.backend.search(query, limit, filters)
+            if isinstance(raw, (str, bytes)) or not isinstance(raw, Sequence):
+                raise VectorIndexError("ANN backend returned a non-sequence candidate response")
+            ids: list[str] = []
+            for candidate in raw[:limit]:
+                record_id = candidate.record_id if isinstance(candidate, VectorSearchResult) else candidate
+                if not isinstance(record_id, str):
+                    raise VectorIndexError("ANN backend returned a non-string candidate id")
+                if record_id in self._records:
+                    ids.append(record_id)
+            return self._exact_results(query, k, filters, ids)
 
 
 # A descriptive alias for callers that prefer the task's terminology.

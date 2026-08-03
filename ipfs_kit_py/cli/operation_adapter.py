@@ -285,11 +285,16 @@ class CLIAdapter:
         stdout: TextIO | None = None,
         stderr: TextIO | None = None,
     ) -> int:
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            return asyncio.run(self.run_async(argv, stdout=stdout, stderr=stderr))
-        raise RuntimeError("CLIAdapter.run cannot run inside an event loop; use run_async")
+        # KITA-044: bound CLI projection entry so overload returns explicit
+        # backpressure rather than unbounded process growth.
+        from ipfs_kit_py.core.performance import HotPathGate
+
+        with HotPathGate(payload_bytes=0, fairness_class="cli-adapter"):
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                return asyncio.run(self.run_async(argv, stdout=stdout, stderr=stderr))
+            raise RuntimeError("CLIAdapter.run cannot run inside an event loop; use run_async")
 
     main = run
 

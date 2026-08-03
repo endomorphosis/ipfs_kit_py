@@ -440,13 +440,18 @@ class PythonAdapter(_OperationAdapter):
     ) -> AdapterResponse:
         projection: AdapterOperationProjection | None = None
         try:
-            projection = self._projection_for_name(operation)
-            value = _run_async_synchronously(
-                lambda: self.router.dispatch_async(
-                    projection.operation_id, request, context=context
+            # KITA-044: outer admission so interface projections share the same
+            # bounded queues/tasks as the canonical router path.
+            from ipfs_kit_py.core.performance import HotPathGate
+
+            with HotPathGate(payload_bytes=0, fairness_class="python-adapter"):
+                projection = self._projection_for_name(operation)
+                value = _run_async_synchronously(
+                    lambda: self.router.dispatch_async(
+                        projection.operation_id, request, context=context
+                    )
                 )
-            )
-            return self._response_for_value(projection, value)
+                return self._response_for_value(projection, value)
         except asyncio.CancelledError as error:
             return AdapterResponse(operation=projection, error=_failure(error, projection))
         except Exception as error:

@@ -114,12 +114,21 @@ class AdaptiveReplacementCache:
             self._model.assert_invariants()
 
     def get(self, key: str) -> bytes | None:
-        with self._lock:
-            return self._model.get(key)
+        # KITA-044: admit under the process-wide hot-path bound before the
+        # linearization lock so overload fails closed without unbounded queues.
+        from ipfs_kit_py.core.performance import HotPathGate
+
+        with HotPathGate(payload_bytes=0, fairness_class="arc-get"):
+            with self._lock:
+                return self._model.get(key)
 
     def put(self, key: str, value: bytes) -> bool:
-        with self._lock:
-            return self._model.put(key, value)
+        from ipfs_kit_py.core.performance import HotPathGate
+
+        payload = len(value) if isinstance(value, (bytes, bytearray)) else 0
+        with HotPathGate(payload_bytes=payload, fairness_class="arc-put"):
+            with self._lock:
+                return self._model.put(key, value)
 
     def delete(self, key: str) -> bool:
         with self._lock:

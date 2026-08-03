@@ -188,9 +188,16 @@ class ServiceRouter:
     ) -> Any:
         """Synchronously dispatch one operation, rejecting asynchronous work explicitly."""
 
-        definition, binding, dispatch_context = self._admit(operation, context, asynchronous=False)
-        result = binding.handler(definition, request, dispatch_context)
-        return self._synchronous_value(result, "service handler")
+        # KITA-044: share the process-wide hot-path bound; authorization and
+        # capability checks still run inside _admit with identical semantics.
+        from ipfs_kit_py.core.performance import HotPathGate
+
+        with HotPathGate(payload_bytes=0, fairness_class="router-dispatch"):
+            definition, binding, dispatch_context = self._admit(
+                operation, context, asynchronous=False
+            )
+            result = binding.handler(definition, request, dispatch_context)
+            return self._synchronous_value(result, "service handler")
 
     async def dispatch_async(
         self,
@@ -201,11 +208,14 @@ class ServiceRouter:
     ) -> Any:
         """Dispatch one operation while allowing explicit async checks and handlers."""
 
-        definition, binding, dispatch_context = await self._admit_async(operation, context)
-        result = binding.handler(definition, request, dispatch_context)
-        if inspect.isawaitable(result):
-            return await result
-        return result
+        from ipfs_kit_py.core.performance import HotPathGate
+
+        with HotPathGate(payload_bytes=0, fairness_class="router-dispatch-async"):
+            definition, binding, dispatch_context = await self._admit_async(operation, context)
+            result = binding.handler(definition, request, dispatch_context)
+            if inspect.isawaitable(result):
+                return await result
+            return result
 
     def _admit(
         self,

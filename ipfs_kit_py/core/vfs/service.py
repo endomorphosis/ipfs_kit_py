@@ -534,8 +534,53 @@ class CanonicalVFSService:
         """
 
         req = request or VFSExecuteRequest()
+        # KITA-044: hard-bounded hot-path admission.  Overload surfaces as an
+        # explicit failure outcome; fsync/auth/integrity semantics are unchanged.
+        from ipfs_kit_py.core.performance import BackpressureError, HotPathGate
+
         try:
-            return self._execute_inner(operation, req)
+            content = getattr(operation, "content", None)
+            payload_bytes = len(content) if isinstance(content, (bytes, bytearray)) else 0
+            with HotPathGate(
+                payload_bytes=payload_bytes,
+                fairness_class="vfs-execute",
+                lease_descriptor=True,
+            ):
+                return self._execute_inner(operation, req)
+        except BackpressureError as exc:
+            if exc.reason.value == "cancelled":
+                category = ErrorCategory.CANCELLATION
+                storage_code = ErrorCode.CANCELLED
+                state = OperationState.CANCELLED
+                event_kind = VFSEventKind.CANCELLED
+                message = "operation cancelled"
+            elif exc.reason.value == "deadline_exceeded":
+                category = ErrorCategory.TIMEOUT
+                storage_code = ErrorCode.DEADLINE_EXCEEDED
+                state = OperationState.DEADLINE_EXCEEDED
+                event_kind = VFSEventKind.DEADLINE
+                message = "operation deadline exceeded"
+            else:
+                category = ErrorCategory.BACKPRESSURE
+                storage_code = ErrorCode.BACKPRESSURE
+                state = OperationState.FAILED
+                event_kind = VFSEventKind.FAILURE
+                message = f"backpressure: {exc.reason.value}"
+            path = getattr(operation, "path", "") or ""
+            return self._fail(
+                operation,
+                VFSError(
+                    code=VFSErrorCode.INTERNAL,
+                    message=message,
+                    category=category,
+                    storage_code=storage_code,
+                    retryability=Retryability.LATER,
+                    state=state,
+                    path=path,
+                ),
+                event_kind=event_kind,
+            )
+
         except VFSCancelledError:
             return self._fail(
                 operation,

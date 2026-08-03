@@ -547,19 +547,29 @@ class MCPPlusPlusToolAdapter(_MCPBaseAdapter):
         }
 
     def call_stdio(self, name: str, arguments: Any = None, **kwargs: Any) -> dict[str, Any]:
-        return _run_async_synchronously(
-            lambda: self.call_framed("stdio", name, arguments, **kwargs)
-        )
+        # KITA-044: shared hot-path bound across MCP++ transport projections.
+        from ipfs_kit_py.core.performance import HotPathGate
+
+        with HotPathGate(payload_bytes=0, fairness_class="mcp-stdio"):
+            return _run_async_synchronously(
+                lambda: self.call_framed("stdio", name, arguments, **kwargs)
+            )
 
     def call_http(self, name: str, arguments: Any = None, **kwargs: Any) -> dict[str, Any]:
-        return _run_async_synchronously(
-            lambda: self.call_framed("http", name, arguments, **kwargs)
-        )
+        from ipfs_kit_py.core.performance import HotPathGate
+
+        with HotPathGate(payload_bytes=0, fairness_class="mcp-http"):
+            return _run_async_synchronously(
+                lambda: self.call_framed("http", name, arguments, **kwargs)
+            )
 
     def call_p2p(self, name: str, arguments: Any = None, **kwargs: Any) -> dict[str, Any]:
-        return _run_async_synchronously(
-            lambda: self.call_framed("p2p", name, arguments, **kwargs)
-        )
+        from ipfs_kit_py.core.performance import HotPathGate
+
+        with HotPathGate(payload_bytes=0, fairness_class="mcp-p2p"):
+            return _run_async_synchronously(
+                lambda: self.call_framed("p2p", name, arguments, **kwargs)
+            )
 
     async def handle_stdio(self, message: Mapping[str, Any]) -> dict[str, Any]:
         """JSON-RPC over stdio (MCP++ Profile E compatible fixture)."""

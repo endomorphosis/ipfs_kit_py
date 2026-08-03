@@ -483,8 +483,12 @@ class GraphRAGService:
     def apply(self, content: GraphRAGContent, *, relations: Sequence[GraphRAGRelation] = (), embeddings: Sequence[GraphRAGEmbedding] = (), before_publish: Callable[[], None] | None = None) -> IndexGeneration:
         """Append one immutable content transition and refresh its projection."""
 
-        self._append_event(content, relations, embeddings)
-        return self.rebuild(before_publish=before_publish)
+        # KITA-044: bound incremental ingest under the process-wide hot-path gate.
+        from ipfs_kit_py.core.performance import HotPathGate
+
+        with HotPathGate(payload_bytes=0, fairness_class="graphrag-apply"):
+            self._append_event(content, relations, embeddings)
+            return self.rebuild(before_publish=before_publish)
 
     add_content = apply
     upsert_content = apply

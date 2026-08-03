@@ -13,7 +13,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Final, Mapping, Protocol, Sequence
+from typing import Any, Callable, Final, Mapping, Protocol, Sequence
 
 from .contracts import (
     BackendInventory,
@@ -29,7 +29,16 @@ from .integrity import (
     ReplicaContent,
     normalize_digest,
 )
-from .placement import plan_placement
+from .placement import plan_placement as _plan_placement_impl
+
+
+def plan_placement(*args: Any, **kwargs: Any):
+    """Bounded wrapper around the pure placement planner (KITA-044)."""
+
+    from ipfs_kit_py.core.performance import HotPathGate
+
+    with HotPathGate(payload_bytes=0, fairness_class="replica-plan"):
+        return _plan_placement_impl(*args, **kwargs)
 
 
 REPLICA_RECONCILER_SCHEMA: Final[str] = "ipfs_kit_py/core/replication/reconciler@1"
@@ -452,6 +461,32 @@ class ReplicaReconciler:
         expected_digest: str,
         expected_version_id: str,
     ) -> ReconciliationAction:
+        # KITA-044: bound replica mutation work; integrity verification and
+        # replica-count semantics are unchanged.
+        from ipfs_kit_py.core.performance import HotPathGate
+
+        with HotPathGate(payload_bytes=0, fairness_class="replica-repair"):
+            return self._copy_or_repair_inner(
+                candidate=candidate,
+                key=key,
+                observations=observations,
+                source=source,
+                content_ref=content_ref,
+                expected_digest=expected_digest,
+                expected_version_id=expected_version_id,
+            )
+
+    def _copy_or_repair_inner(
+        self,
+        *,
+        candidate: _Candidate,
+        key: str,
+        observations: dict[str, ReplicaObservation],
+        source: ReplicaContent | None,
+        content_ref: str,
+        expected_digest: str,
+        expected_version_id: str,
+    ) -> ReconciliationAction:
         if source is None:
             return ReconciliationAction(
                 candidate.kind, candidate.backend_id, ReconciliationActionState.BLOCKED, key, "no_verified_source"
@@ -652,4 +687,5 @@ __all__ = [
     "ReplicaBackend",
     "ReplicaReconciler",
     "ReplicaReconciler_V1",
+    "plan_placement",
 ]

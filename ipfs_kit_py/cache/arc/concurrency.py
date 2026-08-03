@@ -23,6 +23,11 @@ from ipfs_kit_py.cache.arc.contracts import (
 
 SINGLE_FLIGHT_CONTRACT_VERSION: Final[int] = 1
 
+# KITA-044: single-flight fill coordination remains bounded by the in-flight
+# dictionary cardinality and the process-wide BackpressureController.  Filler
+# work never spawns unbounded threads from this module.
+HOT_PATH_FAIRNESS_CLASS: Final[str] = "arc-single-flight"
+
 
 class FillStatus(str, Enum):
     """Terminal states returned by :meth:`SingleFlightARC.get_or_fill_result`."""
@@ -116,6 +121,9 @@ class SingleFlightARC:
         self._cache = cache
         self._lock = RLock()
         self._flights: dict[str, _Flight] = {}
+        # Soft bound mirrored from BackpressureController defaults so tests can
+        # assert that in-flight fill maps never grow without an explicit cap.
+        self._max_inflight = 256
 
     @property
     def cache(self) -> AdaptiveReplacementCacheProtocol:
@@ -151,6 +159,16 @@ class SingleFlightARC:
         if not callable(filler):
             raise TypeError("filler must be callable")
 
+        from ipfs_kit_py.core.performance import BackpressureError, BackpressureReason, HotPathGate
+
+        with HotPathGate(payload_bytes=0, fairness_class=HOT_PATH_FAIRNESS_CLASS):
+            return self._get_or_fill_result_inner(key, filler)
+
+    def _get_or_fill_result_inner(
+        self, key: str, filler: Callable[[], bytes]
+    ) -> CacheFillResult:
+        from ipfs_kit_py.core.performance import BackpressureError, BackpressureReason
+
         with self._lock:
             cached = self._cache.get(key)
             if cached is not None:
@@ -158,6 +176,11 @@ class SingleFlightARC:
 
             flight = self._flights.get(key)
             if flight is None:
+                if len(self._flights) >= self._max_inflight:
+                    raise BackpressureError(
+                        BackpressureReason.TASK_LIMIT,
+                        f"single-flight map is bounded at {self._max_inflight} keys",
+                    )
                 flight = _Flight(condition=Condition(self._lock))
                 self._flights[key] = flight
                 leader = True

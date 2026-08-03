@@ -66,11 +66,19 @@ class WALShutdownIncompleteError(WALWriterError):
 
 @dataclass(frozen=True, slots=True)
 class GroupCommitPolicy:
-    """Hard resource and latency bounds for the single WAL worker."""
+    """Hard resource and latency bounds for the single WAL worker.
+
+    ``max_delay_seconds`` is a *coalescing* wait applied only after the worker
+    has already drained every currently queued ticket with non-blocking
+    ``get_nowait``.  The default is zero so serial durability-critical paths
+    never pay an artificial group-commit sleep; concurrent producers still
+    batch whenever multiple tickets are already on the queue.  Callers that
+    want intentional time-based coalescing can raise the delay explicitly.
+    """
 
     max_queue_items: int = 1024
     max_batch_size: int = 64
-    max_delay_seconds: float = 0.010
+    max_delay_seconds: float = 0.0
     max_segment_bytes: int = 16 * 1024 * 1024
 
     def __post_init__(self) -> None:
@@ -272,32 +280,51 @@ class WALWriter:
         **record_fields: object,
     ) -> WALAppendResult:
         """Append and wait exactly as far as ``acknowledgement_mode`` permits."""
-        ticket = self.submit(
-            kind,
-            acknowledgement_mode=acknowledgement_mode,
-            **record_fields,
-        )
-        if ticket.acknowledgement_mode in (
-            WALAcknowledgementMode.BUFFERED,
-            WALAcknowledgementMode.QUEUED,
-        ):
-            return ticket.queued_result
+        # Bounded hot-path admission (queues/tasks/memory) without changing the
+        # fsync ordering or acknowledgement semantics of the append itself.
+        from ipfs_kit_py.core.performance import BackpressureError, HotPathGate
 
-        deadline = None if timeout is None else time.monotonic() + timeout
-        while True:
-            if cancel_event is not None and cancel_event.is_set() and ticket.cancel():
-                raise WALAppendCancelled("WAL append cancelled before write")
-            wait_for = 0.025
-            if deadline is not None:
-                wait_for = max(0.0, min(wait_for, deadline - time.monotonic()))
-                if wait_for == 0.0:
-                    if ticket.cancel():
-                        raise WALAppendCancelled("WAL append timed out before write")
-                    raise TimeoutError("WAL append did not reach its acknowledgement boundary")
-            try:
-                return ticket.future.result(timeout=wait_for)
-            except FutureTimeoutError:
-                continue
+        try:
+            gate = HotPathGate(
+                payload_bytes=64,
+                fairness_class="wal-append",
+                lease_descriptor=True,
+            )
+        except BackpressureError as exc:
+            raise WALQueueFullError(f"WAL hot-path backpressure: {exc.reason.value}") from exc
+        try:
+            ticket = self.submit(
+                kind,
+                acknowledgement_mode=acknowledgement_mode,
+                **record_fields,
+            )
+            if ticket.acknowledgement_mode in (
+                WALAcknowledgementMode.BUFFERED,
+                WALAcknowledgementMode.QUEUED,
+            ):
+                return ticket.queued_result
+
+            deadline = None if timeout is None else time.monotonic() + timeout
+            # Spin with a short poll so cancellation/deadlines stay responsive
+            # without introducing multi-millisecond sleeps on the success path.
+            while True:
+                if cancel_event is not None and cancel_event.is_set() and ticket.cancel():
+                    raise WALAppendCancelled("WAL append cancelled before write")
+                wait_for = 0.001
+                if deadline is not None:
+                    wait_for = max(0.0, min(wait_for, deadline - time.monotonic()))
+                    if wait_for == 0.0:
+                        if ticket.cancel():
+                            raise WALAppendCancelled("WAL append timed out before write")
+                        raise TimeoutError(
+                            "WAL append did not reach its acknowledgement boundary"
+                        )
+                try:
+                    return ticket.future.result(timeout=wait_for)
+                except FutureTimeoutError:
+                    continue
+        finally:
+            gate.close()
 
     def rotate(self, *, checkpoint_id: str = "") -> WALSegmentDescriptor | None:
         """Seal the current segment; queued later records use a new one."""
@@ -450,13 +477,12 @@ class WALWriter:
                     continue
                 assert isinstance(item, WALAppendTicket)
                 batch.append(item)
-                deadline = time.monotonic() + self.policy.max_delay_seconds
+                # Phase 1: non-blocking drain of every ticket already queued.
+                # This is the group-commit path under concurrent load and never
+                # injects idle latency into serial appenders.
                 while len(batch) < self.policy.max_batch_size:
-                    remaining = deadline - time.monotonic()
-                    if remaining <= 0:
-                        break
                     try:
-                        next_item = self._queue.get(timeout=remaining)
+                        next_item = self._queue.get_nowait()
                     except queue.Empty:
                         break
                     if next_item is _STOP:
@@ -465,6 +491,29 @@ class WALWriter:
                         break
                     assert isinstance(next_item, WALAppendTicket)
                     batch.append(next_item)
+                # Phase 2: optional coalescing wait when the policy asks for it
+                # and the batch is still incomplete.  Default policy delay is 0
+                # so this loop is a no-op on the production hot path.
+                if (
+                    not stopping
+                    and self.policy.max_delay_seconds > 0
+                    and len(batch) < self.policy.max_batch_size
+                ):
+                    deadline = time.monotonic() + self.policy.max_delay_seconds
+                    while len(batch) < self.policy.max_batch_size:
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            break
+                        try:
+                            next_item = self._queue.get(timeout=remaining)
+                        except queue.Empty:
+                            break
+                        if next_item is _STOP:
+                            stopping = True
+                            self._queue.task_done()
+                            break
+                        assert isinstance(next_item, WALAppendTicket)
+                        batch.append(next_item)
                 try:
                     with self._io_lock:
                         self._complete_batch(batch)

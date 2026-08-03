@@ -15,6 +15,10 @@ delegates to :class:`GraphRAGService` / vector / hybrid retrieval.  Import or
 initialization failure never returns a success or no-op result.
 
 No pickle, no executable cache load, and no optional ML import at module load.
+
+KITA-044: package-level helpers share the process-wide
+``BackpressureController@1`` so multi-interface GraphRAG projections stay
+inside the same queue/task/memory bounds as the durable service hot paths.
 """
 
 from __future__ import annotations
@@ -692,9 +696,13 @@ def dispatch(
     if transport not in TRANSPORTS:
         raise GraphRAGInterfaceError(f"unknown transport: {transport}")
     rid = request_id or f"graphrag-{secrets.token_hex(8)}"
+    # KITA-044: share BackpressureController@1 with service/vector hot paths.
+    from ipfs_kit_py.core.performance import HotPathGate
+
     try:
-        body = _admit_request(operation, request or {})
-        result, content_cid, generation_id = _execute(operation, body)
+        with HotPathGate(payload_bytes=0, fairness_class=f"graphrag-{transport}"):
+            body = _admit_request(operation, request or {})
+            result, content_cid, generation_id = _execute(operation, body)
         return _success_envelope(
             operation,
             result,
@@ -703,21 +711,29 @@ def dispatch(
             content_cid=content_cid,
             generation_id=generation_id,
         )
-    except (
-        GraphRAGInterfaceError,
-        GraphRAGContractError,
-        GraphRAGServiceError,
-        GraphRAGStorageError,
-        VectorIndexError,
-        HybridRetrievalError,
-        TypeError,
-        ValueError,
-        KeyError,
-        OSError,
-    ) as exc:
+    except Exception as exc:
+        from ipfs_kit_py.core.performance import BackpressureError
+
+        allowed = (
+            GraphRAGInterfaceError,
+            GraphRAGContractError,
+            GraphRAGServiceError,
+            GraphRAGStorageError,
+            VectorIndexError,
+            HybridRetrievalError,
+            BackpressureError,
+            TypeError,
+            ValueError,
+            KeyError,
+            OSError,
+        )
+        if not isinstance(exc, allowed):
+            raise
         # Fail closed: never translate semantic failure into success.
         code = type(exc).__name__
         category = "request"
+        if isinstance(exc, BackpressureError):
+            category = "backpressure"
         if isinstance(exc, (GraphRAGStorageSecurityError, GraphRAGStorageFormatError)):
             category = "poisoning"
         elif isinstance(exc, (GraphRAGLedgerError, GraphRAGProjectionError)):

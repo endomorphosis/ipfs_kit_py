@@ -19,6 +19,17 @@ import uuid
 from .contracts import WALAcknowledgementMode, WALRecordKind
 from .writer import WALWriter
 
+# Shared hot-path settings fingerprint — optimization must never drift these
+# durability / consistency contracts (KITA-044).
+try:
+    from ipfs_kit_py.core.performance import (
+        default_reference_settings,
+        settings_fingerprint as _settings_fingerprint,
+    )
+except Exception:  # pragma: no cover - fail open only if performance surface absent
+    default_reference_settings = None  # type: ignore[assignment]
+    _settings_fingerprint = None  # type: ignore[assignment]
+
 
 class WALTransactionError(RuntimeError):
     """A transaction could not reach the requested durable boundary."""
@@ -77,6 +88,20 @@ class WALTransactionCoordinator:
         self._crash_injector = crash_injector
         self._lock = threading.RLock()
         self._transactions: dict[str, _Transaction] = {}
+        # Cache the settings fingerprint once so hot paths do not re-hash.
+        if default_reference_settings is not None and _settings_fingerprint is not None:
+            self._settings_fingerprint = _settings_fingerprint(default_reference_settings())
+        else:
+            self._settings_fingerprint = ""
+        # Keep a reusable decision-file handle open for ordered appends.  Each
+        # write is still flushed + fsynced before the call returns so fsync
+        # ordering and crash recovery semantics remain identical.
+        self._decision_handle: Any = None
+
+    @property
+    def settings_fingerprint(self) -> str:
+        """Pinned durability/consistency settings identity (KITA-044)."""
+        return self._settings_fingerprint
 
     @staticmethod
     def _fsync_directory(path: Path) -> None:
@@ -89,8 +114,20 @@ class WALTransactionCoordinator:
         finally:
             os.close(descriptor)
 
+    def _decision_file(self) -> Any:
+        if self._decision_handle is None or self._decision_handle.closed:
+            self._decision_handle = open(self._decision_path, "a", encoding="utf-8")
+        return self._decision_handle
+
     def _append_json(self, path: Path, value: Mapping[str, Any]) -> None:
         encoded = json.dumps(value, sort_keys=True, separators=(",", ":"))
+        if path == self._decision_path:
+            handle = self._decision_file()
+            handle.write(encoded + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+            self._fsync_directory(path.parent)
+            return
         with open(path, "a", encoding="utf-8") as handle:
             handle.write(encoded + "\n")
             handle.flush()
@@ -311,6 +348,12 @@ class WALTransactionCoordinator:
         return {"replayed": replay_count, "rolled_back": rollback_count}
 
     def close(self) -> None:
+        if self._decision_handle is not None:
+            try:
+                self._decision_handle.close()
+            except Exception:
+                pass
+            self._decision_handle = None
         if self._owns_writer:
             self._writer.close()
 
