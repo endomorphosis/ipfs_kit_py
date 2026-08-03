@@ -12,7 +12,7 @@ import json
 import math
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Mapping, Sequence, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 
 SLO_SCHEMA = "RuntimeSLO@1"
@@ -26,6 +26,14 @@ REQUIRED_IDENTITY_FIELDS = (
     "seed", "concurrency", "durability", "warmup", "samples", "confidence",
     "capabilities",
 )
+# Compared for environment equality.  Git revision identity and absolute
+# worktree paths are intentionally excluded so a candidate measured on a newer
+# clean source commit can still bind to an immutable baseline digest.
+IDENTITY_EQUALITY_FIELDS = (
+    "hardware", "os", "python", "dependencies", "dataset",
+    "seed", "concurrency", "durability", "warmup", "samples", "confidence",
+    "capabilities",
+)
 MAX_METRIC_LABELS = 6
 MAX_METRIC_SERIES = 256
 MAX_METRICS_PER_SERIES = 8
@@ -34,6 +42,8 @@ _ALLOWED_LABELS = frozenset(
 )
 _SECRET_KEY = re.compile(r"(?:api[_-]?key|authorization|cookie|password|secret|token)", re.I)
 _SECRET_VALUE = re.compile(r"(?:\b(?:sk|ghp|xoxb|AIza)[-_A-Za-z0-9]{12,}|bearer\s+\S+)", re.I)
+_METRIC_REL_TOL = 1e-9
+_METRIC_ABS_TOL = 1e-12
 
 
 class SLOValidationError(ValueError):
@@ -79,6 +89,13 @@ def _finite_nonnegative(value: Any, name: str) -> float:
     return value
 
 
+def _finite_positive(value: Any, name: str) -> float:
+    value = _finite_nonnegative(value, name)
+    if value <= 0:
+        raise SLOValidationError(f"{name} must be a positive finite number")
+    return value
+
+
 def validate_metric_labels(labels: Mapping[str, Any]) -> None:
     """Reject unbounded labels, credentials, and machine-specific paths."""
     if not isinstance(labels, Mapping) or len(labels) > MAX_METRIC_LABELS:
@@ -109,10 +126,212 @@ def _validate_identity(identity: Mapping[str, Any]) -> None:
         raise SLOValidationError("identity samples/confidence are invalid")
     if not isinstance(identity["durability"], str) or not identity["durability"]:
         raise SLOValidationError("identity.durability must be pinned")
+    revision = identity.get("revision")
+    if isinstance(revision, Mapping) and revision.get("dirty") is True:
+        raise SLOValidationError("dirty source revision evidence is not allowed")
 
 
 def _series_key(series: Mapping[str, Any]) -> Tuple[str, str, str]:
     return (str(series.get("workload")), str(series.get("path_class")), str(series.get("ack_state")))
+
+
+def _percentile(sorted_values: Sequence[float], pct: float) -> float:
+    if not sorted_values:
+        raise SLOValidationError("cannot compute percentile of empty sample set")
+    if pct <= 0:
+        return float(sorted_values[0])
+    if pct >= 100:
+        return float(sorted_values[-1])
+    k = (len(sorted_values) - 1) * (pct / 100.0)
+    f = int(k)
+    c = min(f + 1, len(sorted_values) - 1)
+    if f == c:
+        return float(sorted_values[f])
+    return float(sorted_values[f] + (sorted_values[c] - sorted_values[f]) * (k - f))
+
+
+def metrics_from_stage_seconds(seconds: Sequence[float], *, tps_name: str) -> Dict[str, float]:
+    """Derive TPS and latency percentiles exactly from raw stage timings."""
+    if not seconds:
+        raise SLOValidationError("raw stage seconds must be non-empty")
+    values = [_finite_positive(item, "sample_seconds") for item in seconds]
+    total = sum(values)
+    tps = len(values) / total
+    ms = sorted(item * 1000.0 for item in values)
+    result = {
+        tps_name: tps,
+        "p99_ms": _percentile(ms, 99.0),
+    }
+    if tps_name == "committed_tps":
+        result["p50_ms"] = _percentile(ms, 50.0)
+        result["p95_ms"] = _percentile(ms, 95.0)
+    return result
+
+
+def _approx_equal(left: float, right: float) -> bool:
+    return math.isclose(left, right, rel_tol=_METRIC_REL_TOL, abs_tol=_METRIC_ABS_TOL)
+
+
+def _validate_raw_samples(manifest: Mapping[str, Any]) -> None:
+    """When production evidence is present, bind every metric to raw samples."""
+    bindings = manifest.get("production_bindings")
+    raw = manifest.get("raw_samples")
+    if bindings is None and raw is None:
+        return
+    if not isinstance(bindings, Mapping) or not bindings:
+        raise SLOValidationError("production_bindings must be a non-empty object")
+    if not isinstance(raw, Mapping) or not raw:
+        raise SLOValidationError("raw_samples must cover every production binding")
+    operation_evidence = manifest.get("operation_evidence") or {}
+    stage_evidence = manifest.get("stage_evidence") or {}
+    if not isinstance(operation_evidence, Mapping) or not isinstance(stage_evidence, Mapping):
+        raise SLOValidationError("operation_evidence and stage_evidence must be objects")
+
+    samples_expected = int(manifest["identity"]["samples"])
+    series_by_key = {_series_key(entry): entry for entry in manifest["series"]}
+
+    for workload, binding in bindings.items():
+        if workload not in raw:
+            raise SLOValidationError(f"raw_samples missing workload {workload!r}")
+        path_map = raw[workload]
+        if not isinstance(path_map, Mapping):
+            raise SLOValidationError(f"raw_samples[{workload}] must be an object")
+        path_classes = list(binding.get("path_classes") or [])
+        operations = dict(binding.get("operations") or {})
+        for path_class in path_classes:
+            if path_class not in path_map:
+                raise SLOValidationError(
+                    f"raw_samples missing path {workload!r}/{path_class!r}"
+                )
+            receipt = path_map[path_class]
+            if not isinstance(receipt, Mapping):
+                raise SLOValidationError("raw sample receipt must be an object")
+            for stage in ("accepted", "committed", "converged"):
+                key = f"{stage}_seconds"
+                values = receipt.get(key)
+                if not isinstance(values, list) or len(values) != samples_expected:
+                    raise SLOValidationError(
+                        f"{workload}/{path_class} {key} must have exactly {samples_expected} samples"
+                    )
+                for item in values:
+                    _finite_positive(item, f"{workload}/{path_class}.{key}")
+            # All three stage arrays must be equal-length (already) and present.
+            if not (
+                len(receipt["accepted_seconds"])
+                == len(receipt["committed_seconds"])
+                == len(receipt["converged_seconds"])
+            ):
+                raise SLOValidationError(
+                    f"{workload}/{path_class} stage sample counts are unequal"
+                )
+
+            op_calls = receipt.get("operation_calls")
+            if not isinstance(op_calls, Mapping):
+                raise SLOValidationError("operation_calls must be an object")
+            expected_ops = set(operations)
+            actual_ops = set(op_calls)
+            if actual_ops != expected_ops:
+                raise SLOValidationError(
+                    f"{workload}/{path_class} operation_calls must match bound operations"
+                )
+            for op_name, count in op_calls.items():
+                if op_name not in expected_ops:
+                    raise SLOValidationError(
+                        f"unexpected operation {op_name!r} in raw samples"
+                    )
+                if not isinstance(count, int) or isinstance(count, bool) or count < 1:
+                    raise SLOValidationError(
+                        f"operation_calls[{op_name}] must be a positive integer"
+                    )
+
+            target_calls = receipt.get("target_calls")
+            if not isinstance(target_calls, Mapping) or not target_calls:
+                raise SLOValidationError(
+                    f"{workload}/{path_class} target_calls must be a non-empty object"
+                )
+            allowed_targets = {
+                target
+                for targets in operations.values()
+                for target in targets
+            }
+            for target, count in target_calls.items():
+                if target not in allowed_targets:
+                    raise SLOValidationError(
+                        f"unexpected target {target!r} in raw samples"
+                    )
+                if not isinstance(count, int) or isinstance(count, bool) or count < 1:
+                    raise SLOValidationError(
+                        f"target_calls[{target}] must be a positive integer"
+                    )
+            for target in allowed_targets:
+                if target not in target_calls:
+                    raise SLOValidationError(
+                        f"missing target {target!r} in raw samples"
+                    )
+
+            # Operation evidence
+            wl_ops = (operation_evidence.get(workload) or {}).get(path_class) or {}
+            if not isinstance(wl_ops, Mapping):
+                raise SLOValidationError("operation_evidence path entry must be an object")
+            for op_name in expected_ops:
+                evidence = wl_ops.get(op_name)
+                if not isinstance(evidence, Mapping) or evidence.get("success") is not True:
+                    raise SLOValidationError(
+                        f"operation {workload}/{path_class}/{op_name} did not succeed"
+                    )
+
+            # Stage evidence
+            stages = (stage_evidence.get(workload) or {}).get(path_class) or {}
+            if not isinstance(stages, Mapping):
+                raise SLOValidationError("stage_evidence path entry must be an object")
+            for stage in ("accepted", "committed", "converged"):
+                if stage not in stages:
+                    raise SLOValidationError(
+                        f"stage_evidence missing {workload}/{path_class}/{stage}"
+                    )
+            if stages["accepted"].get("reached") is not True:
+                raise SLOValidationError("accepted stage was not reached")
+            committed = stages["committed"]
+            if committed.get("reached") is not True:
+                raise SLOValidationError("committed stage was not reached")
+            if committed.get("durability") != manifest["identity"]["durability"]:
+                raise SLOValidationError("committed durability does not match identity")
+            converged = stages["converged"]
+            if converged.get("reached") is not True:
+                raise SLOValidationError("converged stage was not reached")
+            if converged.get("pending") != 0:
+                raise SLOValidationError("converged stage still has pending work")
+
+            # Metrics must be derived from raw timings (no fabricated summaries).
+            for ack_state, tps_name, seconds_key in (
+                ("accepted", "accepted_tps", "accepted_seconds"),
+                ("committed", "committed_tps", "committed_seconds"),
+                ("converged", "converged_tps", "converged_seconds"),
+            ):
+                key = (str(workload), str(path_class), ack_state)
+                entry = series_by_key.get(key)
+                if entry is None:
+                    # Observation-only series may omit stages; production
+                    # transaction evidence requires all three.
+                    if any(
+                        series_by_key.get((str(workload), str(path_class), stage))
+                        for stage in REQUIRED_ACK_STATES
+                    ):
+                        raise SLOValidationError(f"missing series for {key!r}")
+                    continue
+                expected_metrics = metrics_from_stage_seconds(
+                    receipt[seconds_key], tps_name=tps_name
+                )
+                actual = entry.get("metrics") or {}
+                for metric_name, expected_value in expected_metrics.items():
+                    if metric_name not in actual:
+                        raise SLOValidationError(
+                            f"series {key!r} missing derived metric {metric_name}"
+                        )
+                    if not _approx_equal(float(actual[metric_name]), float(expected_value)):
+                        raise SLOValidationError(
+                            f"series {key!r} metric {metric_name} does not match raw samples"
+                        )
 
 
 def validate_result_manifest(manifest: Mapping[str, Any]) -> None:
@@ -172,6 +391,7 @@ def validate_result_manifest(manifest: Mapping[str, Any]) -> None:
             raise SLOValidationError(
                 f"transaction {group!r} must record accepted, committed, and converged stages"
             )
+    _validate_raw_samples(manifest)
 
 
 def validate_slo_manifest(floors: Mapping[str, Any]) -> None:
@@ -196,7 +416,7 @@ def validate_slo_manifest(floors: Mapping[str, Any]) -> None:
 
 
 def _identity_projection(identity: Mapping[str, Any]) -> Dict[str, Any]:
-    return {field: identity.get(field) for field in REQUIRED_IDENTITY_FIELDS}
+    return {field: identity.get(field) for field in IDENTITY_EQUALITY_FIELDS}
 
 
 def _reviewed_floor_values(floors: Mapping[str, Any], profile: str) -> Mapping[str, Any]:

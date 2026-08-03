@@ -1,0 +1,4718 @@
+{
+  "absolute_floors": {
+    "cold_import_mcp": {
+      "eager_heavy_optional_imports_max": null,
+      "import_seconds_max": null,
+      "note": "Import budgets provisional; cold path only."
+    },
+    "cold_import_root": {
+      "eager_heavy_optional_imports_max": null,
+      "import_seconds_max": null,
+      "note": "Import budgets provisional; cold path only."
+    },
+    "metadata_txn": {
+      "accepted_tps_min": null,
+      "committed_tps_min": null,
+      "note": "Numeric floor deferred until first full baseline run is reviewed; identity and metric names are pinned.",
+      "p99_ms_max": null
+    },
+    "mixed_vfs": {
+      "committed_tps_min": null,
+      "note": "Numeric floor deferred until first full baseline run is reviewed.",
+      "p99_ms_max": null
+    },
+    "small_object_txn": {
+      "accepted_tps_min": null,
+      "committed_tps_min": null,
+      "note": "Numeric floor deferred until first full baseline run is reviewed; identity and metric names are pinned.",
+      "p99_ms_max": null
+    },
+    "wal_commit": {
+      "committed_tps_min": null,
+      "note": "Must use committed durability metrics only.",
+      "p99_ms_max": null
+    }
+  },
+  "ack_states": {
+    "accepted": {
+      "description": "Operation accepted into the pipeline but durability not yet guaranteed. Must not be reported as committed TPS.",
+      "id": "ack:accepted",
+      "survives_declared_crash_model": false
+    },
+    "committed": {
+      "description": "Operation has completed the declared durability protocol (WAL/backend durability as applicable). Primary throughput metric for baselines and gates.",
+      "id": "ack:committed",
+      "survives_declared_crash_model": true
+    },
+    "converged": {
+      "description": "Committed state plus secondary indexes/replicas/projections have caught up.",
+      "id": "ack:converged",
+      "survives_declared_crash_model": true
+    }
+  },
+  "identity": {
+    "capabilities": {
+      "backend_tier": "memory/reference",
+      "daemon": false,
+      "environment_gated": false,
+      "networked": false,
+      "storage": "memory"
+    },
+    "concurrency": 1,
+    "confidence": 0.95,
+    "dataset": "dataset:runtime_readiness_bundle_v1",
+    "dependencies": {
+      "declared_dependencies": [
+        "requests>=2.28.0",
+        "httpx>=0.24.0",
+        "aiohttp>=3.8.4",
+        "aiofiles>=23.1.0",
+        "watchdog>=3.0.0",
+        "psutil>=5.9.0",
+        "pyyaml>=6.0",
+        "networkx>=3.0",
+        "jsonpatch>=1.33",
+        "base58>=2.1.1",
+        "multiaddr>=0.0.9",
+        "multiformats>=0.2.0",
+        "python-magic>=0.4.27",
+        "anyio>=3.7.0",
+        "hypercorn>=0.16.0",
+        "trio>=0.22.0",
+        "cryptography>=38.0.0",
+        "cffi>=1.16.0",
+        "protobuf>=5.26.0,<7.0.0",
+        "eth-hash[pycryptodome]>=0.3.3",
+        "eth-keys>=0.4.0",
+        "toml"
+      ],
+      "declared_digest": "9d7cfdb1db0b2615a5a6f8c544f232d6c948f40eaa7cf26aab57d8d8e6d8b8c9",
+      "declared_names": [
+        "aiofiles",
+        "aiohttp",
+        "anyio",
+        "base58",
+        "cffi",
+        "cryptography",
+        "eth-hash",
+        "eth-keys",
+        "httpx",
+        "hypercorn",
+        "jsonpatch",
+        "multiaddr",
+        "multiformats",
+        "networkx",
+        "protobuf",
+        "psutil",
+        "python-magic",
+        "pyyaml",
+        "requests",
+        "toml",
+        "trio",
+        "watchdog"
+      ],
+      "declared_optional_extras": {
+        "ai_ml": [
+          "torch>=2.0.0",
+          "numpy>=1.20.0",
+          "scikit-learn>=1.0.0",
+          "faiss-cpu>=1.8.0",
+          "mmh3>=3.0.0"
+        ],
+        "api": [
+          "fastapi>=0.100.0",
+          "uvicorn>=0.22.0",
+          "python-multipart>=0.0.6",
+          "jinja2>=3.1.0"
+        ],
+        "arrow": [
+          "pyarrow>=11.0.0",
+          "pandas>=1.3.0"
+        ],
+        "car_files": [
+          "dag-cbor>=0.3.0",
+          "cbor2>=5.4.0"
+        ],
+        "dev": [
+          "pytest>=7.0.0",
+          "pytest-cov>=4.1.0",
+          "pytest-asyncio>=0.23.0",
+          "pytest-trio>=0.8.0",
+          "pytest-timeout>=2.3.0",
+          "paramiko>=3.4.0",
+          "black>=23.3.0",
+          "isort>=5.12.0",
+          "mypy>=1.3.0",
+          "pylint>=2.17.0",
+          "build>=0.10.0",
+          "twine>=4.0.2",
+          "playwright>=1.30.0",
+          "pytest-playwright>=0.4.0",
+          "rdflib>=7.0.0"
+        ],
+        "enhanced_ipfs": [
+          "multiformats>=0.3.0",
+          "dag-cbor>=0.3.0",
+          "py-cid>=0.3.0"
+        ],
+        "filecoin_pin": [
+          "httpx>=0.24.0",
+          "multiformats>=0.3.0"
+        ],
+        "fsspec": [
+          "fsspec>=2023.3.0",
+          "requests-unixsocket>=0.3.0"
+        ],
+        "full": [
+          "fsspec>=2023.3.0",
+          "requests-unixsocket>=0.3.0",
+          "pyarrow>=11.0.0",
+          "pandas>=1.3.0",
+          "multiformats>=0.2.0",
+          "multiaddr>=0.0.9",
+          "libp2p @ git+https://github.com/libp2p/py-libp2p.git@main",
+          "protobuf>=5.26.0,<7.0.0",
+          "eth-hash[pycryptodome]>=0.3.3",
+          "eth-keys>=0.4.0",
+          "aiohttp>=3.8.4",
+          "pyyaml>=6.0",
+          "numpy>=1.20.0",
+          "scikit-learn>=1.0.0",
+          "faiss-cpu>=1.8.0",
+          "fastapi>=0.100.0",
+          "uvicorn>=0.22.0",
+          "python-multipart>=0.0.6",
+          "jinja2>=3.1.0",
+          "graphql-core>=3.2.0",
+          "matplotlib>=3.5.0",
+          "networkx>=3.0",
+          "websockets>=10.4",
+          "boto3>=1.26.0",
+          "ipfs_datasets_py",
+          "datasets",
+          "huggingface_hub>=0.19.0",
+          "ipld-car>=0.0.1",
+          "ipld-dag-pb>=0.0.1",
+          "dag-cbor>=0.2.0"
+        ],
+        "graphql": [
+          "graphql-core>=3.2.0",
+          "strawberry-graphql>=0.200.0"
+        ],
+        "graphrag": [
+          "networkx>=3.0",
+          "numpy>=1.20.0",
+          "faiss-cpu>=1.8.0",
+          "ipfs_datasets_py"
+        ],
+        "huggingface": [
+          "huggingface_hub>=0.19.0"
+        ],
+        "ipfs_accelerate": [
+          "ipfs_accelerate_py",
+          "ipfs_model_manager_py",
+          "libp2p_kit_py",
+          "websocket-client",
+          "torch>=2.0.0",
+          "torchvision",
+          "transformers>=4.20.0",
+          "ipfs_transformers_py",
+          "sentence-transformers",
+          "InstructorEmbedding",
+          "openvino",
+          "openvino-genai",
+          "optimum",
+          "optimum-intel"
+        ],
+        "ipfs_datasets": [
+          "ipfs_datasets_py",
+          "datasets",
+          "boto3>=1.26.0"
+        ],
+        "ipld": [
+          "ipld-car>=0.0.1",
+          "ipld-dag-pb>=0.0.1",
+          "dag-cbor>=0.2.0",
+          "multiformats>=0.3.0"
+        ],
+        "ipld-github": [
+          "ipld-unixfs @ git+https://github.com/storacha/py-ipld-unixfs.git",
+          "ipld-car>=0.0.1",
+          "ipld-dag-pb>=0.0.1",
+          "dag-cbor>=0.2.0",
+          "multiformats>=0.3.0"
+        ],
+        "ipni": [
+          "httpx>=0.24.0",
+          "multiformats>=0.3.0"
+        ],
+        "iroh": [
+          "blake3>=0.4.1",
+          "duckdb>=1.4.0"
+        ],
+        "libp2p": [
+          "libp2p @ git+https://github.com/libp2p/py-libp2p.git@main",
+          "multiaddr>=0.0.9",
+          "multiformats>=0.2.0",
+          "base58>=2.1.1",
+          "cryptography>=38.0.0",
+          "protobuf>=5.26.0,<7.0.0",
+          "eth-hash[pycryptodome]>=0.3.3",
+          "eth-keys>=0.4.0"
+        ],
+        "mcp": [
+          "fastapi>=0.100.0",
+          "uvicorn>=0.22.0",
+          "jinja2>=3.1.0",
+          "mcp>=1.0.0"
+        ],
+        "performance": [
+          "matplotlib>=3.5.0",
+          "numpy>=1.20.0"
+        ],
+        "s3": [
+          "boto3>=1.26.0"
+        ],
+        "saturn": [
+          "httpx>=0.24.0"
+        ],
+        "transformers": [
+          "transformers>=4.20.0",
+          "huggingface-hub>=0.10.0"
+        ],
+        "webrtc": [
+          "aiortc>=1.5.0",
+          "av>=10.0.0",
+          "opencv-python>=4.7.0",
+          "websockets>=10.4"
+        ]
+      },
+      "dependency_projection_drift": true,
+      "installed_count": 497,
+      "installed_declared": {
+        "aiofiles": "25.1.0",
+        "aiohttp": "3.13.5",
+        "anyio": "4.14.2",
+        "base58": "2.1.1",
+        "cffi": "2.1.0",
+        "cryptography": "41.0.7",
+        "eth-hash": "0.8.0",
+        "eth-keys": "0.7.0",
+        "httpx": "0.28.1",
+        "hypercorn": "0.18.0",
+        "jsonpatch": "1.32",
+        "multiaddr": "0.2.0",
+        "multiformats": "0.3.1.post4",
+        "networkx": "3.6.1",
+        "protobuf": "6.33.6",
+        "psutil": "5.9.8",
+        "python-magic": "0.4.27",
+        "pyyaml": "6.0.1",
+        "requests": "2.31.0",
+        "toml": "0.10.2",
+        "trio": "0.33.0",
+        "watchdog": "6.0.0"
+      },
+      "installed_digest": "e3967235961875b60801eff694816bd5c077a790effc263314ec44b2c968c0d2",
+      "installed_error": null,
+      "missing_declared": []
+    },
+    "durability": "memory_sync",
+    "hardware": {
+      "cpu_count_logical": 20,
+      "cpu_freq_mhz": 3354.0,
+      "machine": "aarch64",
+      "memory_total_bytes": 130663821312,
+      "platform_node_hash": "a02bc10e523ce7a5",
+      "processor": "aarch64"
+    },
+    "identity_digest": "98d668c0d24384e357530badefd27e29265e89a17f093d912b0e7e16a207568f",
+    "os": {
+      "platform": "Linux-6.17.0-1014-nvidia-aarch64-with-glibc2.39",
+      "release": "6.17.0-1014-nvidia",
+      "system": "Linux",
+      "version": "#14-Ubuntu SMP PREEMPT_DYNAMIC Tue Mar 17 19:01:40 UTC 2026"
+    },
+    "profile_defaults": {
+      "backend_tier": "memory/reference",
+      "daemon": false,
+      "networked": false,
+      "storage": "memory"
+    },
+    "python": {
+      "executable": "/usr/bin/python3.12",
+      "implementation": "CPython",
+      "version": "3.12.3",
+      "version_info": [
+        3,
+        12,
+        3
+      ]
+    },
+    "resource_profile": "ci-reference",
+    "revision": {
+      "dirty": false,
+      "git_commit": "32a221104b3a06aabd4e88b8164930eb4617d319",
+      "git_describe": null,
+      "package_root": "/home/barberb/lift_coding/.worktrees/ipfs-kit-runtime-readiness/data/agent_supervisor/ipfs_kit_runtime_readiness/worktrees/workspace-94eff4234f60-db268ebe5cd2/ipfs_kit_py",
+      "source": "git",
+      "source_tree_digest": "sha256:0f49a133615b4c4d6759c7de7f00df6b19bfbd7c9512208c8de9abe00f80f99c"
+    },
+    "sample_timer": "protected_timer.monotonic_sample_timer@1",
+    "samples": 25,
+    "seed": 424242,
+    "warmup": 5
+  },
+  "immutable_baseline": {
+    "algorithm": "sha256-canonical-json-v1",
+    "approved": true,
+    "digest": "c46890beae3994b1085231c18209d43fdc7a0ab9dd7bf403c292a303a3ff7ca1",
+    "review_gate": "protected-production-binding@1",
+    "source_tree_digest": "sha256:0f49a133615b4c4d6759c7de7f00df6b19bfbd7c9512208c8de9abe00f80f99c"
+  },
+  "operation_evidence": {
+    "arc_hotset": {
+      "cache": {
+        "evict": {
+          "evictions_delta": 9,
+          "state_changed": true,
+          "success": true
+        },
+        "get": {
+          "state_changed": false,
+          "success": true
+        },
+        "put": {
+          "state_changed": true,
+          "success": true
+        }
+      },
+      "cold": {
+        "evict": {
+          "evictions_delta": 9,
+          "state_changed": true,
+          "success": true
+        },
+        "get": {
+          "state_changed": false,
+          "success": true
+        },
+        "put": {
+          "state_changed": true,
+          "success": true
+        }
+      },
+      "warm": {
+        "evict": {
+          "evictions_delta": 9,
+          "state_changed": true,
+          "success": true
+        },
+        "get": {
+          "state_changed": false,
+          "success": true
+        },
+        "put": {
+          "state_changed": true,
+          "success": true
+        }
+      }
+    },
+    "graphrag_query": {
+      "cache": {
+        "ann_query": {
+          "result_count": 2,
+          "state_changed": false,
+          "success": true
+        },
+        "exact_query": {
+          "result_count": 2,
+          "state_changed": false,
+          "success": true
+        },
+        "incremental_ingest": {
+          "state_changed": true,
+          "success": true
+        }
+      },
+      "cold": {
+        "ann_query": {
+          "result_count": 2,
+          "state_changed": false,
+          "success": true
+        },
+        "exact_query": {
+          "result_count": 2,
+          "state_changed": false,
+          "success": true
+        },
+        "incremental_ingest": {
+          "state_changed": true,
+          "success": true
+        }
+      },
+      "warm": {
+        "ann_query": {
+          "result_count": 2,
+          "state_changed": false,
+          "success": true
+        },
+        "exact_query": {
+          "result_count": 2,
+          "state_changed": false,
+          "success": true
+        },
+        "incremental_ingest": {
+          "state_changed": true,
+          "success": true
+        }
+      }
+    },
+    "interface_roundtrip": {
+      "cold": {
+        "roundtrip": {
+          "semantic_parity": true,
+          "state_changed": false,
+          "success": true
+        }
+      },
+      "warm": {
+        "roundtrip": {
+          "semantic_parity": true,
+          "state_changed": false,
+          "success": true
+        }
+      }
+    },
+    "metadata_txn": {
+      "cache": {
+        "cas_put": {
+          "state_changed": true,
+          "success": true
+        },
+        "catalog_put": {
+          "state_changed": true,
+          "success": true
+        },
+        "stat": {
+          "state_changed": false,
+          "success": true
+        }
+      },
+      "cold": {
+        "cas_put": {
+          "state_changed": true,
+          "success": true
+        },
+        "catalog_put": {
+          "state_changed": true,
+          "success": true
+        },
+        "stat": {
+          "state_changed": false,
+          "success": true
+        }
+      },
+      "warm": {
+        "cas_put": {
+          "state_changed": true,
+          "success": true
+        },
+        "catalog_put": {
+          "state_changed": true,
+          "success": true
+        },
+        "stat": {
+          "state_changed": false,
+          "success": true
+        }
+      }
+    },
+    "mixed_vfs": {
+      "cache": {
+        "list": {
+          "state_changed": false,
+          "success": true
+        },
+        "read": {
+          "state_changed": false,
+          "success": true
+        },
+        "rename": {
+          "state_changed": true,
+          "success": true
+        },
+        "write": {
+          "state_changed": true,
+          "success": true
+        }
+      },
+      "cold": {
+        "list": {
+          "state_changed": false,
+          "success": true
+        },
+        "read": {
+          "state_changed": false,
+          "success": true
+        },
+        "rename": {
+          "state_changed": true,
+          "success": true
+        },
+        "write": {
+          "state_changed": true,
+          "success": true
+        }
+      },
+      "warm": {
+        "list": {
+          "state_changed": false,
+          "success": true
+        },
+        "read": {
+          "state_changed": false,
+          "success": true
+        },
+        "rename": {
+          "state_changed": true,
+          "success": true
+        },
+        "write": {
+          "state_changed": true,
+          "success": true
+        }
+      }
+    },
+    "replica_reconcile": {
+      "cold": {
+        "evaluate_policy": {
+          "state_changed": false,
+          "success": true
+        },
+        "schedule_repair": {
+          "applied_actions": 1,
+          "state_changed": true,
+          "success": true
+        }
+      },
+      "warm": {
+        "evaluate_policy": {
+          "state_changed": false,
+          "success": true
+        },
+        "schedule_repair": {
+          "applied_actions": 1,
+          "state_changed": true,
+          "success": true
+        }
+      }
+    },
+    "small_object_txn": {
+      "cache": {
+        "delete": {
+          "state_changed": true,
+          "success": true
+        },
+        "get": {
+          "state_changed": false,
+          "success": true
+        },
+        "put": {
+          "state_changed": true,
+          "success": true
+        }
+      },
+      "cold": {
+        "delete": {
+          "state_changed": true,
+          "success": true
+        },
+        "get": {
+          "state_changed": false,
+          "success": true
+        },
+        "put": {
+          "state_changed": true,
+          "success": true
+        }
+      },
+      "warm": {
+        "delete": {
+          "state_changed": true,
+          "success": true
+        },
+        "get": {
+          "state_changed": false,
+          "success": true
+        },
+        "put": {
+          "state_changed": true,
+          "success": true
+        }
+      }
+    },
+    "wal_commit": {
+      "cold": {
+        "append": {
+          "state_changed": true,
+          "success": true
+        },
+        "begin": {
+          "state_changed": true,
+          "success": true
+        },
+        "commit": {
+          "state_changed": true,
+          "success": true
+        }
+      },
+      "warm": {
+        "append": {
+          "state_changed": true,
+          "success": true
+        },
+        "begin": {
+          "state_changed": true,
+          "success": true
+        },
+        "commit": {
+          "state_changed": true,
+          "success": true
+        }
+      }
+    }
+  },
+  "path_classes": {
+    "cache": {
+      "cache_state": "hotset_resident",
+      "description": "Warm process plus intentional hot-set residency (ARC/index/page cache) for hit-path measurement. Never substituted for cold correctness.",
+      "id": "path:cache",
+      "includes_warmup": true
+    },
+    "cold": {
+      "cache_state": "empty",
+      "description": "Process starts with empty import cache, empty page cache for target modules, no warm backend connections, no ARC/index residency.",
+      "id": "path:cold",
+      "includes_warmup": false
+    },
+    "warm": {
+      "cache_state": "process_warm",
+      "description": "Process has completed declared warmup samples; imports and process-local structures are resident; durable backends may still miss.",
+      "id": "path:warm",
+      "includes_warmup": true
+    }
+  },
+  "production_bindings": {
+    "arc_hotset": {
+      "operations": {
+        "evict": [
+          "ipfs_kit_py.cache.arc.cache:AdaptiveReplacementCache.put"
+        ],
+        "get": [
+          "ipfs_kit_py.cache.arc.cache:AdaptiveReplacementCache.get"
+        ],
+        "put": [
+          "ipfs_kit_py.cache.arc.cache:AdaptiveReplacementCache.put"
+        ]
+      },
+      "path_classes": [
+        "cold",
+        "warm",
+        "cache"
+      ]
+    },
+    "graphrag_query": {
+      "operations": {
+        "ann_query": [
+          "ipfs_kit_py.graphrag.vector_index:ANNVectorIndex.search"
+        ],
+        "exact_query": [
+          "ipfs_kit_py.graphrag.vector_index:ExactVectorIndex.exact_search"
+        ],
+        "incremental_ingest": [
+          "ipfs_kit_py.graphrag.service:GraphRAGService.apply"
+        ]
+      },
+      "path_classes": [
+        "cold",
+        "warm",
+        "cache"
+      ]
+    },
+    "interface_roundtrip": {
+      "operations": {
+        "roundtrip": [
+          "ipfs_kit_py.high_level_api.operation_adapter:PythonAdapter.call",
+          "ipfs_kit_py.cli.operation_adapter:CLIAdapter.run",
+          "ipfs_kit_py.mcp_server.tools.operation_adapter:MCPPlusPlusToolAdapter.call_stdio",
+          "ipfs_kit_py.mcp_server.tools.operation_adapter:MCPPlusPlusToolAdapter.call_http",
+          "ipfs_kit_py.mcp_server.tools.operation_adapter:MCPPlusPlusToolAdapter.call_p2p",
+          "ipfs_kit_py.core.service_router:ServiceRouter.dispatch_async"
+        ]
+      },
+      "path_classes": [
+        "cold",
+        "warm"
+      ]
+    },
+    "metadata_txn": {
+      "operations": {
+        "cas_put": [
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService.execute",
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_cas_write"
+        ],
+        "catalog_put": [
+          "ipfs_kit_py.core.buckets.service:BucketService.create_bucket"
+        ],
+        "stat": [
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService.execute",
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_stat"
+        ]
+      },
+      "path_classes": [
+        "cold",
+        "warm",
+        "cache"
+      ]
+    },
+    "mixed_vfs": {
+      "operations": {
+        "list": [
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService.execute",
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_list"
+        ],
+        "read": [
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService.execute",
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_read"
+        ],
+        "rename": [
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService.execute",
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_rename"
+        ],
+        "write": [
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService.execute",
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_replace"
+        ]
+      },
+      "path_classes": [
+        "cold",
+        "warm",
+        "cache"
+      ]
+    },
+    "replica_reconcile": {
+      "operations": {
+        "evaluate_policy": [
+          "ipfs_kit_py.core.replication.reconciler:plan_placement"
+        ],
+        "schedule_repair": [
+          "ipfs_kit_py.core.replication.reconciler:ReplicaReconciler._copy_or_repair"
+        ]
+      },
+      "path_classes": [
+        "cold",
+        "warm"
+      ]
+    },
+    "small_object_txn": {
+      "operations": {
+        "delete": [
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService.execute",
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_delete"
+        ],
+        "get": [
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService.execute",
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_read"
+        ],
+        "put": [
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService.execute",
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_create"
+        ]
+      },
+      "path_classes": [
+        "cold",
+        "warm",
+        "cache"
+      ]
+    },
+    "wal_commit": {
+      "operations": {
+        "append": [
+          "ipfs_kit_py.core.wal.coordinator:WALTransactionCoordinator.record_intent",
+          "ipfs_kit_py.core.wal.writer:WALWriter.append"
+        ],
+        "begin": [
+          "ipfs_kit_py.core.wal.coordinator:WALTransactionCoordinator.begin"
+        ],
+        "commit": [
+          "ipfs_kit_py.core.wal.coordinator:WALTransactionCoordinator.commit",
+          "ipfs_kit_py.core.wal.writer:WALWriter.append"
+        ]
+      },
+      "path_classes": [
+        "cold",
+        "warm"
+      ]
+    }
+  },
+  "profile": "ci-reference",
+  "raw_samples": {
+    "arc_hotset": {
+      "cache": {
+        "accepted_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "committed_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "converged_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "operation_calls": {
+          "evict": 25,
+          "get": 25,
+          "put": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.cache.arc.cache:AdaptiveReplacementCache.get": 25,
+          "ipfs_kit_py.cache.arc.cache:AdaptiveReplacementCache.put": 50
+        }
+      },
+      "cold": {
+        "accepted_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "committed_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "converged_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "operation_calls": {
+          "evict": 25,
+          "get": 25,
+          "put": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.cache.arc.cache:AdaptiveReplacementCache.get": 25,
+          "ipfs_kit_py.cache.arc.cache:AdaptiveReplacementCache.put": 50
+        }
+      },
+      "warm": {
+        "accepted_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "committed_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "converged_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "operation_calls": {
+          "evict": 25,
+          "get": 25,
+          "put": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.cache.arc.cache:AdaptiveReplacementCache.get": 25,
+          "ipfs_kit_py.cache.arc.cache:AdaptiveReplacementCache.put": 50
+        }
+      }
+    },
+    "graphrag_query": {
+      "cache": {
+        "accepted_seconds": [
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001
+        ],
+        "committed_seconds": [
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001
+        ],
+        "converged_seconds": [
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001,
+          0.7353689400000001
+        ],
+        "operation_calls": {
+          "ann_query": 25,
+          "exact_query": 25,
+          "incremental_ingest": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.graphrag.service:GraphRAGService.apply": 25,
+          "ipfs_kit_py.graphrag.vector_index:ANNVectorIndex.search": 25,
+          "ipfs_kit_py.graphrag.vector_index:ExactVectorIndex.exact_search": 25
+        }
+      },
+      "cold": {
+        "accepted_seconds": [
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822
+        ],
+        "committed_seconds": [
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822
+        ],
+        "converged_seconds": [
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822,
+          1.00909822
+        ],
+        "operation_calls": {
+          "ann_query": 25,
+          "exact_query": 25,
+          "incremental_ingest": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.graphrag.service:GraphRAGService.apply": 25,
+          "ipfs_kit_py.graphrag.vector_index:ANNVectorIndex.search": 25,
+          "ipfs_kit_py.graphrag.vector_index:ExactVectorIndex.exact_search": 25
+        }
+      },
+      "warm": {
+        "accepted_seconds": [
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224
+        ],
+        "committed_seconds": [
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224
+        ],
+        "converged_seconds": [
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224,
+          0.34027224
+        ],
+        "operation_calls": {
+          "ann_query": 25,
+          "exact_query": 25,
+          "incremental_ingest": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.graphrag.service:GraphRAGService.apply": 25,
+          "ipfs_kit_py.graphrag.vector_index:ANNVectorIndex.search": 25,
+          "ipfs_kit_py.graphrag.vector_index:ExactVectorIndex.exact_search": 25
+        }
+      }
+    },
+    "interface_roundtrip": {
+      "cold": {
+        "accepted_seconds": [
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999
+        ],
+        "committed_seconds": [
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999
+        ],
+        "converged_seconds": [
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999,
+          0.18688559999999999
+        ],
+        "operation_calls": {
+          "roundtrip": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.cli.operation_adapter:CLIAdapter.run": 25,
+          "ipfs_kit_py.core.service_router:ServiceRouter.dispatch_async": 150,
+          "ipfs_kit_py.high_level_api.operation_adapter:PythonAdapter.call": 25,
+          "ipfs_kit_py.mcp_server.tools.operation_adapter:MCPPlusPlusToolAdapter.call_http": 25,
+          "ipfs_kit_py.mcp_server.tools.operation_adapter:MCPPlusPlusToolAdapter.call_p2p": 25,
+          "ipfs_kit_py.mcp_server.tools.operation_adapter:MCPPlusPlusToolAdapter.call_stdio": 25
+        }
+      },
+      "warm": {
+        "accepted_seconds": [
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894
+        ],
+        "committed_seconds": [
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894
+        ],
+        "converged_seconds": [
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894,
+          0.19103894
+        ],
+        "operation_calls": {
+          "roundtrip": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.cli.operation_adapter:CLIAdapter.run": 25,
+          "ipfs_kit_py.core.service_router:ServiceRouter.dispatch_async": 150,
+          "ipfs_kit_py.high_level_api.operation_adapter:PythonAdapter.call": 25,
+          "ipfs_kit_py.mcp_server.tools.operation_adapter:MCPPlusPlusToolAdapter.call_http": 25,
+          "ipfs_kit_py.mcp_server.tools.operation_adapter:MCPPlusPlusToolAdapter.call_p2p": 25,
+          "ipfs_kit_py.mcp_server.tools.operation_adapter:MCPPlusPlusToolAdapter.call_stdio": 25
+        }
+      }
+    },
+    "metadata_txn": {
+      "cache": {
+        "accepted_seconds": [
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247
+        ],
+        "committed_seconds": [
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247
+        ],
+        "converged_seconds": [
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247,
+          0.3237247
+        ],
+        "operation_calls": {
+          "cas_put": 25,
+          "catalog_put": 25,
+          "stat": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.core.buckets.service:BucketService.create_bucket": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_cas_write": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_stat": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService.execute": 50
+        }
+      },
+      "cold": {
+        "accepted_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "committed_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "converged_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "operation_calls": {
+          "cas_put": 25,
+          "catalog_put": 25,
+          "stat": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.core.buckets.service:BucketService.create_bucket": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_cas_write": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_stat": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService.execute": 50
+        }
+      },
+      "warm": {
+        "accepted_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "committed_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "converged_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "operation_calls": {
+          "cas_put": 25,
+          "catalog_put": 25,
+          "stat": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.core.buckets.service:BucketService.create_bucket": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_cas_write": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_stat": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService.execute": 50
+        }
+      }
+    },
+    "mixed_vfs": {
+      "cache": {
+        "accepted_seconds": [
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974
+        ],
+        "committed_seconds": [
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974
+        ],
+        "converged_seconds": [
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974,
+          0.10475974
+        ],
+        "operation_calls": {
+          "list": 25,
+          "read": 25,
+          "rename": 25,
+          "write": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_list": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_read": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_rename": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_replace": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService.execute": 100
+        }
+      },
+      "cold": {
+        "accepted_seconds": [
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999
+        ],
+        "committed_seconds": [
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999
+        ],
+        "converged_seconds": [
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999,
+          0.08744653999999999
+        ],
+        "operation_calls": {
+          "list": 25,
+          "read": 25,
+          "rename": 25,
+          "write": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_list": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_read": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_rename": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_replace": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService.execute": 100
+        }
+      },
+      "warm": {
+        "accepted_seconds": [
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855
+        ],
+        "committed_seconds": [
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855
+        ],
+        "converged_seconds": [
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855,
+          0.5910855
+        ],
+        "operation_calls": {
+          "list": 25,
+          "read": 25,
+          "rename": 25,
+          "write": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_list": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_read": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_rename": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_replace": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService.execute": 100
+        }
+      }
+    },
+    "replica_reconcile": {
+      "cold": {
+        "accepted_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "committed_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "converged_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "operation_calls": {
+          "evaluate_policy": 25,
+          "schedule_repair": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.core.replication.reconciler:ReplicaReconciler._copy_or_repair": 25,
+          "ipfs_kit_py.core.replication.reconciler:plan_placement": 25
+        }
+      },
+      "warm": {
+        "accepted_seconds": [
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996
+        ],
+        "committed_seconds": [
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996
+        ],
+        "converged_seconds": [
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996,
+          0.06634996
+        ],
+        "operation_calls": {
+          "evaluate_policy": 25,
+          "schedule_repair": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.core.replication.reconciler:ReplicaReconciler._copy_or_repair": 25,
+          "ipfs_kit_py.core.replication.reconciler:plan_placement": 25
+        }
+      }
+    },
+    "small_object_txn": {
+      "cache": {
+        "accepted_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "committed_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "converged_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "operation_calls": {
+          "delete": 25,
+          "get": 25,
+          "put": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_create": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_delete": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_read": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService.execute": 75
+        }
+      },
+      "cold": {
+        "accepted_seconds": [
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178
+        ],
+        "committed_seconds": [
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178
+        ],
+        "converged_seconds": [
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178,
+          0.0527178
+        ],
+        "operation_calls": {
+          "delete": 25,
+          "get": 25,
+          "put": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_create": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_delete": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_read": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService.execute": 75
+        }
+      },
+      "warm": {
+        "accepted_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "committed_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "converged_seconds": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
+        "operation_calls": {
+          "delete": 25,
+          "get": 25,
+          "put": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_create": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_delete": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService._op_read": 25,
+          "ipfs_kit_py.core.vfs.service:CanonicalVFSService.execute": 75
+        }
+      }
+    },
+    "wal_commit": {
+      "cold": {
+        "accepted_seconds": [
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998
+        ],
+        "committed_seconds": [
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998
+        ],
+        "converged_seconds": [
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998,
+          1.3067763799999998
+        ],
+        "operation_calls": {
+          "append": 25,
+          "begin": 25,
+          "commit": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.core.wal.coordinator:WALTransactionCoordinator.begin": 25,
+          "ipfs_kit_py.core.wal.coordinator:WALTransactionCoordinator.commit": 25,
+          "ipfs_kit_py.core.wal.coordinator:WALTransactionCoordinator.record_intent": 25,
+          "ipfs_kit_py.core.wal.writer:WALWriter.append": 50
+        }
+      },
+      "warm": {
+        "accepted_seconds": [
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001
+        ],
+        "committed_seconds": [
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001
+        ],
+        "converged_seconds": [
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001,
+          0.9001168800000001
+        ],
+        "operation_calls": {
+          "append": 25,
+          "begin": 25,
+          "commit": 25
+        },
+        "target_calls": {
+          "ipfs_kit_py.core.wal.coordinator:WALTransactionCoordinator.begin": 25,
+          "ipfs_kit_py.core.wal.coordinator:WALTransactionCoordinator.commit": 25,
+          "ipfs_kit_py.core.wal.coordinator:WALTransactionCoordinator.record_intent": 25,
+          "ipfs_kit_py.core.wal.writer:WALWriter.append": 50
+        }
+      }
+    }
+  },
+  "reference_floors_digest": "8684c1259ada83c3fa0dbe3b5716dbe22eb93cd00410836936ba587f5b17f807",
+  "schema": "RuntimeBenchmarkHarness@1",
+  "schema_version": "ipfs_kit_py.runtime_readiness.harness@1",
+  "series": [
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "cache",
+        "profile": "ci-reference",
+        "workload": "arc_hotset"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 20.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "cache",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "arc_hotset"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "cache",
+        "profile": "ci-reference",
+        "workload": "arc_hotset"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 20.0,
+        "p50_ms": 50.0,
+        "p95_ms": 50.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "cache",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "arc_hotset"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "cache",
+        "profile": "ci-reference",
+        "workload": "arc_hotset"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 20.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "cache",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "arc_hotset"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "arc_hotset"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 20.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "arc_hotset"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "arc_hotset"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 20.0,
+        "p50_ms": 50.0,
+        "p95_ms": 50.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "arc_hotset"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "arc_hotset"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 20.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "arc_hotset"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "arc_hotset"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 20.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "arc_hotset"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "arc_hotset"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 20.0,
+        "p50_ms": 50.0,
+        "p95_ms": 50.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "arc_hotset"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "arc_hotset"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 20.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "arc_hotset"
+    },
+    {
+      "ack_state": null,
+      "labels": {
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "cold_import_mcp"
+      },
+      "measurement_kind": "observation",
+      "metrics": {
+        "import_seconds": 0.6006129500019597
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 1,
+        "errors": 0,
+        "expected": 1,
+        "partial": false
+      },
+      "workload": "cold_import_mcp"
+    },
+    {
+      "ack_state": null,
+      "labels": {
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "cold_import_root"
+      },
+      "measurement_kind": "observation",
+      "metrics": {
+        "import_seconds": 0.032784884999273345
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 1,
+        "errors": 0,
+        "expected": 1,
+        "partial": false
+      },
+      "workload": "cold_import_root"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "cache",
+        "profile": "ci-reference",
+        "workload": "graphrag_query"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 1.359861622657057,
+        "p99_ms": 735.3689400000001
+      },
+      "path_class": "cache",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "graphrag_query"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "cache",
+        "profile": "ci-reference",
+        "workload": "graphrag_query"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 1.359861622657057,
+        "p50_ms": 735.3689400000001,
+        "p95_ms": 735.3689400000001,
+        "p99_ms": 735.3689400000001
+      },
+      "path_class": "cache",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "graphrag_query"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "cache",
+        "profile": "ci-reference",
+        "workload": "graphrag_query"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 1.359861622657057,
+        "p99_ms": 735.3689400000001
+      },
+      "path_class": "cache",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "graphrag_query"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "graphrag_query"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 0.9909838112686394,
+        "p99_ms": 1009.0982200000001
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "graphrag_query"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "graphrag_query"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 0.9909838112686394,
+        "p50_ms": 1009.0982200000001,
+        "p95_ms": 1009.0982200000001,
+        "p99_ms": 1009.0982200000001
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "graphrag_query"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "graphrag_query"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 0.9909838112686394,
+        "p99_ms": 1009.0982200000001
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "graphrag_query"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "graphrag_query"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 2.938823337454739,
+        "p99_ms": 340.27224
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "graphrag_query"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "graphrag_query"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 2.938823337454739,
+        "p50_ms": 340.27224,
+        "p95_ms": 340.27224,
+        "p99_ms": 340.27224
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "graphrag_query"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "graphrag_query"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 2.938823337454739,
+        "p99_ms": 340.27224
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "graphrag_query"
+    },
+    {
+      "ack_state": null,
+      "labels": {
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "install_wheel_probe"
+      },
+      "measurement_kind": "observation",
+      "metrics": {
+        "install_identity": 1.0
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 1,
+        "errors": 0,
+        "expected": 1,
+        "partial": false
+      },
+      "workload": "install_wheel_probe"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "interface_roundtrip"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 5.350867054497511,
+        "p99_ms": 186.88559999999998
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "interface_roundtrip"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "interface_roundtrip"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 5.350867054497511,
+        "p50_ms": 186.88559999999998,
+        "p95_ms": 186.88559999999998,
+        "p99_ms": 186.88559999999998
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "interface_roundtrip"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "interface_roundtrip"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 5.350867054497511,
+        "p99_ms": 186.88559999999998
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "interface_roundtrip"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "interface_roundtrip"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 5.234534906862444,
+        "p99_ms": 191.03894
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "interface_roundtrip"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "interface_roundtrip"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 5.234534906862444,
+        "p50_ms": 191.03894,
+        "p95_ms": 191.03894,
+        "p99_ms": 191.03894
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "interface_roundtrip"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "interface_roundtrip"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 5.234534906862444,
+        "p99_ms": 191.03894
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "interface_roundtrip"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "cache",
+        "profile": "ci-reference",
+        "workload": "metadata_txn"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 3.0890444874919956,
+        "p99_ms": 323.7247
+      },
+      "path_class": "cache",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "metadata_txn"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "cache",
+        "profile": "ci-reference",
+        "workload": "metadata_txn"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 3.0890444874919956,
+        "p50_ms": 323.7247,
+        "p95_ms": 323.7247,
+        "p99_ms": 323.7247
+      },
+      "path_class": "cache",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "metadata_txn"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "cache",
+        "profile": "ci-reference",
+        "workload": "metadata_txn"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 3.0890444874919956,
+        "p99_ms": 323.7247
+      },
+      "path_class": "cache",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "metadata_txn"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "metadata_txn"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 20.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "metadata_txn"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "metadata_txn"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 20.0,
+        "p50_ms": 50.0,
+        "p95_ms": 50.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "metadata_txn"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "metadata_txn"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 20.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "metadata_txn"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "metadata_txn"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 20.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "metadata_txn"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "metadata_txn"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 20.0,
+        "p50_ms": 50.0,
+        "p95_ms": 50.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "metadata_txn"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "metadata_txn"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 20.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "metadata_txn"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "cache",
+        "profile": "ci-reference",
+        "workload": "mixed_vfs"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 9.545651793332055,
+        "p99_ms": 104.75974000000001
+      },
+      "path_class": "cache",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "mixed_vfs"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "cache",
+        "profile": "ci-reference",
+        "workload": "mixed_vfs"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 9.545651793332055,
+        "p50_ms": 104.75974000000001,
+        "p95_ms": 104.75974000000001,
+        "p99_ms": 104.75974000000001
+      },
+      "path_class": "cache",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "mixed_vfs"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "cache",
+        "profile": "ci-reference",
+        "workload": "mixed_vfs"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 9.545651793332055,
+        "p99_ms": 104.75974000000001
+      },
+      "path_class": "cache",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "mixed_vfs"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "mixed_vfs"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 11.435558227918452,
+        "p99_ms": 87.44653999999998
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "mixed_vfs"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "mixed_vfs"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 11.435558227918452,
+        "p50_ms": 87.44653999999998,
+        "p95_ms": 87.44653999999998,
+        "p99_ms": 87.44653999999998
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "mixed_vfs"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "mixed_vfs"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 11.435558227918452,
+        "p99_ms": 87.44653999999998
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "mixed_vfs"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "mixed_vfs"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 1.6918026241550503,
+        "p99_ms": 591.0855
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "mixed_vfs"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "mixed_vfs"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 1.6918026241550503,
+        "p50_ms": 591.0855,
+        "p95_ms": 591.0855,
+        "p99_ms": 591.0855
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "mixed_vfs"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "mixed_vfs"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 1.6918026241550503,
+        "p99_ms": 591.0855
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "mixed_vfs"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "replica_reconcile"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 20.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "replica_reconcile"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "replica_reconcile"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 20.0,
+        "p50_ms": 50.0,
+        "p95_ms": 50.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "replica_reconcile"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "replica_reconcile"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 20.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "replica_reconcile"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "replica_reconcile"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 15.07159913886911,
+        "p99_ms": 66.34996
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "replica_reconcile"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "replica_reconcile"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 15.07159913886911,
+        "p50_ms": 66.34996,
+        "p95_ms": 66.34996,
+        "p99_ms": 66.34996
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "replica_reconcile"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "replica_reconcile"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 15.07159913886911,
+        "p99_ms": 66.34996
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "replica_reconcile"
+    },
+    {
+      "ack_state": null,
+      "labels": {
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "resource_snapshot"
+      },
+      "measurement_kind": "observation",
+      "metrics": {
+        "fds": 5.0,
+        "rss_bytes": 206999552.0,
+        "threads": 39.0
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 5,
+        "errors": 0,
+        "expected": 5,
+        "partial": false
+      },
+      "workload": "resource_snapshot"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "cache",
+        "profile": "ci-reference",
+        "workload": "small_object_txn"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 20.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "cache",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "small_object_txn"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "cache",
+        "profile": "ci-reference",
+        "workload": "small_object_txn"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 20.0,
+        "p50_ms": 50.0,
+        "p95_ms": 50.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "cache",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "small_object_txn"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "cache",
+        "profile": "ci-reference",
+        "workload": "small_object_txn"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 20.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "cache",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "small_object_txn"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "small_object_txn"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 18.96892510688989,
+        "p99_ms": 52.717800000000004
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "small_object_txn"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "small_object_txn"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 18.96892510688989,
+        "p50_ms": 52.717800000000004,
+        "p95_ms": 52.717800000000004,
+        "p99_ms": 52.717800000000004
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "small_object_txn"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "small_object_txn"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 18.96892510688989,
+        "p99_ms": 52.717800000000004
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "small_object_txn"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "small_object_txn"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 20.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "small_object_txn"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "small_object_txn"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 20.0,
+        "p50_ms": 50.0,
+        "p95_ms": 50.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "small_object_txn"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "small_object_txn"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 20.0,
+        "p99_ms": 50.0
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "small_object_txn"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "wal_commit"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 0.7652418694620117,
+        "p99_ms": 1306.7763799999998
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "wal_commit"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "wal_commit"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 0.7652418694620117,
+        "p50_ms": 1306.7763799999998,
+        "p95_ms": 1306.7763799999998,
+        "p99_ms": 1306.7763799999998
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "wal_commit"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "cold",
+        "profile": "ci-reference",
+        "workload": "wal_commit"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 0.7652418694620117,
+        "p99_ms": 1306.7763799999998
+      },
+      "path_class": "cold",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "wal_commit"
+    },
+    {
+      "ack_state": "accepted",
+      "labels": {
+        "ack_state": "accepted",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "wal_commit"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "accepted_tps": 1.1109668335516605,
+        "p99_ms": 900.1168800000002
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "wal_commit"
+    },
+    {
+      "ack_state": "committed",
+      "labels": {
+        "ack_state": "committed",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "wal_commit"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "committed_tps": 1.1109668335516605,
+        "p50_ms": 900.1168800000002,
+        "p95_ms": 900.1168800000002,
+        "p99_ms": 900.1168800000002
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "wal_commit"
+    },
+    {
+      "ack_state": "converged",
+      "labels": {
+        "ack_state": "converged",
+        "durability": "memory_sync",
+        "path_class": "warm",
+        "profile": "ci-reference",
+        "workload": "wal_commit"
+      },
+      "measurement_kind": "transaction",
+      "metrics": {
+        "converged_tps": 1.1109668335516605,
+        "p99_ms": 900.1168800000002
+      },
+      "path_class": "warm",
+      "sample_set": {
+        "completed": 25,
+        "errors": 0,
+        "expected": 25,
+        "partial": false
+      },
+      "workload": "wal_commit"
+    }
+  ],
+  "stage_evidence": {
+    "arc_hotset": {
+      "cache": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      },
+      "cold": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      },
+      "warm": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      }
+    },
+    "graphrag_query": {
+      "cache": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      },
+      "cold": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      },
+      "warm": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      }
+    },
+    "interface_roundtrip": {
+      "cold": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      },
+      "warm": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      }
+    },
+    "metadata_txn": {
+      "cache": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      },
+      "cold": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      },
+      "warm": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      }
+    },
+    "mixed_vfs": {
+      "cache": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      },
+      "cold": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      },
+      "warm": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      }
+    },
+    "replica_reconcile": {
+      "cold": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      },
+      "warm": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      }
+    },
+    "small_object_txn": {
+      "cache": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      },
+      "cold": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      },
+      "warm": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      }
+    },
+    "wal_commit": {
+      "cold": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      },
+      "warm": {
+        "accepted": {
+          "reached": true
+        },
+        "committed": {
+          "durability": "memory_sync",
+          "reached": true
+        },
+        "converged": {
+          "pending": 0,
+          "reached": true
+        }
+      }
+    }
+  },
+  "task_id": "KITA-043",
+  "workload_digest": "f03ddd60fc3aea0f30351936c258c9b89743649012040bce0a1b8e6a49962bb9"
+}
