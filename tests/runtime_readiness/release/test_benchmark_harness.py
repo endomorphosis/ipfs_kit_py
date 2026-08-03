@@ -38,6 +38,7 @@ def _identity() -> dict:
         "warmup": 5,
         "samples": 25,
         "confidence": 0.95,
+        "sample_timer": "protected_timer.monotonic_sample_timer@1",
         "capabilities": {"storage": "memory", "daemon": False},
     }
 

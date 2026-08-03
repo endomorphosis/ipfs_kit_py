@@ -28,15 +28,24 @@ if str(BENCHMARKS) not in sys.path:
 
 import run  # noqa: E402
 import slo  # noqa: E402
+from protected_timer import monotonic_sample_timer  # noqa: E402
 
 
 MINIMUM_AGGREGATE_SPEEDUP = 2.0
+SAMPLE_TIMER_ID = "protected_timer.monotonic_sample_timer@1"
 BENCHMARK_SOURCE_PATHS = {
+    "benchmarks/runtime_readiness/baseline.py",
+    "benchmarks/runtime_readiness/protected_timer.py",
     "benchmarks/runtime_readiness/production.py",
     "benchmarks/runtime_readiness/run.py",
     "benchmarks/runtime_readiness/slo.py",
     "benchmarks/runtime_readiness/workloads.json",
     "benchmarks/runtime_readiness/reference_floors.json",
+    "ipfs_kit_py/cache/arc/reference.py",
+    "tests/runtime_readiness/release/test_backpressure_and_resources.py",
+    "tests/runtime_readiness/release/test_benchmark_harness.py",
+    "tests/runtime_readiness/release/test_production_benchmark_binding.py",
+    "tests/runtime_readiness/release/test_production_performance_gate.py",
 }
 OPTIMIZATION_SOURCE_PATHS = {
     "ipfs_kit_py/core/performance.py",
@@ -165,6 +174,8 @@ def test_checked_in_optimization_evidence_is_bound_and_at_least_two_x() -> None:
     _, floors = run.load_static_artifacts()
     decision = slo.evaluate_regression(candidate, baseline, floors)
     assert decision.passed is True, decision.reasons
+    assert baseline["identity"]["sample_timer"] == SAMPLE_TIMER_ID
+    assert candidate["identity"]["sample_timer"] == SAMPLE_TIMER_ID
     assert candidate["baseline_digest"] == slo.immutable_baseline_digest(baseline)
     _assert_source_provenance(candidate)
     _assert_two_x(candidate, baseline)
@@ -173,11 +184,16 @@ def test_checked_in_optimization_evidence_is_bound_and_at_least_two_x() -> None:
 def test_live_production_measurement_is_at_least_two_x() -> None:
     """Do not permit a fast hand-authored JSON document to satisfy KITA-044."""
     baseline = _read(BOUND_BASELINE)
-    live = run.run_benchmark("ci-reference", include_imports=False)
+    live = run.run_benchmark(
+        "ci-reference",
+        include_imports=False,
+        sample_timer=monotonic_sample_timer,
+    )
     live["baseline_digest"] = slo.immutable_baseline_digest(baseline)
 
     _, floors = run.load_static_artifacts()
     decision = slo.evaluate_regression(live, baseline, floors)
     assert decision.passed is True, decision.reasons
+    assert live["identity"]["sample_timer"] == SAMPLE_TIMER_ID
     _assert_source_provenance(live, live=True)
     _assert_two_x(live, baseline)

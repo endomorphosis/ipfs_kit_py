@@ -36,6 +36,7 @@ if str(BENCHMARKS) not in sys.path:
 
 import run  # noqa: E402
 import slo  # noqa: E402
+from protected_timer import monotonic_sample_timer  # noqa: E402
 
 
 def _target(module: str, symbol: str) -> str:
@@ -45,6 +46,7 @@ def _target(module: str, symbol: str) -> str:
 VFS_EXECUTE = _target(
     "ipfs_kit_py.core.vfs.service", "CanonicalVFSService.execute"
 )
+SAMPLE_TIMER_ID = "protected_timer.monotonic_sample_timer@1"
 VFS_MODULE = "ipfs_kit_py.core.vfs.service"
 WAL_COORDINATOR_MODULE = "ipfs_kit_py.core.wal.coordinator"
 WAL_APPEND = _target("ipfs_kit_py.core.wal.writer", "WALWriter.append")
@@ -52,30 +54,57 @@ EXPECTED_PRODUCTION_BINDINGS: dict[str, dict[str, Any]] = {
     "metadata_txn": {
         "path_classes": ["cold", "warm", "cache"],
         "operations": {
-            "stat": [_target(VFS_MODULE, "CanonicalVFSService._op_stat")],
+            "stat": [
+                VFS_EXECUTE,
+                _target(VFS_MODULE, "CanonicalVFSService._op_stat"),
+            ],
             "catalog_put": [
                 _target(
                     "ipfs_kit_py.core.buckets.service", "BucketService.create_bucket"
                 )
             ],
-            "cas_put": [_target(VFS_MODULE, "CanonicalVFSService._op_cas_write")],
+            "cas_put": [
+                VFS_EXECUTE,
+                _target(VFS_MODULE, "CanonicalVFSService._op_cas_write"),
+            ],
         },
     },
     "small_object_txn": {
         "path_classes": ["cold", "warm", "cache"],
         "operations": {
-            "put": [_target(VFS_MODULE, "CanonicalVFSService._op_create")],
-            "get": [_target(VFS_MODULE, "CanonicalVFSService._op_read")],
-            "delete": [_target(VFS_MODULE, "CanonicalVFSService._op_delete")],
+            "put": [
+                VFS_EXECUTE,
+                _target(VFS_MODULE, "CanonicalVFSService._op_create"),
+            ],
+            "get": [
+                VFS_EXECUTE,
+                _target(VFS_MODULE, "CanonicalVFSService._op_read"),
+            ],
+            "delete": [
+                VFS_EXECUTE,
+                _target(VFS_MODULE, "CanonicalVFSService._op_delete"),
+            ],
         },
     },
     "mixed_vfs": {
         "path_classes": ["cold", "warm", "cache"],
         "operations": {
-            "read": [_target(VFS_MODULE, "CanonicalVFSService._op_read")],
-            "write": [_target(VFS_MODULE, "CanonicalVFSService._op_replace")],
-            "list": [_target(VFS_MODULE, "CanonicalVFSService._op_list")],
-            "rename": [_target(VFS_MODULE, "CanonicalVFSService._op_rename")],
+            "read": [
+                VFS_EXECUTE,
+                _target(VFS_MODULE, "CanonicalVFSService._op_read"),
+            ],
+            "write": [
+                VFS_EXECUTE,
+                _target(VFS_MODULE, "CanonicalVFSService._op_replace"),
+            ],
+            "list": [
+                VFS_EXECUTE,
+                _target(VFS_MODULE, "CanonicalVFSService._op_list"),
+            ],
+            "rename": [
+                VFS_EXECUTE,
+                _target(VFS_MODULE, "CanonicalVFSService._op_rename"),
+            ],
         },
     },
     "wal_commit": {
@@ -188,12 +217,35 @@ EXPECTED_PRODUCTION_BINDINGS: dict[str, dict[str, Any]] = {
     },
 }
 
+STATE_CHANGING_OPERATIONS = {
+    ("metadata_txn", "catalog_put"),
+    ("metadata_txn", "cas_put"),
+    ("small_object_txn", "put"),
+    ("small_object_txn", "delete"),
+    ("mixed_vfs", "write"),
+    ("mixed_vfs", "rename"),
+    ("wal_commit", "begin"),
+    ("wal_commit", "append"),
+    ("wal_commit", "commit"),
+    ("arc_hotset", "put"),
+    ("arc_hotset", "evict"),
+    ("graphrag_query", "incremental_ingest"),
+    ("replica_reconcile", "schedule_repair"),
+}
+
 BENCHMARK_SOURCE_PATHS = {
+    "benchmarks/runtime_readiness/baseline.py",
+    "benchmarks/runtime_readiness/protected_timer.py",
     "benchmarks/runtime_readiness/production.py",
     "benchmarks/runtime_readiness/run.py",
     "benchmarks/runtime_readiness/slo.py",
     "benchmarks/runtime_readiness/workloads.json",
     "benchmarks/runtime_readiness/reference_floors.json",
+    "ipfs_kit_py/cache/arc/reference.py",
+    "tests/runtime_readiness/release/test_backpressure_and_resources.py",
+    "tests/runtime_readiness/release/test_benchmark_harness.py",
+    "tests/runtime_readiness/release/test_production_benchmark_binding.py",
+    "tests/runtime_readiness/release/test_production_performance_gate.py",
 }
 OPTIMIZATION_SOURCE_PATHS = {
     "ipfs_kit_py/core/performance.py",
@@ -306,6 +358,48 @@ class _ProtectedSampleTimer:
         return value, duration_seconds
 
 
+def _assert_successful_target_result(target: str, value: Any) -> None:
+    """Reject failed/empty production calls even when the symbol was reached."""
+    if "CanonicalVFSService." in target:
+        assert value.success is True
+    elif target.endswith("BucketService.create_bucket"):
+        assert value is not None
+    elif target.endswith("WALTransactionCoordinator.begin") or target.endswith(
+        "WALTransactionCoordinator.record_intent"
+    ):
+        assert isinstance(value, str) and value
+    elif target.endswith("WALTransactionCoordinator.commit"):
+        assert value.committed is True
+    elif target.endswith("WALWriter.append"):
+        assert value.append_observed is True
+        assert value.durable is True
+    elif target.endswith("AdaptiveReplacementCache.get"):
+        assert isinstance(value, bytes) and value
+    elif target.endswith("AdaptiveReplacementCache.put"):
+        assert value is True
+    elif target.endswith("ExactVectorIndex.exact_search") or target.endswith(
+        "ANNVectorIndex.search"
+    ):
+        assert len(value) > 0
+    elif target.endswith("GraphRAGService.apply"):
+        assert value is not None
+    elif target.endswith(":plan_placement"):
+        assert value is not None
+    elif target.endswith("ReplicaReconciler._copy_or_repair"):
+        assert value.state.value == "applied"
+    elif target.endswith("PythonAdapter.call"):
+        assert value.success is True
+    elif target.endswith("CLIAdapter.run"):
+        assert value == 0
+    elif "MCPPlusPlusToolAdapter.call_" in target:
+        assert value.get("success") is True
+        assert value.get("error") is None
+    elif target.endswith("ServiceRouter.dispatch_async"):
+        assert value is not None
+        if isinstance(value, dict) and "success" in value:
+            assert value["success"] is True
+
+
 def _identity(revision: str = "a" * 40) -> dict[str, Any]:
     return {
         "hardware": {"machine": "test"},
@@ -328,6 +422,7 @@ def _identity(revision: str = "a" * 40) -> dict[str, Any]:
         "warmup": 0,
         "samples": 1,
         "confidence": 0.95,
+        "sample_timer": SAMPLE_TIMER_ID,
         "capabilities": {"storage": "memory", "daemon": False},
     }
 
@@ -398,6 +493,23 @@ def _minimal_manifest(revision: str = "a" * 40) -> dict[str, Any]:
         "raw_samples": {
             "metadata_txn": {"warm": _raw_receipt(["stat"])}
         },
+        "operation_evidence": {
+            "metadata_txn": {
+                "warm": {"stat": {"success": True, "state_changed": False}}
+            }
+        },
+        "stage_evidence": {
+            "metadata_txn": {
+                "warm": {
+                    "accepted": {"reached": True},
+                    "committed": {
+                        "reached": True,
+                        "durability": "memory_sync",
+                    },
+                    "converged": {"reached": True, "pending": 0},
+                }
+            }
+        },
         "series": _series("metadata_txn"),
     }
 
@@ -420,22 +532,34 @@ def test_real_adapter_invokes_every_bound_production_symbol(
     production = _production_module()
     signature = inspect.signature(production.measure_workload)
     assert "sample_timer" in signature.parameters
-    assert (
-        signature.parameters["sample_timer"].default
-        is production.monotonic_sample_timer
+    assert production.monotonic_sample_timer is monotonic_sample_timer
+    assert signature.parameters["sample_timer"].default is monotonic_sample_timer
+    run_signature = inspect.signature(run.run_benchmark)
+    assert run_signature.parameters["sample_timer"].default is monotonic_sample_timer
+    outer_started = time.perf_counter_ns()
+    probe_value, probe_seconds = monotonic_sample_timer(
+        "protected-timer-probe", lambda: (time.sleep(0.002), "ok")[1]
     )
+    outer_seconds = (time.perf_counter_ns() - outer_started) / 1_000_000_000.0
+    assert probe_value == "ok"
+    assert 0.001 <= probe_seconds <= outer_seconds
     calls = {
         target: 0
         for binding in EXPECTED_PRODUCTION_BINDINGS.values()
         for targets in binding["operations"].values()
         for target in targets
     }
+    target_results: dict[str, list[Any]] = {target: [] for target in calls}
     for target in calls:
         owner, name, original = _resolve_target(target)
 
         def observed(*args, __target=target, __original=original, **kwargs):
+            value = __original(*args, **kwargs)
+            # A raised exception never reaches these lines and therefore can
+            # never be presented as an observed successful production call.
+            target_results[__target].append(value)
             calls[__target] += 1
-            return __original(*args, **kwargs)
+            return value
 
         monkeypatch.setattr(owner, name, observed)
 
@@ -444,6 +568,9 @@ def test_real_adapter_invokes_every_bound_production_symbol(
     for workload_name, binding in EXPECTED_PRODUCTION_BINDINGS.items():
         for path_class in binding["path_classes"]:
             for operation, targets in binding["operations"].items():
+                result_offsets = {
+                    target: len(target_results[target]) for target in targets
+                }
                 timer = _ProtectedSampleTimer(
                     operation=operation,
                     expected_targets=targets,
@@ -472,14 +599,38 @@ def test_real_adapter_invokes_every_bound_production_symbol(
                 receipt = measured["raw_samples"]
                 assert receipt["operation_calls"] == {operation: 1}
                 assert receipt["target_calls"] == observation["target_calls"]
+                for target in targets:
+                    observed_results = target_results[target][result_offsets[target] :]
+                    assert len(observed_results) == observation["target_calls"][target]
+                    for value in observed_results:
+                        _assert_successful_target_result(target, value)
                 for stage in ("accepted", "committed", "converged"):
                     assert receipt[f"{stage}_seconds"] == pytest.approx(
                         [observation["duration_seconds"]], rel=1e-12, abs=1e-12
                     )
+                evidence = measured["operation_evidence"][operation]
+                assert evidence["success"] is True
+                assert evidence["state_changed"] is (
+                    (workload_name, operation) in STATE_CHANGING_OPERATIONS
+                )
+                assert measured["stage_evidence"] == {
+                    "accepted": {"reached": True},
+                    "committed": {
+                        "reached": True,
+                        "durability": "memory_sync",
+                    },
+                    "converged": {"reached": True, "pending": 0},
+                }
                 if workload_name == "arc_hotset" and operation == "evict":
-                    assert measured["operation_evidence"]["evict"][
-                        "evictions_delta"
-                    ] >= 1
+                    assert evidence["evictions_delta"] >= 1
+                if workload_name == "graphrag_query" and operation.endswith(
+                    "query"
+                ):
+                    assert evidence["result_count"] >= 1
+                if workload_name == "replica_reconcile" and operation == "schedule_repair":
+                    assert evidence["applied_actions"] >= 1
+                if workload_name == "interface_roundtrip":
+                    assert evidence["semantic_parity"] is True
 
     # Also prove the harness delegates each complete declared workload/path to
     # this real adapter and lets the real SLO validator inspect the result.
@@ -511,6 +662,7 @@ def test_real_adapter_invokes_every_bound_production_symbol(
     real_measure_workload = production.measure_workload
 
     def routed_measure_workload(**kwargs):
+        assert kwargs["sample_timer"] is monotonic_sample_timer
         routed.append((kwargs["workload_name"], kwargs["path_class"]))
         return real_measure_workload(**kwargs)
 
@@ -527,7 +679,11 @@ def test_real_adapter_invokes_every_bound_production_symbol(
         ),
     )
 
-    manifest = run.run_benchmark("production-binding-test", include_imports=False)
+    manifest = run.run_benchmark(
+        "production-binding-test",
+        include_imports=False,
+        sample_timer=monotonic_sample_timer,
+    )
 
     assert routed == [
         (workload_name, path_class)
@@ -596,6 +752,19 @@ def test_manifest_validation_binds_complete_raw_samples_to_metrics() -> None:
         "ipfs_kit_py.fake:forged"
     ] = 1
     mutations.append(unexpected_target)
+    failed_operation = copy.deepcopy(manifest)
+    failed_operation["operation_evidence"]["metadata_txn"]["warm"]["stat"][
+        "success"
+    ] = False
+    mutations.append(failed_operation)
+    missing_stage = copy.deepcopy(manifest)
+    del missing_stage["stage_evidence"]["metadata_txn"]["warm"]["converged"]
+    mutations.append(missing_stage)
+    unconverged = copy.deepcopy(manifest)
+    unconverged["stage_evidence"]["metadata_txn"]["warm"]["converged"][
+        "pending"
+    ] = 1
+    mutations.append(unconverged)
     for stage in ("accepted", "converged"):
         unequal_stage_count = copy.deepcopy(manifest)
         unequal_stage_count["raw_samples"]["metadata_txn"]["warm"][
@@ -644,6 +813,7 @@ def test_bound_revision_baseline_is_complete_production_evidence() -> None:
     assert identity["python"]
     assert identity["dependencies"]["declared_digest"]
     assert identity["dependencies"]["installed_digest"]
+    assert identity["sample_timer"] == SAMPLE_TIMER_ID
     assert manifest["production_bindings"] == EXPECTED_PRODUCTION_BINDINGS
     assert set(manifest["raw_samples"]) == set(EXPECTED_PRODUCTION_BINDINGS)
 
