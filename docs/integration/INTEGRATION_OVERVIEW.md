@@ -1,438 +1,335 @@
-# Integration Overview: ipfs_datasets_py & ipfs_accelerate_py
+# Integration overview and boundary contracts
 
-## 📖 Quick Navigation
+| Field | Value |
+|---|---|
+| Document class | Product integration landing guide |
+| Status | active |
+| Last verified | 2026-08-03 |
+| Task | KDOC-038 |
+| Goal id | KDOC-G042 |
+| Track | current-integration |
+| Packaging baseline | `pyproject.toml` **0.3.0**, `requires-python >=3.12` |
+| Evidence | Packaging extras, `docs/audits/PUBLIC_SURFACE_MATRIX.md`, architecture guides, focused tests under `tests/` |
+| Related | [INTEGRATION_QUICK_START.md](./INTEGRATION_QUICK_START.md), [SYSTEM_OVERVIEW.md](../architecture/SYSTEM_OVERVIEW.md), [ASYNC_AND_OPTIONAL_DEPENDENCIES.md](../architecture/ASYNC_AND_OPTIONAL_DEPENDENCIES.md), specialized guides in this directory |
 
-This document provides an overview of the comprehensive integration of `ipfs_datasets_py` and `ipfs_accelerate_py` across the IPFS Kit Python repository.
+This document is the **boundary map** for optional and external integrations that attach to `ipfs_kit_py`. It answers: *what is core, what is an optional extra or external system, who owns the adapter, what surfaces are supported, where trust and data leave the kit, which focused test or example to use, and how mature the integration is today?*
 
-**Related Documentation:**
-- [COMPLETE_INTEGRATION_SUMMARY.md](../status_reports/COMPLETE_INTEGRATION_SUMMARY.md) - Detailed summary with statistics
-- [MCP_INTEGRATION_ARCHITECTURE.md](../architecture/MCP_INTEGRATION_ARCHITECTURE.md) - MCP tool architecture guide
-- [IPFS_DATASETS_INTEGRATION.md](./IPFS_DATASETS_INTEGRATION.md) - Base integration patterns
-- [IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md](./IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md) - Complete reference
-- [VFS_BUCKET_GRAPHRAG_INTEGRATION.md](../features/graphrag/VFS_BUCKET_GRAPHRAG_INTEGRATION.md) - GraphRAG architecture
-
----
-
-## 🎯 What Was Integrated
-
-### ipfs_datasets_py - Distributed Dataset Storage
-
-A distributed, immutable dataset storage system that provides:
-
-- **Content-Addressed Storage**: Every operation gets a unique CID (Content Identifier)
-- **Immutability**: Tamper-proof audit trails for compliance and security
-- **Distributed Replication**: Automatic distribution across IPFS network
-- **Complete Provenance**: Full history and lineage tracking for all operations
-- **Time-Series Analytics**: Query and analyze all logged operational data
-
-**Use Cases:**
-- Security audit logging
-- Compliance and regulatory requirements
-- Operation history and debugging
-- Performance analytics
-- Cross-node monitoring
-
-### ipfs_accelerate_py - Compute Acceleration
-
-High-performance compute layer for AI/ML operations providing:
-
-- **Performance Boost**: 2-5x faster AI inference operations
-- **Distributed Compute**: Coordination across multiple nodes
-- **Memory Efficiency**: Optimized algorithms for production workloads
-- **Automatic Optimization**: Self-tuning for different workloads
-
-**Use Cases:**
-- HuggingFace model inference
-- GraphRAG indexing operations
-- Large-scale dataset processing
-- Distributed training coordination
-- VFS bucket analysis
+It **does not** claim that optional packages are required for a working install. Base `pip install ipfs_kit_py` (or editable install without extras) is the core product path. Integrations below are **opt-in** unless packaging marks them as hard dependencies.
 
 ---
 
-## 📊 Integration Coverage
+## 1. Scope and non-goals
 
-### Total: 36 Strategic Integration Points
+### 1.1 Scope
 
-#### **Core Infrastructure** (10 modules)
-Foundational systems that power the entire platform:
+| In scope | Why |
+|---|---|
+| Optional packaging extras and external packages | Distinguish install surface from core |
+| In-repo adapters vs externally owned systems | Ownership and trust boundaries |
+| Supported product surfaces (library, CLI, fsspec, MCP, daemons) | Avoid documenting every historical import path as equal |
+| Data plane vs control plane hand-offs | Where content, credentials, and network trust change |
+| Focused tests and examples | Evidence for each contract |
+| Honest maturity | Prevent marketing-grade “production ready” claims for optional stacks |
 
-1. **audit_logging.py** - Security audit events stored as immutable datasets
-2. **log_manager.py** - Version-controlled log file storage with CIDs
-3. **storage_wal.py** - Distributed write-ahead log for data durability
-4. **wal_telemetry.py** - Performance metrics as queryable time-series datasets
-5. **mcp/monitoring/health.py** - Health check history with temporal tracking
-6. **fs_journal_monitor.py** - Filesystem monitoring with alert history
-7. **fs_journal_replication.py** - Replication operations with node tracking
-8. **mcp/enhanced_server.py** - Infrastructure-level integration tracking ALL 97+ MCP handlers
-9. **mcp/enterprise/lifecycle.py** - Enterprise lifecycle policy execution logs
-10. **mcp/enterprise/data_lifecycle.py** - Data lifecycle event history
+### 1.2 Non-goals
 
-#### **AI/ML Compute Acceleration** (5 modules)
-Machine learning operations with compute acceleration:
+| Out of scope | Owner / pointer |
+|---|---|
+| Full API inventories | Specialized guides (`fsspec_integration.md`, `libp2p_integration.md`, …) |
+| Resolving open architecture conflicts (C-*, U-*) | Architecture guides and ADR track |
+| Historical marketing summaries of “N integrations complete” | `docs/status_reports/` — not product authority |
+| Installer binary download policy depth | [RUNTIME_AND_ENTRYPOINTS](../architecture/RUNTIME_AND_ENTRYPOINTS.md), async/optional guide |
+| Editing specialized integration deep-dives | Conflict policy: this pair of landing guides only |
 
-11. **mcp/ai/framework_integration.py** - HuggingFace model inference acceleration
-12. **mcp/ai/distributed_training.py** - Distributed training compute coordination
-13. **mcp/ai/model_registry.py** - Model loading and serving acceleration
-14. **mcp/ai/ai_ml_integrator.py** - Central AI/ML compute coordination
-15. **mcp/ai/utils.py** - Dependency detection and availability checks
+### 1.3 Core vs optional (hard rule)
 
-#### **Virtual Filesystem** (10 modules)
-VFS operations, indexing, and versioning:
+| Layer | What it is | Install |
+|---|---|---|
+| **Core package** | `ipfs_kit_py` library, packaged CLI (`ipfs-kit`), packaged MCP++ (`ipfs-kit-mcp`), kit state under `~/.ipfs_kit` | `pip install ipfs_kit_py` — no ML, cloud, or peer extras required |
+| **Optional extra** | Declared in `pyproject.toml` `[project.optional-dependencies]` | `pip install 'ipfs_kit_py[<extra>]'` |
+| **External system** | Process or SaaS outside the Python package (Kubo, Iroh binary, Lotus, S3, Storacha, agent host) | Separate install/credentials; kit adapters call them |
+| **External Python package** | Separate distribution (e.g. `ipfs_datasets_py`, `langchain`) | Own install; kit provides adapters with graceful absence |
 
-16. **bucket_vfs_manager.py** - Bucket operation tracking (create, delete, modify)
-17. **vfs_manager.py** - VFS folder operation tracking
-18. **vfs_version_tracker.py** - Version snapshot creation and management
-19. **enhanced_bucket_index.py** - Index update tracking and analytics
-20. **arrow_metadata_index.py** - Metadata change tracking
-21. **pin_metadata_index.py** - Pin operation tracking
-22. **unified_bucket_interface.py** - API operation tracking
-23. **mcp/ipfs_kit/backends/vfs_journal.py** - VFS operation journaling
-24. **mcp/ipfs_kit/backends/vfs_observer.py** - VFS change observation
-25. **mcp/ipfs_kit/vfs.py** - MCP VFS wrapper
-
-#### **Bucket & MCP Tools** (11 modules)
-Bucket management and MCP tool integration:
-
-26. **bucket_manager.py** - Bucket lifecycle tracking
-27. **simple_bucket_manager.py** - Simple bucket operations
-28. **simplified_bucket_manager.py** - Simplified bucket operations
-29. **mcp/bucket_vfs_mcp_tools.py** - MCP bucket tool invocations
-30. **mcp/vfs_version_mcp_tools.py** - Version control actions
-31. **mcp/ipfs_kit/mcp_tools/vfs_tools.py** - VFS tool usage tracking
-32. **mcp/enhanced_mcp_server_with_vfs.py** - VFS-enhanced server operations
-33. **mcp/enhanced_vfs_mcp_server.py** - Enhanced VFS server metrics
-34. **mcp/standalone_vfs_mcp_server.py** - Standalone VFS operations
-35. **mcp/controllers/fs_journal_controller.py** - Journal controller actions
-36. **filesystem_journal.py** - Complete filesystem journal operations
+**Rule:** Missing optional code must fail soft or skip—not break core import, default CLI, or default MCP++ unless the operator explicitly requires that capability.
 
 ---
 
-## 🎨 Integration Pattern
+## 2. How to read each contract
 
-All integrations follow a consistent, proven pattern:
+Every integration below uses the same fields:
 
-### 1. Graceful Import with Fallback
+| Field | Meaning |
+|---|---|
+| **Ownership** | Who owns the *adapter* in this repo vs the *external system/package* |
+| **Install extra** | Packaging extra name, or “none (manual / external)” |
+| **Supported surface** | Canonical product paths (library / CLI / fsspec / MCP / daemon) — not every historical module |
+| **Data / trust boundary** | What data leaves the kit process, credential domain, and trust assumption |
+| **Focused test / example** | Preferred proof path; may skip when deps missing |
+| **Maturity** | Honest status vocabulary (below) |
 
-```python
-HAS_DATASETS = False
-HAS_ACCELERATE = False
+### Maturity vocabulary
 
-try:
-    from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
-    HAS_DATASETS = True
-except ImportError:
-    logger.info("ipfs_datasets_py not available - using local storage")
-
-try:
-    import sys
-    from pathlib import Path
-    accelerate_path = Path(__file__).parent / "external" / "ipfs_accelerate_py"
-    if accelerate_path.exists():
-        sys.path.insert(0, str(accelerate_path))
-    from ipfs_accelerate_py import AccelerateCompute
-    HAS_ACCELERATE = True
-except ImportError:
-    logger.info("ipfs_accelerate_py not available - using standard compute")
-```
-
-### 2. Optional Initialization Parameters
-
-```python
-def __init__(self, 
-             enable_dataset_storage: bool = False,
-             enable_compute_layer: bool = False,
-             ipfs_client = None,
-             dataset_batch_size: int = 100):
-    
-    self.enable_dataset_storage = enable_dataset_storage and HAS_DATASETS
-    self.enable_compute_layer = enable_compute_layer and HAS_ACCELERATE
-    self._operation_buffer = []
-    self._buffer_lock = threading.Lock()
-    self.dataset_batch_size = dataset_batch_size
-```
-
-### 3. Thread-Safe Batch Operations
-
-```python
-def _store_operation_to_dataset(self, operation: Dict[str, Any]):
-    """Buffer operation for batch storage"""
-    if not self.enable_dataset_storage:
-        return
-    
-    with self._buffer_lock:
-        self._operation_buffer.append(operation)
-        if len(self._operation_buffer) >= self.dataset_batch_size:
-            self._flush_operations_to_dataset()
-
-def flush_to_dataset(self):
-    """Public API for manual flush"""
-    if self.enable_dataset_storage and self._operation_buffer:
-        self._flush_operations_to_dataset()
-```
-
-### 4. Automatic Tracking in Operations
-
-```python
-def some_operation(self, *args, **kwargs):
-    """Example operation with automatic tracking"""
-    result = self._perform_operation(*args, **kwargs)
-    
-    # Automatically store to dataset if enabled
-    if self.enable_dataset_storage:
-        self._store_operation_to_dataset({
-            "operation": "some_operation",
-            "args": args,
-            "kwargs": kwargs,
-            "result": result,
-            "timestamp": time.time()
-        })
-    
-    return result
-```
+| Label | Meaning |
+|---|---|
+| **core-adjacent** | Shipped with default product paths; still may need external daemons |
+| **optional-stable** | Extra + focused tests; expected for production *when installed and configured* |
+| **optional-experimental** | Present and exercised, but dual paths, moving deps, or incomplete product defaults |
+| **compatibility** | Alternate/legacy path; not the design center |
+| **external-service** | Correctness depends on third-party network service availability and credentials |
+| **unresolved** | Competing authorities remain open; do not pick a single “true” path in docs |
 
 ---
 
-## 💡 Quick Start Examples
+## 3. Integration catalog (boundary contracts)
 
-### Example 1: Enable Dataset Storage for MCP Server
+### 3.1 IPFS Datasets (`ipfs_datasets_py`)
 
-```python
-from ipfs_kit_py.mcp.enhanced_server import EnhancedMCPServer
+| Field | Contract |
+|---|---|
+| **Ownership** | **In-repo adapter:** `ipfs_kit_py/ipfs_datasets_integration.py`, `ipfs_datasets_search.py`, JIT accessor `get_ipfs_datasets()`. **External package:** `ipfs_datasets_py` (separate distribution / stack). Kit does not own upstream dataset APIs. |
+| **Install extra** | `ipfs_datasets` → pulls `ipfs_datasets_py`, HuggingFace `datasets`, `boto3`. Also included in the composite `full` extra. **Not** a core dependency. |
+| **Supported surface** | Library: `get_ipfs_datasets_manager` / `get_ipfs_datasets()`. Optional hooks in audit, WAL telemetry, Arrow index, VFS/bucket paths when `enable_dataset_storage=True`. Not a packaged console script. |
+| **Data / trust boundary** | Operation metadata and dataset payloads may be content-addressed and/or written to IPFS/local stores the datasets stack configures. Treat as **opt-in telemetry/provenance**, not a second authority for pins or kit state. Credentials for remote dataset backends belong to the datasets stack / operator env, not core kit config by default. |
+| **Focused test / example** | Tests: `tests/test_ipfs_datasets_integration.py`, `tests/test_ipfs_datasets_search.py`, `tests/test_ipfs_datasets_comprehensive_integration.py`, `tests/test_ipfs_datasets_mcp_integration.py`. Example pattern: enable storage only after `manager.is_available()`. |
+| **Maturity** | **optional-stable** for graceful import and manager API; end-to-end distributed dataset features require the external package and often a live IPFS path. Do not present as core storage. |
 
-# Create server with dataset storage enabled
-server = EnhancedMCPServer(
-    host="127.0.0.1",
-    port=8001,
-    enable_dataset_storage=True,
-    ipfs_client=your_ipfs_client,
-    dataset_batch_size=100  # Flush every 100 operations
-)
-
-# All MCP commands are now automatically tracked!
-# Each operation gets stored with a CID
-
-# Manual flush if needed
-server.flush_to_dataset()
-```
-
-### Example 2: Enable Compute Acceleration for AI Operations
-
-```python
-from ipfs_kit_py.mcp.ai.framework_integration import HuggingFaceIntegration, HuggingFaceConfig
-
-# Configure HuggingFace integration
-config = HuggingFaceConfig(
-    name="accelerated-model",
-    model_id="gpt2",
-    use_local=True
-)
-
-# Create integration (automatically uses ipfs_accelerate_py if available)
-integration = HuggingFaceIntegration(config)
-integration.initialize()
-
-# Inference is 2-5x faster with ipfs_accelerate_py
-result = integration.text_generation("Once upon a time")
-```
-
-### Example 3: Track VFS Operations
-
-```python
-from ipfs_kit_py.bucket_vfs_manager import get_global_bucket_manager
-
-# Get bucket manager with dataset storage
-manager = get_global_bucket_manager(
-    enable_dataset_storage=True,
-    ipfs_client=your_ipfs_client
-)
-
-# All bucket operations are tracked
-manager.create_bucket("my-bucket")
-manager.add_file("my-bucket", "file.txt", b"content")
-
-# Operations stored as datasets with CIDs
-manager.flush_to_dataset()
-```
-
-### Example 4: Check Dependency Availability
-
-```python
-from ipfs_kit_py.mcp.ai.utils import check_dependencies
-
-# Check what's available
-deps = check_dependencies()
-
-print(f"ipfs_datasets_py: {deps['ipfs_datasets_py']}")  # True/False
-print(f"ipfs_accelerate_py: {deps['ipfs_accelerate_py']}")  # True/False
-print(f"torch: {deps['torch']}")  # True/False
-print(f"transformers: {deps['transformers']}")  # True/False
-
-# Use results to adapt behavior
-if deps['ipfs_datasets_py']:
-    print("✓ Dataset storage available")
-if deps['ipfs_accelerate_py']:
-    print("✓ Compute acceleration available")
-```
+Deep dive: [IPFS_DATASETS_INTEGRATION.md](./IPFS_DATASETS_INTEGRATION.md), [IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md](./IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md).
 
 ---
 
-## ✅ Benefits
+### 3.2 IPFS Accelerate (`ipfs_accelerate_py`)
 
-### For Operations Teams
-
-- **Complete History**: Every operation logged with timestamp and CID
-- **Distributed Monitoring**: Aggregate data from multiple nodes
-- **Performance Analytics**: Query metrics for insights
-- **Debugging**: Time-travel through operation history
-- **Alerting**: Historical patterns for anomaly detection
-
-### For Compliance & Security
-
-- **Immutable Audit Trails**: Tamper-proof logs for regulatory compliance
-- **Complete Provenance**: Full lineage for every operation
-- **Regulatory Ready**: GDPR, CCPA, HIPAA compliant storage
-- **Forensic Analysis**: Complete operation history for investigations
-- **Data Governance**: Lifecycle tracking and retention policies
-
-### For Developers
-
-- **Zero Breaking Changes**: All features optional and disabled by default
-- **Consistent API**: Same pattern across all 36 integrations
-- **Easy to Extend**: Follow proven patterns for new integrations
-- **Well Tested**: 77 tests validate all functionality
-- **CI/CD Compatible**: Graceful fallbacks ensure tests always pass
-
-### For AI/ML Workloads
-
-- **Faster Inference**: 2-5x speedup with ipfs_accelerate_py
-- **Distributed Compute**: Coordinate across multiple nodes
-- **Memory Efficiency**: Optimized for production workloads
-- **Automatic Optimization**: Self-tuning algorithms
+| Field | Contract |
+|---|---|
+| **Ownership** | **In-repo adapter:** JIT `get_ipfs_accelerate()`, AI framework hooks under `ipfs_kit_py/mcp/ai/`, `transformers_integration.py` (deprecated path notes accelerate patching). **External package:** `ipfs_accelerate_py` and its heavy ML stack. Kit owns only the glue. |
+| **Install extra** | `ipfs_accelerate` — heavy stack (`torch`, `transformers`, OpenVINO family, related packages). **Not** core. Historical submodule paths under `external/` are compatibility, not the preferred packaging story. |
+| **Supported surface** | Library / MCP AI paths when acceleration is enabled; optional compute layer flags on some VFS/index modules. Not required for CLI or MCP++ core tools. |
+| **Data / trust boundary** | Model weights, prompts, and inference outputs stay in the **caller process** and any accelerate-managed caches. Network trust expands if models are pulled from HuggingFace or remote endpoints. Kit must not imply accelerate is always on. |
+| **Focused test / example** | Test: `tests/test_ipfs_accelerate_integration.py`. Example: `examples/ai_ml_integration_example.py`, `examples/high_level_api_ai_ml_example.py`. Check availability before enabling `enable_compute_layer`. |
+| **Maturity** | **optional-experimental** for full acceleration claims (large moving dependency graph). Graceful absence is **optional-stable**. Marketing “2–5x always” is not a packaging guarantee. |
 
 ---
 
-## 🧪 Testing
+### 3.3 FSSpec (filesystem protocols)
 
-### Test Coverage
+| Field | Contract |
+|---|---|
+| **Ownership** | **Packaged entry points (canonical):** `iroh` / `iroh+blob` → `ipfs_kit_py.iroh_fsspec:IrohFileSystem` in `pyproject.toml`. **In-tree adapters:** `iroh_fsspec.py`, `ipfs_fsspec.py`, `enhanced_fsspec.py` (runtime multi-protocol registration). **External:** `fsspec` library (extra). Conflict **C-FSSPEC** / U-17 remains open for IPFS protocol authority. |
+| **Install extra** | `fsspec` (`fsspec`, `requests-unixsocket`). Iroh paths also need the `iroh` extra and/or Iroh binary/service. Vendored fsspec may exist for constrained envs — prefer the packaging extra for product use. |
+| **Supported surface** | **Canonical packaging:** `iroh://`, `iroh+blob://`. **In-tree / compatibility:** `ipfs://` and multi-protocol registration via modules — **not** declared packaging entry points. Library `IPFSFileSystem` / HLA open helpers. |
+| **Data / trust boundary** | fsspec runs **in the caller process**. Content bytes flow through daemon APIs (Kubo/Iroh) or gateways. Gateway fallback expands trust to public HTTP. Unix sockets are local process trust only. |
+| **Focused test / example** | Tests: `tests/test_iroh_fsspec_*.py`, `tests/test_iroh_fsspec_registration.py`, `tests/test_synapse_fsspec.py`, integration suites under `tests/integration/test_fsspec*` / `test_ipfs_fsspec*` (note default pytest may exclude some integration trees). Example: `examples/fsspec_example.py`. Deep dive: [fsspec_integration.md](./fsspec_integration.md). |
+| **Maturity** | **optional-stable** for packaged Iroh protocols when service is up. **unresolved** for which IPFS fsspec implementation is the single product default. Do not document `ipfs://` as a packaging entry point. |
 
-- **77 comprehensive tests** across 9 test files
-- **All tests pass** with graceful skips when dependencies unavailable
-- **Import validation** tests ensure architecture compliance
-- **Integration tests** validate end-to-end functionality
+---
 
-### Test Files
+### 3.4 IPLD (CAR, DAG-PB, UnixFS helpers)
 
-1. `tests/test_ipfs_datasets_integration.py` (15 tests)
-2. `tests/test_ipfs_datasets_search.py` (11 tests)
-3. `tests/test_vfs_bucket_graphrag_integration.py` (9 tests)
-4. `tests/test_ipfs_datasets_comprehensive_integration.py` (21 tests)
-5. `tests/test_ipfs_accelerate_integration.py` (14 tests)
-6. `tests/test_ipfs_vfs_integration.py` (9 tests)
-7. `tests/test_ipfs_vfs_mcp_integration.py` (10 tests)
-8. `tests/test_final_vfs_bucket_integration.py` (15 tests)
-9. `tests/test_import_paths_validation.py` (10 tests)
+| Field | Contract |
+|---|---|
+| **Ownership** | **In-repo:** `ipfs_kit_py/ipld/`, `ipld_extension.py`, `ipld_knowledge_graph.py`, `parquet_ipld_bridge.py`, CAR WAL paths. **External packages:** `ipld-car`, `ipld-dag-pb`, `dag-cbor`, optional GitHub-only `ipld-unixfs` via `ipld-github`. |
+| **Install extra** | `ipld` (PyPI set); `ipld-github` for UnixFS GitHub install; related: `car_files`, `enhanced_ipfs`. Without extras, some paths degrade to JSON/mock CAR behavior. |
+| **Supported surface** | Library CAR/DAG helpers; WAL/CAR staging; knowledge-graph and GraphRAG-adjacent structures; MCP IPLD tools where registered. Not a standalone console script family. |
+| **Data / trust boundary** | IPLD blocks are content-addressed **data plane**. Encoding/decoding is local; persistence trust follows the backend (IPFS, local CAR files, S3, …). Knowledge-graph indexes may store embeddings metadata separately from raw blocks. |
+| **Focused test / example** | Tests: `tests/test_ipld_complete.py`, `tests/test_ipld_mcp_integration.py`. Deep dive: [ipld_integration.md](./ipld_integration.md), [arrow_metadata_integration.md](./arrow_metadata_integration.md). |
+| **Maturity** | **optional-stable** for core CAR/DAG-PB paths with `ipld` extra. UnixFS via `ipld-github` is **optional-experimental** (VCS pin). Dual parquet-IPLD bridge files exist — prefer non-backup modules. |
 
-### Running Tests
+---
+
+### 3.5 AI / ML (in-tree)
+
+| Field | Contract |
+|---|---|
+| **Ownership** | **In-repo:** `ai_ml_integration.py`, metrics/visualization modules, `mcp/ai/*`, model registry hooks. **External:** PyTorch / sklearn / FAISS / HuggingFace stacks via extras — not owned by kit. |
+| **Install extra** | `ai_ml` (`torch`, `numpy`, `scikit-learn`, `faiss-cpu`, `mmh3`); `transformers` / `huggingface` for model hub paths. Accelerate is a **separate** extra (§3.2). |
+| **Supported surface** | Library HLA/AI attributes when deps present; MCP AI controllers in legacy/enhanced MCP trees; examples under `examples/ai_ml_*.py`. Packaged MCP++ tool groups are **not** primarily an ML training plane. |
+| **Data / trust boundary** | Models, datasets, and embeddings may leave the process to hub downloads or remote APIs. Local cache often under `~/.ipfs_kit/` subdirs. Treat model providers as **external trust domains**. |
+| **Focused test / example** | Tests: `tests/integration/test_high_level_api_ai_ml.py` (when suite is run), accelerate/datasets tests above. Examples: `examples/ai_ml_integration_example.py`, `examples/ai_ml_distributed_training_example.py`. Deep dive: [ai-ml/](./ai-ml/). |
+| **Maturity** | **optional-experimental** overall (large surface, dual HLA paths **C-HLA**). Individual helpers may be solid; do not mark AI/ML as core kit capability. |
+
+---
+
+### 3.6 LangChain and LlamaIndex
+
+| Field | Contract |
+|---|---|
+| **Ownership** | **In-repo adapter:** `LangchainIntegration` / LlamaIndex availability checks inside `ai_ml_integration.py`. **External:** `langchain`, `llama_index` (and embedding providers). **No dedicated packaging extra** for LangChain/LlamaIndex names — install those packages yourself. |
+| **Install extra** | None named. Typically combine manual `pip install langchain …` (and/or `llama-index`) with kit core + optional `ai_ml` / `transformers` / `ipfs_datasets` as needed. |
+| **Supported surface** | Library: document loaders, IPFS-backed vector store helpers, chain store/load when LangChain is importable. Docs: [langchain_integration.md](./langchain_integration.md), [llamaindex_integration.md](./llamaindex_integration.md). Not packaged CLI/MCP default tools. |
+| **Data / trust boundary** | Documents and chains stored on IPFS are content-addressed data plane. **Embedding/LLM API keys** (e.g. OpenAI) are external secrets — never kit-core credentials. Vector indexes may cache under kit state paths. |
+| **Focused test / example** | No single dedicated `tests/test_langchain_*.py` in the default suite; rely on `ai_ml_integration` availability checks and the markdown examples. Prefer writing focused tests when enabling in production. |
+| **Maturity** | **optional-experimental** / framework-version-sensitive. Presence of adapter code ≠ supported production stack for every LangChain major version. |
+
+---
+
+### 3.7 Filecoin, Storacha, and S3 (object / remote storage)
+
+| Field | Contract |
+|---|---|
+| **Ownership** | **In-repo adapters:** `storacha_kit.py` / `enhanced_storacha_kit.py`, `filecoin_storage.py`, `advanced_filecoin_client.py`, `filecoin_pin_*`, `s3_kit.py`, `s3_gateway.py`, `backends/s3_backend.py`, migration tools under `migration_tools/`. **External systems:** Storacha/Web3.Storage APIs, Lotus/Filecoin network, S3-compatible object stores. **Registry:** backend type names in `backend_registry` / manager (config documents under `~/.ipfs_kit/backends/`). |
+| **Install extra** | `s3` → `boto3`. `filecoin_pin` → HTTP/multiformats helpers. Storacha often uses tokens/env (`W3_STORE_TOKEN` / kit metadata) more than a unique extra; Lotus/Filecoin daemons are **binary/service** installs, not pure pip. `full` pulls `boto3` among other deps. |
+| **Supported surface** | Library kits and backend adapters; CLI/service paths for Lotus where present; optional fsspec protocols via **enhanced** registration (not packaging entry points). WAL health may monitor IPFS/S3/Storacha. |
+| **Data / trust boundary** | **Credentials and account trust leave the kit** (AWS keys, Storacha tokens, Lotus wallet/auth). Remote backends are independent failure domains. Content may be re-addressed (CID vs bucket keys). Redact secrets in logs/registry. |
+| **Focused test / example** | Tests: `tests/test_storacha_integration.py`, `tests/test_filecoin_pin_implementation.py`, `tests/test_filecoin_pin_integration.py`, `tests/test_s3_gateway_*.py`, `tests/test_phase6_s3_gateway_comprehensive.py`. Reference: [storage_backends.md](../reference/storage_backends.md). |
+| **Maturity** | **external-service** + **optional-stable** adapters when credentials and services are real. Unit tests may mock; live network tests are environment-dependent. Do not claim all cloud backends are identically production-hardened. |
+
+---
+
+### 3.8 GraphRAG (VFS / knowledge search)
+
+| Field | Contract |
+|---|---|
+| **Ownership** | **In-repo:** `graphrag.py`, `vfs_bucket_graphrag_integration.py`, IPLD knowledge graph helpers, search paths in `integrated_search.py` / `ipfs_datasets_search.py`. Optional MCP GraphRAG modules under historical trees. Embeddings may route through datasets/accelerate when present. |
+| **Install extra** | No single `graphrag` extra. Practical stack: `ai_ml` and/or `ipfs_datasets` / `ipfs_accelerate`, often `arrow`, plus optional sentence-transformers (pulled by accelerate extra or manual install). Core kit runs without GraphRAG. |
+| **Supported surface** | Library search/index APIs over VFS/bucket content; integration with bucket VFS managers. Architecture note: [VFS_BUCKET_GRAPHRAG_INTEGRATION.md](../features/graphrag/VFS_BUCKET_GRAPHRAG_INTEGRATION.md). |
+| **Data / trust boundary** | Indexes and embeddings are **derived data** (rebuildable); content bytes remain backend authority. Model downloads and remote embedding APIs expand trust. SQLite/pickle/cache files are local kit-side state, not IPFS pin authority. |
+| **Focused test / example** | Tests: `tests/test_graphrag_improvements.py`, `tests/test_graphrag_100_coverage.py`, `tests/test_vfs_bucket_graphrag_integration.py`. |
+| **Maturity** | **optional-experimental** — feature-rich in-tree, dependency-heavy, overlapping search stacks. Useful for research and advanced operators; not a core install default. |
+
+---
+
+### 3.9 Network integrations (Kubo, Iroh, libp2p)
+
+| Field | Contract |
+|---|---|
+| **Ownership** | **Kubo:** kit client + `kubo_runtime` managers; **daemon process** is external. **Iroh:** `ipfs_kit_py/iroh/*`, install/ops CLIs (`ipfs-kit-iroh*`); sidecar binary external. **libp2p:** `ipfs_kit_py/libp2p/*`, peer helpers; stack from optional `libp2p` extra (tracks `py-libp2p` git `main` — moving target **U-10**). Architecture owner: [NETWORK_TRANSPORTS.md](../architecture/NETWORK_TRANSPORTS.md), normative Iroh under `docs/iroh/`. |
+| **Install extra** | `iroh` (blake3, duckdb helpers); `libp2p` (heavy git dependency). Kubo is **not** an extra — binary/PATH/service. Multiaddr/multiformats appear in core deps for addressing; full peer stack still optional. |
+| **Supported surface** | Packaged: Iroh CLI family + fsspec Iroh protocols; MCP++ P2P profile when libp2p present; library kit swarm/pin/CID paths for Kubo. Cluster coordination is a **separate** family (bespoke `cluster/` vs Kubo Cluster wrappers). |
+| **Data / trust boundary** | Peer networks expand trust beyond localhost. Iroh tickets/RPC, libp2p peer IDs, and Kubo API multiaddrs are distinct identity models — **do not conflate**. HTTP MCP bind addresses are a separate control-plane trust edge. |
+| **Focused test / example** | Tests: extensive `tests/test_iroh_*.py`, `tests/test_simple_libp2p.py`, P2P workflow tests. Examples: `examples/libp2p_*.py`. Deep dive: [libp2p_integration.md](./libp2p_integration.md). |
+| **Maturity** | Kubo path: **core-adjacent** (still needs daemon). Iroh: **optional-stable** with strongest in-tree contracts. libp2p: **optional-experimental** (upstream main pin). Default content transport among Kubo/Iroh remains **unresolved** (U-09). |
+
+---
+
+### 3.10 Arrow / metadata index (supporting data-plane extra)
+
+| Field | Contract |
+|---|---|
+| **Ownership** | **In-repo:** `arrow_metadata_index.py` (+ anyio twin), cluster state helpers using Arrow. **External:** PyArrow/pandas via `arrow` extra. |
+| **Install extra** | `arrow`. |
+| **Supported surface** | Metadata indexes, WAL partitions, analytics paths that expect columnar storage. Degrades when PyArrow missing. |
+| **Data / trust boundary** | Local columnar files under kit state; optional pubsub sync is a **cluster trust domain**. Not a remote multi-tenant DB. |
+| **Focused test / example** | Integration and index tests across VFS/WAL; guide [arrow_metadata_integration.md](./arrow_metadata_integration.md). |
+| **Maturity** | **optional-stable** for features that declare Arrow requirements. |
+
+---
+
+## 4. Extras quick map (packaging)
+
+Declared optional-dependencies (complete list from `pyproject.toml`):
+
+| Extra | Typical integration use |
+|---|---|
+| `iroh` | Iroh service helpers, fsspec Iroh |
+| `fsspec` | Non-vendored fsspec + unix socket support |
+| `arrow` | PyArrow / pandas metadata & WAL |
+| `ipld` / `ipld-github` / `car_files` / `enhanced_ipfs` | IPLD / CAR / UnixFS |
+| `libp2p` | Python peer stack, MCP P2P |
+| `ai_ml` / `transformers` / `huggingface` | In-tree AI/ML and hub clients |
+| `ipfs_datasets` | Datasets package integration |
+| `ipfs_accelerate` | Accelerate / heavy ML stack |
+| `s3` / `filecoin_pin` / `saturn` / `ipni` | Cloud / Filecoin-adjacent clients |
+| `api` / `webrtc` / `graphql` / `performance` | Specialized surfaces |
+| `dev` | Test and lint tooling |
+| `full` | **Large optional bundle** — still not “core”; installs many but not all specialized stacks (e.g. may omit full accelerate) |
+
+Install pattern:
 
 ```bash
-# Run all integration tests
-python -m unittest discover -s tests -p "test_ipfs_*.py"
+# Core only — integrations optional and absent by design
+pip install ipfs_kit_py
 
-# Run specific test suite
-python -m unittest tests/test_ipfs_datasets_integration.py
-
-# Tests automatically skip when dependencies unavailable
-# This ensures CI/CD always passes
+# One integration family
+pip install 'ipfs_kit_py[fsspec]'
+pip install 'ipfs_kit_py[ipfs_datasets]'
+pip install 'ipfs_kit_py[s3]'
 ```
 
 ---
 
-## 🔧 Installation
+## 5. Shared patterns (adapters)
 
-### Base Installation (No Optional Dependencies)
+In-repo adapters should follow the same boundary hygiene:
 
-```bash
-pip install ipfs-kit-py
+1. **Lazy / guarded import** — never hard-fail core import when an optional package is missing.
+2. **Explicit enable flags** — e.g. `enable_dataset_storage=False` by default.
+3. **Availability probes** — `is_available()`, `check_dependencies()`, or `HAS_*` flags.
+4. **Fail soft** — skip, degrade, or return structured errors; do not corrupt kit state.
+5. **Secrets outside code** — env/config for S3, Storacha, LLM keys; redacted in logs.
 
-# Everything works with graceful fallbacks
-```
+Example shape (illustrative):
 
-### With Dataset Storage
+```python
+from ipfs_kit_py import get_ipfs_datasets, get_ipfs_accelerate
 
-```bash
-pip install ipfs-kit-py
-pip install ipfs_datasets_py
+datasets = get_ipfs_datasets()
+accelerate = get_ipfs_accelerate()
 
-# Now dataset storage is available
-```
-
-### With Compute Acceleration
-
-```bash
-pip install ipfs-kit-py
-cd ipfs-kit-py
-git submodule update --init external/ipfs_accelerate_py
-
-# Now compute acceleration is available
-```
-
-### Full Installation
-
-```bash
-pip install ipfs-kit-py
-pip install ipfs_datasets_py
-cd ipfs-kit-py
-git submodule update --init external/ipfs_accelerate_py
-
-# All features available
+# Core kit remains usable regardless of these results
+print("datasets:", datasets is not None)
+print("accelerate:", accelerate is not None)
 ```
 
 ---
 
-## 📚 Documentation Index
+## 6. Trust and data-plane summary
 
-### Integration Documentation
-- [COMPLETE_INTEGRATION_SUMMARY.md](../status_reports/COMPLETE_INTEGRATION_SUMMARY.md) - Summary with statistics
-- [MCP_INTEGRATION_ARCHITECTURE.md](../architecture/MCP_INTEGRATION_ARCHITECTURE.md) - Architecture guide
-- [INTEGRATION_OVERVIEW.md](./INTEGRATION_OVERVIEW.md) - This document
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ Caller / agent host process                                 │
+│  library · CLI · fsspec · MCP++                             │
+├─────────────────────────────────────────────────────────────┤
+│ Kit adapters (in-repo ownership)                            │
+│  optional extras load here · credentials loaded here        │
+├───────────────┬─────────────────┬───────────────────────────┤
+│ Local state   │ Content daemons │ Remote services           │
+│ ~/.ipfs_kit   │ Kubo / Iroh /   │ S3 · Storacha · hubs ·    │
+│ indexes/WAL   │ Lotus (opt)     │ LLM APIs · IPFS gateways  │
+└───────────────┴─────────────────┴───────────────────────────┘
+        kit trust              process boundary        account/network trust
+```
 
-### Detailed Guides
-- [IPFS_DATASETS_INTEGRATION.md](./IPFS_DATASETS_INTEGRATION.md) - Base patterns
-- [IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md](./IPFS_DATASETS_COMPREHENSIVE_INTEGRATION.md) - Complete reference
-- [VFS_BUCKET_GRAPHRAG_INTEGRATION.md](../features/graphrag/VFS_BUCKET_GRAPHRAG_INTEGRATION.md) - GraphRAG architecture
-
-### Core Documentation
-- [README.md](../README.md) - Main repository documentation
-- [core_concepts.md](../api/core_concepts.md) - Core concepts
-- [api_reference.md](../api/api_reference.md) - API reference
-
----
-
-## 🤝 Contributing
-
-When adding new features to IPFS Kit Python, consider integrating with ipfs_datasets_py and ipfs_accelerate_py:
-
-1. **Follow the pattern**: Use the proven integration pattern shown above
-2. **Add tests**: Include tests with/without dependencies
-3. **Update docs**: Document the new integration
-4. **Graceful fallbacks**: Ensure CI/CD compatibility
-
-See [MCP_INTEGRATION_ARCHITECTURE.md](../architecture/MCP_INTEGRATION_ARCHITECTURE.md) for detailed guidelines.
+| Boundary | Do | Do not |
+|---|---|---|
+| Optional Python package missing | Degrade / skip feature | Treat as core install failure |
+| Remote storage / SaaS | Scope credentials; expect network failure | Assume same durability as local pins |
+| Peer networks | Explicit enable; understand identity model | Bind control planes to `0.0.0.0` without auth review |
+| Derived indexes (GraphRAG, Arrow) | Treat as rebuildable | Confuse with content-byte authority |
 
 ---
 
-## 📞 Support
+## 7. Documentation index (specialized)
 
-For questions about the integrations:
-- See documentation listed above
-- Check test files for examples
-- Review `COMPLETE_INTEGRATION_SUMMARY.md` for statistics
+| Guide | Owns |
+|---|---|
+| [INTEGRATION_QUICK_START.md](./INTEGRATION_QUICK_START.md) | Install recipes and first successful paths |
+| [fsspec_integration.md](./fsspec_integration.md) | FSSpec usage detail |
+| [ipld_integration.md](./ipld_integration.md) | IPLD detail |
+| [libp2p_integration.md](./libp2p_integration.md) | libp2p detail |
+| [langchain_integration.md](./langchain_integration.md) / [llamaindex_integration.md](./llamaindex_integration.md) | LLM framework adapters |
+| [IPFS_DATASETS_*.md](./IPFS_DATASETS_INTEGRATION.md) | Datasets deep dives |
+| [ai-ml/](./ai-ml/) | AI/ML guides |
+| [../reference/storage_backends.md](../reference/storage_backends.md) | Backend operator reference |
+| [../architecture/NETWORK_TRANSPORTS.md](../architecture/NETWORK_TRANSPORTS.md) | Network family architecture |
+| [../architecture/ASYNC_AND_OPTIONAL_DEPENDENCIES.md](../architecture/ASYNC_AND_OPTIONAL_DEPENDENCIES.md) | Lazy import and async policy |
+| [../audits/PUBLIC_SURFACE_MATRIX.md](../audits/PUBLIC_SURFACE_MATRIX.md) | Public surface evidence |
+
+Status reports under `docs/status_reports/` may list historical integration campaigns; **this overview is the product boundary contract**.
 
 ---
 
-**Status**: Production Ready ✅  
-**Integrations**: 36 complete ✅  
-**Tests**: 77 passing ✅  
-**CI/CD**: 100% compatible ✅  
-**Documentation**: Comprehensive ✅
+## 8. Change triggers
+
+Refresh this document when:
+
+- `pyproject.toml` optional-dependencies change
+- Packaging fsspec entry points or console scripts change
+- A new external package is adapted as a first-class extra
+- Maturity or ownership of a dual-path integration is resolved by ADR
+- Focused test paths for an integration move or are deleted
+
+---
+
+**Status:** Boundary contracts documented for datasets, accelerate, fsspec, IPLD, AI/ML, LangChain/LlamaIndex, Filecoin/Storacha/S3, GraphRAG, and network families.  
+**Core claim:** Optional packages are **not** core.  
+**Evidence rank:** packaging → focused tests → architecture guides → specialized prose.
