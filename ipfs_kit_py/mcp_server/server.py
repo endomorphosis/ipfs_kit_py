@@ -10,15 +10,18 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from typing import Any, Dict
 
 import anyio
 
 from . import mcplusplus
+from .authorization import AuthorizationDenied, AuthorizationGate, _digest
 from .hierarchical_tool_manager import HierarchicalToolManager
 from .mcplusplus.event_dag import EventDAGStore
+from .mcplusplus.revocation import RevocationLedger
+from .mcplusplus.ucan import UCANVerifier
+from ..mcp.profile_d_policy import get_profile_d_policy_provider
 from .tools import (
     resolve_mcp_route,
     resolve_rest_route,
@@ -40,27 +43,60 @@ class MCPServer:
         receipt_resolver: Any = None,
         *,
         event_dag: EventDAGStore | None = None,
+        policy_provider: Any | None = None,
+        ucan_ledger: Any | None = None,
+        ucan_verifier: Any | None = None,
+        envelope_validator: Any | None = None,
+        validator_available: bool | None = None,
+        authorization_gate: AuthorizationGate | None = None,
     ) -> None:
         """Create a server with optional injected receipt and provenance stores.
 
         ``event_dag`` is deliberately explicit so embedders and transport
         tests can share a durable event history without relying on process
-        environment state.  When omitted, the server retains its isolated
-        temporary-store default.
+        environment state.  When omitted, the durable EventDAGStore default
+        is used; deployments may override its location with
+        ``MCPPLUSPLUS_EVENT_DAG_DIR``.
         """
         self.tm = HierarchicalToolManager()
-        # Do not let the default EventDAGStore location leak mutable state
-        # between server instances.  Deployments that need durable provenance
-        # opt in with a directory managed by their runtime environment.
         configured_dag_directory = os.environ.get("MCPPLUSPLUS_EVENT_DAG_DIR")
-        self._dag_directory: tempfile.TemporaryDirectory[str] | None = None
         if event_dag is not None:
             self._dag = event_dag
         elif configured_dag_directory:
             self._dag = EventDAGStore(storage_dir=configured_dag_directory)
         else:
-            self._dag_directory = tempfile.TemporaryDirectory(prefix="ipfs-kit-mcpp-dag-")
-            self._dag = EventDAGStore(storage_dir=self._dag_directory.name)
+            self._dag = EventDAGStore()
+        self.policy_provider = (
+            policy_provider
+            if policy_provider is not None
+            else get_profile_d_policy_provider()
+        )
+        self.ucan_ledger = (
+            ucan_ledger
+            if ucan_ledger is not None
+            else RevocationLedger(self._dag.root / "ucan-revocation-ledger.json")
+        )
+        self.ucan_verifier = (
+            ucan_verifier
+            if ucan_verifier is not None
+            else UCANVerifier(ledger=self.ucan_ledger)
+        )
+        if validator_available is None:
+            validator_available = bool(mcplusplus.HAVE_VALIDATOR)
+        if envelope_validator is None and validator_available:
+            envelope_validator = mcplusplus.validate_packet
+        self.authorization_gate = (
+            authorization_gate
+            if authorization_gate is not None
+            else AuthorizationGate(
+                policy_provider=self.policy_provider,
+                ucan_verifier=self.ucan_verifier,
+                ledger=self.ucan_ledger,
+                audit_store=self._dag,
+                envelope_validator=envelope_validator,
+                validator_available=validator_available,
+            )
+        )
         from .agent_supervisor_receipts import AgentSupervisorReceiptResolver
         self._agent_supervisor_receipts = receipt_resolver or AgentSupervisorReceiptResolver()
 
@@ -96,7 +132,12 @@ class MCPServer:
             return None
         if route == "initialize":
             requested = params.get("capabilities", {}).get("experimental", {})
-            capability_map = mcplusplus.get_capabilities()
+            capability_map = dict(mcplusplus.get_capabilities())
+            profile_capabilities = dict(capability_map.get("profiles", {}))
+            profile_capabilities["D_policy"] = bool(
+                getattr(self.policy_provider, "available", False)
+            )
+            capability_map["profiles"] = profile_capabilities
             profiles = supported_mcpp_profiles(capability_map)
             experimental = {"mcp++": capability_map}
             if requested.get("mcp++/event-dag") is True and "mcp++/event-dag" in profiles:
@@ -110,6 +151,15 @@ class MCPServer:
                     "transports": ["mcp", "mcp++", "libp2p"],
                 },
             }
+            provider_metadata = getattr(self.policy_provider, "metadata", None)
+            if callable(provider_metadata):
+                profile_metadata["mcp++/deontic-policy"] = dict(provider_metadata())
+            else:
+                profile_metadata["mcp++/deontic-policy"] = {
+                    "provider": type(self.policy_provider).__name__,
+                    "available": bool(getattr(self.policy_provider, "available", False)),
+                    "fail_closed": True,
+                }
             if "mcp++/event-dag" in profiles:
                 profile_metadata["mcp++/event-dag"] = self._dag.profile_metadata()
             return {
@@ -133,62 +183,108 @@ class MCPServer:
             frontier = self._dag.frontier()
             return {**frontier, "count": self._dag.history(limit=1)["count"]}
         if route == "ucan":
-            from .mcplusplus import delegation
-            return delegation.validate_raw_delegation_chain(
-                raw_chain=params.get("chain") or params.get("delegations") or [],
-                resource=params.get("resource", "*"),
-                ability=params.get("ability", "*"),
-                actor=params.get("actor", ""),
-            )
+            if self.ucan_ledger is None or not bool(getattr(self.ucan_ledger, "available", False)):
+                return {"allowed": False, "valid": False, "reason": "ledger_unavailable"}
+            if self.ucan_verifier is None or not callable(getattr(self.ucan_verifier, "verify", None)):
+                return {"allowed": False, "valid": False, "reason": "ucan_verifier_unavailable"}
+            try:
+                verified = self.ucan_verifier.verify(
+                    params.get("chain") or params.get("delegations") or params.get("ucans") or params.get("token"),
+                    expected_resource=params.get("resource"),
+                    expected_ability=params.get("ability"),
+                    expected_audience=params.get("actor"),
+                    request_bounds=params.get("request_bounds") or {},
+                )
+            except Exception:
+                return {"allowed": False, "valid": False, "reason": "ucan_verification_unavailable"}
+            receipt = getattr(verified, "to_receipt", None)
+            if callable(receipt):
+                return receipt()
+            return {
+                "allowed": bool(getattr(verified, "allowed", False)),
+                "valid": bool(getattr(verified, "allowed", False)),
+                "reason": str(getattr(verified, "reason", "denied")),
+            }
         if route == "policy":
-            from .mcplusplus import delegation
-            return delegation.evaluate_policy(
-                tool=params.get("tool", ""),
-                deny=params.get("deny", []),
-                risk=float(params.get("risk", 0.0)),
-                threshold=float(params.get("threshold", 0.7)),
-            )
+            if not bool(getattr(self.policy_provider, "available", False)):
+                raise AuthorizationDenied("policy_provider_unavailable")
+            try:
+                return dict(self.policy_provider.evaluate(
+                    actor=params.get("actor", "anonymous"),
+                    action=params.get("action") or params.get("tool") or "",
+                    resource=params.get("resource"),
+                    policy=params.get("policy"),
+                    policy_text=params.get("policy_text"),
+                    evaluated_at=params.get("evaluated_at"),
+                    intent_cid=params.get("intent_cid"),
+                    request_zkp_certificate=bool(params.get("request_zkp_certificate", True)),
+                ))
+            except AuthorizationDenied:
+                raise
+            except Exception as exc:
+                raise AuthorizationDenied("policy_provider_unavailable") from exc
         if route == "profile_g":
             from .mcplusplus.profile_g_transport import get_dispatcher
             return get_dispatcher().dispatch(method, params)
         if route == "tools_call":
             name = params.get("name", "")
             args = params.get("arguments") or {}
-            if name == "agent_supervisor.receipts.read":
-                receipt_params = dict(args) if isinstance(args, dict) else args
-                if isinstance(receipt_params, dict) and params.get("correlation_id") is not None:
-                    receipt_params.setdefault("correlation_id", params["correlation_id"])
-                return self._agent_supervisor_receipts.read(receipt_params)
-            envelope = params.get("_mcppp_envelope")
-            if envelope is not None:
-                err = mcplusplus.validate_packet(envelope)
-                if err:
-                    raise ValueError(f"mcp++ envelope invalid: {err}")
-            self._repair_minimal_ipfs_backend()
-            tool_route = resolve_tool_route(name)
-            if tool_route is None:
-                raise ValueError(f"unknown tool: {name}")
-            category, tool = tool_route
-            result = await self.tm.dispatch(category, tool, args)
-            if params.get("profile_b") or envelope is not None:
-                from .mcplusplus import artifacts
-                recent_events = self._dag.history(limit=1)["events"]
-                parents = [recent_events[0]["event_cid"]] if recent_events else []
-                meta = artifacts.envelope_from_payloads(
-                    interface_cid=self._interface_cid(),
-                    input_payload={"tool": name, "arguments": args},
-                    tool=name,
-                    output_payload=result if isinstance(result, dict) else {"value": result},
-                    correlation_id=str(params.get("correlation_id", "")),
-                    parents=parents,
-                )
-                node = {"event_cid": meta["event_cid"], "timestamp": _now_iso(), **meta["event"]}
-                self._dag.append(node)
-                if isinstance(result, dict):
-                    result = {**result, "_mcppp": meta}
+            if not isinstance(name, str) or not name:
+                raise ValueError("tools/call requires a non-empty tool name")
+            if not isinstance(args, dict):
+                raise ValueError("tools/call arguments must be an object")
+            decision = self.authorization_gate.authorize(
+                tool=name,
+                arguments=args,
+                envelope=params.get("_mcppp_envelope"),
+            )
+            try:
+                if name == "agent_supervisor.receipts.read":
+                    receipt_params = dict(args)
+                    if params.get("correlation_id") is not None:
+                        receipt_params.setdefault("correlation_id", params["correlation_id"])
+                    result = self._agent_supervisor_receipts.read(receipt_params)
                 else:
-                    result = {"value": result, "_mcppp": meta}
-            return result
+                    self._repair_minimal_ipfs_backend()
+                    tool_route = resolve_tool_route(name)
+                    if tool_route is None:
+                        raise ValueError(f"unknown tool: {name}")
+                    category, tool = tool_route
+                    result = await self.tm.dispatch(category, tool, args)
+                if params.get("profile_b"):
+                    from .mcplusplus import artifacts
+                    recent_events = self._dag.history(limit=1)["events"]
+                    parents = [recent_events[0]["event_cid"]] if recent_events else []
+                    meta = artifacts.envelope_from_payloads(
+                        interface_cid=self._interface_cid(),
+                        input_payload={
+                            "tool": name,
+                            "envelope_digest": decision.envelope_digest,
+                            "arguments_digest": _digest(args),
+                        },
+                        tool=name,
+                        output_payload={"result_digest": _digest(result)},
+                        correlation_id=decision.request_id,
+                        parents=parents,
+                    )
+                    node = {"event_cid": meta["event_cid"], "timestamp": _now_iso(), **meta["event"]}
+                    self._dag.append(node)
+                    if isinstance(result, dict):
+                        result = {**result, "_mcppp": meta}
+                    else:
+                        result = {"value": result, "_mcppp": meta}
+                if isinstance(result, dict):
+                    result = {**result, "_authorization": decision.public()}
+                else:
+                    result = {"value": result, "_authorization": decision.public()}
+                self.authorization_gate.record_effect(decision, result)
+                return result
+            except Exception as exc:
+                self.authorization_gate.record_effect(
+                    decision,
+                    {"outcome": "error", "error_type": type(exc).__name__},
+                )
+                raise
         if route == "ping":
             return {}
         raise ValueError(f"unknown method: {method}")
@@ -275,6 +371,11 @@ def create_http_app(server: MCPServer | None = None):
                 break
         path = scope.get("path", "")
         binding = resolve_rest_route(scope.get("method", "GET"), path)
+        # Profile D is deliberately served by the same provider-backed MCP
+        # route as JSON-RPC.  Keep this small transport alias here until the
+        # registry can expose the canonical policy route directly.
+        if binding is None and scope.get("method", "GET") == "POST" and path == "/mcp/policy/evaluate":
+            binding = ("mcp++/policy/evaluate", {})
         if binding is not None:
             from urllib.parse import parse_qsl
             method, path_params = binding
