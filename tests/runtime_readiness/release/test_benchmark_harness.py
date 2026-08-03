@@ -22,8 +22,15 @@ def _identity() -> dict:
         "hardware": {"machine": "test"},
         "os": {"system": "test"},
         "python": {"version": "3.12"},
-        "dependencies": {"digest": "test"},
-        "revision": {"git_commit": "test"},
+        "dependencies": {
+            "declared_digest": "declared-test",
+            "installed_digest": "installed-test",
+        },
+        "revision": {
+            "git_commit": "a" * 40,
+            "source_tree_digest": "sha256:" + "b" * 64,
+            "dirty": False,
+        },
         "dataset": "dataset:runtime_readiness_bundle_v1",
         "seed": 424242,
         "concurrency": 1,
