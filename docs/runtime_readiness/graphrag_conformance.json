@@ -1,0 +1,127 @@
+{
+  "schema": "ipfs_kit_py/runtime-readiness/graphrag-conformance@1",
+  "contract_version": 1,
+  "task_id": "KITA-017",
+  "title": "Retire competing GraphRAG engines and prove package CLI MCP parity",
+  "suite": "tests/runtime_readiness/graphrag/test_interface_parity.py",
+  "interfaces": [
+    "GraphRAGService@1",
+    "MCPGraphRAGTools@1",
+    "GraphRAGConformanceReceipt@1"
+  ],
+  "authority": {
+    "statement": "Durable GraphRAG records under ipfs_kit_py/graphrag/ are authoritative. Package, CLI, and MCP surfaces are transport projections of ipfs_kit_py.graphrag.dispatch and must not reimplement engine behaviour.",
+    "package_module": "ipfs_kit_py.graphrag",
+    "engine_modules": [
+      "ipfs_kit_py.graphrag.contracts",
+      "ipfs_kit_py.graphrag.storage",
+      "ipfs_kit_py.graphrag.projections",
+      "ipfs_kit_py.graphrag.service",
+      "ipfs_kit_py.graphrag.vector_index",
+      "ipfs_kit_py.graphrag.retrieval"
+    ],
+    "mcp_wrapper": "ipfs_kit_py.mcp.ipfs_kit.graphrag",
+    "mcp_tools": "ipfs_kit_py.mcp_server.tools.graphrag_tools",
+    "request_schema": "ipfs_kit_py/graphrag/interface/request@1",
+    "result_schema": "ipfs_kit_py/graphrag/interface/result@1",
+    "error_schema": "ipfs_kit_py/graphrag/interface/error@1"
+  },
+  "transports": [
+    "package",
+    "cli",
+    "mcp"
+  ],
+  "operations": [
+    "graphrag.open",
+    "graphrag.apply",
+    "graphrag.delete",
+    "graphrag.rehydrate",
+    "graphrag.rebuild",
+    "graphrag.version_history",
+    "graphrag.current_content",
+    "graphrag.vector_search",
+    "graphrag.hybrid_search",
+    "graphrag.projection"
+  ],
+  "parity_policy": {
+    "id": "GraphRAGInterfaceParityPolicy@1",
+    "strip_before_compare": [
+      "request_id",
+      "related_request_id",
+      "transport",
+      "timing",
+      "elapsed_ms",
+      "duration_ms",
+      "started_at_ms",
+      "finished_at_ms",
+      "timestamp",
+      "wall_time_ms",
+      "framing",
+      "jsonrpc",
+      "id",
+      "http_status",
+      "protocol_id",
+      "stream_id"
+    ],
+    "must_match_after_strip": [
+      "schema",
+      "contract_version",
+      "success",
+      "operation",
+      "request_schema",
+      "result_schema",
+      "error_schema",
+      "result",
+      "error",
+      "content_cid",
+      "generation_id"
+    ]
+  },
+  "retired_paths": {
+    "pickle_embedding_cache": "forbidden",
+    "sqlite_search_index_as_authority": "retired; durable JSON ledger is authoritative",
+    "success_noop_on_import_failure": "forbidden",
+    "cli_vector_hybrid_stubs": "forbidden; cli_vector_search and cli_hybrid_search call shared dispatch"
+  },
+  "mcp_plusplus": {
+    "tool_category": "graphrag_tools",
+    "registration": "ipfs_kit_py.mcp_server.tools.graphrag_tools.register_graphrag_tools",
+    "competing_registration": "rejected",
+    "required_tools": [
+      "graphrag_tools/graphrag_open",
+      "graphrag_tools/graphrag_apply",
+      "graphrag_tools/graphrag_delete",
+      "graphrag_tools/graphrag_rehydrate",
+      "graphrag_tools/graphrag_rebuild",
+      "graphrag_tools/graphrag_version_history",
+      "graphrag_tools/graphrag_current_content",
+      "graphrag_tools/graphrag_vector_search",
+      "graphrag_tools/graphrag_hybrid_search",
+      "graphrag_tools/graphrag_projection"
+    ]
+  },
+  "fixtures": {
+    "restart": [
+      "apply multi-version content and relations",
+      "rehydrate via package, CLI, MCP tool",
+      "projection identity and version history match"
+    ],
+    "poisoning": [
+      "corrupt ledger CURRENT.json schema",
+      "symlink poison ledger event file",
+      "every interface returns success=false with typed error; no empty success"
+    ]
+  },
+  "acceptance": {
+    "no_success_noop_on_import_failure": true,
+    "mcpp_includes_graphrag_tools": true,
+    "cli_vector_hybrid_not_stubs": true,
+    "byte_equivalent_normalized_payloads": true,
+    "restart_and_poisoning_cross_interface": true,
+    "tests_assert_outcomes": true
+  },
+  "exclusion_policy": {
+    "excluded_only_gate": false,
+    "mandatory_in_default_ci": true
+  }
+}
