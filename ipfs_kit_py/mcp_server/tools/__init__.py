@@ -192,6 +192,52 @@ def supported_mcpp_profiles(capabilities: Dict[str, Any]) -> list[str]:
     ]
 
 
+# Registry-derived MCP / MCP++ adapters (KITA-037).  Importing these modules is
+# inert: they project the operation registry and never load storage providers.
+def hierarchical_tool_names() -> tuple[str, ...]:
+    """Return legacy hierarchical ``category/tool`` names (sorted).
+
+    These names are owned by :data:`TOOL_GROUPS`.  Registry projections that
+    reuse any of them must raise rather than silently shadow them.
+    """
+
+    names: list[str] = []
+    for category, tools in TOOL_GROUPS.items():
+        for tool in tools:
+            names.append(f"{category}/{tool}")
+            names.append(tool)
+    return tuple(sorted(set(names)))
+
+
+# Registry-derived MCP / MCP++ adapters (KITA-037).  Importing these modules is
+# inert: they project the operation registry and never load storage providers.
+from .operation_adapter import (  # noqa: E402
+    MCPP_FRAMINGS,
+    MCPP_TRANSPORT,
+    MCPPlusPlusToolAdapter,
+    MCPPlusPlusToolAdapter_V1,
+    MCPToolAdapter,
+    MCPToolAdapter_V1,
+    MCPToolDescriptor,
+    MCP_ADAPTER_SCHEMA,
+    MCP_HTTP_TRANSPORT,
+    MCP_P2P_TRANSPORT,
+    MCP_PLUSPLUS_ADAPTER_SCHEMA,
+    MCP_STDIO_TRANSPORT,
+    MCP_TOOL_SCHEMA,
+    MCP_TRANSPORT,
+    DuplicateToolRegistrationError,
+    TRANSPORT_ONLY_KEYS,
+    UnknownToolError,
+    assert_no_competing_tool_registration,
+    build_mcp_plusplus_tool_adapter,
+    build_mcp_tool_adapter,
+    semantic_payload,
+    strip_transport_fields,
+)
+from .manager import MCPToolManager, build_tool_manager  # noqa: E402
+
+
 __all__ = [
     "TOOL_GROUPS",
     "MCP_PROTOCOL_ROUTES",
@@ -203,4 +249,29 @@ __all__ = [
     "resolve_mcp_route",
     "resolve_rest_route",
     "supported_mcpp_profiles",
+    "hierarchical_tool_names",
+    "MCPP_FRAMINGS",
+    "MCPP_TRANSPORT",
+    "MCPPlusPlusToolAdapter",
+    "MCPPlusPlusToolAdapter_V1",
+    "MCPToolAdapter",
+    "MCPToolAdapter_V1",
+    "MCPToolDescriptor",
+    "MCPToolManager",
+    "MCP_ADAPTER_SCHEMA",
+    "MCP_HTTP_TRANSPORT",
+    "MCP_P2P_TRANSPORT",
+    "MCP_PLUSPLUS_ADAPTER_SCHEMA",
+    "MCP_STDIO_TRANSPORT",
+    "MCP_TOOL_SCHEMA",
+    "MCP_TRANSPORT",
+    "DuplicateToolRegistrationError",
+    "TRANSPORT_ONLY_KEYS",
+    "UnknownToolError",
+    "assert_no_competing_tool_registration",
+    "build_mcp_plusplus_tool_adapter",
+    "build_mcp_tool_adapter",
+    "build_tool_manager",
+    "semantic_payload",
+    "strip_transport_fields",
 ]

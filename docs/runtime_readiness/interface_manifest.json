@@ -1,0 +1,212 @@
+{
+  "schema": "InterfaceManifest@1",
+  "schema_version": "ipfs_kit_py.runtime_readiness.interface_manifest@1",
+  "task_id": "KITA-037",
+  "title": "MCP and MCP++ tools with all-interface parity",
+  "contract_version": 1,
+  "generated_for_program": "ipfs-kit-runtime-readiness-v1",
+  "interfaces": [
+    "OperationRegistry@1",
+    "PythonAdapter@1",
+    "AsyncPythonAdapter@1",
+    "CLIAdapter@1",
+    "MCPToolAdapter@1",
+    "MCPPlusPlusToolAdapter@1",
+    "InterfaceManifest@1"
+  ],
+  "authority": {
+    "statement": "The reviewed operation registry projection is the interface authority. Historical wrappers are observations until reconciled through the registry.",
+    "registry_schema": "ipfs_kit_py/core/operation-registry@1",
+    "response_schema": "ipfs_kit_py/interfaces/operation-adapter-response@1"
+  },
+  "transports": [
+    {
+      "id": "package",
+      "adapter": "PythonAdapter@1",
+      "transport_key": "python",
+      "description": "Public package Python sync projection (package surface)."
+    },
+    {
+      "id": "python",
+      "adapter": "PythonAdapter@1 / AsyncPythonAdapter@1",
+      "transport_key": "python",
+      "description": "Sync and async Python API projections of registry operations."
+    },
+    {
+      "id": "cli",
+      "adapter": "CLIAdapter@1",
+      "transport_key": "cli",
+      "description": "JSON-line CLI commands generated from registry transport names."
+    },
+    {
+      "id": "mcp-stdio",
+      "adapter": "MCPToolAdapter@1 / MCPPlusPlusToolAdapter@1 framing=stdio",
+      "transport_key": "mcp",
+      "mcpp_framing": "stdio",
+      "description": "MCP tools/list and tools/call over JSON-RPC stdio."
+    },
+    {
+      "id": "mcp-http",
+      "adapter": "MCPPlusPlusToolAdapter@1 framing=http",
+      "transport_key": "mcpp",
+      "mcpp_framing": "http",
+      "description": "HTTP fixture mapping to the same MCP++ tool admission path."
+    },
+    {
+      "id": "mcp-p2p",
+      "adapter": "MCPPlusPlusToolAdapter@1 framing=p2p",
+      "transport_key": "mcpp",
+      "mcpp_framing": "p2p",
+      "protocol_id": "/mcp+p2p/1.0.0",
+      "description": "P2P stream fixture (Profile E framing) over the same admission path."
+    }
+  ],
+  "adapters": {
+    "MCPToolAdapter@1": {
+      "schema": "ipfs_kit_py/interfaces/mcp-tool-adapter@1",
+      "module": "ipfs_kit_py.mcp_server.tools.operation_adapter",
+      "class": "MCPToolAdapter",
+      "transport": "mcp",
+      "tool_schema": "ipfs_kit_py/interfaces/mcp-tool@1",
+      "methods": ["list_tools", "call", "call_async", "handle_jsonrpc", "metadata"]
+    },
+    "MCPPlusPlusToolAdapter@1": {
+      "schema": "ipfs_kit_py/interfaces/mcp-plusplus-tool-adapter@1",
+      "module": "ipfs_kit_py.mcp_server.tools.operation_adapter",
+      "class": "MCPPlusPlusToolAdapter",
+      "transport": "mcpp",
+      "framings": ["stdio", "http", "p2p"],
+      "methods": [
+        "list_tools",
+        "call",
+        "call_async",
+        "call_framed",
+        "call_stdio",
+        "call_http",
+        "call_p2p",
+        "handle_stdio",
+        "handle_http",
+        "handle_p2p",
+        "metadata"
+      ]
+    },
+    "package_facade": {
+      "module": "ipfs_kit_py.mcp.ipfs_kit.mcp_tools",
+      "class": "MCPToolManager",
+      "role": "Bound facade over MCPToolAdapter and MCPPlusPlusToolAdapter; unbound managers reject tools/call."
+    }
+  },
+  "tool_schema_fields": {
+    "required": [
+      "name",
+      "description",
+      "operation_id",
+      "version",
+      "request_schema",
+      "result_schema",
+      "error_schema",
+      "capability",
+      "support_tier",
+      "access_requirement",
+      "inputSchema",
+      "response_schema"
+    ],
+    "inputSchema_required": ["request"],
+    "inputSchema_optional_defaults": {
+      "context": {}
+    }
+  },
+  "parity_policy": {
+    "id": "AllInterfaceParityPolicy@1",
+    "strip_before_compare": [
+      "request_id",
+      "related_request_id",
+      "timing",
+      "elapsed_ms",
+      "duration_ms",
+      "started_at_ms",
+      "finished_at_ms",
+      "timestamp",
+      "wall_time_ms",
+      "transport",
+      "framing",
+      "jsonrpc",
+      "id",
+      "content_id",
+      "http_status",
+      "protocol_id",
+      "stream_id"
+    ],
+    "must_match_after_strip": [
+      "success",
+      "exit_code",
+      "operation.operation_id",
+      "operation.version",
+      "operation.request_schema",
+      "operation.result_schema",
+      "operation.error_schema",
+      "operation.capability",
+      "operation.support_tier",
+      "operation.access_requirement",
+      "result.record",
+      "error.code",
+      "error.category",
+      "error.retryability",
+      "error.state",
+      "error.message"
+    ],
+    "surfaces": ["package", "python", "cli", "mcp-stdio", "mcp-http", "mcp-p2p"],
+    "partial_effect": "ErrorCode.PARTIAL_EFFECT and OperationState partial-effect dispositions are first-class and never upgraded to success on any surface.",
+    "retryability": "StorageError.retryability is preserved across all adapter projections.",
+    "missing_optional_feature": "CapabilityUnavailableError projects to ErrorCode.CAPABILITY_MISSING on every surface; the tool does not disappear and does not no-op succeed."
+  },
+  "authorization": {
+    "policy": "Every protected tool requires the same AuthorizationRequirement (resource + ability) on every transport. Public tools carry no resource or ability.",
+    "protected_classification": "protected",
+    "public_classification": "public",
+    "denial_code": "E_FORBIDDEN",
+    "denial_state": "authorization_denied",
+    "zero_handler_calls_on_denial": true
+  },
+  "registration": {
+    "duplicate_policy": "fail_closed",
+    "error": "DuplicateToolRegistrationError",
+    "statement": "No duplicate competing registration silently wins. Registry transport names are unique per transport; hierarchical TOOL_GROUPS names that collide with registry MCP projections raise at bind time."
+  },
+  "hierarchical_tool_groups": {
+    "source": "ipfs_kit_py.mcp_server.tools.TOOL_GROUPS",
+    "role": "Legacy hierarchical MCP tool callables (category/tool). They remain available for HierarchicalToolManager but must not shadow registry MCP projections.",
+    "categories": [
+      "ipfs_tools",
+      "pin_tools",
+      "dag_tools",
+      "mfs_tools",
+      "swarm_tools",
+      "name_tools",
+      "car_tools",
+      "cluster_tools",
+      "block_tools",
+      "bitswap_tools",
+      "stats_tools",
+      "iroh_tools"
+    ]
+  },
+  "validation": {
+    "suite": "tests/runtime_readiness/interfaces/test_all_interface_parity.py",
+    "command": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/interfaces/test_all_interface_parity.py",
+    "mandatory_in_default_ci": true
+  },
+  "evidence_subset": [
+    "tool_ids",
+    "json_schemas",
+    "required_default_fields",
+    "results",
+    "errors",
+    "cids",
+    "effects",
+    "auth",
+    "stdio",
+    "http",
+    "p2p"
+  ]
+}
