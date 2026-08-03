@@ -5,9 +5,9 @@
 | **Task** | KDOC-003 |
 | **Goal** | KDOC-G011 |
 | **Audit date** | 2026-08-03 |
-| **Re-verification** | Attempt 2 — full evidence re-collection on the current worktree after Wave 0 sibling merges |
-| **Repository commit** | `b506cdb09843dd76286047c229d075199fe38075` |
-| **Tree id** | `2b5df9ef1c25df5e299e63a3aeb6f419287698e7` |
+| **Re-verification** | Attempt 3 — full evidence re-collection on the current worktree after KDOC-004 / Wave 0 sibling merges |
+| **Repository commit** | `6e4760a4482ab55ea8043c620c7cc040e6afa4bf` |
+| **Tree id** | `c8b79f5edd791c7366a0ad1153ba0fbeff799322` |
 | **Plan baseline commit** | `46fd3459` (`docs: plan architecture documentation refresh`) — history baselines below still use this as the pre-Wave-0 reference |
 | **Package version (packaging)** | `0.3.0` (`pyproject.toml`, `setup.py`) |
 | **Package `__version__` (runtime)** | `0.2.0` (`ipfs_kit_py/__init__.py`) — see **F-018** |
@@ -44,7 +44,7 @@ This register records **evidence-backed** documentation freshness failures and i
 ### 1.3 Reproducible evidence commands
 
 ```bash
-# Corpus size at re-verification (2026-08-03, commit b506cdb0)
+# Corpus size at re-verification (2026-08-03, commit 6e4760a4)
 find docs -name '*.md' | wc -l          # observed: 403
 find docs -type f | wc -l               # observed: 457
 find ipfs_kit_py -name '*.py' | wc -l   # observed: 1111
@@ -76,9 +76,12 @@ python3 -c "import importlib.util; s=importlib.util.find_spec('ipfs_kit_py.high_
 
 # AnyIO public symbols (must match guide claims)
 python3 -c "import anyio; print([(n, hasattr(anyio,n)) for n in ('gather','create_task','create_task_group','TimeoutError','fail_after')])"
+
+# VFS contract runtime claim
+rg -n 'unified_mcp_server|Runtime:' docs/VFS_CONTRACT_SPEC.md | head
 ```
 
-Counts and stamps above were collected on **2026-08-03** at commit `b506cdb0`.
+Counts and stamps above were collected on **2026-08-03** at commit `6e4760a4`.
 
 ---
 
@@ -121,6 +124,7 @@ These implementation surfaces are present in the current tree and are **under-do
 | Version identity | Packaging `0.3.0` vs `__version__ = "0.2.0"` | Docs rarely surface the conflict; agents may cite either |
 | AnyIO migration corpus | Large `*_anyio.py` pair set; migration reports under `docs/migration/` and root completion summaries | `docs/development/async_architecture.md` still documents non-existent AnyIO APIs |
 | Docs workflows | `.github/workflows/docs.yml` (Sphinx), `pages.yml` (MkDocs), `auto-doc-maintenance.yml` (weekly generator) | No `docs/conf.py`; no committed root `mkdocs.yml`; `pages.yml` generates into `docs/api/`; generated stamps are October 2025 or unexpanded shell templates |
+| VFS contract prose | Managers under `vfs_*`, `bucket_vfs_*`; packaging MCP entry `mcp_server.server:main` | `docs/VFS_CONTRACT_SPEC.md` still mandates `mcp.servers.unified_mcp_server` as production runtime (**F-020**) |
 
 ---
 
@@ -313,8 +317,18 @@ These implementation surfaces are present in the current tree and are **under-do
 | **Severity** | High |
 | **Exact document(s)** | `ipfs_kit_py/mcp_server/README.md` (21-tool framing for core groups); `ipfs_kit_py/mcp_server/js_sdk/tools-manifest.json` (committed companion); any user/MCP guide that hard-codes a tool total |
 | **Stale claim** | Fixed tool counts of 21 or 28 as authoritative |
-| **Contradicting evidence** | (1) Live registry `TOOL_GROUPS` in `ipfs_kit_py/mcp_server/tools/__init__.py` enumerates **29** tools across **12** groups including `iroh_tools.iroh_diagnostics`. (2) `tools-manifest.json` list length **28** (missing `iroh_diagnostics`). (3) Matrix **C-MCP-TOOLS** records README **21** / manifest **28** / runtime **29** and FastMCP e2e docstring still asserting 28. |
+| **Contradicting evidence** | (1) Live registry `TOOL_GROUPS` in `ipfs_kit_py/mcp_server/tools/__init__.py` enumerates **29** tools across **12** groups including `iroh_tools.iroh_diagnostics` (measured leaf keys on 2026-08-03: 29). (2) `tools-manifest.json` list length **28** (missing `iroh_diagnostics`). (3) Matrix **C-MCP-TOOLS** records README **21** / manifest **28** / runtime **29**. (4) README still frames core groups as “21 tools” while describing `TOOL_GROUPS` as the single source of truth — self-contradictory when the registry already has 29 leaves. |
 | **Recommended owner / task** | **KDOC-014** / **KDOC-033** for MCP docs; code/manifest sync is a product fix; **KDOC-002** already maps the surface — docs must cite measured registry, not frozen counts. |
+
+### F-020 — High — VFS contract names legacy unified MCP server as production runtime
+
+| Field | Value |
+|---|---|
+| **Severity** | High |
+| **Exact document(s)** | `docs/VFS_CONTRACT_SPEC.md` (header Runtime line; MCP dispatch bullets; production runtime MUST block) |
+| **Stale claim** | Production VFS/MCP runtime is `ipfs_kit_py.mcp.servers.unified_mcp_server`; legacy MCP servers are blocked unless `IPFS_KIT_ALLOW_LEGACY_MCP=1` |
+| **Contradicting evidence** | (1) Packaging console entry is `ipfs-kit-mcp = "ipfs_kit_py.mcp_server.server:main"` (`pyproject.toml`), not the `mcp.servers.unified_mcp_server` path. (2) Same authority conflict as **F-003** / migration guide “Canonical Runtime” — this contract elevates family (b) `ipfs_kit_py/mcp/` over packaging family (a) `ipfs_kit_py/mcp_server/`. (3) Glossary (KDOC-006) and source map (KDOC-004) already flag this runtime-path freshness risk; measured path `rg -n 'unified_mcp_server' docs/VFS_CONTRACT_SPEC.md` still hits the header and production MUST language on 2026-08-03. (4) No packaging script points at `unified_mcp_server`. |
+| **Recommended owner / task** | **KDOC-015** / content-VFS architecture + **KDOC-014** MCP authority; align contract with **KDOC-004** unresolved decisions **U-05** / MCP ranking before treating the MUST as normative for operators. |
 
 ---
 
@@ -324,7 +338,7 @@ These implementation surfaces are present in the current tree and are **under-do
 |---|---|---|---|
 | P0 | F-001, F-002, F-003 | KDOC-002, KDOC-004, KDOC-014, KDOC-030, KDOC-060 | Correct primary entry commands; rank MCP authorities |
 | P0 | F-004, F-005, F-010, F-018 | KDOC-031, KDOC-032, KDOC-004 | CLI/API docs match importable surfaces; version conflict surfaced |
-| P1 | F-006, F-019 | KDOC-012, KDOC-035, KDOC-014, storage/MCP ADRs if needed | Backend registry + Iroh; measured MCP tool counts |
+| P1 | F-006, F-019, F-020 | KDOC-012, KDOC-035, KDOC-014, KDOC-015, storage/MCP/VFS ADRs if needed | Backend registry + Iroh; measured MCP tool counts; VFS contract runtime path |
 | P1 | F-007, F-008 | KDOC-029, KDOC-046, KDOC-052 / KDOC-G060 | Reproducible docs toolchain + generated-doc contract |
 | P1 | F-009 | KDOC-016 | Async guide matches AnyIO |
 | P2 | F-011, F-012, F-014 | KDOC-040, KDOC-041, KDOC-060 | Historical boundary; single nav path |
@@ -349,6 +363,7 @@ Use this table when source changes; it is derived from contradictions above, not
 | High-level API package layout or stub load path | `docs/api/high_level_api.md`, README examples | `find_spec('ipfs_kit_py.high_level_api')` |
 | AnyIO public usage patterns | `docs/development/async_architecture.md`, migration guides | Import check against installed AnyIO |
 | WAL / journal CLI surface | CLI reference; **do not** trust `WAL_FS_JOURNAL_REMOVAL_COMPLETE.md` as current | Dispatcher `_add_wal_commands` / `_add_journal_commands` |
+| MCP packaging entry or `unified_mcp_server` lifecycle | `docs/VFS_CONTRACT_SPEC.md`, MCP migration guides, systemd units | Packaging `ipfs-kit-mcp` vs contract Runtime line |
 | Generated-doc workflow outputs | Entire `docs/api_generated/` | Header timestamps must be real ISO times on commit |
 | Docs CI (Sphinx/MkDocs) config | Contributor docs, ADR 0009, Pages README claims | Presence of `docs/conf.py` / committed `mkdocs.yml` |
 | Python version floor | Installation guide, `pytest.ini` minversion, badges | `requires-python` |
@@ -373,6 +388,7 @@ Aligned with inventory counts where available (KDOC-001). Scale is approximate M
 | `docs/integration/` | 15–22 | **Medium** | Mixed | Integration counts need surface-matrix proof |
 | `docs/testing/`, coverage milestone docs | 23 + root coverage reports | **Medium** | Historical + testing Canonical | Do not treat milestone banners as live coverage F-014 |
 | `docs/reference/` | 13 | **High** for backends | Canonical (after refresh) | F-006 |
+| `docs/VFS_CONTRACT_SPEC.md` (root-level contract) | 1 | **High** | Mixed / unresolved | F-020 runtime path vs packaging |
 | `docs/guides/` | 10 | **Medium** | Mixed | Lifecycle guide (KDOC-005) is current program control; other guides need refresh |
 | `docs/audits/` | Wave 0 evidence | **Current** (as of 2026-08-03) | Evidence / program | Inventory, surface matrix, this audit |
 | Empty external dirs | 10 dirs | **Medium** | External placeholders | Zero files F-013 |
@@ -387,9 +403,9 @@ Aligned with inventory counts where available (KDOC-001). Scale is approximate M
 |---|---|
 | `docs/audits/DOCUMENTATION_INVENTORY.md` (KDOC-001) | Full path inventory, owners, dispositions; this audit supplies **freshness risk evidence** for classification. Inventory §4.1 competing indexes and § generated-doc notes converge with F-007/F-012/F-013. |
 | `docs/audits/PUBLIC_SURFACE_MATRIX.md` (KDOC-002) | Resolves F-002/F-003/F-004/F-010/F-018/F-019 with entry path × status rows and global **C-*** conflict IDs. |
-| `docs/architecture/SOURCE_OF_TRUTH_MAP.md` (KDOC-004) | Records competing MCP, API, backend, and cluster families as unresolved where evidence demands (U-03 HLA, MCP trees, cluster authority). |
+| `docs/architecture/SOURCE_OF_TRUTH_MAP.md` (KDOC-004) | Records competing MCP, API, backend, and cluster families as unresolved where evidence demands (U-03 HLA, MCP trees, cluster authority, U-05 bucket/VFS). Present in-tree at attempt-3 commit after KDOC-004 merge. |
 | `docs/guides/DOCUMENTATION_GUIDE.md` (KDOC-005) | Lifecycle/claim standard; bans undated "Production Ready" banners without verification receipts (F-017). |
-| `docs/architecture/GLOSSARY.md` (KDOC-006) | Vocabulary; already flags `docs/VFS_CONTRACT_SPEC.md` runtime-path freshness risk — do not treat glossary citations as proof that product docs are current. |
+| `docs/architecture/GLOSSARY.md` (KDOC-006) | Vocabulary; already flags `docs/VFS_CONTRACT_SPEC.md` runtime-path freshness risk — elevated here as **F-020** with packaging contradiction. |
 
 ---
 
@@ -397,7 +413,7 @@ Aligned with inventory counts where available (KDOC-001). Scale is approximate M
 
 | Acceptance criterion | Status |
 |---|---|
-| Findings include **severity** | Yes — Critical / High / Medium / Low on F-001…F-019 |
+| Findings include **severity** | Yes — Critical / High / Medium / Low on F-001…F-020 |
 | Findings include **exact document** paths | Yes |
 | Findings include **contradicting source/test/history evidence** | Yes — packaging, source paths, Git commits, workflow files, import checks, measured counts |
 | Findings include **recommended owner/task** | Yes — KDOC task IDs |
@@ -408,11 +424,12 @@ Aligned with inventory counts where available (KDOC-001). Scale is approximate M
 
 ---
 
-## 9. Appendix A — Evidence snapshot (2026-08-03)
+## 9. Appendix A — Evidence snapshot (2026-08-03, attempt 3)
 
 ```text
-commit:            b506cdb09843dd76286047c229d075199fe38075
-tree:              2b5df9ef1c25df5e299e63a3aeb6f419287698e7
+commit:            6e4760a4482ab55ea8043c620c7cc040e6afa4bf
+tree:              c8b79f5edd791c7366a0ad1153ba0fbeff799322
+subject:           Merge branch 'implementation/kdoc-004-…' into documentation-supervisor/kit-architecture-refresh-20260803
 plan baseline:     46fd3459 (pre-Wave-0 architecture plan)
 docs/**/*.md:      403
 docs/** (files):   457
@@ -426,23 +443,30 @@ console scripts:   ipfs-kit, ipfs-kit-mcp, ipfs-kit-mcp-tools,
                    ipfs-kit-iroh-diagnostics, ipfs-kit-iroh-manifest,
                    ipfs-kit-iroh-interop
 MCP trees:         mcp_server=34 .py; mcp=619 .py
-MCP tools:         TOOL_GROUPS leaf count 29; js manifest 28
+MCP tools:         TOOL_GROUPS leaf count 29; js manifest 28; README “21 tools” framing
 module_structure:  Last updated 2025-10-29T04:09:56.898549
 doc_status stamp:  literal $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-doc_status counts: claims 747 modules / 80 docs (false)
+doc_status counts: claims 747 modules / 80 docs (false; actual ~1111 / ~403)
 Feb overhaul doc:  docs/project/COMPREHENSIVE_DOCUMENTATION_OVERHAUL.md (2026-02-02)
+Feb organize commit: d4d8a0c9 (2026-02-03)
 Feb audit doc:     docs/project/DOCUMENTATION_AUDIT_FINDINGS.md (2026-02-02)
 July DOC-KIT:      164 commits (2026-07-24..2026-07-25), link-addition pattern
 docs.yml:          sphinx-build without docs/conf.py
 pages.yml:         mkdocs + generates into docs/api/ (ephemeral mkdocs.yml)
 auto-doc-maintenance.yml: cron 0 9 * * 1 present
 cluster launcher:  tools/start_3_node_cluster.py exists; root path missing
+index.md launcher: still `python start_3_node_cluster.py` (F-001)
 HLA import origin: ipfs_kit_py/high_level_api/__init__.py (package)
 anyio.gather:      missing; anyio.create_task: missing; anyio.create_task_group: present
+                   anyio.TimeoutError: missing; anyio.fail_after: present
 implementation/*.md: 73
+architecture/*.md: 11
 iroh/*.md:         19
 COMPLETE|SUMMARY docs: 134 paths
-indexes combined:  1964 lines (index + docs README + DOCUMENTATION_INDEX + DOCUMENTATION_GUIDE)
+indexes combined:  1964 lines (docs/index 234 + docs/README 728 + DOCUMENTATION_INDEX 348 + DOCUMENTATION_GUIDE 654)
+empty external dirs: 10 (ipfs-docs, ipfs_cluster, ipfsspec, lassie, libp2p-*, lighthouse-*, mcp-python-sdk, storacha_specs, filesystem_spec)
+VFS contract Runtime: ipfs_kit_py.mcp.servers.unified_mcp_server  # F-020
+cli.py --version:  absent; MCP default port 8004; unified set includes wal, journal
 ```
 
 ## 10. Appendix B — Explicit non-findings
@@ -454,17 +478,30 @@ The following were checked and are **not** filed as freshness defects:
 - **Iroh docs directory existence** — `docs/iroh/` is populated (19 Markdown files); the defect is integration into primary backend/nav narratives (F-006), not absence of the family.
 - **Presence of `.github/workflows/auto-doc-maintenance.yml`, `docs.yml`, `pages.yml`** — workflows exist; defects are reproducibility and output freshness (F-007, F-008), not missing workflow files.
 - **Wave 0 evidence artifacts themselves** (`DOCUMENTATION_INVENTORY.md`, `PUBLIC_SURFACE_MATRIX.md`, `SOURCE_OF_TRUTH_MAP.md`, lifecycle guide, glossary) — dated 2026-08-03 evidence packets, not product user guides; they are **consumers** of this audit’s risk labels, not stale product claims.
+- **Corpus size stability attempt 2→3** — Markdown/file counts remain 403/457; product-doc defects F-001–F-019 still reproduce on attempt-3 commit (no spontaneous fix from KDOC-004 merge alone).
 
-## 11. Appendix C — Attempt-2 delta vs attempt-1 register
+## 11. Appendix C — Attempt deltas
+
+### C.1 Attempt-2 vs attempt-1
 
 | Item | Change |
 |---|---|
-| Audit commit pin | `46fd3459` → `b506cdb0` (current worktree after Wave 0 merges) |
+| Audit commit pin | `46fd3459` → `b506cdb0` (worktree after early Wave 0 merges) |
 | Corpus counts | 398/452 → **403/457** Markdown/files (Wave 0 artifacts added) |
 | Index line total | ~1,621 → **1,964** (KDOC-005 expanded `DOCUMENTATION_GUIDE.md`) |
 | `docs/implementation/` | 67 → **73** Markdown files |
-| New findings | **F-018** version triple; **F-019** MCP tool-count drift (promoted from matrix **C-*** into this freshness register with exact docs) |
-| Cross-links | §7 now names completed sibling Wave 0 paths present in-tree |
+| New findings | **F-018** version triple; **F-019** MCP tool-count drift |
+
+### C.2 Attempt-3 vs attempt-2 (this pass)
+
+| Item | Change |
+|---|---|
+| Audit commit pin | `b506cdb0` → **`6e4760a4`** (merge includes KDOC-004 source-of-truth map) |
+| Tree pin | `2b5df9ef` → **`c8b79f5e`** |
+| Corpus counts | Unchanged **403** Markdown / **457** files / **1111** package modules |
+| Findings re-verified | F-001–F-019 all still hold with re-measured commands (cluster path, MCP packaging, CLI, AnyIO, generated stamps, empty externals, tool leaves 29) |
+| New finding | **F-020** — `docs/VFS_CONTRACT_SPEC.md` production runtime claim vs packaging `ipfs-kit-mcp` entry (glossary/source-map risk elevated to numbered finding) |
+| Sibling maps | `SOURCE_OF_TRUTH_MAP.md` present and cross-linked; U-01…U-09 align with F-003/F-010/F-018/F-020 |
 
 ---
 
