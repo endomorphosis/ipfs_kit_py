@@ -6,7 +6,7 @@
 | Goal | KDOC-G011 |
 | Track | evidence-corpus |
 | Inventory date | 2026-08-03 |
-| Tree baseline | Git commit `46fd3459c649d06c0602d5ab1aee529269cb5b57` (`docs: plan architecture documentation refresh`) |
+| Tree baseline | Git commit `b506cdb09843dd76286047c229d075199fe38075` (Wave 0 worktree; inventory re-verified offline) |
 | Scope | Entire `docs/` tree as present in the worktree |
 | External content | **Not fetched.** All documentation gitlinks remain uninitialized empty working trees. |
 | Method | Offline filesystem walk, `git ls-files -s` for mode-`160000` gitlinks, `.gitmodules` path/url inspection only |
@@ -115,17 +115,17 @@ git rev-parse HEAD
 
 | Metric | Count / value |
 |---|---:|
-| Files under `docs/` | 452 |
-| Markdown files | 398 |
-| Directories | 75 |
-| Top-level directories | 35 |
+| Files under `docs/` | 457 |
+| Markdown files | 403 |
+| Directories | 76 |
+| Top-level directories | 36 |
 | Top-level files | 45 |
-| Tree size | ~6.2M |
+| Tree size | ~6.4M |
 | Mode-`160000` gitlinks under `docs/` | 10 |
 | Empty top-level directories | 10 |
-| Git baseline | `46fd3459c649d06c0602d5ab1aee529269cb5b57` |
+| Git baseline | `b506cdb09843dd76286047c229d075199fe38075` |
 
-> Counts include empty gitlink directories (0 files each) and embedded `py-ipld-*` snapshots (source + tests vendored under `docs/`). They **exclude** any content that would appear only after submodule fetch.
+> Counts include empty gitlink directories (0 files each), the Wave 0 `docs/audits/` evidence family, and embedded `py-ipld-*` snapshots (source + tests vendored under `docs/`). They **exclude** any content that would appear only after submodule fetch.
 
 ---
 
@@ -138,7 +138,7 @@ Every row includes the four acceptance fields: **Authority class**, **Freshness 
 | `docs/` root files | 45 / 44 | **Mixed** (indexes, topics, historical reports, program-control) | **Critical** | Multiple owners; consolidate indexes (KDOC-060); historical register (KDOC-040); topic refresh (KDOC-030..039) | `find docs -maxdepth 1 -type f \| sort` |
 | `api/` | 4 / 4 | **Canonical** (candidate) | **High** | KDOC-031/032 API/CLI refresh — Retain-canonical after verification | `find docs/api -type f \| sort` |
 | `api_generated/` | 7 / 6 | **Generated** | **High** (stale generator markers) | KDOC-046 only — Retain-generated | `find docs/api_generated -type f \| sort; head -5 docs/api_generated/doc_status.md` |
-| `architecture/` | 9 / 9 | **Mixed** (program-control + historical audits + Proposed IA) | **High** | Protected program files + KDOC-010..019 new guides — no mass rewrite of old audits here | `find docs/architecture -type f \| sort` |
+| `architecture/` | 11 / 11 | **Mixed** (program-control + Wave 0 maps/glossary + historical audits + Proposed IA) | **High** | Protected program files + KDOC-010..019 new guides — no mass rewrite of old audits here | `find docs/architecture -type f \| sort` |
 | `ARCHIVE/` | 21 / 21 | **Historical** | **Low** | KDOC-040/045 — Retain-historical | `find docs/ARCHIVE -type f \| sort` |
 | `ci-cd/` | 14 / 14 | **Mixed** (ops notes + status reports) | **High** | Split current runbook vs archive-candidate (KDOC-040, ops owners) | `find docs/ci-cd -type f \| sort` |
 | `deployment/` | 35 / 35 | **Canonical** (candidate ops/deploy) | **High** | KDOC ops/deploy refresh — Retain-canonical after verification | `find docs/deployment -type f \| sort` |
@@ -171,9 +171,9 @@ Every row includes the four acceptance fields: **Authority class**, **Freshness 
 | `test_reports/` | 4 / 4 | **Historical** | **Low** | Retain-historical | `find docs/test_reports -type f \| sort` |
 | `testing/` | 23 / 23 | **Mixed** (some process value + heavy coverage campaign reports) | **High** | Split health matrix vs archive coverage narratives (KDOC-040) | `find docs/testing -type f \| sort` |
 | `workflows/` | 1 / 1 | **Canonical** (process) | **Medium** | Docs maintenance owners — Retain-canonical; align with `.github/workflows` | `find docs/workflows -type f \| sort` |
-| `audits/` *(created by this program)* | ≥1 | **Canonical** (program evidence) | **Low** | Wave 0 evidence owners — Create-under-program | `find docs/audits -type f \| sort` |
+| `audits/` *(Wave 0 evidence family)* | 3 / 3 | **Canonical** (program evidence) | **Low** | Wave 0 evidence owners — Retain-canonical / Create-under-program | `find docs/audits -type f \| sort` |
 
-**Row count check:** 35 pre-existing top-level directories + root-files row + `audits/` program family = full top-level coverage for this corpus.
+**Row count check:** 36 top-level directories (including empty external gitlinks and `audits/`) + root-files row = full top-level coverage for this corpus (37 family rows).
 
 ---
 
@@ -237,20 +237,24 @@ test -f .github/workflows/auto-doc-maintenance.yml
 
 ### 4.4 Architecture family composition
 
-Current contents are **not** yet the target guide set from the plan (`SYSTEM_OVERVIEW.md`, etc.). Observed mix:
+Current contents are **not** yet the full target guide set from the plan (`SYSTEM_OVERVIEW.md`, etc.). Observed mix (11 markdown files):
 
 | Group | Paths | Proposal |
 |---|---|---|
 | Program-control | `ipfs_kit_documentation.objectives.md`, `ipfs_kit_documentation.todo.md` | Protected-input |
-| Prior architecture audits / reviews | e.g. `CLI_MCP_ARCHITECTURE_AUDIT.md`, `FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md`, `MCP_*` | Historical or Proposed inputs to new guides |
-| Target guides (absent) | `SYSTEM_OVERVIEW.md`, `RUNTIME_AND_ENTRYPOINTS.md`, … | **Proposed** deliverables for KDOC-010..019 |
+| Wave 0 evidence / vocabulary | `SOURCE_OF_TRUTH_MAP.md` (KDOC-004), `GLOSSARY.md` (KDOC-006) | Canonical program evidence / vocabulary (concurrent Wave 0) |
+| Prior architecture audits / reviews | e.g. `CLI_MCP_ARCHITECTURE_AUDIT.md`, `FILESYSTEM_BACKEND_ARCHITECTURE_REVIEW.md`, `MCP_*`, `ARCHITECTURE_MODULE_ORGANIZATION.md`, `BACKEND_ARCHITECTURE_VISUAL_SUMMARY.md`, `REFACTORED_ARCHITECTURE_README.md` | Historical or Proposed inputs to new guides |
+| Target guides (still absent) | `SYSTEM_OVERVIEW.md`, `RUNTIME_AND_ENTRYPOINTS.md`, … | **Proposed** deliverables for KDOC-010..019 |
 
 **Evidence:**
 
 ```bash
 ls -1 docs/architecture
-# Expected absence of new guides at this baseline:
+# Expected absence of new architecture guides at this baseline:
 test ! -f docs/architecture/SYSTEM_OVERVIEW.md
+# Wave 0 peers present (do not treat as exclusive KDOC-001 outputs):
+test -f docs/architecture/SOURCE_OF_TRUTH_MAP.md
+test -f docs/architecture/GLOSSARY.md
 ```
 
 ### 4.5 Historical / report-like families (high volume)
@@ -319,18 +323,18 @@ done
 
 Local `.gitmodules` maps the following paths under `docs/`. Working trees are **empty** in this baseline. Content was **not** fetched.
 
-| Path | Recorded upstream (from local `.gitmodules`) | Recorded gitlink SHA (short) | Local files |
+| Path | Recorded upstream (from local `.gitmodules`) | Recorded gitlink SHA (full, from `git ls-files -s`) | Local files |
 |---|---|---|---:|
-| `docs/filesystem_spec` | `https://github.com/fsspec/filesystem_spec.git` | `fec09b04ad62` | 0 |
-| `docs/ipfs-docs` | `https://github.com/ipfs/ipfs-docs.git` | `4cf83720b597` | 0 |
-| `docs/ipfs_cluster` | `https://github.com/ipfs-cluster/ipfs-cluster-website.git` | `c7ca8b5f87b4` | 0 |
-| `docs/ipfsspec` | `https://github.com/fsspec/ipfsspec.git` | `03f5199b9bf5` | 0 |
-| `docs/lassie` | `https://github.com/filecoin-project/lassie.git` | `c6ba777810d0` | 0 |
-| `docs/libp2p-universal-connectivity` | `https://github.com/libp2p/universal-connectivity.git` | `e18a6de9c020` | 0 |
-| `docs/libp2p_docs` | `https://github.com/libp2p/docs.git` | `17cee4a43879` | 0 |
-| `docs/lighthouse-python-sdk` | `https://github.com/lighthouse-web3/lighthouse-python-sdk.git` | `6b2c86693090` | 0 |
-| `docs/mcp-python-sdk` | `https://github.com/modelcontextprotocol/python-sdk.git` | `d3133ae6ce73` | 0 |
-| `docs/storacha_specs` | `https://github.com/storacha/specs.git` | `3b6791869635` | 0 |
+| `docs/filesystem_spec` | `https://github.com/fsspec/filesystem_spec.git` | `fec09b04ad626df44a03bc605cb2e526b752b042` | 0 |
+| `docs/ipfs-docs` | `https://github.com/ipfs/ipfs-docs.git` | `4cf83720b59738d93db4068976f9c2a11f023e45` | 0 |
+| `docs/ipfs_cluster` | `https://github.com/ipfs-cluster/ipfs-cluster-website.git` | `c7ca8b5f87b41fcc795297ca65b0bb41c10234bf` | 0 |
+| `docs/ipfsspec` | `https://github.com/fsspec/ipfsspec.git` | `03f5199b9bf5a96c7ebf5e2e6f5dce8cf58b655f` | 0 |
+| `docs/lassie` | `https://github.com/filecoin-project/lassie.git` | `c6ba777810d03fed23aea11b5969b7d8a97f1edf` | 0 |
+| `docs/libp2p-universal-connectivity` | `https://github.com/libp2p/universal-connectivity.git` | `e18a6de9c020c5e406d9f61b638f5d276054798d` | 0 |
+| `docs/libp2p_docs` | `https://github.com/libp2p/docs.git` | `17cee4a438797313d1e878b103abc1dbefdf423e` | 0 |
+| `docs/lighthouse-python-sdk` | `https://github.com/lighthouse-web3/lighthouse-python-sdk.git` | `6b2c86693090c770d2c9a4d82ba315000a77068b` | 0 |
+| `docs/mcp-python-sdk` | `https://github.com/modelcontextprotocol/python-sdk.git` | `d3133ae6ce7333a501e38046aff4275c44326f90` | 0 |
+| `docs/storacha_specs` | `https://github.com/storacha/specs.git` | `3b6791869635735ddb1a54aed7450ad6ef687c06` | 0 |
 
 Also listed in `.gitmodules` but **not** present as a top-level `docs/` entry in this worktree:
 
@@ -391,14 +395,16 @@ find docs -maxdepth 1 -type f -printf '%s\t%f\n' | sort -n
 
 Approximate **primary** class of each top-level family (Mixed counted once as Mixed; root files as Mixed; audits as Canonical evidence):
 
-| Authority class (primary) | Families (approx.) |
+| Authority class (primary) | Families |
 |---|---|
-| External (empty gitlinks) | 10 |
-| External (embedded `py-ipld-*`) | 3 |
-| Historical | 6 (`ARCHIVE`, `fixes`, `implementation`, `migration`, `project`, `status_reports`, `test_reports` → 7 if counting `test_reports`) |
+| External (empty gitlinks) | 10 (`filesystem_spec`, `ipfs-docs`, `ipfs_cluster`, `ipfsspec`, `lassie`, `libp2p-universal-connectivity`, `libp2p_docs`, `lighthouse-python-sdk`, `mcp-python-sdk`, `storacha_specs`) |
+| External (embedded `py-ipld-*`) | 3 (`py-ipld-car`, `py-ipld-dag-pb`, `py-ipld-unixfs`) |
+| Historical | 7 (`ARCHIVE`, `fixes`, `implementation`, `migration`, `project`, `status_reports`, `test_reports`) |
 | Generated | 1 (`api_generated`) |
-| Canonical (candidate) | `api`, `deployment`, `development`, `guides`, `iroh`, `operations`, `reference`, `workflows`, `audits` |
-| Mixed | `architecture`, `ci-cd`, `features`, `integration`, `testing`, `libp2p_integration`, root files |
+| Canonical (candidate) | 9 (`api`, `deployment`, `development`, `guides`, `iroh`, `operations`, `reference`, `workflows`, `audits`) |
+| Mixed | 7 (`architecture`, `ci-cd`, `features`, `integration`, `testing`, `libp2p_integration`, root files) |
+
+**Primary-class sum:** 10 + 3 + 7 + 1 + 9 + 7 = **37** family rows (matches §3 matrix).
 
 These are **planning labels** for downstream tasks, not coverage scorecard pass/fail.
 
@@ -424,13 +430,14 @@ These are **planning labels** for downstream tasks, not coverage scorecard pass/
 
 | Acceptance criterion | Status |
 |---|---|
-| Every top-level docs family has an **Authority class** proposal | Yes — §3 matrix |
+| Every top-level docs family has an **Authority class** proposal | Yes — §3 matrix (37 rows) |
 | Every family has **freshness risk** | Yes — §3 matrix |
 | Every family has **owner/disposition** | Yes — §3 matrix + §6 |
 | Every family has a **reproducible evidence command** | Yes — §3 matrix + §2.3 |
-| No external content fetched | Yes — gitlinks empty; only local `.gitmodules` / `git ls-files` used |
+| No external content fetched | Yes — 10 gitlinks remain empty; only local `.gitmodules` / `git ls-files` used |
 | Output path `docs/audits/DOCUMENTATION_INVENTORY.md` | This file |
 | Validation string `Authority class` present | Yes |
+| Counts re-verified against tree baseline | Yes — `b506cdb09843dd76286047c229d075199fe38075` |
 
 **Validation commands:**
 
