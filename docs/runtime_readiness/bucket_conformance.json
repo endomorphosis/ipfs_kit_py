@@ -1,0 +1,168 @@
+{
+  "schema": "ipfs_kit_py/runtime-readiness/bucket-conformance@1",
+  "contract_version": 1,
+  "task_id": "KITA-013",
+  "title": "Join bucket WAL, replica, authorization, backend, and interface conformance",
+  "suite": "tests/runtime_readiness/buckets/test_bucket_joined_conformance.py",
+  "interfaces": [
+    "BucketConformanceReceipt@1",
+    "BucketService@1",
+    "BucketCatalog@1",
+    "BucketIdentity@1",
+    "BucketManifest@1",
+    "BucketPolicy@1",
+    "LegacyBucketAdapter@1",
+    "PythonAdapter@1",
+    "CLIAdapter@1",
+    "MCPToolAdapter@1",
+    "MCPPlusPlusToolAdapter@1"
+  ],
+  "authority": {
+    "statement": "BucketService@1 is the runtime authority for virtual-bucket lifecycle, object, quota, placement, and recovery semantics. BucketCatalog@1 owns generation-scoped publication and durable compensation journals. Only non-primary replicas that are durable and integrity-verified count toward minimum_verified_replicas. Python, CLI, and MCP surfaces project registry-bound operations and must not reimplement catalog or placement logic. Unavailable or unsupported backend capabilities reject explicitly with zero effects and no silent fallback.",
+    "service_module": "ipfs_kit_py.core.buckets.service",
+    "contracts_module": "ipfs_kit_py.core.buckets.contracts",
+    "catalog_module": "ipfs_kit_py.core.buckets.catalog",
+    "transfer_module": "ipfs_kit_py.core.buckets.transfer",
+    "legacy_adapter": "ipfs_kit_py.core.buckets.adapters",
+    "wal_coordinator": "ipfs_kit_py.core.wal.coordinator",
+    "request_schema": "ipfs_kit_py/core/operation-contracts/operation-request@1",
+    "result_schema": "ipfs_kit_py/core/operation-contracts/operation-result@1",
+    "error_schema": "ipfs_kit_py/core/operation-contracts/storage-error@1"
+  },
+  "declared_backends": [
+    {
+      "id": "memory_primary",
+      "kind": "in-memory-bucket-backend",
+      "role": "canonical hermetic primary for differential and crash corpus",
+      "module": "ipfs_kit_py.core.buckets.service.InMemoryBucketBackend"
+    },
+    {
+      "id": "memory_replica",
+      "kind": "in-memory-bucket-backend",
+      "role": "second placement for multi-store saga and verified-replica evidence",
+      "module": "ipfs_kit_py.core.buckets.service.InMemoryBucketBackend"
+    },
+    {
+      "id": "provider_unsupported",
+      "kind": "provider-inventory",
+      "role": "capability-gated unsupported provider; rejects storage without fallback",
+      "module": "ipfs_kit_py.backends.provider_adapters.ProviderAdapterCatalog",
+      "unavailable_disposition": "explicit unsupported rejection; no silent fallback"
+    }
+  ],
+  "transports": [
+    "package",
+    "python",
+    "cli",
+    "mcp",
+    "mcpp"
+  ],
+  "required_operations": [
+    "create_bucket",
+    "update_bucket",
+    "delete_bucket",
+    "list_buckets",
+    "put_object",
+    "get_object",
+    "list_objects",
+    "delete_object",
+    "export_bucket",
+    "import_bucket",
+    "recover_pending"
+  ],
+  "evidence_subset": {
+    "lifecycle": "Provisioning to active publication is multi-backend transactional; illegal transitions and equal names on different backends stay distinct.",
+    "object": "Put/get/list/delete and CAS version preconditions match across independent service instances for deterministic schedules.",
+    "transfer": "Export binds catalog generation plus content digests; corrupt import fails before catalog publication.",
+    "query": "QueryMode and query_indexing cross-field policy invariants reject contradictory configurations before any effect.",
+    "quota": "Concurrent and sequential quota admissions enforce policy.quota_bytes and policy.quota_objects with a single admitted winner.",
+    "placement": "Partial multi-store placement either compensates immediately or leaves a durable recoverable compensation receipt.",
+    "crash": "WAL crash injection at every named execute boundary recovers to pre-commit compensation or committed replay; second recovery is a no-op. Bucket delete/create recovery rehydrates from the catalog journal after service reconstruction.",
+    "auth": "Protected bucket mutations deny unauthorized principals with zero handler dispatch and zero backend effects on every interface surface.",
+    "parity": "Python, CLI, and MCP projections of registry-bound bucket operations match after transport-only fields are stripped.",
+    "backend": "Unsupported provider storage capabilities and insufficient BackendCapability records reject without effects or success/no-op fallback."
+  },
+  "crash_boundaries": [
+    "before_begin",
+    "after_begin",
+    "before_intent",
+    "after_intent",
+    "before_effect",
+    "after_effect",
+    "before_commit",
+    "after_commit"
+  ],
+  "replica_policy": {
+    "primary_never_counts_as_verified_replica": true,
+    "verified_requires_durable_and_integrity_verified": true,
+    "pending_copying_verifying_failed_do_not_count": true,
+    "active_bucket_requires_minimum_verified_replicas": true
+  },
+  "parity_policy": {
+    "id": "BucketInterfaceParityPolicy@1",
+    "strip_before_compare": [
+      "request_id",
+      "related_request_id",
+      "transport",
+      "timing",
+      "elapsed_ms",
+      "duration_ms",
+      "started_at_ms",
+      "finished_at_ms",
+      "timestamp",
+      "wall_time_ms",
+      "framing",
+      "jsonrpc",
+      "id",
+      "http_status",
+      "protocol_id",
+      "stream_id"
+    ],
+    "must_match_after_strip": [
+      "success",
+      "exit_code",
+      "operation.operation_id",
+      "result.record.success",
+      "result.record.state",
+      "result.record.resulting_content_cid",
+      "result.record.resulting_version_cid",
+      "result.record.error"
+    ]
+  },
+  "restart_and_recovery": {
+    "checks": [
+      "pre_commit_compensation",
+      "committed_replay_once",
+      "second_recovery_noop",
+      "catalog_journal_rehydrate_after_service_restart",
+      "deletion_fence_blocks_writes_until_recovery",
+      "idempotent_retry_single_external_effect"
+    ]
+  },
+  "differential_corpus": {
+    "seed_count": 64,
+    "operations_per_seed": 12,
+    "generator": "deterministic Python random.Random(seed) schedules over advertised bucket operations",
+    "checks": [
+      "independent_service_trace_equality",
+      "catalog_generation_monotonic",
+      "quota_invariant",
+      "object_content_identity"
+    ]
+  },
+  "acceptance": {
+    "all_advertised_operations_pass_state_machine_corpus": true,
+    "crash_retry_preserves_catalog_and_external_effect_consistency": true,
+    "unauthorized_calls_dispatch_no_effects": true,
+    "only_verified_replicas_count": true,
+    "python_cli_mcp_parity": true,
+    "unavailable_capabilities_reject_explicitly": true,
+    "no_required_test_skips": true,
+    "no_success_noop_fallback": true,
+    "no_print_only_paths": true
+  },
+  "exclusion_policy": {
+    "excluded_only_gate": false,
+    "mandatory_in_default_ci": true
+  }
+}
