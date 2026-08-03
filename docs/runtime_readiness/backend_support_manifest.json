@@ -1,0 +1,3502 @@
+{
+  "schema": "BackendSupportManifest@1",
+  "schema_version": "ipfs_kit_py.runtime_readiness.backend_support_manifest@1",
+  "task_id": "KITA-042",
+  "title": "Joined backend support matrix and all-interface certification",
+  "contract_version": 1,
+  "generated_for_program": "ipfs-kit-runtime-readiness-v1",
+  "interfaces": [
+    "BackendSupportManifest@1",
+    "BackendCertificationReceipt@1"
+  ],
+  "authority": {
+    "statement": "BackendSpec@1 (ipfs_kit_py.backends.spec) is the inventory authority. This joined matrix projects every registry and documented name exactly once with canonical name, aliases, schema, factory, capabilities, tier, limitations, evidence CIDs and freshness. Live storage selection requires current external/service evidence and a repository-owned canonical factory. Stale or missing external evidence demotes or blocks rather than silently passing. Routing never selects unsupported capabilities or hidden fallbacks. Python/CLI/MCP/MCP++ surfaces project the same advertised operations under AllInterfaceParityPolicy@1.",
+    "inventory_module": "ipfs_kit_py.backends.spec",
+    "registry_module": "ipfs_kit_py.backend_registry",
+    "schemas_module": "ipfs_kit_py.backend_schemas",
+    "provider_classification": "ipfs_kit_py.backends.provider_adapters",
+    "interface_manifest": "docs/runtime_readiness/interface_manifest.json",
+    "external_receipt_authority": "docs/runtime_readiness/backend_external_receipts",
+    "service_receipt_authority": "docs/runtime_readiness/backend_service_receipts"
+  },
+  "policy": {
+    "id": "BackendSupportMatrixPolicy@1",
+    "presence_is_not_support": true,
+    "correctness_from_presence": false,
+    "stale_or_missing_external_evidence": "demote_or_block",
+    "hidden_fallback_forbidden": true,
+    "routing_must_respect_capabilities": true,
+    "support_tiers": [
+      "production",
+      "conditional",
+      "configuration-only",
+      "experimental",
+      "unsupported",
+      "unknown-pending-proof"
+    ],
+    "production_requires": [
+      "live_conformance_receipt",
+      "complete_required_operations",
+      "current_tree_evidence",
+      "current_external_or_service_receipt",
+      "canonical_runtime_factory",
+      "no_open_p0_defect_on_required_path"
+    ],
+    "demotion_rules": [
+      {
+        "when": "inventory_tier is production or conditional with storage capability",
+        "and": "external receipt missing, expired, malformed, or credential-bearing",
+        "then": "block storage selection; never silent pass; live_tier cannot stay production"
+      },
+      {
+        "when": "receipt current but canonical factory unregistered",
+        "then": "availability=canonical-adapter-missing; storage blocked"
+      },
+      {
+        "when": "inventory is configuration-only or unsupported",
+        "then": "receipts cannot promote storage; reject with typed error before effects"
+      },
+      {
+        "when": "service unreachable during certification",
+        "then": "issue blocked receipt; no local/mock fallback"
+      }
+    ],
+    "forbidden_inferences": [
+      "registry_presence_implies_support",
+      "schema_form_implies_runtime",
+      "hermetic_fixture_implies_live_provider",
+      "installed_sdk_implies_canonical_adapter",
+      "mcp_client_implies_storage_backend",
+      "missing_evidence_implies_pass"
+    ]
+  },
+  "subsystem_joins": {
+    "description": "Backend matrix certification is joined with current subsystem receipts. This task does not re-prove those suites; it requires their artifacts to be present and records content-bound CIDs where files exist.",
+    "dependencies": [
+      "KITA-013",
+      "KITA-017",
+      "KITA-021",
+      "KITA-025",
+      "KITA-029",
+      "KITA-033",
+      "KITA-037",
+      "KITA-040",
+      "KITA-041"
+    ],
+    "evidence": {
+      "interfaces": {
+        "path": "docs/runtime_readiness/interface_manifest.json",
+        "evidence_cids": [
+          "bafkreiabyiflhfavqvd227kcf4ep36yyk57pvssowvrxu4tqxzwpt5ht6q"
+        ],
+        "freshness": "current-tree-artifact",
+        "status": "joined",
+        "bytes_sha256": "c04134b7fe457253abf267bed50708aec3c12acce7fb5757e7a9180a62144a35"
+      },
+      "auth_mcplusplus": {
+        "path": "docs/runtime_readiness/mcplusplus_conformance.json",
+        "evidence_cids": [
+          "bafkreiaz7tixetqwzqdpz77kvynnqc6tgcqwcurme2nu2k6mdg2w3skbry"
+        ],
+        "freshness": "current-tree-artifact",
+        "status": "joined",
+        "bytes_sha256": "4579ec15112c2a93e0b9d5b4359efe48173ef53db4e924681aaf19ae7ad7fa44"
+      },
+      "wal": {
+        "path": null,
+        "evidence_cids": [],
+        "freshness": "joined-by-dependency-task",
+        "status": "referenced"
+      },
+      "replication": {
+        "path": "docs/runtime_readiness/replica_conformance.json",
+        "evidence_cids": [
+          "bafkreigfuxblflzhx3apqk672kyzzu6iqhtypaqmomu4k4dtofaazcrcxq"
+        ],
+        "freshness": "current-tree-artifact",
+        "status": "joined",
+        "bytes_sha256": "8e904ddf93af23621c9bac7b62de82f27713454737b30463ff56ac61e5941e8e"
+      },
+      "graphrag": {
+        "path": "docs/runtime_readiness/graphrag_conformance.json",
+        "evidence_cids": [
+          "bafkreiagc5qryxx2r36amgeopysnd7yejsbkezsmdohfq53ogx65hm6tfe"
+        ],
+        "freshness": "current-tree-artifact",
+        "status": "joined",
+        "bytes_sha256": "5b4f59c07a22454bdb649d5e5242182bd50d44605fad6b07f9b34104e22ee3c8"
+      },
+      "arc": {
+        "path": "docs/runtime_readiness/arc_conformance.json",
+        "evidence_cids": [
+          "bafkreid5kc2oqzya6ffqclq7p7duk77q4pwafezuvq7tpzhm63g4udpp5y"
+        ],
+        "freshness": "current-tree-artifact",
+        "status": "joined",
+        "bytes_sha256": "b33b0b1f157800dd4c8bbe370c744ceac631e98ae5ab5426424ac17abe0c3e20"
+      },
+      "vfs": {
+        "path": "docs/runtime_readiness/vfs_conformance.json",
+        "evidence_cids": [
+          "bafkreifs3h73e77axtqbqdzlijyrysrib6kbgpd46spu4frdqvlk3kj3si"
+        ],
+        "freshness": "current-tree-artifact",
+        "status": "joined",
+        "bytes_sha256": "ecbbde76434367ee899f0202b9bddbfc9c5b7e05e5d10019bdb7f334450d24c0"
+      },
+      "buckets": {
+        "path": "docs/runtime_readiness/bucket_conformance.json",
+        "evidence_cids": [
+          "bafkreiflkg2g77v5syyvrxeustuq7e4cyqjxqb62wcr6dnvbpfxj4awwu4"
+        ],
+        "freshness": "current-tree-artifact",
+        "status": "joined",
+        "bytes_sha256": "d74758cba9a5055b64e72b26a080077966386f632413e994c69bc0fab353173f"
+      }
+    },
+    "evidence_subset": [
+      "all_registry_types_aliases",
+      "operations",
+      "live_tier",
+      "receipt_freshness",
+      "interfaces",
+      "auth",
+      "wal",
+      "replication",
+      "graphrag",
+      "arc"
+    ]
+  },
+  "interface_certification": {
+    "id": "BackendAllInterfaceCertification@1",
+    "transports": [
+      "python",
+      "cli",
+      "mcp",
+      "mcpp"
+    ],
+    "parity_policy": "AllInterfaceParityPolicy@1",
+    "authority": "docs/runtime_readiness/interface_manifest.json",
+    "suite": "tests/runtime_readiness/backends/test_joined_backend_matrix.py",
+    "rules": [
+      "Advertised operations on configuration-only entries are configuration and health only.",
+      "Storage operations may be advertised only when the inventory declares storage capability.",
+      "Invoking storage on non-runtime-ready backends yields typed rejection on every transport.",
+      "Semantic payloads match across Python/CLI/MCP/MCP++ after transport-only field strip.",
+      "Authorization, durability, and integrity meanings are preserved across transports."
+    ],
+    "strip_before_compare": [
+      "request_id",
+      "related_request_id",
+      "timing",
+      "elapsed_ms",
+      "duration_ms",
+      "started_at_ms",
+      "finished_at_ms",
+      "timestamp",
+      "wall_time_ms",
+      "transport",
+      "framing",
+      "jsonrpc",
+      "id",
+      "content_id",
+      "http_status",
+      "protocol_id",
+      "stream_id"
+    ]
+  },
+  "evidence_authority": {
+    "external_receipts": {
+      "path": "docs/runtime_readiness/backend_external_receipts",
+      "index": "docs/runtime_readiness/backend_external_receipts/index.json",
+      "schema": "docs/runtime_readiness/backend_external_receipts/receipt.schema.json",
+      "active_receipts": 0,
+      "index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+      "freshness": "empty-authority-current",
+      "note": "Empty active receipt set is explicit; it is not production evidence."
+    },
+    "service_receipts": {
+      "path": "docs/runtime_readiness/backend_service_receipts",
+      "mcp_default_manager": {
+        "path": "docs/runtime_readiness/backend_service_receipts/mcp_default_manager_status.json",
+        "status": "blocked",
+        "evidence_cid": "bafkreibsxswhkrf3cydetszd3l4sf5b7nucywzfys26htufulavi4qr5ni"
+      }
+    },
+    "observation_time_utc": "2026-08-03T12:00:00Z"
+  },
+  "backends": [
+    {
+      "canonical_name": "arrow",
+      "aliases": [],
+      "names": [
+        "arrow"
+      ],
+      "schema": {
+        "type": "arrow",
+        "name": "Arrow",
+        "available": false,
+        "support_tier": "unsupported",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-available",
+        "secret_fields": [],
+        "runtime_factory": null,
+        "excluded_reason": "A dashboard schema existed, but no backend plugin or runtime factory is registered.",
+        "fields": {
+          "memory_pool": {
+            "type": "select",
+            "choices": [
+              "system",
+              "jemalloc"
+            ],
+            "default": "system"
+          },
+          "thread_count": {
+            "type": "number",
+            "required": false
+          }
+        }
+      },
+      "factory": null,
+      "capabilities": [],
+      "tier": "unsupported",
+      "live_tier": "unsupported",
+      "limitations": [
+        "A dashboard schema existed, but no backend plugin or runtime factory is registered.",
+        "No backend plugin or runtime factory is registered.",
+        "All storage operations reject as typed unsupported before side effects.",
+        "Routing must never select this type for storage."
+      ],
+      "disposition": "unsupported",
+      "availability": "unsupported",
+      "operations": {
+        "advertised": [],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [],
+        "freshness": "not-applicable",
+        "status": "excluded",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "arrow"
+        ],
+        "mcp_names": [
+          "arrow"
+        ],
+        "documentation_names": [
+          "arrow"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "unsupported",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-arrow",
+        "provider_type": "arrow",
+        "inventory_tier": "unsupported",
+        "live_tier": "unsupported",
+        "disposition": "unsupported",
+        "availability": "unsupported",
+        "storage_selectable": false,
+        "evidence_freshness": "not-applicable",
+        "evidence_status": "excluded",
+        "evidence_cids": [],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "cluster",
+      "aliases": [],
+      "names": [
+        "cluster"
+      ],
+      "schema": {
+        "type": "cluster",
+        "name": "Cluster",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {}
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "cluster"
+        ],
+        "mcp_names": [
+          "cluster"
+        ],
+        "documentation_names": [
+          "cluster"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-cluster",
+        "provider_type": "cluster",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "digitalocean",
+      "aliases": [
+        "digital-ocean"
+      ],
+      "names": [
+        "digitalocean",
+        "digital-ocean"
+      ],
+      "schema": {
+        "type": "digitalocean",
+        "name": "DigitalOcean",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [
+          "token"
+        ],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {
+          "token": {
+            "type": "password",
+            "required": true
+          }
+        }
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": {
+        "family": "s3-compatible",
+        "adapter": "ipfs_kit_py.backends.s3_backend.S3BackendAdapter",
+        "aliases_share_impl": [
+          "s3",
+          "minio"
+        ],
+        "status": "service-gated",
+        "evidence_cids": [],
+        "note": "Pinned-service certification requires a live reachable service; unavailability issues a blocked receipt with no local fallback."
+      },
+      "interface_certification": {
+        "cli_names": [
+          "digitalocean",
+          "digital-ocean"
+        ],
+        "mcp_names": [
+          "digitalocean",
+          "digital-ocean"
+        ],
+        "documentation_names": [
+          "digitalocean",
+          "digital-ocean"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-digitalocean",
+        "provider_type": "digitalocean",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "estuary",
+      "aliases": [],
+      "names": [
+        "estuary"
+      ],
+      "schema": {
+        "type": "estuary",
+        "name": "Estuary",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [
+          "api_key",
+          "token"
+        ],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {
+          "api_key": {
+            "type": "password",
+            "required": true
+          }
+        }
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "estuary"
+        ],
+        "mcp_names": [
+          "estuary"
+        ],
+        "documentation_names": [
+          "estuary"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-estuary",
+        "provider_type": "estuary",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "filecoin",
+      "aliases": [],
+      "names": [
+        "filecoin"
+      ],
+      "schema": {
+        "type": "filecoin",
+        "name": "Filecoin",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {
+          "lotus_rpc_url": {
+            "type": "text",
+            "required": true
+          },
+          "lotus_token": {
+            "type": "password",
+            "required": true
+          }
+        }
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "filecoin"
+        ],
+        "mcp_names": [
+          "filecoin"
+        ],
+        "documentation_names": [
+          "filecoin"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-filecoin",
+        "provider_type": "filecoin",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "filecoin_pin",
+      "aliases": [
+        "filecoin-pin"
+      ],
+      "names": [
+        "filecoin_pin",
+        "filecoin-pin"
+      ],
+      "schema": {
+        "type": "filecoin_pin",
+        "name": "Filecoin Pin",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [
+          "api_key",
+          "token"
+        ],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {}
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "filecoin_pin",
+          "filecoin-pin"
+        ],
+        "mcp_names": [
+          "filecoin_pin",
+          "filecoin-pin"
+        ],
+        "documentation_names": [
+          "filecoin_pin",
+          "filecoin-pin"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-filecoin_pin",
+        "provider_type": "filecoin_pin",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "filesystem",
+      "aliases": [],
+      "names": [
+        "filesystem"
+      ],
+      "schema": {
+        "type": "filesystem",
+        "name": "Filesystem",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {}
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": {
+        "adapter": "ipfs_kit_py.backends.filesystem_backend.HermeticFilesystemAdapter",
+        "scope": "local-hermetic-reference-only",
+        "suite": "tests/runtime_readiness/backends/test_hermetic_adapters.py",
+        "live_provider": false
+      },
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "filesystem"
+        ],
+        "mcp_names": [
+          "filesystem"
+        ],
+        "documentation_names": [
+          "filesystem"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-filesystem",
+        "provider_type": "filesystem",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "ftp",
+      "aliases": [],
+      "names": [
+        "ftp"
+      ],
+      "schema": {
+        "type": "ftp",
+        "name": "FTP",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [
+          "password"
+        ],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {
+          "host": {
+            "type": "text",
+            "required": true
+          },
+          "username": {
+            "type": "text",
+            "required": true
+          },
+          "password": {
+            "type": "password",
+            "required": true
+          },
+          "port": {
+            "type": "number",
+            "default": 21
+          },
+          "use_tls": {
+            "type": "checkbox",
+            "default": false
+          },
+          "passive": {
+            "type": "checkbox",
+            "default": true
+          },
+          "remote_path": {
+            "type": "text",
+            "default": "/"
+          }
+        }
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "ftp"
+        ],
+        "mcp_names": [
+          "ftp"
+        ],
+        "documentation_names": [
+          "ftp"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-ftp",
+        "provider_type": "ftp",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "gdrive",
+      "aliases": [
+        "g-drive",
+        "google-drive",
+        "google_drive"
+      ],
+      "names": [
+        "gdrive",
+        "g-drive",
+        "google-drive",
+        "google_drive"
+      ],
+      "schema": {
+        "type": "gdrive",
+        "name": "Google Drive",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [
+          "token"
+        ],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {
+          "credentials_path": {
+            "type": "text",
+            "required": true
+          },
+          "default_folder_id": {
+            "type": "text",
+            "required": false
+          }
+        }
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "gdrive",
+          "g-drive",
+          "google-drive",
+          "google_drive"
+        ],
+        "mcp_names": [
+          "gdrive",
+          "g-drive",
+          "google-drive",
+          "google_drive"
+        ],
+        "documentation_names": [
+          "gdrive",
+          "g-drive",
+          "google-drive",
+          "google_drive"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-gdrive",
+        "provider_type": "gdrive",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "github",
+      "aliases": [],
+      "names": [
+        "github"
+      ],
+      "schema": {
+        "type": "github",
+        "name": "GitHub",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [
+          "token"
+        ],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {
+          "token": {
+            "type": "password",
+            "required": true
+          },
+          "default_org": {
+            "type": "text",
+            "required": false
+          },
+          "default_repo": {
+            "type": "text",
+            "required": false
+          }
+        }
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "github"
+        ],
+        "mcp_names": [
+          "github"
+        ],
+        "documentation_names": [
+          "github"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-github",
+        "provider_type": "github",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "huggingface",
+      "aliases": [
+        "hugging-face"
+      ],
+      "names": [
+        "huggingface",
+        "hugging-face"
+      ],
+      "schema": {
+        "type": "huggingface",
+        "name": "HuggingFace",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [
+          "token"
+        ],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {
+          "token": {
+            "type": "password",
+            "required": true
+          },
+          "default_org": {
+            "type": "text",
+            "required": false
+          },
+          "cache_dir": {
+            "type": "text",
+            "required": false
+          }
+        }
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "huggingface",
+          "hugging-face"
+        ],
+        "mcp_names": [
+          "huggingface",
+          "hugging-face"
+        ],
+        "documentation_names": [
+          "huggingface",
+          "hugging-face"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-huggingface",
+        "provider_type": "huggingface",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "ipfs",
+      "aliases": [],
+      "names": [
+        "ipfs"
+      ],
+      "schema": {
+        "type": "ipfs",
+        "name": "IPFS",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {
+          "api_endpoint": {
+            "type": "text",
+            "required": true,
+            "default": "/ip4/127.0.0.1/tcp/5001"
+          }
+        }
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": {
+        "adapter": "ipfs_kit_py.backends.ipfs_backend.HermeticIPFSFixtureAdapter",
+        "scope": "fixture-only; not live IPFS provider certification",
+        "suite": "tests/runtime_readiness/backends/test_hermetic_adapters.py",
+        "live_provider": false
+      },
+      "service_certification": {
+        "family": "kubo-ipfs",
+        "adapter": "ipfs_kit_py.backends.ipfs_backend.IPFSBackendAdapter",
+        "aliases_share_impl": [],
+        "status": "blocked",
+        "evidence_cids": [
+          "bafkreibsxswhkrf3cydetszd3l4sf5b7nucywzfys26htufulavi4qr5ni"
+        ],
+        "note": "Pinned-service certification requires a live reachable service; unavailability issues a blocked receipt with no local fallback.",
+        "mcp_default_manager": {
+          "status": "blocked",
+          "reason": "IPFS registration constructs the MCP-local IPFSBackend with an incompatible positional backend type; repair requires edits outside KITA-040's declared adapter paths.",
+          "evidence_cid": "bafkreibsxswhkrf3cydetszd3l4sf5b7nucywzfys26htufulavi4qr5ni"
+        }
+      },
+      "interface_certification": {
+        "cli_names": [
+          "ipfs"
+        ],
+        "mcp_names": [
+          "ipfs"
+        ],
+        "documentation_names": [
+          "ipfs"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-ipfs",
+        "provider_type": "ipfs",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "ipfs_cluster",
+      "aliases": [
+        "ipfs-cluster"
+      ],
+      "names": [
+        "ipfs_cluster",
+        "ipfs-cluster"
+      ],
+      "schema": {
+        "type": "ipfs_cluster",
+        "name": "IPFS Cluster",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {
+          "endpoint": {
+            "type": "text",
+            "required": true
+          },
+          "username": {
+            "type": "text",
+            "required": false
+          },
+          "password": {
+            "type": "password",
+            "required": false
+          }
+        }
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "ipfs_cluster",
+          "ipfs-cluster"
+        ],
+        "mcp_names": [
+          "ipfs_cluster",
+          "ipfs-cluster"
+        ],
+        "documentation_names": [
+          "ipfs_cluster",
+          "ipfs-cluster"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-ipfs_cluster",
+        "provider_type": "ipfs_cluster",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "ipfs_cluster_follow",
+      "aliases": [
+        "ipfs-cluster-follow"
+      ],
+      "names": [
+        "ipfs_cluster_follow",
+        "ipfs-cluster-follow"
+      ],
+      "schema": {
+        "type": "ipfs_cluster_follow",
+        "name": "IPFS Cluster Follow",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {
+          "name": {
+            "type": "text",
+            "required": true
+          },
+          "template": {
+            "type": "text",
+            "required": false
+          },
+          "trusted_peers": {
+            "type": "text",
+            "required": false
+          }
+        }
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "ipfs_cluster_follow",
+          "ipfs-cluster-follow"
+        ],
+        "mcp_names": [
+          "ipfs_cluster_follow",
+          "ipfs-cluster-follow"
+        ],
+        "documentation_names": [
+          "ipfs_cluster_follow",
+          "ipfs-cluster-follow"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-ipfs_cluster_follow",
+        "provider_type": "ipfs_cluster_follow",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "iroh",
+      "aliases": [],
+      "names": [
+        "iroh"
+      ],
+      "schema": {
+        "type": "iroh",
+        "name": "Iroh",
+        "available": true,
+        "support_tier": "conditional",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "structured",
+        "secret_fields": [
+          "token"
+        ],
+        "runtime_factory": "create_filesystem",
+        "excluded_reason": null,
+        "fields": {}
+      },
+      "factory": "create_filesystem",
+      "capabilities": [
+        "configuration",
+        "health",
+        "runtime_factory",
+        "storage"
+      ],
+      "tier": "conditional",
+      "live_tier": "conditional",
+      "limitations": [
+        "Runtime factory and storage are declared but require a current external provider receipt.",
+        "Missing or stale external evidence demotes storage selection to blocked.",
+        "No hidden local/mock fallback when evidence is absent."
+      ],
+      "disposition": "conditional-receipt-required",
+      "availability": "receipt-required",
+      "operations": {
+        "advertised": [
+          "health",
+          "put",
+          "get",
+          "stream",
+          "read_range",
+          "list",
+          "get_metadata",
+          "set_metadata",
+          "delete"
+        ],
+        "storage_advertised": true,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "missing",
+        "status": "blocked",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": "receipt_required"
+      },
+      "hermetic_reference": null,
+      "service_certification": {
+        "family": "iroh",
+        "adapter": "ipfs_kit_py.iroh.backend.IrohBackendPlugin",
+        "aliases_share_impl": [],
+        "status": "service-gated",
+        "evidence_cids": [],
+        "note": "Pinned-service certification requires a live reachable service; unavailability issues a blocked receipt with no local fallback."
+      },
+      "interface_certification": {
+        "cli_names": [
+          "iroh"
+        ],
+        "mcp_names": [
+          "iroh"
+        ],
+        "documentation_names": [
+          "iroh"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "health",
+          "put",
+          "get",
+          "stream",
+          "read_range",
+          "list",
+          "get_metadata",
+          "set_metadata",
+          "delete"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "receipt-gated; mutating ops require idempotency keys; no silent partial success",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "content CID verification on read; integrity failure is typed and non-promoting"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_CAPABILITY_MISSING",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-iroh",
+        "provider_type": "iroh",
+        "inventory_tier": "conditional",
+        "live_tier": "conditional",
+        "disposition": "conditional-receipt-required",
+        "availability": "receipt-required",
+        "storage_selectable": false,
+        "evidence_freshness": "missing",
+        "evidence_status": "blocked",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": "receipt_required",
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "lassie",
+      "aliases": [],
+      "names": [
+        "lassie"
+      ],
+      "schema": {
+        "type": "lassie",
+        "name": "Lassie",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {}
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "lassie"
+        ],
+        "mcp_names": [
+          "lassie"
+        ],
+        "documentation_names": [
+          "lassie"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-lassie",
+        "provider_type": "lassie",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "local",
+      "aliases": [],
+      "names": [
+        "local"
+      ],
+      "schema": {
+        "type": "local",
+        "name": "Local",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {}
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "local"
+        ],
+        "mcp_names": [
+          "local"
+        ],
+        "documentation_names": [
+          "local"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-local",
+        "provider_type": "local",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "local_fs",
+      "aliases": [
+        "local-fs"
+      ],
+      "names": [
+        "local_fs",
+        "local-fs"
+      ],
+      "schema": {
+        "type": "local_fs",
+        "name": "Local Filesystem",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {}
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "local_fs",
+          "local-fs"
+        ],
+        "mcp_names": [
+          "local_fs",
+          "local-fs"
+        ],
+        "documentation_names": [
+          "local_fs",
+          "local-fs"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-local_fs",
+        "provider_type": "local_fs",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "local_storage",
+      "aliases": [
+        "local-storage"
+      ],
+      "names": [
+        "local_storage",
+        "local-storage"
+      ],
+      "schema": {
+        "type": "local_storage",
+        "name": "Local Storage",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {}
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "local_storage",
+          "local-storage"
+        ],
+        "mcp_names": [
+          "local_storage",
+          "local-storage"
+        ],
+        "documentation_names": [
+          "local_storage",
+          "local-storage"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-local_storage",
+        "provider_type": "local_storage",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "lotus",
+      "aliases": [],
+      "names": [
+        "lotus"
+      ],
+      "schema": {
+        "type": "lotus",
+        "name": "Lotus",
+        "available": false,
+        "support_tier": "unsupported",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-available",
+        "secret_fields": [],
+        "runtime_factory": null,
+        "excluded_reason": "A dashboard schema existed, but no backend plugin or runtime factory is registered.",
+        "fields": {
+          "endpoint": {
+            "type": "text",
+            "required": true
+          },
+          "token": {
+            "type": "password",
+            "required": true
+          }
+        }
+      },
+      "factory": null,
+      "capabilities": [],
+      "tier": "unsupported",
+      "live_tier": "unsupported",
+      "limitations": [
+        "A dashboard schema existed, but no backend plugin or runtime factory is registered.",
+        "No backend plugin or runtime factory is registered.",
+        "All storage operations reject as typed unsupported before side effects.",
+        "Routing must never select this type for storage."
+      ],
+      "disposition": "unsupported",
+      "availability": "unsupported",
+      "operations": {
+        "advertised": [],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [],
+        "freshness": "not-applicable",
+        "status": "excluded",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "lotus"
+        ],
+        "mcp_names": [
+          "lotus"
+        ],
+        "documentation_names": [
+          "lotus"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "unsupported",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-lotus",
+        "provider_type": "lotus",
+        "inventory_tier": "unsupported",
+        "live_tier": "unsupported",
+        "disposition": "unsupported",
+        "availability": "unsupported",
+        "storage_selectable": false,
+        "evidence_freshness": "not-applicable",
+        "evidence_status": "excluded",
+        "evidence_cids": [],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "minio",
+      "aliases": [],
+      "names": [
+        "minio"
+      ],
+      "schema": {
+        "type": "minio",
+        "name": "MinIO",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [
+          "access_key",
+          "secret_key"
+        ],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {
+          "endpoint": {
+            "type": "text",
+            "required": true
+          },
+          "access_key": {
+            "type": "password",
+            "required": true
+          },
+          "secret_key": {
+            "type": "password",
+            "required": true
+          }
+        }
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": {
+        "family": "s3-compatible",
+        "adapter": "ipfs_kit_py.backends.s3_backend.S3BackendAdapter",
+        "aliases_share_impl": [
+          "s3",
+          "digitalocean"
+        ],
+        "status": "service-gated",
+        "evidence_cids": [],
+        "note": "Pinned-service certification requires a live reachable service; unavailability issues a blocked receipt with no local fallback."
+      },
+      "interface_certification": {
+        "cli_names": [
+          "minio"
+        ],
+        "mcp_names": [
+          "minio"
+        ],
+        "documentation_names": [
+          "minio"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-minio",
+        "provider_type": "minio",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "parquet",
+      "aliases": [],
+      "names": [
+        "parquet"
+      ],
+      "schema": {
+        "type": "parquet",
+        "name": "Parquet",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {
+          "storage_path": {
+            "type": "text",
+            "required": true
+          },
+          "compression": {
+            "type": "select",
+            "choices": [
+              "snappy",
+              "gzip",
+              "brotli",
+              "lz4"
+            ],
+            "default": "snappy"
+          },
+          "batch_size": {
+            "type": "number",
+            "default": 10000
+          }
+        }
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "parquet"
+        ],
+        "mcp_names": [
+          "parquet"
+        ],
+        "documentation_names": [
+          "parquet"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-parquet",
+        "provider_type": "parquet",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "s3",
+      "aliases": [],
+      "names": [
+        "s3"
+      ],
+      "schema": {
+        "type": "s3",
+        "name": "S3",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [
+          "access_key",
+          "secret_key",
+          "session_token"
+        ],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {
+          "access_key": {
+            "type": "password",
+            "required": true
+          },
+          "secret_key": {
+            "type": "password",
+            "required": true
+          },
+          "region": {
+            "type": "text",
+            "required": true
+          },
+          "endpoint": {
+            "type": "text",
+            "required": false
+          }
+        }
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": {
+        "family": "s3-compatible",
+        "adapter": "ipfs_kit_py.backends.s3_backend.S3BackendAdapter",
+        "aliases_share_impl": [
+          "minio",
+          "digitalocean"
+        ],
+        "status": "service-gated",
+        "evidence_cids": [],
+        "note": "Pinned-service certification requires a live reachable service; unavailability issues a blocked receipt with no local fallback."
+      },
+      "interface_certification": {
+        "cli_names": [
+          "s3"
+        ],
+        "mcp_names": [
+          "s3"
+        ],
+        "documentation_names": [
+          "s3"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-s3",
+        "provider_type": "s3",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "saturn",
+      "aliases": [],
+      "names": [
+        "saturn"
+      ],
+      "schema": {
+        "type": "saturn",
+        "name": "Saturn",
+        "available": false,
+        "support_tier": "unsupported",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-available",
+        "secret_fields": [],
+        "runtime_factory": null,
+        "excluded_reason": "No implementation is integrated with the backend registry.",
+        "fields": {}
+      },
+      "factory": null,
+      "capabilities": [],
+      "tier": "unsupported",
+      "live_tier": "unsupported",
+      "limitations": [
+        "No implementation is integrated with the backend registry.",
+        "No backend plugin or runtime factory is registered.",
+        "All storage operations reject as typed unsupported before side effects.",
+        "Routing must never select this type for storage."
+      ],
+      "disposition": "unsupported",
+      "availability": "unsupported",
+      "operations": {
+        "advertised": [],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [],
+        "freshness": "not-applicable",
+        "status": "excluded",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "saturn"
+        ],
+        "mcp_names": [
+          "saturn"
+        ],
+        "documentation_names": [
+          "saturn"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "unsupported",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-saturn",
+        "provider_type": "saturn",
+        "inventory_tier": "unsupported",
+        "live_tier": "unsupported",
+        "disposition": "unsupported",
+        "availability": "unsupported",
+        "storage_selectable": false,
+        "evidence_freshness": "not-applicable",
+        "evidence_status": "excluded",
+        "evidence_cids": [],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "sshfs",
+      "aliases": [],
+      "names": [
+        "sshfs"
+      ],
+      "schema": {
+        "type": "sshfs",
+        "name": "SSHFS",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [
+          "password",
+          "private_key"
+        ],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {
+          "hostname": {
+            "type": "text",
+            "required": true
+          },
+          "username": {
+            "type": "text",
+            "required": true
+          },
+          "port": {
+            "type": "number",
+            "default": 22
+          },
+          "password": {
+            "type": "password",
+            "required": false
+          },
+          "private_key": {
+            "type": "text",
+            "required": false
+          },
+          "remote_path": {
+            "type": "text",
+            "default": "/tmp/ipfs_kit"
+          }
+        }
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "sshfs"
+        ],
+        "mcp_names": [
+          "sshfs"
+        ],
+        "documentation_names": [
+          "sshfs"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-sshfs",
+        "provider_type": "sshfs",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "storacha",
+      "aliases": [],
+      "names": [
+        "storacha"
+      ],
+      "schema": {
+        "type": "storacha",
+        "name": "Storacha",
+        "available": true,
+        "support_tier": "configuration-only",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-probed",
+        "secret_fields": [
+          "token",
+          "private_key"
+        ],
+        "runtime_factory": null,
+        "excluded_reason": null,
+        "fields": {
+          "api_key": {
+            "type": "password",
+            "required": true
+          },
+          "endpoint": {
+            "type": "text",
+            "required": false
+          }
+        }
+      },
+      "factory": null,
+      "capabilities": [
+        "configuration",
+        "health"
+      ],
+      "tier": "configuration-only",
+      "live_tier": "configuration-only",
+      "limitations": [
+        "Validated configuration and health discovery only.",
+        "No declared runtime factory or storage capability.",
+        "Provider receipts cannot promote this entry to storage.",
+        "Credentials must use authorized secret references only."
+      ],
+      "disposition": "configuration-only",
+      "availability": "configuration-only",
+      "operations": {
+        "advertised": [
+          "configuration",
+          "health"
+        ],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "freshness": "not-required-for-configuration-only",
+        "status": "configuration-only",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "storacha"
+        ],
+        "mcp_names": [
+          "storacha"
+        ],
+        "documentation_names": [
+          "storacha"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [
+          "configuration",
+          "health"
+        ],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "configuration-only",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-storacha",
+        "provider_type": "storacha",
+        "inventory_tier": "configuration-only",
+        "live_tier": "configuration-only",
+        "disposition": "configuration-only",
+        "availability": "configuration-only",
+        "storage_selectable": false,
+        "evidence_freshness": "not-required-for-configuration-only",
+        "evidence_status": "configuration-only",
+        "evidence_cids": [
+          "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda"
+        ],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    },
+    {
+      "canonical_name": "synapse",
+      "aliases": [],
+      "names": [
+        "synapse"
+      ],
+      "schema": {
+        "type": "synapse",
+        "name": "Synapse",
+        "available": false,
+        "support_tier": "unsupported",
+        "support_tier_source": "explicit-backend-spec",
+        "health_contract": "not-available",
+        "secret_fields": [],
+        "runtime_factory": null,
+        "excluded_reason": "No implementation is integrated with the backend registry.",
+        "fields": {}
+      },
+      "factory": null,
+      "capabilities": [],
+      "tier": "unsupported",
+      "live_tier": "unsupported",
+      "limitations": [
+        "No implementation is integrated with the backend registry.",
+        "No backend plugin or runtime factory is registered.",
+        "All storage operations reject as typed unsupported before side effects.",
+        "Routing must never select this type for storage."
+      ],
+      "disposition": "unsupported",
+      "availability": "unsupported",
+      "operations": {
+        "advertised": [],
+        "storage_advertised": false,
+        "undeclared_reject_before_effects": true
+      },
+      "evidence": {
+        "cids": [],
+        "freshness": "not-applicable",
+        "status": "excluded",
+        "external_receipt_index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+        "demotion_reason": null
+      },
+      "hermetic_reference": null,
+      "service_certification": null,
+      "interface_certification": {
+        "cli_names": [
+          "synapse"
+        ],
+        "mcp_names": [
+          "synapse"
+        ],
+        "documentation_names": [
+          "synapse"
+        ],
+        "transports": [
+          "python",
+          "cli",
+          "mcp",
+          "mcpp"
+        ],
+        "parity_policy": "AllInterfaceParityPolicy@1",
+        "advertised_operations": [],
+        "parity_required_for_advertised": true,
+        "storage_ops_require_runtime_ready": true
+      },
+      "semantics": {
+        "durability": "unsupported",
+        "auth": "secret fields accept authorized secret references only; raw credentials rejected; secrets never appear in status, receipts, or logs",
+        "integrity": "not-applicable"
+      },
+      "routing": {
+        "storage_selectable": false,
+        "hidden_fallback": false,
+        "rejection_code": "E_UNSUPPORTED",
+        "policy": "select only runtime-ready storage with current evidence; never fallback"
+      },
+      "certification_receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "kita-042-synapse",
+        "provider_type": "synapse",
+        "inventory_tier": "unsupported",
+        "live_tier": "unsupported",
+        "disposition": "unsupported",
+        "availability": "unsupported",
+        "storage_selectable": false,
+        "evidence_freshness": "not-applicable",
+        "evidence_status": "excluded",
+        "evidence_cids": [],
+        "demotion_reason": null,
+        "issued_for_task": "KITA-042",
+        "issued_at": "2026-08-03T12:00:00Z",
+        "hidden_fallback": false
+      }
+    }
+  ],
+  "summary": {
+    "canonical_count": 27,
+    "name_spelling_count": 37,
+    "production_count": 0,
+    "live_production_count": 0,
+    "storage_selectable_count": 0,
+    "by_inventory_tier": {
+      "unsupported": 4,
+      "configuration-only": 22,
+      "conditional": 1
+    },
+    "by_live_tier": {
+      "unsupported": 4,
+      "configuration-only": 22,
+      "conditional": 1
+    },
+    "by_disposition": {
+      "unsupported": 4,
+      "configuration-only": 22,
+      "conditional-receipt-required": 1
+    },
+    "honesty": {
+      "production_backends_at_join": 0,
+      "hidden_fallback_entries": 0,
+      "silent_pass_on_missing_evidence": 0
+    }
+  },
+  "routing": {
+    "id": "BackendRoutingPolicy@1",
+    "select_storage_when": [
+      "live_tier in {production, conditional}",
+      "routing.storage_selectable is true",
+      "evidence freshness is current",
+      "disposition is runtime-ready",
+      "capability storage is declared"
+    ],
+    "never_select_when": [
+      "disposition is unsupported or configuration-only",
+      "evidence freshness is missing or stale",
+      "availability is receipt-required or canonical-adapter-missing",
+      "requested capability is not in declared capabilities"
+    ],
+    "fallback": "none",
+    "on_reject": "typed error before side effects; no alternate backend substitution"
+  },
+  "validation": {
+    "suite": "tests/runtime_readiness/backends/test_joined_backend_matrix.py",
+    "command": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/backends/test_joined_backend_matrix.py",
+    "mandatory_in_default_ci": true
+  }
+}
