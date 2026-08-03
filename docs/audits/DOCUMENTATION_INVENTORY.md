@@ -6,10 +6,10 @@
 | Goal | KDOC-G011 |
 | Track | evidence-corpus |
 | Inventory date | 2026-08-03 |
-| Tree baseline | Git commit `b506cdb09843dd76286047c229d075199fe38075` (Wave 0 worktree; inventory re-verified offline) |
+| Tree baseline | Git commit `6f67aaab2aa6cfc99bcc83ce91ce7b17a7cd3920` (Wave 0 worktree attempt 3; inventory re-verified offline) |
 | Scope | Entire `docs/` tree as present in the worktree |
 | External content | **Not fetched.** All documentation gitlinks remain uninitialized empty working trees. |
-| Method | Offline filesystem walk, `git ls-files -s` for mode-`160000` gitlinks, `.gitmodules` path/url inspection only |
+| Method | Offline filesystem walk, `find` counts, `git ls-files -s` for mode-`160000` gitlinks, local `.gitmodules` path/url inspection only |
 
 This inventory records **reproducible counts**, **top-level families**, **authority-class proposals**, **freshness risk**, **owner/disposition**, and **evidence commands**. It does **not** move, rewrite, or reclassify files in place. Competing authority remains explicit.
 
@@ -123,7 +123,7 @@ git rev-parse HEAD
 | Tree size | ~6.4M |
 | Mode-`160000` gitlinks under `docs/` | 10 |
 | Empty top-level directories | 10 |
-| Git baseline | `b506cdb09843dd76286047c229d075199fe38075` |
+| Git baseline | `6f67aaab2aa6cfc99bcc83ce91ce7b17a7cd3920` |
 
 > Counts include empty gitlink directories (0 files each), the Wave 0 `docs/audits/` evidence family, and embedded `py-ipld-*` snapshots (source + tests vendored under `docs/`). They **exclude** any content that would appear only after submodule fetch.
 
@@ -437,7 +437,7 @@ These are **planning labels** for downstream tasks, not coverage scorecard pass/
 | No external content fetched | Yes — 10 gitlinks remain empty; only local `.gitmodules` / `git ls-files` used |
 | Output path `docs/audits/DOCUMENTATION_INVENTORY.md` | This file |
 | Validation string `Authority class` present | Yes |
-| Counts re-verified against tree baseline | Yes — `b506cdb09843dd76286047c229d075199fe38075` |
+| Counts re-verified against tree baseline | Yes — `6f67aaab2aa6cfc99bcc83ce91ce7b17a7cd3920` (attempt 3 re-walk matches prior counts) |
 
 **Validation commands:**
 
