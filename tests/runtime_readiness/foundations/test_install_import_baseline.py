@@ -177,12 +177,13 @@ def test_observations_capture_version_mismatch_and_drift():
         assert obs["runtime_metadata_version_mismatch"]["observed"] is True
 
 
-def test_mcp_eager_import_static_analysis_flags_eventdag():
+def test_mcp_lazy_import_static_analysis_has_no_eventdag_reference_gap():
     eager = baseline_mod.analyze_eager_imports_from_source(PACKAGE_ROOT)
     assert eager["mcp_server_exists"] is True
     assert eager["root_init_exists"] is True
-    # Confirmed baseline blocker: EventDAGStore used without import.
-    assert eager["mcp_eventdag_unimported_reference"] is True
+    # The package root now lazily exports MCPServer. Importing MCP policy or
+    # profile modules must not execute the legacy server/EventDAG stack.
+    assert eager["mcp_eventdag_unimported_reference"] is False
     assert isinstance(eager["mcp_eager_import_lines"], list)
     assert isinstance(eager["root_eager_import_lines"], list)
 
