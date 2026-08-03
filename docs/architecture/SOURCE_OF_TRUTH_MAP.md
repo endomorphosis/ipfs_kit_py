@@ -16,10 +16,12 @@ This map is the evidence packet later architecture tasks (KDOC-010..019 and rela
 |---|---|
 | Candidate authority | Paths that currently look primary for the subsystem; not an accepted ADR |
 | Compatibility / historical | Parallel, shim, legacy, backup, or archived surfaces that must not be treated as equal defaults without qualification |
-| Focused tests | Offline-friendly or highly targeted tests under `tests/` (pytest discovery; `tests/integration` and `tests/archived_stale_tests` are excluded by `pytest.ini`) |
+| Focused tests | Offline-friendly or highly targeted tests under `tests/` and `tests/unit/` (default pytest discovery; `tests/integration` and `tests/archived_stale_tests` are excluded by `pytest.ini` `norecursedirs`) |
 | Current docs | Existing prose that discusses the subsystem (often stale; freshness is KDOC-003) |
 | Gaps | Missing evidence, docs, or cross-surface wiring visible from static inspection |
 | Unresolved | Owner decisions that must remain open until a proposed ADR or maintainer confirmation |
+
+**Pytest discovery note:** Paths under `tests/integration/` and `tests/archived_stale_tests/` are listed only as *supplementary* evidence when no default-discovery equivalent exists. Architecture guides should prefer default-discovery tests for offline validation.
 
 **Evidence commands (reproducible, offline)**
 
@@ -55,8 +57,9 @@ rg -n '__version__|version\s*=' ipfs_kit_py/__init__.py pyproject.toml setup.py
 | Primary kit façade | `ipfs_kit_py/ipfs_kit.py` |
 | High-level Python API surface | `ipfs_kit_py/high_level_api.py` (large monolithic module); package dir `ipfs_kit_py/high_level_api/` (libp2p/WebRTC helpers) |
 | Unified CLI composition | `ipfs_kit_py/unified_cli_dispatcher.py` (bucket/vfs/wal/pin/backend/journal/state/audit/daemon subcommands) |
-| Packaged CLI entry | `ipfs_kit_py/cli.py` (`sync_main`; MCP dashboard-oriented FastCLI plus dispatcher integration points) |
-| Kubo binary lifecycle (opt-in) | `ipfs_kit_py/kubo_runtime.py`, `ipfs_kit_py/install_ipfs.py`, `setup.py` auto-install gated by `IPFS_KIT_AUTO_INSTALL_BINARIES` |
+| Packaged CLI entry | `ipfs_kit_py/cli.py` (`sync_main`; script target for `ipfs-kit`). Integrates `UnifiedCLIDispatcher` for bucket/vfs/wal/pin/backend/journal/state/audit/daemon subcommands |
+| Kubo binary lifecycle (opt-in) | `ipfs_kit_py/kubo_runtime.py`, `ipfs_kit_py/install_ipfs.py`, `setup.py` auto-install gated by `IPFS_KIT_AUTO_INSTALL_BINARIES` (default off / `0` for doc validation) |
+| Service façade (state) | `ipfs_kit_py/services/state_service.py` (CLI/MCP parity surface for state operations) |
 
 ### Compatibility / historical paths
 
@@ -64,10 +67,11 @@ rg -n '__version__|version\s*=' ipfs_kit_py/__init__.py pyproject.toml setup.py
 |---|---|
 | `ipfs_kit_py/__init__.py` `__version__ = "0.2.0"` | Diverges from packaging `0.3.0` |
 | `ipfs_kit_py/cli_old.py`, `cli.py.broken`, `cli_commands.py` | Superseded or broken CLI material |
-| `ipfs_kit_py/high_level_api.py.fixed`, `.new`, `high_level_api_fixed.py`, `high_level_api_improved.py`, `high_level_api_updated.py` | Parallel drafts / backups of the high-level API |
+| `ipfs_kit_py/high_level_api.py.fixed`, `.new`, `high_level_api_fixed.py`, `high_level_api_improved.py`, `high_level_api_updated.py` | Parallel drafts / backups of the high-level API (not import targets) |
 | `ipfs_kit_py/compat.py` | Compatibility helpers |
 | Root `install_ipfs.py` / `install_lotus.py` | Thin root wrappers; package modules under `ipfs_kit_py/` are the implementation |
 | Docstring examples citing `final_mcp_server_enhanced.py` | Entry path not matching packaged `ipfs-kit-mcp` |
+| `ipfs_kit_py/mcp.py` | Minimal anyio peer/server stub class (`class MCP`); **not** the packaged MCP++ server |
 | `archive/`, `backup/` | Historical code and server variants; not runtime defaults |
 
 ### Focused tests
@@ -81,6 +85,7 @@ rg -n '__version__|version\s*=' ipfs_kit_py/__init__.py pyproject.toml setup.py
 - `tests/test_auto_install_binaries.py`
 - `tests/test_installers.py`
 - `tests/test_architecture_support.py`
+- `tests/unit/test_minimal_cli.py`, `tests/unit/test_cli_integration_phase8_10_comprehensive.py`
 
 ### Current docs
 
@@ -100,7 +105,7 @@ rg -n '__version__|version\s*=' ipfs_kit_py/__init__.py pyproject.toml setup.py
 ### Unresolved owner decisions
 
 1. **Version authority:** Is `0.3.0` (packaging) or `0.2.0` (`__init__.__version__`) the public package version string? Unresolved until release owner confirmation.
-2. **CLI composition authority:** Is `unified_cli_dispatcher.py` the sole long-term composition layer under `ipfs-kit`, or does `cli.py` FastCLI remain the primary packaged surface with partial subcommand coverage?
+2. **CLI composition authority:** Packaged entry is `cli.py:sync_main`, which already loads `UnifiedCLIDispatcher` for several subcommand families. Is the long-term model “dispatcher as sole composition layer under `cli.py`,” dual independent CLIs, or further FastCLI consolidation?
 3. **High-level API module identity:** Is the monolithic `high_level_api.py` the supported import path, with `high_level_api/` only for specialized helpers, or is a package-split migration intended?
 4. **Binary install policy narrative:** Package code is opt-in via `IPFS_KIT_AUTO_INSTALL_BINARIES`, but older docs/docstrings still imply import-time installation. Unresolved documentation default wording until KDOC-035 / lifecycle guides.
 
@@ -138,6 +143,7 @@ rg -n '__version__|version\s*=' ipfs_kit_py/__init__.py pyproject.toml setup.py
 - `tests/test_iroh_backend_manager.py`
 - `tests/test_bucket_backend_mapping.py`
 - `tests/test_coordination_storage.py`
+- `tests/unit/test_backend_adapter_comprehensive.py`, `tests/unit/test_backend_error_handling.py`, `tests/unit/test_configured_backends.py`
 
 ### Current docs
 
@@ -194,10 +200,12 @@ rg -n '__version__|version\s*=' ipfs_kit_py/__init__.py pyproject.toml setup.py
 
 ### Focused tests
 
-- VFS / buckets: `tests/test_vfs_*.py`, `tests/test_bucket_*.py`, `tests/test_unified_bucket_api.py`, `tests/test_final_vfs_bucket_integration.py`, `tests/test_mcp_vfs_*.py`
+- VFS / buckets: `tests/test_vfs_*.py`, `tests/test_bucket_*.py`, `tests/test_unified_bucket_api.py`, `tests/test_final_vfs_bucket_integration.py`, `tests/test_mcp_vfs_*.py`, `tests/unit/test_vfs_version_tracking.py`
 - Iroh filesystem: `tests/test_iroh_filesystem_contract.py`, `tests/test_iroh_fsspec_*.py`, `tests/test_iroh_vfs_integration.py`, `tests/test_iroh_blob_store.py`, `tests/test_iroh_manifest.py`
-- Metadata / pins: `tests/test_enhanced_pin_metadata.py`, `tests/test_datasets_metadata_index_contract.py`
-- CAR: `tests/test_car_and_files_tools.py`, `tests/test_car_import_to_bucket.py`, `tests/test_phase3_car_files.py`
+- Metadata / pins: `tests/test_enhanced_pin_metadata.py`, `tests/test_datasets_metadata_index_contract.py`, `tests/unit/test_pin_metadata_index.py`, `tests/unit/test_duckdb_pin_metadata.py`
+- CAR (default discovery): `tests/test_car_and_files_tools.py`, `tests/test_car_import_to_bucket.py`, `tests/test_phase3_car_files.py`
+- WAL / journal (default discovery): `tests/unit/test_filesystem_journal_comprehensive.py`, `tests/unit/test_enhanced_wal_durability.py`
+- WAL / journal (supplementary; **excluded** from default pytest by `norecursedirs`): `tests/integration/test_filesystem_journal.py`, `tests/integration/test_fs_journal_*.py`, `tests/integration/test_wal_*.py`
 - Contract hardening: `tests/test_vfs_contract_hardening.py`, `tests/test_vfs_architecture.py`
 
 ### Current docs
@@ -253,6 +261,7 @@ rg -n '__version__|version\s*=' ipfs_kit_py/__init__.py pyproject.toml setup.py
 - `tests/test_p2p_workflow.py`
 - `tests/test_coordination_storage.py`
 - `tests/test_vfs_replication.py` (replication edge with VFS)
+- `tests/unit/test_cluster_api.py`, `tests/unit/test_cluster_backends.py`, `tests/unit/test_cluster_startup.py`, `tests/unit/test_cluster_follow_enhanced.py`, `tests/unit/test_health_monitor_cluster.py`
 - Workflow CI: `.github/workflows/cluster-tests.yml` (network/service assumptions—mark carefully)
 
 ### Current docs
@@ -303,8 +312,9 @@ rg -n '__version__|version\s*=' ipfs_kit_py/__init__.py pyproject.toml setup.py
 ### Focused tests
 
 - Iroh suite: `tests/test_iroh_*.py` (backend, blob store, CLI gates, config, fsspec, install, MCP API, multinode, observability, packaging, performance, security, service, release readiness, …)
-- libp2p: `tests/test_simple_libp2p.py` (coverage thinner than Iroh)
+- libp2p: `tests/test_simple_libp2p.py` (coverage thinner than Iroh); `tests/unit/test_enhanced_libp2p.py`, `tests/unit/test_libp2p_health_api.py`
 - P2P workflow: `tests/test_p2p_workflow.py`
+- Daemon lifecycle: `tests/unit/test_daemon_manager.py`, `tests/unit/test_daemon_startup.py`, `tests/unit/test_enhanced_daemon_mgmt.py`
 - CI: `.github/workflows/iroh-ci.yml`
 
 ### Current docs
@@ -334,8 +344,9 @@ rg -n '__version__|version\s*=' ipfs_kit_py/__init__.py pyproject.toml setup.py
 
 | Concern | Paths |
 |---|---|
-| Packaged MCP++ server | `ipfs_kit_py/mcp_server/server.py` (`PROTOCOL_VERSION`, anyio/trio, stdio/HTTP/P2P) |
-| Hierarchical tool manager / single registry | `ipfs_kit_py/mcp_server/hierarchical_tool_manager.py`, `tools/` (`TOOL_GROUPS`: ipfs, iroh, pin, car, cluster, …), `tool_metadata.py` |
+| Packaged MCP++ server | `ipfs_kit_py/mcp_server/server.py` (`PROTOCOL_VERSION`, anyio/trio, stdio/HTTP/P2P); console script `ipfs-kit-mcp` |
+| Hierarchical tool manager / single registry | `ipfs_kit_py/mcp_server/hierarchical_tool_manager.py`, `mcp_server/tools/__init__.py` (`TOOL_GROUPS`), `tool_metadata.py` |
+| Measured `TOOL_GROUPS` keys (2026-08-03) | `ipfs_tools`, `pin_tools`, `dag_tools`, `mfs_tools`, `swarm_tools`, `name_tools`, `car_tools`, `cluster_tools`, `block_tools`, `bitswap_tools`, `stats_tools`, `iroh_tools` — shared by hierarchical MCP manager, tools CLI, and JS SDK generator |
 | FastMCP registrar (same registry) | `ipfs_kit_py/mcp_server/fastmcp_app.py` |
 | MCP++ profiles / coordination | `ipfs_kit_py/mcp_server/mcplusplus/` |
 | Fail-closed agent receipts | `ipfs_kit_py/mcp_server/agent_supervisor_receipts.py` |
@@ -348,8 +359,10 @@ rg -n '__version__|version\s*=' ipfs_kit_py/__init__.py pyproject.toml setup.py
 | Path | Notes |
 |---|---|
 | `ipfs_kit_py/mcp/` large legacy stack | Controllers, dashboard, servers, storage_manager, auth, HA, streaming—compatibility / prior generation |
-| Root `mcp/` shims | `bucket_vfs_mcp_tools.py`, `secrets_mcp_tools.py`, `wal_mcp_tools.py`, etc.—bridge to older server layouts |
-| Root `enhanced_mcp_server_with_daemon_mgmt.py`, `consolidated_mcp_dashboard.py` | Alternate entry scripts outside packaging scripts |
+| Root `mcp/` shims | `bucket_vfs_mcp_tools.py`, `secrets_mcp_tools.py`, `wal_mcp_tools.py`, `fs_journal_mcp_tools.py`, `pin_mcp_tools.py`, `backend_mcp_tools.py`, alternate root servers (`enhanced_mcp_server_*`, `standalone_vfs_mcp_server.py`)—bridge to older server layouts |
+| `ipfs_kit_py/mcp.py` | Stub peer protocol toy; must not be confused with `mcp_server` or `mcp/` |
+| `ipfs_kit_py/mcp_client.py`, `mcp_extensions.py`, `mcp_search.py`, … | Adjacent MCP-named modules; not the packaged entry point |
+| `ipfs_kit_py/consolidated_mcp_dashboard.py` | Alternate dashboard entry outside packaging scripts |
 | `ipfs_kit_py/mcp/dashboard_old`, `templates_old` | Explicitly old |
 | Architecture docs still centering `mcp/servers/*` shims | Pre-MCP++ narrative |
 
@@ -361,6 +374,7 @@ rg -n '__version__|version\s*=' ipfs_kit_py/__init__.py pyproject.toml setup.py
 - Receipts: `tests/test_agent_supervisor_receipts.py`
 - Iroh MCP: `tests/test_iroh_mcp_api.py`
 - UI smoke: `tests/test_mcp_ui_smoke.py`
+- Unit / comprehensive: `tests/unit/test_unified_mcp_server_comprehensive.py`, `tests/unit/test_mcp_tools_phase8_9_comprehensive.py`, `tests/unit/test_fs_journal_mcp_tools_comprehensive.py`, `tests/unit/test_fixed_mcp_server.py`
 - CI: `.github/workflows/mcp-server-ci.yml`, `final-mcp-server.yml`, `enhanced-mcp-server.yml`
 
 ### Current docs
@@ -416,6 +430,7 @@ rg -n '__version__|version\s*=' ipfs_kit_py/__init__.py pyproject.toml setup.py
 - `tests/test_service_configuration.py`, `tests/test_service_config_form_fix.py`
 - `tests/test_iroh_config.py`, `tests/test_iroh_security.py`
 - `tests/test_dashboard_config_loading.py`
+- `tests/unit/test_secure_config.py`, `tests/unit/test_config_save.py`, `tests/unit/test_role_config.py`, `tests/unit/test_aes_encryption.py`
 
 ### Current docs
 
@@ -511,6 +526,7 @@ rg -n '__version__|version\s*=' ipfs_kit_py/__init__.py pyproject.toml setup.py
 - `tests/test_daemon_*.py`, `tests/test_intelligent_daemon*.py`
 - `tests/test_comprehensive_ipfs_test.py` (heavier)
 - `tests/test_install_with_version_check.py`, `tests/test_updated_installer.py`
+- `tests/unit/test_daemon_manager.py`, `tests/unit/test_daemon_manager_complete.py`, `tests/unit/test_daemon_startup.py`, `tests/unit/test_daemon_lockfile_mgmt.py`, `tests/unit/test_ipfs_health.py`
 - Prefer unit/daemon_config tests for offline docs validation
 
 ### Current docs
@@ -667,4 +683,13 @@ Revisit this map when any of the following change:
 - Pytest discovery paths or large moves between `tests/` and archived trees
 - Generator output under `docs/api_generated/` after KDOC-046 refresh
 
-**Last verified:** 2026-08-03 (static inspection of packaging metadata, package layout, focused test names, workflows, and existing architecture/Iroh docs; no live network services; `IPFS_KIT_AUTO_INSTALL_BINARIES` unset/disabled for doc validation policy).
+**Last verified:** 2026-08-03 (static inspection of packaging metadata, package layout, `TOOL_GROUPS` keys, focused test names under `tests/` and `tests/unit/`, workflows, and existing architecture/Iroh docs; no live network services; `IPFS_KIT_AUTO_INSTALL_BINARIES=0` for doc validation policy).
+
+**Evidence refresh commands for this map**
+
+```bash
+test -s docs/architecture/SOURCE_OF_TRUTH_MAP.md && rg -q "Unresolved" docs/architecture/SOURCE_OF_TRUTH_MAP.md
+rg -n '__version__|version\s*=' ipfs_kit_py/__init__.py pyproject.toml setup.py
+rg -n 'TOOL_GROUPS|BACKEND_ENTRY_POINT_GROUP' ipfs_kit_py/mcp_server/tools/__init__.py ipfs_kit_py/backend_registry.py
+rg -n 'norecursedirs' pytest.ini
+```
