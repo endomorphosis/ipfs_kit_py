@@ -109,7 +109,16 @@ def test_tools_call_resolves_names_through_the_shared_tool_registry():
 def test_transport_entrypoints_do_not_import_fastapi_at_bootstrap():
     """The minimal MCP install can load all transport entry points unaided."""
     package_root = Path(__file__).resolve().parents[3]
-    environment = {**os.environ, "PYTHONPATH": str(package_root)}
+    # Prefer the package under test, but keep any approved site-packages roots
+    # already present in PYTHONPATH (sealed validation sets PYTHONNOUSERSITE=1
+    # and injects those roots via PYTHONPATH). Overwriting PYTHONPATH entirely
+    # drops core deps such as anyio and fails hermetic bootstrap incorrectly.
+    package_root_s = str(package_root)
+    existing = os.environ.get("PYTHONPATH", "").strip()
+    pythonpath = (
+        os.pathsep.join([package_root_s, existing]) if existing else package_root_s
+    )
+    environment = {**os.environ, "PYTHONPATH": pythonpath}
     result = subprocess.run(
         [
             sys.executable,
