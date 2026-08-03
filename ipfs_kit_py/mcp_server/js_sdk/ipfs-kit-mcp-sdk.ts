@@ -377,12 +377,34 @@ export const TOOLS = {
       "properties": {}
     },
     "description": "Report local repo statistics"
+  },
+  "iroh_diagnostics": {
+    "category": "iroh_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "instance": {
+          "type": "string",
+          "default": "default"
+        },
+        "format": {
+          "type": "string",
+          "default": "health"
+        },
+        "persist": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "description": "Return a redacted Iroh health receipt or bounded-label metrics.\n\n    Iroh diagnostics live in the optional managed-Iroh integration, which\n    pulls in the application's HTTP stack.  Keep that import at execution\n    time so constructing the core MCP server remains usable from a minimal\n    wheel without FastAPI installed."
   }
 } as const;
 
 export type ToolName = keyof typeof TOOLS;
 
 export interface RpcResult { status?: string; [k: string]: unknown; }
+export type McpPlusPlusAuthorizationEnvelope = Record<string, unknown>;
 
 /** Pluggable transport (e.g. MCP++ over libp2p). */
 export interface McpTransport {
@@ -398,6 +420,17 @@ function _unwrapToolResult(result: any): any {
     return sc;
   }
   return result;
+}
+
+function _authorizedParams(
+  name: string,
+  args: Record<string, unknown>,
+  envelope: McpPlusPlusAuthorizationEnvelope,
+): Record<string, unknown> {
+  if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) {
+    throw new Error("signed MCP++ authorization envelope required");
+  }
+  return { name, arguments: args, _mcppp_envelope: envelope };
 }
 
 export class IpfsKitMcpClient {
@@ -423,21 +456,21 @@ export class IpfsKitMcpClient {
     if (j && j.error) throw new Error(j.error.message);
     return j ? j.result : undefined;
   }
-  private async _callUnwrapped(name: string, args: Record<string, unknown> = {}): Promise<any> {
-    return _unwrapToolResult(await this._rpc("tools/call", { name, arguments: args }));
+  private async _callUnwrapped(name: string, args: Record<string, unknown>, envelope: McpPlusPlusAuthorizationEnvelope): Promise<any> {
+    return _unwrapToolResult(await this._rpc("tools/call", _authorizedParams(name, args, envelope)));
   }
   listTools(): Promise<{ tools: unknown[] }> { return this._rpc("tools/list", {}); }
   /** Accepts a bare name, a dotted `<category>.<tool>` name, or a meta-tool name. */
-  call(name: ToolName | string, args: Record<string, unknown> = {}): Promise<RpcResult> {
-    return this._rpc("tools/call", { name, arguments: args });
+  call(name: ToolName | string, args: Record<string, unknown>, envelope: McpPlusPlusAuthorizationEnvelope): Promise<RpcResult> {
+    return this._rpc("tools/call", _authorizedParams(name, args, envelope));
   }
   // Hierarchical tool facade helpers (meta-tools), unwrapped for convenience.
-  listCategories(includeCount = true): Promise<any> { return this._callUnwrapped("tools_list_categories", { include_count: includeCount }); }
-  listToolsInCategory(category: string): Promise<any> { return this._callUnwrapped("tools_list_tools", { category }); }
-  getToolSchema(nameOrTool: string | Record<string, unknown>): Promise<any> {
-    return this._callUnwrapped("tools_get_schema", typeof nameOrTool === "string" ? { name: nameOrTool } : (nameOrTool || {}));
+  listCategories(envelope: McpPlusPlusAuthorizationEnvelope, includeCount = true): Promise<any> { return this._callUnwrapped("tools_list_categories", { include_count: includeCount }, envelope); }
+  listToolsInCategory(category: string, envelope: McpPlusPlusAuthorizationEnvelope): Promise<any> { return this._callUnwrapped("tools_list_tools", { category }, envelope); }
+  getToolSchema(nameOrTool: string | Record<string, unknown>, envelope: McpPlusPlusAuthorizationEnvelope): Promise<any> {
+    return this._callUnwrapped("tools_get_schema", typeof nameOrTool === "string" ? { name: nameOrTool } : (nameOrTool || {}), envelope);
   }
-  dispatch(category: string, tool: string, params: Record<string, unknown> = {}): Promise<any> {
-    return this._callUnwrapped("tools_dispatch", { category, tool, params });
+  dispatch(category: string, tool: string, params: Record<string, unknown>, envelope: McpPlusPlusAuthorizationEnvelope): Promise<any> {
+    return this._callUnwrapped("tools_dispatch", { category, tool, params }, envelope);
   }
 }

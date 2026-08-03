@@ -10,6 +10,8 @@ from typing import Any
 import pytest
 
 from ipfs_kit_py.mcp.profile_d_policy import policy_root
+from ipfs_kit_py.mcp_server import mcplusplus
+from ipfs_kit_py.mcp_server.authorization import semantic_decision_cid
 from ipfs_kit_py.mcp_server.mcplusplus.event_dag import EventDAGStore
 from ipfs_kit_py.mcp_server.server import MCPServer, create_http_app
 
@@ -96,7 +98,7 @@ def _server(tmp_path, *, validator_available: bool = True, verifier_allowed: boo
         policy_provider=provider,
         ucan_ledger=_Ledger(ledger_available),
         ucan_verifier=verifier,
-        envelope_validator=(lambda envelope: None) if validator_available else None,
+        envelope_validator=mcplusplus.validate_packet if validator_available else None,
         validator_available=validator_available,
     )
     calls: list[tuple[str, str, dict[str, Any]]] = []
@@ -219,3 +221,28 @@ def test_policy_route_and_advertisement_share_the_injected_canonical_provider(tm
     assert "mcp++/deontic-policy" in initialized["result"]["capabilities"]["mcpPlusPlusProfiles"]
     assert evaluated["decision"] == "allow"
     assert provider.calls[0]["action"] == TOOL
+
+
+def test_semantic_decision_cid_binds_principal_resource_policy_and_identity() -> None:
+    basis = {
+        "schema": "ipfs-kit.authorization-audit@1",
+        "event_type": "authorization.decision",
+        "decision": "deny",
+        "reason": "policy_denied",
+        "tool": TOOL,
+        "actor_digest": "sha256:actor-a",
+        "resource_digest": "sha256:resource-a",
+        "ability": TOOL,
+        "policy_root": "sha256:policy-a",
+        "request_identity_digest": "sha256:request-a",
+    }
+    baseline = semantic_decision_cid(basis)
+
+    for field, replacement in (
+        ("actor_digest", "sha256:actor-b"),
+        ("resource_digest", "sha256:resource-b"),
+        ("ability", "pin_tools/pin_add"),
+        ("policy_root", "sha256:policy-b"),
+        ("request_identity_digest", "sha256:request-b"),
+    ):
+        assert semantic_decision_cid({**basis, field: replacement}) != baseline

@@ -12,6 +12,29 @@ import json
 from typing import Any, Dict, Iterable, Optional
 
 
+# ``HierarchicalToolManager.dispatch`` owns this namespace.  No generic
+# domain-looking key (request_id, timestamp, transport, and so on) is
+# normalized away.
+DISPATCHER_RESULT_KEYS = frozenset({"_dispatch"})
+
+
+def semantic_result_payload(value: Any) -> Any:
+    """Remove known top-level dispatcher metadata, preserving domain fields.
+
+    Profile-B output CIDs must not change merely because the dispatcher minted
+    a request identifier.  Normalization is intentionally shallow: nested
+    domain data named ``request_id`` or ``timestamp`` remains content-bound.
+    """
+
+    if isinstance(value, dict):
+        return {
+            key: item
+            for key, item in value.items()
+            if key not in DISPATCHER_RESULT_KEYS
+        }
+    return value
+
+
 def canonicalize_artifact(payload: Dict[str, Any]) -> bytes:
     """Return deterministic bytes for artifact content."""
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")

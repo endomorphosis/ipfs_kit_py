@@ -377,6 +377,27 @@ export const TOOLS = {
       "properties": {}
     },
     "description": "Report local repo statistics"
+  },
+  "iroh_diagnostics": {
+    "category": "iroh_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "instance": {
+          "type": "string",
+          "default": "default"
+        },
+        "format": {
+          "type": "string",
+          "default": "health"
+        },
+        "persist": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "description": "Return a redacted Iroh health receipt or bounded-label metrics.\n\n    Iroh diagnostics live in the optional managed-Iroh integration, which\n    pulls in the application's HTTP stack.  Keep that import at execution\n    time so constructing the core MCP server remains usable from a minimal\n    wheel without FastAPI installed."
   }
 };
 
@@ -390,6 +411,13 @@ function _unwrapToolResult(result) {
     return sc;
   }
   return result;
+}
+
+function _authorizedParams(name, args, envelope) {
+  if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) {
+    throw new Error("signed MCP++ authorization envelope required");
+  }
+  return { name, arguments: args, _mcppp_envelope: envelope };
 }
 
 export class IpfsKitMcpClient {
@@ -417,14 +445,14 @@ export class IpfsKitMcpClient {
     if (j && j.error) throw new Error(j.error.message);
     return j ? j.result : undefined;
   }
-  async _callUnwrapped(name, args = {}) { return _unwrapToolResult(await this._rpc("tools/call", { name, arguments: args })); }
+  async _callUnwrapped(name, args, envelope) { return _unwrapToolResult(await this._rpc("tools/call", _authorizedParams(name, args || {}, envelope))); }
   listTools() { return this._rpc("tools/list", {}); }
   // Accepts a bare name, a dotted `<category>.<tool>` name, or a meta-tool name.
-  call(name, args = {}) { return this._rpc("tools/call", { name, arguments: args }); }
+  call(name, args, envelope) { return this._rpc("tools/call", _authorizedParams(name, args || {}, envelope)); }
   // Hierarchical tool facade helpers (meta-tools). Results are unwrapped from
   // the CallToolResult envelope for convenience.
-  listCategories(includeCount = true) { return this._callUnwrapped("tools_list_categories", { include_count: includeCount }); }
-  listToolsInCategory(category) { return this._callUnwrapped("tools_list_tools", { category }); }
-  getToolSchema(nameOrTool) { return this._callUnwrapped("tools_get_schema", typeof nameOrTool === "string" ? { name: nameOrTool } : (nameOrTool || {})); }
-  dispatch(category, tool, params = {}) { return this._callUnwrapped("tools_dispatch", { category, tool, params }); }
+  listCategories(envelope, includeCount = true) { return this._callUnwrapped("tools_list_categories", { include_count: includeCount }, envelope); }
+  listToolsInCategory(category, envelope) { return this._callUnwrapped("tools_list_tools", { category }, envelope); }
+  getToolSchema(nameOrTool, envelope) { return this._callUnwrapped("tools_get_schema", typeof nameOrTool === "string" ? { name: nameOrTool } : (nameOrTool || {}), envelope); }
+  dispatch(category, tool, params, envelope) { return this._callUnwrapped("tools_dispatch", { category, tool, params: params || {} }, envelope); }
 }

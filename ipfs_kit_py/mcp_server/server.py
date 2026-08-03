@@ -263,7 +263,11 @@ class MCPServer:
                             "arguments_digest": _digest(args),
                         },
                         tool=name,
-                        output_payload={"result_digest": _digest(result)},
+                        output_payload={
+                            "result_digest": _digest(
+                                artifacts.semantic_result_payload(result)
+                            )
+                        },
                         correlation_id=decision.request_id,
                         parents=parents,
                     )
@@ -334,17 +338,31 @@ class MCPServer:
         return out
 
 
+async def handle_stdio_line(
+    server: MCPServer,
+    line: str | bytes,
+) -> str | None:
+    """Decode and encode one production stdio JSON-RPC frame."""
+
+    if isinstance(line, bytes):
+        line = line.decode("utf-8")
+    line = line.strip()
+    if not line:
+        return None
+    response = await server.handle(json.loads(line))
+    if response is None:
+        return None
+    return json.dumps(response, separators=(",", ":")) + "\n"
+
+
 async def serve_stdio() -> None:
     server = MCPServer()
     stdin = anyio.wrap_file(sys.stdin)
     async for line in stdin:
-        line = line.strip()
-        if not line:
+        encoded = await handle_stdio_line(server, line)
+        if encoded is None:
             continue
-        resp = await server.handle(json.loads(line))
-        if resp is None:  # notification — no reply
-            continue
-        sys.stdout.write(json.dumps(resp) + "\n")
+        sys.stdout.write(encoded)
         sys.stdout.flush()
 
 

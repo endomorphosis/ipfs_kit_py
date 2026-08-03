@@ -28,6 +28,53 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _safe_binding_evidence(envelope: Mapping[str, Any]) -> dict[str, Any]:
+    actor = envelope.get("actor", envelope.get("audience"))
+    resource = envelope.get("resource")
+    request_id = envelope.get("request_id")
+    transaction_id = envelope.get("transaction_id")
+    return {
+        "actor_digest": _digest(actor) if isinstance(actor, str) else None,
+        "resource_digest": _digest(resource) if isinstance(resource, str) else None,
+        "ability": envelope.get("ability") if isinstance(envelope.get("ability"), str) else None,
+        "policy_root": (
+            envelope.get("policy_root")
+            if isinstance(envelope.get("policy_root"), str)
+            else None
+        ),
+        "request_identity_digest": _digest(
+            {
+                "request_id": request_id if isinstance(request_id, str) else None,
+                "transaction_id": (
+                    transaction_id if isinstance(transaction_id, str) else None
+                ),
+            }
+        ),
+    }
+
+
+def semantic_decision_cid(event: Mapping[str, Any]) -> str:
+    """CID for the safe, transport-independent authorization semantics."""
+
+    return _digest(
+        {
+            key: event.get(key)
+            for key in (
+                "schema",
+                "event_type",
+                "decision",
+                "reason",
+                "tool",
+                "actor_digest",
+                "resource_digest",
+                "ability",
+                "policy_root",
+                "request_identity_digest",
+            )
+        }
+    )
+
+
 class AuthorizationDenied(PermissionError):
     """A denial safe to return through an MCP transport."""
 
@@ -102,11 +149,15 @@ class AuthorizationGate:
         # A denial is not complete until it is durably recorded.  In
         # particular, do not turn an unavailable audit DAG into an unaudited
         # authorization result.
-        self._append({
+        event = {
             "schema": "ipfs-kit.authorization-audit@1", "event_type": "authorization.decision",
             "timestamp": _now(), "decision": "deny", "reason": code, "tool": tool,
             "envelope_digest": _digest(envelope) if envelope is not None else None,
-        })
+        }
+        if envelope is not None:
+            event.update(_safe_binding_evidence(envelope))
+        event["semantic_decision_cid"] = semantic_decision_cid(event)
+        self._append(event)
         raise AuthorizationDenied(code)
 
     def authorize(self, *, tool: str, arguments: Mapping[str, Any], envelope: Any) -> AuthorizationDecision:
@@ -190,14 +241,20 @@ class AuthorizationGate:
         except AuthorizationDenied as error:
             self._deny(error.code, tool=tool, envelope=envelope)
         envelope_digest = _digest(envelope)
-        event_cid = self._append({
+        event = {
             "schema": "ipfs-kit.authorization-audit@1", "event_type": "authorization.decision",
             "timestamp": _now(), "decision": "allow", "request_id": request_id,
             "transaction_id": transaction_id, "tool": tool, "ability": ability,
+            "actor_digest": _digest(actor),
             "resource_digest": _digest(resource), "policy_root": expected_policy_root,
+            "request_identity_digest": _digest(
+                {"request_id": request_id, "transaction_id": transaction_id}
+            ),
             "envelope_digest": envelope_digest,
             "ucan_receipt": self._redacted_ucan_receipt(verifier_receipt),
-        })
+        }
+        event["semantic_decision_cid"] = semantic_decision_cid(event)
+        event_cid = self._append(event)
         return AuthorizationDecision(request_id, transaction_id, tool, resource, ability, expected_policy_root, envelope_digest, event_cid)
 
     def record_effect(self, decision: AuthorizationDecision, result: Any) -> str:
@@ -223,4 +280,9 @@ class AuthorizationGate:
         }
 
 
-__all__ = ["AuthorizationDecision", "AuthorizationDenied", "AuthorizationGate"]
+__all__ = [
+    "AuthorizationDecision",
+    "AuthorizationDenied",
+    "AuthorizationGate",
+    "semantic_decision_cid",
+]

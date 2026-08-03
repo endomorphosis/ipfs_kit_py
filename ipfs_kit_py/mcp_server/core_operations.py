@@ -8,119 +8,120 @@ the aligned ``{"status": ...}`` envelope shared with ipfs_datasets_py.
 from __future__ import annotations
 
 import functools
-from typing import Any, Dict, Optional
+import inspect
+from contextlib import contextmanager
+from contextvars import ContextVar
+from typing import Any
 
 import anyio
 
 _kit = None
+_backend_binding: ContextVar[Any | None] = ContextVar(
+    "ipfs_kit_mcp_core_backend",
+    default=None,
+)
+
+
+class _UnavailableBackend:
+    """Typed sentinel used when the legacy live-kit constructor is unavailable."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
 
 
 def get_kit():
-    """Lazily build a single ipfs_kit instance (no daemon autostart in tests)."""
+    """Return an explicit binding or lazily construct the live legacy kit.
+
+    Construction failure never selects a successful fake backend.  Tests and
+    embedders that need a hermetic implementation must bind one explicitly
+    with :func:`use_core_backend`.
+    """
     global _kit
+    bound = _backend_binding.get()
+    if bound is not None:
+        return bound
     if _kit is None:
         try:
             from ipfs_kit_py.ipfs_kit import ipfs_kit
             _kit = ipfs_kit.create(auto_start_daemons=False)
-        except Exception:  # pragma: no cover - environment without daemon
-            _kit = _StubKit()
+        except Exception as error:  # pragma: no cover - environment without package extras
+            _kit = _UnavailableBackend(type(error).__name__)
     return _kit
 
 
-class _StubKit:
-    """Deterministic stub so the surfaces are testable without a live daemon."""
+@contextmanager
+def use_core_backend(backend: Any):
+    """Temporarily bind one explicit backend for the current context.
 
-    def ipfs_add(self, file_path, recursive=False, **kw):
-        return {"success": True, "cid": "bafkstub_add", "size": 0}
+    The binding is context-local, so concurrent requests cannot overwrite one
+    another's provider.  A backend may expose synchronous or asynchronous
+    operation methods; it is still responsible for returning the canonical
+    ``{"success": bool, ...}`` provider result.
+    """
 
-    def ipfs_cat(self, cid, **kw):
-        return {"success": True, "content": b"", "cid": cid}
-
-    def ipfs_pin_add(self, cid, recursive=True, **kw):
-        return {"success": True, "pinned": cid}
-
-    def ipfs_pin_ls(self, **kw):
-        return {"success": True, "pins": {}}
-
-    def ipfs_dag_get(self, cid, **kw):
-        return {"success": True, "value": {}, "cid": cid}
-
-    def ipfs_dag_put(self, data, **kw):
-        return {"success": True, "cid": "bafkstub_dag"}
-
-    def get_cluster_status(self, **kw):
-        return {"success": True, "peers": []}
-
-    def ipfs_pin_rm(self, cid, recursive=True, **kw):
-        return {"success": True, "unpinned": cid}
-
-    def ipfs_ls_path(self, path=None, **kw):
-        return {"success": True, "entries": []}
-
-    def ipfs_get_pinset(self, **kw):
-        return {"success": True, "pinset": {}}
-
-    def ipfs_id(self, **kw):
-        return {"success": True, "id": "12D3KooStub"}
-
-    def ipfs_swarm_peers(self, **kw):
-        return {"success": True, "peers": []}
-
-    def files_ls(self, path="/", long=False, **kw):
-        return {"success": True, "entries": []}
-
-    def files_mkdir(self, path, parents=False, **kw):
-        return {"success": True, "path": path}
-
-    def files_stat(self, path, **kw):
-        return {"success": True, "path": path, "size": 0}
-
-    def files_write(self, path, content, **kw):
-        return {"success": True, "path": path}
-
-    def files_read(self, path, **kw):
-        return {"success": True, "content": ""}
-
-    def files_rm(self, path, **kw):
-        return {"success": True, "path": path}
-
-    def create_car(self, roots, blocks=None, **kw):
-        return {"success": True, "cid": "bafkstub_car", "roots": roots}
-
-    def name_publish(self, path=None, **kw):
-        return {"success": True, "name": "k51stub", "value": path}
-
-    def name_resolve(self, **kw):
-        return {"success": True, "path": "/ipfs/bafkstub"}
-
-    def ipfs_block_put(self, data, **kw):
-        return {"success": True, "cid": "bafkstub_block", "size": len(data) if data else 0}
-
-    def ipfs_block_get(self, cid, **kw):
-        return {"success": True, "cid": cid, "data": b""}
-
-    def ipfs_block_stat(self, cid, **kw):
-        return {"success": True, "cid": cid, "size": 0}
-
-    def ipfs_bitswap_stat(self, **kw):
-        return {"success": True, "blocks_received": 0, "data_received": 0, "peers": []}
-
-    def ipfs_bitswap_wantlist(self, peer=None, **kw):
-        return {"success": True, "keys": []}
-
-    def ipfs_stats_bw(self, **kw):
-        return {"success": True, "total_in": 0, "total_out": 0, "rate_in": 0, "rate_out": 0}
-
-    def ipfs_stats_repo(self, **kw):
-        return {"success": True, "repo_size": 0, "num_objects": 0, "version": "fs-repo@stub"}
+    if backend is None:
+        raise TypeError("core backend binding cannot be None")
+    token = _backend_binding.set(backend)
+    try:
+        yield backend
+    finally:
+        _backend_binding.reset(token)
 
 
-async def _call(method: str, /, **kwargs) -> Dict[str, Any]:
+def _unavailable_result(method: str, reason: str) -> dict[str, Any]:
+    return {
+        "status": "error",
+        "result": {
+            "success": False,
+            "operation": method,
+            "error": "backend operation is unavailable",
+            "error_type": "unsupported_operation",
+            "reason": reason,
+            "recoverable": False,
+        },
+    }
+
+
+async def _call(method: str, /, **kwargs) -> dict[str, Any]:
     kit = get_kit()
-    fn = getattr(kit, method)
-    raw = await anyio.to_thread.run_sync(functools.partial(fn, **kwargs))
-    ok = bool(raw.get("success", True)) if isinstance(raw, dict) else True
+    fn = getattr(kit, method, None)
+    if not callable(fn):
+        reason = getattr(kit, "reason", type(kit).__name__)
+        return _unavailable_result(method, str(reason))
+    try:
+        if inspect.iscoroutinefunction(fn):
+            raw = await fn(**kwargs)
+        else:
+            raw = await anyio.to_thread.run_sync(functools.partial(fn, **kwargs))
+            if inspect.isawaitable(raw):
+                raw = await raw
+    except Exception as error:
+        return {
+            "status": "error",
+            "result": {
+                "success": False,
+                "operation": method,
+                "error": "backend operation failed",
+                "error_type": type(error).__name__,
+                "recoverable": False,
+            },
+        }
+    if not isinstance(raw, dict) or not isinstance(raw.get("success"), bool):
+        return {
+            "status": "error",
+            "result": {
+                "success": False,
+                "operation": method,
+                "error": "backend returned an invalid operation result",
+                "error_type": "invalid_backend_result",
+                "recoverable": False,
+            },
+        }
+    ok = raw["success"]
     return {
         "status": "success" if ok else "error",
         "result": raw,
     }
+
+
+__all__ = ["get_kit", "use_core_backend"]

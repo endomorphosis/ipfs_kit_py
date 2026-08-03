@@ -2,19 +2,20 @@
 
 from __future__ import annotations
 
-import anyio
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
+
+import anyio
 
 from ipfs_kit_py.mcp_server import MCPServer
 from ipfs_kit_py.mcp_server.mcplusplus.event_dag import EventDAGStore
 from ipfs_kit_py.mcp_server.tools import resolve_tool_route
 
 
-def test_mcppp_envelope_bootstrap_constructs_a_usable_event_dag(tmp_path, monkeypatch):
-    """Construction imports the persistent store used by Profile B and E."""
+def test_legacy_unsigned_envelope_fails_closed_into_the_durable_event_dag(tmp_path, monkeypatch):
+    """Construction imports the durable audit store and rejects legacy grants."""
     monkeypatch.setenv("MCPPLUSPLUS_EVENT_DAG_DIR", str(tmp_path / "event-dag"))
     server = MCPServer()
 
@@ -32,8 +33,8 @@ def test_mcppp_envelope_bootstrap_constructs_a_usable_event_dag(tmp_path, monkey
         },
     )
 
-    assert response["result"]["status"] == "success"
-    assert response["result"]["_mcppp"]["event_cid"].startswith("bafkrei")
+    assert response["error"]["data"]["authorization"] == "denied"
+    assert server._dag.history(limit=10)["count"] == 1
 
 
 def test_public_server_export_is_lazy_and_profile_registry_is_advertised():
@@ -58,11 +59,22 @@ def test_initialize_advertises_only_canonical_supported_profiles(monkeypatch):
     """Profile D is advertised conditionally with the other canonical profiles."""
     from ipfs_kit_py.mcp_server import server as server_module
 
+    class _UnavailablePolicyProvider:
+        available = False
+
+        @staticmethod
+        def metadata():
+            return {
+                "provider": "unavailable-test-provider",
+                "available": False,
+                "fail_closed": True,
+            }
+
     capabilities = {
         "profiles": {
             "A_interface_descriptors": True,
             "B_cid_envelopes": True,
-            "C_ucan_unsigned": True,
+            "C_ucan_signed": True,
             "D_policy": False,
             "E_dag_events": True,
             "E_p2p_transport": False,
@@ -71,7 +83,10 @@ def test_initialize_advertises_only_canonical_supported_profiles(monkeypatch):
     }
     monkeypatch.setattr(server_module.mcplusplus, "get_capabilities", lambda: capabilities)
 
-    response = anyio.run(MCPServer().handle, {"jsonrpc": "2.0", "id": 1, "method": "initialize"})
+    response = anyio.run(
+        MCPServer(policy_provider=_UnavailablePolicyProvider()).handle,
+        {"jsonrpc": "2.0", "id": 1, "method": "initialize"},
+    )
     advertised = response["result"]["capabilities"]["mcpPlusPlusProfiles"]
 
     assert advertised == [

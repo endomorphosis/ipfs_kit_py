@@ -18,17 +18,47 @@ from typing import Any, Dict, List
 from .hierarchical_tool_manager import HierarchicalToolManager
 
 
-def register_fastmcp(app: Any, tm: HierarchicalToolManager | None = None) -> List[str]:
-    """Register all registry tools on a FastMCP app; return registered names."""
+def register_fastmcp(
+    app: Any,
+    tm: HierarchicalToolManager | None = None,
+    *,
+    server: Any | None = None,
+) -> List[str]:
+    """Register tools through the canonical server and AuthorizationGate."""
+
+    if server is None:
+        from .server import MCPServer
+
+        server = MCPServer()
     tm = tm or HierarchicalToolManager()
+    server.tm = tm
     registered: List[str] = []
     for schema in tm.all_tool_schemas():
         category, tool, name = schema["category"], schema["name"], schema["name"]
         desc = schema.get("description", "")
 
         def _make(cat: str, tl: str):
-            async def _handler(arguments: Dict[str, Any] | None = None) -> Dict[str, Any]:
-                return await tm.dispatch(cat, tl, arguments or {})
+            async def _handler(
+                arguments: Dict[str, Any] | None = None,
+                mcppp_envelope: Dict[str, Any] | None = None,
+                profile_b: bool = False,
+            ) -> Dict[str, Any]:
+                response = await server.handle(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "tools/call",
+                        "params": {
+                            "name": f"{cat}/{tl}",
+                            "arguments": arguments or {},
+                            "_mcppp_envelope": mcppp_envelope,
+                            **({"profile_b": True} if profile_b else {}),
+                        },
+                    }
+                )
+                if "result" in response:
+                    return response["result"]
+                return {"status": "error", "error": response["error"]}
             return _handler
 
         handler = _make(category, tool)

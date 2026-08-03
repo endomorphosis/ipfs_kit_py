@@ -134,7 +134,7 @@ MCP_REST_ROUTE_PATTERNS: tuple[tuple[str, str, str, str, bool], ...] = (
 MCP_PROFILE_REGISTRY: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("mcp++/interface-descriptors", ("A_interface_descriptors",)),
     ("mcp++/cid-envelopes", ("B_cid_envelopes",)),
-    ("mcp++/ucan", ("C_ucan_unsigned",)),
+    ("mcp++/ucan", ("C_ucan_signed",)),
     ("mcp++/deontic-policy", ("D_policy",)),
     ("mcp++/event-dag", ("E_dag_events",)),
     ("mcp++/p2p-transport", ("E_p2p_transport",)),
