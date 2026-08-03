@@ -191,7 +191,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-010 Write the system context and end-to-end overview
 
-- Status: todo
+- Status: completed
 - Completion: manual
 - Is schedulable: true
 - Review only: false
@@ -216,7 +216,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-011 Document runtime composition and entry points
 
-- Status: todo
+- Status: completed
 - Completion: manual
 - Is schedulable: true
 - Review only: false
@@ -241,7 +241,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-012 Classify canonical, compatibility, experimental, and historical code paths
 
-- Status: todo
+- Status: completed
 - Completion: manual
 - Is schedulable: true
 - Review only: false
@@ -266,7 +266,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-013 Document backend plugins, named configuration, and live adapters
 
-- Status: todo
+- Status: completed
 - Completion: manual
 - Is schedulable: true
 - Review only: false
@@ -291,7 +291,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-014 Document content, metadata, cache, bucket, VFS, WAL, and journal flow
 
-- Status: todo
+- Status: completed
 - Completion: manual
 - Is schedulable: true
 - Review only: false
@@ -316,7 +316,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-015 Document cluster roles, coordination, consistency, and replication
 
-- Status: todo
+- Status: completed
 - Completion: manual
 - Is schedulable: true
 - Review only: false
@@ -341,7 +341,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-016 Document Kubo, Iroh, libp2p, routing, and P2P workflow boundaries
 
-- Status: todo
+- Status: completed
 - Completion: manual
 - Is schedulable: true
 - Review only: false
@@ -366,7 +366,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-017 Document MCP++ and the multi-interface control plane
 
-- Status: todo
+- Status: completed
 - Completion: manual
 - Is schedulable: true
 - Review only: false
@@ -391,7 +391,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-018 Document async boundaries, lazy imports, and optional capabilities
 
-- Status: todo
+- Status: completed
 - Completion: manual
 - Is schedulable: true
 - Review only: false
@@ -416,7 +416,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-019 Document configuration, state, credentials, trust, and process lifecycle
 
-- Status: todo
+- Status: completed
 - Completion: manual
 - Is schedulable: true
 - Review only: false
@@ -441,7 +441,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-020 Create the ADR process, template, and index
 
-- Status: todo
+- Status: completed
 - Completion: manual
 - Is schedulable: true
 - Review only: false
@@ -891,7 +891,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-038 Refresh integration overview and boundary contracts
 
-- Status: todo
+- Status: completed
 - Completion: manual
 - Is schedulable: true
 - Review only: false
@@ -916,7 +916,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-039 Refresh testing and contribution guidance
 
-- Status: todo
+- Status: completed
 - Completion: manual
 - Is schedulable: true
 - Review only: false
@@ -941,7 +941,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-040 Create the historical-document register and disposition rules
 
-- Status: todo
+- Status: completed
 - Completion: manual
 - Is schedulable: true
 - Review only: false
@@ -1041,7 +1041,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-044 Document external gitlinks and embedded project ownership
 
-- Status: todo
+- Status: completed
 - Completion: manual
 - Is schedulable: true
 - Review only: false
