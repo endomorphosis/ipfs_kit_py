@@ -1,0 +1,189 @@
+{
+  "schema": "ipfs_kit_py/runtime-readiness/vfs-conformance@1",
+  "contract_version": 1,
+  "task_id": "KITA-009",
+  "title": "Join VFS backend, WAL, crash, and interface conformance",
+  "suite": "tests/runtime_readiness/vfs/test_vfs_joined_conformance.py",
+  "interfaces": [
+    "VFSService@1",
+    "VFSReferenceModel@1",
+    "VFSTransaction@1",
+    "VFSSnapshot@1",
+    "LegacyVFSAdapter@1",
+    "PythonAdapter@1",
+    "CLIAdapter@1",
+    "MCPToolAdapter@1",
+    "MCPPlusPlusToolAdapter@1",
+    "VFSConformanceReceipt@1"
+  ],
+  "authority": {
+    "statement": "CanonicalVFSService@1 is the runtime authority for VFS semantics. VFSReferenceModel@1 is the independent oracle. Python, CLI, and MCP surfaces project registry-bound operations and must not reimplement storage logic. Hermetic filesystem and IPFS-fixture adapters certify local object semantics only; live Iroh service certification remains capability-gated and fails closed when unavailable.",
+    "service_module": "ipfs_kit_py.core.vfs.service",
+    "contracts_module": "ipfs_kit_py.core.vfs.contracts",
+    "reference_model": "tests.runtime_readiness.vfs.reference_model",
+    "wal_coordinator": "ipfs_kit_py.core.wal.coordinator",
+    "legacy_adapter": "ipfs_kit_py.core.vfs.adapters",
+    "request_schema": "ipfs_kit_py/core/operation-contracts/operation-request@1",
+    "result_schema": "ipfs_kit_py/core/operation-contracts/operation-result@1",
+    "error_schema": "ipfs_kit_py/core/operation-contracts/storage-error@1"
+  },
+  "declared_backends": [
+    {
+      "id": "reference",
+      "kind": "vfs-reference-model",
+      "role": "independent oracle for differential traces",
+      "module": "tests.runtime_readiness.vfs.reference_model.VFSReferenceModel"
+    },
+    {
+      "id": "memory",
+      "kind": "in-memory-storage-boundary",
+      "role": "canonical service storage boundary",
+      "module": "ipfs_kit_py.core.vfs.service.InMemoryVFSStorage"
+    },
+    {
+      "id": "hermetic_filesystem_reference",
+      "kind": "hermetic-filesystem",
+      "role": "local filesystem object semantics without provider dependencies",
+      "module": "ipfs_kit_py.backends.filesystem_backend.HermeticFilesystemAdapter",
+      "certification_scope": "local-hermetic-reference-only"
+    },
+    {
+      "id": "hermetic_ipfs_fixture",
+      "kind": "hermetic-ipfs-fixture",
+      "role": "IPFS-shaped hermetic fixture; not live provider certification",
+      "module": "ipfs_kit_py.backends.ipfs_backend.HermeticIPFSFixtureAdapter",
+      "certification_scope": "fixture-only; not live IPFS provider certification"
+    },
+    {
+      "id": "iroh",
+      "kind": "decentralized-iroh",
+      "role": "Iroh mount adapter and capability-gated runtime",
+      "module": "ipfs_kit_py.iroh_vfs.IrohVFSAdapter",
+      "plugin": "ipfs_kit_py.iroh.backend.IrohBackendPlugin",
+      "unavailable_disposition": "explicit blocked/unsupported rejection; no silent fallback"
+    }
+  ],
+  "transports": [
+    "package",
+    "python",
+    "cli",
+    "mcp",
+    "mcpp"
+  ],
+  "required_operations": [
+    "stat",
+    "list",
+    "read",
+    "range_read",
+    "stream",
+    "create",
+    "replace",
+    "mkdir",
+    "rmdir",
+    "rename",
+    "move",
+    "delete",
+    "cas_write",
+    "mount",
+    "unmount",
+    "resolve"
+  ],
+  "evidence_subset": {
+    "differential": "Service traces match the reference model for required operations and adversarial failure-then-success schedules.",
+    "crash": "WALTransactionCoordinator crash injection at every named execute boundary recovers to pre-commit compensation or committed replay with zero duplicate effects on second recovery.",
+    "path_security": "Traversal, absolute, escape, and mount-relative escape attempts reject explicitly; false-success rate is zero.",
+    "concurrency": "Generated concurrent transaction schedules match the reference model or report a typed unsupported boundary.",
+    "backend_capability": "Undeclared hermetic operations, unsupported VFS atomic boundaries, and unavailable Iroh certification reject without effects or fallback.",
+    "interface_parity": "Python, CLI, and MCP projections of registry-bound VFS operations match after transport-only fields are stripped."
+  },
+  "crash_boundaries": [
+    "before_begin",
+    "after_begin",
+    "before_intent",
+    "after_intent",
+    "before_effect",
+    "after_effect",
+    "before_commit",
+    "after_commit"
+  ],
+  "path_security": {
+    "vfs_policy_reject_vectors": [
+      "../secret",
+      "docs/../../etc/passwd",
+      "//absolute",
+      "docs\\file",
+      "docs/\u0000file",
+      "~/home",
+      "docs/$HOME/x",
+      "docs/./x"
+    ],
+    "root_escape_vectors": [
+      "../secret",
+      "docs/../../etc/passwd",
+      "//absolute",
+      "docs\\file",
+      "docs/\u0000file"
+    ],
+    "iroh_escape_vectors": [
+      "../secret",
+      "docs/../../etc/passwd",
+      "../../outside"
+    ],
+    "false_success_rate_target": 0,
+    "path_escape_rate_target": 0
+  },
+  "parity_policy": {
+    "id": "VFSInterfaceParityPolicy@1",
+    "strip_before_compare": [
+      "request_id",
+      "related_request_id",
+      "transport",
+      "timing",
+      "elapsed_ms",
+      "duration_ms",
+      "started_at_ms",
+      "finished_at_ms",
+      "timestamp",
+      "wall_time_ms",
+      "framing",
+      "jsonrpc",
+      "id",
+      "http_status",
+      "protocol_id",
+      "stream_id"
+    ],
+    "must_match_after_strip": [
+      "success",
+      "exit_code",
+      "operation.operation_id",
+      "result.record.success",
+      "result.record.state",
+      "result.record.resulting_content_cid",
+      "result.record.resulting_version_cid",
+      "result.record.error"
+    ]
+  },
+  "restart_and_recovery": {
+    "checks": [
+      "pre_commit_compensation",
+      "committed_replay_once",
+      "second_recovery_noop",
+      "snapshot_immutable_after_live_mutation",
+      "legacy_journal_only_after_committed_mutation"
+    ]
+  },
+  "acceptance": {
+    "identical_canonical_results_across_declared_backends": true,
+    "python_cli_mcp_parity": true,
+    "every_crash_point_recovers": true,
+    "path_escape_rate_zero": true,
+    "false_success_rate_zero": true,
+    "unavailable_capabilities_reject_explicitly": true,
+    "no_required_test_skips": true,
+    "no_print_only_paths": true
+  },
+  "exclusion_policy": {
+    "excluded_only_gate": false,
+    "mandatory_in_default_ci": true
+  }
+}
