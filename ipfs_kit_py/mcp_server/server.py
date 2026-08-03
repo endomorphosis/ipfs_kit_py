@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import sys
 import tempfile
 from datetime import datetime, timezone
@@ -20,51 +19,15 @@ import anyio
 from . import mcplusplus
 from .hierarchical_tool_manager import HierarchicalToolManager
 from .mcplusplus.event_dag import EventDAGStore
+from .tools import (
+    resolve_mcp_route,
+    resolve_rest_route,
+    resolve_tool_route,
+    supported_mcpp_profiles,
+)
 
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_INFO = {"name": "ipfs_kit_py-mcpplusplus", "version": "0.1.0"}
-
-
-def _profile_g_rest_binding(http_method: str, path: str):
-    """Resolve normative Profile G REST paths without changing wire semantics."""
-    static = {
-        ("GET", "/mcp/risk/profile"): "mcp++/risk/profile",
-        ("POST", "/mcp/goals"): "mcp++/goals/create", ("GET", "/mcp/goals"): "mcp++/goals/list",
-        ("POST", "/mcp/tasks"): "mcp++/tasks/create", ("GET", "/mcp/tasks"): "mcp++/tasks/list",
-        ("GET", "/mcp/tasks/ready"): "mcp++/tasks/ready",
-        ("POST", "/mcp/risk/assess"): "mcp++/risk/assess", ("GET", "/mcp/risk/evidence"): "mcp++/risk/evidence",
-        ("GET", "/mcp/risk/history"): "mcp++/risk/history", ("POST", "/mcp/neighborhood/query"): "mcp++/neighborhood/query",
-        ("POST", "/mcp/neighborhood/attest"): "mcp++/neighborhood/attest", ("GET", "/mcp/schedule/frontier"): "mcp++/schedule/frontier",
-        ("POST", "/mcp/schedule/proposals"): "mcp++/schedule/propose", ("POST", "/mcp/schedule/claims"): "mcp++/schedule/claim",
-        ("POST", "/mcp/schedule/resolutions"): "mcp++/schedule/resolve", ("POST", "/mcp/schedule/reconcile"): "mcp++/schedule/reconcile",
-    }
-    method = static.get((http_method, path))
-    if method:
-        return method, {}
-    patterns = (
-        ("GET", r"/mcp/goals/([^/]+)$", "mcp++/goals/get", "goal_cid"),
-        ("POST", r"/mcp/goals/([^/]+)/(decompose|select)$", "goals", "goal_cid"),
-        ("GET", r"/mcp/tasks/([^/]+)$", "mcp++/tasks/get", "task_cid"),
-        ("GET", r"/mcp/schedule/status/([^/]+)$", "mcp++/schedule/status", "task_cid"),
-        ("POST", r"/mcp/schedule/claims/([^/]+)/(renew|release)$", "schedule", "claim_cid"),
-    )
-    for verb, pattern, rpc, key in patterns:
-        match = re.fullmatch(pattern, path) if verb == http_method else None
-        if match:
-            method = f"mcp++/{rpc}/{match.group(2)}" if rpc in {"goals", "schedule"} else rpc
-            return method, {key: match.group(1)}
-    return None
-
-
-def _agent_supervisor_rest_binding(http_method: str, path: str):
-    """Resolve the kit-owned Agent Supervisor immutable-receipt route."""
-    if http_method in {"GET", "POST"} and path == "/mcp/agent-supervisor/receipts":
-        return "agent_supervisor.receipts.read", {}
-    match = re.fullmatch(r"/mcp/agent-supervisor/receipts/([^/]+)", path)
-    if http_method == "GET" and match:
-        from urllib.parse import unquote
-        return "agent_supervisor.receipts.read", {"receipt_ids": [unquote(match.group(1))]}
-    return None
 
 
 def _now_iso() -> str:
@@ -72,14 +35,28 @@ def _now_iso() -> str:
 
 
 class MCPServer:
-    def __init__(self, receipt_resolver: Any = None) -> None:
+    def __init__(
+        self,
+        receipt_resolver: Any = None,
+        *,
+        event_dag: EventDAGStore | None = None,
+    ) -> None:
+        """Create a server with optional injected receipt and provenance stores.
+
+        ``event_dag`` is deliberately explicit so embedders and transport
+        tests can share a durable event history without relying on process
+        environment state.  When omitted, the server retains its isolated
+        temporary-store default.
+        """
         self.tm = HierarchicalToolManager()
         # Do not let the default EventDAGStore location leak mutable state
         # between server instances.  Deployments that need durable provenance
         # opt in with a directory managed by their runtime environment.
         configured_dag_directory = os.environ.get("MCPPLUSPLUS_EVENT_DAG_DIR")
         self._dag_directory: tempfile.TemporaryDirectory[str] | None = None
-        if configured_dag_directory:
+        if event_dag is not None:
+            self._dag = event_dag
+        elif configured_dag_directory:
             self._dag = EventDAGStore(storage_dir=configured_dag_directory)
         else:
             self._dag_directory = tempfile.TemporaryDirectory(prefix="ipfs-kit-mcpp-dag-")
@@ -112,52 +89,50 @@ class MCPServer:
             return {"jsonrpc": "2.0", "id": mid, "error": error}
 
     async def _route(self, method: str, params: Dict[str, Any], notification: bool = False) -> Any:
-        if notification or (method or "").startswith("notifications/"):
+        route = resolve_mcp_route(method or "")
+        if notification or route == "notification":
             # Known MCP lifecycle notifications (initialized, cancelled, …) are
             # accepted as no-ops; unknown ones are ignored rather than erroring.
             return None
-        if method == "initialize":
+        if route == "initialize":
             requested = params.get("capabilities", {}).get("experimental", {})
-            experimental = {"mcp++": mcplusplus.get_capabilities()}
-            if requested.get("mcp++/event-dag") is True:
+            capability_map = mcplusplus.get_capabilities()
+            profiles = supported_mcpp_profiles(capability_map)
+            experimental = {"mcp++": capability_map}
+            if requested.get("mcp++/event-dag") is True and "mcp++/event-dag" in profiles:
                 experimental["mcp++/event-dag"] = True
-            if requested.get("mcp++/risk-scheduling") is True:
+            if requested.get("mcp++/risk-scheduling") is True and "mcp++/risk-scheduling" in profiles:
                 from .mcplusplus.profile_g_transport import get_dispatcher
                 experimental["mcp++/risk-scheduling"] = get_dispatcher().metadata
+            profile_metadata = {
+                "agent_supervisor.receipts.read": {
+                    "owner": "ipfs_kit_py", "access": "read",
+                    "transports": ["mcp", "mcp++", "libp2p"],
+                },
+            }
+            if "mcp++/event-dag" in profiles:
+                profile_metadata["mcp++/event-dag"] = self._dag.profile_metadata()
             return {
                 "protocolVersion": PROTOCOL_VERSION,
                 "serverInfo": SERVER_INFO,
                 "capabilities": {
                     "tools": {},
                     "experimental": experimental,
-                    # Profile D is implemented by the built-in deterministic
-                    # evaluator, so advertise it independently of optional
-                    # accelerator or HTTP dependencies.
-                    "mcpPlusPlusProfiles": [
-                        "mcp++/event-dag",
-                        "mcp++/deontic-policy",
-                        "mcp++/risk-scheduling",
-                    ],
+                    "mcpPlusPlusProfiles": profiles,
                 },
-                "profile_metadata": {
-                    "mcp++/event-dag": self._dag.profile_metadata(),
-                    "agent_supervisor.receipts.read": {
-                        "owner": "ipfs_kit_py", "access": "read",
-                        "transports": ["mcp", "mcp++", "libp2p"],
-                    },
-                },
+                "profile_metadata": profile_metadata,
             }
-        if method == "tools/list":
+        if route == "tools_list":
             from .agent_supervisor_receipts import descriptor
             return {"tools": [*self.tm.all_tool_schemas(), descriptor()]}
-        if method == "mcp++/interfaces":
+        if route == "interfaces":
             return {"interfaces": self._interface_descriptors()}
-        if method == "agent_supervisor.receipts.read":
+        if route == "agent_supervisor_receipts":
             return self._agent_supervisor_receipts.read(params)
-        if method == "mcp++/dag/frontier":
+        if route == "dag_frontier":
             frontier = self._dag.frontier()
             return {**frontier, "count": self._dag.history(limit=1)["count"]}
-        if method in ("mcp++/ucan/validate", "mcp++/ucan/delegate"):
+        if route == "ucan":
             from .mcplusplus import delegation
             return delegation.validate_raw_delegation_chain(
                 raw_chain=params.get("chain") or params.get("delegations") or [],
@@ -165,7 +140,7 @@ class MCPServer:
                 ability=params.get("ability", "*"),
                 actor=params.get("actor", ""),
             )
-        if method == "mcp++/policy/evaluate":
+        if route == "policy":
             from .mcplusplus import delegation
             return delegation.evaluate_policy(
                 tool=params.get("tool", ""),
@@ -173,10 +148,10 @@ class MCPServer:
                 risk=float(params.get("risk", 0.0)),
                 threshold=float(params.get("threshold", 0.7)),
             )
-        if method.startswith(("mcp++/goals/", "mcp++/tasks/", "mcp++/risk/", "mcp++/neighborhood/", "mcp++/schedule/")):
+        if route == "profile_g":
             from .mcplusplus.profile_g_transport import get_dispatcher
             return get_dispatcher().dispatch(method, params)
-        if method == "tools/call":
+        if route == "tools_call":
             name = params.get("name", "")
             args = params.get("arguments") or {}
             if name == "agent_supervisor.receipts.read":
@@ -190,7 +165,10 @@ class MCPServer:
                 if err:
                     raise ValueError(f"mcp++ envelope invalid: {err}")
             self._repair_minimal_ipfs_backend()
-            category, _, tool = name.rpartition("/") if "/" in name else self._resolve(name)
+            tool_route = resolve_tool_route(name)
+            if tool_route is None:
+                raise ValueError(f"unknown tool: {name}")
+            category, tool = tool_route
             result = await self.tm.dispatch(category, tool, args)
             if params.get("profile_b") or envelope is not None:
                 from .mcplusplus import artifacts
@@ -211,7 +189,7 @@ class MCPServer:
                 else:
                     result = {"value": result, "_mcppp": meta}
             return result
-        if method == "ping":
+        if route == "ping":
             return {}
         raise ValueError(f"unknown method: {method}")
 
@@ -236,12 +214,6 @@ class MCPServer:
             return minimal_unpin(cid)
 
         setattr(kit, "ipfs_pin_rm", ipfs_pin_rm)
-
-    def _resolve(self, tool: str):
-        for cat, tools in self.tm._groups.items():
-            if tool in tools:
-                return cat, "/", tool
-        return "", "/", tool
 
     def _interface_cid(self) -> str:
         """Kubo CIDv1 over the canonical interface descriptor set (Profile A)."""
@@ -302,8 +274,7 @@ def create_http_app(server: MCPServer | None = None):
             if not ev.get("more_body"):
                 break
         path = scope.get("path", "")
-        binding = (_agent_supervisor_rest_binding(scope.get("method", "GET"), path)
-                   or _profile_g_rest_binding(scope.get("method", "GET"), path))
+        binding = resolve_rest_route(scope.get("method", "GET"), path)
         if binding is not None:
             from urllib.parse import parse_qsl
             method, path_params = binding
