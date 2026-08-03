@@ -1,0 +1,139 @@
+{
+  "schema": "ipfs_kit_py/runtime-readiness/mcplusplus-conformance@1",
+  "contract_version": 1,
+  "task_id": "KITA-033",
+  "title": "Prove MCP++ authorization and result parity across transports",
+  "suite": "tests/runtime_readiness/mcplusplus/test_transport_security_parity.py",
+  "interfaces": [
+    "MCPPlusPlusSecurityReceipt@1"
+  ],
+  "authority": {
+    "statement": "AuthorizationGate@1 is the sole dispatch gate for protected MCP tools. UCANVerifier@1 with a durable RevocationLedger@1 and ProfileDPolicyProvider@1 admit effects. Stdio, HTTP, and P2P are framing projections of the same JSON-RPC handler and must not reimplement authorization or storage logic.",
+    "server_module": "ipfs_kit_py.mcp_server.server",
+    "authorization_module": "ipfs_kit_py.mcp_server.authorization",
+    "ucan_module": "ipfs_kit_py.mcp_server.mcplusplus.ucan",
+    "revocation_module": "ipfs_kit_py.mcp_server.mcplusplus.revocation",
+    "event_dag_module": "ipfs_kit_py.mcp_server.mcplusplus.event_dag",
+    "policy_module": "ipfs_kit_py.mcp.profile_d_policy",
+    "p2p_module": "ipfs_kit_py.mcp_server.p2p_transport",
+    "receipt_interface": "MCPPlusPlusSecurityReceipt@1"
+  },
+  "transports": [
+    "stdio",
+    "http",
+    "p2p"
+  ],
+  "transport_entrypoints": {
+    "stdio": "MCPServer.handle (JSON-RPC line / in-process)",
+    "http": "create_http_app ASGI fixture posting JSON-RPC to /mcp",
+    "p2p": "p2p_transport.handle_stream_message over /mcp+p2p/1.0.0"
+  },
+  "parity_policy": {
+    "id": "MCPPlusPlusTransportSecurityParity@1",
+    "strip_before_compare": [
+      "request_id",
+      "related_request_id",
+      "timing",
+      "elapsed_ms",
+      "duration_ms",
+      "started_at_ms",
+      "finished_at_ms",
+      "timestamp",
+      "wall_time_ms",
+      "transport",
+      "framing",
+      "jsonrpc",
+      "id",
+      "http_status",
+      "protocol_id",
+      "stream_id",
+      "envelope_digest",
+      "input_cid",
+      "intent_cid",
+      "event_cid",
+      "receipt_cid",
+      "parents",
+      "event"
+    ],
+    "must_match_on_denial": [
+      "error.data.authorization",
+      "error.data.reason",
+      "authorization.decision.event_cid",
+      "authorization.decision.canonical_decision_cid",
+      "dispatch_count_zero"
+    ],
+    "must_match_on_allow_after_strip": [
+      "status",
+      "body",
+      "output_cid",
+      "content_cid",
+      "version",
+      "transaction_cid",
+      "authorization_decision",
+      "authorization_tool",
+      "authorization_ability",
+      "authorization_policy_root"
+    ],
+    "envelope_bound_artifacts_excluded_on_allow": [
+      "decision_cid",
+      "intent_cid",
+      "input_cid",
+      "receipt_cid",
+      "event_cid",
+      "envelope_digest"
+    ],
+    "note": "Allowed calls consume distinct UCAN nonces per transport; Profile B decision/intent CIDs bind the envelope digest and are stripped before parity. Denial cases that fail before nonce consumption replay one shared envelope so raw decision event_cid matches. policy_denied verifies then rejects, so only the canonical decision CID (without envelope digest) is required to match."
+
+  },
+  "adversarial_corpus": {
+    "absent_forged_tampered_expired_revoked_replayed_attenuation_confused_deputy_downgrade": true,
+    "missing_envelope": "authorization_envelope_required; zero dispatch; identical decision CID",
+    "tool_mismatch": "tool_binding_mismatch",
+    "resource_mismatch": "resource_binding_mismatch",
+    "ability_mismatch": "ability_binding_mismatch",
+    "policy_root_mismatch": "policy_root_mismatch",
+    "policy_denied": "Profile D prohibition yields policy_denied before handler",
+    "unsigned_token": "signed-to-unsigned truncation fails closed",
+    "tampered_token": "signature mutation fails closed",
+    "algorithm_downgrade": "signed-to-unsigned / alg:none downgrade fails closed",
+    "signed_to_unsigned_downgrade": "compact token without signature segment fails on every transport",
+    "confused_deputy": "UCAN audience bound to deputy DID cannot authorize claiming actor",
+    "expired": "expired token fails closed",
+    "forged_key": "token signed by unregistered private key fails closed",
+    "revocation_replay_restart": "durable RevocationLedger preserves replay and revocation across process restart for every transport"
+  },
+  "security_evidence_policy": {
+    "cryptographic_verifier_required": true,
+    "ledger_required": true,
+    "profile_d_provider_required": true,
+    "magicmock_only_evidence": "forbidden",
+    "statement": "Positive security claims require UCANVerifier@1 over Ed25519 tokens and a durable RevocationLedger@1. MagicMock-only verifiers do not satisfy the gate; this suite constructs real keys, issues signed UCANs, and asserts type(UCANVerifier).",
+    "audit_redaction": "Bearer tokens, private_input fields, and signature material must not appear in authorization.decision or authorization.effect audit events."
+  },
+  "evidence_subset": {
+    "transport_decision_parity": "Identical denial reason and decision event_cid across stdio, HTTP, and P2P for every adversarial case under a frozen authorization clock.",
+    "transport_result_parity": "Allowed operations share status, content_cid, version, transaction_cid, and Profile B output_cid after transport normalization.",
+    "zero_dispatch_on_denial": "Dispatch spy remains empty for every denial on every transport.",
+    "restart": "Replay of a consumed nonce and use of a revoked token_id both deny after ledger reload.",
+    "no_mock_crypto": "Harness asserts UCANVerifier and RevocationLedger concrete types; MagicMock is not the security path."
+  },
+  "related_suites": [
+    "tests/runtime_readiness/mcplusplus/test_authorization_dispatch_gate.py",
+    "tests/runtime_readiness/mcplusplus/test_ucan_verifier.py",
+    "tests/runtime_readiness/mcplusplus/test_server_bootstrap.py",
+    "ipfs_kit_py/mcp_server/tests_e2e_interop.py"
+  ],
+  "exclusion_policy": {
+    "excluded_only_gate": false,
+    "mandatory_in_default_ci": true
+  },
+  "acceptance": {
+    "identical_denial_code_and_decision_cid_per_transport": true,
+    "zero_dispatch_on_denial": true,
+    "allowed_semantic_cid_parity_after_normalization": true,
+    "signed_to_unsigned_downgrade_fails": true,
+    "confused_deputy_fails": true,
+    "restart_preserves_revocation_and_replay": true,
+    "no_magicmock_only_security_evidence": true
+  }
+}

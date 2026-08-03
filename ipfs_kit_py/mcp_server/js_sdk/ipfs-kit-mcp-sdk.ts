@@ -377,6 +377,27 @@ export const TOOLS = {
       "properties": {}
     },
     "description": "Report local repo statistics"
+  },
+  "iroh_diagnostics": {
+    "category": "iroh_tools",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "instance": {
+          "type": "string",
+          "default": "default"
+        },
+        "format": {
+          "type": "string",
+          "default": "health"
+        },
+        "persist": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "description": "Return a redacted Iroh health receipt or bounded-label metrics.\n\n    Iroh diagnostics live in the optional managed-Iroh integration, which\n    pulls in the application's HTTP stack.  Keep that import at execution\n    time so constructing the core MCP server remains usable from a minimal\n    wheel without FastAPI installed."
   }
 } as const;
 
