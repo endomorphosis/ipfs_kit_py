@@ -5,7 +5,7 @@
 | Task | KDOC-002 — Map public interfaces, entry points, and exposed capabilities |
 | Goal | KDOC-G012 |
 | Track | evidence-surfaces |
-| Baseline tree | worktree evidence inspected 2026-08-03 |
+| Baseline tree | worktree evidence re-verified 2026-08-03 (attempt 3; live import of `TOOL_GROUPS`, `BackendTypeRegistry`, `FastCLI`) |
 | Authority class | Generated audit / evidence (not a product guide) |
 | Edit policy | Read packaging, source, and focused tests; write only this matrix |
 | Validation | `test -s docs/audits/PUBLIC_SURFACE_MATRIX.md && rg -q "pyproject.toml" docs/audits/PUBLIC_SURFACE_MATRIX.md` |
@@ -14,7 +14,7 @@
 
 Map every supported **public** packaging entry, Python export, CLI command family,
 MCP/JSON-RPC/FastMCP/SDK surface, filesystem protocol, backend plugin registry,
-and daemon/service entry to:
+IPFS client layer, and daemon/service entry to:
 
 1. **Entry path** — how a user or agent reaches the surface
 2. **Implementation authority / status** — canonical, compatibility, optional,
@@ -33,9 +33,11 @@ decisions that reconcile competing implementations.
 |---|---|---|
 | 1 | Packaging metadata | `pyproject.toml` (canonical), `setup.py` (legacy install hook) |
 | 2 | Executable entry points | `[project.scripts]`, `[project.entry-points."fsspec.specs"]` |
-| 3 | Runtime contracts | `ipfs_kit_py/__init__.py`, `cli.py`, `mcp_server/`, `backend_registry.py`, fsspec modules |
+| 3 | Runtime contracts | `ipfs_kit_py/__init__.py`, `cli.py`, `mcp_server/`, `backend_registry.py`, fsspec modules, `ipfs.py` / client siblings |
 | 4 | Focused tests | `tests/`, `ipfs_kit_py/mcp_server/tests_e2e_interop.py` |
 | 5 | Existing audits / docs | `docs/architecture/CLI_MCP_ARCHITECTURE_AUDIT.md`, `README.md`, install guides |
+
+**Not packaging authority:** repo-root `src/` (`src/__init__.py` reports `__version__ = "3.0.0"`) is **outside** `[tool.setuptools.packages.find]` (`ipfs_kit_py*`, `external*` only). Treat as non-distributed tree unless a future packaging change includes it.
 
 ## Explicit cross-surface conflicts
 
@@ -43,15 +45,17 @@ These are first-class findings. Later guides must not paper them over.
 
 | Conflict ID | Topic | Competing claims | Evidence |
 |---|---|---|---|
-| **C-VER** | Package version | `pyproject.toml` / `setup.py` / README badge = **0.3.0**; `ipfs_kit_py/__init__.py` `__version__` = **0.2.0** | `pyproject.toml:7`, `setup.py:173`, `ipfs_kit_py/__init__.py:83`, `README.md` badge |
-| **C-EXPORT** | Root exports vs docs | `__all__` emphasizes P2P workflow + JIT helpers; common docs/examples emphasize `IPFSSimpleAPI`, `ipfs_kit`, installers, fsspec | `__init__.py` `__all__` vs README / `docs/installation_guide.md` |
-| **C-MCP-TOOLS** | MCP tool count | Runtime `TOOL_GROUPS` = **29** tools (12 groups, includes `iroh_diagnostics`); committed JS manifest = **28** (missing `iroh_diagnostics`); FastMCP e2e docstring asserts **28**; `mcp_server/README.md` claims **21** tools and omits newer groups; same README “Tests” section says **7** tools | `tools/__init__.py`, `js_sdk/tools-manifest.json`, `tests_e2e_interop.py:238-248`, `mcp_server/README.md` |
+| **C-VER** | Package version | Packaging / `setup.py` / README badge = **0.3.0**; `ipfs_kit_py/__init__.py` `__version__` = **0.2.0**; non-packaged `src/__init__.py` = **3.0.0**; root `package.json` = **0.1.0** (Playwright harness only) | `pyproject.toml` `version`, `setup.py`, `ipfs_kit_py/__init__.py`, `src/__init__.py`, `package.json`, README badge |
+| **C-EXPORT** | Root exports vs docs | `__all__` emphasizes P2P workflow + JIT helpers (21 names); common docs/examples emphasize `IPFSSimpleAPI`, `ipfs_kit`, installers, fsspec — mostly lazy proxies **not** in `__all__` | `__init__.py` `__all__` vs README / `docs/installation_guide.md` |
+| **C-MCP-TOOLS** | MCP tool count | Runtime `TOOL_GROUPS` = **29** tools (12 groups, includes `iroh_diagnostics`); committed JS manifest = **28** (missing `iroh_diagnostics`); `tests_e2e_interop.py` FastMCP test **hard-asserts** `len(names) == 28` (body + docstring); `mcp_server/README.md` still claims **21** tools (8 groups) and Tests section says **7** tools | `mcp_server/tools/__init__.py`, `js_sdk/tools-manifest.json`, `tests_e2e_interop.py`, `mcp_server/README.md` |
 | **C-MCP-TREES** | Competing MCP servers | Canonical packaging points at `ipfs_kit_py.mcp_server`; large parallel trees under `ipfs_kit_py/mcp/`, root `mcp/`, `servers/`, and root shims remain importable | `pyproject.toml` scripts vs package layouts |
-| **C-HLA** | High-level API dual path | Package `high_level_api/` (stub/proxy) vs module `high_level_api.py` (~550 KB legacy impl) loaded under alternate module name | `high_level_api/__init__.py`, `high_level_api.py` |
+| **C-HLA** | High-level API dual path | Package `high_level_api/` (stub/proxy that may load legacy file under a non-clobbering module name) vs module `high_level_api.py` (~554 KB legacy impl); additional sibling artifacts (`high_level_api_updated.py`, `.fixed`, `.new`, …) | `high_level_api/__init__.py`, `high_level_api.py` |
+| **C-IPFS-CLIENT** | IPFS client implementations | Canonical orchestrator path uses `from .ipfs import ipfs_py` inside `ipfs_kit`; parallel clients: `ipfs_client.ipfs_py` (MCP-oriented rewrite), `ipfs/ipfs_py.py` package reference, `tools/ipfs_core_tools.IPFSClient` (HTTP `/api/v0`), direct `ipfshttpclient` in some Iroh paths | `ipfs_kit.py`, `ipfs.py`, `ipfs_client.py`, `ipfs/ipfs_py.py`, `tools/ipfs_core_tools.py` |
 | **C-FSSPEC** | IPFS fsspec implementation | `ipfs_fsspec.IPFSFileSystem` / `IPFSFSSpecFileSystem` vs `enhanced_fsspec` multi-protocol registration; only Iroh protocols are declared in packaging entry points | `pyproject.toml` fsspec.specs; `ipfs_fsspec.py`; `enhanced_fsspec.py` |
-| **C-CLI** | CLI dispatcher composition | Console script `ipfs-kit` → `cli:sync_main` (`FastCLI`); separate `unified_cli_dispatcher.py` defines additional subcommands (audit, richer daemon) not fully wired into `FastCLI` | `cli.py`, `unified_cli_dispatcher.py` |
+| **C-CLI** | CLI dispatcher composition | Console script `ipfs-kit` → `cli:sync_main` (`FastCLI`). `FastCLI._add_unified_commands` wires UnifiedCLIDispatcher **bucket/vfs/wal/pin/backend/journal/state** only — **not** `audit`. Unified also defines its own `daemon` tree; FastCLI keeps a separate `daemon` subcommand and does not call `_add_daemon_commands` | `cli.py`, `unified_cli_dispatcher.py` |
 | **C-INSTALL-DOC** | Installer CLI name | Docs mention `ipfs-kit-install`; packaging has no such console script | `docs/installation_guide.md` vs `pyproject.toml` `[project.scripts]` |
 | **C-SETUP-SCRIPTS** | setuptools legacy path | `setup.py` loads deps/extras from `pyproject.toml` but does **not** redeclare console scripts or fsspec entry points; PEP 517 builds use `pyproject.toml` | `setup.py` |
+| **C-PY-FLOOR** | Python version floor | Packaging `requires-python = ">=3.12"`; `pytest.ini` `minversion = 3.8` still advertises a lower floor | `pyproject.toml`, `pytest.ini` |
 
 ---
 
@@ -82,7 +86,7 @@ when the maintained product doc does not yet exist.
 | **Authority / status** | **canonical** for name, version **0.3.0**, Python `>=3.12`, dependencies, optional extras, console scripts, fsspec entry points |
 | **Optional requirements** | None to read metadata. Install needs network for many deps; `libp2p` / `ipld-github` / `ipfs_accelerate` extras pull heavy or VCS packages |
 | **Focused tests** | `tests/test_iroh_packaging.py`; packaging assertions in Iroh release/readiness tests; install-path tests that import package metadata |
-| **Known drift** | **C-VER**, **C-SETUP-SCRIPTS**. Optional-extra set is large (`iroh`, `fsspec`, `api`, `libp2p`, `ai_ml`, `full`, …); docs often understate Python 3.12 floor |
+| **Known drift** | **C-VER**, **C-SETUP-SCRIPTS**, **C-PY-FLOOR**. Optional-extra set is large (`iroh`, `fsspec`, `api`, `libp2p`, `ai_ml`, `full`, …); docs often understate Python 3.12 floor |
 | **Documentation owner** | Planned: `docs/installation_guide.md`, `docs/QUICK_REFERENCE.md` (KDOC-030); packaging facts also feed `docs/architecture/RUNTIME_AND_ENTRYPOINTS.md` (KDOC-011) |
 
 **Declared console scripts** (`[project.scripts]`):
@@ -107,7 +111,8 @@ when the maintained product doc does not yet exist.
 
 **Not declared in packaging** (code-side only): backend plugin group name
 `ipfs_kit.backends` (see S12); IPFS/filecoin/storacha/synapse fsspec protocols
-registered at import time in modules (see S11).
+registered at import time in modules (see S13). Package discovery include is
+`ipfs_kit_py*`, `external*` only — not `src/`.
 
 ---
 
@@ -135,7 +140,7 @@ registered at import time in modules (see S11).
 | **Known drift** | **C-VER**, **C-EXPORT**. Module docstring still shows historical MCP start via `final_mcp_server_enhanced.py` (root `servers/` tree), not `ipfs-kit-mcp`. `__all__` is P2P/JIT-centric and omits many popular lazy symbols (`IPFSSimpleAPI`, `ipfs_kit`, `IPFSFileSystem`, installers) |
 | **Documentation owner** | Planned: getting-started Python API docs (KDOC-G041 / KDOC-031+); `docs/architecture/COMPATIBILITY_LAYERS.md` for lazy/compat rules |
 
-**`__all__` (explicit):** `MerkleClock`, `FibonacciHeap`, `WorkflowPriorityQueue`,
+**`__all__` (explicit, 21 names):** `MerkleClock`, `FibonacciHeap`, `WorkflowPriorityQueue`,
 `P2PWorkflowCoordinator`, `WorkflowStatus`, `WorkflowTask`, `hamming_distance`,
 `select_task_owner`, `create_task_hash`, `P2PWorkflowTools`, `jit_manager`,
 `require_feature`, `optional_feature`, `initialize_backend_config`,
@@ -158,7 +163,7 @@ JIT and optional deps.
 | **Authority / status** | **unresolved** dual path (**C-HLA**): package directory stub/proxy vs legacy `high_level_api.py` implementation loaded under a non-clobbering module name |
 | **Optional requirements** | Feature flag / JIT `high_level_api`; many methods need daemons, `libp2p`, AI/ML, WebRTC extras depending on call |
 | **Focused tests** | `tests/integration/test_high_level_api.py`, `test_high_level_api_libp2p_anyio.py`, `test_high_level_api_ai_ml.py`, `test_high_level_api_metadata_replication.py` |
-| **Known drift** | Stub path returns `available=False` warnings if legacy load fails; SDK generation methods live on the large legacy module; docs rarely describe the dual-module layout |
+| **Known drift** | Stub path returns `available=False` warnings if legacy load fails; SDK generation methods live on the large legacy module; sibling unfinished copies (`high_level_api_updated.py`, `.fixed`, …) increase confusion; docs rarely describe the dual-module layout |
 | **Documentation owner** | Planned Python API user doc (KDOC-G041); architecture: RUNTIME_AND_ENTRYPOINTS + COMPATIBILITY_LAYERS |
 
 ---
@@ -171,8 +176,12 @@ JIT and optional deps.
 | **Authority / status** | **canonical** low-level orchestrator for many MCP `core_operations` call paths; historically also the primary kit class |
 | **Optional requirements** | IPFS/Kubo binary and config for full operations; related cluster/lotus components optional |
 | **Focused tests** | Broad integration suite under `tests/integration/` and `tests/comprehensive_ipfs_test.py`; MCP core_operations path covered by `mcp_server` e2e |
-| **Known drift** | Attribute vs submodule naming historically fragile (comments in `__init__.py` about package attribute clobber); parallel “kit” modules exist in accelerate/datasets integrations |
+| **Known drift** | Attribute vs submodule naming historically fragile (comments in `__init__.py` about package attribute clobber); parallel “kit” modules exist in accelerate/datasets integrations; client used underneath is subject to **C-IPFS-CLIENT** |
 | **Documentation owner** | Planned SYSTEM_OVERVIEW + RUNTIME_AND_ENTRYPOINTS; not a standalone user guide target |
+
+`mcp_server/core_operations.py` documents itself as the MCP/CLI/JS SDK business-logic
+funnel and lazily builds `ipfs_kit.create(auto_start_daemons=False)` (or a stub kit
+when construction fails).
 
 ---
 
@@ -181,10 +190,10 @@ JIT and optional deps.
 | Field | Value |
 |---|---|
 | **Entry path** | Console: `ipfs-kit …`; module: `python -m ipfs_kit_py.cli …`; entry `ipfs_kit_py.cli:sync_main` → async `main()` |
-| **Authority / status** | **canonical** CLI entry. Implementation class: `FastCLI` in `cli.py`. Unified feature commands partially delegated to `UnifiedCLIDispatcher` |
+| **Authority / status** | **canonical** CLI entry. Implementation class: `FastCLI` in `cli.py`. Domain feature commands partially delegated to `UnifiedCLIDispatcher` |
 | **Optional requirements** | MCP start/stop needs server modules and ports; services need IPFS/Lotus binaries; autoheal needs GitHub config |
 | **Focused tests** | `tests/test_cli_import_verification.py`, `tests/test_cli_integration.py`, `tests/test_cli_access_methods.py`, `tests/test_cli_deprecations_*.py`, `tests/integration/test_cli_interface.py`, `tests/integration/test_wal_cli_integration_anyio.py` |
-| **Known drift** | **C-CLI**. Top-level subcommands observed from parser: `mcp`, `daemon`, `services`, `autoheal`, `bucket`, `vfs`, `wal`, `pin`, `backend`, `journal`, `state`. `UnifiedCLIDispatcher` also defines `audit` and alternate `daemon` wiring not fully mirrored. `cli.py.broken` / `cli_old.py` are non-entry historical artifacts |
+| **Known drift** | **C-CLI**. Live top-level subcommands: `autoheal`, `backend`, `bucket`, `daemon`, `journal`, `mcp`, `pin`, `services`, `state`, `vfs`, `wal`. UnifiedCLIDispatcher also defines `audit` (not wired into `FastCLI`) and an alternate `daemon` tree (not wired). `cli.py.broken` / `cli_old.py` are non-entry historical artifacts |
 | **Documentation owner** | Planned CLI user guide + RUNTIME_AND_ENTRYPOINTS; operational deprecations narrative in MCP control-plane docs |
 
 **Built-in `mcp` actions:** `start` (default port 8004), `stop`, `status`, `deprecations` (JSON report schema `REPORT_SCHEMA_VERSION = "1.0.0"`).
@@ -205,7 +214,7 @@ JIT and optional deps.
 | **Authority / status** | **canonical design** for domain subcommands (bucket/vfs/wal/pin/backend/journal/state/audit/daemon); **partial** as sole CLI — primary console entry is still `FastCLI` |
 | **Optional requirements** | Domain modules for each handler (bucket VFS, WAL, pin, backend manager, journal, …) |
 | **Focused tests** | Indirect via CLI integration and domain CLI tests; architecture intent in `docs/architecture/CLI_MCP_ARCHITECTURE_AUDIT.md` (may be stale vs current wiring) |
-| **Known drift** | **C-CLI**; architecture audit document may predate current `FastCLI` composition |
+| **Known drift** | **C-CLI**; architecture audit document may predate current `FastCLI` composition; `audit` remains library-only until wired |
 | **Documentation owner** | RUNTIME_AND_ENTRYPOINTS; CLI_MCP_ARCHITECTURE_AUDIT (historical audit, refresh via later KDOC tasks) |
 
 ---
@@ -228,13 +237,17 @@ JIT and optional deps.
 | Field | Value |
 |---|---|
 | **Entry path** | Console: `ipfs-kit-mcp [--transport stdio\|http\|p2p] [--host] [--port]`; module: `ipfs_kit_py.mcp_server.server:main`. Tools CLI: `ipfs-kit-mcp-tools`. Python: import tool callables from `mcp_server.tools.*` |
-| **Authority / status** | **canonical** MCP control plane for packaging and MCP++ profiles. One registry: `TOOL_GROUPS` in `mcp_server/tools/__init__.py`, consumed by hierarchical manager, CLI, JSON-RPC, FastMCP registrar, JS SDK generator |
+| **Authority / status** | **canonical** MCP control plane for packaging and MCP++ profiles. One registry: `TOOL_GROUPS` in `mcp_server/tools/__init__.py`, consumed by hierarchical manager, CLI, **JSON-RPC** server, FastMCP registrar, JS SDK generator |
 | **Optional requirements** | HTTP transport: Hypercorn + anyio trio backend; P2P: libp2p; MCP++ envelope/UCAN/policy features degrade when `mcplusplus` extras absent; tool backends need live IPFS/Iroh depending on tool |
 | **Focused tests** | **`ipfs_kit_py/mcp_server/tests_e2e_interop.py`** (stdio/HTTP/JS SDK/FastMCP/handshake); `tests/test_mcp_jsonrpc_conformance.py`; many `tests/test_mcp_*.py` and `tests/integration/test_mcp_*.py` (broader, often hit legacy trees — filter carefully) |
-| **Known drift** | **C-MCP-TOOLS**, **C-MCP-TREES**. Live registry count **29**; manifest **28** (`iroh_diagnostics` missing); README counts **21** / **7** stale. FastMCP test docstring still says 28 while `register_fastmcp` currently returns 29 names |
+| **Known drift** | **C-MCP-TOOLS**, **C-MCP-TREES**. Live registry count **29**; manifest **28** (`iroh_diagnostics` missing); README counts **21** / **7** stale. FastMCP e2e hard-assert still expects **28** while `register_fastmcp` returns all registry names (currently 29) |
 | **Documentation owner** | Planned `docs/architecture/MCP_CONTROL_PLANE.md` (KDOC-016); user MCP journey under KDOC-G040 |
 
-**`TOOL_GROUPS` (runtime authority, 12 groups / 29 tools):**
+**Primary protocol surface (JSON-RPC):** stock MCP methods `initialize`, `tools/list`,
+`tools/call` (and notifications) over stdio / HTTP / optional P2P stream. This is the
+default product path for third-party MCP clients; FastMCP is backwards-compat only.
+
+**`TOOL_GROUPS` (runtime authority, 12 groups / 29 tools) — re-verified live:**
 
 | Group | Tools |
 |---|---|
@@ -253,17 +266,20 @@ JIT and optional deps.
 
 **Transports:** stdio (default), HTTP (default bind `127.0.0.1:8004`), P2P (libp2p Profile E).
 
+**MCP++ layer:** `mcp_server/mcplusplus/` (profiles, UCAN/CID, coordination artifacts)
+gracefully no-ops when extras are absent.
+
 ---
 
 ### S10 — FastMCP registrar and JS/TS SDK
 
 | Field | Value |
 |---|---|
-| **Entry path** | Python: `from ipfs_kit_py.mcp_server.fastmcp_app import register_fastmcp, create_fastmcp_app` (requires `mcp` package). JS/TS: `python -m ipfs_kit_py.mcp_server.js_sdk.generate` → generated SDK + `tools-manifest.json`; `make mcp-sdk` in project docs |
+| **Entry path** | Python: `from ipfs_kit_py.mcp_server.fastmcp_app import register_fastmcp, build_app` (requires `mcp` package). JS/TS: `python -m ipfs_kit_py.mcp_server.js_sdk.generate` → generated SDK + `tools-manifest.json`; `make mcp-sdk` in project docs |
 | **Authority / status** | FastMCP = **compatibility** surface over the same registry. JS/TS SDK = **generated** companion; manifest is **derived** and currently **drifted** |
 | **Optional requirements** | `mcp` Python package for FastMCP; Node ecosystem for dashboard descriptor pack / Playwright e2e |
 | **Focused tests** | `test_fastmcp_registrar_covers_full_registry`, `test_js_sdk_mirrors_python_tools`, `test_ts_sdk_typed_tool_names` in `tests_e2e_interop.py` |
-| **Known drift** | **C-MCP-TOOLS** (manifest vs registry; hard-coded 28 in test docstring). Dashboard swissknife path referenced by tests may be out-of-tree |
+| **Known drift** | **C-MCP-TOOLS** (manifest vs registry; hard-coded **28** in FastMCP e2e assert — will fail against current **29**-tool registry until regenerated/updated). Dashboard swissknife path referenced by tests may be out-of-tree |
 | **Documentation owner** | MCP_CONTROL_PLANE; generated-doc contract (KDOC-046 / KDOC-G060) owns refresh rules for SDK artifacts |
 
 ---
@@ -276,7 +292,7 @@ JIT and optional deps.
 | **Authority / status** | **historical / compatibility** for many paths; **unresolved** which dashboard server is operational default when not using `ipfs-kit-mcp` |
 | **Optional requirements** | FastAPI/uvicorn (`api` extra), dashboard static assets, daemon managers, various MCP tool shims |
 | **Focused tests** | Large set: `tests/test_mcp_*.py`, `tests/comprehensive_mcp_test*.py`, `tests/integration/test_mcp_*.py`, Playwright MCP UI specs — many target legacy enhanced/dashboard servers rather than MCP++ `mcp_server` |
-| **Known drift** | **C-MCP-TREES**. `__init__.py` docstring still advertises `final_mcp_server_enhanced.py`. Architecture audit incomplete relative to files now present under `mcp/*_mcp_tools.py` |
+| **Known drift** | **C-MCP-TREES**. `__init__.py` docstring still advertises `final_mcp_server_enhanced.py` (port **9998**). Architecture audit incomplete relative to files now present under `mcp/*_mcp_tools.py` |
 | **Documentation owner** | MCP_CONTROL_PLANE must label legacy vs canonical; COMPATIBILITY_LAYERS; ARCHIVE disposition via KDOC-041+ |
 
 ---
@@ -287,9 +303,9 @@ JIT and optional deps.
 |---|---|
 | **Entry path** | `ipfs_kit_py.backend_registry.BackendTypeRegistry` / helpers; backend manager modules; CLI `ipfs-kit backend …`; package `ipfs_kit_py.backends/*` adapters |
 | **Authority / status** | **canonical** for **side-effect-free type plugins** (validate/migrate/capabilities/health/schema). Live storage adapters under `backends/` and older manager modules are a separate runtime layer — relationship **partially documented** |
-| **Optional requirements** | Entry-point discovery group name `ipfs_kit.backends` (not declared in `pyproject.toml`; built-ins registered in code). Iroh plugin always registered from `iroh.backend`. Cloud backends need credentials/extras (`s3`, `huggingface`, …) |
+| **Optional requirements** | Entry-point discovery group name `ipfs_kit.backends` (not declared in `pyproject.toml`; built-ins registered in code). Iroh plugin always registered from `iroh.backend` even when not in `LEGACY_TYPES`. Cloud backends need credentials/extras (`s3`, `huggingface`, …) |
 | **Focused tests** | `tests/test_backend_enhancements.py`, `tests/test_backends_services_tools.py`, `tests/test_iroh_backend_manager.py`, `tests/integration/test_ipfs_backend_implementation.py`, `tests/integration/test_storage_backends_real.py`, `tests/integration/backends/` |
-| **Known drift** | No `[project.entry-points."ipfs_kit.backends"]` in packaging despite registry support. Legacy type list is long; not every type has a first-class adapter implementation. Parallel `enhanced_backend_manager` / `backend_manager` names coexist |
+| **Known drift** | No `[project.entry-points."ipfs_kit.backends"]` in packaging despite registry support. `LEGACY_TYPES` has **21** names; with Iroh plugin always registered → **22** plugins when `load_entry_points=False` (re-verified). Parallel `enhanced_backend_manager` / `backend_manager` names coexist |
 | **Documentation owner** | Planned `docs/architecture/STORAGE_BACKEND_SYSTEM.md` (KDOC-012) |
 
 **Built-in type names (22 with `load_entry_points=False`):**  
@@ -378,15 +394,15 @@ JIT and optional deps.
 
 ---
 
-### S19 — Root compatibility shims and embedded projects
+### S19 — Root compatibility shims and embedded / non-packaged trees
 
 | Field | Value |
 |---|---|
-| **Entry path** | Repo-root modules: `install_ipfs.py`, `install_lotus.py`, `consolidated_mcp_dashboard.py`, `enhanced_mcp_server_with_daemon_mgmt.py`, `daemon_config_manager.py`, `migrate_secrets.py`; package find includes `external*`; submodules `ipfs_accelerate_py`, datasets/transformers accessors |
-| **Authority / status** | **compatibility** shims for tests and legacy imports; integrations **optional** via extras `ipfs_accelerate`, `ipfs_datasets`, `transformers` |
+| **Entry path** | Repo-root modules: `install_ipfs.py`, `install_lotus.py`, `consolidated_mcp_dashboard.py`, `enhanced_mcp_server_with_daemon_mgmt.py`, `daemon_config_manager.py`, `migrate_secrets.py`; package find includes `external*`; submodules `ipfs_accelerate_py`, datasets/transformers accessors; **non-packaged** `src/` tree (`src/__init__.py` version **3.0.0**, `src/ipfs_kit/`, `src/daemon/`, `src/cluster/`, `src/servers/`) |
+| **Authority / status** | **compatibility** shims for tests and legacy imports; integrations **optional** via extras `ipfs_accelerate`, `ipfs_datasets`, `transformers`; `src/` is **historical / unresolved** relative to distributed `ipfs_kit_py` package |
 | **Optional requirements** | Heavy ML stacks for accelerate; datasets stack; not required for core kit |
 | **Focused tests** | Import shims often exercised by tests that `import consolidated_mcp_dashboard` etc.; integration tests for datasets/accelerate when available |
-| **Known drift** | Root MCP docstring paths; `package.json` version **0.1.0** is Playwright e2e harness only (not Python package version) |
+| **Known drift** | Root MCP docstring paths; `package.json` version **0.1.0** is Playwright e2e harness only; `src/__init__.py` version **3.0.0** is a third version line not in packaging (**C-VER**) |
 | **Documentation owner** | COMPATIBILITY_LAYERS; integration docs (KDOC-G040); external/embedded boundary (KDOC-043/044) |
 
 ---
@@ -404,16 +420,29 @@ JIT and optional deps.
 
 ---
 
+### S21 — IPFS client / Kubo HTTP layer
+
+| Field | Value |
+|---|---|
+| **Entry path** | Primary production path: `ipfs_kit` constructs `ipfs_kit_py.ipfs.ipfs_py`. Alternate modules: `ipfs_kit_py.ipfs_client.ipfs_py`, package `ipfs_kit_py.ipfs.ipfs_py`, `ipfs_kit_py.tools.ipfs_core_tools.IPFSClient`, occasional `ipfshttpclient.connect()` (e.g. Iroh ops paths) |
+| **Authority / status** | **canonical** for kit orchestration = `ipfs.py::ipfs_py` as used by `ipfs_kit`. Other clients = **compatibility / historical / experimental**. Relationship among rewrites is **unresolved** (**C-IPFS-CLIENT**) |
+| **Optional requirements** | Live Kubo (or compatible) API typically `localhost:5001`; `ipfs` binary for subprocess-oriented paths; network for remote APIs |
+| **Focused tests** | Integration tests that exercise add/cat/pin via kit; MCP e2e uses stub kit when daemon unavailable; client-specific unit tests where present |
+| **Known drift** | Multiple `ipfs_py` class definitions with different constructors (`resources`/`metadata` vs metadata-only). `tools/ipfs_core_tools.py` still describes an older “18 core tools” product framing that diverges from MCP++ `TOOL_GROUPS` |
+| **Documentation owner** | RUNTIME_AND_ENTRYPOINTS + SOURCE_OF_TRUTH_MAP (KDOC-004) must pick a single client authority narrative; MCP_CONTROL_PLANE for how `core_operations` reaches the kit |
+
+---
+
 ## Surface → documentation owner map (summary)
 
 | Surface IDs | Documentation owner (current or planned) | Downstream KDOC |
 |---|---|---|
 | S01–S02, S16 | `docs/installation_guide.md`, `docs/QUICK_REFERENCE.md` | KDOC-030 |
-| S03–S05, S06–S08, S14–S15 | `docs/architecture/RUNTIME_AND_ENTRYPOINTS.md` | KDOC-011 |
+| S03–S08, S14–S15, S21 | `docs/architecture/RUNTIME_AND_ENTRYPOINTS.md` | KDOC-011 |
 | S09–S11, S10 | `docs/architecture/MCP_CONTROL_PLANE.md` | KDOC-016 |
 | S12–S13, S17 (storage) | `docs/architecture/STORAGE_BACKEND_SYSTEM.md`, `docs/iroh/*` | KDOC-012 |
 | S18 | CLUSTER_COORDINATION, NETWORK_TRANSPORTS | KDOC-014/015 |
-| S04/S05/S11/S19 dual paths | COMPATIBILITY_LAYERS + SOURCE_OF_TRUTH_MAP | KDOC-004, KDOC-019 |
+| S04/S05/S11/S19/S21 dual paths | COMPATIBILITY_LAYERS + SOURCE_OF_TRUTH_MAP | KDOC-004, KDOC-019 |
 | S20 | CONFIGURATION_STATE_AND_TRUST | KDOC-018 |
 | All | Getting-started accuracy (versions/exports/commands) | KDOC-G041 |
 
@@ -437,6 +466,11 @@ From `pyproject.toml` `[project.optional-dependencies]` (names only; install wit
 | `performance` / `dev` | benchmarks and developer tooling |
 | `full` | broad dependency union (still not every VCS extra) |
 
+**Declared extras (complete list):** `iroh`, `transformers`, `fsspec`, `arrow`,
+`libp2p`, `ai_ml`, `huggingface`, `filecoin_pin`, `car_files`, `saturn`, `ipni`,
+`enhanced_ipfs`, `ipld`, `ipld-github`, `ipfs_datasets`, `ipfs_accelerate`, `api`,
+`webrtc`, `graphql`, `s3`, `performance`, `dev`, `full`.
+
 Core runtime already pulls `anyio`, `trio`, `hypercorn`, `requests`, `httpx`,
 `aiohttp`, cryptography stack, etc. — MCP HTTP can run without the `api` extra,
 but FastAPI REST cannot.
@@ -449,16 +483,19 @@ but FastAPI REST cannot.
 |---|---|
 | Packaging / version-sensitive | `tests/test_iroh_packaging.py`, import verification |
 | CLI | `tests/test_cli_*.py`, `tests/integration/test_cli_interface.py` |
-| MCP++ registry | `ipfs_kit_py/mcp_server/tests_e2e_interop.py` |
+| MCP++ registry / JSON-RPC | `ipfs_kit_py/mcp_server/tests_e2e_interop.py`, `tests/test_mcp_jsonrpc_conformance.py` |
 | MCP legacy/dashboard | `tests/test_mcp_*.py`, `tests/integration/test_mcp_*.py`, Playwright under `tests/e2e/` |
 | fsspec / Iroh FS | `tests/test_iroh_fsspec_*.py`, `tests/integration/test_fsspec*.py` |
 | Backends | `tests/test_backend*.py`, `tests/integration/test_*backend*` |
 | High-level API | `tests/integration/test_high_level_api*.py` |
 | Daemons | `tests/test_daemon*.py`, `tests/test_intelligent_daemon*.py` |
 | Installers | `tests/test_install_iroh.py`, `tests/comprehensive_installer_test.py` |
+| IPFS client / kit | `tests/comprehensive_ipfs_test.py`, MCP e2e via `core_operations` |
 
 Tests alone do not establish authority when they target historical servers; pair
-with packaging entry points (S01) and `TOOL_GROUPS` (S09).
+with packaging entry points (S01) and `TOOL_GROUPS` (S09). Note `pytest.ini`
+`norecursedirs` excludes `tests/integration` and `tests/archived_stale_tests` from
+default discovery — many focused paths above require explicit selection.
 
 ---
 
@@ -466,11 +503,11 @@ with packaging entry points (S01) and `TOOL_GROUPS` (S09).
 
 ```bash
 # Packaging scripts and version
-rg -n '^version|\[project.scripts\]|fsspec.specs' pyproject.toml
-rg -n '__version__' ipfs_kit_py/__init__.py
+rg -n '^version|\[project.scripts\]|fsspec.specs|requires-python' pyproject.toml
+rg -n '__version__' ipfs_kit_py/__init__.py src/__init__.py
 
-# MCP tool registry vs manifest (expects 29 vs 28 today)
-python - <<'PY'
+# MCP tool registry vs manifest (expects 29 vs 28 today; reg−mf = iroh_diagnostics)
+IPFS_KIT_AUTO_INSTALL_BINARIES=0 python - <<'PY'
 from ipfs_kit_py.mcp_server.tools import TOOL_GROUPS
 import json
 from pathlib import Path
@@ -479,14 +516,14 @@ mf = {t["name"] for t in json.loads(Path("ipfs_kit_py/mcp_server/js_sdk/tools-ma
 print(len(reg), len(mf), sorted(reg - mf))
 PY
 
-# Backend built-ins
-python - <<'PY'
+# Backend built-ins (expects 22 with iroh always registered)
+IPFS_KIT_AUTO_INSTALL_BINARIES=0 python - <<'PY'
 from ipfs_kit_py.backend_registry import BackendTypeRegistry
-print(sorted(BackendTypeRegistry(load_entry_points=False)._plugins))
+print(len(BackendTypeRegistry.LEGACY_TYPES), sorted(BackendTypeRegistry(load_entry_points=False)._plugins))
 PY
 
-# CLI top-level commands
-python - <<'PY'
+# CLI top-level commands (expects 11; no audit)
+IPFS_KIT_AUTO_INSTALL_BINARIES=0 python - <<'PY'
 from ipfs_kit_py.cli import FastCLI
 for a in FastCLI().parser._subparsers._group_actions:
     if getattr(a, "choices", None):
@@ -511,15 +548,15 @@ Do not set `IPFS_KIT_AUTO_INSTALL_BINARIES=1` for documentation validation.
 
 | Criterion | Met |
 |---|---|
-| Surfaces list entry path | Yes (S01–S20) |
+| Surfaces list entry path | Yes (S01–S21) |
 | Implementation authority/status | Yes (status vocabulary + per surface) |
 | Optional requirements | Yes (per surface + extras table) |
 | Focused tests | Yes (per surface + index) |
 | Known drift | Yes (global C-* table + per surface) |
 | Documentation owner | Yes (per surface + summary map) |
-| Version / export / tool-count conflicts explicit | Yes (**C-VER**, **C-EXPORT**, **C-MCP-TOOLS**, …) |
+| Version / export / tool-count conflicts explicit | Yes (**C-VER**, **C-EXPORT**, **C-MCP-TOOLS**, **C-IPFS-CLIENT**, …) |
 | Validation command greps `pyproject.toml` | Yes (this file) |
 
 ---
 
-*End of PUBLIC_SURFACE_MATRIX.md — KDOC-002 evidence artifact.*
+*End of PUBLIC_SURFACE_MATRIX.md — KDOC-002 evidence artifact (re-verified attempt 3).*
