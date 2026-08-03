@@ -555,6 +555,15 @@ def test_real_adapter_invokes_every_bound_production_symbol(
 
         def observed(*args, __target=target, __original=original, **kwargs):
             value = __original(*args, **kwargs)
+            if inspect.isawaitable(value):
+
+                async def await_and_observe():
+                    resolved = await value
+                    target_results[__target].append(resolved)
+                    calls[__target] += 1
+                    return resolved
+
+                return await_and_observe()
             # A raised exception never reaches these lines and therefore can
             # never be presented as an observed successful production call.
             target_results[__target].append(value)
