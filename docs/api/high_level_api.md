@@ -1,1094 +1,524 @@
 # High-Level API (`IPFSSimpleAPI`)
 
-The `IPFSSimpleAPI` class, found in `ipfs_kit_py/high_level_api.py`, provides a user-friendly, simplified interface for common IPFS operations. It abstracts away the complexity of the underlying components, making it the recommended entry point for most users.
+The high-level API is the recommended in-process Python surface for common IPFS Kit operations. This guide documents **imports that resolve on the current tree**, construction and configuration, lazy/degraded behavior, return and error shapes, and how the dual-path implementation is wired.
 
-## Key Features
+Cross-references: [API Reference](api_reference.md), [Runtime and entry points](../architecture/RUNTIME_AND_ENTRYPOINTS.md), [Compatibility layers](../architecture/COMPATIBILITY_LAYERS.md) (C-HLA / C-EXPORT), [API stability](../api_stability.md).
 
--   **Simplified Interface:** Intuitive methods for common tasks like `add`, `get`, `pin`, `publish`, etc.
--   **Declarative Configuration:** Configure behavior using Python dictionaries, YAML files, JSON files, or environment variables
--   **Automatic Component Management:** Auto-initializes and manages underlying components based on configuration
--   **Built-in Error Handling:** Provides consistent error reporting with proper exception handling
--   **Plugin Architecture:** Extend functionality with custom plugins
--   **Multi-language SDK Generation:** Generate client SDKs for Python, JavaScript, and Rust
--   **File-like Interface:** Access IPFS content with familiar filesystem operations
+---
 
-## Initialization
+## Status snapshot
+
+| Surface | Status | Notes |
+|--------|--------|--------|
+| Import name `ipfs_kit_py.high_level_api` | **Canonical import name** | Resolves to package directory `ipfs_kit_py/high_level_api/` |
+| Package export `IPFSSimpleAPI` | **Canonical constructor name** | Stub/proxy that lazy-loads the full implementation on first instantiation |
+| Sibling file `ipfs_kit_py/high_level_api.py` | **Compatibility implementation body** | Loaded under `sys.modules` name `ipfs_kit_py._high_level_api_impl` so it does not clobber the package |
+| Package-only stub when load fails | **Degraded mode** | Sets `available = False`; unknown methods return `{success: False, warning: ...}` |
+| Root `from ipfs_kit_py import IPFSSimpleAPI` | **Lazy proxy** (not in `__all__`) | `_IPFSSimpleAPIProxy`; raises `ImportError` if the feature cannot load |
+| Root `PluginBase` | **Not a usable root export** | Package root assigns `PluginBase = None`; do not import it from `ipfs_kit_py` |
+| Draft files (`high_level_api.py.fixed`, `*_improved.py`, etc.) | **Inactive** | Not import targets |
+
+Long-term shape of the dual path (**C-HLA** / **U-03**) remains unresolved in architecture docs. This guide describes **current** behavior only.
+
+---
+
+## Supported imports
+
+### Preferred: package import
 
 ```python
 from ipfs_kit_py.high_level_api import IPFSSimpleAPI
 
-# Initialize with default settings (usually leecher role, default paths)
+api = IPFSSimpleAPI()
+# When the Compatibility implementation loaded: full methods.
+# When only the stub is active: api.available is False.
+```
+
+Package `__all__` for `ipfs_kit_py.high_level_api` always includes `IPFSSimpleAPI`. Optional helpers may also appear when present:
+
+- `WebRTCBenchmarkIntegration`
+- `WebRTCBenchmarkIntegrationAnyIO`
+- `HAVE_ANYIO_BENCHMARK`
+
+### Root lazy proxy (not listed in package `__all__`)
+
+```python
+from ipfs_kit_py import IPFSSimpleAPI  # _IPFSSimpleAPIProxy instance
+
+api = IPFSSimpleAPI()  # resolves class via get_high_level_api(); may raise ImportError
+```
+
+`IPFSSimpleAPI` is **not** listed in `ipfs_kit_py.__all__` (**C-EXPORT**). Prefer the package import for explicitness. There is **no** process-wide singleton instance of the API for library callers: each call constructs a new object.
+
+### Explicit lazy getter
+
+```python
+from ipfs_kit_py import get_high_level_api
+
+IPFSSimpleAPI_cls, _plugin_base = get_high_level_api()
+if IPFSSimpleAPI_cls is None:
+    raise RuntimeError("high_level_api feature unavailable")
+api = IPFSSimpleAPI_cls()
+```
+
+`_plugin_base` is typically `None` because the package surface does not re-export `PluginBase` (see [Plugin architecture](#plugin-architecture-and-extensions)).
+
+### Related kit orchestrator (not the high-level API)
+
+```python
+from ipfs_kit_py.ipfs_kit import ipfs_kit  # class name is lowercase ipfs_kit
+
+# Or lazy package proxy (callable class proxy, not a pre-built instance):
+from ipfs_kit_py import ipfs_kit, get_ipfs_kit
+
+kit = ipfs_kit(resources=None, metadata={"role": "leecher"}, auto_start_daemons=False)
+# Factory:
+kit = ipfs_kit.create(role="leecher", auto_start_daemons=False)
+```
+
+There is **no** public class named `IPFSKit`. Do not assume a root singleton kit instance.
+
+### Client families (do not conflate)
+
+Three different `ipfs_py` classes exist; only the kit orchestrator client is the default under `ipfs_kit`:
+
+| Family | Path | Status |
+|--------|------|--------|
+| A — kit client | `ipfs_kit_py/ipfs.py` | **Canonical** for `ipfs_kit` |
+| B — simplified client | `ipfs_kit_py/ipfs_client.py` | **Compatibility** / experimental |
+| C — nested package client | `ipfs_kit_py/ipfs/ipfs_py.py` | **Compatibility** / historical |
+
+See [Compatibility layers](../architecture/COMPATIBILITY_LAYERS.md) §4 (**C-IPFS-CLIENT**).
+
+---
+
+## Compatibility dual path (C-HLA)
+
+What happens on `IPFSSimpleAPI(...)`:
+
+1. Package class `__new__` calls `_try_load_ipfs_simple_api()`.
+2. If sibling `ipfs_kit_py/high_level_api.py` loads, the **Compatibility** implementation class is used and an instance of that class is returned.
+3. If load fails (missing optional deps such as `fastapi` after auto-ensure attempts, import errors, etc.), the **stub** instance is used:
+   - `self.available = False`
+   - Attribute access yields callables that return structured failure dicts, for example  
+     `{"success": False, "warning": "IPFSSimpleAPI.<name> not available (using stub implementation)"}`.
+
+Check degraded mode before relying on results:
+
+```python
+from ipfs_kit_py.high_level_api import IPFSSimpleAPI
+
+api = IPFSSimpleAPI()
+if getattr(api, "available", True) is False:
+    raise RuntimeError("IPFSSimpleAPI stub active; full Compatibility implementation did not load")
+```
+
+When the full implementation is active, the object typically exposes:
+
+- `api.kit` — underlying `ipfs_kit` orchestrator instance
+- `api.config` — merged configuration dict
+- `api.role` — role string (`leecher` default unless overridden)
+- `api.plugins`, `api.extensions` — plugin/extension registries
+- `api.fs` — filesystem handle from `get_filesystem()` when fsspec path is available
+
+---
+
+## Construction and configuration
+
+### Signature
+
+```text
+IPFSSimpleAPI(config_path: Optional[str] = None, **kwargs)
+```
+
+- `config_path`: optional path to a YAML or JSON file.
+- `**kwargs`: merged into configuration after file load (override file values). Common keys include `role`, `resources`, `metadata`, `disabled_components`, `plugins`, `enable_metrics`, timeouts/cache settings as present in the config schema.
+
+Full-implementation construction (when Compatibility body loads):
+
+1. Load config via `_load_config(config_path)`.
+2. Update with `kwargs`.
+3. Build `ipfs_kit(resources=..., metadata={..., "role": role, "disabled_components": ...})`.
+4. Optionally apply libp2p class integration, metrics, fsspec filesystem, metadata replication, and plugins from config.
+
+### Examples
+
+```python
+from ipfs_kit_py.high_level_api import IPFSSimpleAPI
+
+# Defaults (role typically "leecher" from config/defaults)
 api = IPFSSimpleAPI()
 
-# Initialize with specific role and config file
-api = IPFSSimpleAPI(role="worker", config_path="~/.ipfs_kit/worker_config.yaml")
+# Config file + overrides
+api = IPFSSimpleAPI(
+    config_path="~/.ipfs_kit/config.yaml",
+    role="worker",
+    timeouts={"api": 60, "gateway": 180},
+)
 
-# Initialize with inline configuration overrides
+# Explicit role and resource hints (passed through config/kwargs into kit metadata)
 api = IPFSSimpleAPI(
     role="master",
-    timeouts={"api": 60, "gateway": 180},
-    cache={"memory_size": "1GB"}
-)
-
-# Initialize with plugins
-from my_plugins import MyCustomPlugin # Assuming you have a plugin
-api = IPFSSimpleAPI(
-    plugins=[
-        {"name": "MyCustomPlugin", "plugin_class": MyCustomPlugin, "config": {"key": "value"}}
-    ]
+    resources={"max_memory": "2GB", "max_storage": "100GB"},
+    enable_metrics=True,
 )
 ```
 
-## Configuration System
+### Configuration layering
 
-The `IPFSSimpleAPI` uses a layered configuration system with multiple sources:
+Precedence observed in the full implementation:
 
-1.  **Defaults:** Built-in default configuration values
-2.  **Config File:** YAML or JSON file from `config_path` or standard locations
-3.  **Environment Variables:** Variables like `IPFS_KIT_ROLE` and `IPFS_KIT_API_URL`
-4.  **Initialization Arguments:** Keyword arguments passed during initialization (override all other sources)
+1. Built-in defaults from `_load_config`
+2. Values from `config_path` (if provided)
+3. Initialization `**kwargs` (override file)
 
-### Configuration File Example (YAML)
+Environment variables used elsewhere in the stack (for example `IPFS_KIT_CONFIG_PATH` for the HTTP server, `IPFS_KIT_ROLE` in ops docs) are not a substitute for passing `config_path` / kwargs into the library constructor unless your config loader also reads them.
 
-```yaml
-# Node role (master, worker, leecher)
-role: worker
-
-# Resource limits
-resources:
-  max_memory: 2GB
-  max_storage: 100GB
-
-# Cache settings
-cache:
-  memory_size: 500MB
-  disk_size: 5GB
-  disk_path: ~/.ipfs_kit/cache
-  use_mmap: true
-
-# Connection timeouts
-timeouts:
-  api: 60
-  gateway: 120
-  peer_connect: 30
-
-# Logging
-logging:
-  level: INFO
-  file: ~/.ipfs_kit/logs/ipfs.log
-
-# IPFS daemon settings 
-ipfs_path: ~/.ipfs
-socket_path: /var/run/ipfs/api.sock
-
-# Plugins
-plugins:
-  - name: MetricsPlugin
-    path: ipfs_kit_py.plugins.metrics
-    enabled: true
-    config:
-      interval: 60
-```
-
-### Accessing Configuration
-
-You can access the merged configuration via the `config` attribute:
+### Saving configuration
 
 ```python
-# Check current role
-role = api.config.get("role")
-print(f"Running in {role} mode")
-
-# Check API timeout
-timeout = api.config.get("timeouts", {}).get("api", 30)
-print(f"API timeout: {timeout} seconds")
-
-# Save current configuration
-api.save_config("~/.ipfs_kit/my_config.yaml")
+api.save_config(config_path)  # parameter name is config_path (not file_path)
 ```
 
-## Core Operations
+Returns a result dict with at least a success indicator when the Compatibility implementation is active.
 
-The High-Level API provides an intuitive interface for common operations, grouped by category:
+### Dependency injection and the kit
 
-### Content Operations
+The high-level API constructs its own `ipfs_kit` from config. Callers who need explicit daemon policy on the kit should prefer constructing `ipfs_kit` / `ipfs_kit.create(..., auto_start_daemons=False)` directly, or ensure config/metadata sets safe defaults. The HLA does not accept an external kit instance as a constructor argument in the current signature.
+
+---
+
+## Return and error shapes
+
+### Structured success dictionaries
+
+Most mutating / management methods return a `dict` that includes:
+
+| Key | Meaning |
+|-----|---------|
+| `success` | Boolean outcome |
+| Method-specific fields | e.g. `cid`, `pins`, `count`, `timestamp` |
+| Error fields on failure | Often `error`, sometimes `error_type` |
+
+Example documented shape for `add` (full implementation):
+
+- `success`, `cid`, `size`, `name`, `hash`, `timestamp`
+
+### Byte-returning methods
+
+- `get(cid, timeout=None, **kwargs)` → `bytes` on success
+- `cat(cid)` → `bytes` (content retrieval helper)
+- `read(path, ...)` → content bytes
+
+### Stub / degraded returns
+
+Stub mode does **not** raise for arbitrary method names; it returns:
 
 ```python
-# Add content to IPFS
-# ==================
+{"success": False, "warning": "IPFSSimpleAPI.<name> not available (using stub implementation)"}
+```
 
-# Add file from path
-result = api.add("my_document.txt")
-cid = result["cid"]
-print(f"Added file with CID: {cid}")
+### Exceptions (full implementation)
 
-# Add string content
-text_result = api.add("Hello, IPFS!")
-text_cid = text_result["cid"]
+Docstrings on core methods reference exception types such as:
 
-# Add binary content
-binary_result = api.add(b"\x00\x01\x02\x03")
-binary_cid = binary_result["cid"]
+- `IPFSError`, `IPFSConnectionError`, `IPFSTimeoutError`
+- `IPFSContentNotFoundError`, `IPFSValidationError`
+- `IPFSAddError`, `IPFSPinningError`, cluster-specific errors
 
-# Add with options
-result = api.add("large_file.zip", 
-                 pin=True,              # Pin content (default: True)
-                 wrap_with_directory=True,  # Wrap with directory
-                 chunker="size-1048576",    # Use larger chunks (1MB)
-                 hash="sha2-512")           # Use SHA-512 hash
+Always check `success` when the return type is a dict; catch IPFS errors when calling byte-returning or raising paths.
 
-# Get content from IPFS
-# ===================
+---
 
-# Get content (returns bytes)
+## Sync vs async
+
+| Style | Methods | Notes |
+|-------|---------|--------|
+| Sync (primary) | `add`, `get`, `pin`, `publish`, `cluster_*`, most AI helpers | Call from ordinary Python code |
+| Async | `stream_media_async`, `stream_to_ipfs_async`, `handle_websocket_*`, `handle_webrtc_streaming` | Require an event loop / ASGI WebSocket context |
+| Callable dispatch | `api(method_name, *args, **kwargs)` | Sync dispatch to a method or registered extension |
+
+There is no separate “async IPFSSimpleAPI” class on the package surface. AnyIO dual helpers for WebRTC benchmarks live as optional package exports (`WebRTCBenchmarkIntegrationAnyIO`) when importable.
+
+---
+
+## Core operations (verified signatures)
+
+Signatures below are taken from the Compatibility implementation class in `ipfs_kit_py/high_level_api.py` (loaded as `_high_level_api_impl`). They exist as public methods on the full class.
+
+### Content
+
+```python
+result = api.add(
+    content,
+    pin=True,
+    wrap_with_directory=False,
+    chunker="size-262144",
+    hash="sha2-256",
+    **kwargs,
+)
+# content: path str, text, bytes, Path, or binary file-like
+
+data = api.get(cid, timeout=None, **kwargs)   # bytes
+data = api.cat(cid)                           # bytes
+
+result = api.pin(cid, recursive=True, timeout=None, **kwargs)
+result = api.unpin(cid, recursive=True, timeout=None, **kwargs)
+result = api.list_pins(type="all", quiet=False, timeout=None, **kwargs)
+# Related: pin_ls(...), pins(...)
+```
+
+### Filesystem-like
+
+```python
+fh = api.open(path, mode="rb", cache=True, size_hint=None, **kwargs)
+data = api.read(path, cache=True, timeout=None, **kwargs)
+ok = api.exists(path, timeout=None, **kwargs)
+entries = api.ls(path, detail=True, timeout=None, **kwargs)
+
+# Additional helpers:
+api.open_file(...); api.read_file(...); api.read_text(...)
+api.add_json(data, indent=2, sort_keys=True, pin=True, ...)
+```
+
+`path` may be a raw CID or an `/ipfs/...` path.
+
+### IPNS and peers
+
+```python
+result = api.publish(cid, key="self", lifetime="24h", ttl="1h", timeout=None, **kwargs)
+result = api.resolve(name, recursive=True, timeout=None, **kwargs)  # param is name
+
+result = api.connect(peer, timeout=None, **kwargs)  # multiaddress string
+result = api.peers(verbose=False, latency=False, direction=False, timeout=None, **kwargs)
+```
+
+### Cluster (role-dependent; needs cluster components)
+
+```python
+# Default replication_factor is -1 in the implementation (not 1).
+result = api.cluster_add(content, replication_factor=-1, name=None, timeout=None, **kwargs)
+result = api.cluster_pin(cid, replication_factor=-1, name=None, timeout=None, **kwargs)
+result = api.cluster_status(cid=None, local=False, timeout=None, **kwargs)
+result = api.cluster_peers(timeout=None, **kwargs)
+```
+
+### Streaming
+
+```python
+# Sync stream out
+for chunk in api.stream_media(
+    path, chunk_size=..., mime_type=None,
+    start_byte=None, end_byte=None, cache=True, timeout=None, **kwargs
+):
+    ...
+
+# Sync stream in
+result = api.stream_to_ipfs(
+    content_iterator, filename=None, mime_type=None,
+    chunk_size=..., progress_callback=None, timeout=None, metadata=None, **kwargs
+)
+
+# Async counterparts: stream_media_async, stream_to_ipfs_async
+# WebSocket/WebRTC handlers: handle_websocket_media_stream, handle_websocket_upload_stream,
+#   handle_websocket_bidirectional_stream, handle_webrtc_streaming
+```
+
+### Configuration, health, SDK
+
+```python
+api.save_config(config_path)
+api.generate_sdk(language, output_dir, **kwargs)  # output_dir is required (no default in signature)
+api.run_health_check(**kwargs)
+```
+
+### Extensions and callable interface
+
+```python
+api.register_extension(name, func, overwrite=True)  # returns result dict in full impl
+api.call_extension(extension_name, *args, **kwargs)  # single name, not (name, method_name)
+
+# Equivalent dynamic dispatch:
+api("add", "hello.txt")
+api("my_extension_name", arg1, key=value)
+```
+
+There is **no** overload of `register_extension` that accepts a plugin instance object alone; plugins are loaded from config (path + class name) or methods are registered as callables.
+
+---
+
+## AI / ML and search methods
+
+These methods exist on the full Compatibility class. Many accept `allow_simulation=True` and degrade when optional extras or backends are missing. Treat them as **optional-feature** surfaces; install relevant extras before expecting real model I/O.
+
+**Present (examples):**
+
+- Registry / models: `ai_model_add`, `ai_model_get`, `ai_register_model`, `ai_list_models`, `ai_dataset_add`, `ai_dataset_get`, `ai_register_dataset`, `ai_data_loader`
+- Inference / deploy: `ai_test_inference`, `ai_deploy_model`, `ai_update_deployment`, `ai_get_endpoint_status`, `ai_optimize_model`, `ai_benchmark_model`
+- Embeddings / indexes: `ai_create_embeddings`, `ai_create_vector_index`, `ai_hybrid_search`, `load_embedding_model`, `generate_embeddings`
+- LangChain / LlamaIndex (subset present): `ai_langchain_create_vectorstore`, `ai_langchain_load_documents`, `ai_langchain_query`, `ai_llama_index_create_index`, `ai_llama_index_load_documents`, `ai_llama_index_query`
+- Graphs / training: `ai_create_knowledge_graph`, `ai_query_knowledge_graph`, `ai_calculate_graph_metrics`, `ai_expand_knowledge_graph`, `ai_distributed_training_submit_job`, `ai_distributed_training_get_status`, `ai_distributed_training_aggregate_results`, `ai_distributed_training_cancel_job`
+- Integrated search: `hybrid_search`, `create_search_connector`, `create_search_benchmark`, `run_search_benchmark`
+
+**Not present on the current class** (do not document as available without a Proposed label):
+
+- `ai_metrics_visualize`, `ai_metrics_export`
+- `ai_langchain_store_chain`, `ai_langchain_load_chain`
+- `ai_llama_index_store_index`, `ai_llama_index_load_index`
+
+Full parameter tables: [API Reference](api_reference.md).
+
+---
+
+## WAL, filesystem journal, resources, metadata
+
+Also present on the full class (feature-dependent):
+
+| Group | Methods |
+|-------|---------|
+| WAL | `wal_get_status`, `wal_list_pending_operations`, `wal_list_failed_operations`, `wal_get_statistics`, `wal_health_check`, `wal_get_operation` |
+| FS journal | `enable_filesystem_journaling`, `fs_journal_get_status`, `fs_journal_list_recent_operations`, `fs_journal_list_failed_operations`, `fs_journal_list_virtual_files`, `fs_journal_get_file_info`, `fs_journal_get_statistics`, `fs_journal_health_check` |
+| Resources | `resource_get_usage_summary`, `resource_get_usage_details`, `resource_get_backend_status`, `resource_track_*`, `resource_update_backend_status` |
+| Metadata | `store_metadata`, `get_metadata`, `verify_metadata_replication` |
+| Peer helpers | `register_peer`, `unregister_peer`, `find_peers_websocket`, `connect_to_websocket_peer`, `find_libp2p_peers`, `connect_to_libp2p_peer`, … |
+
+---
+
+## Plugin architecture and extensions
+
+### Supported path: register callables
+
+```python
+from ipfs_kit_py.high_level_api import IPFSSimpleAPI
+
+api = IPFSSimpleAPI()
+
+def my_status():
+    return {"success": True, "status": "ok"}
+
+api.register_extension("my_status", my_status)
+print(api("my_status"))
+print(api.call_extension("my_status"))
+```
+
+### Config-driven plugins
+
+Full implementation loads plugins from configuration entries with:
+
+- `name` — attribute name of the class on the imported module
+- `path` — import path (absolute or package-relative starting with `.`)
+- `enabled` — default `True`
+- `config` — dict passed to the constructor as `config=`
+
+Constructor expected by the loader: `plugin_class(ipfs_kit=self.kit, config=...)`. Public methods are registered as extensions named `{plugin_name}.{method_name}`.
+
+### Compatibility: `PluginBase`
+
+`PluginBase` is defined on the Compatibility implementation module (`ipfs_kit_py/high_level_api.py` → `_high_level_api_impl`). It is **not** exported by:
+
+- `ipfs_kit_py.high_level_api` package `__all__`
+- package root as a working class (`PluginBase = None` in `ipfs_kit_py/__init__.py`)
+
+Do **not** write:
+
+```python
+from ipfs_kit_py.high_level_api import PluginBase  # not on package surface
+from ipfs_kit_py import PluginBase                 # is None
+```
+
+**Compatibility access** after the full implementation has been loaded once:
+
+```python
+import sys
+from ipfs_kit_py.high_level_api import IPFSSimpleAPI
+
+_ = IPFSSimpleAPI()  # triggers Compatibility body load when possible
+impl = sys.modules.get("ipfs_kit_py._high_level_api_impl")
+if impl is None or not hasattr(impl, "PluginBase"):
+    raise RuntimeError("PluginBase unavailable (implementation not loaded)")
+PluginBase = impl.PluginBase
+```
+
+Prefer plain callables + `register_extension` for portable extensions.
+
+---
+
+## SDK generation
+
+```python
+result = api.generate_sdk("python", output_dir="./sdk")
+# language also supports generators implemented in the Compatibility body
+# (python, javascript, rust, and additional generators if present)
+```
+
+`output_dir` is a required positional argument in the current signature.
+
+---
+
+## Complete minimal example
+
+```python
+from ipfs_kit_py.high_level_api import IPFSSimpleAPI
+
+api = IPFSSimpleAPI(role="leecher")
+
+if getattr(api, "available", True) is False:
+    raise SystemExit("High-level API stub active; install optional deps / check logs")
+
+add_result = api.add(b"hello from IPFSSimpleAPI", pin=True)
+if not add_result.get("success", True) and "cid" not in add_result:
+    raise SystemExit(f"add failed: {add_result}")
+
+cid = add_result["cid"]
 content = api.get(cid)
-print(f"Retrieved {len(content)} bytes")
+print(content)
 
-# Convert bytes to string if needed
-if isinstance(content, bytes):
-    text_content = content.decode('utf-8')
-    print(f"Content: {text_content}")
+pin_result = api.pin(cid)
+print(pin_result)
+
+# Dynamic dispatch
+print(api("list_pins", type="all"))
 ```
 
-### Filesystem-like Operations
-
-```python
-# Open and read file (file-like API)
-# =================================
-
-# Open with context manager
-with api.open(cid, mode="rb") as f:
-    # Read first 1KB
-    first_kb = f.read(1024)
-    print(f"First 1KB: {first_kb}")
-    
-    # Read next 1KB
-    next_kb = f.read(1024)
-    
-    # Seek to beginning and read all
-    f.seek(0)
-    all_data = f.read()
-
-# Read entire file content directly
-full_content = api.read(cid)
-
-# Check if content exists
-# =====================
-
-if api.exists(cid):
-    print(f"Content {cid} exists in IPFS")
-else:
-    print(f"Content {cid} does not exist or is not reachable")
-
-# List directory contents
-# =====================
-
-# Simple listing (CID must be a directory)
-files = api.ls(cid)
-print(f"Directory contains {len(files)} files/directories")
-
-# Detailed listing
-files = api.ls(cid, detail=True)  
-for file in files:
-    print(f"Type: {file['type']}, Name: {file['name']}, Size: {file.get('size', 'N/A')}")
-```
-
-### Pinning Operations
-
-```python
-# Pin content locally
-# =================
-
-# Pin content to local node
-api.pin(cid)
-
-# Pin with options
-api.pin(cid, recursive=True)  # Pin recursively (default)
-
-# List pins
-# ========
-
-# Get all pins
-pins = api.list_pins()
-print(f"Number of pins: {len(pins.get('Keys', {}))}")
-
-# Get pins of specific type
-recursive_pins = api.list_pins(type="recursive")
-direct_pins = api.list_pins(type="direct")
-indirect_pins = api.list_pins(type="indirect")
-
-# List only CIDs
-simple_pins = api.list_pins(quiet=True)
-
-# Unpin content
-# ===========
-
-# Unpin from local node
-api.unpin(cid)
-
-# Unpin with options
-api.unpin(cid, recursive=True)  # Unpin recursively (default)
-```
-
-### IPNS Operations
-
-```python
-# Publish content to IPNS
-# =====================
-
-# Publish using default key ("self")
-publish_result = api.publish(cid)
-ipns_name = publish_result["ipns_name"]
-print(f"Published to IPNS: {ipns_name}")
-
-# Publish with custom key and options
-publish_result = api.publish(
-    cid,
-    key="my-custom-key",  # Use custom key (must exist)
-    lifetime="48h",       # Record valid for 48 hours
-    ttl="2h"              # Cache for 2 hours
-)
-
-# Resolve IPNS name to CID
-# ======================
-
-# Resolve IPNS name
-resolved = api.resolve(ipns_name)
-resolved_cid = resolved["resolved_cid"]
-print(f"Resolved {ipns_name} to {resolved_cid}")
-
-# Resolve with options
-resolved = api.resolve(
-    ipns_name,
-    recursive=True,   # Resolve recursively (default)
-    timeout=60        # Longer timeout for resolution
-)
-```
-
-### Peer Operations
-
-```python
-# Connect to peers
-# ==============
-
-# Connect to a peer by multiaddress
-api.connect("/ip4/1.2.3.4/tcp/4001/p2p/QmPeerID")
-
-# Get connected peers
-# =================
-
-# List connected peers
-peers_result = api.peers()
-peer_count = peers_result.get("count", 0)
-print(f"Connected to {peer_count} peers")
-
-# Get detailed peer information
-peers_result = api.peers(verbose=True, latency=True, direction=True)
-for peer in peers_result.get("peers", []):
-    print(f"Peer: {peer.get('peer')}")
-    print(f"  Latency: {peer.get('latency', 'unknown')}")
-    print(f"  Direction: {peer.get('direction', 'unknown')}")
-```
-
-### Cluster Operations (Master/Worker Only)
-
-```python
-# These operations are only available in master or worker roles
-if api.config.get("role") != "leecher":
-    try:
-        # Add content to cluster (with replication)
-        # =====================================
-        
-        cluster_add_result = api.cluster_add(
-            "important_file.dat",
-            replication_factor=3,  # Replicate across 3 nodes
-            name="Important Document"  # Optional name
-        )
-        cluster_cid = cluster_add_result.get("cid")
-        
-        # Pin existing content to cluster
-        # ============================
-        
-        api.cluster_pin(
-            cid,
-            replication_factor=3,
-            name="Existing Content"
-        )
-        
-        # Check pin status in cluster
-        # =========================
-        
-        # Check specific CID status
-        status = api.cluster_status(cid)
-        print(f"Status for {cid}: {status.get('status')}")
-        
-        # Check all pins status
-        all_status = api.cluster_status()
-        for pin_cid, pin_info in all_status.get("pins", {}).items():
-            print(f"CID: {pin_cid}, Status: {pin_info.get('status')}")
-            
-        # List cluster peers
-        # ===============
-        
-        cluster_peers = api.cluster_peers()
-        for peer in cluster_peers.get("peers", []):
-            print(f"Peer: {peer.get('id')}")
-            print(f"  Addresses: {peer.get('addresses')}")
-            
-    except Exception as e:
-        print(f"Cluster operation failed: {e}")
-```
-
-### AI/ML Operations
-
-```python
-# These operations are only available if ai_ml_integration is imported
-try:
-    # Add a machine learning model to the registry
-    # ========================================
-    
-    # Create or load a model
-    from sklearn.ensemble import RandomForestClassifier
-    model = RandomForestClassifier()
-    model.fit([[0, 0], [1, 1]], [0, 1])  # Simple dummy training
-    
-    # Add to registry with metadata
-    model_result = api.ai_model_add(
-        model,
-        metadata={
-            "name": "Simple Classifier",
-            "version": "1.0.0",
-            "framework": "scikit-learn",
-            "accuracy": 0.95,
-            "created_by": "user123"
-        }
-    )
-    model_cid = model_result.get("cid")
-    print(f"Model saved with CID: {model_cid}")
-    
-    # Get a model from the registry
-    # ==========================
-    
-    model_get_result = api.ai_model_get(model_cid)
-    loaded_model = model_get_result.get("model")
-    model_metadata = model_get_result.get("metadata")
-    
-    # Make a prediction with the loaded model
-    prediction = loaded_model.predict([[2, 2]])
-    print(f"Prediction: {prediction}")
-    
-    # Register a dataset in the registry
-    # ==============================
-    
-    dataset_result = api.ai_register_dataset(
-        dataset_cid="QmDatasetCID123",
-        metadata={
-            "name": "Sample Dataset",
-            "description": "A comprehensive dataset for testing",
-            "features": ["feature1", "feature2", "feature3"],
-            "target": "target_column",
-            "rows": 10000,
-            "columns": 4,
-            "tags": ["test", "classification", "tabular"]
-        },
-        *,                       # Keyword-only parameters
-        pin=True,                # Pin dataset for persistence
-        add_to_index=True,       # Add to searchable index
-        register_features=True,  # Register features for advanced querying
-        verify_existence=True,   # Verify dataset exists before registering
-        allow_simulation=True    # Allow simulation if AI/ML unavailable
-    )
-    
-    # Run vector search on dataset
-    # =========================
-    
-    search_result = api.ai_vector_search(
-        query="What is IPFS?",                    # Text query to search for
-        vector_index_cid="QmVectorIndexCID123",   # CID of the vector index
-        *,                                        # Keyword-only parameters
-        top_k=10,                                 # Number of top results to return
-        similarity_threshold=0.75,                # Minimum similarity score to include
-        filter={"tags": ["documentation"]},       # Optional metadata filters
-        embedding_model="sentence-transformer",   # Model to use for embedding
-        search_type="similarity",                 # Type of search (similarity, knn, hybrid)
-        allow_simulation=True                     # Allow simulated results if AI/ML unavailable
-    )
-    
-    for i, match in enumerate(search_result.get("results", [])):
-        print(f"Result {i+1}: {match.get('content')[:50]}...")
-        print(f"  Similarity: {match.get('similarity'):.2f}")
-    
-    # Create knowledge graph from a document
-    # ==================================
-    
-    kg_result = api.ai_create_knowledge_graph(
-        source_data_cid="QmDocumentCID456",       # CID of source document
-        *,                                        # Keyword-only parameters
-        graph_name="IPFS Documentation Graph",    # Name for the knowledge graph
-        extraction_model="default",               # Model for entity extraction
-        entity_types=["Concept", "Technology"],   # Types of entities to extract
-        relationship_types=["uses", "relates"],   # Types of relationships to extract
-        max_entities=100,                         # Maximum number of entities
-        include_text_context=True,                # Include source text context
-        extract_metadata=True,                    # Extract metadata from source
-        allow_simulation=True                     # Allow simulation if AI/ML unavailable
-    )
-    
-    print(f"Created graph with {kg_result.get('entity_count')} entities and "
-          f"{kg_result.get('relationship_count')} relationships")
-    
-    # Run model inference on test data
-    # ============================
-    
-    inference_result = api.ai_test_inference(
-        model_cid=model_cid,                      # CID of the model to use
-        test_data_cid="QmTestDataCID789",         # CID of test dataset
-        *,                                        # Keyword-only parameters
-        batch_size=32,                            # Batch size for inference
-        max_samples=1000,                         # Maximum samples to use
-        compute_metrics=True,                     # Whether to compute metrics
-        metrics=["accuracy", "f1", "precision"],  # Metrics to compute
-        output_format="json",                     # Output format (json, csv, parquet)
-        save_predictions=True,                    # Save predictions to IPFS
-        device="cpu",                             # Device to run on
-        allow_simulation=True                     # Allow simulation if AI/ML unavailable
-    )
-    
-    # Print metrics
-    print("Model metrics:")
-    for metric_name, value in inference_result.get("metrics", {}).items():
-        print(f"  {metric_name}: {value}")
-        
-    # Show sample predictions
-    print("\nSample predictions:")
-    for i, pred in enumerate(inference_result.get("sample_predictions", [])[:3]):
-        print(f"  Sample {i+1}: {pred}")
-        
-    # Browse and filter available models
-    # ==============================
-    
-    models = api.ai_list_models(
-        *,                                        # Keyword-only parameters 
-        framework="pytorch",                      # Filter by framework
-        tags=["image", "classification"],         # Filter by tags
-        limit=10,                                 # Max results to return
-        offset=0,                                 # Pagination offset
-        sort_by="created_at",                     # Field to sort by
-        sort_order="desc",                        # Sort direction
-        include_metrics=True,                     # Include performance metrics
-        only_local=True,                          # Only show locally available models
-        allow_simulation=True                     # Allow simulation if AI/ML unavailable
-    )
-    
-    for model in models.get("models", []):
-        print(f"Model: {model.get('name')}")
-        print(f"  Framework: {model.get('framework')}")
-        print(f"  Tags: {', '.join(model.get('tags', []))}")
-        if "metrics" in model:
-            print(f"  Accuracy: {model['metrics'].get('accuracy')}")
-    
-    print(f"Dataset registered with metadata CID: {dataset_result.get('metadata_cid')}")
-    
-    # Vector search with a trained embedding model
-    # =======================================
-    
-    search_results = api.ai_vector_search(
-        query="What is the impact of climate change?",  # Text query
-        vector_index_cid="QmVectorIndexCID456",        # CID of vector index
-        top_k=5,                                       # Return top 5 results
-        similarity_threshold=0.75,                     # Minimum similarity score
-        filter={"category": "climate"},                # Metadata filter
-        embedding_model="sentence-transformers/all-MiniLM-L6-v2",  # Model for embeddings
-        search_type="similarity",                      # Type of search to perform
-        allow_simulation=True                          # Allow simulation if needed
-    )
-    
-    for i, result in enumerate(search_results.get("results", [])):
-        print(f"Result {i+1}: {result.get('content')} (Score: {result.get('similarity')})")
-    
-    # Create a knowledge graph from entities and relationships
-    # ==================================================
-    
-    graph_result = api.ai_create_knowledge_graph(
-        entities_cid="QmEntitiesCID789",
-        relationships_cid="QmRelationshipsCID012",
-        graph_name="Climate Knowledge Graph",
-        schema={"version": "1.0.0", "entity_types": ["Person", "Organization", "Topic"]},
-        index_properties=["name", "category", "importance"],
-        pin=True,
-        allow_simulation=True
-    )
-    
-    print(f"Knowledge graph created with CID: {graph_result.get('graph_cid')}")
-    
-    # List available models with filtering and pagination
-    # ==============================================
-    
-    models = api.ai_list_models(
-        framework="pytorch",           # Filter by framework
-        tags=["image", "classification"], # Filter by tags
-        limit=10,                     # Pagination limit
-        offset=0,                     # Pagination offset
-        sort_by="created_at",         # Sort field
-        sort_order="desc",            # Sort direction
-        include_metrics=True,         # Include performance metrics
-        only_local=False,             # Include remote models
-        allow_simulation=True         # Allow simulation if needed
-    )
-    
-    for model in models.get("models", []):
-        print(f"Model: {model.get('name')} ({model.get('framework')})")
-        if "metrics" in model:
-            print(f"  Accuracy: {model.get('metrics', {}).get('accuracy')}")
-    
-    # Deploy model for inference
-    # ======================
-    
-    deploy_result = api.ai_deploy_model(
-        model_cid=model_cid,
-        deployment_config={
-            "instance_type": "cpu.small",
-            "min_instances": 1,
-            "max_instances": 3,
-            "memory": "2G"
-        },
-        environment="staging",
-        wait_for_ready=True,
-        auto_scale=True,
-        monitoring_enabled=True,
-        allow_simulation=True
-    )
-    
-    endpoint_id = deploy_result.get("endpoint_id")
-    print(f"Model deployed at endpoint: {endpoint_id}")
-    
-    # Test inference with deployed model
-    # =============================
-    
-    inference_result = api.ai_test_inference(
-        endpoint_id=endpoint_id,
-        data={"features": [2, 2]},
-        model_version="1.0.0",
-        timeout=30,
-        return_raw=False,
-        allow_simulation=True
-    )
-    
-    print(f"Inference result: {inference_result.get('predictions')}")
-    print(f"Latency: {inference_result.get('latency_ms')}ms")
-    
-    # AI/ML Metrics Visualization
-    # ===========================
-    
-    # Generate visualizations for AI/ML metrics
-    visualization_result = api.ai_metrics_visualize(
-        model_id="Simple Classifier",
-        metrics_type="training",  # Options: "training", "inference", "worker", "dataset", "all"
-        theme="light",           # Options: "light", "dark"
-        interactive=True,        # Use interactive (Plotly) or static (Matplotlib) visualizations
-        output_file="model_metrics.html"  # Optional: save visualization to file
-    )
-    
-    # Generate comprehensive dashboard with all metrics types
-    dashboard_result = api.ai_metrics_dashboard(
-        model_ids=["Simple Classifier"],  # Can include multiple models
-        theme="dark",
-        interactive=True,
-        output_file="ai_ml_dashboard.html"
-    )
-    
-    # Export visualizations to multiple formats
-    export_result = api.ai_metrics_export(
-        model_id="Simple Classifier",
-        export_dir="./output",
-        formats=["png", "svg", "html", "json"]
-    )
-    
-except ImportError:
-    print("AI/ML integration not available")
-```
-
-## Plugin Architecture
-
-The `IPFSSimpleAPI` can be extended with plugins that add custom functionality. Plugins are Python classes that inherit from `PluginBase` and register their methods with the API.
-
-### Developing a Plugin
-
-```python
-from ipfs_kit_py.high_level_api import PluginBase
-
-class StatisticsPlugin(PluginBase):
-    """Plugin for collecting IPFS statistics."""
-    
-    plugin_name = "Statistics"  # Optional name (defaults to class name)
-    
-    def __init__(self, ipfs_kit, config=None):
-        """Initialize the plugin."""
-        super().__init__(ipfs_kit, config)
-        # Plugin-specific initialization
-        self.stats = {"operations": {}}
-        self.config = config or {}
-        self.collection_interval = self.config.get("collection_interval", 60)
-    
-    def get_node_stats(self):
-        """Get current node statistics."""
-        # Access the underlying ipfs_kit instance
-        node_info = self.ipfs_kit.ipfs_id()
-        repo_stats = self.ipfs_kit.ipfs_repo_stat()
-        
-        # Compile statistics
-        stats = {
-            "node_id": node_info.get("ID"),
-            "repo_size": repo_stats.get("RepoSize"),
-            "num_objects": repo_stats.get("NumObjects"),
-            "version": node_info.get("AgentVersion"),
-            "collection_time": time.time()
-        }
-        
-        return {
-            "success": True,
-            "stats": stats
-        }
-    
-    def track_operation(self, operation_name, duration=None, metadata=None):
-        """Track an operation for statistics."""
-        if operation_name not in self.stats["operations"]:
-            self.stats["operations"][operation_name] = {
-                "count": 0,
-                "total_duration": 0,
-                "min_duration": float('inf'),
-                "max_duration": 0
-            }
-            
-        op_stats = self.stats["operations"][operation_name]
-        op_stats["count"] += 1
-        
-        if duration is not None:
-            op_stats["total_duration"] += duration
-            op_stats["min_duration"] = min(op_stats["min_duration"], duration)
-            op_stats["max_duration"] = max(op_stats["max_duration"], duration)
-            
-        return {
-            "success": True,
-            "operation": operation_name,
-            "stats": op_stats
-        }
-    
-    def reset_stats(self):
-        """Reset all statistics."""
-        old_stats = self.stats.copy()
-        self.stats = {"operations": {}}
-        
-        return {
-            "success": True,
-            "previous_stats": old_stats
-        }
-```
-
-### Using a Plugin
-
-```python
-from my_plugins import StatisticsPlugin
-
-# Method 1: Register during initialization
-api = IPFSSimpleAPI(plugins=[
-    {"plugin_class": StatisticsPlugin, "config": {"collection_interval": 30}}
-])
-
-# Method 2: Register after initialization
-stats_plugin = StatisticsPlugin(api.kit, {"collection_interval": 30})
-api.register_extension("Statistics.get_node_stats", stats_plugin.get_node_stats)
-api.register_extension("Statistics.track_operation", stats_plugin.track_operation)
-api.register_extension("Statistics.reset_stats", stats_plugin.reset_stats)
-
-# Call plugin methods
-node_stats = api("Statistics.get_node_stats")
-print(f"Node ID: {node_stats['stats']['node_id']}")
-print(f"Repo size: {node_stats['stats']['repo_size']}")
-
-# Track an operation
-api("Statistics.track_operation", "add_file", duration=0.5)
-
-# Alternative method call syntax
-api.call_extension("Statistics.track_operation", "get_file", duration=0.2)
-
-# Reset statistics
-api("Statistics.reset_stats")
-```
-
-## SDK Generation
-
-The `IPFSSimpleAPI` can generate client SDKs for different languages, making it easy to integrate with other systems.
-
-```python
-# Generate Python SDK
-python_sdk = api.generate_sdk("python", output_dir="./sdk")
-print(f"Python SDK generated in {python_sdk['output_path']}")
-print(f"Files generated: {python_sdk['files_generated']}")
-
-# Generate JavaScript SDK
-js_sdk = api.generate_sdk("javascript", output_dir="./sdk")
-print(f"JavaScript SDK generated in {js_sdk['output_path']}")
-
-# Generate Rust SDK
-rust_sdk = api.generate_sdk("rust", output_dir="./sdk")
-print(f"Rust SDK generated in {rust_sdk['output_path']}")
-```
-
-### Using Generated SDKs
-
-#### Python SDK
-
-```python
-from ipfs_kit_sdk import IPFSClient
-
-# Initialize client
-client = IPFSClient(api_url="http://localhost:8000")
-
-# Add content
-result = client.add("Hello from Python SDK!")
-cid = result["cid"]
-
-# Get content
-content = client.get(cid)
-print(f"Retrieved: {content}")
-```
-
-#### JavaScript SDK
-
-```javascript
-const { IPFSClient } = require('ipfs-kit-sdk');
-
-// Initialize client
-const client = new IPFSClient({
-  apiUrl: "http://localhost:8000"
-});
-
-// Add content
-async function addAndRetrieve() {
-  const result = await client.add("Hello from JavaScript SDK!");
-  const cid = result.cid;
-  console.log(`Added with CID: ${cid}`);
-  
-  // Get content
-  const content = await client.get(cid);
-  console.log(`Retrieved: ${content}`);
-}
-
-addAndRetrieve();
-```
-
-#### Rust SDK
-
-```rust
-use ipfs_kit_sdk::IPFSClient;
-use anyhow::Result;
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    // Initialize client
-    let client = IPFSClient::new()?;
-    
-    // Add content
-    let result = client.add("Hello from Rust SDK!").await?;
-    let cid = result["cid"].as_str().unwrap();
-    println!("Added with CID: {}", cid);
-    
-    // Get content
-    let content = client.get(cid).await?;
-    println!("Retrieved: {}", content);
-    
-    Ok(())
-}
-```
-
-## Method Call Interface
-
-The `IPFSSimpleAPI` supports both direct method calls and a callable interface for dynamic method invocation:
-
-```python
-# Method 1: Direct method call
-result1 = api.add("example.txt")
-
-# Method 2: Callable interface
-result2 = api("add", "example.txt")
-
-# Method 3: Extension call
-result3 = api("Statistics.get_node_stats")
-```
-
-This callable interface is particularly useful for:
-
-1. **Configuration-driven workflows**: Method names can be stored in configuration
-2. **Dynamic execution**: Method choice can be determined at runtime
-3. **Plugin integration**: Consistent interface for both core and plugin methods
-4. **Remote API clients**: Simplifies remote method invocation
-
-## Relationships and Integration
-
-The `IPFSSimpleAPI` integrates with other components in the IPFS Kit ecosystem:
-
-1. **Core `ipfs_kit`**: Manages an instance internally for low-level operations
-2. **FSSpec Interface**: Provides filesystem-like access to IPFS content
-3. **Plugins**: Extends functionality through the plugin system
-4. **Configuration**: Centralizes configuration across components
-
-You can access these components directly when needed:
-
-```python
-# Access underlying ipfs_kit instance
-kit_instance = api.kit
-
-# Access filesystem interface
-fs_interface = api.fs
-
-# Access plugins
-plugin = api.plugins.get("Statistics")
-
-# Access configuration
-config = api.config
-```
-
-## Best Practices
-
-1. **Use the High-Level API as your primary interface** - It provides the most user-friendly experience
-2. **Leverage configuration files** - Store environment-specific settings in YAML/JSON
-3. **Use context managers for file operations** - Ensures proper resource cleanup
-4. **Handle errors with try/except** - The API raises exceptions for error conditions
-5. **Consider role-based configurations** - Create separate configs for master/worker/leecher
-6. **Use plugins for custom functionality** - Keeps code organized and modular
-7. **Monitor performance through the API** - Track operations and resource usage
-
-## Complete Examples
-
-### Data Analysis Pipeline
-
-```python
-import pandas as pd
-from ipfs_kit_py.high_level_api import IPFSSimpleAPI
-
-# Initialize API
-api = IPFSSimpleAPI(role="worker")
-
-# Add dataset to IPFS
-dataset_path = "raw_data.csv"
-add_result = api.add(dataset_path, wrap_with_directory=True)
-dataset_cid = add_result["cid"]
-
-# Process dataset
-df = pd.read_csv(dataset_path)
-processed_df = df.dropna().sort_values('important_column')
-
-# Save processed data to temporary file
-processed_path = "processed_data.csv"
-processed_df.to_csv(processed_path, index=False)
-
-# Add processed data to IPFS
-processed_result = api.add(processed_path)
-processed_cid = processed_result["cid"]
-
-# Pin both datasets for persistence
-api.pin(dataset_cid)
-api.pin(processed_cid)
-
-# Create a directory linking both datasets
-import json
-manifest = {
-    "raw_data_cid": dataset_cid,
-    "processed_data_cid": processed_cid,
-    "processing_timestamp": pd.Timestamp.now().isoformat(),
-    "record_count": len(processed_df)
-}
-
-with open("manifest.json", "w") as f:
-    json.dump(manifest, f)
-
-manifest_result = api.add("manifest.json")
-manifest_cid = manifest_result["cid"]
-
-# Publish to IPNS for easy access
-publish_result = api.publish(manifest_cid)
-ipns_name = publish_result["ipns_name"]
-
-print(f"Data pipeline complete:")
-print(f"- Raw data: ipfs://{dataset_cid}")
-print(f"- Processed data: ipfs://{processed_cid}")
-print(f"- Manifest: ipfs://{manifest_cid}")
-print(f"- IPNS address: ipns://{ipns_name}")
-```
-
-### Content Sharing App
-
-```python
-import os
-import time
-from ipfs_kit_py.high_level_api import IPFSSimpleAPI
-
-class SimpleContentSharing:
-    def __init__(self):
-        self.api = IPFSSimpleAPI(
-            role="leecher",
-            cache={
-                "memory_size": "200MB",
-                "disk_size": "1GB"
-            }
-        )
-        
-    def share_file(self, file_path):
-        """Share a file and return its CID."""
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"File not found: {file_path}")
-            
-        print(f"Sharing file: {file_path}")
-        start_time = time.time()
-        
-        result = self.api.add(file_path, pin=True)
-        
-        if result.get("success", False) or "cid" in result:
-            cid = result.get("cid") or result.get("Hash")
-            duration = time.time() - start_time
-            size = os.path.getsize(file_path)
-            
-            print(f"File shared successfully in {duration:.2f} seconds")
-            print(f"CID: {cid}")
-            print(f"Size: {size / 1024:.2f} KB")
-            
-            # Create shareable links
-            http_link = f"https://ipfs.io/ipfs/{cid}"
-            ipfs_link = f"ipfs://{cid}"
-            
-            print(f"HTTP Gateway link: {http_link}")
-            print(f"IPFS link: {ipfs_link}")
-            
-            return cid
-        else:
-            error = result.get("error", "Unknown error")
-            print(f"Failed to share file: {error}")
-            return None
-            
-    def download_file(self, cid, output_path):
-        """Download content from IPFS and save to a file."""
-        print(f"Downloading content with CID: {cid}")
-        start_time = time.time()
-        
-        try:
-            # Get content
-            content = self.api.get(cid)
-            
-            # Save to file
-            with open(output_path, 'wb') as f:
-                f.write(content)
-                
-            duration = time.time() - start_time
-            size = len(content)
-            
-            print(f"Download complete in {duration:.2f} seconds")
-            print(f"Saved to: {output_path}")
-            print(f"Size: {size / 1024:.2f} KB")
-            
-            return True
-        except Exception as e:
-            print(f"Download failed: {e}")
-            return False
-            
-    def list_directory(self, dir_cid):
-        """List contents of a directory CID."""
-        print(f"Listing directory with CID: {dir_cid}")
-        
-        try:
-            files = self.api.ls(dir_cid, detail=True)
-            
-            print(f"Directory contains {len(files)} items:")
-            for i, file in enumerate(files):
-                file_type = file.get('type', 'unknown')
-                name = file.get('name', f'item-{i}')
-                size = file.get('size', 'unknown size')
-                
-                print(f"- [{file_type}] {name} ({size} bytes)")
-                
-            return files
-        except Exception as e:
-            print(f"Failed to list directory: {e}")
-            return []
-
-# Usage example
-if __name__ == "__main__":
-    app = SimpleContentSharing()
-    
-    # Share a file
-    shared_cid = app.share_file("example.jpg")
-    
-    # Download a file
-    if shared_cid:
-        app.download_file(shared_cid, "downloaded_example.jpg")
-        
-    # List a directory (if the CID is a directory)
-    # app.list_directory(dir_cid)
-```
+---
 
 ## Troubleshooting
 
-### Common Issues and Solutions
-
-1. **Connection Issues**
-
-   ```
-   Error: IPFS daemon connection failed
-   ```
-
-   - Ensure IPFS daemon is running (`ipfs daemon`)
-   - Check API port availability (default: 5001)
-   - Verify API listening address in IPFS config
-
-2. **Authentication Issues**
-
-   ```
-   Error: Permission denied when accessing IPFS API
-   ```
-
-   - Check API authentication settings
-   - Verify correct credentials (if enabled)
-
-3. **Content Not Found**
-
-   ```
-   Error: Could not find content with CID QmXYZ...
-   ```
-
-   - Check if content is pinned locally (`api.list_pins()`)
-   - Try finding content via public gateways
-   - Ensure CID format is correct
-
-4. **Role-Based Features**
-
-   ```
-   Error: Cluster operations not available in leecher role
-   ```
-
-   - Verify current role (`print(api.config.get("role"))`)
-   - Initialize with correct role for required features
-
-5. **Missing Dependencies**
-
-   ```
-   ImportError: No module named 'fsspec'
-   ```
-
-   - Install with required dependencies: `pip install ipfs_kit_py[fsspec]`
-   - For AI/ML features: `pip install ipfs_kit_py[ai_ml]`
+| Symptom | Likely cause | Action |
+|---------|--------------|--------|
+| Methods always return `success: False` with stub warning | Compatibility implementation failed to load | Inspect logs for `_high_level_api_impl` / `fastapi` import errors; check `api.available` |
+| `from ipfs_kit_py import IPFSSimpleAPI` raises `ImportError` | Root proxy could not load feature | Use package import; verify install and JIT feature `high_level_api` |
+| `PluginBase` import fails | Not on package/`__all__` surface | Use `register_extension` or Compatibility access via `_high_level_api_impl` |
+| Cluster methods fail | Role/components/binaries missing | Confirm role and cluster services; see operations docs |
+| AI methods simulate or fail soft | Optional extras / backends missing | Install AI extras; check `allow_simulation` behavior |
+| Surprise daemons | Kit auto-start defaults | Prefer `auto_start_daemons=False` on direct `ipfs_kit` construction for library embeds |
 
 ### Debugging
 
-For advanced debugging, you can enable detailed logging:
-
 ```python
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.getLogger("ipfs_kit_py").setLevel(logging.DEBUG)
 
-# Create API with debug logging
-api = IPFSSimpleAPI(
-    logging={"level": "DEBUG"}
-)
+from ipfs_kit_py.high_level_api import IPFSSimpleAPI
+api = IPFSSimpleAPI()
+print("available", getattr(api, "available", True))
+print("role", getattr(api, "role", None))
+print("config keys", list(getattr(api, "config", {}) or {})[:20])
 ```
 
-This will show detailed information about API calls, configuration, and components initialization.
+---
+
+## Stability
+
+Stability levels (`@stable_api`, `@beta_api`, `@experimental_api`) are defined in [API stability](../api_stability.md). Not every method on the large Compatibility class is decorated; treat undocumented stability as **unspecified** and prefer methods you have tested in your environment.
+
+Packaging version is `0.3.0` (`pyproject.toml`); `ipfs_kit_py.__version__` may still report `0.2.0` (**C-VER**). Do not treat the module string alone as release authority.
+
+---
+
+## See also
+
+- [API Reference](api_reference.md) — compact tables for HLA methods and HTTP server surface
+- [CLI Reference](cli_reference.md) — `ipfs-kit` operator CLI
+- [Compatibility layers](../architecture/COMPATIBILITY_LAYERS.md) — dual paths and inactive artifacts
+- [Runtime and entry points](../architecture/RUNTIME_AND_ENTRYPOINTS.md) — process ownership and daemons
