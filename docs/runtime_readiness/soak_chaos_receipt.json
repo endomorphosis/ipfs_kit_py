@@ -1,0 +1,128 @@
+{
+  "schema": "ipfs_kit_py/runtime-readiness/soak-chaos-receipt@1",
+  "contract_version": 1,
+  "task_id": "KITA-045",
+  "title": "Run soak, chaos, crash, leak, security, and resource-exhaustion qualification",
+  "suite": "tests/runtime_readiness/release/test_soak_chaos.py",
+  "interfaces": [
+    "SoakReceipt@1",
+    "ChaosSchedule@1"
+  ],
+  "authority": {
+    "statement": "Hermetic soak and chaos qualification proves that mixed VFS, WAL, bucket, replica, cache, backpressure, and UCAN surfaces recover without acknowledged loss, duplicate non-idempotent effects, authorization bypass, path escape, unsafe execution, secret leak, or false convergence. Backend outages remain explicit. Resource growth is bounded and returns within tolerance after load. Repeated seeded runs produce identity-equivalent semantic receipts.",
+    "performance_module": "ipfs_kit_py.core.performance",
+    "wal_coordinator": "ipfs_kit_py.core.wal.coordinator",
+    "vfs_service": "ipfs_kit_py.core.vfs.service",
+    "bucket_service": "ipfs_kit_py.core.buckets.service",
+    "replica_reconciler": "ipfs_kit_py.core.replication.reconciler",
+    "ucan_module": "ipfs_kit_py.mcp_server.mcplusplus.ucan",
+    "provider_catalog": "ipfs_kit_py.backends.provider_adapters.ProviderAdapterCatalog",
+    "receipt_interface": "SoakReceipt@1",
+    "schedule_interface": "ChaosSchedule@1"
+  },
+  "exclusion_policy": {
+    "excluded_only_gate": false,
+    "mandatory_in_default_ci": true
+  },
+  "soak": {
+    "profile": "hermetic-ci-reference",
+    "primary_seed": 1263096897,
+    "ticks": 48,
+    "ops_per_tick": 6,
+    "workloads": [
+      "vfs_write",
+      "vfs_read",
+      "bucket_put_idempotent",
+      "wal_transaction"
+    ],
+    "resource_tolerance_after_load": {
+      "queue_depth": 0,
+      "inflight_tasks": 0,
+      "worker_threads": 0,
+      "memory_bytes": 0,
+      "descriptor_leases": 0
+    },
+    "load_ceilings": {
+      "max_queue_depth": 64,
+      "max_inflight": 64,
+      "max_threads_delta": 16,
+      "max_fd_delta": 64,
+      "max_rss_delta_bytes": 67108864
+    }
+  },
+  "chaos_schedule": {
+    "schema": "ChaosSchedule@1",
+    "generator": "deterministic Python random.Random(seed).shuffle over fixed action vocabulary",
+    "seed_count": 32,
+    "actions": [
+      "crash",
+      "torn_write",
+      "backend_loss",
+      "partition",
+      "corrupt",
+      "ucan",
+      "path_escape",
+      "overload",
+      "soak"
+    ],
+    "crash_boundaries": [
+      "before_begin",
+      "after_begin",
+      "before_intent",
+      "after_intent",
+      "before_effect",
+      "after_effect",
+      "before_commit",
+      "after_commit"
+    ]
+  },
+  "evidence_subset": {
+    "soak_duration_seed": "PRIMARY_SEED with SOAK_TICKS mixed operations; multi-seed SEED_COUNT schedules",
+    "crash": "WALTransactionCrash at every execute boundary; recover then second recover is no-op",
+    "partition": "Toggleable replica outage then rejoin; final put converges without false success",
+    "backend_loss": "Unsupported provider require_storage and ConnectionError outage remain explicit",
+    "corrupt_wal_cache_index_replica": "Stale cache invalidation, replica integrity reject/repair, WAL secret and pickle encoding reject",
+    "ucan_attacks": "forged, tampered, expired, confused deputy, attenuation widen, replay; receipts redacted",
+    "overload": "BackpressureController@1 hard bounds with explicit backpressure dispositions",
+    "leaks": "queue/task/thread/fd/rss deltas bounded; post-load controller snapshot within tolerance"
+  },
+  "invariants": {
+    "no_acknowledged_loss": "Committed effects retained; pre-commit crashes compensated; no orphan visible effects",
+    "no_duplicate_non_idempotent_effects": "Second recovery and idempotent bucket puts apply no extra non-idempotent effects",
+    "no_authorization_bypass": "UCAN attacks never allow; valid path remains redacted",
+    "no_path_escape": "normalize_vfs_path and CanonicalVFSService reject traversal/absolute/expansion probes",
+    "no_unsafe_execution": "WAL pickle and executable encodings raise WALUnsafeEncodingError",
+    "no_secret_leak": "WAL secret markers rejected; UCAN receipts omit raw token and signature material",
+    "no_false_convergence": "Corrupt cache/replica never presented as consistent desired state",
+    "recovery_bounded": "Recovery steps linear in crash boundaries; pending compensations drain",
+    "resources_return_within_tolerance": "After soak, controller queue/inflight/memory/descriptor/thread counters at tolerance",
+    "backend_outage_explicit": "Unsupported and offline backends never fabricate storage success",
+    "identity_equivalent_seeded_receipts": "semantic_digest(seed) equal across independent repeated runs"
+  },
+  "acceptance": {
+    "zero_acknowledged_loss": true,
+    "zero_duplicate_non_idempotent_effects": true,
+    "zero_authorization_bypass": true,
+    "zero_path_escape": true,
+    "zero_unsafe_execution": true,
+    "zero_secret_leak": true,
+    "zero_false_convergence": true,
+    "recovery_bounded": true,
+    "resources_within_tolerance_after_load": true,
+    "no_unbounded_thread_task_fd_memory_growth": true,
+    "backend_outage_explicit": true,
+    "identity_equivalent_seeded_receipts": true
+  },
+  "safety_floors": {
+    "acknowledged_loss": 0,
+    "duplicate_non_idempotent_effects": 0,
+    "authorization_bypass": 0,
+    "path_escape": 0,
+    "unsafe_execution": 0,
+    "secret_leak": 0,
+    "false_convergence": 0,
+    "unbounded_growth": 0,
+    "silent_backend_outage": 0,
+    "unbounded_recovery": 0
+  }
+}
