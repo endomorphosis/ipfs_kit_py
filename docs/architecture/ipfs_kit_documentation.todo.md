@@ -1266,7 +1266,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-061 Run the final navigation, links, examples, and claim audit
 
-- Status: todo
+- Status: completed
 - Completion: manual
 - Is schedulable: true
 - Review only: false
