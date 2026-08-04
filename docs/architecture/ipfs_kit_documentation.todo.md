@@ -1216,7 +1216,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-054 Refresh the documentation maintenance workflow guide
 
-- Status: todo
+- Status: completed
 - Completion: manual
 - Is schedulable: true
 - Review only: false
