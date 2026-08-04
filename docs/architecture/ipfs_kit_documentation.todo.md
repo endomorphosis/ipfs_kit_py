@@ -841,7 +841,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-036 Refresh cluster operations and state guidance
 
-- Status: completed
+- Status: todo
 - Completion: manual
 - Is schedulable: true
 - Review only: false
