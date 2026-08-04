@@ -5,9 +5,33 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[4]
-sys.path.insert(0, str(ROOT / "src"))
-sys.path.insert(0, str(ROOT / "external" / "ipfs_kit"))
+# Standalone kit checkouts do not vendor ``mcplusplus_profile_h``; monorepo
+# layouts may expose it under ``<repo>/src``. Search a few parent depths and
+# soft-skip this suite when the shared package is unavailable.
+_HERE = Path(__file__).resolve()
+_CANDIDATE_ROOTS = []
+for depth in (2, 3, 4, 5):
+    if depth < len(_HERE.parents):
+        _CANDIDATE_ROOTS.append(_HERE.parents[depth])
+
+ROOT: Path | None = None
+for _root in _CANDIDATE_ROOTS:
+    src = _root / "src"
+    if (src / "mcplusplus_profile_h").is_dir():
+        sys.path.insert(0, str(src))
+        ext = _root / "external" / "ipfs_kit"
+        if ext.is_dir():
+            sys.path.insert(0, str(ext))
+        ROOT = _root
+        break
+
+pytest.importorskip(
+    "mcplusplus_profile_h",
+    reason=(
+        "mcplusplus_profile_h is not installed and no monorepo src/ tree was "
+        "found; Profile H kit tests require the shared package"
+    ),
+)
 
 from ipfs_kit_py.mcp_server.mcplusplus.profile_h import (  # noqa: E402
     KitOperationTerms,
