@@ -1,0 +1,4046 @@
+{
+  "schema": "ipfs_kit_py/runtime-readiness/kita-release-receipt@1",
+  "contract_version": 1,
+  "task_id": "KITA-047",
+  "goal_id": "KITA-G110",
+  "title": "Emit the independent current-tree runtime-readiness release receipt",
+  "suite": "tests/runtime_readiness/release/test_joined_release_receipt.py",
+  "interfaces": [
+    "KITAReleaseReceipt@1"
+  ],
+  "board_namespace": "ipfs-kit-runtime-readiness-v1",
+  "board_terminal": "KITA-047",
+  "mutation_authorized": false,
+  "completion_authoritative": false,
+  "authority": {
+    "statement": "This independent joined receipt binds the exact accelerator, ipfs_kit_py, and ipfs_datasets_py trees and dirty overlays; the operation/interface and backend support manifests; every sealed task's validation and evidence CIDs; the validation environment and toolchain; zero safety-floor counters; honest backend tiers; interface parity policy; benchmark/SLO artifacts; soak/chaos and migration/rollback receipts. Missing, stale, failed, or conditional evidence remains explicit and prevents broader claims. The validator proves the complete 48-task/12-goal terminal DAG and that no protected control artifact changed after KITA-000 beyond authorized taskboard status progress.",
+    "receipt_interface": "KITAReleaseReceipt@1",
+    "depends_on": [
+      "KITA-046"
+    ],
+    "program": "ipfs-kit-runtime-readiness-v1"
+  },
+  "exclusion_policy": {
+    "excluded_only_gate": false,
+    "mandatory_in_default_ci": true
+  },
+  "repository_forest": {
+    "schema": "RepositoryForestDescriptor@1",
+    "board_namespace": "ipfs-kit-runtime-readiness-v1",
+    "planning_bound": {
+      "ipfs_accelerate_py": "f25e5719cb738a50fb96bac4bea3f66ebca9800b",
+      "ipfs_kit_py_gitlink": "f6a574375febbcf9a46fcd24bbc7bc5cfb551de5",
+      "ipfs_datasets_py_gitlink": "7415adc5100192ee35676778f1018f6b072378f9",
+      "planning_revision_is_runtime_completion_evidence": false
+    },
+    "current_observation": {
+      "ipfs_accelerate_py": {
+        "path": ".",
+        "role": "parent_accelerator_and_supervisor",
+        "observed_revision": "ce020a7a7009f3f3d80e198b1f47a3c9b0995975",
+        "dirty_overlay": false,
+        "matches_planning_bound": false
+      },
+      "ipfs_kit_py": {
+        "path": "ipfs_kit_py",
+        "role": "primary_storage_runtime",
+        "observed_revision": "5bf15793166cc66a460edaa3ea5e4490fdbe98a0",
+        "gitlink_revision": "5bf15793166cc66a460edaa3ea5e4490fdbe98a0",
+        "gitlink_equals_nested_head": true,
+        "dirty_overlay": false,
+        "matches_planning_bound": false
+      },
+      "ipfs_datasets_py": {
+        "path": "ipfs_datasets_py",
+        "role": "datasets_graphrag_logic_provider",
+        "observed_revision": "7415adc5100192ee35676778f1018f6b072378f9",
+        "gitlink_revision": "7415adc5100192ee35676778f1018f6b072378f9",
+        "gitlink_equals_nested_head": true,
+        "dirty_overlay": false,
+        "matches_planning_bound": true
+      }
+    },
+    "overlays": {
+      "accelerator_dirty": false,
+      "kit_dirty": false,
+      "datasets_dirty": false,
+      "any_dirty": false,
+      "policy": "Dirty overlays invalidate content-bound historical findings; this receipt records live overlay state."
+    }
+  },
+  "environment": {
+    "python": {
+      "version": "3.12.3",
+      "version_info": [
+        3,
+        12,
+        3
+      ],
+      "implementation": "cpython",
+      "executable": "/usr/bin/python3.12",
+      "canonical_interpreter_target": "/usr/bin/python3.12"
+    },
+    "platform": {
+      "system": "Linux",
+      "release": "6.17.0-1014-nvidia",
+      "machine": "aarch64",
+      "platform": "Linux-6.17.0-1014-nvidia-aarch64-with-glibc2.39"
+    },
+    "package": {
+      "name": "ipfs_kit_py",
+      "version": "0.3.0",
+      "requires_python": ">=3.12",
+      "runtime_version": "0.3.0",
+      "runtime_matches_metadata": true
+    },
+    "toolchain": {
+      "path_policy": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin",
+      "git_available": true,
+      "validation_home_policy": "ipfs-accelerate-validation-home-*"
+    }
+  },
+  "protected_control_artifacts": {
+    "policy": "Protected control artifacts are sealed by KITA-000. After seal, only taskboard status progress (todo\u2192completed) is authorized; definition, dependencies, ownership, and the other six control files must remain byte-stable under the sealed definition hash.",
+    "taskboard_definition_sha256": "sha256:2f9620ce3b815344ae597be0cf7e2513b9561e0451ef283013b9730ebe0ca790",
+    "taskboard_definition_matches_kita_000_seal": true,
+    "sealed_taskboard_definition_sha256": "sha256:2f9620ce3b815344ae597be0cf7e2513b9561e0451ef283013b9730ebe0ca790",
+    "artifacts": {
+      ".gitignore": {
+        "path": ".gitignore",
+        "kind": "file",
+        "bytes": 5235,
+        "sha256": "085ac251c6ddf5798e4b32f16baea21b8f7b65a54c49ab3fc849d057b5652a67",
+        "evidence_cid": "bafkreia3imuy5lguyip2pdzibnxkv7dsj3nhr3myz4tdaeen54e7776z4y",
+        "present": true
+      },
+      "docs/architecture/IPFS_KIT_RUNTIME_READINESS_PLAN.md": {
+        "path": "docs/architecture/IPFS_KIT_RUNTIME_READINESS_PLAN.md",
+        "kind": "file",
+        "bytes": 29394,
+        "sha256": "ee5dc8d62212c2ab5a0397ab6bdf291ed80017395608f8be9a94c1de9f9b8b01",
+        "evidence_cid": "bafkreiaswtpf46xvqruilyp7ipzilb7qzwn4ins3z6ic54ptjxfk6ium6a",
+        "present": true
+      },
+      "docs/architecture/ipfs_kit_runtime_readiness.objectives.md": {
+        "path": "docs/architecture/ipfs_kit_runtime_readiness.objectives.md",
+        "kind": "file",
+        "bytes": 29049,
+        "sha256": "aeb87d3ce01bed661d44a289025e8490df4bb6df2004398d5f1af54c9ca0e0d8",
+        "evidence_cid": "bafkreifpbkmy6olckhvujvnn2nfhr5lghysxlwrgrukiqrvlbbhb7b6dse",
+        "present": true
+      },
+      "docs/architecture/ipfs_kit_runtime_readiness.todo.md": {
+        "path": "docs/architecture/ipfs_kit_runtime_readiness.todo.md",
+        "kind": "file",
+        "bytes": 125493,
+        "sha256": "9317cadd7c1ab7f1f3602476e2030773f2dc7be24273cf7c0784719885284b08",
+        "evidence_cid": "bafkreibrd4ufdv4mho5ekpmodhe74gmnsx4xpjv5sftpbi5nx7v4bqhgty",
+        "present": true
+      },
+      "config/agent_supervisor_ipfs_kit_runtime_readiness_scheduler.json": {
+        "path": "config/agent_supervisor_ipfs_kit_runtime_readiness_scheduler.json",
+        "kind": "file",
+        "bytes": 11387,
+        "sha256": "b918c5599696c54168477ee1be91eff1aeb129ebb147ee52f9618131c23eeb41",
+        "evidence_cid": "bafkreic7x47xhym7dohefvgglatud4bp736yk62uok75i76jrx4zfx7s4a",
+        "present": true
+      },
+      "scripts/validate_ipfs_kit_runtime_readiness_board.py": {
+        "path": "scripts/validate_ipfs_kit_runtime_readiness_board.py",
+        "kind": "file",
+        "bytes": 35786,
+        "sha256": "e7ad2fcf4a1bd351dcac9f9d4a0114104ab6bb90aed7afe62143f16eaf37366e",
+        "evidence_cid": "bafkreici225ye7hznvkvmvmznvpltbzgqdbyy7stk2a7lwguruhi2fz7ey",
+        "present": true
+      },
+      "test/api/test_ipfs_kit_runtime_readiness_board.py": {
+        "path": "test/api/test_ipfs_kit_runtime_readiness_board.py",
+        "kind": "file",
+        "bytes": 8307,
+        "sha256": "f78f50d130fb0e9f7c7029d76318cd0373d4b945361c180cab41a9d04cb2fe06",
+        "evidence_cid": "bafkreicvpjtwh2jfzwg32nyyz2y5ygcmzanbgaoajk5pxhmdql47whujyq",
+        "present": true
+      }
+    }
+  },
+  "terminal_dag": {
+    "task_count": 48,
+    "goal_count": 12,
+    "task_ids": [
+      "KITA-000",
+      "KITA-001",
+      "KITA-002",
+      "KITA-003",
+      "KITA-004",
+      "KITA-005",
+      "KITA-006",
+      "KITA-007",
+      "KITA-008",
+      "KITA-009",
+      "KITA-010",
+      "KITA-011",
+      "KITA-012",
+      "KITA-013",
+      "KITA-014",
+      "KITA-015",
+      "KITA-016",
+      "KITA-017",
+      "KITA-018",
+      "KITA-019",
+      "KITA-020",
+      "KITA-021",
+      "KITA-022",
+      "KITA-023",
+      "KITA-024",
+      "KITA-025",
+      "KITA-026",
+      "KITA-027",
+      "KITA-028",
+      "KITA-029",
+      "KITA-030",
+      "KITA-031",
+      "KITA-032",
+      "KITA-033",
+      "KITA-034",
+      "KITA-035",
+      "KITA-036",
+      "KITA-037",
+      "KITA-038",
+      "KITA-039",
+      "KITA-040",
+      "KITA-041",
+      "KITA-042",
+      "KITA-043",
+      "KITA-044",
+      "KITA-045",
+      "KITA-046",
+      "KITA-047"
+    ],
+    "goal_ids": [
+      "KITA-G000",
+      "KITA-G010",
+      "KITA-G020",
+      "KITA-G030",
+      "KITA-G040",
+      "KITA-G050",
+      "KITA-G060",
+      "KITA-G070",
+      "KITA-G080",
+      "KITA-G090",
+      "KITA-G100",
+      "KITA-G110"
+    ],
+    "terminal_task_id": "KITA-047",
+    "root_goal_id": "KITA-G000",
+    "task_ids_exact": true,
+    "goal_ids_exact": true,
+    "task_dependency_cycle": [],
+    "goal_parent_cycle": [],
+    "acyclic": true,
+    "join_dependencies_sealed": true,
+    "join_dependency_problems": {},
+    "task_edges": {
+      "KITA-000": [
+        "- Goal id: KITA-G000"
+      ],
+      "KITA-001": [
+        "KITA-000"
+      ],
+      "KITA-002": [
+        "KITA-000"
+      ],
+      "KITA-003": [
+        "KITA-000"
+      ],
+      "KITA-004": [
+        "KITA-000"
+      ],
+      "KITA-005": [
+        "KITA-001",
+        "KITA-002"
+      ],
+      "KITA-006": [
+        "KITA-002",
+        "KITA-003"
+      ],
+      "KITA-007": [
+        "KITA-005",
+        "KITA-006"
+      ],
+      "KITA-008": [
+        "KITA-005",
+        "KITA-006"
+      ],
+      "KITA-009": [
+        "KITA-007",
+        "KITA-008",
+        "KITA-021",
+        "KITA-037",
+        "KITA-040",
+        "KITA-041"
+      ],
+      "KITA-010": [
+        "KITA-001",
+        "KITA-002"
+      ],
+      "KITA-011": [
+        "KITA-006",
+        "KITA-010"
+      ],
+      "KITA-012": [
+        "KITA-010",
+        "KITA-011"
+      ],
+      "KITA-013": [
+        "KITA-011",
+        "KITA-012",
+        "KITA-021",
+        "KITA-029",
+        "KITA-033",
+        "KITA-037",
+        "KITA-040",
+        "KITA-041"
+      ],
+      "KITA-014": [
+        "KITA-001",
+        "KITA-002"
+      ],
+      "KITA-015": [
+        "KITA-003",
+        "KITA-014"
+      ],
+      "KITA-016": [
+        "KITA-014",
+        "KITA-015"
+      ],
+      "KITA-017": [
+        "KITA-015",
+        "KITA-016",
+        "KITA-037"
+      ],
+      "KITA-018": [
+        "KITA-001",
+        "KITA-002"
+      ],
+      "KITA-019": [
+        "KITA-003",
+        "KITA-018"
+      ],
+      "KITA-020": [
+        "KITA-018",
+        "KITA-019"
+      ],
+      "KITA-021": [
+        "KITA-007",
+        "KITA-019",
+        "KITA-020"
+      ],
+      "KITA-022": [
+        "KITA-001",
+        "KITA-002"
+      ],
+      "KITA-023": [
+        "KITA-003",
+        "KITA-022"
+      ],
+      "KITA-024": [
+        "KITA-008",
+        "KITA-022",
+        "KITA-023"
+      ],
+      "KITA-025": [
+        "KITA-022",
+        "KITA-023",
+        "KITA-024"
+      ],
+      "KITA-026": [
+        "KITA-001",
+        "KITA-002"
+      ],
+      "KITA-027": [
+        "KITA-003",
+        "KITA-026"
+      ],
+      "KITA-028": [
+        "KITA-026",
+        "KITA-027"
+      ],
+      "KITA-029": [
+        "KITA-012",
+        "KITA-016",
+        "KITA-020",
+        "KITA-024",
+        "KITA-028",
+        "KITA-040",
+        "KITA-041"
+      ],
+      "KITA-030": [
+        "KITA-001",
+        "KITA-002"
+      ],
+      "KITA-031": [
+        "KITA-003",
+        "KITA-030"
+      ],
+      "KITA-032": [
+        "KITA-030",
+        "KITA-031"
+      ],
+      "KITA-033": [
+        "KITA-011",
+        "KITA-016",
+        "KITA-021",
+        "KITA-029",
+        "KITA-031",
+        "KITA-032",
+        "KITA-037"
+      ],
+      "KITA-034": [
+        "KITA-002",
+        "KITA-004"
+      ],
+      "KITA-035": [
+        "KITA-004",
+        "KITA-034"
+      ],
+      "KITA-036": [
+        "KITA-034",
+        "KITA-035"
+      ],
+      "KITA-037": [
+        "KITA-032",
+        "KITA-034",
+        "KITA-035",
+        "KITA-036"
+      ],
+      "KITA-038": [
+        "KITA-001",
+        "KITA-002"
+      ],
+      "KITA-039": [
+        "KITA-003",
+        "KITA-038"
+      ],
+      "KITA-040": [
+        "KITA-038",
+        "KITA-039"
+      ],
+      "KITA-041": [
+        "KITA-038",
+        "KITA-039"
+      ],
+      "KITA-042": [
+        "KITA-013",
+        "KITA-017",
+        "KITA-021",
+        "KITA-025",
+        "KITA-029",
+        "KITA-033",
+        "KITA-037",
+        "KITA-040",
+        "KITA-041"
+      ],
+      "KITA-043": [
+        "KITA-004",
+        "KITA-007",
+        "KITA-018",
+        "KITA-022",
+        "KITA-026",
+        "KITA-034",
+        "KITA-038"
+      ],
+      "KITA-044": [
+        "KITA-009",
+        "KITA-013",
+        "KITA-017",
+        "KITA-021",
+        "KITA-025",
+        "KITA-029",
+        "KITA-033",
+        "KITA-037",
+        "KITA-042",
+        "KITA-043"
+      ],
+      "KITA-045": [
+        "KITA-042",
+        "KITA-044"
+      ],
+      "KITA-046": [
+        "KITA-009",
+        "KITA-013",
+        "KITA-017",
+        "KITA-021",
+        "KITA-025",
+        "KITA-029",
+        "KITA-033",
+        "KITA-037",
+        "KITA-042",
+        "KITA-045"
+      ],
+      "KITA-047": [
+        "KITA-046"
+      ]
+    },
+    "goal_map": {
+      "KITA-000": "KITA-G000",
+      "KITA-001": "KITA-G010",
+      "KITA-002": "KITA-G010",
+      "KITA-003": "KITA-G010",
+      "KITA-004": "KITA-G010",
+      "KITA-005": "KITA-G020",
+      "KITA-006": "KITA-G020",
+      "KITA-007": "KITA-G020",
+      "KITA-008": "KITA-G020",
+      "KITA-009": "KITA-G020",
+      "KITA-010": "KITA-G030",
+      "KITA-011": "KITA-G030",
+      "KITA-012": "KITA-G030",
+      "KITA-013": "KITA-G030",
+      "KITA-014": "KITA-G040",
+      "KITA-015": "KITA-G040",
+      "KITA-016": "KITA-G040",
+      "KITA-017": "KITA-G040",
+      "KITA-018": "KITA-G050",
+      "KITA-019": "KITA-G050",
+      "KITA-020": "KITA-G050",
+      "KITA-021": "KITA-G050",
+      "KITA-022": "KITA-G060",
+      "KITA-023": "KITA-G060",
+      "KITA-024": "KITA-G060",
+      "KITA-025": "KITA-G060",
+      "KITA-026": "KITA-G070",
+      "KITA-027": "KITA-G070",
+      "KITA-028": "KITA-G070",
+      "KITA-029": "KITA-G070",
+      "KITA-030": "KITA-G080",
+      "KITA-031": "KITA-G080",
+      "KITA-032": "KITA-G080",
+      "KITA-033": "KITA-G080",
+      "KITA-034": "KITA-G090",
+      "KITA-035": "KITA-G090",
+      "KITA-036": "KITA-G090",
+      "KITA-037": "KITA-G090",
+      "KITA-038": "KITA-G100",
+      "KITA-039": "KITA-G100",
+      "KITA-040": "KITA-G100",
+      "KITA-041": "KITA-G100",
+      "KITA-042": "KITA-G100",
+      "KITA-043": "KITA-G110",
+      "KITA-044": "KITA-G110",
+      "KITA-045": "KITA-G110",
+      "KITA-046": "KITA-G110",
+      "KITA-047": "KITA-G110"
+    }
+  },
+  "task_evidence": {
+    "KITA-000": {
+      "task_id": "KITA-000",
+      "goal_id": "KITA-G000",
+      "status": "completed",
+      "title": "Seal the runtime-readiness control program",
+      "depends_on": [
+        "- Goal id: KITA-G000"
+      ],
+      "interfaces": [
+        "IPFSKitRuntimeReadinessPlan@1"
+      ],
+      "validation": "python scripts/validate_ipfs_kit_runtime_readiness_board.py --check-all && python -m pytest -q test/api/test_ipfs_kit_runtime_readiness_board.py",
+      "validation_paths": [
+        "scripts/validate_ipfs_kit_runtime_readiness_board.py",
+        "test/api/test_ipfs_kit_runtime_readiness_board.py"
+      ],
+      "validation_cids": [
+        "bafkreici225ye7hznvkvmvmznvpltbzgqdbyy7stk2a7lwguruhi2fz7ey",
+        "bafkreicvpjtwh2jfzwg32nyyz2y5ygcmzanbgaoajk5pxhmdql47whujyq"
+      ],
+      "outputs": [
+        {
+          "declared_output": ".gitignore",
+          "present": true,
+          "kind": "file",
+          "sha256": "085ac251c6ddf5798e4b32f16baea21b8f7b65a54c49ab3fc849d057b5652a67",
+          "evidence_cid": "bafkreia3imuy5lguyip2pdzibnxkv7dsj3nhr3myz4tdaeen54e7776z4y"
+        },
+        {
+          "declared_output": "docs/architecture/IPFS_KIT_RUNTIME_READINESS_PLAN.md",
+          "present": true,
+          "kind": "file",
+          "sha256": "ee5dc8d62212c2ab5a0397ab6bdf291ed80017395608f8be9a94c1de9f9b8b01",
+          "evidence_cid": "bafkreiaswtpf46xvqruilyp7ipzilb7qzwn4ins3z6ic54ptjxfk6ium6a"
+        },
+        {
+          "declared_output": "docs/architecture/ipfs_kit_runtime_readiness.objectives.md",
+          "present": true,
+          "kind": "file",
+          "sha256": "aeb87d3ce01bed661d44a289025e8490df4bb6df2004398d5f1af54c9ca0e0d8",
+          "evidence_cid": "bafkreifpbkmy6olckhvujvnn2nfhr5lghysxlwrgrukiqrvlbbhb7b6dse"
+        },
+        {
+          "declared_output": "docs/architecture/ipfs_kit_runtime_readiness.todo.md",
+          "present": true,
+          "kind": "file",
+          "sha256": "9317cadd7c1ab7f1f3602476e2030773f2dc7be24273cf7c0784719885284b08",
+          "evidence_cid": "bafkreibrd4ufdv4mho5ekpmodhe74gmnsx4xpjv5sftpbi5nx7v4bqhgty"
+        },
+        {
+          "declared_output": "config/agent_supervisor_ipfs_kit_runtime_readiness_scheduler.json",
+          "present": true,
+          "kind": "file",
+          "sha256": "b918c5599696c54168477ee1be91eff1aeb129ebb147ee52f9618131c23eeb41",
+          "evidence_cid": "bafkreic7x47xhym7dohefvgglatud4bp736yk62uok75i76jrx4zfx7s4a"
+        },
+        {
+          "declared_output": "scripts/validate_ipfs_kit_runtime_readiness_board.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "e7ad2fcf4a1bd351dcac9f9d4a0114104ab6bb90aed7afe62143f16eaf37366e",
+          "evidence_cid": "bafkreici225ye7hznvkvmvmznvpltbzgqdbyy7stk2a7lwguruhi2fz7ey"
+        },
+        {
+          "declared_output": "test/api/test_ipfs_kit_runtime_readiness_board.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "f78f50d130fb0e9f7c7029d76318cd0373d4b945361c180cab41a9d04cb2fe06",
+          "evidence_cid": "bafkreicvpjtwh2jfzwg32nyyz2y5ygcmzanbgaoajk5pxhmdql47whujyq"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreia3imuy5lguyip2pdzibnxkv7dsj3nhr3myz4tdaeen54e7776z4y",
+        "bafkreiaswtpf46xvqruilyp7ipzilb7qzwn4ins3z6ic54ptjxfk6ium6a",
+        "bafkreifpbkmy6olckhvujvnn2nfhr5lghysxlwrgrukiqrvlbbhb7b6dse",
+        "bafkreibrd4ufdv4mho5ekpmodhe74gmnsx4xpjv5sftpbi5nx7v4bqhgty",
+        "bafkreic7x47xhym7dohefvgglatud4bp736yk62uok75i76jrx4zfx7s4a",
+        "bafkreici225ye7hznvkvmvmznvpltbzgqdbyy7stk2a7lwguruhi2fz7ey",
+        "bafkreicvpjtwh2jfzwg32nyyz2y5ygcmzanbgaoajk5pxhmdql47whujyq"
+      ],
+      "freshness": "control-seal",
+      "binding_status": "protected",
+      "missing_outputs": []
+    },
+    "KITA-001": {
+      "task_id": "KITA-001",
+      "goal_id": "KITA-G010",
+      "status": "completed",
+      "title": "Freeze the repository, capability, backend, and test-gate inventory",
+      "depends_on": [
+        "KITA-000"
+      ],
+      "interfaces": [
+        "CapabilityManifest@1",
+        "RepositoryForestDescriptor@1",
+        "BackendSupportTier@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/foundations/test_capability_manifest.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/foundations/test_capability_manifest.py"
+      ],
+      "validation_cids": [
+        "bafkreifljbmzq5cd6xxlg2os67gslutb7finw7xtqh2oote2b2qsv6uqzy"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/docs/runtime_readiness/capability_manifest.json",
+          "present": true,
+          "kind": "file",
+          "sha256": "4123bafe6b269eefa9ccc1a93dd5ed7b39408941972fb3180ed4b4f61122d4e8",
+          "evidence_cid": "bafkreibl5vtouytdavu4m6dtvjq5wakbrcewqotkvj5v74vr66teizfjeq"
+        },
+        {
+          "declared_output": "ipfs_kit_py/docs/runtime_readiness/surface_inventory.md",
+          "present": true,
+          "kind": "file",
+          "sha256": "6ed3e889b33f1ad46fb67e21810e8c70b22c107a5f67e6d1056ed6a5d7cddc0b",
+          "evidence_cid": "bafkreidsaxenaprvewqgcktsetvwhhlcdkeilwv6f2r6cg7gshxe2zvux4"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/foundations/test_capability_manifest.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "b14a6bf8237d0218896635f8f6f4fcd405dce3e9a9e780481c75627cf07299ad",
+          "evidence_cid": "bafkreifljbmzq5cd6xxlg2os67gslutb7finw7xtqh2oote2b2qsv6uqzy"
+        }
+      ],
+      "primary_evidence": [
+        {
+          "path": "docs/runtime_readiness/capability_manifest.json",
+          "kind": "file",
+          "bytes": 57815,
+          "sha256": "4123bafe6b269eefa9ccc1a93dd5ed7b39408941972fb3180ed4b4f61122d4e8",
+          "evidence_cid": "bafkreibl5vtouytdavu4m6dtvjq5wakbrcewqotkvj5v74vr66teizfjeq",
+          "present": true
+        },
+        {
+          "path": "docs/runtime_readiness/surface_inventory.md",
+          "kind": "file",
+          "bytes": 11598,
+          "sha256": "6ed3e889b33f1ad46fb67e21810e8c70b22c107a5f67e6d1056ed6a5d7cddc0b",
+          "evidence_cid": "bafkreidsaxenaprvewqgcktsetvwhhlcdkeilwv6f2r6cg7gshxe2zvux4",
+          "present": true
+        }
+      ],
+      "evidence_cids": [
+        "bafkreibl5vtouytdavu4m6dtvjq5wakbrcewqotkvj5v74vr66teizfjeq",
+        "bafkreidsaxenaprvewqgcktsetvwhhlcdkeilwv6f2r6cg7gshxe2zvux4",
+        "bafkreifljbmzq5cd6xxlg2os67gslutb7finw7xtqh2oote2b2qsv6uqzy"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-002": {
+      "task_id": "KITA-002",
+      "goal_id": "KITA-G010",
+      "status": "completed",
+      "title": "Define canonical operation, result, error, state, and evidence contracts",
+      "depends_on": [
+        "KITA-000"
+      ],
+      "interfaces": [
+        "OperationRequest@1",
+        "OperationResult@1",
+        "StorageError@1",
+        "StateTransitionReceipt@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/foundations/test_operation_contracts.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/foundations/test_operation_contracts.py"
+      ],
+      "validation_cids": [
+        "bafkreig4fe5wrwgebtwckwjfc2x46a774xzhkrofjsooll5kyxpz4kt2xa"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/operation_contracts.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "1b5ca2e555f8ed18e4782d804df7412c6510a320399249cd156c7d2f687952ed",
+          "evidence_cid": "bafkreidgecbz7vtum6d3nbgvalshed5avswtvxu6tg3o7bdbztqbspepi4"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/foundations/test_operation_contracts.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "7812b0796708a6a3f62f9036c8a4a9b48a9e84cc8b21c2d06a270f1e5d831ce4",
+          "evidence_cid": "bafkreig4fe5wrwgebtwckwjfc2x46a774xzhkrofjsooll5kyxpz4kt2xa"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreidgecbz7vtum6d3nbgvalshed5avswtvxu6tg3o7bdbztqbspepi4",
+        "bafkreig4fe5wrwgebtwckwjfc2x46a774xzhkrofjsooll5kyxpz4kt2xa"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-003": {
+      "task_id": "KITA-003",
+      "goal_id": "KITA-G010",
+      "status": "completed",
+      "title": "Build hermetic adversarial state-machine and fault fixtures",
+      "depends_on": [
+        "KITA-000"
+      ],
+      "interfaces": [
+        "RuntimeReadinessFixture@1",
+        "FaultSchedule@1",
+        "ExpectedStateTrace@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/foundations/test_fixture_manifest.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/foundations/test_fixture_manifest.py"
+      ],
+      "validation_cids": [
+        "bafkreifklsip5bot3prbhy2cszixrzzalb3fpsos6evealtggftzdzg2wa"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/fixtures",
+          "present": true,
+          "kind": "directory",
+          "sha256": "cacd876b4d10bd886cdc1bba9a7e7d51cd956d8fed965236649f7bb80226286e",
+          "evidence_cid": "bafkreie6zp5i4iife6xcuij3222jodagrowqwzmqlhuoekboydxnmuipiq"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/foundations/test_fixture_manifest.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "a1f16ec3a6d41d58f2b08ae0212c4877a7a3f76e7554e3ab7fa1fa8aa6a6d4e7",
+          "evidence_cid": "bafkreifklsip5bot3prbhy2cszixrzzalb3fpsos6evealtggftzdzg2wa"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreie6zp5i4iife6xcuij3222jodagrowqwzmqlhuoekboydxnmuipiq",
+        "bafkreifklsip5bot3prbhy2cszixrzzalb3fpsos6evealtggftzdzg2wa"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-004": {
+      "task_id": "KITA-004",
+      "goal_id": "KITA-G010",
+      "status": "completed",
+      "title": "Establish install, cold-import, workload, TPS, and resource baselines",
+      "depends_on": [
+        "KITA-000"
+      ],
+      "interfaces": [
+        "RuntimeBenchmarkManifest@1",
+        "WorkloadProfile@1",
+        "ImportTrace@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/foundations/test_install_import_baseline.py && python benchmarks/runtime_readiness/baseline.py --profile ci-reference --check-schema",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/foundations/test_install_import_baseline.py",
+        "ipfs_kit_py/benchmarks/runtime_readiness/baseline.py"
+      ],
+      "validation_cids": [
+        "bafkreihgj6dnp5w7sn4i33h4ohbwuiodsoufcj5qblzlmeef5mya52blpi",
+        "bafkreic7w67o6pp3m3ofr6xn2qwtvnhol47gyv6qpddzb6yvelk6gzrsta"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/benchmarks/runtime_readiness/baseline.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "03f5d123ab87ac0a3ce99a7c82dc8f518a5ce334647a456684b62d8743885e3c",
+          "evidence_cid": "bafkreic7w67o6pp3m3ofr6xn2qwtvnhol47gyv6qpddzb6yvelk6gzrsta"
+        },
+        {
+          "declared_output": "ipfs_kit_py/benchmarks/runtime_readiness/workloads.json",
+          "present": true,
+          "kind": "file",
+          "sha256": "c65492da6328e2b1fbee817cc82f0f987b4e68f1b13d8d75554e234d44bbbd88",
+          "evidence_cid": "bafkreiba7dgfzhdhg7c5nvoodssfs36l32txu7lypobjyxmjrzpyeulkqa"
+        },
+        {
+          "declared_output": "ipfs_kit_py/benchmarks/runtime_readiness/reference_floors.json",
+          "present": true,
+          "kind": "file",
+          "sha256": "dbe4817c2157a92d77c73a40fec52e67af58cd9d0c04e216edc2d67e2c88a799",
+          "evidence_cid": "bafkreighg5krrkh4rq5cqoda4xzcaiz6pjtxudfh6r2tpliyi4tkgkmwda"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/foundations/test_install_import_baseline.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "82df0d10a5ae4753249698d2a45f94183b8a0cef348a6fe3525c39cbb5797ad5",
+          "evidence_cid": "bafkreihgj6dnp5w7sn4i33h4ohbwuiodsoufcj5qblzlmeef5mya52blpi"
+        }
+      ],
+      "primary_evidence": [
+        {
+          "path": "benchmarks/runtime_readiness/reference_floors.json",
+          "kind": "file",
+          "bytes": 8659,
+          "sha256": "dbe4817c2157a92d77c73a40fec52e67af58cd9d0c04e216edc2d67e2c88a799",
+          "evidence_cid": "bafkreighg5krrkh4rq5cqoda4xzcaiz6pjtxudfh6r2tpliyi4tkgkmwda",
+          "present": true
+        },
+        {
+          "path": "benchmarks/runtime_readiness/workloads.json",
+          "kind": "file",
+          "bytes": 13148,
+          "sha256": "c65492da6328e2b1fbee817cc82f0f987b4e68f1b13d8d75554e234d44bbbd88",
+          "evidence_cid": "bafkreiba7dgfzhdhg7c5nvoodssfs36l32txu7lypobjyxmjrzpyeulkqa",
+          "present": true
+        }
+      ],
+      "evidence_cids": [
+        "bafkreic7w67o6pp3m3ofr6xn2qwtvnhol47gyv6qpddzb6yvelk6gzrsta",
+        "bafkreiba7dgfzhdhg7c5nvoodssfs36l32txu7lypobjyxmjrzpyeulkqa",
+        "bafkreighg5krrkh4rq5cqoda4xzcaiz6pjtxudfh6r2tpliyi4tkgkmwda",
+        "bafkreihgj6dnp5w7sn4i33h4ohbwuiodsoufcj5qblzlmeef5mya52blpi"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-005": {
+      "task_id": "KITA-005",
+      "goal_id": "KITA-G020",
+      "status": "completed",
+      "title": "Specify VFS namespace, path, mount, and operation semantics",
+      "depends_on": [
+        "KITA-001",
+        "KITA-002"
+      ],
+      "interfaces": [
+        "VFSPathPolicy@1",
+        "VFSOperation@1",
+        "VFSStat@1",
+        "VFSMount@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/vfs/test_vfs_contracts.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/vfs/test_vfs_contracts.py"
+      ],
+      "validation_cids": [
+        "bafkreieoyuz62zb2jruujvehak7rkxrzfqlgypidt3jxasunfzuwgq4c44"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/vfs/contracts.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "4b381cedcc6fc8fd37d0a113bb376aa2f8062ddbe04d731841145b3067766704",
+          "evidence_cid": "bafkreidiw53shmuzdzchpkifidsji6wbeuuycgf3o2xffkgoojtwwukspm"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/vfs/test_vfs_contracts.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "bdc622a17b9406bfc08c3af7c3158d90048259bc70ed839df2f4b74c7e892e4c",
+          "evidence_cid": "bafkreieoyuz62zb2jruujvehak7rkxrzfqlgypidt3jxasunfzuwgq4c44"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreidiw53shmuzdzchpkifidsji6wbeuuycgf3o2xffkgoojtwwukspm",
+        "bafkreieoyuz62zb2jruujvehak7rkxrzfqlgypidt3jxasunfzuwgq4c44"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-006": {
+      "task_id": "KITA-006",
+      "goal_id": "KITA-G020",
+      "status": "completed",
+      "title": "Build the canonical VFS service and reference model",
+      "depends_on": [
+        "KITA-002",
+        "KITA-003"
+      ],
+      "interfaces": [
+        "CanonicalVFSService@1",
+        "VFSReferenceModel@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/vfs/test_vfs_state_machine.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/vfs/test_vfs_state_machine.py"
+      ],
+      "validation_cids": [
+        "bafkreianar36kkro6uxydpkvrzqzkpv5xhj46xmh4i2kywjtl6ybpmlxgu"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/vfs/service.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "0d58fb22a53575064ed42d00a7974d65c43f0ff796e5af2c8cb842202efee87f",
+          "evidence_cid": "bafkreickib5yufnmv3lo3jnregxznbujsdjq6pp3gzo3gkshe2iv3tsxra"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/vfs/reference_model.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "15c6d94599bc769058a4587e7333c78e1002727fd3287dd36927031dc473f338",
+          "evidence_cid": "bafkreih26syyh3r4vk22zupae3mpbu6ihdc76p6bxgwiqkdgdpdzedghfe"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/vfs/test_vfs_state_machine.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "b6491097a0d22a676b01c6906803f3d4ccfd5def65a99ff7f9c97476f4510247",
+          "evidence_cid": "bafkreianar36kkro6uxydpkvrzqzkpv5xhj46xmh4i2kywjtl6ybpmlxgu"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreickib5yufnmv3lo3jnregxznbujsdjq6pp3gzo3gkshe2iv3tsxra",
+        "bafkreih26syyh3r4vk22zupae3mpbu6ihdc76p6bxgwiqkdgdpdzedghfe",
+        "bafkreianar36kkro6uxydpkvrzqzkpv5xhj46xmh4i2kywjtl6ybpmlxgu"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-007": {
+      "task_id": "KITA-007",
+      "goal_id": "KITA-G020",
+      "status": "completed",
+      "title": "Migrate legacy VFS managers and journals through the canonical service",
+      "depends_on": [
+        "KITA-005",
+        "KITA-006"
+      ],
+      "interfaces": [
+        "CanonicalVFSService@1",
+        "LegacyVFSAdapter@1",
+        "FilesystemJournal"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/vfs/test_vfs_legacy_adapters.py tests/test_vfs_contract_hardening.py tests/test_mcp_vfs_adapter_contract.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/vfs/test_vfs_legacy_adapters.py",
+        "ipfs_kit_py/tests/test_vfs_contract_hardening.py",
+        "ipfs_kit_py/tests/test_mcp_vfs_adapter_contract.py"
+      ],
+      "validation_cids": [
+        "bafkreiecuvti6633syl7cnhwkqgkx6wzzyoyngglguovwobwbbw63f5s44",
+        "bafkreihvsmtopo7luzae6tfze7k7cw72p5tdvd6f7xabgaeonmneecleiu",
+        "bafkreiaz5cmojvweds5gzq3cufogtr6fselc47goc3f4b3jronlpcfkj2a"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/vfs_manager.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "38680fc32d81b31b5d2b388a8c0689597d13ea7c3a9fa49523b50b5dca9c390a",
+          "evidence_cid": "bafkreidteicen5el25l6jarzzxhbumslxtilxev5c3pkogbtuzt2ii6cem"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/mcp/ipfs_kit/vfs.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "6b213d62db56e5c460e8ccb3ccccbc9ea255d88ddd1cd07593b1aaeeb318abfa",
+          "evidence_cid": "bafkreifyaevwfvxffhtyxx6xpecmdc7qk5kpeosz2lux4gwlkvg7c3uiv4"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/vfs/adapters.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "99bffab42bfe96352c5b73a5b132bdb864b372e4c9788de060773e9f126bfa5c",
+          "evidence_cid": "bafkreibvmcgwjjhzjkju56uuyq43c6ffxm3q2jvaakxv6gew4v4dxzpa34"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/vfs/test_vfs_legacy_adapters.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "5399715f38958d844263ae94a1f1882dc76746e71604d7e694df52a6350eb521",
+          "evidence_cid": "bafkreiecuvti6633syl7cnhwkqgkx6wzzyoyngglguovwobwbbw63f5s44"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreidteicen5el25l6jarzzxhbumslxtilxev5c3pkogbtuzt2ii6cem",
+        "bafkreifyaevwfvxffhtyxx6xpecmdc7qk5kpeosz2lux4gwlkvg7c3uiv4",
+        "bafkreibvmcgwjjhzjkju56uuyq43c6ffxm3q2jvaakxv6gew4v4dxzpa34",
+        "bafkreiecuvti6633syl7cnhwkqgkx6wzzyoyngglguovwobwbbw63f5s44"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-008": {
+      "task_id": "KITA-008",
+      "goal_id": "KITA-G020",
+      "status": "completed",
+      "title": "Add VFS versions, snapshots, isolation, locking, and cancellation",
+      "depends_on": [
+        "KITA-005",
+        "KITA-006"
+      ],
+      "interfaces": [
+        "VFSTransaction@1",
+        "VFSSnapshot@1",
+        "VFSVersion@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/vfs/test_vfs_transactions.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/vfs/test_vfs_transactions.py"
+      ],
+      "validation_cids": [
+        "bafkreihobfearbbeut3lw6z7lgl6ce5jgf3lndj2w4awcncyw4ns7su3wu"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/vfs/transactions.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "c6a153a9ca61ed0981217defb343ea7893dabd462ed3db89fdc31f37069195db",
+          "evidence_cid": "bafkreihtct67t3ffwa3ra6bkqeqy52jzxzzl436uublpd226lvhgx6djki"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/vfs/snapshots.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "1ca14ea99e1ca90d93520a6331f84680f1dc2a156ca4ea1e31ae29cecded79ba",
+          "evidence_cid": "bafkreie7oi5dj7iz4oxmxkqg7ucjfc6stkeioliwz5fhwtk4gtx4azbram"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/vfs/test_vfs_transactions.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "6cb9ca750e723aa08cb04cf28a612f733b1d356586905bc3e4fe1e32c94260f4",
+          "evidence_cid": "bafkreihobfearbbeut3lw6z7lgl6ce5jgf3lndj2w4awcncyw4ns7su3wu"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreihtct67t3ffwa3ra6bkqeqy52jzxzzl436uublpd226lvhgx6djki",
+        "bafkreie7oi5dj7iz4oxmxkqg7ucjfc6stkeioliwz5fhwtk4gtx4azbram",
+        "bafkreihobfearbbeut3lw6z7lgl6ce5jgf3lndj2w4awcncyw4ns7su3wu"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-009": {
+      "task_id": "KITA-009",
+      "goal_id": "KITA-G020",
+      "status": "completed",
+      "title": "Join VFS backend, WAL, crash, and interface conformance",
+      "depends_on": [
+        "KITA-007",
+        "KITA-008",
+        "KITA-021",
+        "KITA-037",
+        "KITA-040",
+        "KITA-041"
+      ],
+      "interfaces": [
+        "VFSConformanceReceipt@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/vfs/test_vfs_joined_conformance.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/vfs/test_vfs_joined_conformance.py"
+      ],
+      "validation_cids": [
+        "bafkreidwkxkwupj5zniidh5ztdl255p47hekvba2hedjh2si5vru5uok2y"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/vfs/test_vfs_joined_conformance.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "fee675c3a46bcf15fd4af9ab4108d03d8e9101e240da50c98261e995bf4039e4",
+          "evidence_cid": "bafkreidwkxkwupj5zniidh5ztdl255p47hekvba2hedjh2si5vru5uok2y"
+        },
+        {
+          "declared_output": "ipfs_kit_py/docs/runtime_readiness/vfs_conformance.json",
+          "present": true,
+          "kind": "file",
+          "sha256": "ecbbde76434367ee899f0202b9bddbfc9c5b7e05e5d10019bdb7f334450d24c0",
+          "evidence_cid": "bafkreifs3h73e77axtqbqdzlijyrysrib6kbgpd46spu4frdqvlk3kj3si"
+        }
+      ],
+      "primary_evidence": [
+        {
+          "path": "docs/runtime_readiness/vfs_conformance.json",
+          "kind": "file",
+          "bytes": 6372,
+          "sha256": "ecbbde76434367ee899f0202b9bddbfc9c5b7e05e5d10019bdb7f334450d24c0",
+          "evidence_cid": "bafkreifs3h73e77axtqbqdzlijyrysrib6kbgpd46spu4frdqvlk3kj3si",
+          "present": true
+        }
+      ],
+      "evidence_cids": [
+        "bafkreidwkxkwupj5zniidh5ztdl255p47hekvba2hedjh2si5vru5uok2y",
+        "bafkreifs3h73e77axtqbqdzlijyrysrib6kbgpd46spu4frdqvlk3kj3si"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-010": {
+      "task_id": "KITA-010",
+      "goal_id": "KITA-G030",
+      "status": "completed",
+      "title": "Define one backend-scoped bucket catalog and policy contract",
+      "depends_on": [
+        "KITA-001",
+        "KITA-002"
+      ],
+      "interfaces": [
+        "BucketIdentity@1",
+        "BucketCatalog@1",
+        "BucketPolicy@1",
+        "BucketManifest@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/buckets/test_bucket_contracts.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/buckets/test_bucket_contracts.py"
+      ],
+      "validation_cids": [
+        "bafkreig4bubs5qqeyr3y6x53cr34rz3tcrl3sbwvbz466wzxma4wms4xni"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/buckets/contracts.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "5546769bb799a027ba4c6e6091dfc3bb97542df52b6281cd2d913cfbdefed1d0",
+          "evidence_cid": "bafkreifz5txfrmwrm7btj7awvqpsw6qyypivwz3x6niytwp26poznlxhz4"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/buckets/test_bucket_contracts.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "76b157c68ebb91e2c13ab097b1fbb66466e94e6d900c1ebeb151d877bb821104",
+          "evidence_cid": "bafkreig4bubs5qqeyr3y6x53cr34rz3tcrl3sbwvbz466wzxma4wms4xni"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreifz5txfrmwrm7btj7awvqpsw6qyypivwz3x6niytwp26poznlxhz4",
+        "bafkreig4bubs5qqeyr3y6x53cr34rz3tcrl3sbwvbz466wzxma4wms4xni"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-011": {
+      "task_id": "KITA-011",
+      "goal_id": "KITA-G030",
+      "status": "completed",
+      "title": "Implement transactional bucket lifecycle and object operations",
+      "depends_on": [
+        "KITA-006",
+        "KITA-010"
+      ],
+      "interfaces": [
+        "BucketService@1",
+        "BucketCatalog@1",
+        "BucketTransaction@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/buckets/test_bucket_state_machine.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/buckets/test_bucket_state_machine.py"
+      ],
+      "validation_cids": [
+        "bafkreigvysglgklaq2a7mfd7drelj2c6tkmlcl4vqcq2kiwllimkzcpx7u"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/buckets/service.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "fa397e62d8bb16bb687f9084b4f97d65152ab67cd7dcaa2f6ca8a42fb63f9d37",
+          "evidence_cid": "bafkreigxexojtbnrl7rlxxbzwfs2mdhxk3tddvp3lcn737vjnamdel64ci"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/buckets/catalog.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "23bb6dc150e52bc028e5a89a83858c25c46b39f3760b06681c81cf9c96303334",
+          "evidence_cid": "bafkreihmyusj6i4s4pplahmx3iswpvv4kdcq4gynf5eqrvplsrcdzrp6pu"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/buckets/test_bucket_state_machine.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "9bb305c324be46edb2688d2bb74ffaa0b8f8f372bf44c82d44b3f207cf22d250",
+          "evidence_cid": "bafkreigvysglgklaq2a7mfd7drelj2c6tkmlcl4vqcq2kiwllimkzcpx7u"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreigxexojtbnrl7rlxxbzwfs2mdhxk3tddvp3lcn737vjnamdel64ci",
+        "bafkreihmyusj6i4s4pplahmx3iswpvv4kdcq4gynf5eqrvplsrcdzrp6pu",
+        "bafkreigvysglgklaq2a7mfd7drelj2c6tkmlcl4vqcq2kiwllimkzcpx7u"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-012": {
+      "task_id": "KITA-012",
+      "goal_id": "KITA-G030",
+      "status": "completed",
+      "title": "Consolidate bucket managers, tiering, import/export, and compensation",
+      "depends_on": [
+        "KITA-010",
+        "KITA-011"
+      ],
+      "interfaces": [
+        "LegacyBucketAdapter@1",
+        "BucketTransfer@1",
+        "CompensationReceipt@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/buckets/test_bucket_migration_and_sagas.py tests/test_iroh_bucket_tiering.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/buckets/test_bucket_migration_and_sagas.py",
+        "ipfs_kit_py/tests/test_iroh_bucket_tiering.py"
+      ],
+      "validation_cids": [
+        "bafkreidboooc42odtwre7a6l3pz44qrmmliah5mvdi3oq3hytdvgfgrmiy",
+        "bafkreid4k7e5toumlsxhviqdj6sfaxlif7gk7iplthn6km3bsznvp5spq4"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/buckets/adapters.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "8371f517bfc8e2cdbcb305ba1e501a477e1be73c112d715ad5549c9fef6dbf04",
+          "evidence_cid": "bafkreib47iu3iepf5du2vonqa4bzf4e7djgxfrtru2t2pqqf7uh6r56t7e"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/buckets/transfer.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "cd08c5d7f2a2f9be4b2bd72db171bcd6c569e28f0c85456ca0c684290ddeefc8",
+          "evidence_cid": "bafkreih2zov2mrbzmidsmp4bqglgjekt6shwjtqvtjks6htxv54lf7xltu"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/unified_bucket_interface.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "70b79b53715b49f83068a5878456ec5e3a3ecd03b8c01127ebceb4ac36395a92",
+          "evidence_cid": "bafkreiheie2jjnvfjnxx6rhycle7sbbq67flxdyvf6q44bqrvkjvi5eb6e"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/iroh/bucket_tiering.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "17c7dd1973902aed0d1be5b88dede4ecf04375f9103a6b87138fc25198a64c88",
+          "evidence_cid": "bafkreigly6kyscqylymw4g555j65bxtupctnh5k6eoquylspketyaajcpe"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/buckets/test_bucket_migration_and_sagas.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "092068d45abc7a680ca751b68e94287db0cf9e338fcc750f45f959afa129192c",
+          "evidence_cid": "bafkreidboooc42odtwre7a6l3pz44qrmmliah5mvdi3oq3hytdvgfgrmiy"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreib47iu3iepf5du2vonqa4bzf4e7djgxfrtru2t2pqqf7uh6r56t7e",
+        "bafkreih2zov2mrbzmidsmp4bqglgjekt6shwjtqvtjks6htxv54lf7xltu",
+        "bafkreiheie2jjnvfjnxx6rhycle7sbbq67flxdyvf6q44bqrvkjvi5eb6e",
+        "bafkreigly6kyscqylymw4g555j65bxtupctnh5k6eoquylspketyaajcpe",
+        "bafkreidboooc42odtwre7a6l3pz44qrmmliah5mvdi3oq3hytdvgfgrmiy"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-013": {
+      "task_id": "KITA-013",
+      "goal_id": "KITA-G030",
+      "status": "completed",
+      "title": "Join bucket WAL, replica, authorization, backend, and interface conformance",
+      "depends_on": [
+        "KITA-011",
+        "KITA-012",
+        "KITA-021",
+        "KITA-029",
+        "KITA-033",
+        "KITA-037",
+        "KITA-040",
+        "KITA-041"
+      ],
+      "interfaces": [
+        "BucketConformanceReceipt@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/buckets/test_bucket_joined_conformance.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/buckets/test_bucket_joined_conformance.py"
+      ],
+      "validation_cids": [
+        "bafkreiejfpw3dgdeowrzhatwcfatox5o4bzlfwysvkvcg4enugfpecflji"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/buckets/test_bucket_joined_conformance.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "c6a152ae384a544a9108564364b3c7ab993cbc73ac2e62fe70b283427752f99b",
+          "evidence_cid": "bafkreiejfpw3dgdeowrzhatwcfatox5o4bzlfwysvkvcg4enugfpecflji"
+        },
+        {
+          "declared_output": "ipfs_kit_py/docs/runtime_readiness/bucket_conformance.json",
+          "present": true,
+          "kind": "file",
+          "sha256": "d74758cba9a5055b64e72b26a080077966386f632413e994c69bc0fab353173f",
+          "evidence_cid": "bafkreiflkg2g77v5syyvrxeustuq7e4cyqjxqb62wcr6dnvbpfxj4awwu4"
+        }
+      ],
+      "primary_evidence": [
+        {
+          "path": "docs/runtime_readiness/bucket_conformance.json",
+          "kind": "file",
+          "bytes": 6865,
+          "sha256": "d74758cba9a5055b64e72b26a080077966386f632413e994c69bc0fab353173f",
+          "evidence_cid": "bafkreiflkg2g77v5syyvrxeustuq7e4cyqjxqb62wcr6dnvbpfxj4awwu4",
+          "present": true
+        }
+      ],
+      "evidence_cids": [
+        "bafkreiejfpw3dgdeowrzhatwcfatox5o4bzlfwysvkvcg4enugfpecflji",
+        "bafkreiflkg2g77v5syyvrxeustuq7e4cyqjxqb62wcr6dnvbpfxj4awwu4"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-014": {
+      "task_id": "KITA-014",
+      "goal_id": "KITA-G040",
+      "status": "completed",
+      "title": "Select one GraphRAG schema, engine, safe persistence, and lazy capability boundary",
+      "depends_on": [
+        "KITA-001",
+        "KITA-002"
+      ],
+      "interfaces": [
+        "GraphRAGContent@1",
+        "GraphRAGRelation@1",
+        "GraphRAGIndexManifest@1",
+        "GraphRAGQuery@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/graphrag/test_contracts_and_safe_storage.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/graphrag/test_contracts_and_safe_storage.py"
+      ],
+      "validation_cids": [
+        "bafkreigsbuyx45kxyfg42zalondmffn3sua7v7lzduaykv2wmjdhfpvmku"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/graphrag/contracts.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "f86625f305ffcb63149fe56e76e269ce911a8db0301b747b5a555dc6abf5f061",
+          "evidence_cid": "bafkreie3zixvsokt75mnk7wns23fvmfplxajpcy5z7xz6xb6qq567pe5ru"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/graphrag/storage.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "4cf202191c7a147043d6e0b2ae18f40905e675b6d74eaebe1321bccb6e946d1a",
+          "evidence_cid": "bafkreibsexglnn2cr6w5l3b4b2chbqbkngi5una2y7m7i5tzl6wbfvqkuq"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/graphrag/test_contracts_and_safe_storage.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "755e45bbc30a6e6893b73500979671318aded861d1783bbd4ab38d12732ab770",
+          "evidence_cid": "bafkreigsbuyx45kxyfg42zalondmffn3sua7v7lzduaykv2wmjdhfpvmku"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreie3zixvsokt75mnk7wns23fvmfplxajpcy5z7xz6xb6qq567pe5ru",
+        "bafkreibsexglnn2cr6w5l3b4b2chbqbkngi5una2y7m7i5tzl6wbfvqkuq",
+        "bafkreigsbuyx45kxyfg42zalondmffn3sua7v7lzduaykv2wmjdhfpvmku"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-015": {
+      "task_id": "KITA-015",
+      "goal_id": "KITA-G040",
+      "status": "completed",
+      "title": "Implement durable rehydration, version history, incremental updates, and clean rebuild",
+      "depends_on": [
+        "KITA-003",
+        "KITA-014"
+      ],
+      "interfaces": [
+        "GraphRAGService@1",
+        "GraphProjection@1",
+        "IndexGeneration@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/graphrag/test_restart_and_rebuild.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/graphrag/test_restart_and_rebuild.py"
+      ],
+      "validation_cids": [
+        "bafkreicedvkkskwlrijgebon23zcdyt4ey4lsdsbey7y3llgri6cgum5k4"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/graphrag/service.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "a389b2ebdb2af1416b08de4a57f639d17ca156bc4277373f94111c11b8e5c58e",
+          "evidence_cid": "bafkreihyjmnrw5aeu7w6vigmrizrfiembxu54y3nqfuctewxnlwlqx72pe"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/graphrag/projections.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "236f655fece237ef068c9965fe0e2242d246d55d6e49f86613cab13484d21bb2",
+          "evidence_cid": "bafkreigbgifxvmkplmc2miu3fajkojxydjgzigwuqip5fc3bv6tr2gvsca"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/graphrag/test_restart_and_rebuild.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "3404651df3b245132f7e120e7a8a26123a894ffc2efec533c80b93584ab6eba4",
+          "evidence_cid": "bafkreicedvkkskwlrijgebon23zcdyt4ey4lsdsbey7y3llgri6cgum5k4"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreihyjmnrw5aeu7w6vigmrizrfiembxu54y3nqfuctewxnlwlqx72pe",
+        "bafkreigbgifxvmkplmc2miu3fajkojxydjgzigwuqip5fc3bv6tr2gvsca",
+        "bafkreicedvkkskwlrijgebon23zcdyt4ey4lsdsbey7y3llgri6cgum5k4"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-016": {
+      "task_id": "KITA-016",
+      "goal_id": "KITA-G040",
+      "status": "completed",
+      "title": "Add pluggable ANN, exact baseline, deterministic hybrid retrieval, and bounds",
+      "depends_on": [
+        "KITA-014",
+        "KITA-015"
+      ],
+      "interfaces": [
+        "VectorIndex@1",
+        "ExactVectorIndex@1",
+        "HybridRetriever@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/graphrag/test_vector_and_hybrid_retrieval.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/graphrag/test_vector_and_hybrid_retrieval.py"
+      ],
+      "validation_cids": [
+        "bafkreibhgviqnpugjy5ratyjo72reyqtnzg5qtkxp54ibd3tq2myysdgca"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/graphrag/vector_index.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "eede1f41343e963eae5c0765a52ea56880c97a377c57a5085363f5d57a8801f2",
+          "evidence_cid": "bafkreid4msrkosumizhhr7nmnkchn4fbnujav6oum5tj2excjn4ryeyjla"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/graphrag/retrieval.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "31140ebc0ab9a6d11eb8dda66ca3993e5909afcbdfaa6574796735a07bd3537d",
+          "evidence_cid": "bafkreibx2gcwckttnilxaj7ftuzpzu3n3qz2coaxvo7zrsldunpeynjjty"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/graphrag/test_vector_and_hybrid_retrieval.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "acd4e8272f975ecd9a9cc596248e87222f6affcdc2ac304c2ad0cf78a1897ee0",
+          "evidence_cid": "bafkreibhgviqnpugjy5ratyjo72reyqtnzg5qtkxp54ibd3tq2myysdgca"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreid4msrkosumizhhr7nmnkchn4fbnujav6oum5tj2excjn4ryeyjla",
+        "bafkreibx2gcwckttnilxaj7ftuzpzu3n3qz2coaxvo7zrsldunpeynjjty",
+        "bafkreibhgviqnpugjy5ratyjo72reyqtnzg5qtkxp54ibd3tq2myysdgca"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-017": {
+      "task_id": "KITA-017",
+      "goal_id": "KITA-G040",
+      "status": "completed",
+      "title": "Retire competing GraphRAG engines and prove package CLI MCP parity",
+      "depends_on": [
+        "KITA-015",
+        "KITA-016",
+        "KITA-037"
+      ],
+      "interfaces": [
+        "GraphRAGService@1",
+        "MCPGraphRAGTools@1",
+        "GraphRAGConformanceReceipt@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/graphrag/test_interface_parity.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/graphrag/test_interface_parity.py"
+      ],
+      "validation_cids": [
+        "bafkreibibemrxiu3xgey4ibms4dompow35mvhqy7fqbmivpbdbhde4vqvq"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/graphrag.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "0862384ee201c7b1d125aef2a62b322a4cd6658f801e226b065499effcfb454d",
+          "evidence_cid": "bafkreigmdbuaanuox6jokuzadykejqj5cme2f7e45fx3nwr4tnas6vdnmi"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/mcp/ipfs_kit/graphrag.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "3ba154dae8fe7d63f5ef31098f049cb1717ace19aa78ab0754c0c4bad1e7a971",
+          "evidence_cid": "bafkreifstpcvzcushzixpsvkiwkkuvaceer3bbe5zgubfcpvb7g23wvgw4"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/mcp_server/tools/graphrag_tools.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "761eae2f0aa6a959350a4f1ddd61e93e1ba212d599bc7aeaae0cdd8a3e4a06e2",
+          "evidence_cid": "bafkreie2oue6sknaljryob6nv3zcq5bsymlankvz534nmkywuigsa3fibi"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/graphrag/test_interface_parity.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "1aed3073e8ea3a4eb5953ab80859dc58c0952ec905f579f0670c313a207f6597",
+          "evidence_cid": "bafkreibibemrxiu3xgey4ibms4dompow35mvhqy7fqbmivpbdbhde4vqvq"
+        },
+        {
+          "declared_output": "ipfs_kit_py/docs/runtime_readiness/graphrag_conformance.json",
+          "present": true,
+          "kind": "file",
+          "sha256": "5b4f59c07a22454bdb649d5e5242182bd50d44605fad6b07f9b34104e22ee3c8",
+          "evidence_cid": "bafkreiagc5qryxx2r36amgeopysnd7yejsbkezsmdohfq53ogx65hm6tfe"
+        }
+      ],
+      "primary_evidence": [
+        {
+          "path": "docs/runtime_readiness/graphrag_conformance.json",
+          "kind": "file",
+          "bytes": 4041,
+          "sha256": "5b4f59c07a22454bdb649d5e5242182bd50d44605fad6b07f9b34104e22ee3c8",
+          "evidence_cid": "bafkreiagc5qryxx2r36amgeopysnd7yejsbkezsmdohfq53ogx65hm6tfe",
+          "present": true
+        }
+      ],
+      "evidence_cids": [
+        "bafkreigmdbuaanuox6jokuzadykejqj5cme2f7e45fx3nwr4tnas6vdnmi",
+        "bafkreifstpcvzcushzixpsvkiwkkuvaceer3bbe5zgubfcpvb7g23wvgw4",
+        "bafkreie2oue6sknaljryob6nv3zcq5bsymlankvz534nmkywuigsa3fibi",
+        "bafkreibibemrxiu3xgey4ibms4dompow35mvhqy7fqbmivpbdbhde4vqvq",
+        "bafkreiagc5qryxx2r36amgeopysnd7yejsbkezsmdohfq53ogx65hm6tfe"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-018": {
+      "task_id": "KITA-018",
+      "goal_id": "KITA-G050",
+      "status": "completed",
+      "title": "Define canonical WAL records, durability states, and compatibility mappings",
+      "depends_on": [
+        "KITA-001",
+        "KITA-002"
+      ],
+      "interfaces": [
+        "WALRecord@1",
+        "WALTransaction@1",
+        "WALSegment@1",
+        "WALCheckpoint@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/wal/test_wal_contracts.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/wal/test_wal_contracts.py"
+      ],
+      "validation_cids": [
+        "bafkreiecvrzghsm64updsrqb6gsqt6ne4o7htqfo4wanutotmgroenby6a"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/wal/contracts.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "41a549ec9a102ac9c4ab169d63f0b73e9bcc3345aa62be01bf961573320e88ca",
+          "evidence_cid": "bafkreibaeu2aqpkfntm557cnnj2hdx4zxtnznpx7hguqxvbjd5ury2wrgq"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/wal/compatibility.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "f4c393bd8b1b1e609a7bdc9ce2437bead8bd3649ef870c527629479bd9a18973",
+          "evidence_cid": "bafkreiheklw36p53prdbaac63k4drdtrbtcrdgee2lfl2imdeg2wzudzo4"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/wal/test_wal_contracts.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "e12e60312ccfca96539653f296b8a1cc5bf7cfbb5b7c88a7b4c0fb739fb29286",
+          "evidence_cid": "bafkreiecvrzghsm64updsrqb6gsqt6ne4o7htqfo4wanutotmgroenby6a"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreibaeu2aqpkfntm557cnnj2hdx4zxtnznpx7hguqxvbjd5ury2wrgq",
+        "bafkreiheklw36p53prdbaac63k4drdtrbtcrdgee2lfl2imdeg2wzudzo4",
+        "bafkreiecvrzghsm64updsrqb6gsqt6ne4o7htqfo4wanutotmgroenby6a"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-019": {
+      "task_id": "KITA-019",
+      "goal_id": "KITA-G050",
+      "status": "completed",
+      "title": "Implement append, fsync, group commit, segment, and clean shutdown",
+      "depends_on": [
+        "KITA-003",
+        "KITA-018"
+      ],
+      "interfaces": [
+        "WALWriter@1",
+        "WALSegment@1",
+        "GroupCommitPolicy@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/wal/test_wal_writer.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/wal/test_wal_writer.py"
+      ],
+      "validation_cids": [
+        "bafkreih5ildllywmoqwmfxi6etn7ckaf26zieqjmfoljbg6oqoclxr7n7q"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/wal/writer.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "c61669fdcd0f5f04fec5790e057e68ac2650fdcd817e6f06cd62e8532ca188db",
+          "evidence_cid": "bafkreibpsorhnlwk3kgv6myx63lma5qcizvxfqawqgvqv25nrjqlkmhhwe"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/wal/segments.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "09a389339212697092576d367752dc9980801924746a818e23712ba0adac29a1",
+          "evidence_cid": "bafkreigoeebe5l7rvw2zprnbqcubu5ky7dtxrc2jcvs7lm5wtdul2nir74"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/wal/test_wal_writer.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "022e95b76fbb4920fb886d9bae5ae825ede8c1b2361bd080f10f75d4a8cde454",
+          "evidence_cid": "bafkreih5ildllywmoqwmfxi6etn7ckaf26zieqjmfoljbg6oqoclxr7n7q"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreibpsorhnlwk3kgv6myx63lma5qcizvxfqawqgvqv25nrjqlkmhhwe",
+        "bafkreigoeebe5l7rvw2zprnbqcubu5ky7dtxrc2jcvs7lm5wtdul2nir74",
+        "bafkreih5ildllywmoqwmfxi6etn7ckaf26zieqjmfoljbg6oqoclxr7n7q"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-020": {
+      "task_id": "KITA-020",
+      "goal_id": "KITA-G050",
+      "status": "completed",
+      "title": "Implement replay, idempotency, checkpoint, compaction, archive, and corruption recovery",
+      "depends_on": [
+        "KITA-018",
+        "KITA-019"
+      ],
+      "interfaces": [
+        "WALRecovery@1",
+        "WALCheckpoint@1",
+        "WALRecoveryReceipt@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/wal/test_wal_recovery.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/wal/test_wal_recovery.py"
+      ],
+      "validation_cids": [
+        "bafkreidyecxahmgqoe36mhq57d2r2egf63jr2253tzy554qfgsdys2ojr4"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/wal/recovery.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "03406d54d376920e6a4c598290830277b336e11cc1e507db6a8aa5b9c1a14fe6",
+          "evidence_cid": "bafkreidxf3pdin2zoyred33ita75kko5au5aowl2ntfmbx6fcuebkfhaay"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/wal/checkpoint.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "c81d181af347dd8aabe7d21cffb027053b4631c6318dd67b52dea4c2a4c852ec",
+          "evidence_cid": "bafkreihtrwbnuizxa2xjoopiq47m6ybuumi3syv7nvk7f6pbjjao45jhni"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/wal/test_wal_recovery.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "08d7db37a8ae901a9cb2a8b413a23dc7c3d9c0b21dd9f151fc82977ce089eb0e",
+          "evidence_cid": "bafkreidyecxahmgqoe36mhq57d2r2egf63jr2253tzy554qfgsdys2ojr4"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreidxf3pdin2zoyred33ita75kko5au5aowl2ntfmbx6fcuebkfhaay",
+        "bafkreihtrwbnuizxa2xjoopiq47m6ybuumi3syv7nvk7f6pbjjao45jhni",
+        "bafkreidyecxahmgqoe36mhq57d2r2egf63jr2253tzy554qfgsdys2ojr4"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-021": {
+      "task_id": "KITA-021",
+      "goal_id": "KITA-G050",
+      "status": "completed",
+      "title": "Cut over VFS, bucket, backend, cache, index, and replica transactions to the WAL",
+      "depends_on": [
+        "KITA-007",
+        "KITA-019",
+        "KITA-020"
+      ],
+      "interfaces": [
+        "TransactionCoordinator@1",
+        "WALRecoveryReceipt@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/wal/test_joined_crash_matrix.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/wal/test_joined_crash_matrix.py"
+      ],
+      "validation_cids": [
+        "bafkreig3bgxzhtmjz2tets5pste6ayxsfrnr33g6caeghd2ahlzxqzzfwa"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/wal/coordinator.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "30dcc6a25a494a386e5c60a3d074bb5f31b01968670f1cf0977c661b485b5293",
+          "evidence_cid": "bafkreiae4xywg46jigytrleu4tbp7i6uhl7tkczqptjxdh3c3l2boek7bu"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/filesystem_journal.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "52a6eb84b5829aee3e306b695133665cae73e6abcce85a137fc99308177396bf",
+          "evidence_cid": "bafkreigwjdbzlbyyi62ojzat7yiiww3lwnldkg367s3jydxbzhuydmweaq"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/storage_wal.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "f8a31c284708b12d5b3f126bd28abbeb55129dc118a777c5a0c7492e5d20f11d",
+          "evidence_cid": "bafkreifmc5r2ngea3tivqwoljqr4rd5mxrom735jzlqz6evp32ovdjexeq"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/enhanced_wal_durability.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "9259a0ceb051a824b7af363bc482a0e9f674a3048629716ebf26e74b074de1d6",
+          "evidence_cid": "bafkreiaeb557d4r7jgzvq5zxgug7ga443qnlpud3lhoffacvzwujm4ux6m"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/wal/test_joined_crash_matrix.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "09b1e0b4765f91e776ca2936252388df506faf10b5262b37ee32920fc530880c",
+          "evidence_cid": "bafkreig3bgxzhtmjz2tets5pste6ayxsfrnr33g6caeghd2ahlzxqzzfwa"
+        }
+      ],
+      "primary_evidence": [
+        {
+          "path": "docs/runtime_readiness/replica_conformance.json",
+          "kind": "file",
+          "bytes": 1212,
+          "sha256": "8e904ddf93af23621c9bac7b62de82f27713454737b30463ff56ac61e5941e8e",
+          "evidence_cid": "bafkreigfuxblflzhx3apqk672kyzzu6iqhtypaqmomu4k4dtofaazcrcxq",
+          "present": true
+        }
+      ],
+      "evidence_cids": [
+        "bafkreiae4xywg46jigytrleu4tbp7i6uhl7tkczqptjxdh3c3l2boek7bu",
+        "bafkreigwjdbzlbyyi62ojzat7yiiww3lwnldkg367s3jydxbzhuydmweaq",
+        "bafkreifmc5r2ngea3tivqwoljqr4rd5mxrom735jzlqz6evp32ovdjexeq",
+        "bafkreiaeb557d4r7jgzvq5zxgug7ga443qnlpud3lhoffacvzwujm4ux6m",
+        "bafkreig3bgxzhtmjz2tets5pste6ayxsfrnr33g6caeghd2ahlzxqzzfwa",
+        "bafkreigfuxblflzhx3apqk672kyzzu6iqhtypaqmomu4k4dtofaazcrcxq"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-022": {
+      "task_id": "KITA-022",
+      "goal_id": "KITA-G060",
+      "status": "completed",
+      "title": "Extract an ARC core and formalize reference-model invariants",
+      "depends_on": [
+        "KITA-001",
+        "KITA-002"
+      ],
+      "interfaces": [
+        "AdaptiveReplacementCache@1",
+        "ARCReferenceModel@1",
+        "CacheKey@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/arc/test_arc_reference_model.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/arc/test_arc_reference_model.py"
+      ],
+      "validation_cids": [
+        "bafkreic4lv3clchoz5wexlkbyiksnfdjuk4lzxz5nhgt6uowevjrwece2u"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/cache/arc/contracts.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "50f0d76432b3591ab8c419d2ce01749a2f6c2e4d631ee2c56fe49e5eb0fe999b",
+          "evidence_cid": "bafkreigclzg2v44vun7gfmelk6pgdoyo4i2tagufv7tg4prziotupgqi5y"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/cache/arc/reference.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "ecd9644cf3aa76cab6e1dd1ec7829029c24bc5afc1c125b0976c3ccbd3a6a4a6",
+          "evidence_cid": "bafkreihnsluieclufmimjhxramwucsw4l77zj6kdstfzeiuxnwnbbeu3ze"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/arc/test_arc_reference_model.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "82756adbfae55584a75414f28abd1fbb98a7e12ce79b456199698dc1fe9ab1ec",
+          "evidence_cid": "bafkreic4lv3clchoz5wexlkbyiksnfdjuk4lzxz5nhgt6uowevjrwece2u"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreigclzg2v44vun7gfmelk6pgdoyo4i2tagufv7tg4prziotupgqi5y",
+        "bafkreihnsluieclufmimjhxramwucsw4l77zj6kdstfzeiuxnwnbbeu3ze",
+        "bafkreic4lv3clchoz5wexlkbyiksnfdjuk4lzxz5nhgt6uowevjrwece2u"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-023": {
+      "task_id": "KITA-023",
+      "goal_id": "KITA-G060",
+      "status": "completed",
+      "title": "Implement concurrency-safe ARC, byte accounting, and single-flight fills",
+      "depends_on": [
+        "KITA-003",
+        "KITA-022"
+      ],
+      "interfaces": [
+        "AdaptiveReplacementCache@1",
+        "CacheFillCoordinator@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/arc/test_arc_concurrency.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/arc/test_arc_concurrency.py"
+      ],
+      "validation_cids": [
+        "bafkreiavotnazjyryb44eac4eg7gsib2f6ffhdedbczrt74e5dtplzaelq"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/cache/arc/cache.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "5a1c2251e48682d2929753f0181b141e9399988e44053298dc323fd708d64e33",
+          "evidence_cid": "bafkreigg4i5ap3okgmwgaofzvgcnnmniasrapsbgsky35pklee5xdwatem"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/cache/arc/concurrency.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "087721f864d8f4458459dba2ed70e7473edb5d0cfa0581828fbf5536a2d27ec3",
+          "evidence_cid": "bafkreica33cyoa4bwsvpen3buja7e4cthmp22xlyjg7dnwifkhqtsjkkea"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/arc/test_arc_concurrency.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "01f96180d8e455bb179a751d1ef3246225b78b55f6de03206420dd0ee1c8094f",
+          "evidence_cid": "bafkreiavotnazjyryb44eac4eg7gsib2f6ffhdedbczrt74e5dtplzaelq"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreigg4i5ap3okgmwgaofzvgcnnmniasrapsbgsky35pklee5xdwatem",
+        "bafkreica33cyoa4bwsvpen3buja7e4cthmp22xlyjg7dnwifkhqtsjkkea",
+        "bafkreiavotnazjyryb44eac4eg7gsib2f6ffhdedbczrt74e5dtplzaelq"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-024": {
+      "task_id": "KITA-024",
+      "goal_id": "KITA-G060",
+      "status": "completed",
+      "title": "Add generation-bound invalidation, persistence, metrics, and legacy migration",
+      "depends_on": [
+        "KITA-008",
+        "KITA-022",
+        "KITA-023"
+      ],
+      "interfaces": [
+        "CacheGeneration@1",
+        "CachePersistence@1",
+        "CacheMetrics@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/arc/test_arc_persistence_and_migration.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/arc/test_arc_persistence_and_migration.py"
+      ],
+      "validation_cids": [
+        "bafkreicbx5bv4hsg72w552f5zixplxfnivt6pxe77lriajtwqkubvuxsiu"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/cache/arc/persistence.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "3a346b879db495a4671a0e0631e8e475753c3ed16104bc21be6e34612bfacc27",
+          "evidence_cid": "bafkreihwey6wjrt5ytzk3ajwnukqguoccw22fs2fj7gx2fona4y3i4ltre"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/cache/arc/metrics.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "262d6fe5877bfcd6d11c63500c166c2e36b7c0962a1709a1256a2a58d1a78eff",
+          "evidence_cid": "bafkreibtdq62fwijvvq5c3hikqwzzqxpj4wia627rzapzjfz37f2olbe5q"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/arc_cache.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "bf46406d0ffd7ab0e01200318233e4d1ca2e5c245f0a76f0cbd37c7cf41e55de",
+          "evidence_cid": "bafkreiatoijoyg5mq3dd2xem3jzactx4z6zclr2wln5q56ktnkwmtsc2ky"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/arc_cache_anyio.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "b4b36205aa8b6c60ca279262b5ac5a55f16f1a2d8a060011e9e69ab67e1d5b06",
+          "evidence_cid": "bafkreids7b27b3hemjg6t3stmt36t2dxbsjxsgs7aqqcamefrg25u7g4ki"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/arc/test_arc_persistence_and_migration.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "e7902b9dcfc2667210970ba1b1a42b25e26167c171fb7a0356f636256fe77d08",
+          "evidence_cid": "bafkreicbx5bv4hsg72w552f5zixplxfnivt6pxe77lriajtwqkubvuxsiu"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreihwey6wjrt5ytzk3ajwnukqguoccw22fs2fj7gx2fona4y3i4ltre",
+        "bafkreibtdq62fwijvvq5c3hikqwzzqxpj4wia627rzapzjfz37f2olbe5q",
+        "bafkreiatoijoyg5mq3dd2xem3jzactx4z6zclr2wln5q56ktnkwmtsc2ky",
+        "bafkreids7b27b3hemjg6t3stmt36t2dxbsjxsgs7aqqcamefrg25u7g4ki",
+        "bafkreicbx5bv4hsg72w552f5zixplxfnivt6pxe77lriajtwqkubvuxsiu"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-025": {
+      "task_id": "KITA-025",
+      "goal_id": "KITA-G060",
+      "status": "completed",
+      "title": "Prove ARC coherence, randomized invariants, restart, and performance",
+      "depends_on": [
+        "KITA-022",
+        "KITA-023",
+        "KITA-024"
+      ],
+      "interfaces": [
+        "ARCConformanceReceipt@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/arc/test_arc_joined_conformance.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/arc/test_arc_joined_conformance.py"
+      ],
+      "validation_cids": [
+        "bafkreig5l4eassjpwhvt3lt2kocdmljmr26jmouon22jpinj2pzsadukz4"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/arc/test_arc_joined_conformance.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "27cbaa81a956f04240231582ed67a7d1df96ab14fc7124ad121cd988b0ecfa8c",
+          "evidence_cid": "bafkreig5l4eassjpwhvt3lt2kocdmljmr26jmouon22jpinj2pzsadukz4"
+        },
+        {
+          "declared_output": "ipfs_kit_py/docs/runtime_readiness/arc_conformance.json",
+          "present": true,
+          "kind": "file",
+          "sha256": "b33b0b1f157800dd4c8bbe370c744ceac631e98ae5ab5426424ac17abe0c3e20",
+          "evidence_cid": "bafkreid5kc2oqzya6ffqclq7p7duk77q4pwafezuvq7tpzhm63g4udpp5y"
+        }
+      ],
+      "primary_evidence": [
+        {
+          "path": "docs/runtime_readiness/arc_conformance.json",
+          "kind": "file",
+          "bytes": 1244,
+          "sha256": "b33b0b1f157800dd4c8bbe370c744ceac631e98ae5ab5426424ac17abe0c3e20",
+          "evidence_cid": "bafkreid5kc2oqzya6ffqclq7p7duk77q4pwafezuvq7tpzhm63g4udpp5y",
+          "present": true
+        }
+      ],
+      "evidence_cids": [
+        "bafkreig5l4eassjpwhvt3lt2kocdmljmr26jmouon22jpinj2pzsadukz4",
+        "bafkreid5kc2oqzya6ffqclq7p7duk77q4pwafezuvq7tpzhm63g4udpp5y"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-026": {
+      "task_id": "KITA-026",
+      "goal_id": "KITA-G070",
+      "status": "completed",
+      "title": "Define valid replica policy, placement, and lifecycle states",
+      "depends_on": [
+        "KITA-001",
+        "KITA-002"
+      ],
+      "interfaces": [
+        "ReplicaPolicy@1",
+        "PlacementPlan@1",
+        "ReplicaState@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/replication/test_replica_contracts.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/replication/test_replica_contracts.py"
+      ],
+      "validation_cids": [
+        "bafkreigfbyyzwjknyzmdrbuqmb7nct4sjjchzjmoc6a7oiwy7ddvwzraf4"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/replication/contracts.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "d5a273e8e912d52d97712da0a22ff3cfcafcefab63c9786297838e918a28f8e6",
+          "evidence_cid": "bafkreiatmbmuupxycr7yinjo2gqm4kmdkxgv4kak5hzrovkc4rng4cgjwa"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/replication/placement.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "38d11d3394c357e75061eb07cf393dfa4e044c74d4a56d1c9d5c0f3251977eed",
+          "evidence_cid": "bafkreiaquqkprzl3ixgd35zo2b2bs7kezhyetpg7yhci5pbhjntmoomyve"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/replication/test_replica_contracts.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "d30ffd90162926bcc7fbc9052e7c591f1d3d59da57c3165224a82bbcce95115a",
+          "evidence_cid": "bafkreigfbyyzwjknyzmdrbuqmb7nct4sjjchzjmoc6a7oiwy7ddvwzraf4"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreiatmbmuupxycr7yinjo2gqm4kmdkxgv4kak5hzrovkc4rng4cgjwa",
+        "bafkreiaquqkprzl3ixgd35zo2b2bs7kezhyetpg7yhci5pbhjntmoomyve",
+        "bafkreigfbyyzwjknyzmdrbuqmb7nct4sjjchzjmoc6a7oiwy7ddvwzraf4"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-027": {
+      "task_id": "KITA-027",
+      "goal_id": "KITA-G070",
+      "status": "completed",
+      "title": "Implement idempotent replica reconciliation and anti-entropy",
+      "depends_on": [
+        "KITA-003",
+        "KITA-026"
+      ],
+      "interfaces": [
+        "ReplicaReconciler@1",
+        "IntegrityVerifier@1",
+        "ReconciliationReceipt@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/replication/test_reconciler.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/replication/test_reconciler.py"
+      ],
+      "validation_cids": [
+        "bafkreieaxlg4ul3mdvx5ry5bmcfwn5yqqvedsdvtmqjyccftdhwp4xcoqa"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/replication/reconciler.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "2e9bb34491eb4726bc17d8f5fede3bb264334febd917bb3e6f5bbc4d3fa16e41",
+          "evidence_cid": "bafkreifakg4g6bdnga3fxf7ddzpvygmz4moph2lozy6zzgnhaj5d2rw2b4"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/replication/integrity.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "ee885a25a2e09541a2792d2f38b1e1a96c9c5bc8fdce1b3517fa42862450c78c",
+          "evidence_cid": "bafkreiatj25wmncyrhmpkrmq6z2x24f4hr7j735ekmwmhykpngqxj3sjqy"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/replication/test_reconciler.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "18a563822c38cfb24f95556001ae96d77767a6a25cfc3e0aa1406bc8003a0eb8",
+          "evidence_cid": "bafkreieaxlg4ul3mdvx5ry5bmcfwn5yqqvedsdvtmqjyccftdhwp4xcoqa"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreifakg4g6bdnga3fxf7ddzpvygmz4moph2lozy6zzgnhaj5d2rw2b4",
+        "bafkreiatj25wmncyrhmpkrmq6z2x24f4hr7j735ekmwmhykpngqxj3sjqy",
+        "bafkreieaxlg4ul3mdvx5ry5bmcfwn5yqqvedsdvtmqjyccftdhwp4xcoqa"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-028": {
+      "task_id": "KITA-028",
+      "goal_id": "KITA-G070",
+      "status": "completed",
+      "title": "Migrate legacy replication and tiered-cache paths",
+      "depends_on": [
+        "KITA-026",
+        "KITA-027"
+      ],
+      "interfaces": [
+        "ReplicaReconciler@1",
+        "LegacyReplicationAdapter@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/replication/test_legacy_replication_adapters.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/replication/test_legacy_replication_adapters.py"
+      ],
+      "validation_cids": [
+        "bafkreiexzvvqkpvpb6ifarltjktsxiddab37i3ova4b4fonzxqeeet7hx4"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/backend_policies.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "5ef9c55db6640a225bcd597c241a3c9be32f06de5dbd07163aa395c72960a2d3",
+          "evidence_cid": "bafkreihkmb4kvucihf52gjrab32ytrdjupddd53mikjjihuz3h2tymtuge"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/tiered_cache_manager.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "d57f02bcee8cb57d9bf1ef0eb5cde5522588090ed44932e289d4f4731add7ec3",
+          "evidence_cid": "bafkreicz4va4feoxmuvkppxpf6inrraluj7grp54ixmtiukr4auy3bjnv4"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/fs_journal_replication.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "e3a80a51a5d475692fda77d45eb01dbd0af306c69e661047726eb9885879f2fa",
+          "evidence_cid": "bafkreib4ncja4ocjpx2vqff3vtr2t24yvdfzx4dbknpwgt3k5renwgc2ga"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/replication/test_legacy_replication_adapters.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "15b241764e4339fe4e0de9f99b1b74a34f763d6f93105e0181dac0440322166f",
+          "evidence_cid": "bafkreiexzvvqkpvpb6ifarltjktsxiddab37i3ova4b4fonzxqeeet7hx4"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreihkmb4kvucihf52gjrab32ytrdjupddd53mikjjihuz3h2tymtuge",
+        "bafkreicz4va4feoxmuvkppxpf6inrraluj7grp54ixmtiukr4auy3bjnv4",
+        "bafkreib4ncja4ocjpx2vqff3vtr2t24yvdfzx4dbknpwgt3k5renwgc2ga",
+        "bafkreiexzvvqkpvpb6ifarltjktsxiddab37i3ova4b4fonzxqeeet7hx4"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-029": {
+      "task_id": "KITA-029",
+      "goal_id": "KITA-G070",
+      "status": "completed",
+      "title": "Join bucket, WAL, index, cache, backend, and replica convergence",
+      "depends_on": [
+        "KITA-012",
+        "KITA-016",
+        "KITA-020",
+        "KITA-024",
+        "KITA-028",
+        "KITA-040",
+        "KITA-041"
+      ],
+      "interfaces": [
+        "ReplicaConformanceReceipt@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/replication/test_joined_convergence.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/replication/test_joined_convergence.py"
+      ],
+      "validation_cids": [
+        "bafkreigt5w3e2idnpord25f6geleoepdevegmro3i4rrlbbksoxrp22i2u"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/replication/test_joined_convergence.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "f791fe1df29b677d1ea3be58586390edd3f0b3c7a9cc1508b3b0339dd138a46e",
+          "evidence_cid": "bafkreigt5w3e2idnpord25f6geleoepdevegmro3i4rrlbbksoxrp22i2u"
+        },
+        {
+          "declared_output": "ipfs_kit_py/docs/runtime_readiness/replica_conformance.json",
+          "present": true,
+          "kind": "file",
+          "sha256": "8e904ddf93af23621c9bac7b62de82f27713454737b30463ff56ac61e5941e8e",
+          "evidence_cid": "bafkreigfuxblflzhx3apqk672kyzzu6iqhtypaqmomu4k4dtofaazcrcxq"
+        }
+      ],
+      "primary_evidence": [
+        {
+          "path": "docs/runtime_readiness/replica_conformance.json",
+          "kind": "file",
+          "bytes": 1212,
+          "sha256": "8e904ddf93af23621c9bac7b62de82f27713454737b30463ff56ac61e5941e8e",
+          "evidence_cid": "bafkreigfuxblflzhx3apqk672kyzzu6iqhtypaqmomu4k4dtofaazcrcxq",
+          "present": true
+        }
+      ],
+      "evidence_cids": [
+        "bafkreigt5w3e2idnpord25f6geleoepdevegmro3i4rrlbbksoxrp22i2u",
+        "bafkreigfuxblflzhx3apqk672kyzzu6iqhtypaqmomu4k4dtofaazcrcxq"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-030": {
+      "task_id": "KITA-030",
+      "goal_id": "KITA-G080",
+      "status": "completed",
+      "title": "Repair MCP++ construction, registry, transports, and protocol advertisement",
+      "depends_on": [
+        "KITA-001",
+        "KITA-002"
+      ],
+      "interfaces": [
+        "MCPPlusPlusServer@1",
+        "EventDAGStore@1",
+        "MCPProfileRegistry@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/mcplusplus/test_server_bootstrap.py ipfs_kit_py/mcp_server/tests_e2e_interop.py -k 'profile_c or profile_d or all_five_profiles_smoke or mcppp_envelope'",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/mcplusplus/test_server_bootstrap.py"
+      ],
+      "validation_cids": [
+        "bafkreiajjbblnnun4gnmd3dkdbaqccibz5zpwzpvf3phgun2ioo4xz24oi"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/mcp_server/server.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "ea9e9906daedc3b38dbc1c787f0ec0b535e09efadb232ca8a5cf95cd742189db",
+          "evidence_cid": "bafkreieuhxdqcm76455c6sezlvfb2lzo6shjv6fdfez7jz53ynmnjkb7vi"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/mcp_server/__init__.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "5a79d8ee1153101c52adf7f3845b8be8e9fafd7eb5286c10365012299dfb96ca",
+          "evidence_cid": "bafkreidnr5kg44qxlwqfupf5nrtjanyh6ltp6lkjfv7pt4bytnub5mp7du"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/mcp_server/tools/__init__.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "f6a948e224ebd89ff7555e659812fe75476b3abb409a8fc7c0ecde07b7470241",
+          "evidence_cid": "bafkreihzd4j2umtep7mo5bdljnqsjvb5ts6psslllkbfdquz5re5pgrmke"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/mcplusplus/test_server_bootstrap.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "259039c41399248cb94845b8dcfbfa6e5d63b12243be6e2c3340e75d4b17f958",
+          "evidence_cid": "bafkreiajjbblnnun4gnmd3dkdbaqccibz5zpwzpvf3phgun2ioo4xz24oi"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreieuhxdqcm76455c6sezlvfb2lzo6shjv6fdfez7jz53ynmnjkb7vi",
+        "bafkreidnr5kg44qxlwqfupf5nrtjanyh6ltp6lkjfv7pt4bytnub5mp7du",
+        "bafkreihzd4j2umtep7mo5bdljnqsjvb5ts6psslllkbfdquz5re5pgrmke",
+        "bafkreiajjbblnnun4gnmd3dkdbaqccibz5zpwzpvf3phgun2ioo4xz24oi"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-031": {
+      "task_id": "KITA-031",
+      "goal_id": "KITA-G080",
+      "status": "completed",
+      "title": "Implement signed UCAN verification, attenuation, revocation, replay, and key lifecycle",
+      "depends_on": [
+        "KITA-003",
+        "KITA-030"
+      ],
+      "interfaces": [
+        "UCANVerifier@1",
+        "UCANDelegation@1",
+        "RevocationLedger@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/mcplusplus/test_ucan_verifier.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/mcplusplus/test_ucan_verifier.py"
+      ],
+      "validation_cids": [
+        "bafkreigrsihrsrb34ily7yn6wtxe667spl6zhlobjbp7wfyh6pyji6hwga"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/mcp_server/mcplusplus/ucan.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "c9f68de79fe7ac456e12143136bcef875570d4dfa4c47581c0f1269aeb7f3d95",
+          "evidence_cid": "bafkreigik32ovu6ivuz74cwq5vpbbfzand2pngvqqmdyuqi3wz7bc6ajji"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/mcp_server/mcplusplus/revocation.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "4b87dae8b0a037ab111f7c8ff8e4b0565c30791673bd8adf9c1155107e2ed280",
+          "evidence_cid": "bafkreidgvqruzolnki2sfosazbpyjuylkbdd7pagdw6zxzsuxg5hhqmiey"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/mcplusplus/test_ucan_verifier.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "43be83a654a5569440677aecc6044bfb7c55dd248bb7a64f130e50f7f65b3151",
+          "evidence_cid": "bafkreigrsihrsrb34ily7yn6wtxe667spl6zhlobjbp7wfyh6pyji6hwga"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreigik32ovu6ivuz74cwq5vpbbfzand2pngvqqmdyuqi3wz7bc6ajji",
+        "bafkreidgvqruzolnki2sfosazbpyjuylkbdd7pagdw6zxzsuxg5hhqmiey",
+        "bafkreigrsihrsrb34ily7yn6wtxe667spl6zhlobjbp7wfyh6pyji6hwga"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-032": {
+      "task_id": "KITA-032",
+      "goal_id": "KITA-G080",
+      "status": "completed",
+      "title": "Wire canonical datasets Profile D and UCAN into a fail-closed dispatcher",
+      "depends_on": [
+        "KITA-030",
+        "KITA-031"
+      ],
+      "interfaces": [
+        "AuthorizationDecision@1",
+        "ProfileDPolicyProvider@1",
+        "ProtectedDispatcher@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/mcplusplus/test_authorization_dispatch_gate.py tests/test_profile_d_policy.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/mcplusplus/test_authorization_dispatch_gate.py",
+        "ipfs_kit_py/tests/test_profile_d_policy.py"
+      ],
+      "validation_cids": [
+        "bafkreifsuo5u6eih37tyujehtv6qhlmwuv62xt2dw46mvmy4hhs3zgnh6q",
+        "bafkreidfprah37ffzerog6xl5yafdwjwla7hf2txadtwyxop2ptpch7o3e"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/mcp_server/authorization.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "0410b8742399e0b72af1140d494fa763eb04cc38c31df9f887b473893b5516cd",
+          "evidence_cid": "bafkreiaf3mm2vdk6iocbogzijkswg24u6huivlb44erz2pqeudy63t7oee"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/mcp_server/server.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "ea9e9906daedc3b38dbc1c787f0ec0b535e09efadb232ca8a5cf95cd742189db",
+          "evidence_cid": "bafkreieuhxdqcm76455c6sezlvfb2lzo6shjv6fdfez7jz53ynmnjkb7vi"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/mcp/profile_d_policy.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "356118a541090018d21f21c2ccfb3bfb92cafb05a63ee693dcfa23692eb18ea0",
+          "evidence_cid": "bafkreiche7rek76crnvjtjlfmet2irp2rx2obynbxtq42q3oftsx6mtu5q"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/mcplusplus/test_authorization_dispatch_gate.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "61b22b2d6798050226a6aabbb0f6c865a936030b9227f8c2ece569a866be0e04",
+          "evidence_cid": "bafkreifsuo5u6eih37tyujehtv6qhlmwuv62xt2dw46mvmy4hhs3zgnh6q"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreiaf3mm2vdk6iocbogzijkswg24u6huivlb44erz2pqeudy63t7oee",
+        "bafkreieuhxdqcm76455c6sezlvfb2lzo6shjv6fdfez7jz53ynmnjkb7vi",
+        "bafkreiche7rek76crnvjtjlfmet2irp2rx2obynbxtq42q3oftsx6mtu5q",
+        "bafkreifsuo5u6eih37tyujehtv6qhlmwuv62xt2dw46mvmy4hhs3zgnh6q"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-033": {
+      "task_id": "KITA-033",
+      "goal_id": "KITA-G080",
+      "status": "completed",
+      "title": "Prove MCP++ authorization and result parity across transports",
+      "depends_on": [
+        "KITA-011",
+        "KITA-016",
+        "KITA-021",
+        "KITA-029",
+        "KITA-031",
+        "KITA-032",
+        "KITA-037"
+      ],
+      "interfaces": [
+        "MCPPlusPlusSecurityReceipt@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/mcplusplus/test_transport_security_parity.py ipfs_kit_py/mcp_server/tests_e2e_interop.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/mcplusplus/test_transport_security_parity.py"
+      ],
+      "validation_cids": [
+        "bafkreih66as3c724gfz5nlotuw7ukixypfh3k7e6skfd3mvywsc22b2y7m"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/mcplusplus/test_transport_security_parity.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "653e91a844bdce354057013fc97e8b4c6b9c543da847bcf99e753d36d76f69d9",
+          "evidence_cid": "bafkreih66as3c724gfz5nlotuw7ukixypfh3k7e6skfd3mvywsc22b2y7m"
+        },
+        {
+          "declared_output": "ipfs_kit_py/docs/runtime_readiness/mcplusplus_conformance.json",
+          "present": true,
+          "kind": "file",
+          "sha256": "4579ec15112c2a93e0b9d5b4359efe48173ef53db4e924681aaf19ae7ad7fa44",
+          "evidence_cid": "bafkreiaz7tixetqwzqdpz77kvynnqc6tgcqwcurme2nu2k6mdg2w3skbry"
+        }
+      ],
+      "primary_evidence": [
+        {
+          "path": "docs/runtime_readiness/mcplusplus_conformance.json",
+          "kind": "file",
+          "bytes": 7013,
+          "sha256": "4579ec15112c2a93e0b9d5b4359efe48173ef53db4e924681aaf19ae7ad7fa44",
+          "evidence_cid": "bafkreiaz7tixetqwzqdpz77kvynnqc6tgcqwcurme2nu2k6mdg2w3skbry",
+          "present": true
+        }
+      ],
+      "evidence_cids": [
+        "bafkreih66as3c724gfz5nlotuw7ukixypfh3k7e6skfd3mvywsc22b2y7m",
+        "bafkreiaz7tixetqwzqdpz77kvynnqc6tgcqwcurme2nu2k6mdg2w3skbry"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-034": {
+      "task_id": "KITA-034",
+      "goal_id": "KITA-G090",
+      "status": "completed",
+      "title": "Build the versioned operation registry and canonical service router",
+      "depends_on": [
+        "KITA-002",
+        "KITA-004"
+      ],
+      "interfaces": [
+        "OperationRegistry@1",
+        "CanonicalStorageService@1",
+        "ServiceRouter@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/interfaces/test_operation_registry.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/interfaces/test_operation_registry.py"
+      ],
+      "validation_cids": [
+        "bafkreidwftz3te7aqncghp7t4edaq7m7qdu5ofecfur6y7vtg2yahsw4zy"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/operation_registry.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "fb9116df5ef849f543aded60bfbce40c2c7a19166c2b3db0c6123418b652b80a",
+          "evidence_cid": "bafkreidlslgzffkijbfi2g4dsxevtrlp3mg2hyu72nufdlk2jeh7jw7sta"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/service_router.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "7ae2eaa4c8ccf15db889810bd6620c692b2651f327f50dac5444edb9d0b5b212",
+          "evidence_cid": "bafkreiaui2qhacrvt4idyne4b2elekpqrq4snk5bjb2zbtkjcmrd5m7q6q"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/interfaces/test_operation_registry.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "67a9702193085e97182f8652157c35546a6f94314bad6ea21e62e82850842e0f",
+          "evidence_cid": "bafkreidwftz3te7aqncghp7t4edaq7m7qdu5ofecfur6y7vtg2yahsw4zy"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreidlslgzffkijbfi2g4dsxevtrlp3mg2hyu72nufdlk2jeh7jw7sta",
+        "bafkreiaui2qhacrvt4idyne4b2elekpqrq4snk5bjb2zbtkjcmrd5m7q6q",
+        "bafkreidwftz3te7aqncghp7t4edaq7m7qdu5ofecfur6y7vtg2yahsw4zy"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-035": {
+      "task_id": "KITA-035",
+      "goal_id": "KITA-G090",
+      "status": "completed",
+      "title": "Make version, exports, dependencies, extras, setup, requirements, and imports coherent",
+      "depends_on": [
+        "KITA-004",
+        "KITA-034"
+      ],
+      "interfaces": [
+        "PackageMetadata@1",
+        "LazyFeatureRegistry@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/interfaces/test_packaging_and_lazy_imports.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/interfaces/test_packaging_and_lazy_imports.py"
+      ],
+      "validation_cids": [
+        "bafkreihis4broigbrav2pol7xtdjz45ov2tetsavo7lkxmseppfkss4n7m"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/pyproject.toml",
+          "present": true,
+          "kind": "file",
+          "sha256": "d95be30fc14dedd807c75b37bf8ac15f855802a26cea23cb4eb33507ee636492",
+          "evidence_cid": "bafkreignqw26coda4ofutp5qwb3ccpf6axy73veon232pyijoatl3cqnsi"
+        },
+        {
+          "declared_output": "ipfs_kit_py/setup.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "f5d277fff000d9091a549ca08d3033af2a77824d7c6a65e1087a8569af836e22",
+          "evidence_cid": "bafkreigzrijsdf7n5336a5gnvpsvw7rwd5ayup3ip4xu3dcyunugxsd7zu"
+        },
+        {
+          "declared_output": "ipfs_kit_py/requirements.txt",
+          "present": true,
+          "kind": "file",
+          "sha256": "4083586f56960826ed8944c82b61ffa7e6e94e31b3a7174b3633f34d0c5bca88",
+          "evidence_cid": "bafkreicmyfnxonemdkywz7a5muayqjwzpaemjksx2c7ktaorycjl62z3ti"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/__init__.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "e46803a790ed5a3efbd2dfd84cee4fce01cabecc36e7c6b6373707e09f226955",
+          "evidence_cid": "bafkreieuzd5j2o4lmkac3vofdmj7u5nzlupchic4ozarblypfoy6axazl4"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/__init__.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "3076ed25b49bf5db35ca6cb302b4f3ab0f3a831401e0fc859dfe8e2943f5ab4e",
+          "evidence_cid": "bafkreidpqmjdwzvjudaf4gs6d6isfczlkgml7etogiuoqvhfefsbfy6gli"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/mcp_server/__init__.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "5a79d8ee1153101c52adf7f3845b8be8e9fafd7eb5286c10365012299dfb96ca",
+          "evidence_cid": "bafkreidnr5kg44qxlwqfupf5nrtjanyh6ltp6lkjfv7pt4bytnub5mp7du"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/interfaces/test_packaging_and_lazy_imports.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "eefa846d21dd1e98648794dccbb1caaf8e3b5de03ea6efec79b42864706a9d14",
+          "evidence_cid": "bafkreihis4broigbrav2pol7xtdjz45ov2tetsavo7lkxmseppfkss4n7m"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreignqw26coda4ofutp5qwb3ccpf6axy73veon232pyijoatl3cqnsi",
+        "bafkreigzrijsdf7n5336a5gnvpsvw7rwd5ayup3ip4xu3dcyunugxsd7zu",
+        "bafkreicmyfnxonemdkywz7a5muayqjwzpaemjksx2c7ktaorycjl62z3ti",
+        "bafkreieuzd5j2o4lmkac3vofdmj7u5nzlupchic4ozarblypfoy6axazl4",
+        "bafkreidpqmjdwzvjudaf4gs6d6isfczlkgml7etogiuoqvhfefsbfy6gli",
+        "bafkreidnr5kg44qxlwqfupf5nrtjanyh6ltp6lkjfv7pt4bytnub5mp7du",
+        "bafkreihis4broigbrav2pol7xtdjz45ov2tetsavo7lkxmseppfkss4n7m"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-036": {
+      "task_id": "KITA-036",
+      "goal_id": "KITA-G090",
+      "status": "completed",
+      "title": "Generate or validate Python sync async and CLI adapters",
+      "depends_on": [
+        "KITA-034",
+        "KITA-035"
+      ],
+      "interfaces": [
+        "PythonAdapter@1",
+        "AsyncPythonAdapter@1",
+        "CLIAdapter@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/interfaces/test_python_cli_parity.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/interfaces/test_python_cli_parity.py"
+      ],
+      "validation_cids": [
+        "bafkreiay46exjzzln2i725swru2jluhmmiunz5zmuflj2ptpi55i4xemxy"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/high_level_api",
+          "present": true,
+          "kind": "directory",
+          "sha256": "b0c105fc53b3b97e7364a10f723924f596b1d86a84cb86615e88495aaa11d8c0",
+          "evidence_cid": "bafkreie5v7dmf7qpuy3jnekrtehxqjdazxvq6fywkfl6nua37ljlsdw4ea"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/cli",
+          "present": true,
+          "kind": "directory",
+          "sha256": "91fd0a8d97feed7867e839cdb80be05b8f3f82120ea5aaa0e576b2defd5a37a0",
+          "evidence_cid": "bafkreibiytycrm3elwp6i4x4bahjfudexrws6aoy7khprrxljsab7foueq"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/bucket_vfs_cli.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "f2040b78941d8e5a15e3abc48d73860121361b8d806e4824315a94e58a9d22ce",
+          "evidence_cid": "bafkreidvdjnuhqlzp36u7u2gwkn3gqbifzpt3onp7e2lok6ptvn24aqn3i"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/backend_cli.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "a0d5f64817cffd5aceb6fc175f4fd17538400659b93532957461164844d05dcc",
+          "evidence_cid": "bafkreie5jjz3swp2efdpqkfhj5k6m6kqxlayynt7plep5r7mrkfewk3cya"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/interfaces/test_python_cli_parity.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "bf623256d5bfbce373d6762417d1a6e924291647b58d220487cbe1090ba6db19",
+          "evidence_cid": "bafkreiay46exjzzln2i725swru2jluhmmiunz5zmuflj2ptpi55i4xemxy"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreie5v7dmf7qpuy3jnekrtehxqjdazxvq6fywkfl6nua37ljlsdw4ea",
+        "bafkreibiytycrm3elwp6i4x4bahjfudexrws6aoy7khprrxljsab7foueq",
+        "bafkreidvdjnuhqlzp36u7u2gwkn3gqbifzpt3onp7e2lok6ptvn24aqn3i",
+        "bafkreie5jjz3swp2efdpqkfhj5k6m6kqxlayynt7plep5r7mrkfewk3cya",
+        "bafkreiay46exjzzln2i725swru2jluhmmiunz5zmuflj2ptpi55i4xemxy"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-037": {
+      "task_id": "KITA-037",
+      "goal_id": "KITA-G090",
+      "status": "completed",
+      "title": "Generate or validate MCP and MCP++ tools and prove all-interface parity",
+      "depends_on": [
+        "KITA-032",
+        "KITA-034",
+        "KITA-035",
+        "KITA-036"
+      ],
+      "interfaces": [
+        "MCPToolAdapter@1",
+        "MCPPlusPlusToolAdapter@1",
+        "InterfaceManifest@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/interfaces/test_all_interface_parity.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/interfaces/test_all_interface_parity.py"
+      ],
+      "validation_cids": [
+        "bafkreia4rhvg4spcylfzzavgtqalzqpobkxiz7bmw4qnemdxcusgpl2mbu"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/mcp_server/tools",
+          "present": true,
+          "kind": "directory",
+          "sha256": "a897b400580fb0bb25a5fc17d39afe42eafb664b81c7e0139b9a618e6b0554c1",
+          "evidence_cid": "bafkreic5qygfz37mle66vi4amb3hvalqt4n2tnq6ytxpnaezscfb66lkdy"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/mcp/ipfs_kit/mcp_tools.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "623a89b15f17282cb655467a7e9b8e431c548be86f023678518da0ee25b8aa70",
+          "evidence_cid": "bafkreigcoocsftqrsxaccocolh5pkpkdwya3zllsiomwzljzaajnhl6haq"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/interfaces/test_all_interface_parity.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "4a7dbf3e412b4671a8efef876f6fe9589cf8cea80944cc4ee7c03610de7e86eb",
+          "evidence_cid": "bafkreia4rhvg4spcylfzzavgtqalzqpobkxiz7bmw4qnemdxcusgpl2mbu"
+        },
+        {
+          "declared_output": "ipfs_kit_py/docs/runtime_readiness/interface_manifest.json",
+          "present": true,
+          "kind": "file",
+          "sha256": "c04134b7fe457253abf267bed50708aec3c12acce7fb5757e7a9180a62144a35",
+          "evidence_cid": "bafkreiabyiflhfavqvd227kcf4ep36yyk57pvssowvrxu4tqxzwpt5ht6q"
+        }
+      ],
+      "primary_evidence": [
+        {
+          "path": "docs/runtime_readiness/interface_manifest.json",
+          "kind": "file",
+          "bytes": 6904,
+          "sha256": "c04134b7fe457253abf267bed50708aec3c12acce7fb5757e7a9180a62144a35",
+          "evidence_cid": "bafkreiabyiflhfavqvd227kcf4ep36yyk57pvssowvrxu4tqxzwpt5ht6q",
+          "present": true
+        }
+      ],
+      "evidence_cids": [
+        "bafkreic5qygfz37mle66vi4amb3hvalqt4n2tnq6ytxpnaezscfb66lkdy",
+        "bafkreigcoocsftqrsxaccocolh5pkpkdwya3zllsiomwzljzaajnhl6haq",
+        "bafkreia4rhvg4spcylfzzavgtqalzqpobkxiz7bmw4qnemdxcusgpl2mbu",
+        "bafkreiabyiflhfavqvd227kcf4ep36yyk57pvssowvrxu4tqxzwpt5ht6q"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-038": {
+      "task_id": "KITA-038",
+      "goal_id": "KITA-G100",
+      "status": "completed",
+      "title": "Reconcile backend names, aliases, schemas, factories, capabilities, and support tiers",
+      "depends_on": [
+        "KITA-001",
+        "KITA-002"
+      ],
+      "interfaces": [
+        "BackendSpec@1",
+        "BackendPlugin@2",
+        "BackendCapability@1",
+        "BackendSupportTier@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/backends/test_backend_spec_registry.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/backends/test_backend_spec_registry.py"
+      ],
+      "validation_cids": [
+        "bafkreideoxqk5rmnbxpdmgr3tsmo6idwzkd3j5dv3avtp7y7g2ay62v6gi"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/backends/spec.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "f6c2cb734331fe09a0442ac758b1b369c6f8096b99ff606bc0958dee25ba953b",
+          "evidence_cid": "bafkreiem7xgfm5xoqifwjdvsjzjuyfhysyxfeoeqoxbkx5dcptxhkzv6ui"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/backend_registry.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "7e833686154c11d96c1d03e97645c757615a02d88bb786343a993f421f18eb12",
+          "evidence_cid": "bafkreibc2xh3467qdwe4f5kiu6mtlydasrobp3t77dn5bee65jyyfzgabi"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/backend_schemas.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "1c078e59df2c33b85ba449e01b7e6d787f0b61cd182aaa04eb7a92c9260ea481",
+          "evidence_cid": "bafkreiauoaeqg3od6k2crska5bcv3zzur5mzf6gtlwipryyca4pxlblvwu"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/backends/test_backend_spec_registry.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "e13dfa21522c319c73ee0149eea82df38317d7e40ca7cc7765560cf882acb505",
+          "evidence_cid": "bafkreideoxqk5rmnbxpdmgr3tsmo6idwzkd3j5dv3avtp7y7g2ay62v6gi"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreiem7xgfm5xoqifwjdvsjzjuyfhysyxfeoeqoxbkx5dcptxhkzv6ui",
+        "bafkreibc2xh3467qdwe4f5kiu6mtlydasrobp3t77dn5bee65jyyfzgabi",
+        "bafkreiauoaeqg3od6k2crska5bcv3zzur5mzf6gtlwipryyca4pxlblvwu",
+        "bafkreideoxqk5rmnbxpdmgr3tsmo6idwzkd3j5dv3avtp7y7g2ay62v6gi"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-039": {
+      "task_id": "KITA-039",
+      "goal_id": "KITA-G100",
+      "status": "completed",
+      "title": "Build the common backend conformance kit and hermetic reference adapters",
+      "depends_on": [
+        "KITA-003",
+        "KITA-038"
+      ],
+      "interfaces": [
+        "BackendConformanceKit@1",
+        "BackendAdapter@2",
+        "BackendCertificationReceipt@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/backends/test_hermetic_adapters.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/backends/test_hermetic_adapters.py"
+      ],
+      "validation_cids": [
+        "bafkreielyany52criidcjz5qxfbprqp7uv6idwa2mofuitio22xlvgjeoq"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/backends/conformance.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "84ba6552f296040f54a68c7c83245d4092596dc0291a563249eb8d56bb38581b",
+          "evidence_cid": "bafkreianudstqguk3moevkr4ofoqk32ipu6fpsbpr3mt2a7kl5zdfpgsea"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/backends/filesystem_backend.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "2da7e21cccf0e8a8c20a248ea830337efab1d9ef1b257471a5f8e2d9e13aa6de",
+          "evidence_cid": "bafkreiabye2aengqm4mjlmjwim7i7ao3zvj4xggt3wcihqzkdbxioznlwa"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/backends/ipfs_backend.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "319adafc9f9661a4ed563f3cad2fef8a72a39cac878187a7f0c94857b8467635",
+          "evidence_cid": "bafkreicx45w6cy3o37gwv7raznosu5xdavkrvjf3m3qruc46btf3hlueli"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/backends/test_hermetic_adapters.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "a9a19f4d1c34641e78e9b13800c1fde4f618a8a2124e72ed71778a9285631115",
+          "evidence_cid": "bafkreielyany52criidcjz5qxfbprqp7uv6idwa2mofuitio22xlvgjeoq"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreianudstqguk3moevkr4ofoqk32ipu6fpsbpr3mt2a7kl5zdfpgsea",
+        "bafkreiabye2aengqm4mjlmjwim7i7ao3zvj4xggt3wcihqzkdbxioznlwa",
+        "bafkreicx45w6cy3o37gwv7raznosu5xdavkrvjf3m3qruc46btf3hlueli",
+        "bafkreielyany52criidcjz5qxfbprqp7uv6idwa2mofuitio22xlvgjeoq"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-040": {
+      "task_id": "KITA-040",
+      "goal_id": "KITA-G100",
+      "status": "completed",
+      "title": "Certify local-service and object-store backend families",
+      "depends_on": [
+        "KITA-038",
+        "KITA-039"
+      ],
+      "interfaces": [
+        "BackendAdapter@2",
+        "BackendCertificationReceipt@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/backends/test_service_backends.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/backends/test_service_backends.py"
+      ],
+      "validation_cids": [
+        "bafkreialp2ujdcxyylwqgwaz2bywlhf5bxe4lhsftsrp7k6dc3vmwvxvxi"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/backends/s3_backend.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "aa5bd1dda1d844861eceb6ac052aac74541067eae6e2798d79fd1b9042d32a3c",
+          "evidence_cid": "bafkreibese6xt5r52yj7zigsz5b7eclbqw5sq33eavts5ee5phvtiqtv7u"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/iroh/backend.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "f0c1ec42fb56d3846e1d329e1da8f6aadbfabadc7e9ae7594413bcabd8d628ab",
+          "evidence_cid": "bafkreihdbwi6irnkdwluulnxlpcnryzzeeacg4xloxpcjgs4btsin2iogu"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/backends/ipfs_backend.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "319adafc9f9661a4ed563f3cad2fef8a72a39cac878187a7f0c94857b8467635",
+          "evidence_cid": "bafkreicx45w6cy3o37gwv7raznosu5xdavkrvjf3m3qruc46btf3hlueli"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/backends/test_service_backends.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "cdd12d80d581940411a4035c605ec99bd5552a18022de92203a7e28d30a9b1fb",
+          "evidence_cid": "bafkreialp2ujdcxyylwqgwaz2bywlhf5bxe4lhsftsrp7k6dc3vmwvxvxi"
+        },
+        {
+          "declared_output": "ipfs_kit_py/docs/runtime_readiness/backend_service_receipts",
+          "present": true,
+          "kind": "directory",
+          "sha256": "f395a95429e2dbf8b81eb87d74c355ad96eecc2ba0f5b5c50db00cfb57a3b2c5",
+          "evidence_cid": "bafkreieorfpconz6gzpp77nwyovjd4q5xxprars7o4zptqlnzzaq5cgkyi"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreibese6xt5r52yj7zigsz5b7eclbqw5sq33eavts5ee5phvtiqtv7u",
+        "bafkreihdbwi6irnkdwluulnxlpcnryzzeeacg4xloxpcjgs4btsin2iogu",
+        "bafkreicx45w6cy3o37gwv7raznosu5xdavkrvjf3m3qruc46btf3hlueli",
+        "bafkreialp2ujdcxyylwqgwaz2bywlhf5bxe4lhsftsrp7k6dc3vmwvxvxi",
+        "bafkreieorfpconz6gzpp77nwyovjd4q5xxprars7o4zptqlnzzaq5cgkyi"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-041": {
+      "task_id": "KITA-041",
+      "goal_id": "KITA-G100",
+      "status": "completed",
+      "title": "Implement or honestly classify decentralized, remote, archive, and legacy backend families",
+      "depends_on": [
+        "KITA-038",
+        "KITA-039"
+      ],
+      "interfaces": [
+        "BackendAdapter@2",
+        "BackendCertificationReceipt@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/backends/test_provider_backend_contracts.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/backends/test_provider_backend_contracts.py"
+      ],
+      "validation_cids": [
+        "bafkreieo2mbvwf533xdg6vhqgmuwx4dfqgjbjul6cuycynyth6d3oonkb4"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/backends/provider_adapters.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "0d91b6f48cd25411e6b9ffa777734abda1321206f1a4c55751185bf8cd91a266",
+          "evidence_cid": "bafkreib3hocnulux27xxbajzczgm2m2qxypwi2mna4nlnfdzp27754yjzq"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/backends/test_provider_backend_contracts.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "cdb2990ff25ca9dace2ce4a9ae3a3ccec3eaa6d5fb89721e2464cac8e02f44bf",
+          "evidence_cid": "bafkreieo2mbvwf533xdg6vhqgmuwx4dfqgjbjul6cuycynyth6d3oonkb4"
+        },
+        {
+          "declared_output": "ipfs_kit_py/docs/runtime_readiness/backend_external_receipts",
+          "present": true,
+          "kind": "directory",
+          "sha256": "03d0500f57883f7638f39f7e00f1714dd074eec00ff332c7ddfbf81911ffe23a",
+          "evidence_cid": "bafkreienarpgzn2gyauehp3iuh2lbtbjlccslkkadagcnx4amp33fdb5zi"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreib3hocnulux27xxbajzczgm2m2qxypwi2mna4nlnfdzp27754yjzq",
+        "bafkreieo2mbvwf533xdg6vhqgmuwx4dfqgjbjul6cuycynyth6d3oonkb4",
+        "bafkreienarpgzn2gyauehp3iuh2lbtbjlccslkkadagcnx4amp33fdb5zi"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-042": {
+      "task_id": "KITA-042",
+      "goal_id": "KITA-G100",
+      "status": "completed",
+      "title": "Publish the joined backend support matrix and all-interface certification",
+      "depends_on": [
+        "KITA-013",
+        "KITA-017",
+        "KITA-021",
+        "KITA-025",
+        "KITA-029",
+        "KITA-033",
+        "KITA-037",
+        "KITA-040",
+        "KITA-041"
+      ],
+      "interfaces": [
+        "BackendSupportManifest@1",
+        "BackendCertificationReceipt@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/backends/test_joined_backend_matrix.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/backends/test_joined_backend_matrix.py"
+      ],
+      "validation_cids": [
+        "bafkreifhovuzsiaiyyno5x2dc77drsto4xlfk77zwnhtwsltphu77imgli"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/docs/runtime_readiness/backend_support_matrix.md",
+          "present": true,
+          "kind": "file",
+          "sha256": "6589bfafe5c50a57a7d073c287ed7b0ef50cf04e34dd12ff493f25c447ef22f9",
+          "evidence_cid": "bafkreiflsl7wpc4unsfhnzoo4fka7no3u3kynd6n2tanpsyofme54zsep4"
+        },
+        {
+          "declared_output": "ipfs_kit_py/docs/runtime_readiness/backend_support_manifest.json",
+          "present": true,
+          "kind": "file",
+          "sha256": "913d5e6485d6fd437aac1f17a06bdef1577ca98658929e291cbbc5001f0018ca",
+          "evidence_cid": "bafkreiekvncmqltov6rmblgn5qreb2uehqwrh47qpeptf3tvnxp32olhhq"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/backends/test_joined_backend_matrix.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "f68839b1b208836410edec96da63b315ee35dccdfd035ecc2fa57087aca1981b",
+          "evidence_cid": "bafkreifhovuzsiaiyyno5x2dc77drsto4xlfk77zwnhtwsltphu77imgli"
+        }
+      ],
+      "primary_evidence": [
+        {
+          "path": "docs/runtime_readiness/backend_support_manifest.json",
+          "kind": "file",
+          "bytes": 113810,
+          "sha256": "913d5e6485d6fd437aac1f17a06bdef1577ca98658929e291cbbc5001f0018ca",
+          "evidence_cid": "bafkreiekvncmqltov6rmblgn5qreb2uehqwrh47qpeptf3tvnxp32olhhq",
+          "present": true
+        },
+        {
+          "path": "docs/runtime_readiness/backend_support_matrix.md",
+          "kind": "file",
+          "bytes": 37616,
+          "sha256": "6589bfafe5c50a57a7d073c287ed7b0ef50cf04e34dd12ff493f25c447ef22f9",
+          "evidence_cid": "bafkreiflsl7wpc4unsfhnzoo4fka7no3u3kynd6n2tanpsyofme54zsep4",
+          "present": true
+        }
+      ],
+      "evidence_cids": [
+        "bafkreiflsl7wpc4unsfhnzoo4fka7no3u3kynd6n2tanpsyofme54zsep4",
+        "bafkreiekvncmqltov6rmblgn5qreb2uehqwrh47qpeptf3tvnxp32olhhq",
+        "bafkreifhovuzsiaiyyno5x2dc77drsto4xlfk77zwnhtwsltphu77imgli"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-043": {
+      "task_id": "KITA-043",
+      "goal_id": "KITA-G110",
+      "status": "completed",
+      "title": "Build the production-bound benchmark harness, frozen baseline, SLO manifest, and regression gate",
+      "depends_on": [
+        "KITA-004",
+        "KITA-007",
+        "KITA-018",
+        "KITA-022",
+        "KITA-026",
+        "KITA-034",
+        "KITA-038"
+      ],
+      "interfaces": [
+        "RuntimeBenchmarkManifest@1",
+        "ProductionBenchmarkBinding@1",
+        "RuntimeSLO@1",
+        "RegressionDecision@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/release/test_benchmark_harness.py tests/runtime_readiness/release/test_production_benchmark_binding.py && python benchmarks/runtime_readiness/run.py --profile ci-reference --check --baseline benchmarks/runtime_readiness/bound_revision_results.json",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/release/test_benchmark_harness.py",
+        "ipfs_kit_py/tests/runtime_readiness/release/test_production_benchmark_binding.py",
+        "ipfs_kit_py/benchmarks/runtime_readiness/run.py"
+      ],
+      "validation_cids": [
+        "bafkreifgaudumqujaz4qyhvykvjjaaqzi7gylroqiwiz34xrxt2mgtjgvu",
+        "bafkreif6vw2srpzapfd5ktlrl7stgjuyklzq3bfa6kakuwlzeopttfnwlm",
+        "bafkreifpciaryaz266vs67hw7py7ycdcgu36t5e3aeixgtcgoyhg2b7ism"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/benchmarks/runtime_readiness/run.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "2539c55042d96793c3118a283af838cc24157f762a4eece0289852d99e207e7d",
+          "evidence_cid": "bafkreifpciaryaz266vs67hw7py7ycdcgu36t5e3aeixgtcgoyhg2b7ism"
+        },
+        {
+          "declared_output": "ipfs_kit_py/benchmarks/runtime_readiness/production.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "85327d147b50452426b055e81acbf81a169d2dfab16a9bca8d79f1a284ec75ee",
+          "evidence_cid": "bafkreie57fhfwvqdupbnxb4wmooe6yyyn7d2ksenbvgoovg4szkbcc7mfi"
+        },
+        {
+          "declared_output": "ipfs_kit_py/benchmarks/runtime_readiness/slo.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "9664993ca9a1d1d69d3d517f2ec96f154f0f6e662ef95abbbb14f930421f26d7",
+          "evidence_cid": "bafkreibhoia5egsyh4fllpizjqe6kj3e3zft5wa57wgofx3i5xjroxowcq"
+        },
+        {
+          "declared_output": "ipfs_kit_py/benchmarks/runtime_readiness/bound_revision_results.json",
+          "present": true,
+          "kind": "file",
+          "sha256": "defc675a86f91368d062cce78a0b4640022a5e5a4559c0d198b963c9a478ed5d",
+          "evidence_cid": "bafkreifbnfhod35tvlp36e6x7hyyd6sk2qraaefu47vod3he7yzy76rs5a"
+        }
+      ],
+      "primary_evidence": [
+        {
+          "path": "benchmarks/runtime_readiness/bound_revision_results.json",
+          "kind": "file",
+          "bytes": 114842,
+          "sha256": "defc675a86f91368d062cce78a0b4640022a5e5a4559c0d198b963c9a478ed5d",
+          "evidence_cid": "bafkreifbnfhod35tvlp36e6x7hyyd6sk2qraaefu47vod3he7yzy76rs5a",
+          "present": true
+        },
+        {
+          "path": "benchmarks/runtime_readiness/optimized_results.json",
+          "kind": "file",
+          "bytes": 119582,
+          "sha256": "bdf1f7732633e06d338f943674ae032720b3d2322f9440a394d56904776dc97b",
+          "evidence_cid": "bafkreiankp6qdhcql4ihzj6xupd6ozuysuawzzbszklj2molreuh6jc74y",
+          "present": true
+        }
+      ],
+      "evidence_cids": [
+        "bafkreifpciaryaz266vs67hw7py7ycdcgu36t5e3aeixgtcgoyhg2b7ism",
+        "bafkreie57fhfwvqdupbnxb4wmooe6yyyn7d2ksenbvgoovg4szkbcc7mfi",
+        "bafkreibhoia5egsyh4fllpizjqe6kj3e3zft5wa57wgofx3i5xjroxowcq",
+        "bafkreifbnfhod35tvlp36e6x7hyyd6sk2qraaefu47vod3he7yzy76rs5a",
+        "bafkreiankp6qdhcql4ihzj6xupd6ozuysuawzzbszklj2molreuh6jc74y"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-044": {
+      "task_id": "KITA-044",
+      "goal_id": "KITA-G110",
+      "status": "completed",
+      "title": "Optimize canonical transaction hot paths with bounded backpressure",
+      "depends_on": [
+        "KITA-009",
+        "KITA-013",
+        "KITA-017",
+        "KITA-021",
+        "KITA-025",
+        "KITA-029",
+        "KITA-033",
+        "KITA-037",
+        "KITA-042",
+        "KITA-043"
+      ],
+      "interfaces": [
+        "BackpressureController@1",
+        "RuntimeSLO@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/release/test_backpressure_and_resources.py tests/runtime_readiness/release/test_production_benchmark_binding.py tests/runtime_readiness/release/test_production_performance_gate.py tests/runtime_readiness/wal tests/runtime_readiness/vfs tests/runtime_readiness/buckets tests/runtime_readiness/arc tests/runtime_readiness/graphrag tests/runtime_readiness/replication tests/runtime_readiness/interfaces tests/runtime_readiness/mcplusplus && python benchmarks/runtime_readiness/run.py --profile ci-reference --check --baseline benchmarks/runtime_readiness/bound_revision_results.json",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/release/test_backpressure_and_resources.py",
+        "ipfs_kit_py/tests/runtime_readiness/release/test_production_benchmark_binding.py",
+        "ipfs_kit_py/tests/runtime_readiness/release/test_production_performance_gate.py",
+        "ipfs_kit_py/benchmarks/runtime_readiness/run.py"
+      ],
+      "validation_cids": [
+        "bafkreib3v3avqct5uy66d5sfsxeatuxrnyks7twuqph5vpy2ipoyzgbave",
+        "bafkreif6vw2srpzapfd5ktlrl7stgjuyklzq3bfa6kakuwlzeopttfnwlm",
+        "bafkreicvpxfe6okn64zomsrkw5yvrwudz347ylf275lj7raknyoxv2bchm",
+        "bafkreifpciaryaz266vs67hw7py7ycdcgu36t5e3aeixgtcgoyhg2b7ism"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/performance.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "2f9c5e4d4aaeb08f52b8bdad34b8328dcd90467f408a33090e6ec96118233095",
+          "evidence_cid": "bafkreieop62klzwkhvfvgiwr5lyixbut4t6wviz7h565vcbipbo6k5t5r4"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/wal/writer.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "c61669fdcd0f5f04fec5790e057e68ac2650fdcd817e6f06cd62e8532ca188db",
+          "evidence_cid": "bafkreibpsorhnlwk3kgv6myx63lma5qcizvxfqawqgvqv25nrjqlkmhhwe"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/wal/coordinator.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "30dcc6a25a494a386e5c60a3d074bb5f31b01968670f1cf0977c661b485b5293",
+          "evidence_cid": "bafkreiae4xywg46jigytrleu4tbp7i6uhl7tkczqptjxdh3c3l2boek7bu"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/vfs/service.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "0d58fb22a53575064ed42d00a7974d65c43f0ff796e5af2c8cb842202efee87f",
+          "evidence_cid": "bafkreickib5yufnmv3lo3jnregxznbujsdjq6pp3gzo3gkshe2iv3tsxra"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/buckets/service.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "fa397e62d8bb16bb687f9084b4f97d65152ab67cd7dcaa2f6ca8a42fb63f9d37",
+          "evidence_cid": "bafkreigxexojtbnrl7rlxxbzwfs2mdhxk3tddvp3lcn737vjnamdel64ci"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/cache/arc/cache.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "5a1c2251e48682d2929753f0181b141e9399988e44053298dc323fd708d64e33",
+          "evidence_cid": "bafkreigg4i5ap3okgmwgaofzvgcnnmniasrapsbgsky35pklee5xdwatem"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/cache/arc/concurrency.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "087721f864d8f4458459dba2ed70e7473edb5d0cfa0581828fbf5536a2d27ec3",
+          "evidence_cid": "bafkreica33cyoa4bwsvpen3buja7e4cthmp22xlyjg7dnwifkhqtsjkkea"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/graphrag/service.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "a389b2ebdb2af1416b08de4a57f639d17ca156bc4277373f94111c11b8e5c58e",
+          "evidence_cid": "bafkreihyjmnrw5aeu7w6vigmrizrfiembxu54y3nqfuctewxnlwlqx72pe"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/graphrag/vector_index.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "eede1f41343e963eae5c0765a52ea56880c97a377c57a5085363f5d57a8801f2",
+          "evidence_cid": "bafkreid4msrkosumizhhr7nmnkchn4fbnujav6oum5tj2excjn4ryeyjla"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/graphrag.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "0862384ee201c7b1d125aef2a62b322a4cd6658f801e226b065499effcfb454d",
+          "evidence_cid": "bafkreigmdbuaanuox6jokuzadykejqj5cme2f7e45fx3nwr4tnas6vdnmi"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/replication/reconciler.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "2e9bb34491eb4726bc17d8f5fede3bb264334febd917bb3e6f5bbc4d3fa16e41",
+          "evidence_cid": "bafkreifakg4g6bdnga3fxf7ddzpvygmz4moph2lozy6zzgnhaj5d2rw2b4"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/core/service_router.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "7ae2eaa4c8ccf15db889810bd6620c692b2651f327f50dac5444edb9d0b5b212",
+          "evidence_cid": "bafkreiaui2qhacrvt4idyne4b2elekpqrq4snk5bjb2zbtkjcmrd5m7q6q"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/high_level_api/operation_adapter.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "7b499d4cee62bfa916d3e4b07a9b6fbe5a864c43d23bb98f7a6abb37b418cdfb",
+          "evidence_cid": "bafkreidyopgqnzwbxzhodqnnsrz3jhvbbwy2jdydx4sxshdmro7nkjnkim"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/cli/operation_adapter.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "7d91adfa54f229884b933cf02970efe806bbca4130662832a444b243bf6ad577",
+          "evidence_cid": "bafkreidpu7th3ghmy6nkhwhau55xdyvur2uovc3t6gpzkm5ghniglmrcui"
+        },
+        {
+          "declared_output": "ipfs_kit_py/ipfs_kit_py/mcp_server/tools/operation_adapter.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "bf56dda742b7fdfbe42550a0e54643177392676f8a400ac0b22d2a54bf465256",
+          "evidence_cid": "bafkreigpkns2tcja6yp5byhw2dqqlpleywddkbqy3tdmoyy2qbivkieopy"
+        },
+        {
+          "declared_output": "ipfs_kit_py/benchmarks/runtime_readiness/optimized_results.json",
+          "present": true,
+          "kind": "file",
+          "sha256": "bdf1f7732633e06d338f943674ae032720b3d2322f9440a394d56904776dc97b",
+          "evidence_cid": "bafkreiankp6qdhcql4ihzj6xupd6ozuysuawzzbszklj2molreuh6jc74y"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/release/test_backpressure_and_resources.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "29aeb4fdbac247645b29b683c7f184a9d01858c043cbcef06a6dd42584dc7d89",
+          "evidence_cid": "bafkreib3v3avqct5uy66d5sfsxeatuxrnyks7twuqph5vpy2ipoyzgbave"
+        }
+      ],
+      "primary_evidence": [],
+      "evidence_cids": [
+        "bafkreieop62klzwkhvfvgiwr5lyixbut4t6wviz7h565vcbipbo6k5t5r4",
+        "bafkreibpsorhnlwk3kgv6myx63lma5qcizvxfqawqgvqv25nrjqlkmhhwe",
+        "bafkreiae4xywg46jigytrleu4tbp7i6uhl7tkczqptjxdh3c3l2boek7bu",
+        "bafkreickib5yufnmv3lo3jnregxznbujsdjq6pp3gzo3gkshe2iv3tsxra",
+        "bafkreigxexojtbnrl7rlxxbzwfs2mdhxk3tddvp3lcn737vjnamdel64ci",
+        "bafkreigg4i5ap3okgmwgaofzvgcnnmniasrapsbgsky35pklee5xdwatem",
+        "bafkreica33cyoa4bwsvpen3buja7e4cthmp22xlyjg7dnwifkhqtsjkkea",
+        "bafkreihyjmnrw5aeu7w6vigmrizrfiembxu54y3nqfuctewxnlwlqx72pe",
+        "bafkreid4msrkosumizhhr7nmnkchn4fbnujav6oum5tj2excjn4ryeyjla",
+        "bafkreigmdbuaanuox6jokuzadykejqj5cme2f7e45fx3nwr4tnas6vdnmi",
+        "bafkreifakg4g6bdnga3fxf7ddzpvygmz4moph2lozy6zzgnhaj5d2rw2b4",
+        "bafkreiaui2qhacrvt4idyne4b2elekpqrq4snk5bjb2zbtkjcmrd5m7q6q",
+        "bafkreidyopgqnzwbxzhodqnnsrz3jhvbbwy2jdydx4sxshdmro7nkjnkim",
+        "bafkreidpu7th3ghmy6nkhwhau55xdyvur2uovc3t6gpzkm5ghniglmrcui",
+        "bafkreigpkns2tcja6yp5byhw2dqqlpleywddkbqy3tdmoyy2qbivkieopy",
+        "bafkreiankp6qdhcql4ihzj6xupd6ozuysuawzzbszklj2molreuh6jc74y",
+        "bafkreib3v3avqct5uy66d5sfsxeatuxrnyks7twuqph5vpy2ipoyzgbave"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-045": {
+      "task_id": "KITA-045",
+      "goal_id": "KITA-G110",
+      "status": "completed",
+      "title": "Run soak, chaos, crash, leak, security, and resource-exhaustion qualification",
+      "depends_on": [
+        "KITA-042",
+        "KITA-044"
+      ],
+      "interfaces": [
+        "SoakReceipt@1",
+        "ChaosSchedule@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/release/test_soak_chaos.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/release/test_soak_chaos.py"
+      ],
+      "validation_cids": [
+        "bafkreidd5vtncnmcygg4v6zv52hj4u4z6x24wsxfurkyr2ukavfb3chcp4"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/release/test_soak_chaos.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "471fa5d99341b7174bb4a8bc7df3ebcf536f0d9c15616597212906db864edd60",
+          "evidence_cid": "bafkreidd5vtncnmcygg4v6zv52hj4u4z6x24wsxfurkyr2ukavfb3chcp4"
+        },
+        {
+          "declared_output": "ipfs_kit_py/docs/runtime_readiness/soak_chaos_receipt.json",
+          "present": true,
+          "kind": "file",
+          "sha256": "5faf3b1fc6b5e68c2d2dd13f8b76508f39fe2939813cdcd11412be16d8d6a018",
+          "evidence_cid": "bafkreiftxeuowj3c7hycci2yvq7dppcelpdygmmrj2uwqha6ibike3byvy"
+        }
+      ],
+      "primary_evidence": [
+        {
+          "path": "docs/runtime_readiness/soak_chaos_receipt.json",
+          "kind": "file",
+          "bytes": 5538,
+          "sha256": "5faf3b1fc6b5e68c2d2dd13f8b76508f39fe2939813cdcd11412be16d8d6a018",
+          "evidence_cid": "bafkreiftxeuowj3c7hycci2yvq7dppcelpdygmmrj2uwqha6ibike3byvy",
+          "present": true
+        }
+      ],
+      "evidence_cids": [
+        "bafkreidd5vtncnmcygg4v6zv52hj4u4z6x24wsxfurkyr2ukavfb3chcp4",
+        "bafkreiftxeuowj3c7hycci2yvq7dppcelpdygmmrj2uwqha6ibike3byvy"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-046": {
+      "task_id": "KITA-046",
+      "goal_id": "KITA-G110",
+      "status": "completed",
+      "title": "Validate compatibility migration, wheel matrix, rollout, and rollback",
+      "depends_on": [
+        "KITA-009",
+        "KITA-013",
+        "KITA-017",
+        "KITA-021",
+        "KITA-025",
+        "KITA-029",
+        "KITA-033",
+        "KITA-037",
+        "KITA-042",
+        "KITA-045"
+      ],
+      "interfaces": [
+        "ReleaseCandidateReceipt@1",
+        "MigrationReceipt@1",
+        "RollbackReceipt@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/release/test_release_candidate.py",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/release/test_release_candidate.py"
+      ],
+      "validation_cids": [
+        "bafkreigcrp7qsmap7x7px2mr5vy5eopae3lqehiuo36eq4onx3j7ow5yq4"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/release/test_release_candidate.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "c03051501e18b39c0a92dbc1923b21aeaae790fd09213857f10b7c8d83655d98",
+          "evidence_cid": "bafkreigcrp7qsmap7x7px2mr5vy5eopae3lqehiuo36eq4onx3j7ow5yq4"
+        },
+        {
+          "declared_output": "ipfs_kit_py/docs/runtime_readiness/migration_and_rollback.md",
+          "present": true,
+          "kind": "file",
+          "sha256": "e35758dcc34c459634edcaae4e838e39beafad46023fea4e62e812a6fbfbac82",
+          "evidence_cid": "bafkreidj7vsykbokwla3bgywktp7qnznky5ydvfa7l7wutunegm27xseva"
+        },
+        {
+          "declared_output": "ipfs_kit_py/docs/runtime_readiness/release_candidate_receipt.json",
+          "present": true,
+          "kind": "file",
+          "sha256": "c69788fb8e54c7693bd00d44f5fd1f17ec1389755323ab0e07f3a9f3c0204abb",
+          "evidence_cid": "bafkreig6aerzvlo4otrzhrn2ktacb5az42srstj47c5nn3bxgwh5mresoi"
+        }
+      ],
+      "primary_evidence": [
+        {
+          "path": "docs/runtime_readiness/release_candidate_receipt.json",
+          "kind": "file",
+          "bytes": 8551,
+          "sha256": "c69788fb8e54c7693bd00d44f5fd1f17ec1389755323ab0e07f3a9f3c0204abb",
+          "evidence_cid": "bafkreig6aerzvlo4otrzhrn2ktacb5az42srstj47c5nn3bxgwh5mresoi",
+          "present": true
+        },
+        {
+          "path": "docs/runtime_readiness/migration_and_rollback.md",
+          "kind": "file",
+          "bytes": 10269,
+          "sha256": "e35758dcc34c459634edcaae4e838e39beafad46023fea4e62e812a6fbfbac82",
+          "evidence_cid": "bafkreidj7vsykbokwla3bgywktp7qnznky5ydvfa7l7wutunegm27xseva",
+          "present": true
+        }
+      ],
+      "evidence_cids": [
+        "bafkreigcrp7qsmap7x7px2mr5vy5eopae3lqehiuo36eq4onx3j7ow5yq4",
+        "bafkreidj7vsykbokwla3bgywktp7qnznky5ydvfa7l7wutunegm27xseva",
+        "bafkreig6aerzvlo4otrzhrn2ktacb5az42srstj47c5nn3bxgwh5mresoi"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    },
+    "KITA-047": {
+      "task_id": "KITA-047",
+      "goal_id": "KITA-G110",
+      "status": "todo",
+      "title": "Emit the independent current-tree runtime-readiness release receipt",
+      "depends_on": [
+        "KITA-046"
+      ],
+      "interfaces": [
+        "KITAReleaseReceipt@1"
+      ],
+      "validation": "cd ipfs_kit_py && python -m pytest -q tests/runtime_readiness/release/test_joined_release_receipt.py && cd .. && python scripts/validate_ipfs_kit_runtime_readiness_board.py --check-all",
+      "validation_paths": [
+        "ipfs_kit_py/tests/runtime_readiness/release/test_joined_release_receipt.py",
+        "scripts/validate_ipfs_kit_runtime_readiness_board.py"
+      ],
+      "validation_cids": [
+        "bafkreif36m2msv7rspiph2wzqfwupppsculfkwiby6uc4pb7a3evorbwva",
+        "bafkreici225ye7hznvkvmvmznvpltbzgqdbyy7stk2a7lwguruhi2fz7ey"
+      ],
+      "outputs": [
+        {
+          "declared_output": "ipfs_kit_py/docs/runtime_readiness/KITA_RELEASE_RECEIPT.json",
+          "present": true,
+          "kind": "self-receipt",
+          "sha256": null,
+          "evidence_cid": null,
+          "identity": "semantic_digest"
+        },
+        {
+          "declared_output": "ipfs_kit_py/tests/runtime_readiness/release/test_joined_release_receipt.py",
+          "present": true,
+          "kind": "file",
+          "sha256": "30e3dbf5caab1200120589a264383432ff46c4a59dd009f28b4937b6cc87fb85",
+          "evidence_cid": "bafkreif36m2msv7rspiph2wzqfwupppsculfkwiby6uc4pb7a3evorbwva"
+        }
+      ],
+      "primary_evidence": [
+        {
+          "path": "docs/runtime_readiness/KITA_RELEASE_RECEIPT.json",
+          "kind": "self-receipt",
+          "present": true,
+          "sha256": null,
+          "evidence_cid": null,
+          "identity": "semantic_digest"
+        },
+        {
+          "path": "tests/runtime_readiness/release/test_joined_release_receipt.py",
+          "kind": "file",
+          "bytes": 70687,
+          "sha256": "30e3dbf5caab1200120589a264383432ff46c4a59dd009f28b4937b6cc87fb85",
+          "evidence_cid": "bafkreif36m2msv7rspiph2wzqfwupppsculfkwiby6uc4pb7a3evorbwva",
+          "present": true
+        }
+      ],
+      "evidence_cids": [
+        "bafkreif36m2msv7rspiph2wzqfwupppsculfkwiby6uc4pb7a3evorbwva"
+      ],
+      "freshness": "current-tree",
+      "binding_status": "bound",
+      "missing_outputs": []
+    }
+  },
+  "manifests": {
+    "capability_manifest": {
+      "path": "docs/runtime_readiness/capability_manifest.json",
+      "kind": "file",
+      "bytes": 57815,
+      "sha256": "4123bafe6b269eefa9ccc1a93dd5ed7b39408941972fb3180ed4b4f61122d4e8",
+      "evidence_cid": "bafkreibl5vtouytdavu4m6dtvjq5wakbrcewqotkvj5v74vr66teizfjeq",
+      "present": true,
+      "schema": "CapabilityManifest@1",
+      "task_id": "KITA-001",
+      "inventory_version_mismatch_flag": true,
+      "note": "Inventory-time version_identity.mismatch remains an explicit historical observation; live package/runtime versions are bound separately under environment.package and do not silently rewrite the inventory artifact."
+    },
+    "operation_and_interface_manifest": {
+      "path": "docs/runtime_readiness/interface_manifest.json",
+      "kind": "file",
+      "bytes": 6904,
+      "sha256": "c04134b7fe457253abf267bed50708aec3c12acce7fb5757e7a9180a62144a35",
+      "evidence_cid": "bafkreiabyiflhfavqvd227kcf4ep36yyk57pvssowvrxu4tqxzwpt5ht6q",
+      "present": true,
+      "schema": "InterfaceManifest@1",
+      "task_id": "KITA-037",
+      "parity_policy": "AllInterfaceParityPolicy@1",
+      "registry_authority": "ipfs_kit_py/core/operation-registry@1",
+      "transports": [
+        "package",
+        "python",
+        "cli",
+        "mcp-stdio",
+        "mcp-http",
+        "mcp-p2p"
+      ]
+    },
+    "backend_support_manifest": {
+      "path": "docs/runtime_readiness/backend_support_manifest.json",
+      "kind": "file",
+      "bytes": 113810,
+      "sha256": "913d5e6485d6fd437aac1f17a06bdef1577ca98658929e291cbbc5001f0018ca",
+      "evidence_cid": "bafkreiekvncmqltov6rmblgn5qreb2uehqwrh47qpeptf3tvnxp32olhhq",
+      "present": true,
+      "schema": "BackendSupportManifest@1",
+      "task_id": "KITA-042",
+      "inventory_count": 27,
+      "matrix_doc": {
+        "path": "docs/runtime_readiness/backend_support_matrix.md",
+        "kind": "file",
+        "bytes": 37616,
+        "sha256": "6589bfafe5c50a57a7d073c287ed7b0ef50cf04e34dd12ff493f25c447ef22f9",
+        "evidence_cid": "bafkreiflsl7wpc4unsfhnzoo4fka7no3u3kynd6n2tanpsyofme54zsep4",
+        "present": true
+      }
+    }
+  },
+  "backend_tiers": {
+    "inventory_count": 27,
+    "tier_counts": {
+      "conditional": 1,
+      "configuration-only": 22,
+      "unsupported": 4
+    },
+    "live_tier_counts": {
+      "conditional": 1,
+      "configuration-only": 22,
+      "unsupported": 4
+    },
+    "storage_selectable": [],
+    "storage_selectable_count": 0,
+    "production_live": [],
+    "production_live_count": 0,
+    "conditional_or_blocked": [
+      {
+        "canonical_name": "iroh",
+        "tier": "conditional",
+        "live_tier": "conditional",
+        "disposition": "conditional-receipt-required",
+        "availability": "receipt-required",
+        "evidence_freshness": "missing",
+        "evidence_status": "blocked"
+      }
+    ],
+    "external_receipts": {
+      "active_receipts": 0,
+      "freshness": "empty-authority-current",
+      "index_cid": "bafkreiagzzvmwpneyncz275e4icyrw24yjblpwdkrfl2b5oiybxekv6cda",
+      "note": "Empty active receipt set is explicit; it is not production evidence."
+    },
+    "honesty": {
+      "presence_is_not_support": true,
+      "no_silent_production_promotion": true,
+      "empty_external_receipts_are_not_production_evidence": true
+    }
+  },
+  "interface_parity": {
+    "policy": "AllInterfaceParityPolicy@1",
+    "surfaces": [
+      "package",
+      "python",
+      "cli",
+      "mcp-stdio",
+      "mcp-http",
+      "mcp-p2p"
+    ],
+    "transports": [
+      "package",
+      "python",
+      "cli",
+      "mcp-stdio",
+      "mcp-http",
+      "mcp-p2p"
+    ],
+    "manifest": {
+      "path": "docs/runtime_readiness/interface_manifest.json",
+      "kind": "file",
+      "bytes": 6904,
+      "sha256": "c04134b7fe457253abf267bed50708aec3c12acce7fb5757e7a9180a62144a35",
+      "evidence_cid": "bafkreiabyiflhfavqvd227kcf4ep36yyk57pvssowvrxu4tqxzwpt5ht6q",
+      "present": true
+    },
+    "authorization_zero_handler_on_denial": true,
+    "suite": "tests/runtime_readiness/interfaces/test_all_interface_parity.py"
+  },
+  "benchmark_slo": {
+    "bound_revision_results": {
+      "path": "benchmarks/runtime_readiness/bound_revision_results.json",
+      "kind": "file",
+      "bytes": 114842,
+      "sha256": "defc675a86f91368d062cce78a0b4640022a5e5a4559c0d198b963c9a478ed5d",
+      "evidence_cid": "bafkreifbnfhod35tvlp36e6x7hyyd6sk2qraaefu47vod3he7yzy76rs5a",
+      "present": true,
+      "task_id": "KITA-043",
+      "schema": "RuntimeBenchmarkHarness@1",
+      "revision": {
+        "dirty": false,
+        "git_commit": "32a221104b3a06aabd4e88b8164930eb4617d319",
+        "git_describe": null,
+        "package_root": "/home/barberb/lift_coding/.worktrees/ipfs-kit-runtime-readiness/data/agent_supervisor/ipfs_kit_runtime_readiness/worktrees/workspace-94eff4234f60-db268ebe5cd2/ipfs_kit_py",
+        "source": "git",
+        "source_tree_digest": "sha256:0f49a133615b4c4d6759c7de7f00df6b19bfbd7c9512208c8de9abe00f80f99c"
+      },
+      "profile": "ci-reference"
+    },
+    "optimized_results": {
+      "path": "benchmarks/runtime_readiness/optimized_results.json",
+      "kind": "file",
+      "bytes": 119582,
+      "sha256": "bdf1f7732633e06d338f943674ae032720b3d2322f9440a394d56904776dc97b",
+      "evidence_cid": "bafkreiankp6qdhcql4ihzj6xupd6ozuysuawzzbszklj2molreuh6jc74y",
+      "present": true,
+      "task_id": "KITA-043",
+      "schema": "RuntimeBenchmarkHarness@1",
+      "revision": {
+        "dirty": false,
+        "git_commit": "b3c6c081d4718394d7b91b16347480ff124ce6f6",
+        "git_describe": null,
+        "package_root": "/home/barberb/lift_coding/.worktrees/ipfs-kit-runtime-readiness/data/agent_supervisor/ipfs_kit_runtime_readiness/worktrees/workspace-22db47f9e495-2c5957d16809/ipfs_kit_py",
+        "source": "git",
+        "source_tree_digest": "sha256:0e2e1baa55dfe56324b734a7714d8a1cd4da472b2b66adc5449b75d515421af9"
+      },
+      "profile": "ci-reference",
+      "series_count": 67
+    },
+    "reference_floors": {
+      "path": "benchmarks/runtime_readiness/reference_floors.json",
+      "kind": "file",
+      "bytes": 8659,
+      "sha256": "dbe4817c2157a92d77c73a40fec52e67af58cd9d0c04e216edc2d67e2c88a799",
+      "evidence_cid": "bafkreighg5krrkh4rq5cqoda4xzcaiz6pjtxudfh6r2tpliyi4tkgkmwda",
+      "present": true
+    },
+    "workloads": {
+      "path": "benchmarks/runtime_readiness/workloads.json",
+      "kind": "file",
+      "bytes": 13148,
+      "sha256": "c65492da6328e2b1fbee817cc82f0f987b4e68f1b13d8d75554e234d44bbbd88",
+      "evidence_cid": "bafkreiba7dgfzhdhg7c5nvoodssfs36l32txu7lypobjyxmjrzpyeulkqa",
+      "present": true
+    },
+    "policy": {
+      "committed_not_accepted_tps_primary": true,
+      "correctness_security_durability_relaxation_allowed": false,
+      "stale_partial_simulated_skipped_cannot_satisfy_floors": true
+    }
+  },
+  "soak_chaos": {
+    "path": "docs/runtime_readiness/soak_chaos_receipt.json",
+    "kind": "file",
+    "bytes": 5538,
+    "sha256": "5faf3b1fc6b5e68c2d2dd13f8b76508f39fe2939813cdcd11412be16d8d6a018",
+    "evidence_cid": "bafkreiftxeuowj3c7hycci2yvq7dppcelpdygmmrj2uwqha6ibike3byvy",
+    "present": true,
+    "task_id": "KITA-045",
+    "schema": "ipfs_kit_py/runtime-readiness/soak-chaos-receipt@1",
+    "interfaces": [
+      "SoakReceipt@1",
+      "ChaosSchedule@1"
+    ],
+    "acceptance": {
+      "zero_acknowledged_loss": true,
+      "zero_duplicate_non_idempotent_effects": true,
+      "zero_authorization_bypass": true,
+      "zero_path_escape": true,
+      "zero_unsafe_execution": true,
+      "zero_secret_leak": true,
+      "zero_false_convergence": true,
+      "recovery_bounded": true,
+      "resources_within_tolerance_after_load": true,
+      "no_unbounded_thread_task_fd_memory_growth": true,
+      "backend_outage_explicit": true,
+      "identity_equivalent_seeded_receipts": true
+    },
+    "safety_floors": {
+      "acknowledged_loss": 0,
+      "duplicate_non_idempotent_effects": 0,
+      "authorization_bypass": 0,
+      "path_escape": 0,
+      "unsafe_execution": 0,
+      "secret_leak": 0,
+      "false_convergence": 0,
+      "unbounded_growth": 0,
+      "silent_backend_outage": 0,
+      "unbounded_recovery": 0
+    },
+    "suite": "tests/runtime_readiness/release/test_soak_chaos.py"
+  },
+  "migration_rollback": {
+    "release_candidate_receipt": {
+      "path": "docs/runtime_readiness/release_candidate_receipt.json",
+      "kind": "file",
+      "bytes": 8551,
+      "sha256": "c69788fb8e54c7693bd00d44f5fd1f17ec1389755323ab0e07f3a9f3c0204abb",
+      "evidence_cid": "bafkreig6aerzvlo4otrzhrn2ktacb5az42srstj47c5nn3bxgwh5mresoi",
+      "present": true,
+      "task_id": "KITA-046",
+      "schema": "ipfs_kit_py/runtime-readiness/release-candidate-receipt@1",
+      "interfaces": [
+        "ReleaseCandidateReceipt@1",
+        "MigrationReceipt@1",
+        "RollbackReceipt@1"
+      ],
+      "acceptance": {
+        "supported_old_state_migrates_idempotently": true,
+        "content_version_policy_semantics_preserved": true,
+        "unsupported_fails_before_mutation": true,
+        "backup_recovery_instructions_present": true,
+        "minimal_core_and_each_extra_pass_python_matrix": true,
+        "rollback_restores_prior_or_forward_recovery": true,
+        "no_acknowledged_loss": true,
+        "support_manifest_and_docs_match_registry": true,
+        "no_required_lane_skips": true,
+        "stale_receipt_cannot_satisfy_candidate": true,
+        "all_safety_floors_zero": true
+      },
+      "safety_floors": {
+        "acknowledged_loss": 0,
+        "non_idempotent_migration": 0,
+        "unsupported_mutation": 0,
+        "stale_receipt_accepted": 0,
+        "required_lane_skip": 0,
+        "registry_manifest_mismatch": 0,
+        "wheel_matrix_failure": 0,
+        "rollback_loss": 0,
+        "content_version_policy_drift": 0
+      },
+      "migration": {
+        "schema": "MigrationReceipt@1",
+        "supported_surfaces": [
+          "buckets",
+          "replica_policy",
+          "wal",
+          "arc",
+          "graphrag",
+          "vfs_bucket_content"
+        ],
+        "idempotent": true,
+        "content_version_policy_preserved": true,
+        "unsupported_fail_before_mutation": true,
+        "evidence_keys": [
+          "arc",
+          "bucket_supported",
+          "bucket_unsupported",
+          "graphrag",
+          "replica_supported",
+          "replica_unsupported",
+          "required_lanes",
+          "rollback",
+          "support_manifest",
+          "vfs_bucket_content",
+          "wal",
+          "wheel_matrix"
+        ]
+      },
+      "rollback": {
+        "schema": "RollbackReceipt@1",
+        "restores_prior_executable_state": true,
+        "forward_recovery_documented": true,
+        "acknowledged_loss": 0,
+        "wal_second_recover_noop": true,
+        "rehearsal": "backup \u2192 migrate \u2192 verify digests \u2192 restore backup \u2192 forward re-migrate; WAL crash at after_effect compensated; second recover is no-op"
+      },
+      "wheel_matrix": {
+        "version": "0.3.0",
+        "requires_python": ">=3.12",
+        "supported_python_versions": [
+          "3.12",
+          "3.13"
+        ],
+        "extra_count": 25,
+        "minimal_core_pass": true,
+        "each_extra_pass": true
+      },
+      "semantic_digest": "cfbc07e8c19da9dad59de6aff5fc24039a5d443bd4034e83c22c664fc2cd4fbd"
+    },
+    "migration_and_rollback_doc": {
+      "path": "docs/runtime_readiness/migration_and_rollback.md",
+      "kind": "file",
+      "bytes": 10269,
+      "sha256": "e35758dcc34c459634edcaae4e838e39beafad46023fea4e62e812a6fbfbac82",
+      "evidence_cid": "bafkreidj7vsykbokwla3bgywktp7qnznky5ydvfa7l7wutunegm27xseva",
+      "present": true
+    }
+  },
+  "subsystem_safety_floors": {
+    "soak_chaos": {
+      "path": "docs/runtime_readiness/soak_chaos_receipt.json",
+      "task_id": "KITA-045",
+      "safety_floors": {
+        "acknowledged_loss": 0,
+        "duplicate_non_idempotent_effects": 0,
+        "authorization_bypass": 0,
+        "path_escape": 0,
+        "unsafe_execution": 0,
+        "secret_leak": 0,
+        "false_convergence": 0,
+        "unbounded_growth": 0,
+        "silent_backend_outage": 0,
+        "unbounded_recovery": 0
+      },
+      "all_zero": true
+    },
+    "release_candidate": {
+      "path": "docs/runtime_readiness/release_candidate_receipt.json",
+      "task_id": "KITA-046",
+      "safety_floors": {
+        "acknowledged_loss": 0,
+        "non_idempotent_migration": 0,
+        "unsupported_mutation": 0,
+        "stale_receipt_accepted": 0,
+        "required_lane_skip": 0,
+        "registry_manifest_mismatch": 0,
+        "wheel_matrix_failure": 0,
+        "rollback_loss": 0,
+        "content_version_policy_drift": 0
+      },
+      "all_zero": true
+    }
+  },
+  "safety_floors": {
+    "acknowledged_loss": 0,
+    "duplicate_non_idempotent_effects": 0,
+    "authorization_bypass": 0,
+    "path_escape": 0,
+    "unsafe_execution": 0,
+    "secret_leak": 0,
+    "false_convergence": 0,
+    "stale_evidence_accepted": 0,
+    "missing_evidence_accepted": 0,
+    "required_lane_skip": 0,
+    "protected_control_mutation": 0,
+    "broader_claim_without_evidence": 0,
+    "safety_floor_violation": 0,
+    "dag_integrity_failure": 0
+  },
+  "explicit_gaps": [
+    {
+      "kind": "conditional",
+      "subject": "backend_production_live_storage",
+      "status": "no-production-live-storage-selectable",
+      "detail": "Zero backends currently hold live_tier=production with storage_selectable=true. Empty external receipts cannot promote storage; this gap blocks any production multi-backend claim.",
+      "blocks_broader_claim": "production-ready-external-storage"
+    },
+    {
+      "kind": "missing",
+      "subject": "backend_external_receipts",
+      "status": "empty-authority-current",
+      "detail": "Empty active receipt set is explicit; it is not production evidence.",
+      "blocks_broader_claim": "live-provider-certification"
+    },
+    {
+      "kind": "historical-observation",
+      "subject": "capability_manifest.version_identity.mismatch",
+      "status": "inventory-time-flag-retained",
+      "detail": "KITA-001 inventory recorded a runtime/metadata version mismatch. The inventory artifact is bound as-is; live environment.package reports current identity separately.",
+      "blocks_broader_claim": "rewriting-inventory-history"
+    }
+  ],
+  "limitations": [
+    "No live production storage tier is certified without current external or service receipts.",
+    "Empty external receipt authority is explicit and is not production evidence.",
+    "Benchmark artifacts are bound by content CID; cached/partial/simulated runs cannot satisfy floors.",
+    "Capability inventory version_identity.mismatch is retained as a historical observation when present.",
+    "This receipt is not completion-authoritative for supervisor board status mutation."
+  ],
+  "acceptance": {
+    "repository_forest_bound": true,
+    "operation_and_support_manifests_bound": true,
+    "every_task_validation_and_evidence_cid_bound": true,
+    "environment_and_toolchain_bound": true,
+    "zero_safety_floors": true,
+    "backend_tiers_honest": true,
+    "interface_parity_bound": true,
+    "benchmark_slo_bound": true,
+    "soak_chaos_bound": true,
+    "migration_rollback_bound": true,
+    "inputs_fresh_and_independently_verified": true,
+    "explicit_gaps_prevent_broader_claims": true,
+    "terminal_dag_48_task_12_goal_proven": true,
+    "protected_control_unchanged_after_kita_000": true,
+    "all_safety_floors_zero": true
+  },
+  "suite_sha256": "30e3dbf5caab1200120589a264383432ff46c4a59dd009f28b4937b6cc87fb85",
+  "semantic_digest": "a5fd594c50611961d8f348c6b4361ccb835cae9e722efe2bc5cabcf163caab1b"
+}
