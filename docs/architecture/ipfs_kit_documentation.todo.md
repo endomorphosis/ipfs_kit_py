@@ -1241,7 +1241,7 @@ Wave 4  KDOC-060..062  exclusive navigation, final audit, scorecard
 
 ## KDOC-060 Integrate one canonical navigation hierarchy
 
-- Status: todo
+- Status: completed
 - Completion: manual
 - Is schedulable: true
 - Review only: false
