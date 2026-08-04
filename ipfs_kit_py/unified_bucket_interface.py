@@ -14,16 +14,19 @@ Key Features:
 """
 
 import anyio
+import hashlib
+import inspect
 import json
 import logging
 import os
+import re
 import time
 import uuid
 from contextlib import AbstractAsyncContextManager
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Set, Union, Tuple
 
 import aiofiles
 
@@ -189,7 +192,9 @@ class UnifiedBucketInterface:
         
         # Backend managers
         self.backend_managers: Dict[BackendType, Any] = {}
-        self.bucket_vfs_managers: Dict[BackendType, BucketVFSManager] = {}
+        # Both registries use backend-qualified bucket identities.  A bare
+        # name is ambiguous as soon as two providers have the same bucket.
+        self.bucket_vfs_managers: Dict[str, BucketVFSManager] = {}
         
         # Indices
         self.global_bucket_index = EnhancedBucketIndex(
@@ -201,13 +206,18 @@ class UnifiedBucketInterface:
         
         # Cross-backend query engine
         if self.enable_cross_backend_queries:
-            self.duckdb_conn = duckdb.connect(str(self.ipfs_kit_dir / "unified_vfs.duckdb"))
+            # Views are request-scoped authorization capabilities.  Keeping
+            # them in a file-backed database would allow a later caller to
+            # name a view registered for an earlier authorization decision.
+            self.duckdb_conn = duckdb.connect(":memory:")
         else:
             self.duckdb_conn = None
         
         # Registry for active buckets
         self.bucket_registry: Dict[str, Dict[str, Any]] = {}
         self.registry_file = self.ipfs_kit_dir / "bucket_registry.json"
+        self._query_lock = anyio.Lock()
+        self._registered_query_views: Set[str] = set()
         
         # Background sync task
         self._sync_tg_cm: Optional[AbstractAsyncContextManager[anyio.abc.TaskGroup]] = None
@@ -215,6 +225,28 @@ class UnifiedBucketInterface:
         self._shutdown_event = anyio.Event()
         
         logger.info(f"Unified Bucket Interface initialized at {self.ipfs_kit_dir}")
+
+    @staticmethod
+    def _bucket_key(backend: BackendType, bucket_name: str) -> str:
+        if not isinstance(bucket_name, str) or not bucket_name or "/" in bucket_name or "\\" in bucket_name:
+            raise ValueError("bucket_name must be a non-empty single path component")
+        return f"{backend.value}/{bucket_name}"
+
+    def _resolve_bucket_key(self, bucket_name: str, backend: Optional[BackendType] = None) -> str:
+        """Resolve old bare names only when they remain unambiguous."""
+        if backend is not None:
+            key = self._bucket_key(backend, bucket_name)
+            if key not in self.bucket_registry:
+                raise KeyError(f"bucket {key!r} not found")
+            return key
+        if bucket_name in self.bucket_registry:  # canonical key supplied
+            return bucket_name
+        matches = [key for key, info in self.bucket_registry.items() if info.get("bucket_name") == bucket_name]
+        if len(matches) == 1:
+            return matches[0]
+        if len(matches) > 1:
+            raise ValueError(f"bucket name {bucket_name!r} is ambiguous; provide a backend")
+        raise KeyError(f"bucket {bucket_name!r} not found")
     
     async def initialize(self):
         """Initialize the unified bucket interface."""
@@ -263,9 +295,12 @@ class UnifiedBucketInterface:
             metadata: Additional bucket metadata
         """
         try:
-            # Create bucket directory structure directly under buckets/
-            bucket_dir = self.buckets_dir / bucket_name
-            if bucket_dir.exists():
+            bucket_key = self._bucket_key(backend, bucket_name)
+            # Provider scope is part of the on-disk identity as well as the
+            # registry identity.  This deliberately permits e.g. s3/photos
+            # and gdrive/photos to coexist.
+            bucket_dir = self.buckets_dir / backend.value / bucket_name
+            if bucket_key in self.bucket_registry or bucket_dir.exists():
                 return create_result_dict(
                     "create_backend_bucket",
                     success=False,
@@ -273,8 +308,6 @@ class UnifiedBucketInterface:
                 )
             
             # Create bucket VFS manager for this bucket
-            # Use bucket name as key instead of backend
-            bucket_key = bucket_name
             if bucket_key not in self.bucket_vfs_managers:
                 self.bucket_vfs_managers[bucket_key] = BucketVFSManager(
                     storage_path=str(bucket_dir),
@@ -300,16 +333,14 @@ class UnifiedBucketInterface:
             if not result["success"]:
                 return result
             
-            # Create VFS index directory for this bucket (directly under vfs_indices)
-            vfs_index_dir = self.vfs_indices_dir / bucket_name
+            vfs_index_dir = self.vfs_indices_dir / backend.value / bucket_name
             vfs_index_dir.mkdir(parents=True, exist_ok=True)
             
-            # Create pin metadata directory for this bucket (directly under pin_metadata)
-            pin_dir = self.pin_metadata_dir / bucket_name
+            pin_dir = self.pin_metadata_dir / backend.value / bucket_name
             pin_dir.mkdir(parents=True, exist_ok=True)
             
-            # Register bucket (use bucket name directly as key)
-            self.bucket_registry[bucket_name] = {
+            self.bucket_registry[bucket_key] = {
+                "bucket_id": bucket_key,
                 "backend": backend.value,
                 "bucket_name": bucket_name,
                 "bucket_type": bucket_type.value,
@@ -371,20 +402,15 @@ class UnifiedBucketInterface:
             metadata: Additional pin metadata
         """
         try:
-            # Use bucket name directly as key
-            print(f"DEBUG: Looking for bucket '{bucket_name}' in registry")
-            print(f"DEBUG: Registry keys: {list(self.bucket_registry.keys())}")
-            if bucket_name not in self.bucket_registry:
+            bucket_key = self._bucket_key(backend, bucket_name)
+            if bucket_key not in self.bucket_registry:
                 return create_result_dict(
                     "add_content_pin",
                     success=False,
                     error=f"Bucket '{bucket_name}' not found for backend '{backend.value}'"
                 )
             
-            print(f"DEBUG: Bucket found in registry")
-            # Get bucket manager (now keyed by bucket name)
-            bucket_manager = self.bucket_vfs_managers.get(bucket_name)
-            print(f"DEBUG: Bucket manager for '{bucket_name}': {bucket_manager is not None}")
+            bucket_manager = self.bucket_vfs_managers.get(bucket_key)
             if not bucket_manager:
                 return create_result_dict(
                     "add_content_pin",
@@ -392,10 +418,7 @@ class UnifiedBucketInterface:
                     error=f"Bucket manager for '{bucket_name}' not initialized"
                 )
             
-            print(f"DEBUG: Getting bucket '{bucket_name}' from manager")
-            print(f"DEBUG: Manager buckets: {list(bucket_manager.buckets.keys())}")
             bucket = await bucket_manager.get_bucket(bucket_name)
-            print(f"DEBUG: Bucket from manager: {bucket is not None}")
             if not bucket:
                 return create_result_dict(
                     "add_content_pin",
@@ -433,7 +456,7 @@ class UnifiedBucketInterface:
             }
             
             # Save pin metadata to bucket-specific directory (prefer Parquet over JSON)
-            pin_dir = Path(self.bucket_registry[bucket_name]["pin_metadata_path"])
+            pin_dir = Path(self.bucket_registry[bucket_key]["pin_metadata_path"])
             
             # Save as Parquet if Arrow is available
             if ARROW_AVAILABLE:
@@ -471,18 +494,6 @@ class UnifiedBucketInterface:
                 success=False,
                 error=f"Failed to add pin: {str(e)}"
             )
-    
-    async def list_all_pins(self) -> Dict[str, Any]:
-        """List all pins across all managed buckets."""
-        if not self.global_pin_index:
-            return create_result_dict("list_all_pins", success=False, error="Global pin index not initialized")
-
-        try:
-            all_pins = self.global_pin_index.get_all_pins()
-            return create_result_dict("list_all_pins", success=True, data={"pins": all_pins})
-        except Exception as e:
-            logger.error(f"Error listing all pins: {e}")
-            return create_result_dict("list_all_pins", success=False, error=str(e))
     
     async def list_backend_buckets(self, backend: Optional[BackendType] = None) -> Dict[str, Any]:
         """
@@ -571,14 +582,17 @@ class UnifiedBucketInterface:
         self,
         bucket_name: str,
         backend_config: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        backend: Optional[BackendType] = None,
     ) -> Dict[str, Any]:
         """Update an existing bucket's configuration or metadata."""
-        if bucket_name not in self.bucket_registry:
-            return create_result_dict("update_bucket", success=False, error=f"Bucket '{bucket_name}' not found")
+        try:
+            bucket_key = self._resolve_bucket_key(bucket_name, backend)
+        except (KeyError, ValueError) as exc:
+            return create_result_dict("update_bucket", success=False, error=str(exc))
 
         try:
-            bucket_info = self.bucket_registry[bucket_name]
+            bucket_info = self.bucket_registry[bucket_key]
             
             # Update backend_config and metadata
             if backend_config is not None:
@@ -592,7 +606,7 @@ class UnifiedBucketInterface:
             await self._save_bucket_registry()
             
             # Update the underlying bucket VFS manager if necessary
-            bucket_manager = self.bucket_vfs_managers.get(bucket_name)
+            bucket_manager = self.bucket_vfs_managers.get(bucket_key)
             if bucket_manager:
                 # Assuming BucketVFSManager has an update_bucket_metadata method
                 # This might need to be implemented in BucketVFSManager if it doesn't exist
@@ -604,13 +618,15 @@ class UnifiedBucketInterface:
             logger.error(f"Error updating bucket {bucket_name}: {e}")
             return create_result_dict("update_bucket", success=False, error=str(e))
 
-    async def get_content_from_bucket(self, bucket_name: str, file_path: str) -> Dict[str, Any]:
+    async def get_content_from_bucket(self, bucket_name: str, file_path: str, backend: Optional[BackendType] = None) -> Dict[str, Any]:
         """Get content of a file from a specific bucket."""
-        if bucket_name not in self.bucket_registry:
-            return create_result_dict("get_content_from_bucket", success=False, error=f"Bucket '{bucket_name}' not found")
+        try:
+            bucket_key = self._resolve_bucket_key(bucket_name, backend)
+        except (KeyError, ValueError) as exc:
+            return create_result_dict("get_content_from_bucket", success=False, error=str(exc))
 
         try:
-            bucket_manager = self.bucket_vfs_managers.get(bucket_name)
+            bucket_manager = self.bucket_vfs_managers.get(bucket_key)
             if not bucket_manager:
                 return create_result_dict("get_content_from_bucket", success=False, error=f"Bucket manager for '{bucket_name}' not initialized")
 
@@ -627,13 +643,15 @@ class UnifiedBucketInterface:
             logger.error(f"Error getting content from bucket {bucket_name}/{file_path}: {e}")
             return create_result_dict("get_content_from_bucket", success=False, error=str(e))
 
-    async def delete_bucket(self, bucket_name: str) -> Dict[str, Any]:
+    async def delete_bucket(self, bucket_name: str, backend: Optional[BackendType] = None) -> Dict[str, Any]:
         """Delete a bucket and its associated data."""
-        if bucket_name not in self.bucket_registry:
-            return create_result_dict("delete_bucket", success=False, error=f"Bucket '{bucket_name}' not found")
+        try:
+            bucket_key = self._resolve_bucket_key(bucket_name, backend)
+        except (KeyError, ValueError) as exc:
+            return create_result_dict("delete_bucket", success=False, error=str(exc))
 
         try:
-            bucket_info = self.bucket_registry[bucket_name]
+            bucket_info = self.bucket_registry[bucket_key]
             storage_path = Path(bucket_info["storage_path"])
             vfs_index_path = Path(bucket_info["vfs_index_path"])
             pin_metadata_path = Path(bucket_info["pin_metadata_path"])
@@ -648,12 +666,12 @@ class UnifiedBucketInterface:
                 shutil.rmtree(pin_metadata_path)
 
             # Remove from registry
-            del self.bucket_registry[bucket_name]
+            del self.bucket_registry[bucket_key]
             await self._save_bucket_registry()
 
             # Remove from bucket_vfs_managers if present
-            if bucket_name in self.bucket_vfs_managers:
-                del self.bucket_vfs_managers[bucket_name]
+            if bucket_key in self.bucket_vfs_managers:
+                del self.bucket_vfs_managers[bucket_key]
 
             # Update global indices
             await self._update_global_indices()
@@ -666,7 +684,9 @@ class UnifiedBucketInterface:
     async def query_across_backends(
         self,
         sql_query: str,
-        backend_filter: Optional[List[BackendType]] = None
+        backend_filter: Optional[List[BackendType]] = None,
+        *,
+        authorizer: Optional[Callable[[BackendType, str, Dict[str, Any]], Union[bool, Awaitable[bool]]]] = None,
     ) -> Dict[str, Any]:
         """
         Execute SQL query across multiple backends using DuckDB.
@@ -683,12 +703,66 @@ class UnifiedBucketInterface:
                     error="Cross-backend queries not enabled (DuckDB not available)"
                 )
             
-            # Register tables for querying
-            await self._register_cross_backend_tables(backend_filter)
-            
-            # Execute query
-            result = self.duckdb_conn.execute(sql_query).fetchall()
-            columns = [desc[0] for desc in self.duckdb_conn.description] if self.duckdb_conn.description else []
+            # Query views are a privileged, shared DuckDB connection.  Do not
+            # provide a default allow policy, and only allow read-only SQL.
+            if authorizer is None:
+                return create_result_dict("query_across_backends", success=False, error="per-bucket authorization is required")
+            statement = sql_query.strip()
+            forbidden_sql = re.compile(
+                r"\b(?:attach|copy|create|delete|detach|drop|export|import|insert|install|load|pragma|replace|update|vacuum)\b",
+                re.IGNORECASE,
+            )
+            if (
+                not statement
+                or ";" in statement
+                or not statement.lower().startswith(("select", "with"))
+                or forbidden_sql.search(statement)
+            ):
+                return create_result_dict("query_across_backends", success=False, error="only one read-only SELECT or WITH query is allowed")
+            selected: List[str] = []
+            for bucket_key, bucket_info in self.bucket_registry.items():
+                bucket_backend = BackendType(bucket_info["backend"])
+                if backend_filter and bucket_backend not in backend_filter:
+                    continue
+                allowed = authorizer(bucket_backend, bucket_info["bucket_name"], dict(bucket_info))
+                if inspect.isawaitable(allowed):
+                    allowed = await allowed
+                if not allowed:
+                    return create_result_dict("query_across_backends", success=False, error=f"not authorized for bucket {bucket_key!r}")
+                selected.append(bucket_key)
+
+            # Registration and execution share a lock.  The fingerprint on
+            # both sides rejects a query result taken across a changing set of
+            # per-bucket index files.
+            async with self._query_lock:
+                before = self._query_snapshot(selected)
+                await self._register_cross_backend_tables(backend_filter, set(selected))
+                try:
+                    # A read-only statement can still read arbitrary local
+                    # files through DuckDB table functions.  Restrict
+                    # relations to freshly-authorized views (and CTEs derived
+                    # from them), so authorization is a per-bucket boundary.
+                    cte_names = {
+                        name.lower()
+                        for name in re.findall(r"(?:\bWITH|,)\s*([A-Za-z_][A-Za-z0-9_]*)\s+AS\s*\(", statement, re.IGNORECASE)
+                    }
+                    allowed_relations = {name.lower() for name in self._registered_query_views} | cte_names
+                    relations = re.findall(r"\b(?:FROM|JOIN)\s+([A-Za-z_][A-Za-z0-9_]*)", statement, re.IGNORECASE)
+                    if any(relation.lower() not in allowed_relations for relation in relations):
+                        return create_result_dict(
+                            "query_across_backends",
+                            success=False,
+                            error="queries may reference only authorized bucket views",
+                        )
+                    result = self.duckdb_conn.execute(statement).fetchall()
+                    columns = [desc[0] for desc in self.duckdb_conn.description] if self.duckdb_conn.description else []
+                    after = self._query_snapshot(selected)
+                finally:
+                    for view_name in self._registered_query_views:
+                        self.duckdb_conn.execute(f"DROP VIEW IF EXISTS {view_name}")
+                    self._registered_query_views.clear()
+            if before != after:
+                return create_result_dict("query_across_backends", success=False, error="bucket indexes changed during query; retry against a consistent snapshot")
             
             return create_result_dict(
                 "query_across_backends",
@@ -697,8 +771,10 @@ class UnifiedBucketInterface:
                     "columns": columns,
                     "rows": result,
                     "row_count": len(result),
-                    "query": sql_query,
-                    "backend_filter": [b.value for b in backend_filter] if backend_filter else None
+                    "query": statement,
+                    "backend_filter": [b.value for b in backend_filter] if backend_filter else None,
+                    "bucket_snapshot": before,
+                    "buckets": selected,
                 }
             )
             
@@ -879,17 +955,41 @@ class UnifiedBucketInterface:
             logger.error(f"Error during cleanup: {e}")
     
     async def _initialize_backend_managers(self):
-        """Initialize bucket-specific managers from existing bucket directories."""
-        # Scan buckets directory for existing buckets
-        if self.buckets_dir.exists():
-            for bucket_dir in self.buckets_dir.iterdir():
-                if bucket_dir.is_dir():
-                    bucket_name = bucket_dir.name
-                    self.bucket_vfs_managers[bucket_name] = BucketVFSManager(
-                        storage_path=str(bucket_dir),
-                        enable_parquet_export=True,
-                        enable_duckdb_integration=self.enable_cross_backend_queries
-                    )
+        """Initialize managers from the canonical registry, not directory names."""
+        for bucket_key, bucket_info in self.bucket_registry.items():
+            self.bucket_vfs_managers[bucket_key] = BucketVFSManager(
+                storage_path=str(bucket_info["storage_path"]),
+                enable_parquet_export=True,
+                enable_duckdb_integration=self.enable_cross_backend_queries,
+            )
+
+    def _migrate_bucket_registry(self, raw: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+        """Convert name-keyed records once, without changing legacy data paths.
+
+        The source mapping is never modified.  A collision whose records are
+        not the same logical bucket is rejected before the caller writes
+        anything, which makes retry after repair idempotent.
+        """
+        migrated: Dict[str, Dict[str, Any]] = {}
+        for old_key, original in raw.items():
+            if not isinstance(original, dict):
+                raise ValueError(f"bucket registry entry {old_key!r} is not an object")
+            item = dict(original)
+            backend_value = item.get("backend")
+            name = item.get("bucket_name") or old_key.rsplit("/", 1)[-1]
+            try:
+                backend = BackendType(backend_value)
+                bucket_key = self._bucket_key(backend, name)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"invalid legacy bucket registry entry {old_key!r}") from exc
+            item["backend"] = backend.value
+            item["bucket_name"] = name
+            item["bucket_id"] = bucket_key
+            previous = migrated.get(bucket_key)
+            if previous is not None and previous != item:
+                raise ValueError(f"conflicting legacy records for {bucket_key!r}")
+            migrated[bucket_key] = item
+        return migrated
     
     async def _load_bucket_registry(self):
         """Load bucket registry from disk (prefer Parquet over JSON)."""
@@ -903,14 +1003,27 @@ class UnifiedBucketInterface:
                 # Fallback to JSON
                 async with aiofiles.open(self.registry_file, 'r') as f:
                     content = await f.read()
-                    self.bucket_registry = json.loads(content)
+                    raw = json.loads(content)
+                    migrated = self._migrate_bucket_registry(raw)
+                    self.bucket_registry = migrated
+                    if raw != migrated:
+                        try:
+                            await self._save_bucket_registry()
+                        except Exception:
+                            # Keep the in-memory representation aligned with
+                            # the durable legacy registry when publication
+                            # fails; a later initialize can retry safely.
+                            self.bucket_registry = raw
+                            raise
             else:
                 self.bucket_registry = {}
                 
             logger.info(f"Loaded {len(self.bucket_registry)} buckets from registry")
         except Exception as e:
             logger.error(f"Failed to load bucket registry: {e}")
-            self.bucket_registry = {}
+            # If a migration publication failed, `_load_bucket_registry`
+            # deliberately retained the parsed legacy records.  Do not turn
+            # that recoverable state into data loss by overwriting it here.
 
     async def _load_bucket_registry_parquet(self, parquet_path: Path):
         """Load bucket registry from Parquet file."""
@@ -918,14 +1031,15 @@ class UnifiedBucketInterface:
             import pandas as pd
             
             df = pd.read_parquet(parquet_path)
-            self.bucket_registry = {}
+            raw_registry: Dict[str, Dict[str, Any]] = {}
             
             for _, row in df.iterrows():
                 bucket_id = row["bucket_id"]
                 metadata = json.loads(row["metadata_json"]) if row["metadata_json"] else {}
                 backend_config = json.loads(row.get("backend_config_json", "{}")) if row.get("backend_config_json") else {}
 
-                self.bucket_registry[bucket_id] = {
+                raw_registry[bucket_id] = {
+                    "bucket_id": bucket_id,
                     "backend": row["backend"],
                     "bucket_name": row["bucket_name"],
                     "bucket_type": row["bucket_type"],
@@ -937,6 +1051,14 @@ class UnifiedBucketInterface:
                     "backend_config": backend_config,
                     "metadata": metadata
                 }
+            migrated = self._migrate_bucket_registry(raw_registry)
+            self.bucket_registry = migrated
+            if raw_registry != migrated:
+                try:
+                    await self._save_bucket_registry()
+                except Exception:
+                    self.bucket_registry = raw_registry
+                    raise
                 
         except Exception as e:
             logger.error(f"Failed to load bucket registry from Parquet: {e}")
@@ -945,17 +1067,21 @@ class UnifiedBucketInterface:
     async def _save_bucket_registry(self):
         """Save bucket registry to disk (prefer Parquet over JSON)."""
         try:
+            # JSON is the migration source of truth.  Publish it atomically;
+            # an interruption can therefore leave only the complete old or
+            # complete new registry, never a half-migrated one.
+            temporary = self.registry_file.with_name(f".{self.registry_file.name}.{uuid.uuid4().hex}.tmp")
+            async with aiofiles.open(temporary, 'w') as f:
+                await f.write(json.dumps(self.bucket_registry, indent=2, sort_keys=True))
+                await f.flush()
+            os.replace(temporary, self.registry_file)
             if ARROW_AVAILABLE:
                 await self._save_bucket_registry_parquet()
-                # Also save JSON as backup for compatibility
-                async with aiofiles.open(self.registry_file, 'w') as f:
-                    await f.write(json.dumps(self.bucket_registry, indent=2))
-            else:
-                # Fallback to JSON if Arrow not available
-                async with aiofiles.open(self.registry_file, 'w') as f:
-                    await f.write(json.dumps(self.bucket_registry, indent=2))
         except Exception as e:
             logger.error(f"Failed to save bucket registry: {e}")
+            if temporary.exists():
+                temporary.unlink(missing_ok=True)
+            raise
 
     async def _save_bucket_registry_parquet(self):
         """Save bucket registry as Parquet file."""
@@ -1013,10 +1139,11 @@ class UnifiedBucketInterface:
     ):
         """Update VFS index for a specific bucket."""
         try:
-            if bucket_name not in self.bucket_registry:
+            bucket_key = self._bucket_key(backend, bucket_name)
+            if bucket_key not in self.bucket_registry:
                 return
             
-            vfs_index_path = Path(self.bucket_registry[bucket_name]["vfs_index_path"])
+            vfs_index_path = Path(self.bucket_registry[bucket_key]["vfs_index_path"])
             index_file = vfs_index_path / "vfs_index.json"
             
             # Load existing index
@@ -1208,10 +1335,11 @@ class UnifiedBucketInterface:
     ) -> Dict[str, Any]:
         """Get statistics for a specific bucket."""
         try:
-            if bucket_name not in self.bucket_registry:
+            bucket_key = self._bucket_key(backend, bucket_name)
+            if bucket_key not in self.bucket_registry:
                 return {}
             
-            bucket_info = self.bucket_registry[bucket_name]
+            bucket_info = self.bucket_registry[bucket_key]
             
             # Load VFS index
             vfs_index_path = Path(bucket_info["vfs_index_path"])
@@ -1250,13 +1378,14 @@ class UnifiedBucketInterface:
     ) -> Dict[str, Any]:
         """Synchronize index for a specific bucket."""
         try:
-            if bucket_name not in self.bucket_registry:
+            bucket_key = self._bucket_key(backend, bucket_name)
+            if bucket_key not in self.bucket_registry:
                 return create_result_dict("sync_bucket_index", success=False, error="Bucket not found")
             
-            bucket_info = self.bucket_registry[bucket_name]
+            bucket_info = self.bucket_registry[bucket_key]
             
             # Refresh VFS index from actual storage
-            bucket_manager = self.bucket_vfs_managers.get(backend)
+            bucket_manager = self.bucket_vfs_managers.get(bucket_key)
             if bucket_manager:
                 bucket = await bucket_manager.get_bucket(bucket_name)
                 if bucket:
@@ -1333,13 +1462,32 @@ class UnifiedBucketInterface:
             logger.error(f"Failed to sync bucket index: {e}")
             return create_result_dict("sync_bucket_index", success=False, error=str(e))
     
-    async def _register_cross_backend_tables(self, backend_filter: Optional[List[BackendType]]):
+    def _query_snapshot(self, bucket_keys: List[str]) -> str:
+        """Return a content-bound fingerprint of selected query inputs."""
+        files: List[Tuple[str, int, int, str]] = []
+        for bucket_key in sorted(bucket_keys):
+            bucket_info = self.bucket_registry[bucket_key]
+            parquet_file = Path(bucket_info["vfs_index_path"]) / "vfs_index.parquet"
+            if parquet_file.exists():
+                stat = parquet_file.stat()
+                digest = hashlib.sha256(parquet_file.read_bytes()).hexdigest()
+                files.append((bucket_key, stat.st_size, stat.st_mtime_ns, digest))
+            else:
+                files.append((bucket_key, 0, 0, "missing"))
+        return hashlib.sha256(json.dumps(files, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+    async def _register_cross_backend_tables(self, backend_filter: Optional[List[BackendType]], selected_keys: Optional[Set[str]] = None):
         """Register tables for cross-backend queries."""
         try:
             if not self.duckdb_conn:
                 return
             
+            for view_name in self._registered_query_views:
+                self.duckdb_conn.execute(f"DROP VIEW IF EXISTS {view_name}")
+            self._registered_query_views.clear()
             for bucket_id, bucket_info in self.bucket_registry.items():
+                if selected_keys is not None and bucket_id not in selected_keys:
+                    continue
                 backend = BackendType(bucket_info["backend"])
                 if backend_filter and backend not in backend_filter:
                     continue
@@ -1349,10 +1497,12 @@ class UnifiedBucketInterface:
                 parquet_file = vfs_index_path / "vfs_index.parquet"
                 
                 if parquet_file.exists():
-                    table_name = f"vfs_{backend.value}_{bucket_info['bucket_name']}"
+                    table_name = "vfs_" + hashlib.sha256(bucket_id.encode("utf-8")).hexdigest()[:20]
+                    escaped = str(parquet_file).replace("'", "''")
                     self.duckdb_conn.execute(
-                        f"CREATE OR REPLACE VIEW {table_name} AS SELECT * FROM read_parquet('{parquet_file}')"
+                        f"CREATE VIEW {table_name} AS SELECT * FROM read_parquet('{escaped}')"
                     )
+                    self._registered_query_views.add(table_name)
                     
         except Exception as e:
             logger.error(f"Failed to register cross-backend tables: {e}")

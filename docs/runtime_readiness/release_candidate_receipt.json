@@ -1,0 +1,183 @@
+{
+  "schema": "ipfs_kit_py/runtime-readiness/release-candidate-receipt@1",
+  "contract_version": 1,
+  "task_id": "KITA-046",
+  "title": "Validate compatibility migration, wheel matrix, rollout, and rollback",
+  "suite": "tests/runtime_readiness/release/test_release_candidate.py",
+  "interfaces": [
+    "ReleaseCandidateReceipt@1",
+    "MigrationReceipt@1",
+    "RollbackReceipt@1"
+  ],
+  "authority": {
+    "statement": "Release-candidate qualification proves supported legacy VFS/bucket/WAL/ARC/GraphRAG/replica state migrates idempotently with preserved content, version, and policy semantics; unsupported state fails before mutation with backup and recovery instructions; minimal core and every optional extra project onto the supported Python matrix; staged rollback restores an executable prior state or documents forward recovery without acknowledged loss; the backend support manifest and matrix docs match the live BackendSpec registry; and no required dependency lane skip or stale foreign receipt can satisfy this candidate.",
+    "bucket_migration": "ipfs_kit_py.core.buckets.adapters",
+    "replica_policy_migration": "ipfs_kit_py.backend_policies.migrate_legacy_replication_policy",
+    "wal_compatibility": "ipfs_kit_py.core.wal.compatibility",
+    "arc_persistence": "ipfs_kit_py.cache.arc.persistence",
+    "graphrag_service": "ipfs_kit_py.graphrag.service.GraphRAGService",
+    "backend_inventory": "ipfs_kit_py.backends.spec",
+    "packaging": "pyproject.toml",
+    "migration_doc": "docs/runtime_readiness/migration_and_rollback.md",
+    "receipt_interface": "ReleaseCandidateReceipt@1",
+    "migration_interface": "MigrationReceipt@1",
+    "rollback_interface": "RollbackReceipt@1"
+  },
+  "exclusion_policy": {
+    "excluded_only_gate": false,
+    "mandatory_in_default_ci": true
+  },
+  "dependency_lanes": {
+    "KITA-009": "docs/runtime_readiness/vfs_conformance.json",
+    "KITA-013": "docs/runtime_readiness/bucket_conformance.json",
+    "KITA-017": "docs/runtime_readiness/graphrag_conformance.json",
+    "KITA-021": "docs/runtime_readiness/replica_conformance.json",
+    "KITA-025": "docs/runtime_readiness/arc_conformance.json",
+    "KITA-029": "docs/runtime_readiness/mcplusplus_conformance.json",
+    "KITA-033": "docs/runtime_readiness/mcplusplus_conformance.json",
+    "KITA-037": "docs/runtime_readiness/interface_manifest.json",
+    "KITA-042": "docs/runtime_readiness/backend_support_manifest.json",
+    "KITA-045": "docs/runtime_readiness/soak_chaos_receipt.json"
+  },
+  "migration": {
+    "schema": "MigrationReceipt@1",
+    "supported_surfaces": [
+      "buckets",
+      "replica_policy",
+      "wal",
+      "arc",
+      "graphrag",
+      "vfs_bucket_content"
+    ],
+    "idempotent": true,
+    "content_version_policy_preserved": true,
+    "unsupported_fail_before_mutation": true,
+    "evidence_keys": [
+      "arc",
+      "bucket_supported",
+      "bucket_unsupported",
+      "graphrag",
+      "replica_supported",
+      "replica_unsupported",
+      "required_lanes",
+      "rollback",
+      "support_manifest",
+      "vfs_bucket_content",
+      "wal",
+      "wheel_matrix"
+    ]
+  },
+  "rollback": {
+    "schema": "RollbackReceipt@1",
+    "restores_prior_executable_state": true,
+    "forward_recovery_documented": true,
+    "acknowledged_loss": 0,
+    "wal_second_recover_noop": true,
+    "rehearsal": "backup \u2192 migrate \u2192 verify digests \u2192 restore backup \u2192 forward re-migrate; WAL crash at after_effect compensated; second recover is no-op"
+  },
+  "wheel_matrix": {
+    "package": "ipfs_kit_py",
+    "version": "0.3.0",
+    "requires_python": ">=3.12",
+    "supported_python_versions": [
+      "3.12",
+      "3.13"
+    ],
+    "current_python": "3.12",
+    "core_dependency_count": 22,
+    "extras": [
+      "ai_ml",
+      "api",
+      "arrow",
+      "car_files",
+      "dev",
+      "enhanced_ipfs",
+      "filecoin_pin",
+      "fsspec",
+      "full",
+      "graphql",
+      "graphrag",
+      "huggingface",
+      "ipfs_accelerate",
+      "ipfs_datasets",
+      "ipld",
+      "ipld-github",
+      "ipni",
+      "iroh",
+      "libp2p",
+      "mcp",
+      "performance",
+      "s3",
+      "saturn",
+      "transformers",
+      "webrtc"
+    ],
+    "extra_count": 25,
+    "minimal_core_pass": true,
+    "each_extra_pass": true,
+    "runtime_version_matches_metadata": true,
+    "requirements_txt_matches_core": true,
+    "extra_projection_sha256": "58aa559942b066a3be5df5a229e215e714738ecf6f71353234931f0cedf1be05",
+    "notes": "Hermetic CI validates packaging projection and core import on the running matrix member; multi-interpreter wheel builds are operator lanes bound to the same requires-python and extra names."
+  },
+  "support_manifest": {
+    "path": "docs/runtime_readiness/backend_support_manifest.json",
+    "matrix_doc": "docs/runtime_readiness/backend_support_matrix.md",
+    "inventory_count": 27,
+    "manifest_matches_inventory": true,
+    "schemas_match_active": true,
+    "docs_list_every_canonical_name": true,
+    "manifest_sha256": "913d5e6485d6fd437aac1f17a06bdef1577ca98658929e291cbbc5001f0018ca",
+    "matrix_doc_sha256": "6589bfafe5c50a57a7d073c287ed7b0ef50cf04e34dd12ff493f25c447ef22f9"
+  },
+  "evidence_subset": {
+    "schema_data_migration": "migrate_legacy_bucket_registry and ARC persist/restore preserve content/version/policy; GraphRAG restart/rebuild preserve projection identity",
+    "old_fixtures": "Hermetic legacy bucket registry v1, legacy replication policy, legacy WAL status tokens",
+    "wal_replay": "WALTransactionCoordinator crash at after_effect; recover compensates; second recover is no-op",
+    "index_rebuild": "GraphRAGService.clean_rebuild matches restart projection identity",
+    "cache_discard": "ARC unsupported schema version restore misses without mutating resident entries",
+    "policy_migration": "migrate_legacy_replication_policy preserves supported replica counts/backends; geo_distribution fails closed",
+    "python_versions": "Classifiers and requires-python matrix: ['3.12', '3.13']",
+    "minimal_extras_wheels": "Core dependencies \u2261 requirements.txt; every optional extra non-empty; graphrag and mcp extras exact",
+    "rollback": "File-level prior-state restore and documented forward recovery without acknowledged loss"
+  },
+  "invariants": {
+    "supported_migration_idempotent": "Second migrate of supported bucket registry equals first; WAL projection stable",
+    "content_version_policy_preserved": "Registry policy/content_version, ARC binding dimensions, GraphRAG version_id retained",
+    "unsupported_before_mutation": "Missing backend, conflicting aliases, non-expressible replica fields raise before publish",
+    "backup_recovery_instructions": "Operator doc and receipt carry the five-step backup/recovery procedure",
+    "wheel_matrix_closed": "Supported Python versions from classifiers; extras from pyproject only",
+    "rollback_or_forward_recovery": "Prior digest restored from backup; forward re-migration matches post-migration digest",
+    "no_acknowledged_loss": "Committed effects retained; incomplete WAL effects compensated",
+    "manifest_matches_registry": "Manifest names == ACTIVE \u222a EXCLUDED; matrix doc lists every canonical name",
+    "no_required_lane_skips": "All dependency lane evidence files present and non-empty",
+    "stale_receipt_rejected": "Foreign task receipts and mismatched semantic digests cannot satisfy KITA-046"
+  },
+  "acceptance": {
+    "supported_old_state_migrates_idempotently": true,
+    "content_version_policy_semantics_preserved": true,
+    "unsupported_fails_before_mutation": true,
+    "backup_recovery_instructions_present": true,
+    "minimal_core_and_each_extra_pass_python_matrix": true,
+    "rollback_restores_prior_or_forward_recovery": true,
+    "no_acknowledged_loss": true,
+    "support_manifest_and_docs_match_registry": true,
+    "no_required_lane_skips": true,
+    "stale_receipt_cannot_satisfy_candidate": true,
+    "all_safety_floors_zero": true
+  },
+  "safety_floors": {
+    "acknowledged_loss": 0,
+    "non_idempotent_migration": 0,
+    "unsupported_mutation": 0,
+    "stale_receipt_accepted": 0,
+    "required_lane_skip": 0,
+    "registry_manifest_mismatch": 0,
+    "wheel_matrix_failure": 0,
+    "rollback_loss": 0,
+    "content_version_policy_drift": 0
+  },
+  "suite_sha256": "c03051501e18b39c0a92dbc1923b21aeaae790fd09213857f10b7c8d83655d98",
+  "migration_doc_sha256": "e35758dcc34c459634edcaae4e838e39beafad46023fea4e62e812a6fbfbac82",
+  "semantic_digest": "cfbc07e8c19da9dad59de6aff5fc24039a5d443bd4034e83c22c664fc2cd4fbd"
+}

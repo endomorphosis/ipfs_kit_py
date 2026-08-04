@@ -12,6 +12,15 @@ The MCP pattern is particularly useful for IPFS Kit as it allows:
 - Clear boundaries between components
 """
 
-from ipfs_kit_py.mcp.server_bridge import MCPServer  # Refactored import
-
 __all__ = ["MCPServer"]
+
+
+def __getattr__(name: str):
+    """Keep the legacy server export without loading its HTTP stack eagerly."""
+
+    if name == "MCPServer":
+        from ipfs_kit_py.mcp.server_bridge import MCPServer
+
+        globals()[name] = MCPServer
+        return MCPServer
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

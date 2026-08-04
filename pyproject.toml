@@ -17,7 +17,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -55,6 +54,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+graphrag = [
+    "networkx>=3.0",
+    "numpy>=1.20.0",
+    "faiss-cpu>=1.8.0",
+    "ipfs_datasets_py",
+]
+mcp = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.22.0",
+    "jinja2>=3.1.0",
+    "mcp>=1.0.0",
+]
 iroh = [
     "blake3>=0.4.1",
     "duckdb>=1.4.0",

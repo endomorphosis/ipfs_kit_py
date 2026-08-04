@@ -1,0 +1,37 @@
+{
+  "schema": "ipfs_kit_py/runtime-readiness/arc-conformance@1",
+  "contract_version": 1,
+  "suite": "tests/runtime_readiness/arc/test_arc_joined_conformance.py",
+  "exclusion_policy": {
+    "excluded_only_gate": false,
+    "mandatory_in_default_ci": true
+  },
+  "randomized_invariants": {
+    "seed_count": 2048,
+    "maximum_operations_per_seed": 32,
+    "checks": [
+      "reference_trace_equality",
+      "capacity_accounting",
+      "four_list_disjointness",
+      "adaptive_target_bounds"
+    ]
+  },
+  "concurrent_schedules": {
+    "schedule_count": 256,
+    "operations_per_schedule": 8,
+    "minimum_total_operations": 2048,
+    "checks": ["admission_result", "live_key_set", "post_schedule_invariants"]
+  },
+  "restart_and_rejection": {
+    "checks": ["exact_binding_restart_identity", "checksum_corruption_safe_miss", "atomic_target_retention"]
+  },
+  "coherence": {
+    "sources": ["vfs_write", "vfs_delete", "wal_replay", "index_rebuild", "replica_convergence"],
+    "required_property": "only the exact stale binding is invalidated; unrelated bindings remain readable"
+  },
+  "performance": {
+    "minimum_hit_miss_speedup": 2.5,
+    "maximum_memory_overhead_bytes": 524288,
+    "cold_path_failure_must_remain_visible": true
+  }
+}

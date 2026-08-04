@@ -284,6 +284,7 @@
       }
       this._id = 0;
       this.clientInfo = options.clientInfo || { name: 'mcpp-js-client', version: '1.0.0' };
+      this.authorizationEnvelopeProvider = options.authorizationEnvelopeProvider || null;
     }
 
     /** Low-level JSON-RPC call. */
@@ -320,21 +321,39 @@
      * Call any tool by name. Accepts a bare name, a dotted `<category>.<tool>`
      * name, or one of the meta-tool names — the server resolves all three.
      */
-    async callTool(name, args = {}) {
-      const result = await this._rpc('tools/call', { name, arguments: args });
+    async callTool(name, args = {}, envelope = null) {
+      let authorizationEnvelope = envelope;
+      if (!authorizationEnvelope && this.authorizationEnvelopeProvider) {
+        authorizationEnvelope = await this.authorizationEnvelopeProvider({
+          name,
+          arguments: args,
+        });
+      }
+      if (
+        !authorizationEnvelope ||
+        typeof authorizationEnvelope !== 'object' ||
+        Array.isArray(authorizationEnvelope)
+      ) {
+        throw new MCPPPError(-32003, 'signed MCP++ authorization envelope required');
+      }
+      const result = await this._rpc('tools/call', {
+        name,
+        arguments: args,
+        _mcppp_envelope: authorizationEnvelope,
+      });
       return unwrapToolResult(result);
     }
 
     // ---- Hierarchical facade helpers (meta-tools) ----
 
     /** List tool categories; `{ categories: [{ name, tool_count? }], ... }`. */
-    async listCategories(includeCount = true) {
-      return await this.callTool('tools_list_categories', { include_count: includeCount });
+    async listCategories(includeCount = true, envelope = null) {
+      return await this.callTool('tools_list_categories', { include_count: includeCount }, envelope);
     }
 
     /** List the tools inside one category; `{ tools: [{ name, description }], ... }`. */
-    async listToolsInCategory(category) {
-      return await this.callTool('tools_list_tools', { category });
+    async listToolsInCategory(category, envelope = null) {
+      return await this.callTool('tools_list_tools', { category }, envelope);
     }
 
     /**
@@ -342,15 +361,15 @@
      * @param {string|object} nameOrTool - a tool name string, or `{ name }` /
      *   `{ category, tool }` selector object.
      */
-    async getToolSchema(nameOrTool) {
+    async getToolSchema(nameOrTool, envelope = null) {
       const params =
         typeof nameOrTool === 'string' ? { name: nameOrTool } : nameOrTool || {};
-      return await this.callTool('tools_get_schema', params);
+      return await this.callTool('tools_get_schema', params, envelope);
     }
 
     /** Dispatch a tool inside a category via the `tools_dispatch` meta-tool. */
-    async dispatch(category, tool, params = {}) {
-      return await this.callTool('tools_dispatch', { category, tool, params });
+    async dispatch(category, tool, params = {}, envelope = null) {
+      return await this.callTool('tools_dispatch', { category, tool, params }, envelope);
     }
 
     // ---- Convenience constructors ----

@@ -1,63 +1,25 @@
-# IPFS Kit Python Core Requirements
-# ==================================
-
-# Core dependencies from pyproject.toml
+# Canonical runtime requirements from pyproject.toml [project].dependencies.
+# Optional features and development tools are intentionally excluded; install
+# those through the named extras in pyproject.toml.
 requests>=2.28.0
-httpx>=0.24.0  # For async HTTP requests and IPFS API client
-aiohttp>=3.8.4  # For async HTTP operations
-aiofiles>=23.1.0  # For async file operations
-watchdog>=3.0.0  # For file system monitoring
+httpx>=0.24.0
+aiohttp>=3.8.4
+aiofiles>=23.1.0
+watchdog>=3.0.0
 psutil>=5.9.0
 pyyaml>=6.0
-base58>=2.1.1
-multiaddr>=0.0.9  # For libp2p multiaddress support
-importlib-metadata>=4.12.0; python_version < '3.10'
-python-magic>=0.4.27  # For file type detection
-anyio>=3.7.0  # For async operations with backend flexibility
-trio>=0.22.0  # Optional backend for anyio
-cryptography>=38.0.0  # Required for libp2p
-toml
-
-# MCP Server dependencies
-fastapi>=0.100.0
-uvicorn>=0.22.0
-python-multipart>=0.0.6
-websockets>=11.0.3
-pydantic>=2.5.0
-
-# Additional commonly used optional dependencies
-transformers>=4.20.0
-huggingface-hub>=0.10.0
-fsspec>=2023.3.0
-requests-unixsocket>=0.3.0
-pyarrow>=11.0.0
-pandas>=1.3.0
-duckdb>=0.10.0
-numpy>=1.20.0
-matplotlib>=3.7.0
 networkx>=3.0
 jsonpatch>=1.33
-rdflib>=7.0.0
-
-# IPLD support
-ipld-car>=0.0.1
-ipld-dag-pb>=0.0.1
-dag-cbor>=0.2.0
-multiformats>=0.3.0
-
-# LibP2P support (track upstream py-libp2p main)
-# Canonical source is the GitHub main branch.
-libp2p @ git+https://github.com/libp2p/py-libp2p.git@main; python_version < '3.14' and platform_system != 'Windows'
+base58>=2.1.1
+multiaddr>=0.0.9
+multiformats>=0.2.0
+python-magic>=0.4.27
+anyio>=3.7.0
+hypercorn>=0.16.0
+trio>=0.22.0
+cryptography>=38.0.0
+cffi>=1.16.0
 protobuf>=5.26.0,<7.0.0
 eth-hash[pycryptodome]>=0.3.3
 eth-keys>=0.4.0
-
-# Development dependencies
-pytest>=7.0.0
-pytest-cov>=4.1.0
-pytest-asyncio>=0.23.0
-pytest-timeout>=2.3.1
-pytest-trio>=0.8.0  # For testing with trio backend
-black>=23.3.0
-isort>=5.12.0
-ipfs-api>=0.1.0
+toml

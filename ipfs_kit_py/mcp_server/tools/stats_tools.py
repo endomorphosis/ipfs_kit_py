@@ -11,14 +11,14 @@ from ..tool_metadata import tool_metadata
 @tool_metadata(summary="Report node bandwidth statistics", tags=["stats", "read"])
 async def stats_bw() -> Dict[str, Any]:
     out = await _call("ipfs_stats_bw")
-    out["request_id"] = str(uuid.uuid4())
+    out.setdefault("_dispatch", {})["request_id"] = str(uuid.uuid4())
     return out
 
 
 @tool_metadata(summary="Report local repo statistics", tags=["stats", "read"])
 async def stats_repo() -> Dict[str, Any]:
     out = await _call("ipfs_stats_repo")
-    out["request_id"] = str(uuid.uuid4())
+    out.setdefault("_dispatch", {})["request_id"] = str(uuid.uuid4())
     return out
 
 

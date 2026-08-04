@@ -10,6 +10,31 @@ import anyio
 import json
 from typing import Optional
 
+
+# These historical commands are not registry projections.  They stay outside
+# the canonical adapter surface until they are represented by complete
+# OperationDefinition records with schemas, authorization, and capabilities.
+REGISTRY_CLI_NON_APPLICABLE_REASON = (
+    "legacy backend commands are not declared OperationRegistry transports; "
+    "use build_registry_cli_adapter with registered operations"
+)
+
+
+def build_registry_cli_adapter(registry, router, *, program_name="ipfs-kit-operation"):
+    """Build the generated, canonical registry CLI adapter."""
+
+    from .cli.operation_adapter import build_cli_adapter
+
+    return build_cli_adapter(registry, router, program_name=program_name)
+
+
+def run_registry_cli(registry, router, argv=None, *, stdout=None, stderr=None) -> int:
+    """Run a registry-advertised command with canonical JSON output."""
+
+    return build_registry_cli_adapter(registry, router).run(
+        argv, stdout=stdout, stderr=stderr
+    )
+
 # Simple Args class for CLI compatibility
 class Args:
     def __init__(self):

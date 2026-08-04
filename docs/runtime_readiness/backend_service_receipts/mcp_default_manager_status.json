@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "component": "mcp-default-storage-manager",
+  "status": "blocked",
+  "reason": "IPFS registration constructs the MCP-local IPFSBackend with an incompatible positional backend type; repair requires edits outside KITA-040's declared adapter paths.",
+  "certification_rule": "A blocked dependency is not a passing service receipt and must not select a fallback backend."
+}

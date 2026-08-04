@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IPFS Kit provider promotion receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "receipt_id",
+    "provider_type",
+    "issued_at",
+    "expires_at",
+    "runtime_factory",
+    "tested_operations",
+    "rate_limit",
+    "timeout_seconds",
+    "retry",
+    "idempotency",
+    "consistency"
+  ],
+  "properties": {
+    "schema": {"const": "ipfs-kit-provider-receipt/v1"},
+    "receipt_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "provider_type": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "issued_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "runtime_factory": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "tested_operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"enum": ["health", "put", "get", "stream", "read_range", "list", "get_metadata", "set_metadata", "delete"]}
+    },
+    "rate_limit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_requests", "window_seconds"],
+      "properties": {
+        "max_requests": {"type": "integer", "minimum": 1, "maximum": 100000},
+        "window_seconds": {"type": "integer", "minimum": 1, "maximum": 86400}
+      }
+    },
+    "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 86400},
+    "retry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_attempts", "retryable_codes"],
+      "properties": {
+        "max_attempts": {"type": "integer", "minimum": 0, "maximum": 20},
+        "retryable_codes": {"type": "array", "items": {"type": "string", "pattern": "^E_[A-Z_]+$"}}
+      }
+    },
+    "idempotency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_for_mutations"],
+      "properties": {"required_for_mutations": {"const": true}}
+    },
+    "consistency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "verified"],
+      "properties": {
+        "model": {"enum": ["eventual", "read-your-writes", "strong"]},
+        "verified": {"const": true}
+      }
+    }
+  }
+}

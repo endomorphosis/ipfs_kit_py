@@ -1,0 +1,122 @@
+{
+  "schema": "ipfs_kit_py/runtime-readiness/mcplusplus-conformance@1",
+  "contract_version": 1,
+  "task_id": "KITA-033",
+  "title": "Prove MCP++ authorization and result parity across transports",
+  "suite": "tests/runtime_readiness/mcplusplus/test_transport_security_parity.py",
+  "interfaces": [
+    "MCPPlusPlusSecurityReceipt@1"
+  ],
+  "authority": {
+    "statement": "AuthorizationGate@1 is the sole dispatch gate for protected MCP tools. UCANVerifier@1 with a durable RevocationLedger@1 and ProfileDPolicyProvider@1 admit effects. Stdio, HTTP, and P2P are framing projections of the same JSON-RPC handler and must not reimplement authorization or storage logic.",
+    "server_module": "ipfs_kit_py.mcp_server.server",
+    "authorization_module": "ipfs_kit_py.mcp_server.authorization",
+    "ucan_module": "ipfs_kit_py.mcp_server.mcplusplus.ucan",
+    "revocation_module": "ipfs_kit_py.mcp_server.mcplusplus.revocation",
+    "event_dag_module": "ipfs_kit_py.mcp_server.mcplusplus.event_dag",
+    "policy_module": "ipfs_kit_py.mcp.profile_d_policy",
+    "p2p_module": "ipfs_kit_py.mcp_server.p2p_transport",
+    "receipt_interface": "MCPPlusPlusSecurityReceipt@1"
+  },
+  "transports": [
+    "stdio",
+    "http",
+    "p2p"
+  ],
+  "transport_entrypoints": {
+    "stdio": "server.handle_stdio_line, the JSON-line codec used by serve_stdio",
+    "http": "Hypercorn asyncio server over an ephemeral loopback TCP socket, posting JSON-RPC to /mcp; e2e additionally launches the production Trio process entrypoint",
+    "p2p": "p2p_transport.handle_stream_message over /mcp+p2p/1.0.0"
+  },
+  "parity_policy": {
+    "id": "MCPPlusPlusTransportSecurityParity@1",
+    "strip_before_compare": [
+      "_dispatch"
+    ],
+    "must_match_on_denial": [
+      "error.data.authorization",
+      "error.data.reason",
+      "authorization.decision.event_cid",
+      "authorization.decision.semantic_decision_cid",
+      "dispatch_count_zero"
+    ],
+    "must_match_on_allow": [
+      "status",
+      "body",
+      "interface_cid",
+      "input_cid",
+      "intent_cid",
+      "decision_cid",
+      "output_cid",
+      "receipt_cid",
+      "event_cid",
+      "content_cid",
+      "version",
+      "transaction_cid",
+      "authorization_decision",
+      "authorization_tool",
+      "authorization_ability",
+      "authorization_policy_root"
+    ],
+    "envelope_bound_artifacts_excluded_on_allow": [],
+    "note": "Each transport receives one identical signed request against an independent ledger and Event DAG under a frozen authorization clock. Raw durable decision event CIDs and every Profile B artifact CID must therefore match. Only the namespaced top-level _dispatch tracing object is removed by production Profile B output normalization; top-level and nested domain fields remain content-bound."
+  },
+  "adversarial_corpus": {
+    "absent_forged_tampered_expired_revoked_replayed_attenuation_confused_deputy_downgrade": true,
+    "missing_envelope": "authorization_envelope_required; zero dispatch; identical decision CID",
+    "tool_mismatch": "tool_binding_mismatch",
+    "resource_mismatch": "resource_binding_mismatch",
+    "ability_mismatch": "ability_binding_mismatch",
+    "policy_root_mismatch": "policy_root_mismatch",
+    "policy_denied": "Profile D prohibition yields policy_denied before handler",
+    "unsigned_token": "signed-to-unsigned truncation fails closed",
+    "tampered_token": "signature mutation fails closed",
+    "algorithm_downgrade": "signed-to-unsigned / alg:none downgrade fails closed",
+    "signed_to_unsigned_downgrade": "compact token without signature segment fails on every transport",
+    "confused_deputy": "UCAN audience bound to deputy DID cannot authorize claiming actor",
+    "expired": "expired token fails closed",
+    "forged_key": "token signed by unregistered private key fails closed",
+    "valid_attenuation": "signed root-to-service-to-client chain with narrower resource, ability, and request bounds succeeds through every transport",
+    "cross_tenant_escalation": "leaf capability outside its parent's tenant and wider bounds fails with zero dispatch on every transport",
+    "future_nbf": "signed token whose not-before time is in the future fails with zero dispatch on every transport",
+    "request_bounds": "request exceeding or changing capability bounds fails with zero dispatch on every transport",
+    "revocation_replay_restart": "durable RevocationLedger preserves replay and revocation across process restart for every transport"
+  },
+  "security_evidence_policy": {
+    "cryptographic_verifier_required": true,
+    "ledger_required": true,
+    "profile_d_provider_required": true,
+    "magicmock_only_evidence": "forbidden",
+    "statement": "This conformance report accepts positive security evidence only from UCANVerifier@1 over Ed25519 tokens and a durable RevocationLedger@1. The suite constructs real keys, issues signed UCANs, and asserts the concrete verifier and ledger types; it makes no claim that arbitrary dependency injection cannot install a test verifier.",
+    "audit_redaction": "Bearer tokens, private_input fields, and signature material must not appear in authorization.decision or authorization.effect audit events."
+  },
+  "evidence_subset": {
+    "transport_decision_parity": "Identical denial reason and decision event_cid across stdio, HTTP, and P2P for every adversarial case under a frozen authorization clock.",
+    "transport_result_parity": "A real HermeticIPFSFixtureAdapter pin effect produces identical status, content_cid, version, transaction_cid, and every Profile B artifact CID after removing only _dispatch tracing metadata.",
+    "zero_dispatch_on_denial": "Dispatch spy remains empty for every denial on every transport.",
+    "attenuation": "A valid signed parent-to-leaf attenuation succeeds; cross-tenant escalation, future nbf, and request-bound violations deny with zero dispatch over stdio, Hypercorn HTTP, and P2P.",
+    "restart": "Replay of a consumed nonce and use of a revoked token_id both deny after ledger reload.",
+    "no_mock_crypto": "All positive evidence in this suite uses concrete UCANVerifier and RevocationLedger instances."
+  },
+  "related_suites": [
+    "tests/runtime_readiness/mcplusplus/test_authorization_dispatch_gate.py",
+    "tests/runtime_readiness/mcplusplus/test_ucan_verifier.py",
+    "tests/runtime_readiness/mcplusplus/test_server_bootstrap.py",
+    "ipfs_kit_py/mcp_server/tests_e2e_interop.py"
+  ],
+  "exclusion_policy": {
+    "excluded_only_gate": false,
+    "mandatory_in_default_ci": true
+  },
+  "acceptance": {
+    "identical_denial_code_and_decision_cid_per_transport": true,
+    "zero_dispatch_on_denial": true,
+    "allowed_semantic_cid_parity_after_normalization": true,
+    "signed_attenuation_and_escalation_parity": true,
+    "future_nbf_and_request_bounds_fail": true,
+    "signed_to_unsigned_downgrade_fails": true,
+    "confused_deputy_fails": true,
+    "restart_preserves_revocation_and_replay": true,
+    "no_magicmock_only_security_evidence": true
+  }
+}

@@ -12,7 +12,7 @@ import time
 import uuid
 from typing import Any, Callable, Dict, List, Optional
 
-from .exceptions import CategoryNotFoundError, ToolExecutionError, ToolNotFoundError
+from .exceptions import CategoryNotFoundError, ToolNotFoundError
 from .tool_metadata import build_input_schema
 from .tools import TOOL_GROUPS
 
@@ -98,7 +98,11 @@ class HierarchicalToolManager:
         t0 = time.monotonic()
         breaker = self._breakers.setdefault(category, CircuitBreaker(category))
         if breaker.state == CircuitState.OPEN:
-            return {"status": "error", "error": f"circuit '{category}' open", "request_id": request_id}
+            return {
+                "status": "error",
+                "error": f"circuit '{category}' open",
+                "_dispatch": {"request_id": request_id},
+            }
         fn = self._lookup(category, tool)
         params = params or {}
         sig = inspect.signature(fn)
@@ -106,10 +110,19 @@ class HierarchicalToolManager:
         try:
             result = await fn(**filtered) if inspect.iscoroutinefunction(fn) else fn(**filtered)
             breaker.on_success()
-            result.setdefault("request_id", request_id)
+            dispatch_metadata = result.setdefault("_dispatch", {})
+            if not isinstance(dispatch_metadata, dict):
+                raise TypeError("tool result _dispatch metadata must be an object")
+            dispatch_metadata.setdefault("request_id", request_id)
             logger.info("dispatch ok request_id=%s tool=%s/%s ms=%.1f", request_id, category, tool, (time.monotonic() - t0) * 1000)
             return result
         except Exception as e:
             breaker.on_failure()
             logger.error("dispatch err request_id=%s tool=%s/%s err=%s", request_id, category, tool, e)
-            return {"status": "error", "error": str(e), "category": category, "tool": tool, "request_id": request_id}
+            return {
+                "status": "error",
+                "error": str(e),
+                "category": category,
+                "tool": tool,
+                "_dispatch": {"request_id": request_id},
+            }

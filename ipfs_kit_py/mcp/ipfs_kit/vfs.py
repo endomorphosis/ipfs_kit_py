@@ -8,8 +8,12 @@ from the ipfs_kit_py library, ensuring the MCP layer uses the core VFS functiona
 import logging
 import json
 import threading
+import tempfile
+import os
+from collections.abc import Mapping
 from typing import Dict, Any
 from datetime import datetime
+from uuid import uuid4
 
 try:
     # Primary import path for when the package is installed
@@ -75,6 +79,7 @@ class VFSManager:
         self.compute_layer = None
         self._operation_buffer = []
         self._buffer_lock = threading.Lock()
+        self.dataset_batch_size = max(1, int(dataset_batch_size))
         
         if HAS_DATASETS and enable_dataset_storage:
             try:
@@ -82,7 +87,6 @@ class VFSManager:
                     enable=True,
                     ipfs_client=ipfs_client
                 )
-                self.dataset_batch_size = dataset_batch_size
                 logger.info("Dataset storage enabled for VFS operations")
             except Exception as e:
                 logger.warning(f"Failed to initialize dataset storage: {e}")
@@ -105,13 +109,26 @@ class VFSManager:
 
         try:
             result = await self.vfs_manager.execute_vfs_operation(operation, **kwargs)
-            
-            # Store operation to dataset if enabled
+            if not isinstance(result, Mapping):
+                return {
+                    "success": False,
+                    "error": "central VFS manager returned an invalid result",
+                    "operation": operation,
+                }
+            result = dict(result)
+            if not self._is_committed_result(result):
+                # A malformed response that claims success while carrying an
+                # error is not allowed to reach MCP callers as a success.
+                result["success"] = False
+                return result
+
+            # Only canonical committed operations are eligible for eventual
+            # dataset publication.
             operation_data = {
                 "timestamp": datetime.now().isoformat(),
                 "operation": operation,
                 "kwargs": kwargs,
-                "success": result.get("success", False),
+                "success": True,
                 "result": result
             }
             self._store_operation_to_dataset(operation_data)
@@ -208,7 +225,7 @@ class VFSManager:
             logger.info("Cleaning up MCP VFSManager wrapper...")
             
             # Flush any pending operations to dataset
-            if HAS_DATASETS and self.enable_dataset_storage:
+            if self.enable_dataset_storage:
                 self.flush_to_dataset()
             
             # The actual cleanup is handled by the centralized VFSManager
@@ -216,61 +233,97 @@ class VFSManager:
             self.vfs_manager = None
             logger.info("✓ MCP VFSManager wrapper cleaned up.")
     
-    def _store_operation_to_dataset(self, operation_data: dict):
-        """Store VFS operation to dataset if enabled."""
-        if not HAS_DATASETS or not self.enable_dataset_storage or not self.dataset_manager:
-            return
-        
+    @staticmethod
+    def _is_committed_result(result: Mapping[str, Any] | Any) -> bool:
+        if not (
+            isinstance(result, Mapping)
+            and result.get("success") is True
+            and not result.get("error")
+        ):
+            return False
+
+        nested_result = result.get("result")
+        return not (
+            isinstance(nested_result, Mapping)
+            and (
+                nested_result.get("success") is False
+                or bool(nested_result.get("error"))
+            )
+        )
+
+    def _store_operation_to_dataset(self, operation_data: dict) -> bool:
+        """Buffer a committed operation with a collision-safe identity."""
+        if not self.enable_dataset_storage or not self.dataset_manager:
+            return False
+
+        record = dict(operation_data)
+        # Never rely on a timestamp as a batch identity: concurrent operations
+        # can share one.  Always assign the wrapper's own unique record id.
+        record["dataset_operation_id"] = f"mcp-vfs-operation-{uuid4().hex}"
         with self._buffer_lock:
-            self._operation_buffer.append(operation_data)
+            self._operation_buffer.append(record)
+            should_flush = len(self._operation_buffer) >= self.dataset_batch_size
+        if should_flush:
+            return self._flush_operations_to_dataset()
+        return True
             
-            if len(self._operation_buffer) >= self.dataset_batch_size:
-                self._flush_operations_to_dataset()
-    
-    def _flush_operations_to_dataset(self):
-        """Flush buffered operations to dataset storage."""
-        if not self._operation_buffer or not self.dataset_manager:
-            return
-        
+    def _flush_operations_to_dataset(self) -> bool:
+        """Flush one snapshot, retaining all records until storage commits."""
+        if not self.enable_dataset_storage or not self.dataset_manager:
+            return False
+        is_available = getattr(self.dataset_manager, "is_available", None)
         try:
-            import tempfile
-            import os
-            
-            # Write operations to temp file
+            available = callable(is_available) and is_available()
+        except Exception as exc:
+            logger.warning("Unable to determine dataset availability: %s", exc)
+            return False
+        if not available:
+            return False
+        with self._buffer_lock:
+            snapshot = list(self._operation_buffer)
+        if not snapshot:
+            return False
+
+        temp_path = None
+        try:
             with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
-                for op in self._operation_buffer:
+                for op in snapshot:
                     f.write(json.dumps(op) + '\n')
                 temp_path = f.name
-            
-            try:
-                # Store via dataset manager
-                result = self.dataset_manager.store(
-                    temp_path,
-                    metadata={
-                        "type": "vfs_operations",
-                        "operation_count": len(self._operation_buffer),
-                        "timestamp": datetime.now().isoformat(),
-                        "component": self.__class__.__name__
-                    }
-                )
-                
-                if result.get("success"):
-                    logger.info(f"Stored {len(self._operation_buffer)} VFS operations to dataset: {result.get('cid', 'N/A')}")
-                
-                self._operation_buffer.clear()
-                
-            finally:
-                # Clean up temp file
-                try:
-                    os.unlink(temp_path)
-                except:
-                    pass
-                    
+            result = self.dataset_manager.store(
+                temp_path,
+                metadata={
+                    "type": "vfs_operations",
+                    "operation_count": len(snapshot),
+                    "timestamp": datetime.now().isoformat(),
+                    "component": self.__class__.__name__,
+                },
+            )
+            if not self._is_committed_result(result):
+                return False
+            snapshot_ids = {operation["dataset_operation_id"] for operation in snapshot}
+            with self._buffer_lock:
+                self._operation_buffer = [
+                    operation for operation in self._operation_buffer
+                    if operation.get("dataset_operation_id") not in snapshot_ids
+                ]
+            logger.info(
+                "Stored %s VFS operations to dataset: %s",
+                len(snapshot), result.get("cid", "N/A"),
+            )
+            return True
         except Exception as e:
             logger.error(f"Failed to flush operations to dataset: {e}")
+            return False
+        finally:
+            if temp_path:
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
     
-    def flush_to_dataset(self):
+    def flush_to_dataset(self) -> bool:
         """Manually flush pending operations to dataset storage."""
-        if HAS_DATASETS and self.enable_dataset_storage:
-            with self._buffer_lock:
-                self._flush_operations_to_dataset()
+        if not self.enable_dataset_storage:
+            return False
+        return self._flush_operations_to_dataset()

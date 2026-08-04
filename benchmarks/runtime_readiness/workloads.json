@@ -1,0 +1,339 @@
+{
+  "schema": "WorkloadProfile@1",
+  "schema_version": "ipfs_kit_py.runtime_readiness.workloads@1",
+  "task_id": "KITA-004",
+  "description": "Pinned workload identities for install, cold-import, TPS, and resource baselines. Workloads measure the bound revision without optimizing production paths.",
+  "path_classes": {
+    "cold": {
+      "id": "path:cold",
+      "description": "Process starts with empty import cache, empty page cache for target modules, no warm backend connections, no ARC/index residency.",
+      "includes_warmup": false,
+      "cache_state": "empty"
+    },
+    "warm": {
+      "id": "path:warm",
+      "description": "Process has completed declared warmup samples; imports and process-local structures are resident; durable backends may still miss.",
+      "includes_warmup": true,
+      "cache_state": "process_warm"
+    },
+    "cache": {
+      "id": "path:cache",
+      "description": "Warm process plus intentional hot-set residency (ARC/index/page cache) for hit-path measurement. Never substituted for cold correctness.",
+      "includes_warmup": true,
+      "cache_state": "hotset_resident"
+    }
+  },
+  "ack_states": {
+    "accepted": {
+      "id": "ack:accepted",
+      "description": "Operation accepted into the pipeline but durability not yet guaranteed. Must not be reported as committed TPS.",
+      "survives_declared_crash_model": false
+    },
+    "committed": {
+      "id": "ack:committed",
+      "description": "Operation has completed the declared durability protocol (WAL/backend durability as applicable). Primary throughput metric for baselines and gates.",
+      "survives_declared_crash_model": true
+    },
+    "converged": {
+      "id": "ack:converged",
+      "description": "Committed state plus secondary indexes/replicas/projections have caught up.",
+      "survives_declared_crash_model": true
+    }
+  },
+  "resource_profiles": {
+    "ci-reference": {
+      "id": "profile:ci-reference",
+      "description": "Hermetic CI reference profile: in-process memory backends, short sample counts, fixed seed. Used for schema checks and reproducible micro-baselines.",
+      "backend_tier": "memory/reference",
+      "storage": "memory",
+      "daemon": false,
+      "networked": false,
+      "default_seed": 424242,
+      "default_concurrency": 1,
+      "default_durability": "memory_sync",
+      "warmup_samples": 5,
+      "measurement_samples": 25,
+      "confidence_level": 0.95,
+      "path_classes": ["cold", "warm", "cache"],
+      "workloads": [
+        "install_wheel_probe",
+        "cold_import_root",
+        "cold_import_mcp",
+        "metadata_txn",
+        "small_object_txn",
+        "mixed_vfs",
+        "wal_commit",
+        "arc_hotset",
+        "graphrag_query",
+        "replica_reconcile",
+        "interface_roundtrip",
+        "resource_snapshot"
+      ]
+    },
+    "memory-reference": {
+      "id": "profile:memory-reference",
+      "description": "In-process reference backends for correctness-adjacent performance comparison.",
+      "backend_tier": "memory/reference",
+      "storage": "memory",
+      "daemon": false,
+      "networked": false,
+      "default_seed": 424242,
+      "default_concurrency": 4,
+      "default_durability": "memory_sync",
+      "warmup_samples": 50,
+      "measurement_samples": 500,
+      "confidence_level": 0.95,
+      "path_classes": ["cold", "warm", "cache"],
+      "workloads": [
+        "metadata_txn",
+        "small_object_txn",
+        "mixed_vfs",
+        "wal_commit",
+        "arc_hotset",
+        "graphrag_query",
+        "replica_reconcile",
+        "interface_roundtrip"
+      ]
+    },
+    "local-nvme": {
+      "id": "profile:local-nvme",
+      "description": "Local durable filesystem on NVMe-class storage without an external daemon.",
+      "backend_tier": "local-NVMe",
+      "storage": "local_nvme",
+      "daemon": false,
+      "networked": false,
+      "default_seed": 424242,
+      "default_concurrency": 8,
+      "default_durability": "fsync_parent",
+      "warmup_samples": 100,
+      "measurement_samples": 1000,
+      "confidence_level": 0.95,
+      "path_classes": ["cold", "warm", "cache"],
+      "workloads": [
+        "metadata_txn",
+        "small_object_txn",
+        "mixed_vfs",
+        "wal_commit",
+        "arc_hotset",
+        "resource_snapshot"
+      ]
+    },
+    "local-daemon": {
+      "id": "profile:local-daemon",
+      "description": "Local Kubo/Iroh-class daemon on loopback.",
+      "backend_tier": "local-daemon",
+      "storage": "local_daemon",
+      "daemon": true,
+      "networked": false,
+      "default_seed": 424242,
+      "default_concurrency": 8,
+      "default_durability": "daemon_commit",
+      "warmup_samples": 100,
+      "measurement_samples": 1000,
+      "confidence_level": 0.95,
+      "path_classes": ["cold", "warm", "cache"],
+      "workloads": [
+        "metadata_txn",
+        "small_object_txn",
+        "mixed_vfs",
+        "wal_commit",
+        "interface_roundtrip"
+      ]
+    },
+    "networked-provider": {
+      "id": "profile:networked-provider",
+      "description": "Networked storage/provider backends. Environment-gated; never required for hermetic CI schema checks.",
+      "backend_tier": "networked-provider",
+      "storage": "networked",
+      "daemon": false,
+      "networked": true,
+      "default_seed": 424242,
+      "default_concurrency": 4,
+      "default_durability": "provider_ack",
+      "warmup_samples": 50,
+      "measurement_samples": 250,
+      "confidence_level": 0.90,
+      "path_classes": ["cold", "warm"],
+      "workloads": [
+        "small_object_txn",
+        "interface_roundtrip",
+        "replica_reconcile"
+      ],
+      "environment_gated": true
+    }
+  },
+  "workloads": {
+    "install_wheel_probe": {
+      "id": "workload:install_wheel_probe",
+      "family": "install",
+      "description": "Record package metadata, wheel extras projection, and install-time dependency identity without network install side effects in ci-reference.",
+      "dataset": "dataset:package_metadata",
+      "metric_primary": "install_identity",
+      "path_classes": ["cold"],
+      "ack_state": null,
+      "operations": ["read_pyproject", "read_runtime_version", "project_dependencies"]
+    },
+    "cold_import_root": {
+      "id": "workload:cold_import_root",
+      "family": "import",
+      "description": "Subprocess cold import of ipfs_kit_py root package; records import time, imported module count, and eager side-effect candidates.",
+      "dataset": "dataset:empty",
+      "metric_primary": "import_seconds",
+      "path_classes": ["cold"],
+      "ack_state": null,
+      "target_module": "ipfs_kit_py",
+      "operations": ["subprocess_import"]
+    },
+    "cold_import_mcp": {
+      "id": "workload:cold_import_mcp",
+      "family": "import",
+      "description": "Subprocess cold import of MCP server module surfaces; records eager optional/heavy imports.",
+      "dataset": "dataset:empty",
+      "metric_primary": "import_seconds",
+      "path_classes": ["cold"],
+      "ack_state": null,
+      "target_module": "ipfs_kit_py.mcp_server.server",
+      "operations": ["subprocess_import"]
+    },
+    "metadata_txn": {
+      "id": "workload:metadata_txn",
+      "family": "transaction",
+      "description": "Small stat/catalog/CAS metadata transactions.",
+      "dataset": "dataset:metadata_catalog_v1",
+      "metric_primary": "committed_tps",
+      "metric_secondary": ["accepted_tps", "p50_ms", "p95_ms", "p99_ms"],
+      "path_classes": ["cold", "warm", "cache"],
+      "ack_state": "committed",
+      "payload_bytes": 64,
+      "operations": ["stat", "catalog_put", "cas_put"]
+    },
+    "small_object_txn": {
+      "id": "workload:small_object_txn",
+      "family": "transaction",
+      "description": "4 KiB put/get/delete object transactions.",
+      "dataset": "dataset:small_object_4kib_v1",
+      "metric_primary": "committed_tps",
+      "metric_secondary": ["accepted_tps", "p50_ms", "p95_ms", "p99_ms"],
+      "path_classes": ["cold", "warm", "cache"],
+      "ack_state": "committed",
+      "payload_bytes": 4096,
+      "operations": ["put", "get", "delete"]
+    },
+    "mixed_vfs": {
+      "id": "workload:mixed_vfs",
+      "family": "transaction",
+      "description": "Deterministic read/write/list/rename VFS mix.",
+      "dataset": "dataset:mixed_vfs_tree_v1",
+      "metric_primary": "committed_tps",
+      "metric_secondary": ["accepted_tps", "p50_ms", "p95_ms", "p99_ms"],
+      "path_classes": ["cold", "warm", "cache"],
+      "ack_state": "committed",
+      "mix": {"read": 0.4, "write": 0.3, "list": 0.2, "rename": 0.1},
+      "operations": ["read", "write", "list", "rename"]
+    },
+    "wal_commit": {
+      "id": "workload:wal_commit",
+      "family": "transaction",
+      "description": "Durable single and grouped WAL commits. Reports committed durability, never accepted-only.",
+      "dataset": "dataset:wal_group_v1",
+      "metric_primary": "committed_tps",
+      "metric_secondary": ["accepted_tps", "group_commit_tps", "p99_ms"],
+      "path_classes": ["cold", "warm"],
+      "ack_state": "committed",
+      "group_sizes": [1, 8, 32],
+      "operations": ["begin", "append", "commit"]
+    },
+    "arc_hotset": {
+      "id": "workload:arc_hotset",
+      "family": "cache",
+      "description": "ARC hit/miss/eviction and stampede workloads with path_class stratification.",
+      "dataset": "dataset:arc_hotset_v1",
+      "metric_primary": "hit_ratio",
+      "metric_secondary": ["miss_latency_ms", "eviction_count", "stampede_p99_ms"],
+      "path_classes": ["cold", "warm", "cache"],
+      "ack_state": null,
+      "operations": ["get", "put", "evict"]
+    },
+    "graphrag_query": {
+      "id": "workload:graphrag_query",
+      "family": "query",
+      "description": "Exact and ANN top-k plus incremental ingestion micro-workload.",
+      "dataset": "dataset:graphrag_micro_v1",
+      "metric_primary": "query_p99_ms",
+      "metric_secondary": ["exact_tps", "ann_tps", "ingest_committed_tps"],
+      "path_classes": ["cold", "warm", "cache"],
+      "ack_state": "committed",
+      "top_k": 10,
+      "operations": ["exact_query", "ann_query", "incremental_ingest"]
+    },
+    "replica_reconcile": {
+      "id": "workload:replica_reconcile",
+      "family": "replica",
+      "description": "Policy decisions and repair scheduling throughput.",
+      "dataset": "dataset:replica_policy_v1",
+      "metric_primary": "decision_tps",
+      "metric_secondary": ["repair_schedule_tps", "p99_ms"],
+      "path_classes": ["cold", "warm"],
+      "ack_state": "accepted",
+      "operations": ["evaluate_policy", "schedule_repair"]
+    },
+    "interface_roundtrip": {
+      "id": "workload:interface_roundtrip",
+      "family": "interface",
+      "description": "Python, CLI, stdio, HTTP, and P2P overhead for the same canonical operation.",
+      "dataset": "dataset:interface_echo_v1",
+      "metric_primary": "roundtrip_p99_ms",
+      "metric_secondary": ["python_us", "cli_ms", "stdio_ms", "http_ms", "p2p_ms"],
+      "path_classes": ["cold", "warm"],
+      "ack_state": "accepted",
+      "interfaces": ["python", "cli", "stdio", "http", "p2p"],
+      "operations": ["roundtrip"]
+    },
+    "resource_snapshot": {
+      "id": "workload:resource_snapshot",
+      "family": "resource",
+      "description": "CPU, RSS, file descriptors, threads/tasks, and disk usage snapshot during measurement windows.",
+      "dataset": "dataset:empty",
+      "metric_primary": "rss_bytes",
+      "metric_secondary": ["cpu_percent", "fds", "threads", "tasks", "disk_bytes"],
+      "path_classes": ["warm"],
+      "ack_state": null,
+      "operations": ["snapshot"]
+    }
+  },
+  "dataset_catalog": {
+    "dataset:empty": {"seed_material": "none", "items": 0},
+    "dataset:package_metadata": {"seed_material": "pyproject+runtime", "items": 1},
+    "dataset:metadata_catalog_v1": {"seed_material": "synthetic_catalog", "items": 1024},
+    "dataset:small_object_4kib_v1": {"seed_material": "synthetic_4kib", "items": 1024, "payload_bytes": 4096},
+    "dataset:mixed_vfs_tree_v1": {"seed_material": "synthetic_tree", "items": 512, "depth": 4},
+    "dataset:wal_group_v1": {"seed_material": "synthetic_wal", "items": 256},
+    "dataset:arc_hotset_v1": {"seed_material": "zipf_hotset", "items": 4096, "hot_fraction": 0.05},
+    "dataset:graphrag_micro_v1": {"seed_material": "synthetic_graph", "nodes": 256, "edges": 1024},
+    "dataset:replica_policy_v1": {"seed_material": "synthetic_policy", "items": 128},
+    "dataset:interface_echo_v1": {"seed_material": "echo_payload", "payload_bytes": 256}
+  },
+  "comparison_binding": {
+    "identity_fields": [
+      "hardware",
+      "os",
+      "python",
+      "dependencies",
+      "revision",
+      "dataset",
+      "seed",
+      "concurrency",
+      "durability",
+      "warmup",
+      "samples",
+      "confidence",
+      "profile",
+      "workload",
+      "path_class",
+      "ack_state"
+    ],
+    "primary_throughput_metric": "committed_tps",
+    "forbidden_throughput_substitution": "accepted_tps_must_not_replace_committed_tps",
+    "notes": "A result is comparable only when all identity fields match. Cache path results never satisfy cold correctness claims."
+  }
+}
