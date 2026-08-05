@@ -13,11 +13,55 @@ from pathlib import Path
 import pytest
 
 KIT_ROOT = Path(__file__).resolve().parents[1]
-ACCELERATE_ROOT = KIT_ROOT.parent / "ipfs_accelerate"
+
+
+def _resolve_accelerate_root() -> Path | None:
+    """Locate an accelerate checkout that carries proof-reuse plugins.
+
+    Standalone ipfs_kit_py CI does not always vendor a sibling accelerate tree.
+    Prefer an explicit env override, then common monorepo/sibling layouts.
+    """
+
+    candidates: list[Path] = []
+    env = os.environ.get("IPFS_ACCELERATE_ROOT") or os.environ.get(
+        "IPFS_ACCELERATE_PY_ROOT"
+    )
+    if env:
+        candidates.append(Path(env))
+    candidates.extend(
+        (
+            KIT_ROOT.parent / "ipfs_accelerate",
+            KIT_ROOT.parent / "ipfs_accelerate_py",
+            KIT_ROOT.parent.parent / "external" / "ipfs_accelerate",
+            KIT_ROOT.parent / "external" / "ipfs_accelerate",
+        )
+    )
+    for candidate in candidates:
+        plugin = (
+            candidate
+            / "ipfs_accelerate_py"
+            / "testing"
+            / "proof_reuse"
+            / "plugin.py"
+        )
+        if plugin.is_file():
+            return candidate
+    return None
+
+
+ACCELERATE_ROOT = _resolve_accelerate_root()
 BOOTSTRAP = KIT_ROOT / "conftest.py"
 PLUGIN_MODULE = "ipfs_accelerate_py.testing.proof_reuse.plugin"
 PLUGIN_ENTRY_POINT = "ipfs-proof-reuse"
 PYTEST_SITE = Path(pytest.__file__).resolve().parents[1]
+
+pytestmark = pytest.mark.skipif(
+    ACCELERATE_ROOT is None,
+    reason=(
+        "ipfs_accelerate_py proof-reuse plugin not found; set "
+        "IPFS_ACCELERATE_ROOT to enable integration bootstrap tests"
+    ),
+)
 
 
 def _write(path: Path, source: str) -> None:
@@ -37,6 +81,8 @@ def _environment(
     first_paths: tuple[Path, ...] = (),
 ) -> dict[str, str]:
     environment = dict(os.environ)
+    if ACCELERATE_ROOT is None:
+        raise RuntimeError("ACCELERATE_ROOT is required for bootstrap integration tests")
     python_paths = (
         *(str(path) for path in first_paths),
         str(ACCELERATE_ROOT),
