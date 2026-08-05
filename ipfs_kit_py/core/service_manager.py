@@ -19,7 +19,6 @@ from typing import Dict, List, Optional, Callable, Any
 from dataclasses import dataclass
 from enum import Enum
 import json
-import requests
 from pathlib import Path
 
 # Setup logging
@@ -250,9 +249,10 @@ class ServiceManager:
             return self.is_service_running(service_name)
         
         try:
+            import requests
             response = requests.get(config.health_check_url, timeout=5)
             return response.status_code == 200
-        except requests.RequestException:
+        except Exception:
             return False
     
     def _validate_config(self, config: ServiceConfig) -> bool:
@@ -436,10 +436,11 @@ class IPFSServiceManager(ServiceManager):
             return None
         
         try:
+            import requests
             response = requests.get("http://127.0.0.1:5001/api/v0/id", timeout=5)
             if response.status_code == 200:
                 return response.json()
-        except requests.RequestException:
+        except Exception:
             pass
         
         return None
@@ -449,6 +450,15 @@ import os
 import sys
 
 def _should_disable_monitoring() -> bool:
+    # Importing ipfs_kit_py is a cold operation.  Background monitoring is
+    # enabled only by an application that explicitly owns that lifecycle.
+    if os.environ.get("IPFS_KIT_ENABLE_SERVICE_MONITORING", "").strip().lower() not in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        return True
     if os.environ.get("IPFS_KIT_FAST_INIT") == "1":
         return True
     if os.environ.get("IPFS_KIT_DISABLE_SERVICE_MANAGER") == "1":

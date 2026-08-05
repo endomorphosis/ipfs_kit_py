@@ -280,6 +280,9 @@ ipfs-kit-iroh-interop = "ipfs_kit_py.iroh.multinode:main"
 iroh = "ipfs_kit_py.iroh_fsspec:IrohFileSystem"
 "iroh+blob" = "ipfs_kit_py.iroh_fsspec:IrohFileSystem"
 
+[project.entry-points.pytest11]
+ipfs-proof-reuse = "ipfs_accelerate_py.testing.proof_reuse.plugin"
+
 [project.urls]
 Homepage = "https://github.com/endomorphosis/ipfs_kit_py/"
 Documentation = "https://github.com/endomorphosis/ipfs_kit_py/blob/main/README.md"
