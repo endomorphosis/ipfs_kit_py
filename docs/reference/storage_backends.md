@@ -1,706 +1,377 @@
-# External Storage Backends
+# Storage backends reference
 
-> **Status**: ✅ **Production Ready** - Multi-backend integration fully operational  
-> **Backends**: 6 integrated (IPFS, Filecoin, S3, Storacha, HuggingFace, Lassie)  
-> **For Complete Status**: See **[MCP Development Status](../ARCHIVE/status-reports/MCP_DEVELOPMENT_STATUS.md)**
+- Status: current operator/reference guide (KDOC-034)
+- Authority class: Reference (implementation-aligned; not a normative runtime contract)
+- Architecture guide: [STORAGE_BACKEND_SYSTEM.md](../architecture/STORAGE_BACKEND_SYSTEM.md)
+- Trust / secrets guide: [CONFIGURATION_STATE_AND_TRUST.md](../architecture/CONFIGURATION_STATE_AND_TRUST.md)
+- Iroh named backends: [named-backends.md](../iroh/named-backends.md)
+- Baseline: code inspection of `backend_registry.py`, `backend_manager.py`,
+  `iroh/backend.py`, and `backends/`
 
-IPFS Kit integrates with external storage systems like S3-compatible services and Storacha (formerly Web3.Storage) to provide additional options for content persistence and retrieval, functioning as deeper tiers in a comprehensive storage hierarchy. The system now includes comprehensive **policy management** for storage quotas, traffic quotas, replication, retention, and cache policies.
+This page catalogs **what is registered today**, how **schema-validated** types
+differ from **legacy** types, how named configuration is stored, and which live
+adapters exist. It replaces older marketing-style claims (for example “six
+production backends fully operational”) with inventory grounded in the type
+registry and package adapters.
 
-> **New**: [Backend Policy Management](../implementation/THREE_TIER_POLICY_IMPLEMENTATION_COMPLETE.md) - Configure and monitor storage quotas, replication policies, retention policies, and cache policies for all storage backends.
+> **Security:** Never put live tokens, keys, passwords, node identities, or write
+> capabilities into docs, tickets, or examples. Prefer
+> `secretref:<provider>:<id>` or environment-variable *names*. Placeholders such
+> as `YOUR_TOKEN` are intentionally invalid.
 
-## Architecture: Multi-Tier Storage Strategy
+---
 
-IPFS Kit implements a sophisticated multi-tier storage architecture that combines the performance benefits of local caching with the durability advantages of cloud storage:
+## 1. Three layers (do not conflate)
 
+| Layer | What it is | Primary modules | Side effects? |
+|---|---|---|---|
+| **Type plugin** | Configuration behavior for a backend *type* | `ipfs_kit_py/backend_registry.py`, type-specific plugins (e.g. `ipfs_kit_py/iroh/backend.py`) | No — discovery, validate, migrate, describe, redact must stay inert |
+| **Named document** | Persisted YAML for one operator-named backend | `ipfs_kit_py/backend_manager.py` → `~/.ipfs_kit/backends/<name>.yaml` | Disk write of config only; no secret resolution into live sessions |
+| **Live adapter** | Runtime client that performs storage I/O | `ipfs_kit_py/backends/*`, `iroh_fsspec.IrohFileSystem`, various `*_kit` modules | Yes — only after explicit construction |
+
+```text
+BackendTypeRegistry  →  named YAML document  →  live adapter / filesystem
+   (plugins)               (BackendManager)        (backends/*, Iroh FS, kits)
 ```
-┌─────────────────┐
-│  Memory Cache   │ <- Fastest, volatile, capacity-limited (100MB default)
-└────────┬────────┘
-         │ promotion/demotion based on access patterns
-┌────────▼────────┐
-│   Disk Cache    │ <- Fast, persistent, size-constrained (1GB default)
-└────────┬────────┘
-         │ overflow and long-term storage
-┌────────▼────────┐
-│  IPFS Network   │ <- Distributed, content-addressed, peer discovery
-└────────┬────────┘
-         │ durability and backup
-┌────────▼────────┐┌─────────────────┐
-│ Storacha/W3.UP  ││     S3-like     │ <- Cloud persistence, archival storage
-└─────────────────┘└─────────────────┘
+
+**Invariant:** importing the registry, listing types, validating a document, or
+showing a redacted config must never start a daemon, open an RPC session, or
+materialize secret values.
+
+Vocabulary: [GLOSSARY.md](../architecture/GLOSSARY.md) (**Backend**, **Adapter**,
+**Registry**). Candidate authorities: [SOURCE_OF_TRUTH_MAP.md](../architecture/SOURCE_OF_TRUTH_MAP.md) §2.
+
+---
+
+## 2. Schema-validated vs legacy plugins
+
+Every registered type is a `BackendPlugin`. The registry’s `describe()` marks
+`schema_validated: True` when `plugin.schema_version is not None`.
+
+| Property | Schema-validated | Legacy (`LegacyBackendPlugin`) |
+|---|---|---|
+| Built-in types today | **`iroh` only** (`schema_version: 1`) | 21 names in `BackendTypeRegistry.LEGACY_TYPES` |
+| Closed field set | Yes (unknown keys rejected) | No — JSON-compatible object + `name` + matching `type` |
+| `schema()` | JSON Schema resource | `None` |
+| Secret policy in YAML | Approved `secretref:…` only (Iroh) | May historically contain inline fields; **redacted** on public APIs |
+| Default `capabilities()` | Reflects document (access, protocols, sync) | `{"named": True, "schema_validated": False}` |
+| Default `health()` | Structured (Iroh: local endpoint existence without full RPC) | `{"healthy": None, "status": "not-probed", "enabled": …}` |
+| Adapter factory on plugin | Iroh: lazy `create_filesystem` | Not part of the legacy plugin |
+
+**Registration facts (built-in, `load_entry_points=False`):**
+
+- Total types: **22** (21 legacy + `iroh`).
+- Entry-point group for third-party plugins: `ipfs_kit.backends`
+  (`BACKEND_ENTRY_POINT_GROUP`). Broken third-party loaders are skipped so
+  built-ins remain usable.
+- Installed environments may show additional types via entry points; always
+  check `BackendTypeRegistry.types()` / `describe()` at runtime.
+
+---
+
+## 3. Registered type inventory
+
+### 3.1 Schema-validated: `iroh`
+
+| Field | Value |
+|---|---|
+| Plugin | `ipfs_kit_py.iroh.backend.IrohBackendPlugin` |
+| Schema version | `1` |
+| Machine schema | `ipfs_kit_py/resources/iroh-backend-config.schema.json` |
+| Secret-free example | `config/iroh-backend.example.yaml` |
+| Runtime FS | `ipfs_kit_py.iroh_fsspec.IrohFileSystem` (lazy client) |
+| Operator guide | [docs/iroh/named-backends.md](../iroh/named-backends.md) |
+
+**Version-1 document shape (conceptual; use the example file for copy-paste):**
+
+| Section | Role |
+|---|---|
+| `schema_version`, `name`, `type`, `enabled` | Identity and enablement (`type` must be `iroh`) |
+| `namespace.id` | Lowercase 32-byte hex Iroh namespace ID |
+| `namespace.access` | `read-only` or `read-write` |
+| `service.instance` | Named Iroh instance id |
+| `service.managed` | Whether kit manages the service lifecycle |
+| `service.rpc_endpoint` | **Local only**: absolute `unix:///…` socket or Windows named pipe |
+| `credentials.*_ref` | Secret **references** only (see §5) |
+| `timeouts.*` | Connect / operation / shutdown seconds (finite, ≤ 3600) |
+| `sync.*` | Sync enablement, on-open, `local`/`synchronized` reads, `conflict_policy: fail` |
+
+**Credentials fields (refs only):**
+
+- Required: `node_key_ref`
+- Required when `access` is `read-write`: `write_capability_ref`
+- Optional: `read_ticket_ref`
+
+Approved reference form:
+
+```text
+secretref:<provider>:<id>
 ```
 
-This architecture enables:
-1. **Performance optimization**: Hot content stays in memory for fastest access
-2. **Cost efficiency**: Selectively persist only valuable content to paid storage
-3. **Durability guarantees**: Critical content can be stored in multiple backends
-4. **Automatic migration**: Content moves between tiers based on access patterns
-5. **Transparent access**: Content retrieval works the same regardless of which tier stores it
+Providers accepted by Iroh validation:
 
-## Storacha (Web3.Storage) Integration
+- `secure-config`
+- `enhanced-secrets`
+- `credential-manager`
+- `environment`
 
-The `storacha_kit.py` module provides a comprehensive interface to Storacha (also known as Web3.UP), enabling seamless integration with Web3.Storage's distributed storage infrastructure built on IPFS and Filecoin.
+**Capabilities (config-derived, not a network probe):** protocols
+`iroh` / `iroh+blob`; `read` always; `write` / `delete` / `copy` / `move` /
+`transactions` when access is read-write; `async`, `immutable_blobs`; `sync`
+from the document’s sync block.
 
-### Key Features
+**Default health:** if disabled → `status: disabled`, `ready: False`; else
+checks local Unix socket existence (named-pipe path is conservative on Windows).
+Does **not** start the Iroh service.
 
-- **Space Management**: Create, list, and manage storage spaces
-- **Content Upload**: Store files, directories, and raw data with automatic CAR packaging
-- **Batch Operations**: Efficiently process multiple files in a single operation
-- **Metadata Tracking**: Store and retrieve metadata alongside content
-- **User Authentication**: Support for authorization via DID (Decentralized Identifiers)
-- **Rate Limit Management**: Intelligent handling of service rate limits
-- **Error Handling**: Standardized error reporting with detailed diagnostics
+**Migration:** flat legacy Iroh fields (`namespace_id`, `rpc_endpoint`,
+`node_key_ref`, …) migrate to nested v1. Migration never invents secrets and
+rejects inline secret material. CLI: `ipfs-kit-backend-migrate` (see
+`backend_migration.py`).
 
-### Detailed Usage
+### 3.2 Legacy type names
+
+Registered for named-document compatibility. **Being listed does not imply** a
+complete live adapter, closed schema, production SLA, or every historical kit
+capability.
+
+| Type | Typical intent | Live adapter in `backends/` package factory? | Notes |
+|---|---|---|---|
+| `ipfs` | Kubo / IPFS API endpoint | Yes → `IPFSBackendAdapter` | Parallel top-level `ipfs_backend.py` also exists (compatibility; factory authority unresolved) |
+| `filesystem` | Local filesystem paths | Yes → `FilesystemBackendAdapter` | |
+| `sshfs` | Remote FS via SSHFS-style config | Alias → `FilesystemBackendAdapter` | Also has dashboard fields in `backend_schemas.py` |
+| `s3` | S3-compatible object storage | Yes → `S3BackendAdapter` | Common archival tier; kits may use env/`CredentialManager` |
+| `minio` | MinIO (S3 API) | Alias → `S3BackendAdapter` | |
+| `digitalocean` | DigitalOcean Spaces (S3 API) | Alias → `S3BackendAdapter` | |
+| `storacha` | Web3.Storage / Storacha | **No** package factory entry | Kit modules (`storacha_kit`, enhanced kits) and MCP-era managers exist; prefer env/secret stores over YAML secrets |
+| `filecoin` | Filecoin / Lotus-oriented storage | **No** | Often pairs with Lotus RPC; credentials via manager/env |
+| `filecoin_pin` | Filecoin pin-oriented path | **No** | Compatibility name |
+| `huggingface` | Hugging Face Hub datasets/models | **No** | Token via env (`HF_TOKEN` / `HUGGINGFACE_TOKEN`) or secret store |
+| `lassie` | Retrieval client (Lassie) | **No** | Often retrieval-only; no secret fields in dashboard schema |
+| `ipfs_cluster` | IPFS Cluster API | **No** | Cluster secret is highly sensitive — never log |
+| `cluster` | Generic/cluster alias | **No** | Distinct name from `ipfs_cluster` |
+| `github` | GitHub-backed backup/sync (policy examples) | **No** | Token must not be committed |
+| `gdrive` | Google Drive | **No** | Usually credentials **path** or OAuth store, not inline secrets in docs |
+| `ftp` | FTP/FTPS archive | **No** | Prefer secret refs if adding a closed schema later |
+| `parquet` | Columnar local/object layouts | **No** | More data-format oriented than network storage |
+| `local`, `local_fs`, `local_storage` | Local path variants | Overlap with `filesystem` | Prefer `filesystem` for new named docs unless tooling requires a specific name |
+| `estuary` | Historical Estuary API name | **No** | **Qualify:** Estuary service landscape has changed; treat as compatibility/legacy name, not a guaranteed live product integration |
+
+**Dashboard field catalogs** (`backend_schemas.py`) list UI form fields for many
+of the above (including password-style widgets). Those schemas are **not** the
+Iroh closed schema and do **not** enforce secretref-only storage.
+
+### 3.3 What this reference does *not* claim
+
+Older docs and status reports sometimes asserted that IPFS, Filecoin, S3,
+Storacha, HuggingFace, and Lassie were equally “production ready” multi-backend
+integrations. Current code distinguishes:
+
+1. **Registry membership** (type can be named and lightly validated) — 22 built-ins.
+2. **Closed schema + secret-ref enforcement** — **Iroh only** today.
+3. **Package live adapters** (`BACKEND_ADAPTERS`) — `ipfs`, `filesystem`/`sshfs`,
+   `s3`/`minio`/`digitalocean`, plus manager-backed `iroh`.
+4. **Historical kit modules and MCP storage managers** — still present under
+   `*_kit.py`, `mcp/storage_manager/`, and archives; useful compatibility paths
+   but **not** the named-config registry authority.
+
+Saturn and similar MCP-era backends may appear under control-plane trees; they
+are **not** in `LEGACY_TYPES` / built-in registry inventory above.
+
+---
+
+## 4. Named configuration (`BackendManager`)
+
+**Module:** `ipfs_kit_py.backend_manager.BackendManager`
+
+| Behavior | Detail |
+|---|---|
+| Root | `~/.ipfs_kit` by default (`ipfs_kit_path`) |
+| Documents | `backends/<name>.yaml` |
+| Name rule | `^[a-z0-9][a-z0-9_-]{0,63}$` via `validate_backend_name` |
+| Create / update | Plugin `validate` then atomic write (`mkstemp` → `fchmod 0o600` → `fsync` → `os.replace` → `chmod 0o600`) |
+| Public read paths | `show_backend`, `list_backends`, create/update results, `get_backend_info` → `redact_backend_config` |
+| Unredacted internal | `get_backend_config(name, redact=False)` for last-moment secret resolution only |
+| Capabilities | `plugin.capabilities(config)` |
+| Health | Optional `health_probes[type]`; else `plugin.health`; results redacted |
+| Migrate | `plugin.migrate`; `.bak` at `0o600` when rewritten |
+| Iroh on read | `_normalize` uses `migrate` for `type == "iroh"` so flat YAML is readable without silent rewrite |
+| Adapter | `get_backend_adapter(name)` → unredacted config → `plugin.create_filesystem(...)` (Iroh) |
+
+List registered types:
 
 ```python
-from ipfs_kit_py.ipfs_kit import ipfs_kit
+from ipfs_kit_py.backend_manager import list_supported_backends
+from ipfs_kit_py.backend_registry import get_backend_type_registry
 
-# Initialize with Storacha credentials (from environment variables or config)
-kit = ipfs_kit(metadata={
-    "storacha_token": "YOUR_TOKEN",  # Can also use W3_STORE_TOKEN env var
-    "api_url": "https://up.web3.storage"  # Optional custom endpoint
-})
+print(list_supported_backends())
+print(get_backend_type_registry().describe())
+```
 
-# List available spaces
-spaces_result = kit.storacha_kit.space_ls()
-if spaces_result["success"]:
-    print(f"Available spaces: {spaces_result['spaces']}")
-    # Choose a space for operations
-    default_space = next(iter(spaces_result["spaces"].values()))
-else:
-    print(f"Error listing spaces: {spaces_result.get('error')}")
+### 4.1 Schema-validated create example (Iroh, secret-free)
 
-# Upload a file to Storacha (produces a CID)
-upload_result = kit.storacha_kit.upload_add(
-    space=default_space,
-    file="/path/to/important_data.zip",
+Use the checked-in example document — it contains only placeholders and refs:
+
+```python
+import yaml
+from pathlib import Path
+from ipfs_kit_py.backend_manager import BackendManager
+
+manager = BackendManager()  # defaults to ~/.ipfs_kit
+document = yaml.safe_load(
+    Path("config/iroh-backend.example.yaml").read_text(encoding="utf-8")
 )
+name = document.pop("name")
+type_name = document.pop("type")
+result = manager.create_backend(name, type_name, config=document)
+# Public result redacts secretref identifiers:
+# credentials.node_key_ref → secretref:enhanced-secrets:<redacted>
+print(result.get("status"), result.get("backend", {}).get("credentials"))
+```
 
-if upload_result["success"]:
-    # CID is returned on successful upload
-    cid = upload_result["cid"]
-    print(f"Uploaded to Storacha with CID: {cid}")
-    
-    # The content is now persistently stored and can be accessed:
-    # 1. Via IPFS directly if the CID is reachable in the network
-    content = kit.ipfs_cat(cid)
-    
-    # 2. Via Web3.Storage gateways
-    gateway_url = f"https://{cid}.ipfs.w3s.link"
-    
-    # 3. Batch upload multiple files
-    batch_result = kit.storacha_kit.batch_operations(
-        space=default_space,
-        files=["/path/to/file1.txt", "/path/to/file2.jpg"],
-        cids=["QmExistingCid1", "QmExistingCid2"]  # Optional retrieval
-    )
-    
-    if batch_result["success"]:
-        print(f"Batch operation completed with {len(batch_result['upload_results'])} uploads")
-else:
-    print(f"Upload failed: {upload_result.get('error')}")
+### 4.2 Legacy create example (minimal, no secrets in the document)
 
-# Allocate storage to a space (for enterprise users)
-allocation_result = kit.storacha_kit.space_allocate(
-    space=default_space,
-    amount=100,
-    unit="GiB"
+Legacy plugins only require a JSON-compatible document with `name` and matching
+`type`. Prefer **non-secret** fields in YAML; bind credentials from env or
+`CredentialManager` at adapter construction time.
+
+```python
+from ipfs_kit_py.backend_manager import BackendManager
+
+manager = BackendManager()
+result = manager.create_backend(
+    "archive_s3",
+    "s3",
+    config={
+        "name": "archive_s3",
+        "type": "s3",
+        "enabled": True,
+        # Prefer bucket/region/endpoint here — not access keys.
+        "bucket": "example-ipfs-archive",
+        "region": "us-east-1",
+        "endpoint": "https://s3.example.invalid",
+    },
 )
-if allocation_result["success"]:
-    print(f"Successfully allocated {allocation_result['allocated']} to space")
+print(result)
 ```
 
-### Implementation Details
+### 4.3 Redaction rules
 
-Storacha integration uses both HTTP APIs and CLI tools:
+`redact_backend_config` walks documents and redacts values whose keys match a
+sensitive-name regex (`secret`, `token`, `password`, `api_key`,
+`write_capability`, `credential`, `authorization`, `access_key`, …).
 
-1. **HTTP API Interaction**:
-   - `upload_add_https` for direct HTTP upload 
-   - RESTful endpoints with proper authentication
-   - Support for streaming large files
+For strings shaped like `secretref:provider:id`, public output becomes
+`secretref:provider:<redacted>` (provider remains for diagnostics).
 
-2. **CLI Wrapper**:
-   - `run_w3_command` provides access to the w3cli functionality
-   - Command output parsing and standardization
-   - Cross-platform compatibility (Windows, macOS, Linux)
+**Do not write resolved secrets back** into YAML after in-process resolution.
 
-3. **Standardized Result Format**:
-   ```python
-   {
-       "success": True/False,
-       "operation": "operation_name",
-       "timestamp": 1234567890.123,
-       "correlation_id": "uuid-for-tracking",
-       # Operation-specific fields like:
-       "cid": "Qm...",
-       "space": "did:mailto:...",
-       # Error information if failed:
-       "error": "Error message",
-       "error_type": "ErrorClassName"
-   }
-   ```
+---
 
-### Error Handling
+## 5. Live adapters
 
-The storacha_kit implements comprehensive error handling with specialized exception classes:
+### 5.1 Package factory (`ipfs_kit_py.backends`)
+
+| Type key | Adapter |
+|---|---|
+| `ipfs` | `IPFSBackendAdapter` |
+| `filesystem`, `sshfs` | `FilesystemBackendAdapter` |
+| `s3`, `minio`, `digitalocean` | `S3BackendAdapter` |
+| `iroh` | Requires a manager: `config_manager.get_backend_adapter(name)` |
 
 ```python
-# Example error handling
-try:
-    result = kit.storacha_kit.store_add(space, file_path)
-    if not result["success"]:
-        # Handle specific error types
-        if result.get("error_type") == "IPFSConnectionError":
-            print("Connection issues, will retry...")
-        elif result.get("error_type") == "IPFSValidationError":
-            print("Invalid parameters, please check inputs")
-except Exception as e:
-    print(f"Unexpected error during Storacha operation: {str(e)}")
+from ipfs_kit_py.backends import get_backend_adapter, list_supported_backends
+from ipfs_kit_py.backend_manager import BackendManager
+
+print(list_supported_backends())  # includes iroh + BACKEND_ADAPTERS keys
+
+manager = BackendManager()
+# Iroh (lazy FS; client stays None until first I/O):
+fs = get_backend_adapter("iroh", "team_archive", manager)
+
+# S3-style adapter instance (does not by itself prove credentials are configured):
+s3_adapter = get_backend_adapter("s3", "archive_s3", manager)
 ```
 
-## S3-Compatible Storage Integration
-
-The `s3_kit.py` module provides comprehensive integration with S3-compatible object storage services, supporting both AWS S3 and alternative implementations like MinIO, Wasabi, or Backblaze B2.
-
-### Key Features
-
-- **Complete S3 Operations**: Full support for file and directory operations (copy, move, list, delete)
-- **Flexible Configuration**: Support for different authentication methods and endpoints
-- **Bucket Management**: Operations for creating, listing, and managing buckets
-- **Metadata Preservation**: Maintain metadata through storage operations
-- **Streaming Support**: Efficient handling of large files with progress tracking
-- **CID-to-Key Mapping**: Intelligent mapping between content identifiers and S3 keys
-- **Compatible Interface**: Consistent API across different S3 providers
-
-### Detailed Usage
-
-```python
-from ipfs_kit_py.ipfs_kit import ipfs_kit
-
-# Initialize with S3 configuration
-kit = ipfs_kit(metadata={
-    "s3cfg": {
-        "accessKey": "YOUR_ACCESS_KEY",     # or use AWS_ACCESS_KEY_ID env var
-        "secretKey": "YOUR_SECRET_KEY",     # or use AWS_SECRET_ACCESS_KEY env var
-        "endpoint": "https://s3.amazonaws.com"  # or use custom endpoint for MinIO, etc.
-    }
-})
-
-# List files in a directory (prefix)
-bucket_name = "my-ipfs-bucket"
-prefix = "ipfs/QmFolder/"
-
-listing = kit.s3_kit("ls_dir", dir=prefix, bucket_name=bucket_name)
-for item in listing:
-    print(f"Found S3 object: {item['key']} ({item['size']} bytes)")
-
-# Upload a file to S3 with CID-based key
-cid = "QmSomeCID123456789abcdef"
-local_file = "/path/to/local_file.dat"
-s3_key = f"ipfs/{cid}/original.dat"
-
-upload_result = kit.s3_kit("ul_file", 
-    upload_file=local_file,
-    path=s3_key,
-    bucket=bucket_name
-)
-
-if "key" in upload_result:
-    print(f"Uploaded file to S3: s3://{bucket_name}/{upload_result['key']}")
-    print(f"ETag: {upload_result['e_tag']}")
-    print(f"Size: {upload_result['size']} bytes")
-    print(f"Last Modified: {upload_result['last_modified']}")
-else:
-    print("Upload failed")
-
-# Download a file from S3
-download_result = kit.s3_kit("dl_file",
-    remote_path=s3_key,
-    local_path="/path/to/download_destination.dat",
-    bucket=bucket_name
-)
-
-if "key" in download_result:
-    print(f"Downloaded S3 object: {download_result['key']}")
-    print(f"Size: {download_result['size']} bytes")
-    print(f"Saved to: {download_result['local_path']}")
-else:
-    print("Download failed")
-
-# Upload an entire directory recursively
-upload_dir_result = kit.s3_kit("ul_dir",
-    local_path="/path/to/directory",
-    remote_path="ipfs/directory_backup/",
-    bucket=bucket_name
-)
-
-for key, item in upload_dir_result.items():
-    print(f"Uploaded: {key} ({item['size']} bytes)")
-
-# Move a file within S3 (copy + delete)
-move_result = kit.s3_kit("mv_file",
-    src_path="ipfs/original/file.dat",
-    dst_path="ipfs/archive/file.dat",
-    bucket=bucket_name
-)
-
-if "key" in move_result:
-    print(f"Moved file to: {move_result['key']}")
-
-# Delete a file
-delete_result = kit.s3_kit("rm_file",
-    this_path="ipfs/to_delete/file.dat",
-    bucket=bucket_name
-)
-
-if "key" in delete_result:
-    print(f"Deleted file: {delete_result['key']}")
-```
-
-### S3 Configuration Options
-
-The S3 integration supports multiple configuration formats:
-
-```python
-# Method 1: Using accessKey/secretKey format
-s3config = {
-    "accessKey": "YOUR_ACCESS_KEY",
-    "secretKey": "YOUR_SECRET_KEY",
-    "endpoint": "https://s3.amazonaws.com"
-}
-
-# Method 2: Using standard AWS SDK naming
-s3config = {
-    "aws_access_key_id": "YOUR_ACCESS_KEY", 
-    "aws_secret_access_key": "YOUR_SECRET_KEY",
-    "endpoint_url": "https://s3.amazonaws.com"
-}
-
-# You can also specify additional boto3 parameters
-s3config.update({
-    "region_name": "us-west-2",
-    "use_ssl": True,
-    "verify": True
-})
-```
-
-### Advanced Operations
-
-The S3 integration supports additional advanced operations:
-
-```python
-# Create directory (prefix) in S3
-mkdir_result = kit.s3_kit("mk_dir", 
-    dir="ipfs/new_directory/",
-    bucket=bucket_name,
-    s3_config=s3config
-)
-
-# Upload with progress tracking
-def progress_callback(bytes_transferred):
-    print(f"Transferred: {bytes_transferred} bytes")
-
-upload_result = kit.s3_kit.s3_upload_object(
-    f=open(local_file, 'rb'),
-    bucket=bucket_name,
-    key=s3_key,
-    s3_config=s3config,
-    progress_callback=progress_callback
-)
-
-# Using session management for efficient operations
-# The session is reused for multiple operations
-session = kit.s3_kit.get_session(s3config)
-```
-
-## Integration with Tiered Caching System
-
-The external storage backends integrate seamlessly with IPFS Kit's tiered caching system, providing additional storage layers beyond the local caches. This is managed through the `TieredCacheManager` that implements an Adaptive Replacement Cache (ARC) algorithm.
-
-### Storage Tiers Hierarchy
-
-```
-1. Memory Cache (ARCache) - Fastest, volatile
-   ↑↓ Automatic promotion/demotion based on access patterns
-2. Disk Cache (DiskCache) - Fast, persistent
-   ↑↓ Overflow and long-term storage migration
-3. IPFS Network - Distributed, content-addressed
-   ↑↓ Durability and backup
-4. External backends (Storacha, S3) - Cloud archival
-```
-
-### Integration Points
-
-The `TieredCacheManager` implements intelligent cache management with:
-
-1. **Adaptive Replacement Algorithm**: Balances between frequency and recency
-2. **Heat Scoring**: Sophisticated algorithm to determine content value
-3. **Automatic Migration**: Content moves between tiers based on access patterns
-4. **Cache Admission Policy**: Smart decisions about what enters higher tiers
-5. **Eviction Strategy**: Data-driven decisions about what to remove from each tier
-
-External backends are integrated through these mechanisms:
-
-```python
-from ipfs_kit_py.ipfs_kit import ipfs_kit
-from ipfs_kit_py.tiered_cache import TieredCacheManager
-
-# Configure tiered cache with external backend integration
-kit = ipfs_kit(metadata={
-    "cache_config": {
-        "memory_cache_size": 200 * 1024 * 1024,  # 200MB
-        "local_cache_size": 2 * 1024 * 1024 * 1024,  # 2GB
-        "local_cache_path": "/path/to/cache",
-        "external_backends": {
-            "storacha": {
-                "enabled": True,
-                "space": "default-space",
-                "promotion_threshold": 10,  # Access count before migration
-                "demotion_threshold": 30    # Days of no access before demotion
-            },
-            "s3": {
-                "enabled": True,
-                "bucket": "ipfs-content-cache",
-                "key_prefix": "ipfs/",
-                "promotion_threshold": 5,
-                "demotion_threshold": 60
-            }
-        }
-    }
-})
-
-# The cache manager integrates all tiers
-cache_manager = kit.get_cache_manager()
-
-# Access content through unified interface 
-# (automatically retrieves from appropriate tier)
-content = cache_manager.get("QmSomeCID")
-
-# Store content (automatically placed in appropriate tiers)
-cache_manager.put("QmSomeCID", content, metadata={"type": "important_document"})
-
-# Get cache statistics including external backends
-stats = cache_manager.get_stats()
-print(f"Memory cache: {stats['memory_cache']['utilization']:.1%} used")
-print(f"Disk cache: {stats['disk_cache']['utilization']:.1%} used")
-print(f"External backends: {stats.get('external_backends', {})}")
-
-# Force content to specific tier
-cache_manager.promote_to_tier("QmSomeCID", "storacha")
-```
-
-### Cache Heat Scoring
-
-The TieredCacheManager uses a sophisticated heat scoring algorithm to make intelligent decisions about content placement:
-
-```
-heat_score = (frequency_factor * frequency_weight + recency * recency_weight) * 
-             boost_factor * (1 + log(1 + age / 86400))
-```
-
-Where:
-- `frequency_factor`: Non-linear scaling of access count
-- `recency`: Recent access increases score (decays over time)
-- `boost_factor`: Extra score for recently accessed content
-- `age`: Bonus for content that has been valuable for longer periods
-
-This heat score determines:
-1. Which content stays in memory vs. disk cache
-2. What gets evicted when cache is full
-3. What gets prioritized for promotion to higher tiers
-4. What gets demoted to cloud storage for archival
-
-### Error Handling in Multi-Tier Storage
-
-The tiered storage system implements robust error handling with fallbacks:
-
-```python
-# Example of multi-tier retrieval with fallbacks
-def get_with_fallbacks(cid):
-    # Try local caches first
-    content = cache_manager.get(cid)
-    if content:
-        return content
-        
-    # Try IPFS network
-    try:
-        content = kit.ipfs_cat(cid)
-        if content:
-            # Cache for future access
-            cache_manager.put(cid, content)
-            return content
-    except Exception as e:
-        logger.warning(f"IPFS retrieval failed: {e}, trying external backends")
-    
-    # Try Storacha
-    try:
-        content = kit.storacha_kit.get_content(cid)
-        if content:
-            cache_manager.put(cid, content)
-            return content
-    except Exception as e:
-        logger.warning(f"Storacha retrieval failed: {e}, trying S3")
-    
-    # Try S3 as last resort
-    try:
-        s3_key = f"ipfs/{cid}"
-        content = kit.s3_kit.get_object(bucket="ipfs-backup", key=s3_key)
-        if content:
-            cache_manager.put(cid, content)
-            return content
-    except Exception as e:
-        logger.error(f"All retrieval methods failed for {cid}")
-    
-    return None
-```
-
-## Integration with FSSpec
-
-The external storage backends can also be used with the FSSpec integration, providing a familiar filesystem interface:
-
-```python
-from ipfs_kit_py.ipfs_kit import ipfs_kit
-import pandas as pd
-
-# Initialize with both S3 and Storacha configured
-kit = ipfs_kit(metadata={
-    "s3cfg": {...},
-    "storacha_token": "...",
-})
-
-# Get FSSpec-compatible filesystem
-fs = kit.get_filesystem()
-
-# The filesystem provides a unified interface to all backends
-df = pd.read_csv("ipfs://QmSomeCID/data.csv")  # Transparently retrieves from any tier
-
-# Write data that will be stored locally and potentially in cloud backends
-# based on tiering policies
-with fs.open("ipfs://myproject/results.csv", "w") as f:
-    df.to_csv(f)
-    
-# The CID of the new file can be used to access it from any backend
-new_cid = fs.get_cid("ipfs://myproject/results.csv")
-print(f"Data now available at ipfs://{new_cid}")
-```
-
-## Storage Backend Verification
-
-The IPFS Kit storage backends have been comprehensively verified, ensuring reliable operation across different environments and configurations. This verification includes both real implementations and mock implementations for testing purposes.
-
-### Verification Results
-
-| Backend     | Status                | Resource Location                             | Notes                                    |
-|-------------|----------------------|----------------------------------------------|------------------------------------------|
-| IPFS        | ✅ Full verification  | `QmRf22bZar3WKmojipms22PkXH1MZGmkeqkTmvRQAeSGj3` | Actual implementation tested successfully |
-| Storacha    | ✅ Mock verification  | `mockweb3.mockpin.1234567890abcdef`          | Mock implementation used for testing      |
-| S3          | ⚠️ Partial verification | N/A - Connection successful but bucket missing | Credentials work but test bucket needs creation |
-| Filecoin    | ✅ Mock verification  | `mock.fil.cid.1234567890abcdef`             | Mock implementation used for testing      |
-| Lassie      | ✅ Mock verification  | `mock.lassie.cid.1234567890abcdef`          | Mock implementation used for testing      |
-| HuggingFace | ✅ Full verification  | `ipfs-kit-test-repo/test-file-1mb.bin`        | Actual implementation tested successfully with secure credentials |
-
-A comprehensive verification process was used to test each backend:
-1. Each backend was tested by attempting to upload a 1MB random file
-2. The test verified the returned resource location and CID
-3. Proper credential management was implemented for backends requiring authentication
-4. Mock implementations were provided for backends with external dependencies
-
-### Secure Credential Management
-
-A secure credential management system has been implemented for storage backends that require authentication:
-
-1. **Storage Location**: Credentials are stored in `~/.ipfs_kit/config.json`
-2. **Security Measures**:
-   - File permissions set to 0o600 (user read/write only)
-   - No hardcoded credentials in source code
-   - Directory permissions set to 0o700 (user access only)
-
-3. **Credential Management Tools**:
-   - `setup_hf_credentials.py`: Securely store HuggingFace credentials
-   - `setup_s3_credentials.py`: Securely store S3 credentials
-   - `get_stored_credentials()` utility function for secure retrieval
-
-Example of secure S3 credential handling:
-
-```python
-# Securely store S3 credentials
-from ipfs_kit_py.credential_manager import add_s3_credentials
-
-# Store credentials securely
-add_s3_credentials(
-    access_key="YOUR_ACCESS_KEY", 
-    secret_key="YOUR_SECRET_KEY",
-    server="s3.example.com",
-    bucket="ipfs-test-bucket"
-)
-
-# Use credentials in your code
-from ipfs_kit_py.credential_manager import get_stored_credentials
-
-# Retrieve credentials securely
-creds = get_stored_credentials()
-s3_creds = creds.get("s3", {})
-
-# Set environment variables for AWS SDK
-if "access_key" in s3_creds:
-    os.environ["AWS_ACCESS_KEY_ID"] = s3_creds["access_key"]
-if "secret_key" in s3_creds:
-    os.environ["AWS_SECRET_ACCESS_KEY"] = s3_creds["secret_key"]
-```
-
-### MCP Server Integration
-
-All storage backends are seamlessly integrated into the MCP (Model-Controller-Persistence) server architecture:
-
-1. **Model Layer**: Backend-specific models implement business logic for each storage system
-2. **Controller Layer**: API endpoints expose unified storage operations
-3. **Persistence Layer**: Common cache management for all backends
-
-Example of MCP server storage integration:
-
-```python
-from ipfs_kit_py.mcp.server import MCPServer
-
-# Initialize MCP server with storage backends
-server = MCPServer(debug_mode=True)
-
-# Access storage models directly
-ipfs_model = server.models["ipfs"]
-s3_model = server.models["s3"]
-storacha_model = server.models["storacha"]
-huggingface_model = server.models["huggingface"]
-
-# Upload test content to verify backends
-result = server.upload_test_file(backend_name="ipfs")
-if result["success"]:
-    print(f"Successfully uploaded to {result['backend']}")
-    print(f"Resource ID: {result['resource_id']}")
-```
-
-See the `mcp_storage_backends_integration.py` script for a complete example of MCP server integration with all storage backends.
-
-## Best Practices for Storage Backends
-
-When working with multiple storage backends, consider the following best practices:
-
-### 1. Content Placement Strategy
-
-Develop a clear content placement strategy based on:
-- **Content importance**: Critical content should be in multiple backends
-- **Access patterns**: Frequently accessed content in faster tiers
-- **Cost considerations**: Expensive storage only for valuable content
-- **Durability requirements**: High-value content needs multiple copies
-
-### 2. Secure Credential Management
-
-Always use secure credential management for external storage backends:
-
-```python
-# Use credential management tools
-from ipfs_kit_py.credential_manager import (
-    add_s3_credentials, 
-    add_huggingface_credentials,
-    add_storacha_credentials,
-    get_stored_credentials
-)
-
-# Store credentials securely
-add_s3_credentials(access_key="ACCESS_KEY", secret_key="SECRET_KEY")
-add_huggingface_credentials(token="HF_TOKEN")
-add_storacha_credentials(token="STORACHA_TOKEN")
-
-# Use credentials in your code
-creds = get_stored_credentials()
-s3_creds = creds.get("s3", {})
-hf_creds = creds.get("huggingface", {})
-```
-
-### 3. Mapping CIDs to Backend-specific Identifiers
-
-```python
-# Consistent mapping between CIDs and backend-specific keys
-def get_s3_key_from_cid(cid, prefix="ipfs"):
-    """Generate consistent S3 key from CID."""
-    # Use hierarchical structure for better performance
-    return f"{prefix}/{cid[:2]}/{cid[2:4]}/{cid}"
-    
-def get_metadata_path(cid):
-    """Generate path for metadata storage."""
-    return f"metadata/{cid[:4]}/{cid}.json"
-```
-
-### 4. Content Verification and Integrity
-
-Always verify content integrity when retrieving from external backends:
-
-```python
-def verify_content_integrity(cid, content):
-    """Verify content matches its CID."""
-    import multihash
-    calculated_cid = multihash.to_b58_string(multihash.digest(content, "sha2-256"))
-    return cid == calculated_cid
-```
-
-### 5. Metadata and Content Separation
-
-Store metadata separately from content for efficient operations:
-
-```python
-# Store content and metadata separately
-content_cid = kit.ipfs_add(content)
-metadata = {
-    "content_cid": content_cid,
-    "title": "Important Document",
-    "created": time.time(),
-    "tags": ["important", "document"],
-    "backends": ["local", "storacha", "s3"]
-}
-
-# Store metadata in index
-metadata_cid = kit.ipfs_add_json(metadata)
-
-# Track in Arrow index for efficient queries
-index.add_record({
-    "cid": content_cid,
-    "metadata_cid": metadata_cid,
-    "storage_locations": {
-        "storacha": {"space": "default-space"},
-        "s3": {"bucket": "content-bucket", "key": f"ipfs/{content_cid}"}
-    }
-})
-```
-
-### 6. Error Recovery and Fallbacks
-
-Implement robust error recovery with fallbacks between backends:
-
-```python
-# Progressive retrieval strategy
-def get_with_fallbacks(cid, retries=3, backoff=1.5):
-    backends = ["memory", "disk", "ipfs", "storacha", "s3"]
-    errors = {}
-    
-    for backend in backends:
-        for attempt in range(retries):
-            try:
-                if backend == "memory" or backend == "disk":
-                    content = cache_manager.get(cid)
-                    if content:
-                        return content
-                elif backend == "ipfs":
-                    content = kit.ipfs.cat(cid)
-                    return content
-                elif backend == "storacha":
-                    content = kit.storacha_kit.get_content(cid)
-                    return content
-                elif backend == "s3":
-                    content = kit.s3_kit.get_object(bucket="ipfs-backup", key=f"ipfs/{cid}")
-                    return content
-            except Exception as e:
-                errors[f"{backend}-{attempt}"] = str(e)
-                time.sleep(backoff ** attempt)
-    
-    # All backends failed
-    raise ContentRetrievalError(f"Failed to retrieve {cid} from any backend: {errors}")
-```
+`BackendAdapter` (ABC) defines async health/sync/backup-style methods. Not every
+registry type has an isomorphic adapter implementation in this package.
+
+### 5.2 Canonical Iroh construction path
+
+1. Persist/validate named document via `BackendManager`.
+2. `IrohBackendPlugin.create_filesystem` builds `IrohFileSystem` with
+   `client=None` and a `client_factory` that connects on first I/O.
+3. Service start/stop remains **service** ownership, not registry ownership
+   (see Iroh lifecycle docs under `docs/iroh/`).
+
+### 5.3 Parallel / compatibility surfaces (not equal defaults)
+
+| Surface | Qualification |
+|---|---|
+| `EnhancedBackendManager` | Policy/dashboard-oriented parallel manager; **not** schema-validation authority |
+| `backend_schemas.py` | UI field catalogs with password widgets |
+| `backend_cli.py` / some MCP tools | May expect helpers not exported by current `backend_manager.py` (compatibility gap; see architecture guide) |
+| Top-level `ipfs_kit_py/ipfs_backend.py` | Parallel historical IPFS adapter vs `backends/ipfs_backend.py` |
+| `mcp/storage_manager/backends/*` | Control-plane era backends (Storacha, Filecoin, HF, Lassie, Saturn, …) |
+| Kit modules (`s3_kit`, `storacha_kit`, `lassie_kit`, …) | Direct service clients used by older APIs and tiered-cache integrations |
+
+---
+
+## 6. Capabilities and health semantics
+
+| Call | Meaning |
+|---|---|
+| `get_backend_capabilities(name)` | Plugin-declared feature map from **config**, not a guarantee of live connectivity |
+| `get_backend_health(name)` | Optional injected probe, else plugin default; **Iroh** probes local endpoint existence; **legacy** defaults to `not-probed` |
+| `get_backend_info(name)` | Redacted config + capabilities + health |
+
+Operators who need real connectivity checks should inject `health_probes` on
+`BackendManager` or use backend-specific kit health endpoints — and still redact
+results before logging.
+
+---
+
+## 7. Configuration extras and related systems
+
+| Concern | Where | Relation to named backends |
+|---|---|---|
+| Policies (quota, replication, retention, cache) | `backend_policies.py`, policy CLI guides | Orthogonal policy plane; may reference backend names |
+| Tiered cache / ARC | `tiered_cache_manager.py`, cache package | May call kit clients for S3/Storacha-style external tiers |
+| Content routing | `routing/` | Routes across backends; gRPC stack partially deprecated |
+| Bucket / VFS | Bucket managers, VFS contracts | Logical namespaces **mapped to** backends — not backend types themselves |
+| Credentials | [credential_management.md](../credential_management.md) | Secret stores and env; schema-validated YAML uses refs only |
+
+Example policy-oriented YAML (env **names** only, no secret values):
+`config/enhanced_backend_examples.yaml`. Treat it as illustrative for enhanced
+manager layouts, not as the Iroh closed schema.
+
+---
+
+## 8. Safe operator checklist
+
+1. Prefer **schema-validated** types for new production backends (today: **Iroh**).
+2. Keep secrets out of YAML: use `secretref:…` (Iroh) or env/secret managers.
+3. Confirm type maturity with `describe()` before promising features to users.
+4. Use `list_backends` / `show_backend` for diagnostics — never `cat` raw YAML
+   that may contain legacy inline secrets into tickets.
+5. Atomic files are mode `0600`; keep `~/.ipfs_kit` owner-only on multi-user hosts.
+6. Do not assume registry name ⇒ package adapter ⇒ remote service product.
+7. For Iroh create/show/migrate workflows, follow
+   [named-backends.md](../iroh/named-backends.md) and
+   [credential-rotation.md](../iroh/credential-rotation.md).
+
+---
+
+## 9. Related documentation
+
+| Doc | Role |
+|---|---|
+| [STORAGE_BACKEND_SYSTEM.md](../architecture/STORAGE_BACKEND_SYSTEM.md) | Canonical architecture (plugins, documents, adapters, invariants) |
+| [CONFIGURATION_STATE_AND_TRUST.md](../architecture/CONFIGURATION_STATE_AND_TRUST.md) | State roots, trust, redaction, process lifecycle |
+| [credential_management.md](../credential_management.md) | CredentialManager, secretref providers, safe usage |
+| [docs/iroh/*](../iroh/) | Normative Iroh service, security, and filesystem contracts |
+| [SOURCE_OF_TRUTH_MAP.md](../architecture/SOURCE_OF_TRUTH_MAP.md) §2 | Candidate authorities and unresolved factory decisions |
+
+---
+
+*End of storage backends reference (KDOC-034).*

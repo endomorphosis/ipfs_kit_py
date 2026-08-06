@@ -1,524 +1,363 @@
 # API Reference
 
-This document provides a complete reference for the IPFS Kit API, including both the High-Level API (`IPFSSimpleAPI`) and the REST API server.
+Python library and HTTP surfaces for IPFS Kit as they exist on the **current tree**. Every import and signature shown either resolves in-repo or is explicitly labeled **Compatibility** / **Proposed**. This reference does **not** claim an implicit process-wide singleton for library users, and it does not present unavailable root exports as public API.
 
-## High-Level API Reference
+For narrative construction, degraded-mode behavior, plugins, and dual-path detail, see [High-Level API](high_level_api.md). Architecture: [Runtime and entry points](../architecture/RUNTIME_AND_ENTRYPOINTS.md), [Compatibility layers](../architecture/COMPATIBILITY_LAYERS.md).
 
-The `IPFSSimpleAPI` class provides a simplified, user-friendly interface for common IPFS operations.
+---
 
-### Initialization
+## 1. Import matrix
+
+| Import | Status | Notes |
+|--------|--------|--------|
+| `from ipfs_kit_py.high_level_api import IPFSSimpleAPI` | **Canonical** | Package `ipfs_kit_py/high_level_api/`; constructor may return Compatibility impl or stub |
+| `from ipfs_kit_py import IPFSSimpleAPI` | **Lazy proxy** | Not in `__all__` (**C-EXPORT**); `_IPFSSimpleAPIProxy`; may raise `ImportError` |
+| `from ipfs_kit_py import get_high_level_api` | **Canonical helper** | Returns `(IPFSSimpleAPI_cls_or_None, PluginBase_or_None)` — PluginBase usually `None` from package |
+| `from ipfs_kit_py.ipfs_kit import ipfs_kit` | **Canonical** | Lowercase class name; multi-role orchestrator |
+| `from ipfs_kit_py import ipfs_kit` / `get_ipfs_kit()` | **Lazy proxy** | Callable class proxy, **not** a pre-constructed instance |
+| `from ipfs_kit_py.api import run_server` | **Canonical** (optional FastAPI/uvicorn) | Starts HTTP API process using module-level server wiring |
+| `from ipfs_kit_py.high_level_api import PluginBase` | **Unavailable** on package surface | See Compatibility note below |
+| `from ipfs_kit_py import PluginBase` | **Unavailable** | Root binds `PluginBase = None` |
+| `IPFSKit` (capitalized) | **Does not exist** | Use `ipfs_kit` |
+| `high_level_api.py.fixed`, `*_improved.py`, … | **Inactive** | Not import targets |
+
+### Compatibility: implementation module identity
+
+| Path | Role |
+|------|------|
+| `ipfs_kit_py/high_level_api/` | Import package (canonical name) |
+| `ipfs_kit_py/high_level_api.py` | **Compatibility** body; loaded as `ipfs_kit_py._high_level_api_impl` |
+| Stub `IPFSSimpleAPI` in package | Used when Compatibility body fails to load; `available = False` |
+
+---
+
+## 2. High-level API (`IPFSSimpleAPI`)
+
+### Construction
 
 ```python
 from ipfs_kit_py.high_level_api import IPFSSimpleAPI
 
-# Initialize with default settings
 api = IPFSSimpleAPI()
-
-# Initialize with specific role and config file
 api = IPFSSimpleAPI(config_path="~/.ipfs_kit/config.yaml", role="worker")
-
-# Initialize with inline configuration
-api = IPFSSimpleAPI(
-    role="master",
-    resources={"max_memory": "2GB", "max_storage": "100GB"},
-    cache={"memory_size": "500MB", "disk_size": "5GB"},
-    timeouts={"api": 60, "gateway": 120}
-)
+api = IPFSSimpleAPI(role="master", resources={"max_memory": "2GB"}, enable_metrics=True)
 ```
 
-### Content Operations
+| Item | Detail |
+|------|--------|
+| Signature | `IPFSSimpleAPI(config_path: Optional[str] = None, **kwargs)` |
+| Default role | `"leecher"` when not set in config/kwargs (full impl) |
+| Kit wiring | Full impl builds `self.kit = ipfs_kit(resources=..., metadata=...)` |
+| Degraded | If only stub: `available is False`; methods return `{success: False, warning: ...}` |
+| Singleton | **None for library callers** — each call constructs a new instance |
 
-| Method | Description | Parameters | Return Value |
-|--------|-------------|------------|--------------|
-| `add(content, pin=True, wrap_with_directory=False, **kwargs)` | Add content to IPFS | `content`: File path, string, or bytes<br>`pin`: Whether to pin the content<br>`wrap_with_directory`: Whether to wrap in a directory<br>`**kwargs`: Additional IPFS add options | Dictionary with keys:<br>- `success`: Boolean<br>- `cid`: Content identifier<br>- Other add-specific metadata |
-| `get(cid, **kwargs)` | Retrieve content from IPFS | `cid`: Content identifier<br>`**kwargs`: Additional get options | Bytes containing the content |
-| `pin(cid, recursive=True, **kwargs)` | Pin content to local node | `cid`: Content identifier<br>`recursive`: Whether to pin recursively<br>`**kwargs`: Additional pin options | Dictionary with keys:<br>- `success`: Boolean<br>- Operation metadata |
-| `unpin(cid, recursive=True, **kwargs)` | Unpin content from local node | `cid`: Content identifier<br>`recursive`: Whether to unpin recursively<br>`**kwargs`: Additional unpin options | Dictionary with keys:<br>- `success`: Boolean<br>- Operation metadata |
-| `list_pins(type="all", quiet=False, **kwargs)` | List pinned content | `type`: Pin type ("all", "recursive", "direct", "indirect")<br>`quiet`: Return only CIDs if True<br>`**kwargs`: Additional ls options | Dictionary with keys:<br>- `success`: Boolean<br>- `pins`: List or dict of pins |
-
-### Filesystem-like Operations
-
-| Method | Description | Parameters | Return Value |
-|--------|-------------|------------|--------------|
-| `open(cid, mode="rb")` | Open content as file-like object | `cid`: Content identifier<br>`mode`: File mode (only "rb" supported) | File-like object |
-| `read(cid)` | Read entire content | `cid`: Content identifier | Bytes containing the content |
-| `exists(cid)` | Check if content exists | `cid`: Content identifier | Boolean indicating existence |
-| `ls(cid, detail=True, **kwargs)` | List directory contents | `cid`: Directory CID<br>`detail`: Return detailed information<br>`**kwargs`: Additional ls options | List of dictionaries with file information |
-
-### IPNS Operations
-
-| Method | Description | Parameters | Return Value |
-|--------|-------------|------------|--------------|
-| `publish(cid, key="self", lifetime="24h", ttl="1h", **kwargs)` | Publish content to IPNS | `cid`: Content identifier<br>`key`: IPNS key name<br>`lifetime`: IPNS record lifetime<br>`ttl`: IPNS record caching time<br>`**kwargs`: Additional publish options | Dictionary with keys:<br>- `success`: Boolean<br>- `ipns_name`: IPNS identifier<br>- Publication metadata |
-| `resolve(ipns_name, recursive=True, **kwargs)` | Resolve IPNS name to CID | `ipns_name`: IPNS identifier<br>`recursive`: Resolve recursively<br>`**kwargs`: Additional resolve options | Dictionary with keys:<br>- `success`: Boolean<br>- `resolved_cid`: Resolved content identifier<br>- Resolution metadata |
-
-### Peer Operations
-
-| Method | Description | Parameters | Return Value |
-|--------|-------------|------------|--------------|
-| `connect(peer_addr)` | Connect to a peer | `peer_addr`: Peer multiaddress | Dictionary with keys:<br>- `success`: Boolean<br>- Connection metadata |
-| `peers(verbose=False, latency=False, direction=False, **kwargs)` | List connected peers | `verbose`: Include detailed information<br>`latency`: Include latency information<br>`direction`: Include connection direction<br>`**kwargs`: Additional options | Dictionary with keys:<br>- `success`: Boolean<br>- `peers`: List of peer information<br>- `count`: Number of peers |
-
-### Cluster Operations (Master/Worker Only)
-
-| Method | Description | Parameters | Return Value |
-|--------|-------------|------------|--------------|
-| `cluster_add(content, replication_factor=1, name=None, **kwargs)` | Add content to cluster | `content`: File path, string, or bytes<br>`replication_factor`: Desired replication factor<br>`name`: Optional content name<br>`**kwargs`: Additional cluster add options | Dictionary with keys:<br>- `success`: Boolean<br>- `cid`: Content identifier<br>- Cluster-specific metadata |
-| `cluster_pin(cid, replication_factor=1, name=None, **kwargs)` | Pin content to cluster | `cid`: Content identifier<br>`replication_factor`: Desired replication factor<br>`name`: Optional name<br>`**kwargs`: Additional cluster pin options | Dictionary with keys:<br>- `success`: Boolean<br>- `cid`: Content identifier<br>- Cluster-specific metadata |
-| `cluster_status(cid=None, **kwargs)` | Get pin status in cluster | `cid`: Optional content identifier (all pins if None)<br>`**kwargs`: Additional status options | Dictionary with keys:<br>- `success`: Boolean<br>- `status`: Status information for pin(s) |
-| `cluster_peers(**kwargs)` | List cluster peers | `**kwargs`: Additional peer list options | Dictionary with keys:<br>- `success`: Boolean<br>- `peers`: List of peer information |
-
-### AI/ML Operations (Requires ai_ml extra)
-
-| Method | Description | Parameters | Return Value |
-|--------|-------------|------------|--------------|
-| `ai_model_add(model, metadata, **kwargs)` | Add model to registry | `model`: ML model instance<br>`metadata`: Model metadata<br>`**kwargs`: Additional options | Dictionary with keys:<br>- `success`: Boolean<br>- `cid`: Model CID<br>- Model-specific metadata |
-| `ai_model_get(model_cid, **kwargs)` | Get model from registry | `model_cid`: Model CID<br>`**kwargs`: Additional options | Dictionary with keys:<br>- `success`: Boolean<br>- `model`: ML model instance<br>- `metadata`: Model metadata |
-| `ai_dataset_add(dataset, metadata, **kwargs)` | Add dataset to registry | `dataset`: Dataset object/dataframe<br>`metadata`: Dataset metadata<br>`**kwargs`: Additional options | Dictionary with keys:<br>- `success`: Boolean<br>- `cid`: Dataset CID<br>- Dataset-specific metadata |
-| `ai_dataset_get(dataset_cid, **kwargs)` | Get dataset from registry | `dataset_cid`: Dataset CID<br>`**kwargs`: Additional options | Dictionary with keys:<br>- `success`: Boolean<br>- `dataset`: Dataset object<br>- `metadata`: Dataset metadata |
-| `ai_metrics_visualize(model_id, metrics_type="all", theme="light", interactive=True, output_file=None)` | Generate metrics visualizations | `model_id`: Model identifier<br>`metrics_type`: Type of metrics<br>`theme`: Visualization theme<br>`interactive`: Use interactive charts<br>`output_file`: Output file path | Dictionary with keys:<br>- `success`: Boolean<br>- Visualization-specific metadata |
-
-### Plugin System
-
-| Method | Description | Parameters | Return Value |
-|--------|-------------|------------|--------------|
-| `register_extension(name, func)` | Register a custom extension | `name`: Extension name<br>`func`: Extension function | None |
-| `register_extension(extension_instance)` | Register a custom extension instance | `extension_instance`: An instance of a class following the extension pattern (e.g., inheriting from `PluginBase`) | None |
-| `call_extension(name, method_name, *args, **kwargs)` | Call a method on a registered extension | `name`: Extension name (from `get_name()`)<br>`method_name`: Name of the method to call<br>`*args`: Positional arguments for the method<br>`**kwargs`: Keyword arguments for the method | Return value of the extension method |
-
-### SDK Generation
-
-| Method | Description | Parameters | Return Value |
-|--------|-------------|------------|--------------|
-| `generate_sdk(language, output_dir="./sdk", **kwargs)` | Generate client SDK | `language`: Target language ("python", "javascript", "rust")<br>`output_dir`: Output directory<br>`**kwargs`: Additional options | Dictionary with keys:<br>- `success`: Boolean<br>- `language`: Target language<br>- `output_path`: Output directory path<br>- `files_generated`: List of generated files |
-
-### Configuration Management
-
-| Method | Description | Parameters | Return Value |
-|--------|-------------|------------|--------------|
-| `save_config(file_path)` | Save current configuration | `file_path`: Output file path | Dictionary with keys:<br>- `success`: Boolean<br>- `file_path`: Saved configuration path |
-
-### Method Call Interface
-
-The `IPFSSimpleAPI` class also implements a callable interface that allows dynamic method invocation:
+### Method call interface
 
 ```python
-# Normal method call
-result = api.add("example.txt")
-
-# Callable interface
-result = api("add", "example.txt")
-
-# Extension call
-result = api("my_custom_service.get_service_status")
-
-# Note: Direct attribute access (e.g., api.my_custom_method()) might also be supported
-# depending on the specific implementation of IPFSSimpleAPI's dynamic handling.
+api.add("example.txt")
+api("add", "example.txt")                 # __call__(method_name, *args, **kwargs)
+api.call_extension("ext_name", *args)     # registered extension by single name
+api.register_extension(name, func, overwrite=True)
 ```
 
-### Streaming Operations
+### Content operations
 
-| Method | Description | Parameters | Return Value |
-|--------|-------------|------------|--------------|
-| `stream_media(cid, byte_range=None, **kwargs)` | Stream media content (video/audio) | `cid`: Content identifier<br>`byte_range`: Optional tuple `(start, end)` for range requests | Generator yielding chunks of bytes |
-| `stream_to_ipfs(data_stream, pin=True, **kwargs)` | Stream data directly to IPFS | `data_stream`: Iterator/generator yielding bytes<br>`pin`: Whether to pin the resulting content<br>`**kwargs`: Additional add options | Dictionary with keys:<br>- `success`: Boolean<br>- `cid`: Content identifier<br>- Add metadata |
-| `handle_websocket_media_stream(websocket, cid, **kwargs)` | Handle WebSocket connection for media streaming | `websocket`: WebSocket connection object<br>`cid`: Content identifier<br>`**kwargs`: Streaming options | Async task (None) |
-| `handle_websocket_upload_stream(websocket, pin=True, **kwargs)` | Handle WebSocket connection for uploading data | `websocket`: WebSocket connection object<br>`pin`: Pin uploaded content<br>`**kwargs`: Add options | Async task returning add result dict |
-| `handle_websocket_bidirectional_stream(websocket, **kwargs)` | Handle bidirectional WebSocket stream | `websocket`: WebSocket connection object<br>`**kwargs`: Options | Async task (None) |
-| `handle_webrtc_streaming(websocket, **kwargs)` | Handle WebRTC signaling and streaming via WebSocket | `websocket`: WebSocket signaling connection object<br>`**kwargs`: WebRTC configuration | Async task (None) |
+| Method | Signature (essentials) | Returns |
+|--------|------------------------|---------|
+| `add` | `add(content, pin=True, wrap_with_directory=False, chunker="size-262144", hash="sha2-256", **kwargs)` | `dict` with `success`, `cid`, size/name metadata |
+| `get` | `get(cid, timeout=None, **kwargs)` | `bytes` |
+| `cat` | `cat(cid)` | `bytes` |
+| `pin` | `pin(cid, recursive=True, timeout=None, **kwargs)` | `dict` (`success`, `cid`, …) |
+| `unpin` | `unpin(cid, recursive=True, timeout=None, **kwargs)` | `dict` |
+| `list_pins` | `list_pins(type="all", quiet=False, timeout=None, **kwargs)` | `dict` (`pins`, `count`, …) |
+| `pin_ls` | `pin_ls(cid=None, type="all", quiet=False, timeout=None, type_filter=None, **kwargs)` | `dict` |
+| `pins` | `pins(type=None, quiet=None, verify=None, **kwargs)` | `dict` |
+| `add_json` | `add_json(data, indent=2, sort_keys=True, pin=True, wrap_with_directory=False, filename=None, allow_simulation=True, **kwargs)` | `dict` |
 
+### Filesystem-like operations
 
-### Advanced AI/ML Operations (Requires ai_ml extra)
+| Method | Signature (essentials) | Returns |
+|--------|------------------------|---------|
+| `open` | `open(path, mode="rb", cache=True, size_hint=None, **kwargs)` | File-like |
+| `read` | `read(path, cache=True, timeout=None, **kwargs)` | `bytes` |
+| `exists` | `exists(path, timeout=None, **kwargs)` | `bool` |
+| `ls` | `ls(path, detail=True, timeout=None, **kwargs)` | List / detailed entries |
+| `open_file` | `open_file(path, mode="rb", buffer_size=None, cache_type=None, compression=None, encoding=None, errors=None, **kwargs)` | File-like |
+| `read_file` / `read_text` | See implementation | Bytes / text |
+| `get_filesystem` | `get_filesystem(gateway_urls=None, use_gateway_fallback=None, gateway_only=None, cache_config=None, enable_metrics=None, return_mock=False, **kwargs)` | fsspec-style FS or mock |
 
-*(This section expands on the basic AI/ML operations listed previously)*
+### IPNS and peers
 
-| Method | Description | Parameters | Return Value |
-|--------|-------------|------------|--------------|
-| `ai_data_loader(dataset_cid=None, dataset_name=None, batch_size=32, shuffle=True, prefetch=2, **kwargs)` | Get an IPFSDataLoader instance | `dataset_cid/name`: Dataset identifier<br>`batch_size`, `shuffle`, `prefetch`: Loader options<br>`**kwargs`: Additional options | `IPFSDataLoader` instance |
-| `ai_langchain_create_vectorstore(documents, embedding_model, collection_name=None, **kwargs)` | Create Langchain vector store on IPFS | `documents`: List of Langchain Documents<br>`embedding_model`: Langchain embedding model instance<br>`collection_name`: Optional name<br>`**kwargs`: Options | Dict with `success`, `vector_store` object, `cid` |
-| `ai_langchain_load_documents(cid_or_path, **kwargs)` | Load documents from IPFS for Langchain | `cid_or_path`: IPFS CID or path<br>`**kwargs`: Loader options | List of Langchain `Document` objects |
-| `ai_langchain_store_chain(chain, name, version, metadata=None, **kwargs)` | Store Langchain chain on IPFS | `chain`: Langchain chain object<br>`name`, `version`: Identifier<br>`metadata`: Optional metadata<br>`**kwargs`: Options | Dict with `success`, `cid` |
-| `ai_langchain_load_chain(name, version, **kwargs)` | Load Langchain chain from IPFS | `name`, `version`: Identifier<br>`**kwargs`: Options | Dict with `success`, `chain` object |
-| `ai_llama_index_create_index(documents, service_context=None, **kwargs)` | Create LlamaIndex index on IPFS | `documents`: List of LlamaIndex Documents<br>`service_context`: Optional LlamaIndex ServiceContext<br>`**kwargs`: Options | Dict with `success`, `index` object, `cid` |
-| `ai_llama_index_load_documents(cid_or_path, **kwargs)` | Load documents from IPFS for LlamaIndex | `cid_or_path`: IPFS CID or path<br>`**kwargs`: Loader options | List of LlamaIndex `Document` objects |
-| `ai_llama_index_store_index(index, name, version, metadata=None, **kwargs)` | Store LlamaIndex index on IPFS | `index`: LlamaIndex index object<br>`name`, `version`: Identifier<br>`metadata`: Optional metadata<br>`**kwargs`: Options | Dict with `success`, `cid` |
-| `ai_llama_index_load_index(name, version, service_context=None, **kwargs)` | Load LlamaIndex index from IPFS | `name`, `version`: Identifier<br>`service_context`: Optional LlamaIndex ServiceContext<br>`**kwargs`: Options | Dict with `success`, `index` object |
-| `ai_distributed_training_submit_job(task_config, **kwargs)` | Submit a distributed training job | `task_config`: Dictionary defining the job<br>`**kwargs`: Options | Dict with `success`, `task_id` |
-| `ai_distributed_training_get_status(task_id, **kwargs)` | Get status of a distributed training job | `task_id`: Job identifier<br>`**kwargs`: Options | Dict with `success`, `status`, `progress`, etc. |
-| `ai_distributed_training_aggregate_results(task_id, **kwargs)` | Aggregate results from a completed job | `task_id`: Job identifier<br>`**kwargs`: Options | Dict with `success`, `final_model_cid`, `metrics` |
-| `ai_benchmark_model(...)` | Benchmark model performance | *(Params depend on implementation)* | Benchmark results dict |
-| `ai_deploy_model(...)` | Deploy model to an endpoint | *(Params depend on implementation)* | Deployment info dict |
-| `ai_optimize_model(...)` | Optimize model for inference | *(Params depend on implementation)* | Dict with `success`, `optimized_model_cid` |
+| Method | Signature (essentials) | Returns |
+|--------|------------------------|---------|
+| `publish` | `publish(cid, key="self", lifetime="24h", ttl="1h", timeout=None, **kwargs)` | `dict` |
+| `resolve` | `resolve(name, recursive=True, timeout=None, **kwargs)` | `dict` (parameter is `name`) |
+| `connect` | `connect(peer, timeout=None, **kwargs)` | `dict` (parameter is `peer` multiaddress) |
+| `peers` | `peers(verbose=False, latency=False, direction=False, timeout=None, **kwargs)` | `dict` |
+| `register_peer` / `unregister_peer` | `register_peer(peer_id, peer_address, capabilities=None)` | `dict` |
 
+### Cluster operations
 
-### Integrated Search Operations (Requires relevant extras)
+Require cluster-capable role and components. Defaults below match the Compatibility implementation.
 
-| Method | Description | Parameters | Return Value |
-|--------|-------------|------------|--------------|
-| `hybrid_search(query_text=None, query_vector=None, metadata_filters=None, entity_types=None, hop_count=1, top_k=10, **kwargs)` | Perform hybrid metadata/vector/graph search | *(See method signature)*<br>`**kwargs`: Options | List of search result dictionaries |
-| `load_embedding_model(model_name_or_path, **kwargs)` | Load an embedding model | `model_name_or_path`: Identifier for the model<br>`**kwargs`: Options | Embedding model instance |
-| `generate_embeddings(texts, model=None, **kwargs)` | Generate embeddings for text | `texts`: List of strings<br>`model`: Optional pre-loaded model<br>`**kwargs`: Options | List of embedding vectors |
-| `create_search_connector(**kwargs)` | Get an AIMLSearchConnector instance | `**kwargs`: Options | `AIMLSearchConnector` instance |
-| `create_search_benchmark(**kwargs)` | Get a SearchBenchmark instance | `**kwargs`: Options | `SearchBenchmark` instance |
-| `run_search_benchmark(...)` | Run search benchmarks | *(Params depend on implementation)* | Benchmark results dict |
+| Method | Signature (essentials) | Returns |
+|--------|------------------------|---------|
+| `cluster_add` | `cluster_add(content, replication_factor=-1, name=None, timeout=None, **kwargs)` | `dict` |
+| `cluster_pin` | `cluster_pin(cid, replication_factor=-1, name=None, timeout=None, **kwargs)` | `dict` |
+| `cluster_status` | `cluster_status(cid=None, local=False, timeout=None, **kwargs)` | `dict` |
+| `cluster_peers` | `cluster_peers(timeout=None, **kwargs)` | `dict` |
 
+### Streaming (sync and async)
 
-## REST API Reference
+| Method | Signature (essentials) | Notes |
+|--------|------------------------|-------|
+| `stream_media` | `stream_media(path, chunk_size=..., mime_type=None, start_byte=None, end_byte=None, cache=True, timeout=None, **kwargs)` | Sync generator |
+| `stream_media_async` | Same params, `async` | Async |
+| `stream_to_ipfs` | `stream_to_ipfs(content_iterator, filename=None, mime_type=None, chunk_size=..., progress_callback=None, timeout=None, metadata=None, **kwargs)` | Marked beta in source |
+| `stream_to_ipfs_async` | Async counterpart | |
+| `handle_websocket_media_stream` | `async handle_websocket_media_stream(websocket, path, ...)` | ASGI WebSocket |
+| `handle_websocket_upload_stream` | `async handle_websocket_upload_stream(websocket, ...)` | |
+| `handle_websocket_bidirectional_stream` | `async handle_websocket_bidirectional_stream(websocket, ...)` | |
+| `handle_webrtc_streaming` | `async handle_webrtc_streaming(websocket, **kwargs)` | |
+| `track_streaming_operation` | Metrics helper | |
 
-The REST API server provides HTTP endpoints for interacting with IPFS Kit remotely. The API follows a consistent structure with all responses including a `success` flag.
+### Configuration, SDK, health, extensions
 
-### Server Configuration
+| Method | Signature | Returns |
+|--------|-----------|---------|
+| `save_config` | `save_config(config_path)` | `dict` |
+| `generate_sdk` | `generate_sdk(language, output_dir, **kwargs)` | `dict` (`output_dir` required) |
+| `run_health_check` | `run_health_check(**kwargs)` | `dict` |
+| `register_extension` | `register_extension(name, func, overwrite=True)` | `dict` (full impl) |
+| `call_extension` | `call_extension(extension_name, *args, **kwargs)` | Extension return value |
+| `__call__` | `__call__(method_name, *args, **kwargs)` | Method/extension result |
+
+### AI / ML (optional extras; methods present on Compatibility class)
+
+| Method | Signature (essentials) |
+|--------|------------------------|
+| `ai_model_add` | `ai_model_add(model, metadata=None, pin=True, replicate=False, framework=None, version=None, timeout=None, **kwargs)` |
+| `ai_model_get` | `ai_model_get(model_id, local_only=False, load_to_memory=True, timeout=None, **kwargs)` |
+| `ai_dataset_add` | `ai_dataset_add(dataset, metadata=None, pin=True, replicate=False, format=None, chunk_size=None, timeout=None, **kwargs)` |
+| `ai_dataset_get` | `ai_dataset_get(dataset_id, decode=True, return_path=False, target_path=None, version=None, timeout=None, **kwargs)` |
+| `ai_register_model` | `ai_register_model(model_cid, metadata, allow_simulation=True, **kwargs)` |
+| `ai_register_dataset` | `ai_register_dataset(dataset_cid, metadata, pin=True, add_to_index=True, overwrite=False, ...)` |
+| `ai_list_models` | `ai_list_models(framework=None, model_type=None, limit=100, offset=0, ...)` |
+| `ai_data_loader` | `ai_data_loader(dataset_cid, batch_size=32, shuffle=True, prefetch=2, ...)` |
+| `ai_test_inference` | `ai_test_inference(model_cid, test_data_cid, batch_size=32, ..., allow_simulation=True, **kwargs)` |
+| `ai_deploy_model` | `ai_deploy_model(model_cid, deployment_config, environment="production", ...)` |
+| `ai_update_deployment` | `ai_update_deployment(deployment_id, model_cid=None, config=None, allow_simulation=True, **kwargs)` |
+| `ai_get_endpoint_status` | `ai_get_endpoint_status(endpoint_id, allow_simulation=True, **kwargs)` |
+| `ai_optimize_model` | `ai_optimize_model(model_cid, target_platform="cpu", optimization_level="O1", quantization=False, ...)` |
+| `ai_benchmark_model` | `ai_benchmark_model(model_cid, benchmark_type="inference", batch_sizes=[1, 8, 32], ...)` |
+| `ai_create_embeddings` | `ai_create_embeddings(docs_cid, embedding_model="default", ...)` |
+| `ai_create_vector_index` | `ai_create_vector_index(embedding_cid, index_type="hnsw", ...)` |
+| `ai_hybrid_search` | `ai_hybrid_search(query, vector_index_cid, keyword_index_cid=None, ...)` |
+| `ai_langchain_create_vectorstore` | `ai_langchain_create_vectorstore(documents, embedding_model=None, collection_name=None, ...)` |
+| `ai_langchain_load_documents` | `ai_langchain_load_documents(path_or_cid, ...)` |
+| `ai_langchain_query` | `ai_langchain_query(vectorstore_cid, query, top_k=5, allow_simulation=True, **kwargs)` |
+| `ai_llama_index_create_index` | `ai_llama_index_create_index(documents, index_type="vector_store", ...)` |
+| `ai_llama_index_load_documents` | `ai_llama_index_load_documents(path_or_cid, ...)` |
+| `ai_llama_index_query` | `ai_llama_index_query(index_cid, query, response_mode="default", ...)` |
+| `ai_create_knowledge_graph` | `ai_create_knowledge_graph(source_data_cid, graph_name="knowledge_graph", ...)` |
+| `ai_query_knowledge_graph` | `ai_query_knowledge_graph(graph_cid, query, query_type="cypher", ...)` |
+| `ai_calculate_graph_metrics` / `ai_expand_knowledge_graph` | See implementation |
+| `ai_distributed_training_submit_job` | `ai_distributed_training_submit_job(config, num_workers=None, priority="normal", ..., allow_simulation=True, **kwargs)` |
+| `ai_distributed_training_get_status` | `ai_distributed_training_get_status(job_id, ...)` |
+| `ai_distributed_training_aggregate_results` | `ai_distributed_training_aggregate_results(job_id, aggregation_method="best_model", ...)` |
+| `ai_distributed_training_cancel_job` | `ai_distributed_training_cancel_job(job_id, force=False, allow_simulation=True, **kwargs)` |
+
+#### Not on the current class (do not use without a Proposed label)
+
+| Name | Status |
+|------|--------|
+| `ai_metrics_visualize`, `ai_metrics_export` | **Absent** |
+| `ai_langchain_store_chain`, `ai_langchain_load_chain` | **Absent** |
+| `ai_llama_index_store_index`, `ai_llama_index_load_index` | **Absent** |
+
+### Integrated search
+
+| Method | Signature (essentials) |
+|--------|------------------------|
+| `hybrid_search` | `hybrid_search(query_text=None, query_vector=None, metadata_filters=None, entity_types=None, hop_count=1, top_k=10, similarity_threshold=0.0, search_mode="hybrid", ...)` |
+| `load_embedding_model` | `load_embedding_model(model_name="sentence-transformers/all-MiniLM-L6-v2", model_type="sentence-transformer", ...)` |
+| `generate_embeddings` | `generate_embeddings(texts, model=None, model_name=None, batch_size=32, ...)` |
+| `create_search_connector` | `create_search_connector(model_registry=None, dataset_manager=None, embedding_model=None, ...)` |
+| `create_search_benchmark` | `create_search_benchmark(output_dir=None, search_connector=None, ...)` |
+| `run_search_benchmark` | `run_search_benchmark(benchmark_type="full", num_runs=5, ...)` |
+
+### WAL, journal, resources, metadata (feature-dependent)
+
+| Group | Methods |
+|-------|---------|
+| WAL | `wal_get_status`, `wal_list_pending_operations(limit=20)`, `wal_list_failed_operations(limit=20)`, `wal_get_statistics(hours=24)`, `wal_health_check`, `wal_get_operation(operation_id)` |
+| FS journal | `enable_filesystem_journaling(journal_base_path="~/.ipfs_kit/journal", auto_recovery=True, **kwargs)`, `fs_journal_get_status`, `fs_journal_list_recent_operations`, `fs_journal_list_failed_operations`, `fs_journal_list_virtual_files`, `fs_journal_get_file_info`, `fs_journal_get_statistics`, `fs_journal_health_check` |
+| Resources | `resource_get_usage_summary`, `resource_get_usage_details`, `resource_get_backend_status`, `resource_track_bandwidth_upload`, `resource_track_bandwidth_download`, `resource_track_storage_usage`, `resource_track_api_call`, `resource_update_backend_status` |
+| Metadata | `store_metadata`, `get_metadata`, `verify_metadata_replication` |
+
+### Return and error conventions
+
+| Pattern | When |
+|---------|------|
+| `dict` with `success` | Most management/mutation methods |
+| `bytes` | `get`, `cat`, many `read*` paths |
+| Stub failure dict | Package stub only: `success=False`, `warning=...` |
+| Raised `IPFS*` errors | Full impl on connection/timeout/validation failures (see method docstrings) |
+
+---
+
+## 3. Kit orchestrator (`ipfs_kit`)
+
+```python
+from ipfs_kit_py.ipfs_kit import ipfs_kit
+
+kit = ipfs_kit(
+    resources=None,
+    metadata=None,
+    enable_libp2p=False,
+    enable_cluster_management=False,
+    enable_metadata_index=False,
+    auto_start_daemons=True,  # prefer False for library embeds
+)
+
+kit = ipfs_kit.create(role="leecher", auto_start_daemons=False)
+kit.initialize(start_daemons=False)
+kit.stop_daemons()
+```
+
+| Item | Detail |
+|------|--------|
+| Class name | `ipfs_kit` (not `IPFSKit`) |
+| Client used | Family A: `ipfs_kit_py.ipfs.ipfs_py` |
+| Factory | `create(role="leecher", auto_start_daemons=True, **kwargs)` runs `initialize` when auto-start is true |
+| Singleton | **No** library singleton; `from ipfs_kit_py import ipfs_kit` is a lazy **class** proxy |
+
+IPFS client families B/C are **Compatibility** / historical — see [Compatibility layers](../architecture/COMPATIBILITY_LAYERS.md) §4.
+
+---
+
+## 4. HTTP API server (`ipfs_kit_py.api`)
+
+### Starting the server
 
 ```python
 from ipfs_kit_py.api import run_server
 
-# Start API server with default settings
-run_server()
+run_server()  # host="127.0.0.1", port=8000, reload=False, workers=1, ...
 
-# Start with custom settings
 run_server(
-    host="0.0.0.0",             # Listen on all interfaces
-    port=8000,                  # Port to listen on
-    reload=True,                # Enable auto-reload for development
-    workers=4,                  # Number of worker processes
-    config_path="config.yaml",  # Load configuration from file
-    log_level="info",           # Logging level
-    auth_enabled=True,          # Enable authentication
-    cors_origins=["*"]          # CORS allowed origins
+    host="0.0.0.0",
+    port=8000,
+    reload=False,
+    workers=1,
+    config_path="config.yaml",
+    log_level="info",
+    auth_enabled=False,
+    cors_origins=None,  # env wiring; see function for feature flags
+    enable_libp2p=None,
+    enable_webrtc=None,
+    enable_wal=None,
+    enable_fs_journal=None,
+    enable_benchmarking=None,
+    enable_observability=None,
+    enable_metadata_index=None,
+    storage_backends=None,
 )
 ```
 
-### Base Endpoints
+CLI equivalent: `python -m ipfs_kit_py.api` / module `__main__` argparse (`--host`, `--port`, `--config`, …).
 
-| Endpoint | Method | Description | Request Format | Response Format |
-|----------|--------|-------------|----------------|-----------------|
-| `/health` | GET | Health check | None | `{"status": "ok", "version": "x.y.z"}` |
-| `/api/:method_name` | POST | Generic method caller | JSON with `args` and `kwargs` | Method-specific response with `success` flag |
-| `/api/v0/openapi.json` | GET | OpenAPI schema | None | OpenAPI schema document |
-| `/api/v0/docs` | GET | Interactive API docs | None | Swagger UI |
-| `/api/v0/graphql` | POST | GraphQL endpoint | GraphQL query | GraphQL response |
-| `/api/v0/graphql/playground` | GET | GraphQL IDE | None | GraphQL Playground UI |
+**Process note:** Importing `ipfs_kit_py.api` constructs a **module-level** `IPFSSimpleAPI` for request handlers (`ipfs_api = IPFSSimpleAPI(config_path=...)`). That is an HTTP-server process detail, **not** a library-wide singleton for `import ipfs_kit_py` users.
 
-### Content Endpoints
+### Core routes registered in `api.py`
 
-| Endpoint | Method | Description | Request Format | Response Format |
-|----------|--------|-------------|----------------|-----------------|
-| `/api/v0/add` | POST | Add content to IPFS | Multipart form with `file` and optional parameters | `{"success": true, "cid": "Qm...", "name": "filename", "size": 1234}` |
-| `/api/v0/cat` | GET | Retrieve content | Query param: `arg` (CID) | Raw file content with appropriate Content-Type |
-| `/api/v0/ls` | GET | List directory contents | Query param: `arg` (CID) | `{"success": true, "entries": [...]}` |
+| Endpoint | Method | Role |
+|----------|--------|------|
+| `/health` | GET | Health check |
+| `/api/openapi` | GET | OpenAPI schema helper |
+| `/api/{method_name}` | POST | **Primary dispatcher** — calls `api(method_name, *args, **kwargs)` on the process HLA instance |
+| `/api/upload` | POST | Upload helper |
+| `/api/download/{cid}` | GET | Download helper |
+| `/api/config` | GET | Config exposure |
+| `/api/methods` | GET | Method listing |
+| `/api/error_method`, `/api/unexpected_error`, `/api/binary_method`, `/api/test_method` | POST | Test/error harness endpoints |
 
-### Pin Management Endpoints
+Request body for the generic dispatcher uses `args` / `kwargs` fields (see `APIRequest` model in `api.py`). Binary results may be base64-encoded with `encoding: "base64"`.
 
-| Endpoint | Method | Description | Request Format | Response Format |
-|----------|--------|-------------|----------------|-----------------|
-| `/api/v0/pin/add` | POST | Pin content | JSON with `cid` and optional parameters | `{"success": true, "pins": ["Qm..."]}` |
-| `/api/v0/pin/rm` | POST | Unpin content | JSON with `cid` and optional parameters | `{"success": true, "pins": ["Qm..."]}` |
-| `/api/v0/pin/ls` | GET | List pinned content | Query params: `type`, `quiet` (optional) | `{"success": true, "pins": {...}}` |
+### Optional feature routers (included when deps flag true)
 
-### IPNS Endpoints
+| Prefix / surface | Condition |
+|------------------|-----------|
+| `/api/v0/fs-journal/*` | Filesystem journal available |
+| `/api/v0/metadata/*` | Metadata index available |
+| `/api/v0/benchmark/*` | Benchmark router |
+| `/api/v0/webrtc`, `/api/v0/wal`, `/api/v0/enhanced-pins`, `/api/v0/storage`, `/api/v0/observability` | Feature modules importable |
+| GraphQL router | When GraphQL stack available (log message references `/graphql`) |
 
-| Endpoint | Method | Description | Request Format | Response Format |
-|----------|--------|-------------|----------------|-----------------|
-| `/api/v0/name/publish` | POST | Publish to IPNS | JSON with `path` and optional parameters | `{"success": true, "name": "k2...", "value": "/ipfs/Qm..."}` |
-| `/api/v0/name/resolve` | GET | Resolve IPNS name | Query param: `arg` (IPNS name) | `{"success": true, "path": "/ipfs/Qm..."}` |
+Concrete handlers under those prefixes are defined in the corresponding modules/routers, not as a full Kubo clone inside empty `v0_router`.
 
-### Peer Management Endpoints
+### Proposed / module-doc-only paths (not registered as dedicated routes on `v0_router`)
 
-| Endpoint | Method | Description | Request Format | Response Format |
-|----------|--------|-------------|----------------|-----------------|
-| `/api/v0/id` | GET | Get node identity | None | `{"success": true, "id": "Qm...", "addresses": [...]}` |
-| `/api/v0/swarm/peers` | GET | List connected peers | Optional query parameters | `{"success": true, "peers": [...], "count": 42}` |
-| `/api/v0/swarm/connect` | POST | Connect to peer | JSON with `addr` (multiaddress) | `{"success": true, "added": ["/ip4/..."]}` |
+The module docstring for `api.py` lists Kubo-style paths such as `/api/v0/add`, `/api/v0/cat`, `/api/v0/pin/*`, `/api/v0/swarm/*`, `/api/v0/name/*`, `/api/v0/cluster/*`, `/api/v0/ai/*`. On the current tree, `v0_router = APIRouter(prefix="/api/v0")` is created and included **without** those dedicated handlers attached in `api.py`. Prefer:
 
-### Cluster Endpoints (Master/Worker Only)
+- **In-process:** `IPFSSimpleAPI` methods
+- **HTTP:** `POST /api/{method_name}` with JSON `args`/`kwargs`
 
-| Endpoint | Method | Description | Request Format | Response Format |
-|----------|--------|-------------|----------------|-----------------|
-| `/api/v0/cluster/pins` | GET | List cluster pins | Optional query parameters | `{"success": true, "pins": [...]}` |
-| `/api/v0/cluster/pin/add` | POST | Pin to cluster | JSON with `cid` and optional parameters | `{"success": true, "cid": "Qm...", "peers": [...]}` |
-| `/api/v0/cluster/status` | GET | Get pin status | Query param: `arg` (CID, optional) | `{"success": true, "status": {...}}` |
-| `/api/v0/cluster/peers` | GET | List cluster peers | None | `{"success": true, "peers": [...], "count": 5}` |
+Treat dedicated `/api/v0/add`-style REST as **Proposed** unless a feature router or future change registers them.
 
-### AI/ML Endpoints (Requires ai_ml extra)
-
-| Endpoint | Method | Description | Request Format | Response Format |
-|----------|--------|-------------|----------------|-----------------|
-| `/api/v0/ai/model/add` | POST | Add model | Multipart form with model file and metadata | `{"success": true, "cid": "Qm...", "metadata": {...}}` |
-| `/api/v0/ai/model/get` | GET | Get model | Query param: `cid` | Model file with appropriate Content-Type |
-| `/api/v0/ai/model/list` | GET | List models | Optional query parameters | `{"success": true, "models": [...]}` |
-| `/api/v0/ai/dataset/add` | POST | Add dataset | Multipart form with dataset file and metadata | `{"success": true, "cid": "Qm...", "metadata": {...}}` |
-| `/api/v0/ai/dataset/get` | GET | Get dataset | Query param: `cid` | Dataset file with appropriate Content-Type |
-| `/api/v0/ai/metrics` | GET | Get metrics | Query params for model ID and metrics type | `{"success": true, "metrics": {...}}` |
-| `/api/v0/ai/dataloader` | POST | Get IPFSDataLoader info/status | JSON body with loader config/ID | `{"success": true, "loader_status": {...}}` |
-| `/api/v0/ai/langchain/vectorstore/create` | POST | Create Langchain vector store | JSON body with documents, embedding config | `{"success": true, "cid": "Qm...", "collection_name": "..."}` |
-| `/api/v0/ai/langchain/chain/store` | POST | Store Langchain chain | JSON body with chain data, name, version | `{"success": true, "cid": "Qm..."}` |
-| `/api/v0/ai/langchain/chain/load` | GET | Load Langchain chain | Query params: `name`, `version` | `{"success": true, "chain": {...}}` |
-| `/api/v0/ai/llamaindex/index/create` | POST | Create LlamaIndex index | JSON body with documents, config | `{"success": true, "cid": "Qm...", "index_name": "..."}` |
-| `/api/v0/ai/llamaindex/index/store` | POST | Store LlamaIndex index | JSON body with index data, name, version | `{"success": true, "cid": "Qm..."}` |
-| `/api/v0/ai/llamaindex/index/load` | GET | Load LlamaIndex index | Query params: `name`, `version` | `{"success": true, "index": {...}}` |
-| `/api/v0/ai/distributed/submit` | POST | Submit distributed training job | JSON body with task config | `{"success": true, "task_id": "..."}` |
-| `/api/v0/ai/distributed/status` | GET | Get distributed job status | Query param: `task_id` | `{"success": true, "status": "...", "progress": 0.5}` |
-
-### Streaming Endpoints
-
-| Endpoint | Method | Description | Request Format | Response Format |
-|----------|--------|-------------|----------------|-----------------|
-| `/api/v0/stream/media` | GET | Stream media content | Query param: `arg` (CID), Optional `Range` header | Chunked byte stream with appropriate Content-Type |
-| `/api/v0/stream/upload` | POST | Stream data upload to IPFS | Raw byte stream in request body, Optional query param `pin=true` | `{"success": true, "cid": "Qm...", "size": 1234}` |
-
-### Integrated Search Endpoints (Requires relevant extras)
-
-| Endpoint | Method | Description | Request Format | Response Format |
-|----------|--------|-------------|----------------|-----------------|
-| `/api/v0/search/hybrid` | POST | Perform hybrid search | JSON body with query, filters, vector, etc. | `{"success": true, "results": [...]}` |
-| `/api/v0/embeddings/generate` | POST | Generate text embeddings | JSON body with `texts` list and optional `model` | `{"success": true, "embeddings": [[...], ...]}` |
-
-### Error Handling
-
-All API endpoints follow a consistent error response format:
-
-```json
-{
-  "success": false,
-  "error": "Detailed error message",
-  "error_type": "ErrorClassName",
-  "status_code": 400  // HTTP status code
-}
-```
-
-Error types include:
-
-| Error Type | HTTP Status | Description |
-|------------|-------------|-------------|
-| `IPFSConnectionError` | 503 | IPFS daemon connection issues |
-| `IPFSTimeoutError` | 504 | IPFS operation timed out |
-| `IPFSContentNotFoundError` | 404 | Content not found in IPFS |
-| `IPFSValidationError` | 400 | Input validation failed |
-| `IPFSConfigurationError` | 500 | Configuration issue |
-| `IPFSPinningError` | 400 | Error during pinning operation |
-| `IPFSError` | 400 | Generic IPFS error |
-| `ValidationError` | 422 | Request validation failed |
-| `AuthenticationError` | 401 | Authentication failed |
-| `UnexpectedError` | 500 | Unexpected server error |
-
-### Client Libraries
-
-The API server is compatible with various HTTP client libraries:
-
-#### Python
+### Example: generic method dispatch
 
 ```python
 import requests
 
-# Add content
-with open("example.txt", "rb") as f:
-    response = requests.post(
-        "http://localhost:8000/api/v0/add",
-        files={"file": f},
-        data={"pin": "true"}
-    )
-result = response.json()
-cid = result["cid"]
-
-# Get content
-response = requests.get(f"http://localhost:8000/api/v0/cat?arg={cid}")
-content = response.content
+# Call HLA add via HTTP dispatcher
+r = requests.post(
+    "http://127.0.0.1:8000/api/add",
+    json={"args": ["Hello from HTTP"], "kwargs": {"pin": True}},
+)
+print(r.json())
 ```
 
-#### JavaScript
+### Error envelope (typical)
 
-```javascript
-// Add content using fetch API
-const formData = new FormData();
-formData.append('file', new Blob(['Hello IPFS'], { type: 'text/plain' }), 'example.txt');
-formData.append('pin', 'true');
-
-fetch('http://localhost:8000/api/v0/add', {
-  method: 'POST',
-  body: formData
-})
-.then(response => response.json())
-.then(result => {
-  const cid = result.cid;
-  console.log(`Added with CID: ${cid}`);
-  
-  // Get content
-  return fetch(`http://localhost:8000/api/v0/cat?arg=${cid}`);
-})
-.then(response => response.text())
-.then(content => {
-  console.log(`Content: ${content}`);
-});
-```
-
-#### cURL
-
-```bash
-# Add content
-curl -X POST -F "file=@example.txt" -F "pin=true" http://localhost:8000/api/v0/add
-
-# Get content
-curl http://localhost:8000/api/v0/cat?arg=QmCID
-
-# List pins
-curl http://localhost:8000/api/v0/pin/ls
-```
-
-### WebSocket Support
-
-The API server also supports WebSocket connections for real-time updates and subscriptions. WebSocket endpoints follow the same structure as REST endpoints but with persistent connections.
-
-#### Subscription Endpoints
-
-| Endpoint | Description | Subscription Format | Message Format |
-|----------|-------------|---------------------|----------------|
-| `/ws/v0/pubsub/:topic` | Subscribe to IPFS pubsub topics | None | `{"topic": "topic-name", "data": "base64-encoded-data", "from": "peer-id"}` |
-| `/ws/v0/events` | Subscribe to system events | `{"events": ["pin", "unpin", "add"]}` | `{"event": "event-name", "data": {...}}` |
-
-#### Example WebSocket Client
-
-```javascript
-// JavaScript WebSocket client
-const ws = new WebSocket('ws://localhost:8000/ws/v0/pubsub/my-topic');
-
-ws.onopen = () => {
-  console.log('Connected to pubsub topic');
-};
-
-ws.onmessage = (event) => {
-  const message = JSON.parse(event.data);
-  console.log(`Received message: ${atob(message.data)}`);
-};
-
-// Publish to the topic
-fetch('http://localhost:8000/api/v0/pubsub/pub', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    topic: 'my-topic',
-    data: btoa('Hello WebSocket')
-  })
-});
-```
-
-#### Streaming WebSocket Endpoints
-
-| Endpoint | Description | Client Messages | Server Messages |
-|----------|-------------|-----------------|-----------------|
-| `/ws/v0/stream/media` | Stream media content down | JSON `{"cid": "Qm..."}` | Binary chunks |
-| `/ws/v0/stream/upload` | Stream data upload | Binary chunks | JSON `{"success": true, "cid": "Qm..."}` on completion |
-| `/ws/v0/stream/bidirectional` | Bidirectional data streaming | Binary chunks | Binary chunks |
-| `/ws/v0/webrtc` | WebRTC signaling channel | JSON signaling messages (offer, answer, candidate) | JSON signaling messages |
-
-
-## OpenAPI Schema
-
-The REST API provides an OpenAPI schema at the `/api/v0/openapi.json` endpoint. This schema can be used with tools like Swagger UI, Postman, or code generators to create client libraries.
-
-Access the interactive API documentation at `/api/v0/docs` when the server is running.
-
-## GraphQL API
-
-For more flexible querying, the API server also provides a GraphQL endpoint at `/api/v0/graphql`. This enables clients to request exactly the data they need in a single query.
-
-Access the GraphQL Playground IDE at `/api/v0/graphql/playground` when the server is running.
-
-### Example GraphQL Queries
-
-```graphql
-# Get node information and pins in one query
-query {
-  node {
-    id
-    version
-    addresses
-  }
-  pins {
-    cid
-    type
-    size
-  }
+```json
+{
+  "success": false,
+  "error": "…",
+  "error_type": "IPFSError",
+  "status_code": 400
 }
-
-# Add content and pin it in one mutation
-mutation {
-  add(content: "Hello GraphQL") {
-    cid
-    size
-    pin {
-      success
-    }
-  }
-}
-
-The GraphQL schema includes types like `IPFSContent`, `PinInfo`, `PeerInfo`, `AIModel`, `AIDataset`, etc., allowing detailed queries. Mutations are available for actions like adding/pinning content (`AddContentMutation`, `PinContentMutation`), publishing to IPNS (`PublishIPNSMutation`), managing keys (`GenerateKeyMutation`), and cluster operations (`ClusterPinMutation`). Refer to the GraphQL Playground for the full interactive schema.
-
-## Authentication
-
-The API server supports several authentication methods:
-
-1. **API Key**: Set `X-API-Key` header or `api_key` query parameter
-2. **Bearer Token**: Set `Authorization: Bearer <token>` header
-3. **Basic Auth**: Set `Authorization: Basic <base64-encoded-credentials>` header
-
-Enable authentication by setting `auth_enabled=True` when starting the server and configuring authorized credentials in the configuration file.
-
-### Example Authentication Configuration
-
-```yaml
-auth:
-  enabled: true
-  methods:
-    - type: api_key
-      keys:
-        - key: your-api-key-here
-          name: admin
-          permissions: ["*"]
-        - key: read-only-key
-          name: reader
-          permissions: ["cat", "ls", "get"]
-    - type: bearer_token
-      tokens:
-        - token: your-token-here
-          name: service-account
-          permissions: ["*"]
-    - type: basic_auth
-      users:
-        - username: admin
-          password_hash: bcrypt-hashed-password
-          permissions: ["*"]
 ```
 
-## Rate Limiting
+---
 
-The API server supports rate limiting to prevent abuse. Rate limits can be configured globally or per endpoint.
+## 5. Root package exports (declared `__all__`)
 
-### Example Rate Limit Configuration
+Declared `ipfs_kit_py.__all__` is P2P/JIT-centric. It includes names such as:
 
-```yaml
-rate_limits:
-  enabled: true
-  default:
-    requests: 100
-    period: 60  # seconds
-  endpoints:
-    "/api/v0/add":
-      requests: 20
-      period: 60
-    "/api/v0/cat":
-      requests: 50
-      period: 60
-```
+- P2P workflow: `MerkleClock`, `FibonacciHeap`, `WorkflowPriorityQueue`, `P2PWorkflowCoordinator`, `WorkflowStatus`, `WorkflowTask`, helpers, `P2PWorkflowTools`
+- JIT: `jit_manager`, `require_feature`, `optional_feature`
+- Backend helpers: `initialize_backend_config`, `get_backend_statuses`
+- Optional getters: `get_ipfs_datasets`, `get_ipfs_accelerate`, `get_ipfs_transformers`, related module names
 
-## Monitoring
+Popular symbols `IPFSSimpleAPI` and `ipfs_kit` are available via lazy proxies but are **not** members of `__all__` (**C-EXPORT**). Version: packaging `0.3.0` vs possible `ipfs_kit_py.__version__ == "0.2.0"` (**C-VER**).
 
-The API server exports Prometheus metrics at the `/metrics` endpoint for monitoring server performance and usage.
+Binary installers are opt-in (`IPFS_KIT_AUTO_INSTALL_BINARIES`); ordinary imports do not download executables by default.
 
-Key metrics include:
-- Request counts and latencies by endpoint
-- Error rates by type
-- Active connections
-- Resource usage (memory, CPU)
-- IPFS operation statistics
+---
 
-This enables integration with monitoring tools like Prometheus and Grafana for comprehensive observability.
+## 6. Stability
+
+See [API stability](../api_stability.md). Decorators `@stable_api` / `@beta_api` / `@experimental_api` appear on some Compatibility-body methods (for example `stream_to_ipfs` is beta). Undecorated public methods have **unspecified** stability; pin versions and test before relying on them in production.
+
+---
+
+## 7. Related documents
+
+| Document | Topic |
+|----------|--------|
+| [high_level_api.md](high_level_api.md) | Construction, Compatibility dual path, plugins, troubleshooting |
+| [cli_reference.md](cli_reference.md) | `ipfs-kit` CLI |
+| [core_concepts.md](core_concepts.md) | Conceptual model |
+| [COMPATIBILITY_LAYERS.md](../architecture/COMPATIBILITY_LAYERS.md) | Dual paths, inactive artifacts |
+| [RUNTIME_AND_ENTRYPOINTS.md](../architecture/RUNTIME_AND_ENTRYPOINTS.md) | Entry points and process ownership |
