@@ -70,6 +70,12 @@ iroh = [
     "blake3>=0.4.1",
     "duckdb>=1.4.0",
 ]
+# Optional FUSE binding for kernel VFS mounts (Linux libfuse / Windows WinFsp).
+# Default installs must remain inert: fusepy is never a core dependency because
+# importing it loads a native library. Pin is exact for reproducible wheels.
+fuse = [
+    "fusepy==3.0.1",
+]
 transformers = [
     "transformers>=4.20.0",
     "huggingface-hub>=0.10.0"
@@ -275,6 +281,10 @@ ipfs-kit-iroh-ops = "ipfs_kit_py.iroh.cli:main"
 ipfs-kit-iroh-diagnostics = "ipfs_kit_py.iroh.diagnostics_cli:main"
 ipfs-kit-iroh-manifest = "ipfs_kit_py.iroh.manifest_cli:main"
 ipfs-kit-iroh-interop = "ipfs_kit_py.iroh.multinode:main"
+# Kernel VFS FUSE mount/doctor/status/unmount CLI (implementation: KVFS-702).
+# Declared here so packaging metadata makes the mount CLI discoverable without
+# pulling fusepy into the default wheel.
+ipfs-kit-kernel-vfs = "ipfs_kit_py.cli.kernel_vfs:main"
 
 [project.entry-points."fsspec.specs"]
 iroh = "ipfs_kit_py.iroh_fsspec:IrohFileSystem"
@@ -289,6 +299,30 @@ Documentation = "https://github.com/endomorphosis/ipfs_kit_py/blob/main/README.m
 Source = "https://github.com/endomorphosis/ipfs_kit_py/"
 Issues = "https://github.com/endomorphosis/ipfs_kit_py/issues"
 Changelog = "https://github.com/endomorphosis/ipfs_kit_py/blob/main/CHANGELOG.md"
+
+# ---------------------------------------------------------------------------
+# Kernel VFS packaging policy (KVFS-703)
+# ---------------------------------------------------------------------------
+# Default wheel: no fusepy / libfuse / WinFsp side effects.
+# Optional [fuse] extra: pinned fusepy binding only (native drivers remain host).
+# Windows OS classifier is receipt-gated: advertise only after a live WinFsp
+# gate admits support. Until then the classifier must stay absent from
+# [project.classifiers] even though hermetic Windows code paths exist.
+[tool.ipfs_kit_py.kernel_vfs.packaging]
+task_id = "KVFS-703"
+schema = "KernelVFSPackagingPolicy@1"
+fuse_extra = "fuse"
+fuse_binding_requirement = "fusepy==3.0.1"
+mount_cli_script = "ipfs-kit-kernel-vfs"
+mount_cli_entry = "ipfs_kit_py.cli.kernel_vfs:main"
+supported_python = ["3.12", "3.13"]
+supported_platforms = ["linux", "windows"]
+windows_os_classifier = "Operating System :: Microsoft :: Windows"
+windows_classifier_policy = "live_gate_receipt"
+windows_live_gate_env = "IPFS_KIT_KERNEL_VFS_WINDOWS_LIVE_GATE"
+# Native support tier remains receipt-gated; package import is never capability.
+import_is_not_capability = true
+default_wheel_inert = true
 
 [tool.setuptools]
 include-package-data = true
