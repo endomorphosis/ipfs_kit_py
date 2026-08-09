@@ -1,0 +1,166 @@
+{
+  "schema": "KernelVFSWorkloadProfile@1",
+  "schema_version": "ipfs_kit_py.kernel_vfs.workloads@1",
+  "task_id": "KVFS-108",
+  "description": "Pinned hermetic workload identities for bounded platform doctor and performance/resource baselines. No native mount, driver install, or production import side effects.",
+  "path_classes": {
+    "cold": {
+      "id": "path:cold",
+      "description": "Fresh process-local structures; empty synthetic cache and handle table.",
+      "includes_warmup": false,
+      "cache_state": "empty"
+    },
+    "warm": {
+      "id": "path:warm",
+      "description": "After declared warmup samples; process-local structures resident.",
+      "includes_warmup": true,
+      "cache_state": "process_warm"
+    }
+  },
+  "resource_profiles": {
+    "ci-reference": {
+      "id": "profile:ci-reference",
+      "description": "Hermetic CI reference: in-process memory backends, fixed seed, short samples.",
+      "backend_tier": "memory/reference",
+      "storage": "memory",
+      "daemon": false,
+      "networked": false,
+      "native_mount": false,
+      "default_seed": 108108,
+      "default_concurrency": 1,
+      "default_durability": "memory_sync",
+      "warmup_samples": 3,
+      "measurement_samples": 12,
+      "confidence_level": 0.95,
+      "path_classes": ["cold", "warm"],
+      "workloads": [
+        "sequential_io",
+        "random_io",
+        "metadata_ops",
+        "memory_snapshot",
+        "handle_table",
+        "wal_commit",
+        "arc_hotset"
+      ]
+    }
+  },
+  "workloads": {
+    "sequential_io": {
+      "id": "workload:sequential_io",
+      "family": "io",
+      "description": "Sequential read/write of fixed-size blocks (cold and warm).",
+      "dataset": "dataset:seq_blocks_v1",
+      "metric_primary": "throughput_mib_s",
+      "metric_secondary": ["p50_ms", "p95_ms", "p99_ms"],
+      "path_classes": ["cold", "warm"],
+      "payload_bytes": 4096,
+      "operations": ["write_seq", "read_seq"]
+    },
+    "random_io": {
+      "id": "workload:random_io",
+      "family": "io",
+      "description": "Random-offset block I/O over a fixed synthetic region.",
+      "dataset": "dataset:rand_blocks_v1",
+      "metric_primary": "ops_per_s",
+      "metric_secondary": ["p50_ms", "p95_ms", "p99_ms"],
+      "path_classes": ["cold", "warm"],
+      "payload_bytes": 4096,
+      "operations": ["write_rand", "read_rand"]
+    },
+    "metadata_ops": {
+      "id": "workload:metadata_ops",
+      "family": "metadata",
+      "description": "Stat/create/rename/unlink metadata micro-ops on an in-memory tree.",
+      "dataset": "dataset:meta_tree_v1",
+      "metric_primary": "ops_per_s",
+      "metric_secondary": ["p50_ms", "p95_ms", "p99_ms"],
+      "path_classes": ["cold", "warm"],
+      "operations": ["stat", "create", "rename", "unlink"]
+    },
+    "memory_snapshot": {
+      "id": "workload:memory_snapshot",
+      "family": "resource",
+      "description": "Process RSS and synthetic working-set size during measurement windows.",
+      "dataset": "dataset:empty",
+      "metric_primary": "rss_bytes",
+      "metric_secondary": ["working_set_bytes"],
+      "path_classes": ["warm"],
+      "operations": ["snapshot"]
+    },
+    "handle_table": {
+      "id": "workload:handle_table",
+      "family": "resource",
+      "description": "Open-handle table growth, lookup, and release bounds.",
+      "dataset": "dataset:handles_v1",
+      "metric_primary": "open_handles",
+      "metric_secondary": ["lookup_p99_ms", "release_ops_per_s"],
+      "path_classes": ["cold", "warm"],
+      "operations": ["open", "lookup", "release"]
+    },
+    "wal_commit": {
+      "id": "workload:wal_commit",
+      "family": "wal",
+      "description": "In-memory append/commit group micro-benchmark (committed ack only).",
+      "dataset": "dataset:wal_group_v1",
+      "metric_primary": "committed_ops_per_s",
+      "metric_secondary": ["queue_depth_max", "p99_ms"],
+      "path_classes": ["cold", "warm"],
+      "group_sizes": [1, 8],
+      "operations": ["append", "commit"]
+    },
+    "arc_hotset": {
+      "id": "workload:arc_hotset",
+      "family": "arc",
+      "description": "Synthetic ARC-style hot-set hit/miss observations.",
+      "dataset": "dataset:arc_hotset_v1",
+      "metric_primary": "hit_ratio",
+      "metric_secondary": ["miss_latency_ms", "eviction_count"],
+      "path_classes": ["cold", "warm"],
+      "operations": ["get", "put", "evict"]
+    }
+  },
+  "dataset_catalog": {
+    "dataset:empty": {"seed_material": "none", "items": 0},
+    "dataset:seq_blocks_v1": {"seed_material": "sequential_blocks", "items": 64, "payload_bytes": 4096},
+    "dataset:rand_blocks_v1": {"seed_material": "random_blocks", "items": 64, "payload_bytes": 4096},
+    "dataset:meta_tree_v1": {"seed_material": "synthetic_tree", "items": 128, "depth": 3},
+    "dataset:handles_v1": {"seed_material": "handle_table", "items": 64},
+    "dataset:wal_group_v1": {"seed_material": "synthetic_wal", "items": 64},
+    "dataset:arc_hotset_v1": {"seed_material": "zipf_hotset", "items": 256, "hot_fraction": 0.1}
+  },
+  "doctor_checks": [
+    "os_architecture",
+    "python_binding",
+    "native_abi",
+    "device_driver_service",
+    "helper",
+    "mountpoint_state_permissions",
+    "docker_capability",
+    "actionable_absence"
+  ],
+  "identity_fields": [
+    "hardware",
+    "os",
+    "python",
+    "revision",
+    "dataset",
+    "seed",
+    "concurrency",
+    "durability",
+    "warmup",
+    "samples",
+    "confidence",
+    "profile",
+    "workload",
+    "path_class"
+  ],
+  "comparison_binding": {
+    "notes": "Results are comparable only when identity fields match. Cache/warm path results never satisfy cold claims. Presence of a binding or path is not native capability.",
+    "forbidden_inferences": [
+      "import_success_implies_native_capability",
+      "path_presence_implies_mount_ready",
+      "docker_socket_implies_fuse_device",
+      "fusepy_find_spec_implies_libfuse_loaded"
+    ]
+  }
+}

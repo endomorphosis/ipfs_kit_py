@@ -1,0 +1,3 @@
+# KVFS-108: monorepo root ignores *.json; keep the pinned workload profile
+# trackable as a declared output (force-add is forbidden inside submodules).
+!workloads.json
