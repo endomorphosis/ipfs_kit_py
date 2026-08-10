@@ -1,0 +1,121 @@
+# =============================================================================
+# KVFS-701 — Minimally privileged Linux FUSE Compose profile for kernel VFS
+# =============================================================================
+# Usage:
+#   docker compose -f docker-compose.kernel-vfs.yml --profile kernel-vfs up --build
+#
+# Contract (fail-closed):
+#   * Dedicated service only; does not alter the normal unprivileged image
+#   * Requires /dev/fuse device + CAP_SYS_ADMIN (cap_add)
+#   * NEVER set privileged (blanket privileged mode is an SLO violation)
+#   * WAL / cache / state are three separate named volumes
+#   * Mount runs foreground with readiness (image ENTRYPOINT)
+#   * Either missing required input fails within 5 seconds (image preflight)
+#
+# In-container mount access and host-visible propagation are separate claims.
+# This profile does not claim Docker Desktop host propagation.
+# =============================================================================
+
+name: ipfs-kit-kernel-vfs
+
+services:
+  kernel-vfs:
+    profiles:
+      - kernel-vfs
+      - fuse
+    build:
+      context: .
+      dockerfile: docker/kernel-vfs.Dockerfile
+      args:
+        PYTHON_VERSION: "3.12"
+        KVFS_TASK_ID: "KVFS-701"
+        KVFS_FUSE_EXTRA: "fuse"
+        KVFS_FUSE_BINDING: "fusepy==3.0.1"
+        KVFS_LIBFUSE_SONAME: "libfuse.so.2"
+        KVFS_CAPABILITY_BUDGET_SECONDS: "5"
+    image: ipfs-kit-kernel-vfs:latest
+    container_name: ipfs-kit-kernel-vfs
+    # ---- Privilege floor: device + single capability, never privileged ------
+    privileged: false
+    devices:
+      - /dev/fuse:/dev/fuse
+    cap_add:
+      - SYS_ADMIN
+    # PID-1 aware reaping for foreground mount child processes.
+    init: true
+    # Foreground service: do not background-restart over a dead mount lease.
+    restart: "no"
+    stop_grace_period: 15s
+    stop_signal: SIGTERM
+    environment:
+      # Distinct durable roots (must match separate volume targets below).
+      IPFS_KIT_KERNEL_VFS_MOUNTPOINT: /mnt/ipfs-kit-vfs
+      IPFS_KIT_KERNEL_VFS_STATE_DIR: /var/lib/ipfs-kit-vfs/state
+      IPFS_KIT_KERNEL_VFS_WAL_DIR: /var/lib/ipfs-kit-vfs/wal
+      IPFS_KIT_KERNEL_VFS_CACHE_DIR: /var/lib/ipfs-kit-vfs/cache
+      IPFS_KIT_KERNEL_VFS_READY_DIR: /var/run/ipfs-kit-vfs
+      # Foreground mount with readiness; missing inputs fail within 5s.
+      IPFS_KIT_KERNEL_VFS_FOREGROUND: "1"
+      IPFS_KIT_KERNEL_VFS_READINESS: "1"
+      IPFS_KIT_KERNEL_VFS_CAPABILITY_BUDGET_SECONDS: "5"
+      KVFS_REQUIRED_DEVICE: /dev/fuse
+      KVFS_REQUIRED_CAP: SYS_ADMIN
+      KVFS_PRIVILEGED: "false"
+      KVFS_FUSE_EXTRA: fuse
+      KVFS_LIBFUSE_SONAME: libfuse.so.2
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      # Recovery state, WAL, and ARC cache MUST remain separate volumes.
+      - kernel-vfs-state:/var/lib/ipfs-kit-vfs/state
+      - kernel-vfs-wal:/var/lib/ipfs-kit-vfs/wal
+      - kernel-vfs-cache:/var/lib/ipfs-kit-vfs/cache
+      # Mountpoint is ephemeral in-container (not recovery state).
+      - type: tmpfs
+        target: /mnt/ipfs-kit-vfs
+        tmpfs:
+          mode: 0o755
+      - type: tmpfs
+        target: /var/run/ipfs-kit-vfs
+        tmpfs:
+          mode: 0o755
+    # Default command is image CMD (foreground mount + readiness).
+    # Override examples:
+    #   command: ["preflight"]
+    #   command: ["doctor", "--json"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python3",
+          "-c",
+          "import os,sys; p=os.environ.get('IPFS_KIT_KERNEL_VFS_READY_DIR','/var/run/ipfs-kit-vfs'); sys.exit(0 if os.path.isfile(os.path.join(p,'ready.json')) else 1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    labels:
+      kvfs.task_id: "KVFS-701"
+      kvfs.schema: "KernelVFSContainerComposeProfile@1"
+      kvfs.profile: "linux-fuse-minimal"
+      kvfs.privileged: "false"
+      kvfs.required_device: "/dev/fuse"
+      kvfs.required_cap: "SYS_ADMIN"
+      kvfs.missing_input_fail_seconds: "5"
+      kvfs.mount_mode: "foreground"
+      kvfs.readiness: "required"
+      kvfs.volumes: "state,wal,cache"
+
+volumes:
+  kernel-vfs-state:
+    name: ipfs-kit-kernel-vfs-state
+    labels:
+      kvfs.volume_role: state
+  kernel-vfs-wal:
+    name: ipfs-kit-kernel-vfs-wal
+    labels:
+      kvfs.volume_role: wal
+  kernel-vfs-cache:
+    name: ipfs-kit-kernel-vfs-cache
+    labels:
+      kvfs.volume_role: cache
