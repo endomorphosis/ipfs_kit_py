@@ -1262,6 +1262,21 @@ def build_compact_catalog() -> dict[str, Any]:
     return _with_content_id(body)
 
 
+def write_compact_catalog(path: Path | None = None) -> dict[str, Any]:
+    """Atomically write the frozen compact recipe catalog with content_id."""
+    target = path or MANIFEST_PATH
+    catalog = build_compact_catalog()
+    # Pretty-print for reviewability while keeping recipe rows compact.
+    text = json.dumps(catalog, indent=2, ensure_ascii=False, allow_nan=False)
+    # Ensure stable trailing newline for VCS cleanliness.
+    if not text.endswith("\n"):
+        text += "\n"
+    tmp = target.with_suffix(target.suffix + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    tmp.replace(target)
+    return catalog
+
+
 def load_compact_catalog(path: Path | None = None) -> dict[str, Any]:
     """Load the frozen compact recipe catalog from manifest.json."""
     target = path or MANIFEST_PATH
@@ -1659,11 +1674,18 @@ def test_on_disk_compact_catalog_matches_generators() -> None:
     assert disk["coverage"] == live["coverage"]
     assert disk["fixture_count"] == live["fixture_count"]
     assert disk["recipes"] == live["recipes"]
-    # Optional frozen content_id must match recomputation when present.
+    # Expanded fixtures are always content-identified in-process. The on-disk
+    # compact index may freeze content_id; when present it must recompute.
     if "content_id" in disk:
         body = {k: v for k, v in disk.items() if k != "content_id"}
         assert disk["content_id"] == content_id_for(body)
         assert disk["content_id"] == live["content_id"]
+        assert disk["content_id"].startswith("sha256:")
+    else:
+        # Body fields (excluding content_id) must still match generators.
+        live_body = {k: v for k, v in live.items() if k != "content_id"}
+        disk_body = {k: v for k, v in disk.items() if k != "content_id"}
+        assert disk_body == live_body
 
 
 def test_schema_identities_are_versioned() -> None:
@@ -2059,4 +2081,37 @@ def test_manifest_callback_lists_are_closed_and_sorted() -> None:
     assert manifest["required_callbacks"] == sorted(manifest["required_callbacks"])
     assert manifest["unsupported_callbacks"] == sorted(
         manifest["unsupported_callbacks"]
+    )
+
+
+def test_compact_catalog_json_round_trip_preserves_content_id() -> None:
+    """build_compact_catalog survives JSON freeze/reload with stable content_id."""
+    live = build_compact_catalog()
+    # Round-trip through the same pretty-print path as write_compact_catalog.
+    encoded = json.dumps(live, indent=2, ensure_ascii=False, allow_nan=False)
+    reloaded = json.loads(encoded)
+    body = {k: v for k, v in reloaded.items() if k != "content_id"}
+    assert reloaded["content_id"] == content_id_for(body)
+    assert reloaded["content_id"] == live["content_id"]
+    assert reloaded["recipes"] == live["recipes"]
+    assert reloaded["fixture_count"] == len(all_recipes())
+    assert set(REQUIRED_COVERAGE_CATEGORIES) <= set(
+        reloaded["coverage"]["covered_categories"]
+    )
+
+
+if __name__ == "__main__":
+    # Allow: python test_fixture_manifest.py --write-catalog
+    import sys as _sys
+
+    if "--write-catalog" in _sys.argv:
+        written = write_compact_catalog()
+        print(
+            f"wrote {MANIFEST_PATH} "
+            f"fixtures={written['fixture_count']} "
+            f"content_id={written['content_id']}"
+        )
+        _sys.exit(0)
+    raise SystemExit(
+        "usage: python test_fixture_manifest.py --write-catalog"
     )
