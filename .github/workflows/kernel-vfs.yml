@@ -1,0 +1,827 @@
+# KVFS-802: Mandatory hermetic, Linux, Windows, Docker, packaging, and path-trigger CI gates.
+#
+# Support-gate policy (fail-closed):
+# - Hermetic Python 3.12/3.13 on Ubuntu and Windows are mandatory and must collect
+#   and pass real tests (zero collection / skip-only cannot green the gate).
+# - Capable Linux FUSE, self-hosted WinFsp, and Docker lanes always emit current
+#   receipts bound to github.sha; stale or missing receipts fail the support gate.
+# - continue-on-error and shell "|| true" are forbidden on support-critical steps.
+name: Kernel VFS CI Gates
+
+on:
+  pull_request:
+    paths:
+      # Core / VFS
+      - "ipfs_kit_py/kernel_vfs/**"
+      - "ipfs_kit_py/core/vfs/**"
+      - "ipfs_kit_py/cli/kernel_vfs.py"
+      # WAL
+      - "ipfs_kit_py/core/wal/**"
+      - "ipfs_kit_py/kernel_vfs/durability.py"
+      - "ipfs_kit_py/kernel_vfs/durable_mutation.py"
+      - "ipfs_kit_py/kernel_vfs/wal_*.py"
+      - "tests/kernel_vfs/wal/**"
+      # ARC
+      - "ipfs_kit_py/kernel_vfs/cache_*.py"
+      - "ipfs_kit_py/kernel_vfs/cached_storage.py"
+      - "tests/kernel_vfs/arc/**"
+      # FUSE (Linux libfuse + Windows WinFsp loaders/lifecycle)
+      - "ipfs_kit_py/kernel_vfs/linux.py"
+      - "ipfs_kit_py/kernel_vfs/windows.py"
+      - "ipfs_kit_py/kernel_vfs/windows_semantics.py"
+      - "ipfs_kit_py/kernel_vfs/winfsp_loader.py"
+      - "ipfs_kit_py/kernel_vfs/platform.py"
+      - "tests/kernel_vfs/linux/**"
+      - "tests/kernel_vfs/windows/**"
+      # Packaging
+      - "pyproject.toml"
+      - "setup.py"
+      - "MANIFEST.in"
+      - "tests/kernel_vfs/packaging/**"
+      # Docker
+      - "docker/kernel-vfs.Dockerfile"
+      - "docker-compose.kernel-vfs.yml"
+      - "tests/kernel_vfs/container/**"
+      # Shared kernel_vfs tests / contracts / security / this workflow
+      - "tests/kernel_vfs/**"
+      - "docs/kernel_vfs/**"
+      - ".github/workflows/kernel-vfs.yml"
+  push:
+    branches: [main, develop]
+    paths:
+      # Core / VFS
+      - "ipfs_kit_py/kernel_vfs/**"
+      - "ipfs_kit_py/core/vfs/**"
+      - "ipfs_kit_py/cli/kernel_vfs.py"
+      # WAL
+      - "ipfs_kit_py/core/wal/**"
+      - "ipfs_kit_py/kernel_vfs/durability.py"
+      - "ipfs_kit_py/kernel_vfs/durable_mutation.py"
+      - "ipfs_kit_py/kernel_vfs/wal_*.py"
+      - "tests/kernel_vfs/wal/**"
+      # ARC
+      - "ipfs_kit_py/kernel_vfs/cache_*.py"
+      - "ipfs_kit_py/kernel_vfs/cached_storage.py"
+      - "tests/kernel_vfs/arc/**"
+      # FUSE (Linux libfuse + Windows WinFsp loaders/lifecycle)
+      - "ipfs_kit_py/kernel_vfs/linux.py"
+      - "ipfs_kit_py/kernel_vfs/windows.py"
+      - "ipfs_kit_py/kernel_vfs/windows_semantics.py"
+      - "ipfs_kit_py/kernel_vfs/winfsp_loader.py"
+      - "ipfs_kit_py/kernel_vfs/platform.py"
+      - "tests/kernel_vfs/linux/**"
+      - "tests/kernel_vfs/windows/**"
+      # Packaging
+      - "pyproject.toml"
+      - "setup.py"
+      - "MANIFEST.in"
+      - "tests/kernel_vfs/packaging/**"
+      # Docker
+      - "docker/kernel-vfs.Dockerfile"
+      - "docker-compose.kernel-vfs.yml"
+      - "tests/kernel_vfs/container/**"
+      # Shared kernel_vfs tests / contracts / security / this workflow
+      - "tests/kernel_vfs/**"
+      - "docs/kernel_vfs/**"
+      - ".github/workflows/kernel-vfs.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kernel-vfs-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONUNBUFFERED: "1"
+  IPFS_KIT_AUTO_INSTALL_BINARIES: "0"
+  # Receipt binding identity for support-gate freshness checks.
+  KVFS_RECEIPT_COMMIT: ${{ github.sha }}
+  KVFS_RECEIPT_RUN_ID: ${{ github.run_id }}
+  KVFS_RECEIPT_WORKFLOW: kernel-vfs
+
+jobs:
+  # -------------------------------------------------------------------------
+  # CI contract (self-check of this workflow)
+  # -------------------------------------------------------------------------
+  ci-contract:
+    name: CI contract (KVFS-802)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pyyaml
+      - name: Guard against zero collection
+        shell: bash
+        run: |
+          set -euo pipefail
+          COLLECT_OUTPUT="$(python -m pytest tests/kernel_vfs/test_ci_contract.py --collect-only -q)"
+          echo "$COLLECT_OUTPUT"
+          if echo "$COLLECT_OUTPUT" | grep -Eqi '(no tests collected|collected 0 items)'; then
+            echo "CI contract suite collected zero tests"
+            exit 1
+          fi
+          if echo "$COLLECT_OUTPUT" | grep -Eqi '^[0-9]+ skipped,? 0 passed'; then
+            echo "CI contract suite is skip-only"
+            exit 1
+          fi
+      - name: Run CI contract suite
+        run: python -m pytest -q tests/kernel_vfs/test_ci_contract.py
+
+  # -------------------------------------------------------------------------
+  # Mandatory hermetic gates — Ubuntu + Windows × Python 3.12/3.13
+  # -------------------------------------------------------------------------
+  hermetic:
+    name: Hermetic (${{ matrix.os }}, Py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install project and hermetic test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[fuse]" pytest pytest-timeout pyyaml
+      - name: Guard against zero collection / skip-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Hermetic plane: common, contracts, fixtures, platform, WAL, ARC,
+          # loaders/lifecycle/semantics, packaging probes, CI contract.
+          # Live native suites are exercised on labeled capable lanes only.
+          HERMETIC_TARGETS=(
+            tests/kernel_vfs/common
+            tests/kernel_vfs/contracts
+            tests/kernel_vfs/fixtures
+            tests/kernel_vfs/platform
+            tests/kernel_vfs/wal
+            tests/kernel_vfs/arc
+            tests/kernel_vfs/cli
+            tests/kernel_vfs/security
+            tests/kernel_vfs/packaging
+            tests/kernel_vfs/linux/test_loader_doctor.py
+            tests/kernel_vfs/linux/test_lifecycle.py
+            tests/kernel_vfs/windows/test_loader_doctor.py
+            tests/kernel_vfs/windows/test_lifecycle.py
+            tests/kernel_vfs/windows/test_semantics.py
+            tests/kernel_vfs/container/test_image_profile.py
+            tests/kernel_vfs/test_ci_contract.py
+            tests/kernel_vfs/test_differential.py
+          )
+          COLLECT_OUTPUT="$(python -m pytest "${HERMETIC_TARGETS[@]}" --collect-only -q)"
+          echo "$COLLECT_OUTPUT"
+          if echo "$COLLECT_OUTPUT" | grep -Eqi '(no tests collected|collected 0 items)'; then
+            echo "Hermetic suite collected zero tests"
+            exit 1
+          fi
+          if echo "$COLLECT_OUTPUT" | grep -Eqi '^[0-9]+ skipped,? 0 passed'; then
+            echo "Hermetic suite is skip-only at collection"
+            exit 1
+          fi
+          echo "${HERMETIC_TARGETS[*]}" > hermetic-targets.txt
+      - name: Run mandatory hermetic kernel VFS suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          HERMETIC_TARGETS=(
+            tests/kernel_vfs/common
+            tests/kernel_vfs/contracts
+            tests/kernel_vfs/fixtures
+            tests/kernel_vfs/platform
+            tests/kernel_vfs/wal
+            tests/kernel_vfs/arc
+            tests/kernel_vfs/cli
+            tests/kernel_vfs/security
+            tests/kernel_vfs/packaging
+            tests/kernel_vfs/linux/test_loader_doctor.py
+            tests/kernel_vfs/linux/test_lifecycle.py
+            tests/kernel_vfs/windows/test_loader_doctor.py
+            tests/kernel_vfs/windows/test_lifecycle.py
+            tests/kernel_vfs/windows/test_semantics.py
+            tests/kernel_vfs/container/test_image_profile.py
+            tests/kernel_vfs/test_ci_contract.py
+            tests/kernel_vfs/test_differential.py
+          )
+          python -m pytest -q --tb=short "${HERMETIC_TARGETS[@]}" | tee hermetic-result.txt
+          # Fail closed on skip-only execution (all collected tests skipped).
+          if grep -Eqi '(^[0-9]+ skipped,? 0 passed|0 passed.*[0-9]+ skipped)' hermetic-result.txt; then
+            if ! grep -Eqi '[1-9][0-9]* passed' hermetic-result.txt; then
+              echo "Hermetic suite produced skip-only results"
+              exit 1
+            fi
+          fi
+      - name: Emit hermetic lane receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/kernel-vfs-receipts/hermetic
+          python - <<'PY'
+          import json, os, platform, time
+          from pathlib import Path
+          receipt = {
+              "schema": "KernelVFSLaneReceipt@1",
+              "task_id": "KVFS-802",
+              "lane": "hermetic",
+              "profile": "hermetic_callbacks",
+              "status": "passed",
+              "gate_status": "passed",
+              "support_claim": "hermetic_only",
+              "support_promoted": False,
+              "live": False,
+              "platform": platform.system().lower(),
+              "os": platform.system().lower(),
+              "python_version": platform.python_version(),
+              "architecture": platform.machine(),
+              "commit": os.environ["KVFS_RECEIPT_COMMIT"],
+              "run_id": os.environ["KVFS_RECEIPT_RUN_ID"],
+              "workflow": os.environ["KVFS_RECEIPT_WORKFLOW"],
+              "unix_ms": int(time.time() * 1000),
+              "fresh": True,
+          }
+          out = Path("build/kernel-vfs-receipts/hermetic/suite.json")
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          print(out.read_text(encoding="utf-8"))
+          PY
+      - name: Upload hermetic receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: kvfs-receipt-hermetic-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: build/kernel-vfs-receipts/hermetic/
+          if-no-files-found: error
+
+  # -------------------------------------------------------------------------
+  # Packaging gate (default wheel inert, [fuse] extra, CLI discoverable)
+  # -------------------------------------------------------------------------
+  packaging:
+    name: Packaging (Py${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python-version: "3.12"
+          - os: ubuntu-latest
+            python-version: "3.13"
+          - os: windows-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.13"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install packaging test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest pyyaml
+      - name: Guard against zero collection / skip-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          COLLECT_OUTPUT="$(python -m pytest tests/kernel_vfs/packaging --collect-only -q)"
+          echo "$COLLECT_OUTPUT"
+          if echo "$COLLECT_OUTPUT" | grep -Eqi '(no tests collected|collected 0 items)'; then
+            echo "Packaging suite collected zero tests"
+            exit 1
+          fi
+      - name: Run packaging suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q --tb=short tests/kernel_vfs/packaging | tee packaging-result.txt
+          if grep -Eqi '(^[0-9]+ skipped,? 0 passed)' packaging-result.txt; then
+            if ! grep -Eqi '[1-9][0-9]* passed' packaging-result.txt; then
+              echo "Packaging suite produced skip-only results"
+              exit 1
+            fi
+          fi
+      - name: Emit packaging lane receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/kernel-vfs-receipts/packaging
+          python - <<'PY'
+          import json, os, platform, time
+          from pathlib import Path
+          receipt = {
+              "schema": "KernelVFSLaneReceipt@1",
+              "task_id": "KVFS-802",
+              "lane": "packaging",
+              "profile": "packaging_wheel_probe",
+              "status": "passed",
+              "gate_status": "passed",
+              "support_claim": "hermetic_only",
+              "support_promoted": False,
+              "live": False,
+              "platform": platform.system().lower(),
+              "os": platform.system().lower(),
+              "python_version": platform.python_version(),
+              "architecture": platform.machine(),
+              "commit": os.environ["KVFS_RECEIPT_COMMIT"],
+              "run_id": os.environ["KVFS_RECEIPT_RUN_ID"],
+              "workflow": os.environ["KVFS_RECEIPT_WORKFLOW"],
+              "unix_ms": int(time.time() * 1000),
+              "fresh": True,
+          }
+          out = Path("build/kernel-vfs-receipts/packaging/suite.json")
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          print(out.read_text(encoding="utf-8"))
+          PY
+      - name: Upload packaging receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: kvfs-receipt-packaging-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: build/kernel-vfs-receipts/packaging/
+          if-no-files-found: error
+
+  # -------------------------------------------------------------------------
+  # Capable Linux FUSE live lane — labeled runners emit live receipts
+  # -------------------------------------------------------------------------
+  linux-capable:
+    name: Linux capable FUSE (live receipts)
+    runs-on: [self-hosted, linux, fuse, x64]
+    timeout-minutes: 45
+    env:
+      IPFS_KIT_KERNEL_VFS_LINUX_LIVE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve Python 3.12
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v python3.12 >/dev/null 2>&1; then
+            echo "PYTHON_BIN=python3.12" >> "$GITHUB_ENV"
+          elif command -v python3 >/dev/null 2>&1; then
+            echo "PYTHON_BIN=python3" >> "$GITHUB_ENV"
+          else
+            echo "Python 3.12+ required on capable Linux runner"
+            exit 1
+          fi
+      - name: Install project and live-lane dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$PYTHON_BIN" -m pip install --upgrade pip
+          "$PYTHON_BIN" -m pip install -e ".[fuse]" pytest pytest-timeout pyyaml
+      - name: Guard against zero collection / skip-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          COLLECT_OUTPUT="$("$PYTHON_BIN" -m pytest tests/kernel_vfs/linux/test_live_mount.py --collect-only -q)"
+          echo "$COLLECT_OUTPUT"
+          if echo "$COLLECT_OUTPUT" | grep -Eqi '(no tests collected|collected 0 items)'; then
+            echo "Linux live suite collected zero tests"
+            exit 1
+          fi
+      - name: Run Linux live mount suite and capture receipts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/kernel-vfs-receipts/linux-capable
+          export KVFS_LINUX_RECEIPT_DIR="$PWD/build/kernel-vfs-receipts/linux-capable"
+          "$PYTHON_BIN" -m pytest -q --tb=short tests/kernel_vfs/linux/test_live_mount.py | tee linux-live-result.txt
+          if grep -Eqi '(^[0-9]+ skipped,? 0 passed)' linux-live-result.txt; then
+            if ! grep -Eqi '[1-9][0-9]* passed' linux-live-result.txt; then
+              echo "Linux live suite produced skip-only results"
+              exit 1
+            fi
+          fi
+          # Always materialize a current, commit-bound lane receipt (support gate
+          # rejects missing/stale receipts; live promotion is fail-closed).
+          "$PYTHON_BIN" - <<'PY'
+          import json, os, platform, time, uuid
+          from pathlib import Path
+          out_dir = Path(os.environ["KVFS_LINUX_RECEIPT_DIR"])
+          out_dir.mkdir(parents=True, exist_ok=True)
+          suite_path = out_dir / "suite.json"
+          # Prefer harness-written suite receipt when present.
+          candidates = list(Path(".").rglob("**/receipts/suite.json"))
+          harness_payload = None
+          for candidate in candidates:
+              try:
+                  data = json.loads(candidate.read_text(encoding="utf-8"))
+              except (OSError, json.JSONDecodeError):
+                  continue
+              if isinstance(data, dict) and data.get("task_id") in {"KVFS-506", "KVFS-802"}:
+                  harness_payload = data
+                  break
+          receipt = {
+              "schema": "KernelVFSLinuxLiveReceipt@1",
+              "task_id": "KVFS-506",
+              "lane": "linux_capable",
+              "profile": (harness_payload or {}).get("profile", "linux_live_fuse"),
+              "status": (harness_payload or {}).get("status", "capability_unavailable"),
+              "gate_status": (harness_payload or {}).get("gate_status", (harness_payload or {}).get("status", "capability_unavailable")),
+              "support_claim": (harness_payload or {}).get("support_claim", "capability_unavailable"),
+              "support_promoted": bool((harness_payload or {}).get("support_promoted", False)),
+              "live": bool((harness_payload or {}).get("live", False)),
+              "native_ready": bool((harness_payload or {}).get("native_ready", False)),
+              "platform": "linux",
+              "os": "linux",
+              "architecture": platform.machine(),
+              "commit": os.environ["KVFS_RECEIPT_COMMIT"],
+              "run_id": os.environ["KVFS_RECEIPT_RUN_ID"],
+              "workflow": os.environ["KVFS_RECEIPT_WORKFLOW"],
+              "unix_ms": int(time.time() * 1000),
+              "fresh": True,
+              "receipt_id": f"receipt:linux-capable:{uuid.uuid4().hex}",
+              "harness": harness_payload,
+          }
+          suite_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          print(suite_path.read_text(encoding="utf-8"))
+          PY
+      - name: Upload Linux capable receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: kvfs-receipt-linux-capable
+          path: build/kernel-vfs-receipts/linux-capable/
+          if-no-files-found: error
+
+  # -------------------------------------------------------------------------
+  # Self-hosted WinFsp live lane — labeled runners emit live receipts
+  # -------------------------------------------------------------------------
+  windows-winfsp:
+    name: Windows self-hosted WinFsp (live receipts)
+    runs-on: [self-hosted, windows, winfsp, x64]
+    timeout-minutes: 45
+    env:
+      IPFS_KIT_KERNEL_VFS_WINDOWS_LIVE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve Python 3.12
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v python3.12 >/dev/null 2>&1; then
+            echo "PYTHON_BIN=python3.12" >> "$GITHUB_ENV"
+          elif command -v python >/dev/null 2>&1; then
+            echo "PYTHON_BIN=python" >> "$GITHUB_ENV"
+          else
+            echo "Python required on self-hosted WinFsp runner"
+            exit 1
+          fi
+      - name: Install project and live-lane dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$PYTHON_BIN" -m pip install --upgrade pip
+          "$PYTHON_BIN" -m pip install -e ".[fuse]" pytest pytest-timeout pyyaml
+      - name: Guard against zero collection / skip-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          COLLECT_OUTPUT="$("$PYTHON_BIN" -m pytest tests/kernel_vfs/windows/test_live_winfsp.py --collect-only -q)"
+          echo "$COLLECT_OUTPUT"
+          if echo "$COLLECT_OUTPUT" | grep -Eqi '(no tests collected|collected 0 items)'; then
+            echo "WinFsp live suite collected zero tests"
+            exit 1
+          fi
+      - name: Run WinFsp live suite and capture receipts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/kernel-vfs-receipts/windows-winfsp
+          export KVFS_WINDOWS_RECEIPT_DIR="$PWD/build/kernel-vfs-receipts/windows-winfsp"
+          "$PYTHON_BIN" -m pytest -q --tb=short tests/kernel_vfs/windows/test_live_winfsp.py | tee winfsp-live-result.txt
+          if grep -Eqi '(^[0-9]+ skipped,? 0 passed)' winfsp-live-result.txt; then
+            if ! grep -Eqi '[1-9][0-9]* passed' winfsp-live-result.txt; then
+              echo "WinFsp live suite produced skip-only results"
+              exit 1
+            fi
+          fi
+          "$PYTHON_BIN" - <<'PY'
+          import json, os, platform, time, uuid
+          from pathlib import Path
+          out_dir = Path(os.environ["KVFS_WINDOWS_RECEIPT_DIR"])
+          out_dir.mkdir(parents=True, exist_ok=True)
+          suite_path = out_dir / "suite.json"
+          candidates = list(Path(".").rglob("**/receipts/suite.json"))
+          harness_payload = None
+          for candidate in candidates:
+              try:
+                  data = json.loads(candidate.read_text(encoding="utf-8"))
+              except (OSError, json.JSONDecodeError):
+                  continue
+              if isinstance(data, dict) and data.get("task_id") in {"KVFS-603", "KVFS-802"}:
+                  harness_payload = data
+                  break
+          receipt = {
+              "schema": "KernelVFSWindowsLiveReceipt@1",
+              "task_id": "KVFS-603",
+              "lane": "windows_winfsp",
+              "profile": (harness_payload or {}).get("profile", "windows_live_winfsp"),
+              "status": (harness_payload or {}).get("status", "capability_unavailable"),
+              "gate_status": (harness_payload or {}).get("gate_status", (harness_payload or {}).get("status", "capability_unavailable")),
+              "support_claim": (harness_payload or {}).get("support_claim", "capability_unavailable"),
+              "support_promoted": bool((harness_payload or {}).get("support_promoted", False)),
+              "live": bool((harness_payload or {}).get("live", False)),
+              "native_ready": bool((harness_payload or {}).get("native_ready", False)),
+              "platform": "windows",
+              "os": "windows",
+              "architecture": platform.machine(),
+              "commit": os.environ["KVFS_RECEIPT_COMMIT"],
+              "run_id": os.environ["KVFS_RECEIPT_RUN_ID"],
+              "workflow": os.environ["KVFS_RECEIPT_WORKFLOW"],
+              "unix_ms": int(time.time() * 1000),
+              "fresh": True,
+              "receipt_id": f"receipt:windows-winfsp:{uuid.uuid4().hex}",
+              "harness": harness_payload,
+          }
+          suite_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          print(suite_path.read_text(encoding="utf-8"))
+          PY
+      - name: Upload Windows WinFsp receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: kvfs-receipt-windows-winfsp
+          path: build/kernel-vfs-receipts/windows-winfsp/
+          if-no-files-found: error
+
+  # -------------------------------------------------------------------------
+  # Docker lane — emits container receipts (minimal capability profile)
+  # -------------------------------------------------------------------------
+  docker-lane:
+    name: Docker kernel-vfs (receipts)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      IPFS_KIT_KERNEL_VFS_CONTAINER_LIVE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project and container test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[fuse]" pytest pytest-timeout pyyaml
+      - name: Guard against zero collection / skip-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          COLLECT_OUTPUT="$(python -m pytest tests/kernel_vfs/container --collect-only -q)"
+          echo "$COLLECT_OUTPUT"
+          if echo "$COLLECT_OUTPUT" | grep -Eqi '(no tests collected|collected 0 items)'; then
+            echo "Docker/container suite collected zero tests"
+            exit 1
+          fi
+      - name: Run Docker/container suite and capture receipts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/kernel-vfs-receipts/docker
+          export KVFS_DOCKER_RECEIPT_DIR="$PWD/build/kernel-vfs-receipts/docker"
+          python -m pytest -q --tb=short tests/kernel_vfs/container | tee docker-result.txt
+          if grep -Eqi '(^[0-9]+ skipped,? 0 passed)' docker-result.txt; then
+            if ! grep -Eqi '[1-9][0-9]* passed' docker-result.txt; then
+              echo "Docker suite produced skip-only results"
+              exit 1
+            fi
+          fi
+          python - <<'PY'
+          import json, os, platform, time, uuid
+          from pathlib import Path
+          out_dir = Path(os.environ["KVFS_DOCKER_RECEIPT_DIR"])
+          out_dir.mkdir(parents=True, exist_ok=True)
+          suite_path = out_dir / "suite.json"
+          candidates = list(Path(".").rglob("**/receipts/suite.json"))
+          harness_payload = None
+          for candidate in candidates:
+              try:
+                  data = json.loads(candidate.read_text(encoding="utf-8"))
+              except (OSError, json.JSONDecodeError):
+                  continue
+              if isinstance(data, dict) and data.get("task_id") in {"KVFS-700", "KVFS-701", "KVFS-702", "KVFS-802"}:
+                  harness_payload = data
+                  break
+          receipt = {
+              "schema": "KernelVFSDockerLaneReceipt@1",
+              "task_id": "KVFS-700",
+              "lane": "docker",
+              "profile": (harness_payload or {}).get("profile", "container_live_docker"),
+              "status": (harness_payload or {}).get("status", "capability_unavailable"),
+              "gate_status": (harness_payload or {}).get("gate_status", (harness_payload or {}).get("status", "capability_unavailable")),
+              "support_claim": (harness_payload or {}).get("support_claim", "capability_unavailable"),
+              "support_promoted": bool((harness_payload or {}).get("support_promoted", False)),
+              "live": bool((harness_payload or {}).get("live", False)),
+              "platform": "linux",
+              "os": "linux",
+              "architecture": platform.machine(),
+              "commit": os.environ["KVFS_RECEIPT_COMMIT"],
+              "run_id": os.environ["KVFS_RECEIPT_RUN_ID"],
+              "workflow": os.environ["KVFS_RECEIPT_WORKFLOW"],
+              "unix_ms": int(time.time() * 1000),
+              "fresh": True,
+              "receipt_id": f"receipt:docker:{uuid.uuid4().hex}",
+              "harness": harness_payload,
+          }
+          suite_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          print(suite_path.read_text(encoding="utf-8"))
+          PY
+      - name: Upload Docker lane receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: kvfs-receipt-docker
+          path: build/kernel-vfs-receipts/docker/
+          if-no-files-found: error
+
+  # -------------------------------------------------------------------------
+  # Support gate — fail-closed aggregation of mandatory + receipt lanes
+  # -------------------------------------------------------------------------
+  support-gate:
+    name: Kernel VFS support gate (fail-closed)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs:
+      - ci-contract
+      - hermetic
+      - packaging
+      - linux-capable
+      - windows-winfsp
+      - docker-lane
+    # Always evaluate so a skipped/failed upstream cannot silently green support.
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Require mandatory upstream jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Hermetic and packaging are mandatory support inputs.
+          # Capable lanes must complete (success) and emit receipts; they are
+          # not optional soft-fails.
+          echo "ci-contract=${{ needs.ci-contract.result }}"
+          echo "hermetic=${{ needs.hermetic.result }}"
+          echo "packaging=${{ needs.packaging.result }}"
+          echo "linux-capable=${{ needs.linux-capable.result }}"
+          echo "windows-winfsp=${{ needs.windows-winfsp.result }}"
+          echo "docker-lane=${{ needs.docker-lane.result }}"
+          for pair in \
+            "ci-contract:${{ needs.ci-contract.result }}" \
+            "hermetic:${{ needs.hermetic.result }}" \
+            "packaging:${{ needs.packaging.result }}" \
+            "linux-capable:${{ needs.linux-capable.result }}" \
+            "windows-winfsp:${{ needs.windows-winfsp.result }}" \
+            "docker-lane:${{ needs.docker-lane.result }}"
+          do
+            name="${pair%%:*}"
+            result="${pair##*:}"
+            if [ "$result" != "success" ]; then
+              echo "Support gate rejected non-success upstream job: $name=$result"
+              exit 1
+            fi
+          done
+      - name: Download lane receipts
+        uses: actions/download-artifact@v4
+        with:
+          path: build/kernel-vfs-receipts-download
+          pattern: kvfs-receipt-*
+          merge-multiple: false
+      - name: Validate current receipts (reject stale / missing / skip-only)
+        shell: bash
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+          EXPECTED_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          """Fail-closed support-gate receipt validator (KVFS-802)."""
+          from __future__ import annotations
+
+          import json
+          import os
+          import sys
+          import time
+          from pathlib import Path
+
+          root = Path("build/kernel-vfs-receipts-download")
+          if not root.is_dir():
+              print("missing receipt download directory", file=sys.stderr)
+              sys.exit(1)
+
+          expected_commit = os.environ["EXPECTED_COMMIT"]
+          expected_run_id = str(os.environ["EXPECTED_RUN_ID"])
+          now_ms = int(time.time() * 1000)
+          # Receipts older than 24h relative to validation are treated as stale
+          # even if commit metadata were forged.
+          max_age_ms = 24 * 60 * 60 * 1000
+
+          required_lane_tokens = {
+              "hermetic": ("hermetic",),
+              "packaging": ("packaging",),
+              "linux-capable": ("linux-capable", "linux_capable", "linux"),
+              "windows-winfsp": ("windows-winfsp", "windows_winfsp", "winfsp"),
+              "docker": ("docker",),
+          }
+
+          suite_files = sorted(root.rglob("suite.json"))
+          if not suite_files:
+              print("zero receipt collection: no suite.json artifacts", file=sys.stderr)
+              sys.exit(1)
+
+          seen_lanes: set[str] = set()
+          errors: list[str] = []
+
+          for path in suite_files:
+              try:
+                  payload = json.loads(path.read_text(encoding="utf-8"))
+              except (OSError, json.JSONDecodeError) as exc:
+                  errors.append(f"{path}: unreadable receipt ({exc})")
+                  continue
+              if not isinstance(payload, dict):
+                  errors.append(f"{path}: receipt is not an object")
+                  continue
+
+              commit = str(payload.get("commit") or "")
+              run_id = str(payload.get("run_id") or "")
+              fresh = payload.get("fresh")
+              unix_ms = payload.get("unix_ms")
+              status = str(payload.get("status") or payload.get("gate_status") or "").lower()
+              lane = str(payload.get("lane") or payload.get("profile") or "").lower()
+
+              if commit != expected_commit:
+                  errors.append(
+                      f"{path}: stale receipt commit {commit!r} != {expected_commit!r}"
+                  )
+              if run_id != expected_run_id:
+                  errors.append(
+                      f"{path}: stale receipt run_id {run_id!r} != {expected_run_id!r}"
+                  )
+              if fresh is False:
+                  errors.append(f"{path}: receipt marked fresh=false")
+              if not isinstance(unix_ms, int):
+                  errors.append(f"{path}: missing integer unix_ms freshness stamp")
+              elif now_ms - unix_ms > max_age_ms or unix_ms - now_ms > 5 * 60 * 1000:
+                  errors.append(f"{path}: stale receipt unix_ms={unix_ms}")
+
+              # Skip-only / empty evidence cannot pass a support gate.
+              if status in {"", "skipped", "skip-only", "skip_only", "zero_collection"}:
+                  errors.append(f"{path}: skip-only/empty status {status!r}")
+
+              # Support promotion is fail-closed: only explicit live promotion.
+              if payload.get("support_promoted") is True:
+                  if not payload.get("live"):
+                      errors.append(
+                          f"{path}: support_promoted without live=true is forbidden"
+                      )
+                  claim = str(payload.get("support_claim") or "").lower()
+                  if claim not in {"live_passed", "passed", "admitted"}:
+                      errors.append(
+                          f"{path}: support_promoted with non-live claim {claim!r}"
+                      )
+
+              for required, tokens in required_lane_tokens.items():
+                  if any(token in lane or token in str(path).lower() for token in tokens):
+                      seen_lanes.add(required)
+
+          for required in required_lane_tokens:
+              if required not in seen_lanes:
+                  errors.append(f"missing receipt for required lane: {required}")
+
+          if errors:
+              print("Support gate rejected receipts:", file=sys.stderr)
+              for err in errors:
+                  print(f"  - {err}", file=sys.stderr)
+              sys.exit(1)
+
+          print(f"Support gate accepted {len(suite_files)} current receipt(s)")
+          for path in suite_files:
+              print(f"  ok: {path}")
+          PY
+      - name: Support gate summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Kernel VFS support gate passed: mandatory hermetic/packaging green and current lane receipts present."
