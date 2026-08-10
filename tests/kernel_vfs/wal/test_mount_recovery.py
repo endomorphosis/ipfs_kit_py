@@ -251,11 +251,15 @@ def test_restart_replays_committed_effect_exactly_once(tmp_path: Path) -> None:
     # New backend instance has an empty in-memory effect ledger; WAL must drive
     # idempotent re-apply (content-match) for committed effects.
     recovered_backend = MutationEffectBackend(storage=backend.storage)
-    mutations = DurableMutationCoordinator(durable, backend=recovered_backend)
-    with MountRecoveryCoordinator(
-        root / "state",
-        mutations=mutations,
-    ) as recovery:
+    with (
+        DurableMutationCoordinator(
+            durable, backend=recovered_backend
+        ) as mutations,
+        MountRecoveryCoordinator(
+            root / "state",
+            mutations=mutations,
+        ) as recovery,
+    ):
         receipt = recovery.recover()
         assert receipt.success is True
         assert receipt.ready is True
@@ -267,10 +271,15 @@ def test_restart_replays_committed_effect_exactly_once(tmp_path: Path) -> None:
         assert again.disposition is RecoveryDisposition.IDEMPOTENT
 
     # Brand-new coordinator on same state directory after close releases lease.
-    mutations2 = DurableMutationCoordinator(
-        durable, backend=MutationEffectBackend(storage=backend.storage)
-    )
-    with MountRecoveryCoordinator(root / "state", mutations=mutations2) as recovery2:
+    with (
+        DurableMutationCoordinator(
+            durable,
+            backend=MutationEffectBackend(storage=backend.storage),
+        ) as mutations2,
+        MountRecoveryCoordinator(
+            root / "state", mutations=mutations2
+        ) as recovery2,
+    ):
         r = recovery2.recover()
         assert r.success is True
         # WAL ledger suppresses duplicate replay.
@@ -296,8 +305,12 @@ def test_incomplete_pre_commit_effect_is_compensated(tmp_path: Path) -> None:
             )
         assert backend.storage.get("needs-comp.txt") is not None
 
-    mutations = DurableMutationCoordinator(durable, backend=backend)
-    with MountRecoveryCoordinator(root / "state", mutations=mutations) as recovery:
+    with (
+        DurableMutationCoordinator(durable, backend=backend) as mutations,
+        MountRecoveryCoordinator(
+            root / "state", mutations=mutations
+        ) as recovery,
+    ):
         receipt = recovery.recover()
         assert receipt.success is True
         assert receipt.rolled_back >= 1
@@ -331,10 +344,15 @@ def test_crash_matrix_converges_via_mount_recovery(
         with pytest.raises(WALTransactionCrash):
             coord.create(path, b"payload", effect_id=effect_id, transaction_id=txn)
 
-    mutations = DurableMutationCoordinator(
-        durable, backend=MutationEffectBackend(storage=backend.storage)
-    )
-    with MountRecoveryCoordinator(root / "state", mutations=mutations) as recovery:
+    with (
+        DurableMutationCoordinator(
+            durable,
+            backend=MutationEffectBackend(storage=backend.storage),
+        ) as mutations,
+        MountRecoveryCoordinator(
+            root / "state", mutations=mutations
+        ) as recovery,
+    ):
         receipt = recovery.recover()
         assert receipt.success is True
         assert receipt.ready is True
@@ -464,8 +482,12 @@ def test_wal_replay_failure_preserves_evidence(tmp_path: Path) -> None:
             raise RuntimeError("simulated wal replay failure")
 
     durable = tmp_path / "boom" / "durable"
-    mutations = BoomMutations(durable)
-    with MountRecoveryCoordinator(tmp_path / "boom", mutations=mutations) as coord:
+    with (
+        BoomMutations(durable) as mutations,
+        MountRecoveryCoordinator(
+            tmp_path / "boom", mutations=mutations
+        ) as coord,
+    ):
         receipt = coord.recover()
         assert receipt.success is False
         assert receipt.ready is False
@@ -510,12 +532,14 @@ def test_retain_policy_skips_apply(tmp_path: Path) -> None:
             )
         assert backend.storage.get("retain-me.txt") is not None
 
-    mutations = DurableMutationCoordinator(durable, backend=backend)
-    with MountRecoveryCoordinator(
-        root / "state",
-        mutations=mutations,
-        incomplete_policy=IncompleteTransactionPolicy.RETAIN,
-    ) as recovery:
+    with (
+        DurableMutationCoordinator(durable, backend=backend) as mutations,
+        MountRecoveryCoordinator(
+            root / "state",
+            mutations=mutations,
+            incomplete_policy=IncompleteTransactionPolicy.RETAIN,
+        ) as recovery,
+    ):
         receipt = recovery.recover()
         assert receipt.success is True
         assert receipt.incomplete_policy is IncompleteTransactionPolicy.RETAIN
