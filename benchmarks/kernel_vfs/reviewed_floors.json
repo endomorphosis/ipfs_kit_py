@@ -1,0 +1,506 @@
+{
+  "schema": "KernelVFSReviewedFloors@1",
+  "schema_version": "ipfs_kit_py.kernel_vfs.reviewed_floors@1",
+  "task_id": "KVFS-801",
+  "status": "reviewed",
+  "reviewed": true,
+  "reviewed_by": "kvfs-801-release-performance",
+  "reviewed_at": "2026-08-10T00:00:00Z",
+  "review_receipt_cid": "baguqeerakvfs801reviewedfloorsreleaseperformancev1",
+  "status_rationale": "KVFS-108 captured hermetic baselines; KVFS-801 freezes reviewed absolute floors for performance, chaos, saturation, and resource-leak release gates. Floors cannot be lowered in the same change that fails them. Performance claims must not weaken correctness, durability, permissions, or cache coherence.",
+  "bound_workloads_artifact": "workloads.json",
+  "bound_baseline_task": "KVFS-108",
+  "bound_dependencies": ["KVFS-403", "KVFS-506", "KVFS-603", "KVFS-700"],
+  "comparison_rules": {
+    "immutable": true,
+    "rule_id": "KernelVFSComparisonRules@1",
+    "rules": [
+      {
+        "id": "identity_bind",
+        "statement": "Comparisons require exact match on profile, path_class, workload, seed, concurrency, durability, warmup, samples, and confidence."
+      },
+      {
+        "id": "path_class_separation",
+        "statement": "cold and warm path results are incomparable across classes. Warm cache speedups never satisfy cold floors."
+      },
+      {
+        "id": "committed_not_accepted",
+        "statement": "Primary transaction/WAL throughput is committed_ops_per_s. accepted metrics may be reported but never satisfy a committed floor."
+      },
+      {
+        "id": "absolute_floor_lock",
+        "statement": "After floors are reviewed, absolute per-profile floors cannot be lowered in the same change that fails them."
+      },
+      {
+        "id": "zero_safety_floors",
+        "statement": "Safety counters must remain exactly zero under kill, torn write, corrupt state, ENOSPC, and backpressure chaos."
+      },
+      {
+        "id": "bounded_degradation",
+        "statement": "Under overload or fault injection, throughput may degrade only within degradation_bounds; resource growth stays within ceilings; recovery remains bounded."
+      },
+      {
+        "id": "no_correctness_relaxation",
+        "statement": "No durability, authorization, consistency, coherence, or correctness relaxation may accompany a performance claim."
+      },
+      {
+        "id": "partial_samples_fail",
+        "statement": "Benchmark errors or partial sample sets cannot pass a floor gate."
+      }
+    ],
+    "default_tolerances": {
+      "throughput_regression_max_fraction": 0.05,
+      "p99_regression_max_fraction": 0.10,
+      "degradation_throughput_min_fraction": 0.10
+    }
+  },
+  "safety_floors": {
+    "acknowledged_committed_data_loss": 0,
+    "duplicate_non_idempotent_replay_effects": 0,
+    "stale_arc_read_after_committed_mutation": 0,
+    "path_traversal_escape": 0,
+    "symlink_escape": 0,
+    "reserved_name_alias_escape": 0,
+    "false_success_errno_translation": 0,
+    "leaked_mount_after_test": 0,
+    "leaked_drive_letter_after_test": 0,
+    "leaked_child_process_after_test": 0,
+    "leaked_handle_after_test": 0,
+    "leaked_state_lease_after_test": 0,
+    "unbounded_startup_doctor_mount_unmount": 0,
+    "core_import_requires_native_binding": 0,
+    "blanket_privileged_container_profile": 0,
+    "torn_write_acknowledged": 0,
+    "corrupt_state_admitted": 0,
+    "enospc_acknowledged_loss": 0,
+    "backpressure_unbounded_queue": 0,
+    "kill_recovery_lost_ack": 0
+  },
+  "required_metric_bindings": [
+    "metadata.cold",
+    "metadata.warm",
+    "sequential_io.cold",
+    "sequential_io.warm",
+    "random_io.cold",
+    "random_io.warm",
+    "committed_throughput",
+    "p95_ms",
+    "p99_ms",
+    "arc_hit_ratio",
+    "wal_queue_depth_max",
+    "memory_rss_bytes",
+    "descriptors",
+    "open_handles",
+    "mount_cycles"
+  ],
+  "environments": {
+    "ci-reference": {
+      "id": "env:ci-reference",
+      "description": "Hermetic CI reference environment (memory backends, fixed seed, no native mount).",
+      "native_mount": false,
+      "networked": false,
+      "path_classes": ["cold", "warm"],
+      "workloads": [
+        "metadata_ops",
+        "sequential_io",
+        "random_io",
+        "wal_commit",
+        "arc_hotset",
+        "memory_snapshot",
+        "handle_table",
+        "mount_cycles"
+      ],
+      "performance_floors": {
+        "metadata": {
+          "cold": {
+            "ops_per_s_min": 50.0,
+            "p50_ms_max": 25.0,
+            "p95_ms_max": 50.0,
+            "p99_ms_max": 100.0
+          },
+          "warm": {
+            "ops_per_s_min": 50.0,
+            "p50_ms_max": 25.0,
+            "p95_ms_max": 50.0,
+            "p99_ms_max": 100.0
+          }
+        },
+        "sequential_io": {
+          "cold": {
+            "ops_per_s_min": 50.0,
+            "throughput_mib_s_min": 0.001,
+            "p50_ms_max": 25.0,
+            "p95_ms_max": 50.0,
+            "p99_ms_max": 100.0,
+            "read_write": ["write_seq", "read_seq"]
+          },
+          "warm": {
+            "ops_per_s_min": 50.0,
+            "throughput_mib_s_min": 0.001,
+            "p50_ms_max": 25.0,
+            "p95_ms_max": 50.0,
+            "p99_ms_max": 100.0,
+            "read_write": ["write_seq", "read_seq"]
+          }
+        },
+        "random_io": {
+          "cold": {
+            "ops_per_s_min": 50.0,
+            "throughput_mib_s_min": 0.001,
+            "p50_ms_max": 25.0,
+            "p95_ms_max": 50.0,
+            "p99_ms_max": 100.0,
+            "read_write": ["write_rand", "read_rand"]
+          },
+          "warm": {
+            "ops_per_s_min": 50.0,
+            "throughput_mib_s_min": 0.001,
+            "p50_ms_max": 25.0,
+            "p95_ms_max": 50.0,
+            "p99_ms_max": 100.0,
+            "read_write": ["write_rand", "read_rand"]
+          }
+        },
+        "committed_throughput": {
+          "wal": {
+            "cold": {
+              "committed_ops_per_s_min": 10.0,
+              "p95_ms_max": 50.0,
+              "p99_ms_max": 100.0,
+              "ack_state": "committed"
+            },
+            "warm": {
+              "committed_ops_per_s_min": 10.0,
+              "p95_ms_max": 50.0,
+              "p99_ms_max": 100.0,
+              "ack_state": "committed"
+            }
+          }
+        },
+        "arc_ratios": {
+          "cold": {
+            "hit_ratio_min": 0.0,
+            "hit_ratio_max": 1.0,
+            "eviction_count_max": 10000
+          },
+          "warm": {
+            "hit_ratio_min": 0.05,
+            "hit_ratio_max": 1.0,
+            "eviction_count_max": 10000
+          }
+        },
+        "wal_queue": {
+          "cold": {"queue_depth_max": 64},
+          "warm": {"queue_depth_max": 64}
+        },
+        "memory": {
+          "rss_bytes_max": 2147483648,
+          "working_set_bytes_max": 67108864
+        },
+        "descriptors": {
+          "open_fds_growth_max": 64,
+          "leaked_fds_max": 0
+        },
+        "handles": {
+          "cold": {
+            "open_handles_after_release_max": 0,
+            "open_handles_peak_max": 4096,
+            "lookup_p99_ms_max": 50.0
+          },
+          "warm": {
+            "open_handles_after_release_max": 0,
+            "open_handles_peak_max": 4096,
+            "lookup_p99_ms_max": 50.0
+          }
+        },
+        "mount_cycles": {
+          "cycle_count_min": 8,
+          "success_ratio_min": 1.0,
+          "leaked_mount_max": 0,
+          "leaked_handle_max": 0,
+          "leaked_process_max": 0,
+          "leaked_lease_max": 0,
+          "cycle_timeout_seconds_max": 60.0,
+          "rss_growth_bytes_max": 268435456,
+          "fd_growth_max": 64
+        }
+      },
+      "resource_ceilings": {
+        "rss_bytes_max": 2147483648,
+        "fds_max_growth": 64,
+        "handles_after_release_max": 0,
+        "wal_queue_depth_max": 64,
+        "threads_growth_max": 32
+      }
+    },
+    "linux-live": {
+      "id": "env:linux-live",
+      "description": "Linux live mount environment (doctor native_capability_ready required for promotion).",
+      "native_mount": true,
+      "networked": false,
+      "path_classes": ["cold", "warm"],
+      "workloads": [
+        "metadata_ops",
+        "sequential_io",
+        "random_io",
+        "wal_commit",
+        "arc_hotset",
+        "mount_cycles"
+      ],
+      "performance_floors": {
+        "metadata": {
+          "cold": {"ops_per_s_min": 10.0, "p95_ms_max": 250.0, "p99_ms_max": 500.0},
+          "warm": {"ops_per_s_min": 25.0, "p95_ms_max": 100.0, "p99_ms_max": 250.0}
+        },
+        "sequential_io": {
+          "cold": {"ops_per_s_min": 10.0, "throughput_mib_s_min": 0.01, "p95_ms_max": 250.0, "p99_ms_max": 500.0},
+          "warm": {"ops_per_s_min": 25.0, "throughput_mib_s_min": 0.05, "p95_ms_max": 100.0, "p99_ms_max": 250.0}
+        },
+        "random_io": {
+          "cold": {"ops_per_s_min": 10.0, "p95_ms_max": 250.0, "p99_ms_max": 500.0},
+          "warm": {"ops_per_s_min": 25.0, "p95_ms_max": 100.0, "p99_ms_max": 250.0}
+        },
+        "committed_throughput": {
+          "wal": {
+            "cold": {"committed_ops_per_s_min": 5.0, "p99_ms_max": 500.0, "ack_state": "committed"},
+            "warm": {"committed_ops_per_s_min": 10.0, "p99_ms_max": 250.0, "ack_state": "committed"}
+          }
+        },
+        "arc_ratios": {
+          "cold": {"hit_ratio_min": 0.0, "hit_ratio_max": 1.0},
+          "warm": {"hit_ratio_min": 0.10, "hit_ratio_max": 1.0}
+        },
+        "wal_queue": {
+          "cold": {"queue_depth_max": 128},
+          "warm": {"queue_depth_max": 128}
+        },
+        "memory": {"rss_bytes_max": 4294967296},
+        "descriptors": {"open_fds_growth_max": 128, "leaked_fds_max": 0},
+        "handles": {
+          "cold": {"open_handles_after_release_max": 0},
+          "warm": {"open_handles_after_release_max": 0}
+        },
+        "mount_cycles": {
+          "cycle_count_min": 100,
+          "success_ratio_min": 1.0,
+          "leaked_mount_max": 0,
+          "leaked_handle_max": 0,
+          "leaked_process_max": 0,
+          "leaked_lease_max": 0,
+          "cycle_timeout_seconds_max": 60.0
+        }
+      },
+      "resource_ceilings": {
+        "rss_bytes_max": 4294967296,
+        "fds_max_growth": 128,
+        "handles_after_release_max": 0,
+        "wal_queue_depth_max": 128
+      },
+      "promotion_requires": ["native_capability_ready", "current_live_receipt"]
+    },
+    "windows-live": {
+      "id": "env:windows-live",
+      "description": "Windows live WinFsp environment (labeled self-hosted runner + pinned WinFsp).",
+      "native_mount": true,
+      "networked": false,
+      "path_classes": ["cold", "warm"],
+      "workloads": [
+        "metadata_ops",
+        "sequential_io",
+        "random_io",
+        "wal_commit",
+        "arc_hotset",
+        "mount_cycles"
+      ],
+      "performance_floors": {
+        "metadata": {
+          "cold": {"ops_per_s_min": 5.0, "p95_ms_max": 500.0, "p99_ms_max": 1000.0},
+          "warm": {"ops_per_s_min": 10.0, "p95_ms_max": 250.0, "p99_ms_max": 500.0}
+        },
+        "sequential_io": {
+          "cold": {"ops_per_s_min": 5.0, "throughput_mib_s_min": 0.01, "p95_ms_max": 500.0, "p99_ms_max": 1000.0},
+          "warm": {"ops_per_s_min": 10.0, "throughput_mib_s_min": 0.05, "p95_ms_max": 250.0, "p99_ms_max": 500.0}
+        },
+        "random_io": {
+          "cold": {"ops_per_s_min": 5.0, "p95_ms_max": 500.0, "p99_ms_max": 1000.0},
+          "warm": {"ops_per_s_min": 10.0, "p95_ms_max": 250.0, "p99_ms_max": 500.0}
+        },
+        "committed_throughput": {
+          "wal": {
+            "cold": {"committed_ops_per_s_min": 2.0, "p99_ms_max": 1000.0, "ack_state": "committed"},
+            "warm": {"committed_ops_per_s_min": 5.0, "p99_ms_max": 500.0, "ack_state": "committed"}
+          }
+        },
+        "arc_ratios": {
+          "cold": {"hit_ratio_min": 0.0, "hit_ratio_max": 1.0},
+          "warm": {"hit_ratio_min": 0.05, "hit_ratio_max": 1.0}
+        },
+        "wal_queue": {
+          "cold": {"queue_depth_max": 128},
+          "warm": {"queue_depth_max": 128}
+        },
+        "memory": {"rss_bytes_max": 4294967296},
+        "descriptors": {"open_fds_growth_max": 128, "leaked_fds_max": 0},
+        "handles": {
+          "cold": {"open_handles_after_release_max": 0},
+          "warm": {"open_handles_after_release_max": 0}
+        },
+        "mount_cycles": {
+          "cycle_count_min": 20,
+          "success_ratio_min": 1.0,
+          "leaked_mount_max": 0,
+          "leaked_handle_max": 0,
+          "leaked_process_max": 0,
+          "leaked_lease_max": 0,
+          "leaked_drive_letter_max": 0,
+          "cycle_timeout_seconds_max": 60.0
+        }
+      },
+      "resource_ceilings": {
+        "rss_bytes_max": 4294967296,
+        "fds_max_growth": 128,
+        "handles_after_release_max": 0,
+        "wal_queue_depth_max": 128
+      },
+      "promotion_requires": ["native_capability_ready", "current_live_receipt", "pinned_winfsp"]
+    }
+  },
+  "chaos_scenarios": {
+    "kill": {
+      "id": "chaos:kill",
+      "description": "Forced process kill mid-mutation; recovery must preserve committed ack and reject stale reads.",
+      "safety_counters": [
+        "acknowledged_committed_data_loss",
+        "kill_recovery_lost_ack",
+        "stale_arc_read_after_committed_mutation",
+        "leaked_handle_after_test",
+        "leaked_mount_after_test",
+        "leaked_child_process_after_test",
+        "leaked_state_lease_after_test"
+      ],
+      "required_outcomes": {
+        "committed_preserved": true,
+        "stale_read_rejected": true,
+        "recovery_bounded": true,
+        "resources_released": true
+      },
+      "degradation": {
+        "max_recovery_seconds": 60.0,
+        "throughput_min_fraction_of_baseline": 0.10
+      }
+    },
+    "torn": {
+      "id": "chaos:torn",
+      "description": "Torn / partial write never acknowledges durability; valid prefix preserved.",
+      "safety_counters": [
+        "torn_write_acknowledged",
+        "acknowledged_committed_data_loss",
+        "false_success_errno_translation"
+      ],
+      "required_outcomes": {
+        "torn_not_acknowledged": true,
+        "prefix_preserved": true,
+        "fail_closed": true
+      },
+      "degradation": {
+        "max_recovery_seconds": 30.0,
+        "throughput_min_fraction_of_baseline": 0.10
+      }
+    },
+    "corrupt": {
+      "id": "chaos:corrupt",
+      "description": "Corrupt ARC/WAL/cache state is a safe miss or prefix preserve; never admitted as live truth.",
+      "safety_counters": [
+        "corrupt_state_admitted",
+        "stale_arc_read_after_committed_mutation",
+        "acknowledged_committed_data_loss"
+      ],
+      "required_outcomes": {
+        "corrupt_safe_miss": true,
+        "no_poisoned_hit": true,
+        "prefix_or_empty_live_state": true
+      },
+      "degradation": {
+        "max_recovery_seconds": 30.0,
+        "throughput_min_fraction_of_baseline": 0.10
+      }
+    },
+    "enospc": {
+      "id": "chaos:enospc",
+      "description": "ENOSPC / disk pressure fails closed without acknowledging lost data; explicit backpressure under pressure.",
+      "safety_counters": [
+        "enospc_acknowledged_loss",
+        "acknowledged_committed_data_loss",
+        "false_success_errno_translation"
+      ],
+      "required_outcomes": {
+        "no_acknowledged_loss": true,
+        "explicit_failure": true,
+        "fail_closed": true
+      },
+      "degradation": {
+        "max_recovery_seconds": 30.0,
+        "throughput_min_fraction_of_baseline": 0.0
+      }
+    },
+    "backpressure": {
+      "id": "chaos:backpressure",
+      "description": "Queue/memory/descriptor saturation applies explicit backpressure; no unbounded growth.",
+      "safety_counters": [
+        "backpressure_unbounded_queue",
+        "leaked_handle_after_test",
+        "unbounded_startup_doctor_mount_unmount"
+      ],
+      "required_outcomes": {
+        "queue_bounded": true,
+        "explicit_rejection_or_wait": true,
+        "resources_return_within_tolerance": true
+      },
+      "degradation": {
+        "max_queue_depth": 64,
+        "max_inflight": 64,
+        "throughput_min_fraction_of_baseline": 0.10,
+        "post_load_queue_depth_max": 0,
+        "post_load_inflight_max": 0
+      }
+    }
+  },
+  "degradation_bounds": {
+    "description": "Bounded degradation under chaos/saturation. Zero safety floors remain absolute.",
+    "throughput_min_fraction_of_baseline": 0.10,
+    "p99_max_multiplier_of_baseline": 10.0,
+    "recovery_seconds_max": 60.0,
+    "post_chaos_resource_tolerance": {
+      "queue_depth": 0,
+      "inflight_tasks": 0,
+      "open_handles": 0,
+      "leaked_fds": 0,
+      "leaked_mounts": 0
+    }
+  },
+  "metric_definitions": {
+    "ops_per_s": {"unit": "operations_per_second", "higher_is_better": true},
+    "committed_ops_per_s": {
+      "unit": "operations_per_second",
+      "ack_state": "committed",
+      "higher_is_better": true,
+      "description": "Operations that survived the declared durability protocol."
+    },
+    "throughput_mib_s": {"unit": "mebibytes_per_second", "higher_is_better": true},
+    "p50_ms": {"unit": "milliseconds", "higher_is_better": false},
+    "p95_ms": {"unit": "milliseconds", "higher_is_better": false},
+    "p99_ms": {"unit": "milliseconds", "higher_is_better": false},
+    "hit_ratio": {"unit": "ratio", "higher_is_better": true, "range": [0.0, 1.0]},
+    "queue_depth_max": {"unit": "count", "higher_is_better": false},
+    "rss_bytes": {"unit": "bytes", "higher_is_better": false},
+    "open_handles": {"unit": "count", "higher_is_better": false},
+    "mount_cycle_success_ratio": {"unit": "ratio", "higher_is_better": true}
+  },
+  "policy": {
+    "native_mount_default": false,
+    "hermetic_gate_profile": "ci-reference",
+    "live_promotion_profiles": ["linux-live", "windows-live"],
+    "floors_status": "reviewed",
+    "note": "Performance cannot be improved by weakening correctness, durability, permissions, or cache coherence. Chaos must meet zero safety floors with bounded degradation."
+  }
+}
