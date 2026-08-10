@@ -16,6 +16,7 @@ import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
 import pytest
@@ -785,24 +786,34 @@ def test_randomized_interleavings_return_no_stale_committed_byte() -> None:
     generations = [f"g:{i}" for i in range(1, 9)]
     errors: list[str] = []
     observed: list[tuple[str, bytes]] = []
+    commit_lock = Lock()
+    committed_index = 0
 
     def committer(gen_index: int) -> None:
-        gen = generations[gen_index]
-        prior = generations[gen_index - 1] if gen_index > 0 else ""
-        coh.publish(
-            _event(
-                CoherenceMutationKind.WRITE,
-                path="docs/file",
-                content_id=cid,
-                namespace=namespace,
-                generation=gen,
-                prior_generation=prior,
-                offset=0,
-                length=8,
-                effect_id=f"effect:rand-{gen}",
-                transaction_id=f"txn:rand-{gen}",
-            )
-        )
+        nonlocal committed_index
+        # The product accepts opaque generation tokens, but this fixture models
+        # one ordered mutation stream.  Catch up under one sequencer so the
+        # active generation cannot regress or exhibit an ABA transition.
+        with commit_lock:
+            while committed_index < gen_index:
+                next_index = committed_index + 1
+                gen = generations[next_index]
+                prior = generations[next_index - 1]
+                coh.publish(
+                    _event(
+                        CoherenceMutationKind.WRITE,
+                        path="docs/file",
+                        content_id=cid,
+                        namespace=namespace,
+                        generation=gen,
+                        prior_generation=prior,
+                        offset=0,
+                        length=8,
+                        effect_id=f"effect:rand-{gen}",
+                        transaction_id=f"txn:rand-{gen}",
+                    )
+                )
+                committed_index = next_index
 
     def reader_writer(worker_id: int) -> None:
         for step in range(40):
@@ -824,7 +835,10 @@ def test_randomized_interleavings_return_no_stale_committed_byte() -> None:
                 generation=gen,
                 length=8,
             )
-            payload = f"{gen}:{worker_id:02d}".encode("ascii")[:8].ljust(8, b"0")
+            # A binding is one ARC key, so concurrent puts may legally update
+            # it.  Use one exact payload per generation to keep the subsequent
+            # read an assertion about stale bytes, not writer ownership.
+            payload = f"{gen}:data".encode("ascii")[:8].ljust(8, b"0")
 
             if rng.random() < 0.5:
                 # Attempt admit.
@@ -840,16 +854,23 @@ def test_randomized_interleavings_return_no_stale_committed_byte() -> None:
                             f"gen={gen} got={got!r}"
                         )
             else:
+                active_before = coh.active_generation(cid, namespace=namespace)
                 got = coh.get(binding)
+                active_after = coh.active_generation(cid, namespace=namespace)
                 if got is not None:
                     observed.append((gen, got))
-                    active_now = coh.active_generation(cid, namespace=namespace)
-                    # A hit under a generation other than the active fence is
-                    # a stale committed byte — the acceptance failure mode.
-                    if active_now is not None and gen != active_now:
+                    # A generation change concurrent with get means the hit
+                    # may have linearized before that commit.  When both
+                    # snapshots agree, a different generation is genuinely
+                    # stale for the whole observation window.
+                    if (
+                        active_before is not None
+                        and active_before == active_after
+                        and gen != active_after
+                    ):
                         errors.append(
                             f"stale hit worker={worker_id} gen={gen} "
-                            f"active={active_now} payload={got!r}"
+                            f"active={active_after} payload={got!r}"
                         )
 
             # Occasional commit from readers too (interleaved).
