@@ -159,6 +159,8 @@ def test_unknown_callback_is_forbidden() -> None:
     with pytest.raises(hc.HostUnknownCallbackError):
         hc.parse_callback_kind("not_a_real_callback")
     with pytest.raises(hc.HostUnknownCallbackError):
+        hc.callback_disposition("not_a_real_callback")
+    with pytest.raises(hc.HostUnknownCallbackError):
         hc.HostCallbackRequest(kind="mystery_op")  # type: ignore[arg-type]
 
 
@@ -533,6 +535,8 @@ def test_illegal_mount_transitions_rejected() -> None:
         hc.MountLifecycleState.UNINITIALIZED,
         hc.MountLifecycleState.READY,
     )
+    # String forms are admitted for hermetic fixtures / ledger replay.
+    assert hc.is_legal_mount_transition("uninitialized", "initializing")
     with pytest.raises(hc.HostLifecycleError):
         hc.assert_legal_mount_transition(
             hc.MountLifecycleState.DESTROYED,
@@ -625,6 +629,8 @@ def test_platform_differences_are_documented_and_fail_closed() -> None:
         assert diff.windows_behavior
         record = diff.to_record()
         assert record["schema"] == hc.HOST_PLATFORM_DIFF_SCHEMA
+        restored = hc.HostPlatformDifference.from_dict(record)
+        assert restored == diff
 
 
 def test_platform_specific_request_projection() -> None:

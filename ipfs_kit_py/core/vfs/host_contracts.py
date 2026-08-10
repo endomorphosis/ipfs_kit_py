@@ -24,6 +24,9 @@ Rules (fail-closed):
 
 Interface aliases: ``HostFilesystemAdapter@1``, ``HostCallback@1``,
 ``HostCallbackResult@1``, ``HostHandle@1``, ``HostMountLifecycle@1``.
+
+This module is intentionally import-inert: no fusepy, libfuse, WinFsp, or
+host I/O side effects occur at import time.
 """
 
 from __future__ import annotations
@@ -654,10 +657,12 @@ def errno_number(errno: HostErrno, platform: HostPlatform = HostPlatform.LINUX) 
 
 
 def is_legal_mount_transition(
-    from_state: MountLifecycleState, to_state: MountLifecycleState
+    from_state: MountLifecycleState | str, to_state: MountLifecycleState | str
 ) -> bool:
     """Return whether ``from_state → to_state`` is an admitted mount transition."""
 
+    from_state = _enum(from_state, MountLifecycleState, "from_state")
+    to_state = _enum(to_state, MountLifecycleState, "to_state")
     if from_state is to_state:
         return True
     allowed = _LEGAL_MOUNT_TRANSITIONS.get(from_state, frozenset())
@@ -665,25 +670,16 @@ def is_legal_mount_transition(
 
 
 def assert_legal_mount_transition(
-    from_state: MountLifecycleState, to_state: MountLifecycleState
+    from_state: MountLifecycleState | str, to_state: MountLifecycleState | str
 ) -> None:
     """Raise if the mount lifecycle transition is not admitted."""
 
+    from_state = _enum(from_state, MountLifecycleState, "from_state")
+    to_state = _enum(to_state, MountLifecycleState, "to_state")
     if not is_legal_mount_transition(from_state, to_state):
         raise HostLifecycleError(
             f"illegal mount transition {from_state.value} → {to_state.value}"
         )
-
-
-def callback_disposition(kind: HostCallbackKind) -> CallbackDisposition:
-    """Return the closed disposition for a known callback kind."""
-
-    kind = _enum(kind, HostCallbackKind, "kind")
-    if kind in REQUIRED_SUPPORTED_CALLBACKS:
-        return CallbackDisposition.REQUIRED_SUPPORTED
-    if kind in EXPLICIT_UNSUPPORTED_CALLBACKS:
-        return CallbackDisposition.EXPLICIT_UNSUPPORTED
-    raise HostUnknownCallbackError(f"callback {kind!r} is not in the closed set")
 
 
 def parse_callback_kind(name: Any) -> HostCallbackKind:
@@ -701,10 +697,22 @@ def parse_callback_kind(name: Any) -> HostCallbackKind:
         ) from exc
 
 
-def default_unsupported_errno(kind: HostCallbackKind) -> HostErrno:
+def callback_disposition(kind: HostCallbackKind | str) -> CallbackDisposition:
+    """Return the closed disposition for a known callback kind."""
+
+    # Unknown names raise HostUnknownCallbackError (not a generic ValueError).
+    kind = parse_callback_kind(kind)
+    if kind in REQUIRED_SUPPORTED_CALLBACKS:
+        return CallbackDisposition.REQUIRED_SUPPORTED
+    if kind in EXPLICIT_UNSUPPORTED_CALLBACKS:
+        return CallbackDisposition.EXPLICIT_UNSUPPORTED
+    raise HostUnknownCallbackError(f"callback {kind!r} is not in the closed set")
+
+
+def default_unsupported_errno(kind: HostCallbackKind | str) -> HostErrno:
     """Default exact errno for explicit-unsupported callbacks."""
 
-    kind = _enum(kind, HostCallbackKind, "kind")
+    kind = parse_callback_kind(kind)
     if kind not in EXPLICIT_UNSUPPORTED_CALLBACKS:
         raise HostContractError(
             f"{kind.value} is not an explicit-unsupported callback"
@@ -1692,6 +1700,17 @@ class HostPlatformDifference:
             "windows_behavior": self.windows_behavior,
             "fail_closed": self.fail_closed,
         }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "HostPlatformDifference":
+        if not isinstance(payload, Mapping):
+            raise HostContractError("platform difference payload must be a mapping")
+        return cls(
+            topic=str(payload["topic"]),
+            linux_behavior=str(payload["linux_behavior"]),
+            windows_behavior=str(payload["windows_behavior"]),
+            fail_closed=bool(payload.get("fail_closed", True)),
+        )
 
 
 # Closed catalogue of Linux/Windows differences that adapters must honour.
