@@ -1,0 +1,656 @@
+{
+  "schema": "KernelVFSSupportMatrix@1",
+  "schema_version": "ipfs_kit_py.kernel_vfs.support_matrix@1",
+  "task_id": "KVFS-811",
+  "goal_id": "KVFS-G800",
+  "title": "Kernel VFS support matrix with hermetic, conditional, and live claim separation",
+  "board_namespace": "ipfs-kit-kernel-vfs-fuse-v1",
+  "contract_version": 1,
+  "reviewed": true,
+  "reviewed_at": "2026-08-10T20:41:47Z",
+  "reviewed_by": "codex-kvfs-811-reconciliation-v2",
+  "authority": {
+    "statement": "Support claims are partitioned into hermetic, conditional, and live classes. Presence of code, optional extras, import success, hermetic green tests, or simulated native evidence never promotes a live production claim. Missing capability emits a finite capability_unavailable receipt and leaves other lanes runnable. Skipped, stale, print-only, driver-absent, or simulated native evidence does not satisfy production.",
+    "superproject_plan": "superproject:docs/architecture/IPFS_KIT_FUSE_VFS_PLAN.md",
+    "operations_doc": "docs/kernel_vfs/operations.md",
+    "migration_doc": "docs/kernel_vfs/migration.md",
+    "release_receipt": "docs/kernel_vfs/release_receipt.json",
+    "packaging_policy": "pyproject.toml#[tool.ipfs_kit_py.kernel_vfs.packaging]",
+    "semantics_authority": "CanonicalVFSService@1",
+    "cli": "ipfs-kit-kernel-vfs",
+    "depends_on": [
+      "KVFS-501",
+      "KVFS-603",
+      "KVFS-700",
+      "KVFS-702",
+      "KVFS-808",
+      "KVFS-802",
+      "KVFS-800",
+      "KVFS-801"
+    ]
+  },
+  "claim_classes": {
+    "hermetic": {
+      "id": "claim:hermetic",
+      "description": "Proven without native FUSE/WinFsp mount, Docker daemon, credentials, or network backend. Mandatory on every PR for default CI.",
+      "promotion_power": "none_beyond_hermetic",
+      "required_for_pr": true
+    },
+    "conditional": {
+      "id": "claim:conditional",
+      "description": "Capable only when a named host/driver/capability gate is present. Absence yields capability_unavailable; never silent pass and never production promotion.",
+      "promotion_power": "requires_current_capability_receipt",
+      "required_for_pr": false
+    },
+    "live": {
+      "id": "claim:live",
+      "description": "Native mount or container runtime exercised on a labeled capable runner with current receipts. Required for production advertisement of that platform.",
+      "promotion_power": "production_platform_advertisement",
+      "required_for_pr": false,
+      "requires": [
+        "native_capability_ready",
+        "current_live_receipt",
+        "zero_safety_floors"
+      ]
+    }
+  },
+  "policy": {
+    "id": "KernelVFSSupportMatrixPolicy@1",
+    "presence_is_not_support": true,
+    "import_is_not_capability": true,
+    "hermetic_green_is_not_live": true,
+    "skip_only_cannot_pass_support_gate": true,
+    "stale_receipt_rejected": true,
+    "zero_collection_rejected": true,
+    "continue_on_error_forbidden_on_support_jobs": true,
+    "shell_or_true_forbidden_on_support_jobs": true,
+    "blanket_privileged_container_forbidden": true,
+    "windows_os_classifier": "live_gate_receipt",
+    "windows_live_gate_env": "IPFS_KIT_KERNEL_VFS_WINDOWS_LIVE_GATE",
+    "linux_live_force_env": "IPFS_KIT_KERNEL_VFS_LINUX_LIVE",
+    "capability_probe_budget_seconds_max": 5.0,
+    "readiness_timeout_seconds_max": 15.0,
+    "per_case_timeout_seconds_max": 60.0,
+    "forbidden_inferences": [
+      "registry_presence_implies_support",
+      "optional_extra_implies_native_driver",
+      "core_import_implies_fuse_loaded",
+      "hermetic_fixture_implies_live_mount",
+      "doctor_absence_implies_pass",
+      "skip_only_suite_implies_support",
+      "stale_receipt_implies_current",
+      "docker_desktop_implies_host_propagation",
+      "windows_container_implies_winfsp_ready"
+    ]
+  },
+  "python_matrix": {
+    "requires_python": ">=3.12",
+    "supported": ["3.12", "3.13"],
+    "package": "ipfs_kit_py",
+    "package_version": "0.3.0",
+    "claim_class": "hermetic",
+    "notes": "Hermetic CI validates packaging projection and core import on each matrix member."
+  },
+  "packaging": {
+    "default_wheel_inert": {
+      "claim_class": "hermetic",
+      "status": "supported",
+      "statement": "Default wheel and core import do not load fusepy, libfuse, or WinFsp.",
+      "evidence": [
+        "tests/kernel_vfs/packaging/test_wheels.py",
+        "tests/kernel_vfs/linux/test_loader_doctor.py",
+        "tests/kernel_vfs/windows/test_loader_doctor.py"
+      ]
+    },
+    "fuse_extra": {
+      "claim_class": "hermetic",
+      "status": "supported",
+      "extra": "fuse",
+      "binding": "fusepy==3.0.1",
+      "statement": "Optional extra installs the Python binding only; native drivers remain host-managed.",
+      "evidence": [
+        "pyproject.toml",
+        "tests/kernel_vfs/packaging/test_wheels.py"
+      ]
+    },
+    "mount_cli_script": {
+      "claim_class": "hermetic",
+      "status": "supported",
+      "script": "ipfs-kit-kernel-vfs",
+      "entry": "ipfs_kit_py.cli.kernel_vfs:main",
+      "evidence": [
+        "ipfs_kit_py/cli/kernel_vfs.py",
+        "tests/kernel_vfs/cli/test_cli.py"
+      ]
+    },
+    "windows_os_classifier": {
+      "claim_class": "conditional",
+      "status": "receipt_gated",
+      "statement": "Operating System :: Microsoft :: Windows classifier is advertised only after live WinFsp gate admits support.",
+      "gate_env": "IPFS_KIT_KERNEL_VFS_WINDOWS_LIVE_GATE",
+      "evidence": [
+        "tests/kernel_vfs/packaging/test_wheels.py"
+      ]
+    }
+  },
+  "platforms": [
+    {
+      "id": "linux-hermetic",
+      "platform": "linux",
+      "arch": ["x86_64", "aarch64"],
+      "claim_class": "hermetic",
+      "status": "supported",
+      "native_mount": false,
+      "description": "Callback, path, handle, WAL, ARC, security, differential, CLI, and doctor-contract tests without mounting.",
+      "abi": null,
+      "driver": null,
+      "binding": null,
+      "doctor": "KernelVFSLinuxDoctorReport@1 (probe-only)",
+      "evidence": [
+        "tests/kernel_vfs/common",
+        "tests/kernel_vfs/wal",
+        "tests/kernel_vfs/arc",
+        "tests/kernel_vfs/security/test_security_boundaries.py",
+        "tests/kernel_vfs/test_differential.py",
+        "tests/kernel_vfs/cli/test_cli.py",
+        "tests/kernel_vfs/linux/test_loader_doctor.py",
+        "tests/kernel_vfs/linux/test_lifecycle.py"
+      ],
+      "limitations": [
+        "Does not prove live kernel FUSE mount",
+        "Does not prove host driver presence"
+      ]
+    },
+    {
+      "id": "linux-live-amd64",
+      "platform": "linux",
+      "arch": ["x86_64"],
+      "claim_class": "live",
+      "status": "conditional_on_capability",
+      "native_mount": true,
+      "description": "Ubuntu 22.04/24.04 AMD64 live mount: CRUD, offset I/O, truncate, rename, fsync, kill/replay, unmount.",
+      "abi": "libfuse.so.2",
+      "driver": "linux-fuse-kernel",
+      "binding": "fusepy==3.0.1 high-level FUSE 2.x",
+      "doctor": "native_capability_ready within 5s",
+      "promotion_requires": [
+        "native_capability_ready",
+        "current_live_receipt",
+        "zero_safety_floors"
+      ],
+      "evidence": [
+        "tests/kernel_vfs/linux/test_live_mount.py",
+        "tests/kernel_vfs/linux/live_harness.py",
+        "ipfs_kit_py/kernel_vfs/linux.py",
+        "ipfs_kit_py/kernel_vfs/platform.py"
+      ],
+      "limitations": [
+        "Absent /dev/fuse or libfuse2 yields capability_unavailable",
+        "allow_other off unless explicit opt-in + warning"
+      ]
+    },
+    {
+      "id": "linux-live-arm64-soak",
+      "platform": "linux",
+      "arch": ["aarch64", "arm64"],
+      "claim_class": "live",
+      "status": "conditional_on_capability",
+      "native_mount": true,
+      "description": "Native ARM64 ABI, concurrency, 100-cycle mount soak, bounded resources.",
+      "abi": "libfuse.so.2",
+      "driver": "linux-fuse-kernel",
+      "binding": "fusepy==3.0.1",
+      "doctor": "native_capability_ready within 5s",
+      "promotion_requires": [
+        "native_capability_ready",
+        "current_live_receipt",
+        "soak_passed_or_hermetic_passed_honest"
+      ],
+      "evidence": [
+        "tests/kernel_vfs/linux/test_arm64_soak.py",
+        "benchmarks/kernel_vfs/linux_soak.py"
+      ],
+      "support_claim_vocab": [
+        "capability_unavailable",
+        "hermetic_only",
+        "hermetic_passed",
+        "live_passed",
+        "soak_passed"
+      ],
+      "limitations": [
+        "Hermetic soak success does not equal live_passed",
+        "capability_unavailable is finite non-promotion"
+      ]
+    },
+    {
+      "id": "windows-hermetic",
+      "platform": "windows",
+      "arch": ["x86_64"],
+      "claim_class": "hermetic",
+      "status": "supported",
+      "native_mount": false,
+      "description": "Hosted Windows x64 hermetic: loader contracts, path/name policy, callback and error projection.",
+      "abi": null,
+      "driver": null,
+      "binding": null,
+      "doctor": "KernelVFSWindowsDoctorReport@1 (probe-only)",
+      "evidence": [
+        "tests/kernel_vfs/windows/test_loader_doctor.py",
+        "tests/kernel_vfs/windows/test_semantics.py",
+        "tests/kernel_vfs/windows/test_lifecycle.py",
+        "ipfs_kit_py/kernel_vfs/windows_semantics.py",
+        "ipfs_kit_py/kernel_vfs/winfsp_loader.py"
+      ],
+      "limitations": [
+        "Does not prove WinFsp driver/service/DLL presence",
+        "Does not advertise Windows OS classifier alone"
+      ]
+    },
+    {
+      "id": "windows-live-winfsp",
+      "platform": "windows",
+      "arch": ["x86_64"],
+      "claim_class": "live",
+      "status": "conditional_on_capability",
+      "native_mount": true,
+      "description": "Labeled self-hosted Windows x64 + pinned WinFsp: drive and directory mounts, PowerShell/Explorer CRUD, kill cleanup.",
+      "abi": "winfsp-fuse-2.8-compat",
+      "driver": "WinFsp",
+      "binding": "fusepy==3.0.1 via WinFsp FUSE compatibility DLL",
+      "dll": ["winfsp-x64.dll", "winfsp-x86.dll"],
+      "loader_order": [
+        "FUSE_LIBRARY_PATH",
+        "registry:HKLM\\SOFTWARE\\WinFsp\\InstallDir"
+      ],
+      "doctor": "native_capability_ready within 5s",
+      "promotion_requires": [
+        "native_capability_ready",
+        "current_live_receipt",
+        "pinned_winfsp",
+        "zero_safety_floors"
+      ],
+      "evidence": [
+        "tests/kernel_vfs/windows/test_live_winfsp.py",
+        "tests/kernel_vfs/windows/live_harness.py",
+        "ipfs_kit_py/kernel_vfs/windows.py",
+        "ipfs_kit_py/kernel_vfs/winfsp_loader.py"
+      ],
+      "limitations": [
+        "ACL/ADS/reparse not full NTFS parity",
+        "Case-fold collisions fail closed",
+        "Missing driver/service/DLL is typed capability error, not skip-pass"
+      ]
+    },
+    {
+      "id": "linux-docker-fuse",
+      "platform": "linux-docker",
+      "arch": ["x86_64", "aarch64"],
+      "claim_class": "conditional",
+      "status": "supported_profile",
+      "native_mount": true,
+      "description": "Dedicated minimally privileged FUSE image/profile with /dev/fuse + SYS_ADMIN, never privileged.",
+      "abi": "libfuse.so.2",
+      "driver": "linux-fuse-kernel",
+      "binding": "fusepy==3.0.1",
+      "image": "docker/kernel-vfs.Dockerfile",
+      "compose": "docker-compose.kernel-vfs.yml",
+      "required_device": "/dev/fuse",
+      "required_cap": "SYS_ADMIN",
+      "privileged": false,
+      "volumes": ["state", "wal", "cache"],
+      "missing_input_fail_seconds": 5,
+      "promotion_requires": [
+        "docker_daemon",
+        "device_and_cap",
+        "current_container_receipt"
+      ],
+      "evidence": [
+        "tests/kernel_vfs/container/test_image_profile.py",
+        "tests/kernel_vfs/container/test_live_container.py",
+        "tests/kernel_vfs/container/test_propagation.py"
+      ],
+      "limitations": [
+        "In-container access and host-visible propagation are separate claims",
+        "Docker Desktop host propagation is not claimed",
+        "Blanket privileged mode is an SLO violation"
+      ]
+    },
+    {
+      "id": "windows-container-winfsp",
+      "platform": "windows-container",
+      "arch": ["x86_64"],
+      "claim_class": "conditional",
+      "status": "experimental",
+      "native_mount": true,
+      "description": "Windows containers require process isolation plus a host-started WinFsp driver.",
+      "abi": "winfsp-fuse-2.8-compat",
+      "driver": "WinFsp (host-started)",
+      "binding": "fusepy==3.0.1",
+      "promotion_requires": [
+        "process_isolation",
+        "host_started_winfsp",
+        "current_live_receipt"
+      ],
+      "evidence": [],
+      "limitations": [
+        "Not a default CI production claim",
+        "No hermetic substitute for host driver"
+      ]
+    },
+    {
+      "id": "macos",
+      "platform": "macos",
+      "arch": ["x86_64", "arm64"],
+      "claim_class": "hermetic",
+      "status": "unsupported_for_kernel_mount",
+      "native_mount": false,
+      "description": "Package may import on macOS for non-mount tooling; kernel VFS production mount is not claimed.",
+      "evidence": [],
+      "limitations": [
+        "No production FUSE mount claim in this program"
+      ]
+    }
+  ],
+  "subsystems": [
+    {
+      "id": "semantics-authority",
+      "claim_class": "hermetic",
+      "status": "supported",
+      "statement": "CanonicalVFSService is the sole semantics authority for admitted mutations.",
+      "evidence": [
+        "docs/kernel_vfs/authority.md",
+        "tests/kernel_vfs/contracts/test_authority.py",
+        "ipfs_kit_py/core/vfs/service.py"
+      ]
+    },
+    {
+      "id": "wal-durability",
+      "claim_class": "hermetic",
+      "status": "supported",
+      "statement": "Acknowledged mutations are ordered through CanonicalWAL; recovery precedes readiness.",
+      "evidence": [
+        "tests/kernel_vfs/wal",
+        "ipfs_kit_py/kernel_vfs/durable_mutation.py",
+        "ipfs_kit_py/kernel_vfs/wal_recovery.py"
+      ]
+    },
+    {
+      "id": "generation-bound-arc",
+      "claim_class": "hermetic",
+      "status": "supported",
+      "statement": "Shared ARC holds only generation/version-bound committed data; corrupt state is a safe miss.",
+      "evidence": [
+        "tests/kernel_vfs/arc",
+        "ipfs_kit_py/kernel_vfs/cached_storage.py",
+        "ipfs_kit_py/kernel_vfs/cache_coherence.py"
+      ]
+    },
+    {
+      "id": "security-boundaries",
+      "claim_class": "hermetic",
+      "status": "supported",
+      "statement": "Path, option, permission, symlink, state, and resource attacks fail closed with zero side effects outside admitted roots.",
+      "evidence": [
+        "docs/kernel_vfs/security.md",
+        "tests/kernel_vfs/security/test_security_boundaries.py"
+      ]
+    },
+    {
+      "id": "differential-model",
+      "claim_class": "hermetic",
+      "status": "supported",
+      "statement": "Model-based differential identity across reference model, CanonicalVFSService, and KernelVFSOperations.",
+      "evidence": [
+        "tests/kernel_vfs/model.py",
+        "tests/kernel_vfs/test_differential.py"
+      ]
+    },
+    {
+      "id": "performance-floors",
+      "claim_class": "hermetic",
+      "status": "reviewed",
+      "statement": "Reviewed absolute floors for metadata, sequential/random I/O, p95/p99, ARC, WAL queue, memory, handles, mount cycles, and chaos safety counters.",
+      "evidence": [
+        "benchmarks/kernel_vfs/reviewed_floors.json",
+        "benchmarks/kernel_vfs/run.py",
+        "tests/kernel_vfs/test_chaos_floors.py"
+      ],
+      "live_promotion_profiles": ["linux-live", "windows-live"]
+    },
+    {
+      "id": "ci-gates",
+      "claim_class": "hermetic",
+      "status": "supported",
+      "statement": "Mandatory hermetic matrix (Ubuntu+Windows × 3.12/3.13), packaging, and fail-closed support gate; capable native/Docker lanes emit receipts.",
+      "evidence": [
+        ".github/workflows/kernel-vfs.yml",
+        "tests/kernel_vfs/test_ci_contract.py"
+      ]
+    },
+    {
+      "id": "vfscore-compatibility",
+      "claim_class": "hermetic",
+      "status": "compatibility_caller",
+      "statement": "VFSCore remains a compatibility caller; durable mutations must delegate to CanonicalVFSService or fail closed.",
+      "evidence": [
+        "docs/kernel_vfs/authority.md",
+        "docs/kernel_vfs/migration.md",
+        "ipfs_kit_py/core/vfs/adapters.py"
+      ]
+    }
+  ],
+  "lanes": [
+    {
+      "id": "lane:hermetic-callbacks",
+      "claim_class": "hermetic",
+      "platforms": ["linux", "windows"],
+      "python": ["3.12", "3.13"],
+      "frequency": "every_pr",
+      "required_evidence": [
+        "callback/result/errno",
+        "flags",
+        "handles",
+        "paths",
+        "concurrency"
+      ]
+    },
+    {
+      "id": "lane:core-vfs-wal-arc",
+      "claim_class": "hermetic",
+      "platforms": ["linux"],
+      "python": ["3.12", "3.13"],
+      "frequency": "every_pr",
+      "required_evidence": [
+        "composed runtime crash matrix",
+        "WAL recovery",
+        "ARC coherence"
+      ]
+    },
+    {
+      "id": "lane:linux-live-mount",
+      "claim_class": "live",
+      "platforms": ["linux-amd64"],
+      "frequency": "every_pr_on_capable_runner",
+      "required_evidence": [
+        "kernel CRUD",
+        "offset I/O",
+        "truncate",
+        "rename",
+        "fsync",
+        "kill/replay",
+        "unmount"
+      ]
+    },
+    {
+      "id": "lane:linux-arm64-soak",
+      "claim_class": "live",
+      "platforms": ["linux-arm64"],
+      "frequency": "nightly_or_release",
+      "required_evidence": [
+        "ABI",
+        "concurrency",
+        "100-cycle mount soak",
+        "bounded resources"
+      ]
+    },
+    {
+      "id": "lane:windows-hermetic",
+      "claim_class": "hermetic",
+      "platforms": ["windows-x64"],
+      "frequency": "every_pr",
+      "required_evidence": [
+        "loader",
+        "path/name policy",
+        "callback and error projection"
+      ]
+    },
+    {
+      "id": "lane:windows-live",
+      "claim_class": "live",
+      "platforms": ["windows-x64-self-hosted"],
+      "frequency": "nightly_or_release",
+      "required_evidence": [
+        "drive and directory mounts",
+        "PowerShell/Explorer CRUD",
+        "kill cleanup"
+      ]
+    },
+    {
+      "id": "lane:linux-docker",
+      "claim_class": "conditional",
+      "platforms": ["linux-docker-amd64", "linux-docker-arm64"],
+      "frequency": "every_pr_or_nightly",
+      "required_evidence": [
+        "minimal capability positive/negative",
+        "restart",
+        "propagation profile honesty"
+      ]
+    },
+    {
+      "id": "lane:packaging",
+      "claim_class": "hermetic",
+      "platforms": ["linux", "macos", "windows"],
+      "python": ["3.12", "3.13"],
+      "frequency": "release",
+      "required_evidence": [
+        "default wheel inert",
+        "[fuse] extra",
+        "driver-present/absent doctor"
+      ]
+    },
+    {
+      "id": "lane:performance-chaos",
+      "claim_class": "hermetic",
+      "platforms": ["ci-reference"],
+      "frequency": "every_pr_via_floors_check",
+      "live_extension": {
+        "claim_class": "live",
+        "platforms": ["linux-live", "windows-live"],
+        "frequency": "nightly_or_release"
+      },
+      "required_evidence": [
+        "cold/warm reads",
+        "random/sequential I/O",
+        "metadata",
+        "WAL/ARC/handle bounds",
+        "zero safety floors under chaos"
+      ]
+    }
+  ],
+  "safety_floors": {
+    "source": "benchmarks/kernel_vfs/reviewed_floors.json",
+    "values": {
+      "acknowledged_committed_data_loss": 0,
+      "duplicate_non_idempotent_replay_effects": 0,
+      "stale_arc_read_after_committed_mutation": 0,
+      "path_traversal_escape": 0,
+      "symlink_escape": 0,
+      "reserved_name_alias_escape": 0,
+      "false_success_errno_translation": 0,
+      "leaked_mount_after_test": 0,
+      "leaked_drive_letter_after_test": 0,
+      "leaked_child_process_after_test": 0,
+      "leaked_handle_after_test": 0,
+      "leaked_state_lease_after_test": 0,
+      "unbounded_startup_doctor_mount_unmount": 0,
+      "core_import_requires_native_binding": 0,
+      "blanket_privileged_container_profile": 0,
+      "torn_write_acknowledged": 0,
+      "corrupt_state_admitted": 0,
+      "enospc_acknowledged_loss": 0,
+      "backpressure_unbounded_queue": 0,
+      "kill_recovery_lost_ack": 0
+    }
+  },
+  "honesty_rules": [
+    {
+      "id": "rule:capability_unavailable",
+      "statement": "Missing platform capability emits a bounded capability_unavailable receipt; it never leaves a task running and never promotes live support."
+    },
+    {
+      "id": "rule:claim_class_separation",
+      "statement": "Hermetic, conditional, and live claims are incomparable for production advertisement. Warm/hermetic speedups never satisfy live floors."
+    },
+    {
+      "id": "rule:receipt_freshness",
+      "statement": "Support gates reject zero collection, skip-only, stale receipt, continue-on-error, and shell || true softening."
+    },
+    {
+      "id": "rule:no_correctness_relaxation",
+      "statement": "Performance cannot be improved by weakening correctness, durability, permissions, or cache coherence."
+    },
+    {
+      "id": "rule:terminal_join_only",
+      "statement": "KVFS-811 aggregates immutable evidence from dependency lanes; it does not implement or weaken a gate at release."
+    }
+  ],
+  "documents": {
+    "operations": "docs/kernel_vfs/operations.md",
+    "migration": "docs/kernel_vfs/migration.md",
+    "release_receipt": "docs/kernel_vfs/release_receipt.json",
+    "security": "docs/kernel_vfs/security.md",
+    "authority": "docs/kernel_vfs/authority.md",
+    "reviewed_floors": "benchmarks/kernel_vfs/reviewed_floors.json"
+  },
+  "validation": {
+    "commands": [
+      "cd ipfs_kit_py && python -m pytest -q tests/kernel_vfs",
+      "cd ipfs_kit_py && python benchmarks/kernel_vfs/run.py --check-reviewed-floors"
+    ],
+    "first_full_gate": {
+      "status": "passed",
+      "completed_at": "2026-08-10T20:41:47Z",
+      "validator": "codex-kvfs-811-reconciliation-v2",
+      "interpreter": "/usr/bin/python3.12",
+      "implementation_baseline_commit": "3b6d9824dccb0202c551f0ef9c77717ce3a18297",
+      "kernel_vfs_suite": "passed",
+      "reviewed_floors": "passed",
+      "floors_digest": "4c329b62b67b73e792f4ac00394167b2a5708b706534ddf5d7915ca325ec7089",
+      "workloads_digest": "9fced54ccb26b81e7e6ab86574f90379a22febe47264d79393c87ed97b11c6eb",
+      "performance_failures": [],
+      "chaos_failures": [],
+      "all_safety_floors_zero": true
+    },
+    "pytest_collection": {
+      "project_import_mode_override": false,
+      "platform_packages": [
+        "tests/kernel_vfs/linux/__init__.py",
+        "tests/kernel_vfs/windows/__init__.py"
+      ],
+      "shared_basenames": [
+        "test_loader_doctor.py",
+        "test_lifecycle.py"
+      ],
+      "isolated_import_probe": "tests/kernel_vfs/contracts/test_host_contracts.py::test_module_is_inert_no_fusepy_dependency",
+      "diagnostic_fallback": {
+        "command": "python -m pytest -q --import-mode=importlib tests/kernel_vfs",
+        "authoritative": false,
+        "use_only_after": "clearing stale bytecode and investigating residual path collisions"
+      },
+      "reason": "Platform package markers prevent shared-basename collisions under pytest's default import behavior; the host-contract inertness probe runs in a fresh subprocess and cannot replace identities in the shared pytest interpreter.",
+      "stale_pycache_policy": "remove tests/kernel_vfs/**/__pycache__ on collection mismatch; never treat collection errors as skip-pass"
+    },
+    "all_safety_floors_must_be_zero": true,
+    "live_promotion_requires_current_receipt": true
+  }
+}

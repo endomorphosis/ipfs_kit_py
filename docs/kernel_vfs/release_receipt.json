@@ -1,0 +1,844 @@
+{
+  "schema": "KernelVFSReleaseReceipt@1",
+  "schema_version": "ipfs_kit_py.kernel_vfs.release_receipt@1",
+  "contract_version": 1,
+  "task_id": "KVFS-811",
+  "goal_id": "KVFS-G800",
+  "title": "Joined terminal release receipt for kernel-mounted durable cached VFS",
+  "board_namespace": "ipfs-kit-kernel-vfs-fuse-v1",
+  "board_terminal": "KVFS-811",
+  "reviewed": true,
+  "reviewed_at": "2026-08-10T20:41:47Z",
+  "reviewed_by": "codex-kvfs-811-reconciliation-v2",
+  "mutation_authorized": false,
+  "completion_authoritative": false,
+  "promotion_decision": {
+    "status": "hermetic_release_ready",
+    "production_live_linux": "conditional_on_current_live_receipt",
+    "production_live_windows": "conditional_on_current_live_receipt_and_winfsp_gate",
+    "production_container": "conditional_on_device_cap_and_container_receipt",
+    "statement": "The exact KVFS-811 hermetic suite and reviewed-floors gate passed on the reconciled document set before evidence stamping. Live Linux/Windows/container production advertisement additionally requires current capability-ready receipts; absence remains explicit capability_unavailable and does not promote."
+  },
+  "validation_evidence": {
+    "status": "first_full_gate_passed",
+    "completed_at": "2026-08-10T20:41:47Z",
+    "validator": "codex-kvfs-811-reconciliation-v2",
+    "interpreter": "/usr/bin/python3.12",
+    "implementation_baseline_commit": "3b6d9824dccb0202c551f0ef9c77717ce3a18297",
+    "commands": [
+      "/usr/bin/python3.12 -m pytest -q tests/kernel_vfs",
+      "/usr/bin/python3.12 benchmarks/kernel_vfs/run.py --check-reviewed-floors"
+    ],
+    "results": {
+      "kernel_vfs_suite": "passed",
+      "reviewed_floors": "passed",
+      "floors_digest": "4c329b62b67b73e792f4ac00394167b2a5708b706534ddf5d7915ca325ec7089",
+      "workloads_digest": "9fced54ccb26b81e7e6ab86574f90379a22febe47264d79393c87ed97b11c6eb",
+      "performance_failures": [],
+      "chaos_failures": [],
+      "all_safety_floors_zero": true
+    }
+  },
+  "authority": {
+    "statement": "This independent joined receipt binds exact source modules, dependency pins, ABI/driver identities, validation environment policy, test evidence paths, benchmark/reviewed floors, safety floors, migration/operations docs, and the support matrix claim classes before any broader promotion. Missing, stale, failed, or conditional evidence remains explicit and prevents broader claims. KVFS-811 aggregates immutable evidence only and does not implement or weaken a gate.",
+    "receipt_interface": "KernelVFSReleaseReceipt@1",
+    "program": "ipfs-kit-kernel-vfs-fuse-v1",
+    "semantics_authority": "CanonicalVFSService@1",
+    "wal_authority": "CanonicalWAL",
+    "cache_authority": "GenerationBoundARC",
+    "cli_schema": "KernelVFSCLI@1",
+    "status_schema": "ipfs_kit_py/kernel_vfs/status@1",
+    "floors_schema": "KernelVFSReviewedFloors@1",
+    "support_matrix_schema": "KernelVFSSupportMatrix@1",
+    "depends_on": [
+      "KVFS-501",
+      "KVFS-603",
+      "KVFS-700",
+      "KVFS-702",
+      "KVFS-808",
+      "KVFS-802",
+      "KVFS-800",
+      "KVFS-801"
+    ],
+    "depends_on_extended": [
+      "KVFS-100",
+      "KVFS-503",
+      "KVFS-608",
+      "KVFS-701",
+      "KVFS-703"
+    ]
+  },
+  "exclusion_policy": {
+    "excluded_only_gate": false,
+    "mandatory_in_default_ci": true,
+    "skip_only_cannot_pass": true,
+    "stale_receipt_rejected": true,
+    "zero_collection_rejected": true
+  },
+  "documents": {
+    "operations": {
+      "path": "docs/kernel_vfs/operations.md",
+      "role": "install, doctor, mount/unmount/status, options, limitations, monitoring, backup/recovery"
+    },
+    "migration": {
+      "path": "docs/kernel_vfs/migration.md",
+      "role": "VFSCore migration, downgrade, rollback, forward recovery"
+    },
+    "support_matrix": {
+      "path": "docs/kernel_vfs/support_matrix.json",
+      "role": "hermetic/conditional/live claim separation"
+    },
+    "authority": {
+      "path": "docs/kernel_vfs/authority.md",
+      "role": "semantics authority ADR"
+    },
+    "security": {
+      "path": "docs/kernel_vfs/security.md",
+      "role": "security profile and attack ledger"
+    }
+  },
+  "source_evidence": {
+    "schema": "KernelVFSSourceEvidence@1",
+    "implementation_baseline": {
+      "commit": "3b6d9824dccb0202c551f0ef9c77717ce3a18297",
+      "tree": "c8306d12d7d5ca57c8cb9a85270104ad583f514c",
+      "relationship": "The reconciled release-document commit descends directly from this baseline, which includes both the hermetic collection repair and the deterministic randomized ARC coherence-suite repair; the release-document commit adds only the four KVFS-811 documents and does not modify implementation or test files."
+    },
+    "package": {
+      "name": "ipfs_kit_py",
+      "version": "0.3.0",
+      "requires_python": ">=3.12",
+      "supported_python": ["3.12", "3.13"]
+    },
+    "modules": {
+      "cli": "ipfs_kit_py/cli/kernel_vfs.py",
+      "status": "ipfs_kit_py/kernel_vfs/status.py",
+      "linux_lifecycle": "ipfs_kit_py/kernel_vfs/linux.py",
+      "windows_lifecycle": "ipfs_kit_py/kernel_vfs/windows.py",
+      "linux_doctor": "ipfs_kit_py/kernel_vfs/platform.py",
+      "windows_doctor": "ipfs_kit_py/kernel_vfs/winfsp_loader.py",
+      "operations": "ipfs_kit_py/kernel_vfs/operations.py",
+      "durable_mutation": "ipfs_kit_py/kernel_vfs/durable_mutation.py",
+      "wal_recovery": "ipfs_kit_py/kernel_vfs/wal_recovery.py",
+      "cached_storage": "ipfs_kit_py/kernel_vfs/cached_storage.py",
+      "cache_coherence": "ipfs_kit_py/kernel_vfs/cache_coherence.py",
+      "canonical_service": "ipfs_kit_py/core/vfs/service.py",
+      "host_contracts": "ipfs_kit_py/core/vfs/host_contracts.py",
+      "legacy_adapter": "ipfs_kit_py/core/vfs/adapters.py",
+      "vfscore_compat": "ipfs_kit_py/ipfs_fsspec.py"
+    },
+    "container": {
+      "dockerfile": "docker/kernel-vfs.Dockerfile",
+      "compose": "docker-compose.kernel-vfs.yml",
+      "privileged": false,
+      "required_device": "/dev/fuse",
+      "required_cap": "SYS_ADMIN"
+    },
+    "ci_workflow": ".github/workflows/kernel-vfs.yml",
+    "packaging_policy_table": "tool.ipfs_kit_py.kernel_vfs.packaging"
+  },
+  "dependency_evidence": {
+    "schema": "KernelVFSDependencyEvidence@1",
+    "python_binding": {
+      "name": "fusepy",
+      "requirement": "fusepy==3.0.1",
+      "extra": "fuse",
+      "in_core_dependencies": false,
+      "pin_policy": "exact"
+    },
+    "default_wheel_inert": true,
+    "import_is_not_capability": true,
+    "optional_extras_relevant": ["fuse"],
+    "console_scripts": {
+      "ipfs-kit-kernel-vfs": "ipfs_kit_py.cli.kernel_vfs:main"
+    }
+  },
+  "abi_driver_evidence": {
+    "schema": "KernelVFSAbiDriverEvidence@1",
+    "linux": {
+      "driver": "linux-fuse-kernel",
+      "libfuse_soname": "libfuse.so.2",
+      "device": "/dev/fuse",
+      "helper": "fusermount",
+      "binding_profile": "fusepy_high_level_fuse2",
+      "doctor_schema": "KernelVFSLinuxDoctorReport@1",
+      "doctor_budget_seconds_max": 5.0,
+      "override_env": "FUSE_LIBRARY_PATH"
+    },
+    "windows": {
+      "driver": "WinFsp",
+      "fuse_compat": "FUSE 2.8 layer",
+      "dlls": ["winfsp-x64.dll", "winfsp-x86.dll"],
+      "service_names": ["WinFsp.Launcher", "WinFsp"],
+      "loader_order": [
+        "FUSE_LIBRARY_PATH",
+        "registry:HKLM\\SOFTWARE\\WinFsp\\InstallDir",
+        "registry:HKLM\\SOFTWARE\\WOW6432Node\\WinFsp\\InstallDir"
+      ],
+      "doctor_schema": "KernelVFSWindowsDoctorReport@1",
+      "doctor_budget_seconds_max": 5.0,
+      "live_gate_env": "IPFS_KIT_KERNEL_VFS_WINDOWS_LIVE_GATE",
+      "architecture_agreement_required": true
+    },
+    "container": {
+      "profile": "linux-fuse-minimal",
+      "required_device": "/dev/fuse",
+      "required_cap": "SYS_ADMIN",
+      "python_floor": "3.12",
+      "libfuse_soname": "libfuse.so.2",
+      "fuse_binding": "fusepy==3.0.1",
+      "privileged_forbidden": true,
+      "missing_input_fail_seconds": 5
+    }
+  },
+  "environment_evidence": {
+    "schema": "KernelVFSEnvironmentEvidence@1",
+    "validation_path_policy": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin",
+    "canonical_interpreter_target": "/usr/bin/python3.12",
+    "validation_home_policy": "ipfs-accelerate-validation-home-*",
+    "xdg_paths": {
+      "cache": "$HOME/.cache",
+      "config": "$HOME/.config",
+      "data": "$HOME/.local/share",
+      "state": "$HOME/.local/state"
+    },
+    "benchmark_environments": {
+      "hermetic_gate_profile": "ci-reference",
+      "live_promotion_profiles": ["linux-live", "windows-live"]
+    },
+    "timeouts": {
+      "capability_probe_seconds_max": 5.0,
+      "readiness_seconds_max": 15.0,
+      "stop_timeout_seconds_default": 5.0,
+      "stop_timeout_seconds_max": 30.0,
+      "per_case_seconds_max": 60.0,
+      "kill_recovery_seconds_max": 60.0
+    },
+    "notes": "Judge external-tool availability against the authoritative validation environment, not a successful provider-side probe.",
+    "pytest_collection": {
+      "shared_basenames": [
+        "test_loader_doctor.py",
+        "test_lifecycle.py"
+      ],
+      "shared_basename_paths": [
+        "tests/kernel_vfs/linux",
+        "tests/kernel_vfs/windows"
+      ],
+      "project_import_mode_override": false,
+      "platform_packages": [
+        "tests/kernel_vfs/linux/__init__.py",
+        "tests/kernel_vfs/windows/__init__.py"
+      ],
+      "isolated_import_probe": "tests/kernel_vfs/contracts/test_host_contracts.py::test_module_is_inert_no_fusepy_dependency",
+      "diagnostic_fallback": {
+        "command": "python -m pytest -q --import-mode=importlib tests/kernel_vfs",
+        "authoritative": false,
+        "use_only_after": "clearing stale bytecode and investigating residual path collisions"
+      },
+      "reason": "Platform package markers prevent shared-basename collisions under pytest's default import behavior; the host-contract inertness probe runs in a fresh subprocess and cannot replace identities in the shared pytest interpreter.",
+      "stale_pycache_policy": "remove tests/kernel_vfs/**/__pycache__ on collection mismatch; never treat collection errors as skip-pass",
+      "live_suite_honesty": "capability_unavailable on missing driver/device; hermetic green does not promote live"
+    }
+  },
+  "test_evidence": {
+    "schema": "KernelVFSTestEvidence@1",
+    "mandatory_validation_commands": [
+      "cd ipfs_kit_py && python -m pytest -q tests/kernel_vfs",
+      "cd ipfs_kit_py && python benchmarks/kernel_vfs/run.py --check-reviewed-floors"
+    ],
+    "suites": {
+      "hermetic_package": {
+        "path": "tests/kernel_vfs",
+        "claim_class": "hermetic",
+        "role": "full kernel VFS hermetic suite",
+        "collection_requires": "platform_packages_and_isolated_import_probe",
+        "collection_config": {
+          "project_import_mode_override": false,
+          "platform_packages": [
+            "tests/kernel_vfs/linux/__init__.py",
+            "tests/kernel_vfs/windows/__init__.py"
+          ],
+          "isolated_import_probe": "tests/kernel_vfs/contracts/test_host_contracts.py::test_module_is_inert_no_fusepy_dependency"
+        }
+      },
+      "security": {
+        "path": "tests/kernel_vfs/security/test_security_boundaries.py",
+        "task_id": "KVFS-808",
+        "claim_class": "hermetic"
+      },
+      "differential": {
+        "path": "tests/kernel_vfs/test_differential.py",
+        "model": "tests/kernel_vfs/model.py",
+        "task_id": "KVFS-800",
+        "claim_class": "hermetic"
+      },
+      "ci_contract": {
+        "path": "tests/kernel_vfs/test_ci_contract.py",
+        "workflow": ".github/workflows/kernel-vfs.yml",
+        "task_id": "KVFS-802",
+        "claim_class": "hermetic"
+      },
+      "chaos_floors": {
+        "path": "tests/kernel_vfs/test_chaos_floors.py",
+        "task_id": "KVFS-801",
+        "claim_class": "hermetic"
+      },
+      "cli_status": {
+        "path": "tests/kernel_vfs/cli/test_cli.py",
+        "task_id": "KVFS-702",
+        "claim_class": "hermetic"
+      },
+      "packaging": {
+        "path": "tests/kernel_vfs/packaging/test_wheels.py",
+        "task_id": "KVFS-703",
+        "claim_class": "hermetic"
+      },
+      "container_profile": {
+        "path": "tests/kernel_vfs/container/test_image_profile.py",
+        "task_id": "KVFS-701",
+        "claim_class": "hermetic"
+      },
+      "container_live": {
+        "path": "tests/kernel_vfs/container/test_live_container.py",
+        "propagation": "tests/kernel_vfs/container/test_propagation.py",
+        "task_id": "KVFS-700",
+        "claim_class": "conditional"
+      },
+      "linux_live": {
+        "path": "tests/kernel_vfs/linux/test_live_mount.py",
+        "harness": "tests/kernel_vfs/linux/live_harness.py",
+        "claim_class": "live"
+      },
+      "linux_soak": {
+        "path": "tests/kernel_vfs/linux/test_arm64_soak.py",
+        "harness": "benchmarks/kernel_vfs/linux_soak.py",
+        "task_id": "KVFS-501",
+        "claim_class": "live"
+      },
+      "windows_live": {
+        "path": "tests/kernel_vfs/windows/test_live_winfsp.py",
+        "harness": "tests/kernel_vfs/windows/live_harness.py",
+        "task_id": "KVFS-603",
+        "claim_class": "live"
+      },
+      "authority": {
+        "path": "tests/kernel_vfs/contracts/test_authority.py",
+        "task_id": "KVFS-100",
+        "claim_class": "hermetic"
+      }
+    },
+    "ci_jobs": [
+      "ci-contract",
+      "hermetic",
+      "packaging",
+      "linux-capable",
+      "windows-winfsp",
+      "docker-lane",
+      "support-gate"
+    ]
+  },
+  "benchmark_evidence": {
+    "schema": "KernelVFSBenchmarkEvidence@1",
+    "task_id": "KVFS-801",
+    "runner": "benchmarks/kernel_vfs/run.py",
+    "workloads": "benchmarks/kernel_vfs/workloads.json",
+    "reviewed_floors": "benchmarks/kernel_vfs/reviewed_floors.json",
+    "baseline_task": "KVFS-108",
+    "floors_status": "reviewed",
+    "review_receipt_cid": "baguqeerakvfs801reviewedfloorsreleaseperformancev1",
+    "required_metric_bindings": [
+      "metadata.cold",
+      "metadata.warm",
+      "sequential_io.cold",
+      "sequential_io.warm",
+      "random_io.cold",
+      "random_io.warm",
+      "committed_throughput",
+      "p95_ms",
+      "p99_ms",
+      "arc_hit_ratio",
+      "wal_queue_depth_max",
+      "memory_rss_bytes",
+      "descriptors",
+      "open_handles",
+      "mount_cycles"
+    ],
+    "environments": ["ci-reference", "linux-live", "windows-live"],
+    "chaos_scenarios": ["kill", "torn", "corrupt", "enospc", "backpressure"],
+    "check_command": "python benchmarks/kernel_vfs/run.py --check-reviewed-floors",
+    "policy": {
+      "native_mount_default": false,
+      "hermetic_gate_profile": "ci-reference",
+      "absolute_floor_lock": true,
+      "no_correctness_relaxation": true,
+      "partial_samples_fail": true
+    }
+  },
+  "safety_floors": {
+    "schema": "KernelVFSSafetyFloors@1",
+    "source": "benchmarks/kernel_vfs/reviewed_floors.json#safety_floors",
+    "superproject_plan_reference": "superproject:docs/architecture/IPFS_KIT_FUSE_VFS_PLAN.md#7",
+    "all_must_be_zero": true,
+    "values": {
+      "acknowledged_committed_data_loss": 0,
+      "duplicate_non_idempotent_replay_effects": 0,
+      "stale_arc_read_after_committed_mutation": 0,
+      "path_traversal_escape": 0,
+      "symlink_escape": 0,
+      "reserved_name_alias_escape": 0,
+      "false_success_errno_translation": 0,
+      "leaked_mount_after_test": 0,
+      "leaked_drive_letter_after_test": 0,
+      "leaked_child_process_after_test": 0,
+      "leaked_handle_after_test": 0,
+      "leaked_state_lease_after_test": 0,
+      "unbounded_startup_doctor_mount_unmount": 0,
+      "core_import_requires_native_binding": 0,
+      "blanket_privileged_container_profile": 0,
+      "torn_write_acknowledged": 0,
+      "corrupt_state_admitted": 0,
+      "enospc_acknowledged_loss": 0,
+      "backpressure_unbounded_queue": 0,
+      "kill_recovery_lost_ack": 0
+    }
+  },
+  "security_profile": {
+    "task_id": "KVFS-808",
+    "profile": "default_fail_closed",
+    "default_permissions": "on",
+    "allow_other": "off",
+    "allow_other_requires_explicit_opt_in": true,
+    "allow_other_requires_operator_warning": true,
+    "allow_root": "rejected",
+    "mount_option_policy": "closed_allowlist",
+    "admitted_options": [
+      "default_permissions",
+      "ro",
+      "rw",
+      "fsname",
+      "subtype",
+      "max_read",
+      "auto_unmount"
+    ],
+    "symlink_policy_default": "reject",
+    "state_mount_separation": "required",
+    "false_success": "forbidden",
+    "secret_log_policy": "reject_or_redact",
+    "doc": "docs/kernel_vfs/security.md",
+    "suite": "tests/kernel_vfs/security/test_security_boundaries.py"
+  },
+  "migration_evidence": {
+    "schema": "KernelVFSMigrationEvidence@1",
+    "doc": "docs/kernel_vfs/migration.md",
+    "operations_doc": "docs/kernel_vfs/operations.md",
+    "vfscore_disposition": "compatibility_caller",
+    "semantics_authority": "CanonicalVFSService",
+    "cutover": {
+      "storage": "VFSStorageBoundary",
+      "wal": "CanonicalWAL",
+      "cache": "GenerationBoundARC"
+    },
+    "idempotent_supported_migration": true,
+    "unsupported_fail_before_mutation": true,
+    "downgrade_preserves_wal_state": true,
+    "arc_nonportable_safe_miss": true,
+    "rollback_restores_prior_executable_state": true,
+    "forward_recovery_documented": true,
+    "acknowledged_loss": 0
+  },
+  "support_matrix_evidence": {
+    "path": "docs/kernel_vfs/support_matrix.json",
+    "schema": "KernelVFSSupportMatrix@1",
+    "claim_classes": ["hermetic", "conditional", "live"],
+    "presence_is_not_support": true,
+    "hermetic_green_is_not_live": true,
+    "windows_classifier_policy": "live_gate_receipt"
+  },
+  "dependency_lane_receipts": {
+    "KVFS-501": {
+      "outputs": [
+        "tests/kernel_vfs/linux/test_arm64_soak.py",
+        "benchmarks/kernel_vfs/linux_soak.py"
+      ],
+      "claim_class": "live",
+      "role": "Linux ARM64 and repeated mount/resource soak"
+    },
+    "KVFS-603": {
+      "outputs": [
+        "tests/kernel_vfs/windows/test_live_winfsp.py",
+        "tests/kernel_vfs/windows/live_harness.py"
+      ],
+      "claim_class": "live",
+      "role": "WinFsp live conformance"
+    },
+    "KVFS-700": {
+      "outputs": [
+        "tests/kernel_vfs/container/test_live_container.py",
+        "tests/kernel_vfs/container/test_propagation.py"
+      ],
+      "claim_class": "conditional",
+      "role": "Docker mount, restart, propagation"
+    },
+    "KVFS-702": {
+      "outputs": [
+        "ipfs_kit_py/cli/kernel_vfs.py",
+        "ipfs_kit_py/kernel_vfs/status.py",
+        "tests/kernel_vfs/cli/test_cli.py"
+      ],
+      "claim_class": "hermetic",
+      "role": "mount/doctor/status/unmount CLI and status schema"
+    },
+    "KVFS-808": {
+      "outputs": [
+        "tests/kernel_vfs/security/test_security_boundaries.py",
+        "docs/kernel_vfs/security.md"
+      ],
+      "claim_class": "hermetic",
+      "role": "security boundaries"
+    },
+    "KVFS-800": {
+      "outputs": [
+        "tests/kernel_vfs/model.py",
+        "tests/kernel_vfs/test_differential.py"
+      ],
+      "claim_class": "hermetic",
+      "role": "differential/property model"
+    },
+    "KVFS-802": {
+      "outputs": [
+        ".github/workflows/kernel-vfs.yml",
+        "tests/kernel_vfs/test_ci_contract.py"
+      ],
+      "claim_class": "hermetic",
+      "role": "mandatory CI gates"
+    },
+    "KVFS-801": {
+      "outputs": [
+        "benchmarks/kernel_vfs/run.py",
+        "benchmarks/kernel_vfs/reviewed_floors.json",
+        "tests/kernel_vfs/test_chaos_floors.py"
+      ],
+      "claim_class": "hermetic",
+      "role": "reviewed performance and chaos floors"
+    }
+  },
+  "artifact_digests": {
+    "policy": "SHA-256 values bind the three non-self KVFS-811 release documents. Implementation evidence is bound to the exact repaired baseline commit and tree plus relative paths and identity fields. Self-digest of this receipt is excluded to avoid circular sealing.",
+    "identity_bindings": {
+      "reviewed_floors.schema": "KernelVFSReviewedFloors@1",
+      "reviewed_floors.schema_version": "ipfs_kit_py.kernel_vfs.reviewed_floors@1",
+      "reviewed_floors.task_id": "KVFS-801",
+      "reviewed_floors.status": "reviewed",
+      "reviewed_floors.review_receipt_cid": "baguqeerakvfs801reviewedfloorsreleaseperformancev1",
+      "support_matrix.schema": "KernelVFSSupportMatrix@1",
+      "support_matrix.task_id": "KVFS-811",
+      "release_receipt.schema": "KernelVFSReleaseReceipt@1",
+      "release_receipt.task_id": "KVFS-811",
+      "implementation_baseline.commit": "3b6d9824dccb0202c551f0ef9c77717ce3a18297",
+      "implementation_baseline.tree": "c8306d12d7d5ca57c8cb9a85270104ad583f514c",
+      "fuse_binding": "fusepy==3.0.1",
+      "libfuse_soname": "libfuse.so.2",
+      "package_version": "0.3.0",
+      "requires_python": ">=3.12",
+      "cli_schema": "KernelVFSCLI@1",
+      "status_schema": "ipfs_kit_py/kernel_vfs/status@1"
+    },
+    "files": {
+      "docs/kernel_vfs/operations.md": {
+        "role": "operations_guide",
+        "required": true,
+        "bound": true,
+        "sha256": "512ebfbe2bbb3d6b7879e7855be42d61277f48174aa15633942350f217e7cd4f"
+      },
+      "docs/kernel_vfs/migration.md": {
+        "role": "migration_guide",
+        "required": true,
+        "bound": true,
+        "sha256": "09a6aec7435892789d9866b939bf8853a86859e3ff18f9733c3ef92ebb7be22c"
+      },
+      "docs/kernel_vfs/support_matrix.json": {
+        "role": "support_matrix",
+        "required": true,
+        "bound": true,
+        "schema": "KernelVFSSupportMatrix@1",
+        "sha256": "804040c51359b6d74e8a7b11e3fdff150b4971f467d4058008b5468addf621a1"
+      },
+      "docs/kernel_vfs/release_receipt.json": {
+        "role": "this_receipt",
+        "required": true,
+        "bound": true,
+        "self_digest_excluded_from_identity": true,
+        "schema": "KernelVFSReleaseReceipt@1"
+      },
+      "benchmarks/kernel_vfs/reviewed_floors.json": {
+        "role": "reviewed_floors",
+        "required": true,
+        "bound": true,
+        "schema": "KernelVFSReviewedFloors@1",
+        "review_receipt_cid": "baguqeerakvfs801reviewedfloorsreleaseperformancev1"
+      },
+      "benchmarks/kernel_vfs/workloads.json": {
+        "role": "pinned_workloads",
+        "required": true,
+        "bound": true
+      },
+      "benchmarks/kernel_vfs/run.py": {
+        "role": "floors_runner",
+        "required": true,
+        "bound": true,
+        "task_id": "KVFS-801"
+      },
+      "docs/kernel_vfs/security.md": {
+        "role": "security_ledger",
+        "required": true,
+        "bound": true,
+        "task_id": "KVFS-808"
+      },
+      "docs/kernel_vfs/authority.md": {
+        "role": "authority_ledger",
+        "required": true,
+        "bound": true,
+        "task_id": "KVFS-100"
+      },
+      "pyproject.toml": {
+        "role": "packaging_and_fuse_extra",
+        "required": true,
+        "bound": true,
+        "fuse_extra": "fuse",
+        "fuse_binding_requirement": "fusepy==3.0.1"
+      },
+      ".github/workflows/kernel-vfs.yml": {
+        "role": "ci_workflow",
+        "required": true,
+        "bound": true,
+        "task_id": "KVFS-802"
+      },
+      "docker/kernel-vfs.Dockerfile": {
+        "role": "container_image",
+        "required": true,
+        "bound": true,
+        "task_id": "KVFS-701"
+      },
+      "docker-compose.kernel-vfs.yml": {
+        "role": "container_compose_profile",
+        "required": true,
+        "bound": true,
+        "task_id": "KVFS-701"
+      },
+      "ipfs_kit_py/cli/kernel_vfs.py": {
+        "role": "mount_cli",
+        "required": true,
+        "bound": true,
+        "task_id": "KVFS-702"
+      },
+      "ipfs_kit_py/kernel_vfs/status.py": {
+        "role": "status_schema",
+        "required": true,
+        "bound": true,
+        "task_id": "KVFS-702"
+      },
+      "ipfs_kit_py/kernel_vfs/platform.py": {
+        "role": "linux_doctor_abi",
+        "required": true,
+        "bound": true,
+        "abi": "libfuse.so.2",
+        "task_id": "KVFS-503"
+      },
+      "ipfs_kit_py/kernel_vfs/winfsp_loader.py": {
+        "role": "windows_doctor_driver",
+        "required": true,
+        "bound": true,
+        "driver": "WinFsp",
+        "task_id": "KVFS-608"
+      }
+    }
+  },
+  "evidence_binding_summary": {
+    "schema": "KernelVFSEvidenceBindingSummary@1",
+    "required_categories": [
+      "source",
+      "dependency",
+      "abi",
+      "driver",
+      "environment",
+      "test",
+      "benchmark",
+      "safety_floors"
+    ],
+    "source": {
+      "bound": true,
+      "section": "source_evidence",
+      "identity": [
+        "package.name=ipfs_kit_py",
+        "package.version=0.3.0",
+        "cli=ipfs_kit_py/cli/kernel_vfs.py",
+        "status=ipfs_kit_py/kernel_vfs/status.py",
+        "linux=ipfs_kit_py/kernel_vfs/linux.py",
+        "windows=ipfs_kit_py/kernel_vfs/windows.py",
+        "operations=ipfs_kit_py/kernel_vfs/operations.py",
+        "canonical_service=ipfs_kit_py/core/vfs/service.py"
+      ]
+    },
+    "dependency": {
+      "bound": true,
+      "section": "dependency_evidence",
+      "identity": [
+        "fusepy==3.0.1",
+        "extra=fuse",
+        "in_core_dependencies=false",
+        "console_script=ipfs-kit-kernel-vfs"
+      ]
+    },
+    "abi": {
+      "bound": true,
+      "section": "abi_driver_evidence",
+      "identity": [
+        "linux.libfuse_soname=libfuse.so.2",
+        "linux.device=/dev/fuse",
+        "linux.helper=fusermount",
+        "windows.fuse_compat=FUSE 2.8 layer",
+        "windows.dlls=winfsp-x64.dll,winfsp-x86.dll"
+      ]
+    },
+    "driver": {
+      "bound": true,
+      "section": "abi_driver_evidence",
+      "identity": [
+        "linux.driver=linux-fuse-kernel",
+        "windows.driver=WinFsp",
+        "container.privileged_forbidden=true",
+        "container.required_cap=SYS_ADMIN"
+      ]
+    },
+    "environment": {
+      "bound": true,
+      "section": "environment_evidence",
+      "identity": [
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin",
+        "canonical_interpreter=/usr/bin/python3.12",
+        "validation_home=ipfs-accelerate-validation-home-*",
+        "capability_probe_seconds_max=5",
+        "readiness_seconds_max=15",
+        "per_case_seconds_max=60"
+      ]
+    },
+    "test": {
+      "bound": true,
+      "section": "test_evidence",
+      "identity": [
+        "tests/kernel_vfs",
+        "tests/kernel_vfs/security/test_security_boundaries.py",
+        "tests/kernel_vfs/test_differential.py",
+        "tests/kernel_vfs/test_ci_contract.py",
+        "tests/kernel_vfs/test_chaos_floors.py",
+        "tests/kernel_vfs/cli/test_cli.py",
+        "tests/kernel_vfs/linux/test_live_mount.py",
+        "tests/kernel_vfs/windows/test_live_winfsp.py",
+        "tests/kernel_vfs/container/test_live_container.py"
+      ]
+    },
+    "benchmark": {
+      "bound": true,
+      "section": "benchmark_evidence",
+      "identity": [
+        "benchmarks/kernel_vfs/run.py",
+        "benchmarks/kernel_vfs/reviewed_floors.json",
+        "benchmarks/kernel_vfs/workloads.json",
+        "review_receipt_cid=baguqeerakvfs801reviewedfloorsreleaseperformancev1",
+        "floors_status=reviewed"
+      ]
+    },
+    "safety_floors": {
+      "bound": true,
+      "section": "safety_floors",
+      "all_must_be_zero": true,
+      "count": 20,
+      "promotion_blocked_if_any_nonzero": true
+    },
+    "documents": {
+      "operations": "docs/kernel_vfs/operations.md",
+      "migration": "docs/kernel_vfs/migration.md",
+      "support_matrix": "docs/kernel_vfs/support_matrix.json",
+      "release_receipt": "docs/kernel_vfs/release_receipt.json"
+    }
+  },
+  "acceptance": {
+    "all_expected_outputs_required": true,
+    "criteria": [
+      "operations guide covers install, doctor, Linux/Windows/container mount/unmount/status, options, limitations, monitoring, backup/recovery",
+      "migration guide covers VFSCore migration, downgrade, and rollback",
+      "support matrix separates hermetic/conditional/live claims",
+      "receipt binds source/dependency/ABI/driver/environment/test/benchmark evidence",
+      "all safety floors are zero before promotion",
+      "live claims remain conditional without current capability receipts"
+    ],
+    "flags": {
+      "operations_guide_present": true,
+      "migration_guide_present": true,
+      "support_matrix_present": true,
+      "release_receipt_present": true,
+      "safety_floors_all_zero": true,
+      "reviewed_floors_bound": true,
+      "claim_classes_separated": true,
+      "privileged_container_forbidden": true,
+      "default_wheel_inert": true,
+      "vfscore_not_semantics_authority": true,
+      "live_promotion_not_implied_by_hermetic": true,
+      "source_evidence_bound": true,
+      "dependency_evidence_bound": true,
+      "abi_driver_evidence_bound": true,
+      "environment_evidence_bound": true,
+      "test_evidence_bound": true,
+      "benchmark_evidence_bound": true
+    }
+  },
+  "invariants": {
+    "no_advertised_mutation_bypass": true,
+    "fuse_is_not_second_vfs": true,
+    "journal_is_not_mutation_authority": true,
+    "success_requires_observed_transition": true,
+    "zero_side_effect_outside_admitted_roots": true,
+    "false_success_forbidden": true,
+    "core_import_inert": true,
+    "performance_cannot_weaken_correctness": true
+  },
+  "rollout": {
+    "stages": [
+      "hermetic",
+      "linux_shadow",
+      "linux_beta",
+      "windows_shadow",
+      "windows_beta",
+      "production"
+    ],
+    "rollback": {
+      "order": [
+        "unmount",
+        "prevent_new_handles",
+        "drain_or_abort_bounded_callbacks",
+        "fsync_record_wal_position",
+        "preserve_wal_state_for_prior_runtime",
+        "invalidate_nonportable_arc",
+        "never_auto_delete_recovery_data"
+      ]
+    }
+  },
+  "terminal_dag": {
+    "terminal_task_id": "KVFS-811",
+    "goal_id": "KVFS-G800",
+    "join_dependencies": [
+      "KVFS-501",
+      "KVFS-603",
+      "KVFS-700",
+      "KVFS-702",
+      "KVFS-808",
+      "KVFS-802",
+      "KVFS-800",
+      "KVFS-801"
+    ],
+    "validation": [
+      "cd ipfs_kit_py && python -m pytest -q tests/kernel_vfs",
+      "cd ipfs_kit_py && python benchmarks/kernel_vfs/run.py --check-reviewed-floors"
+    ]
+  }
+}
