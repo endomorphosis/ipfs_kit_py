@@ -17,7 +17,7 @@ and no CanonicalVFSService mutation.
 
 from __future__ import annotations
 
-import importlib
+import subprocess
 import sys
 from pathlib import Path
 
@@ -43,10 +43,33 @@ def test_declared_host_contracts_module_exists() -> None:
 
 
 def test_module_is_inert_no_fusepy_dependency() -> None:
-    # Re-import to ensure the module loads without native FUSE bindings.
+    # Probe a genuinely fresh interpreter.  Reloading the shared module in this
+    # pytest process replaces its enum/dataclass identities underneath modules
+    # that were imported during collection, making the full kernel-VFS suite
+    # order-dependent.
     import ast
 
-    mod = importlib.reload(hc)
+    probe_source = """\
+from ipfs_kit_py.core.vfs import host_contracts as mod
+assert mod.CONTRACT_VERSION == 1
+assert mod.HostFilesystemAdapter_V1.endswith('@1')
+mod.assert_no_fusepy_import()
+assert 'fuse' not in mod.__dict__
+assert 'fusepy' not in mod.__dict__
+"""
+    probe = subprocess.run(
+        (
+            sys.executable,
+            "-c",
+            probe_source,
+        ),
+        cwd=PACKAGE_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert probe.returncode == 0, probe.stdout + probe.stderr
+    mod = hc
     assert mod.CONTRACT_VERSION == 1
     assert mod.HostFilesystemAdapter_V1.endswith("@1")
     hc.assert_no_fusepy_import()
@@ -755,16 +778,14 @@ def test_module_not_in_sys_path_side_effects() -> None:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 all_import_roots.add(alias.name.split(".", 1)[0])
-        elif isinstance(node, ast.ImportFrom):
-            if node.module:
-                all_import_roots.add(node.module.split(".", 1)[0])
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            all_import_roots.add(node.module.split(".", 1)[0])
     for node in module_tree.body:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 module_level_roots.add(alias.name.split(".", 1)[0])
-        elif isinstance(node, ast.ImportFrom):
-            if node.module:
-                module_level_roots.add(node.module.split(".", 1)[0])
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            module_level_roots.add(node.module.split(".", 1)[0])
     assert module_level_roots <= {
         "__future__",
         "hashlib",
