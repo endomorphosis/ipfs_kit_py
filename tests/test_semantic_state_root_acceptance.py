@@ -17,6 +17,7 @@ from ipfs_kit_py.mcp_server.mcplusplus.coordination_storage import (
     DurableCoordinationStore,
     ROOT_CAS_INTERRUPTION_POINTS,
     cid_for_artifact,
+    cid_for_bytes,
 )
 
 
@@ -139,3 +140,16 @@ def test_public_facade_keeps_late_exact_replay_unchanged(tmp_path: Path) -> None
     assert later.status is RootUpdateStatus.UPDATED
     assert replay.status is RootUpdateStatus.UNCHANGED
     assert replay.before == replay.after == later.after
+
+
+def test_semantic_facade_rejects_raw_root_while_generic_store_keeps_raw_support(tmp_path: Path) -> None:
+    raw = b"generic coordination bytes"
+    raw_cid = cid_for_bytes(raw, codec="raw")
+    with DurableCoordinationStore(tmp_path / "store") as store:
+        # The generic storage capability intentionally retains raw blocks.
+        store._write_block(raw_cid, raw)
+        with pytest.raises(ValueError, match="dag-json"):
+            DurableStateRootAdapter(store).compare_and_swap_root(
+                "datasets/raw", expected_revision=0, expected_root_cid=None,
+                new_root_cid=raw_cid, operation_id="reject-raw",
+            )

@@ -38,3 +38,20 @@ not simulated.
 Imports and construction are inert: no provider discovery, installation,
 network service, or daemon startup occurs. Recovery verifies immutable blocks
 and transitions; corrupt or ambiguous chains fail closed.
+
+## Verified reopen behavior
+
+Each reopen verifies local immutable blocks and checks the root-transition
+chain against SQLite. When those indexes already match, this is read-only: the
+root-index rebuild-mutation counter remains zero. Immutable transition evidence
+that is absent from SQLite (for example, after an interruption) instead causes
+reconstruction, so a valid durable successor is not ignored. The focused suite
+also covers canonical-CID aliases, live corruption, stale recovery, late exact
+replay, raw-root rejection at the semantic facade, restart persistence,
+concurrent CAS writers, inert imports, and truthful optional-provider states.
+
+The related external `tests/test_agent_supervisor_receipts.py` remains outside
+this feature's validation gate: it currently fails at collection because the
+unrelated `ipfs_kit_py.mcp_server.server` surface does not export
+`_agent_supervisor_rest_binding`. No receipt behavior is claimed as validated
+until that owning transport surface is repaired.
