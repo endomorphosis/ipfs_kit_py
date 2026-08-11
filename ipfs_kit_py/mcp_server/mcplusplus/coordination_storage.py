@@ -18,6 +18,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import sqlite3
 import threading
 import time
@@ -25,10 +26,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterator, Mapping, Optional, Protocol, Tuple
 
+from .state_root_contracts import (
+    RootUpdateStatus,
+    StateRootCASResult,
+    StateRootSnapshot,
+)
+
 
 PROFILE_G_PREFIX = "mcp++/profile-g/"
 COORDINATION_ARCHIVE_SCHEMA = "mcp++/coordination-index-archive@1"
 DAEMON_HEALTH_SCHEMA = "mcp++/coordination/daemon-health@1"
+STATE_ROOT_TRANSITION_SCHEMA = "mcp++/coordination/state-root-transition@1"
 PROFILE_G_KINDS = {
     "goal": "Goal",
     "subgoal": "Subgoal",
@@ -337,6 +345,21 @@ class DurableCoordinationStore:
               archive_cid TEXT PRIMARY KEY REFERENCES artifacts(cid), created_at_ms INTEGER NOT NULL,
               row_count INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS state_root_transitions (
+              transition_cid TEXT PRIMARY KEY REFERENCES artifacts(cid),
+              namespace TEXT NOT NULL, operation_id TEXT NOT NULL,
+              expected_root_cid TEXT, expected_revision INTEGER NOT NULL,
+              new_root_cid TEXT NOT NULL, revision INTEGER NOT NULL,
+              created_at_ms INTEGER NOT NULL,
+              UNIQUE(namespace, operation_id)
+            );
+            CREATE INDEX IF NOT EXISTS root_transitions_namespace_revision
+              ON state_root_transitions(namespace, revision);
+            CREATE TABLE IF NOT EXISTS current_state_roots (
+              namespace TEXT PRIMARY KEY, root_cid TEXT NOT NULL,
+              revision INTEGER NOT NULL, transition_cid TEXT NOT NULL
+                REFERENCES state_root_transitions(transition_cid)
+            );
             """
         )
         connection.execute(
@@ -501,6 +524,154 @@ class DurableCoordinationStore:
             self._index_resolution(connection, cid, artifact)
         elif kind in ("NeighborhoodRecord", "DaemonHealth"):
             self._index_health(connection, cid, kind, artifact)
+
+    @staticmethod
+    def _empty_root(namespace: str) -> StateRootSnapshot:
+        """Validate a namespace and return its immutable zero-generation root."""
+
+        return StateRootSnapshot(namespace=namespace, root_cid=None, revision=0, transition_cid=None)
+
+    def _current_root_in_transaction(self, namespace: str) -> StateRootSnapshot:
+        empty = self._empty_root(namespace)
+        row = self._connection.execute(
+            "SELECT root_cid, revision, transition_cid FROM current_state_roots WHERE namespace=?", (namespace,)
+        ).fetchone()
+        if row is None:
+            return empty
+        try:
+            return StateRootSnapshot(
+                namespace=namespace,
+                root_cid=row["root_cid"],
+                revision=row["revision"],
+                transition_cid=row["transition_cid"],
+            )
+        except ValueError as exc:
+            # A derived index is never an authority for a malformed root.
+            raise ArtifactIntegrityError(f"invalid current root index for {namespace}") from exc
+
+    def current_root(self, namespace: str) -> StateRootSnapshot:
+        """Return the current verified root, or the namespace's zero root."""
+
+        with self._lock:
+            snapshot = self._current_root_in_transaction(namespace)
+            if snapshot.root_cid is not None:
+                self.get_bytes(snapshot.root_cid)
+                transition = self.get(snapshot.transition_cid)
+                if transition.get("schema") != STATE_ROOT_TRANSITION_SCHEMA:
+                    raise ArtifactIntegrityError(f"current root transition for {namespace} has the wrong schema")
+            return snapshot
+
+    @staticmethod
+    def _validate_root_expectation(expected_revision: int, expected_root_cid: Optional[str]) -> None:
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
+            raise ValueError("expected_revision must be a non-negative integer")
+        # StateRootSnapshot supplies the shared CID and zero-root validation.
+        StateRootSnapshot("root-validation", expected_root_cid, expected_revision, None if expected_revision == 0 else expected_root_cid)
+
+    def compare_and_swap_root(
+        self,
+        namespace: str,
+        *,
+        expected_revision: int,
+        expected_root_cid: Optional[str],
+        new_root_cid: str,
+        operation_id: str,
+    ) -> StateRootCASResult:
+        """Atomically advance one namespace root if both expected values match.
+
+        The immutable successor is verified before opening the write transaction.
+        SQLite's ``BEGIN IMMEDIATE`` then serializes writers across independent
+        store instances and processes sharing this directory.
+        """
+
+        self._empty_root(namespace)
+        self._validate_root_expectation(expected_revision, expected_root_cid)
+        # Reuse the contract validators without importing their private helpers.
+        StateRootSnapshot("root-validation", new_root_cid, 1, new_root_cid)
+        StateRootSnapshot("root-validation", None, 0, None)  # validates the fixed helper namespace
+        if not isinstance(operation_id, str) or not operation_id:
+            raise ValueError("operation_id must be a non-empty normalized identifier")
+        # Constructing this harmless snapshot gives operation validation no help;
+        # the transition schema also keeps a bounded, normalized idempotency key.
+        if not re.fullmatch(r"[a-z0-9](?:[a-z0-9._:-]{0,126}[a-z0-9])?", operation_id):
+            raise ValueError("operation_id must be a normalized identifier")
+
+        # A root can only name a block whose bytes currently verify against its CID.
+        self.get_bytes(new_root_cid)
+        created_at_ms = int(self._clock_ms())
+        with self._lock:
+            connection = self._connection
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                before = self._current_root_in_transaction(namespace)
+                if before.root_cid is not None:
+                    self.get_bytes(before.root_cid)
+                    self.get_bytes(before.transition_cid)
+                existing = connection.execute(
+                    """SELECT expected_root_cid, expected_revision, new_root_cid
+                       FROM state_root_transitions WHERE namespace=? AND operation_id=?""",
+                    (namespace, operation_id),
+                ).fetchone()
+                if existing is not None:
+                    if (existing["expected_root_cid"], existing["expected_revision"], existing["new_root_cid"]) != (
+                        expected_root_cid, expected_revision, new_root_cid,
+                    ):
+                        connection.rollback()
+                        return StateRootCASResult(RootUpdateStatus.CONFLICT, before, before, None,
+                                                  "operation_id_conflict", True, False)
+                    connection.rollback()
+                    return StateRootCASResult(RootUpdateStatus.UNCHANGED, before, before, None,
+                                              "idempotent_replay", True, False)
+                # Concurrent writers may propose the same successor under
+                # independent operation IDs.  Once one wins, the other is a
+                # benign no-op rather than a second revision advance.
+                if before.root_cid == new_root_cid:
+                    connection.rollback()
+                    return StateRootCASResult(RootUpdateStatus.UNCHANGED, before, before, None,
+                                              "successor_already_current", True, False)
+                if before.revision != expected_revision or before.root_cid != expected_root_cid:
+                    connection.rollback()
+                    return StateRootCASResult(RootUpdateStatus.CONFLICT, before, before, None,
+                                              "stale_expectation", True, False)
+
+                transition = {
+                    "schema": STATE_ROOT_TRANSITION_SCHEMA,
+                    "namespace": namespace,
+                    "operation_id": operation_id,
+                    "expected_root_cid": expected_root_cid,
+                    "expected_revision": expected_revision,
+                    "new_root_cid": new_root_cid,
+                    "revision": expected_revision + 1,
+                    "created_at_ms": created_at_ms,
+                }
+                data = _canonical_json(transition)
+                transition_cid = cid_for_bytes(data)
+                self._write_block(transition_cid, data)
+                self._connection.execute(
+                    "INSERT OR IGNORE INTO artifacts VALUES(?,?,?,?,?,?)",
+                    (transition_cid, STATE_ROOT_TRANSITION_SCHEMA, STATE_ROOT_TRANSITION_SCHEMA,
+                     "dag-json", len(data), created_at_ms),
+                )
+                self._connection.execute(
+                    """INSERT INTO state_root_transitions
+                       VALUES(?,?,?,?,?,?,?,?)""",
+                    (transition_cid, namespace, operation_id, expected_root_cid, expected_revision,
+                     new_root_cid, expected_revision + 1, created_at_ms),
+                )
+                self._connection.execute(
+                    """INSERT INTO current_state_roots(namespace,root_cid,revision,transition_cid)
+                       VALUES(?,?,?,?)
+                       ON CONFLICT(namespace) DO UPDATE SET root_cid=excluded.root_cid,
+                         revision=excluded.revision, transition_cid=excluded.transition_cid""",
+                    (namespace, new_root_cid, expected_revision + 1, transition_cid),
+                )
+                after = StateRootSnapshot(namespace, new_root_cid, expected_revision + 1, transition_cid)
+                connection.commit()
+            except Exception:
+                connection.rollback()
+                raise
+        return StateRootCASResult(RootUpdateStatus.UPDATED, before, after, transition_cid,
+                                  "updated", True, False)
 
     def _index_resolution(self, connection: sqlite3.Connection, cid: str, artifact: Mapping[str, Any]) -> None:
         task_cid = _require_string(artifact, "task_cid")
@@ -690,6 +861,43 @@ class DurableCoordinationStore:
         for path in sorted(self.blocks_dir.glob("*/*.json")):
             yield path.stem, path.read_bytes()
 
+    @staticmethod
+    def _root_transition_values(cid: str, value: Mapping[str, Any]) -> tuple[str, str, Optional[str], int, str, int, int]:
+        """Validate the closed transition record before it can rebuild an index."""
+
+        fields = {
+            "schema", "namespace", "operation_id", "expected_root_cid", "expected_revision",
+            "new_root_cid", "revision", "created_at_ms",
+        }
+        if set(value) != fields or value.get("schema") != STATE_ROOT_TRANSITION_SCHEMA:
+            raise ArtifactIntegrityError(f"invalid state-root transition {cid}")
+        namespace = value["namespace"]
+        operation_id = value["operation_id"]
+        expected_root_cid = value["expected_root_cid"]
+        expected_revision = value["expected_revision"]
+        new_root_cid = value["new_root_cid"]
+        revision = value["revision"]
+        created_at_ms = value["created_at_ms"]
+        try:
+            empty = StateRootSnapshot(namespace, None, 0, None)
+            if not isinstance(operation_id, str) or not re.fullmatch(
+                r"[a-z0-9](?:[a-z0-9._:-]{0,126}[a-z0-9])?", operation_id
+            ):
+                raise ValueError("invalid operation id")
+            self_expected = isinstance(expected_revision, int) and not isinstance(expected_revision, bool)
+            self_revision = isinstance(revision, int) and not isinstance(revision, bool)
+            self_created = isinstance(created_at_ms, int) and not isinstance(created_at_ms, bool)
+            if not self_expected or not self_revision or not self_created or expected_revision < 0 or created_at_ms < 0:
+                raise ValueError("invalid transition integer")
+            StateRootSnapshot(empty.namespace, expected_root_cid, expected_revision,
+                              None if expected_revision == 0 else expected_root_cid)
+            StateRootSnapshot(empty.namespace, new_root_cid, revision, new_root_cid)
+            if revision != expected_revision + 1:
+                raise ValueError("non-successor revision")
+        except ValueError as exc:
+            raise ArtifactIntegrityError(f"invalid state-root transition {cid}") from exc
+        return namespace, operation_id, expected_root_cid, expected_revision, new_root_cid, revision, created_at_ms
+
     def recover(self, *, rebuild: bool = True) -> Dict[str, Any]:
         """Verify immutable blocks and optionally recreate all derived indexes."""
 
@@ -714,6 +922,8 @@ class DurableCoordinationStore:
                 self._connection.execute("DELETE FROM leases")
                 self._connection.execute("DELETE FROM daemon_health")
                 self._connection.execute("DELETE FROM index_archives")
+                self._connection.execute("DELETE FROM state_root_transitions")
+                self._connection.execute("DELETE FROM current_state_roots")
                 self._connection.execute("DELETE FROM artifacts")
                 # Creation order is stable so claims precede resolutions in the
                 # normal case. A second resolution pass handles arbitrary scans.
@@ -748,13 +958,47 @@ class DurableCoordinationStore:
                             "INSERT OR REPLACE INTO index_archives VALUES(?,?,?)",
                             (cid, int(value.get("created_at_ms", 0)), row_count),
                         )
+                # Root records are reconstructed only from a unique, complete
+                # successor chain.  An orphaned fsynced transition is therefore
+                # safely recovered, while a fork is never chosen arbitrarily.
+                verified_cids = {cid for cid, _, _ in verified}
+                transitions: list[tuple[str, str, str, Optional[str], int, str, int, int]] = []
+                for cid, value, _ in verified:
+                    if value.get("schema") == STATE_ROOT_TRANSITION_SCHEMA:
+                        transitions.append((cid, *self._root_transition_values(cid, value)))
+                current: dict[str, StateRootSnapshot] = {}
+                operations: set[tuple[str, str]] = set()
+                for cid, namespace, operation_id, expected_cid, expected_revision, new_cid, revision, created in sorted(
+                    transitions, key=lambda item: (item[1], item[6], item[0])
+                ):
+                    if new_cid not in verified_cids:
+                        raise ArtifactIntegrityError(f"state-root transition {cid} references a missing successor")
+                    key = (namespace, operation_id)
+                    if key in operations:
+                        raise ArtifactIntegrityError(f"duplicate state-root operation {namespace}/{operation_id}")
+                    operations.add(key)
+                    before = current.get(namespace, self._empty_root(namespace))
+                    if before.revision != expected_revision or before.root_cid != expected_cid:
+                        raise ArtifactIntegrityError(f"broken or ambiguous state-root chain at {cid}")
+                    self._connection.execute(
+                        "INSERT INTO state_root_transitions VALUES(?,?,?,?,?,?,?,?)",
+                        (cid, namespace, operation_id, expected_cid, expected_revision, new_cid, revision, created),
+                    )
+                    after = StateRootSnapshot(namespace, new_cid, revision, cid)
+                    current[namespace] = after
+                for snapshot in current.values():
+                    self._connection.execute(
+                        "INSERT INTO current_state_roots VALUES(?,?,?,?)",
+                        (snapshot.namespace, snapshot.root_cid, snapshot.revision, snapshot.transition_cid),
+                    )
         return {"verified_blocks": len(verified), "rebuilt": rebuild, "errors": []}
 
     def status(self) -> Dict[str, Any]:
         with self._lock:
             counts = {
                 table: int(self._connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
-                for table in ("artifacts", "claims", "leases", "daemon_health", "index_archives")
+                for table in ("artifacts", "claims", "leases", "daemon_health", "index_archives",
+                              "state_root_transitions", "current_state_roots")
             }
         return {
             "storage_dir": str(self.root),
@@ -771,6 +1015,7 @@ __all__ = [
     "BlockBackend",
     "COORDINATION_ARCHIVE_SCHEMA",
     "DAEMON_HEALTH_SCHEMA",
+    "STATE_ROOT_TRANSITION_SCHEMA",
     "DurableCoordinationStore",
     "IPFSHeliaBlockBackend",
     "RetentionPolicy",
