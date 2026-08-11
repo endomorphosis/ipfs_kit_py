@@ -13,6 +13,7 @@ from ipfs_kit_py.mcp_server.mcplusplus.coordination_storage import (
     ROOT_CAS_INTERRUPTION_POINTS,
     STATE_ROOT_TRANSITION_SCHEMA,
 )
+from ipfs_kit_py.mcp_server.mcplusplus.state_root_adapter import DurableStateRootAdapter
 
 
 class InjectedInterruption(RuntimeError):
@@ -125,6 +126,63 @@ def test_corrupt_transition_fails_closed_on_reconstruction(tmp_path: Path) -> No
         sidecar.unlink()
     with pytest.raises(ArtifactIntegrityError, match="corrupt blocks"):
         _restart(root)
+
+
+def test_raw_transition_evidence_fails_before_rebuild_mutates_indexes(tmp_path: Path) -> None:
+    """A raw CID may be generic storage, never a root-transition wire CID."""
+
+    with DurableCoordinationStore(tmp_path / "raw-transition") as store:
+        successor = _successor(store, "successor")
+        transition = {
+            "schema": STATE_ROOT_TRANSITION_SCHEMA,
+            "namespace": "semantic/raw-transition",
+            "operation_id": "raw-transition",
+            "expected_root_cid": None,
+            "expected_revision": 0,
+            "new_root_cid": successor,
+            "new_revision": 1,
+            "created_at_ms": 0,
+        }
+        raw_transition = store.put(transition, codec="raw", replicate=False)["cid"]
+        artifacts_before = list(store._connection.execute("SELECT * FROM artifacts ORDER BY cid"))
+        transitions_before = store.root_transitions()
+        roots_before = list(store._connection.execute("SELECT * FROM state_roots ORDER BY namespace"))
+        with pytest.raises(ArtifactIntegrityError, match="non-dag-json"):
+            store.recover(rebuild=True)
+        assert list(store._connection.execute("SELECT * FROM artifacts ORDER BY cid")) == artifacts_before
+        assert store.root_transitions() == transitions_before
+        assert list(store._connection.execute("SELECT * FROM state_roots ORDER BY namespace")) == roots_before
+        assert raw_transition
+
+
+def test_semantic_recovery_projects_raw_reconstructed_root_as_closed_corruption(tmp_path: Path) -> None:
+    with DurableCoordinationStore(tmp_path / "raw-root") as store:
+        raw = b"generic raw root"
+        raw_cid = store.put(
+            {"schema": "example/state@1", "label": "raw"}, codec="raw", replicate=False
+        )["cid"]
+        store.compare_and_swap_root(
+            "semantic/raw-root", expected_revision=0, expected_root_cid=None,
+            new_root_cid=raw_cid, operation_id="generic-raw-root",
+        )
+        report = DurableStateRootAdapter(store).recover_roots()
+    assert report.reconstructed_roots == ()
+    assert report.errors and report.errors[0]["code"] == "corrupt"
+
+
+def test_explicit_rebuild_counts_committed_root_deletes_and_inserts(tmp_path: Path) -> None:
+    with DurableCoordinationStore(tmp_path / "metrics") as store:
+        first, second = _successor(store, "one"), _successor(store, "two")
+        store.compare_and_swap_root(
+            "semantic/metrics", expected_revision=0, expected_root_cid=None,
+            new_root_cid=first, operation_id="one",
+        )
+        store.compare_and_swap_root(
+            "semantic/metrics", expected_revision=1, expected_root_cid=first,
+            new_root_cid=second, operation_id="two",
+        )
+        store.recover(rebuild=True)
+        assert store.root_recovery_metrics()["root_index_rebuild_mutations"] == 6
 
 
 def test_recovery_scan_before_cas_cannot_replace_the_later_committed_root(tmp_path: Path) -> None:

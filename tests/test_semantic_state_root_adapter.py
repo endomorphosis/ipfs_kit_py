@@ -141,3 +141,29 @@ def test_adapter_rejects_inconsistent_expectations_before_store_io(
                 "semantic", expected_revision=revision, expected_root_cid=expected_root,
                 new_root_cid=absent, operation_id="invalid-expectation",
             )
+
+
+def test_adapter_rejects_a_raw_expected_root_before_store_cas(tmp_path: Path) -> None:
+    """The semantic facade must not let raw predecessor evidence reach CAS."""
+
+    payload = _payload()
+    raw_root = cid_for_bytes(b"generic predecessor", codec="raw")
+    with DurableCoordinationStore(tmp_path / "store") as store:
+        adapter = DurableStateRootAdapter(store)
+        successor = adapter.put_verified(payload, expected_cid=cid_for_artifact(payload), replicate=False).cid
+        store._write_block(raw_root, b"generic predecessor")
+        store.compare_and_swap_root(
+            "semantic", expected_revision=0, expected_root_cid=None,
+            new_root_cid=raw_root, operation_id="generic-raw-root",
+        )
+        blocks_before = sorted((path.relative_to(store.root), path.read_bytes()) for path in store.blocks_dir.rglob("*.json"))
+        transitions_before = store.root_transitions()
+        current_before = store.current_root("semantic")
+        with pytest.raises(ValueError, match="dag-json"):
+            adapter.compare_and_swap_root(
+                "semantic", expected_revision=1, expected_root_cid=raw_root,
+                new_root_cid=successor, operation_id="semantic-reject-raw-expected",
+            )
+        assert sorted((path.relative_to(store.root), path.read_bytes()) for path in store.blocks_dir.rglob("*.json")) == blocks_before
+        assert store.root_transitions() == transitions_before
+        assert store.current_root("semantic") == current_before
