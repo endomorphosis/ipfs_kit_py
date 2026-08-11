@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -13,6 +14,11 @@ from ipfs_kit_py.mcp_server.mcplusplus.coordination_storage import (
     DurableCoordinationStore,
     STATE_ROOT_TRANSITION_SCHEMA,
 )
+
+
+def _overlong_version(cid: str) -> str:
+    wire = base64.b32decode(cid[1:].upper() + "=" * ((8 - len(cid[1:]) % 8) % 8))
+    return "b" + base64.b32encode(bytes((wire[0] | 0x80, 0)) + wire[1:]).decode("ascii").lower().rstrip("=")
 
 
 def _successor(store: DurableCoordinationStore, name: str) -> str:
@@ -45,10 +51,11 @@ def test_root_starts_empty_and_publishes_a_verified_revisioned_successor(tmp_pat
 def test_missing_or_corrupt_successor_never_becomes_current(tmp_path: Path) -> None:
     with DurableCoordinationStore(tmp_path / "store") as store:
         existing = _successor(store, "existing")
+        missing = existing[:-2] + ("a" if existing[-2] != "a" else "b") + existing[-1]
         with pytest.raises(ArtifactNotFound):
             store.compare_and_swap_state_root(
                 "semantic", expected_revision=0, expected_root_cid=None,
-                new_root_cid=existing[:-1] + ("a" if existing[-1] != "a" else "b"), operation_id="missing-1",
+                new_root_cid=missing, operation_id="missing-1",
             )
         store._block_path(existing).write_bytes(b"corrupt")
         with pytest.raises(ArtifactIntegrityError):
@@ -57,6 +64,23 @@ def test_missing_or_corrupt_successor_never_becomes_current(tmp_path: Path) -> N
                 new_root_cid=existing, operation_id="corrupt-1",
             )
         assert store.current_state_root("semantic")["revision"] == 0
+
+
+def test_store_rejects_the_same_noncanonical_cid_aliases_as_root_contracts(tmp_path: Path) -> None:
+    with DurableCoordinationStore(tmp_path / "store") as store:
+        successor = _successor(store, "canonical")
+        alias = _overlong_version(successor)
+        with pytest.raises(ValueError):
+            store.get_bytes(alias)
+        with pytest.raises(ValueError):
+            store.has(alias)
+        with pytest.raises(ValueError):
+            store.compare_and_swap_state_root(
+                "semantic", expected_revision=0, expected_root_cid=None,
+                new_root_cid=alias, operation_id="alias-1",
+            )
+        with pytest.raises(ValueError):
+            store.put({"schema": "example/state@1", "name": "expected"}, expected_cid=alias)
 
 
 def test_stale_cid_or_revision_cannot_overwrite_and_replay_does_not_increment(tmp_path: Path) -> None:

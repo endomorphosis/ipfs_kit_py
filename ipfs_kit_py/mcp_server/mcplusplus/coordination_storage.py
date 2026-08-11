@@ -126,29 +126,50 @@ def cid_for_artifact(artifact: Mapping[str, Any], codec: str = "dag-json") -> st
     return cid_for_bytes(_canonical_json(artifact), codec)
 
 
-def _codec_from_cid(cid: str) -> str:
+def _read_canonical_varint(data: bytes, offset: int) -> tuple[int, int]:
+    """Read one minimally encoded unsigned varint from CID bytes."""
+
+    start = offset
+    value = shift = 0
+    while offset < len(data):
+        byte = data[offset]
+        offset += 1
+        value |= (byte & 0x7F) << shift
+        if not byte & 0x80:
+            if _varint(value) != data[start:offset]:
+                raise ValueError("CID contains a non-minimal varint")
+            return value, offset
+        shift += 7
+        if shift > 63:
+            break
+    raise ValueError("CID contains an invalid varint")
+
+
+def validate_transport_cid(cid: object) -> str:
+    """Require the one canonical CIDv1 spelling accepted by coordination."""
+
     try:
+        if not isinstance(cid, str) or len(cid) < 10 or cid[0] != "b":
+            raise ValueError
+        if any(character not in "abcdefghijklmnopqrstuvwxyz234567" for character in cid[1:]):
+            raise ValueError
         padded = cid[1:].upper() + "=" * ((8 - len(cid[1:]) % 8) % 8)
         data = base64.b32decode(padded)
-
-        def read(offset: int) -> tuple[int, int]:
-            value = shift = 0
-            while offset < len(data):
-                byte = data[offset]
-                offset += 1
-                value |= (byte & 0x7F) << shift
-                if not byte & 0x80:
-                    return value, offset
-                shift += 7
+        if base64.b32encode(data).decode("ascii").lower().rstrip("=") != cid[1:]:
             raise ValueError
-
-        version, offset = read(0)
-        codec_code, _ = read(offset)
-        if version != 1:
+        version, offset = _read_canonical_varint(data, 0)
+        codec_code, offset = _read_canonical_varint(data, offset)
+        multihash_code, offset = _read_canonical_varint(data, offset)
+        digest_length, offset = _read_canonical_varint(data, offset)
+        if version != 1 or multihash_code != 0x12 or digest_length != 32 or len(data) != offset + digest_length:
             raise ValueError
         return {0x55: "raw", 0x0129: "dag-json"}[codec_code]
-    except (ValueError, KeyError, TypeError, base64.binascii.Error) as exc:
+    except (IndexError, ValueError, KeyError, TypeError, base64.binascii.Error) as exc:
         raise ValueError("unsupported or malformed CID") from exc
+
+
+def _codec_from_cid(cid: str) -> str:
+    return validate_transport_cid(cid)
 
 
 def _artifact_kind(artifact: Mapping[str, Any]) -> str:
@@ -228,8 +249,13 @@ class IPFSHeliaBlockBackend:
         returned = self._returned_cid(result)
         # Kubo add_bytes creates raw CIDs. A bridge may omit its result. Only
         # compare like-for-like CID results; callers choose the matching codec.
-        if returned and returned != cid:
-            raise ArtifactIntegrityError(f"backend returned {returned}, expected {cid}")
+        if returned:
+            try:
+                validate_transport_cid(returned)
+            except ValueError as exc:
+                raise ArtifactIntegrityError(f"backend returned a non-canonical CID: {returned}") from exc
+            if returned != cid:
+                raise ArtifactIntegrityError(f"backend returned {returned}, expected {cid}")
         return result
 
     def load_block(self, cid: str) -> bytes:
@@ -392,8 +418,7 @@ class DurableCoordinationStore:
         self.close()
 
     def _block_path(self, cid: str) -> Path:
-        if not cid.startswith("b") or any(char not in "abcdefghijklmnopqrstuvwxyz234567" for char in cid):
-            raise ValueError("CID must be lowercase base32")
+        validate_transport_cid(cid)
         directory = self.blocks_dir / cid[1:3]
         directory.mkdir(parents=True, exist_ok=True)
         return directory / f"{cid}.json"
@@ -470,8 +495,10 @@ class DurableCoordinationStore:
         kind = _artifact_kind(value)
         data = _canonical_json(value)
         cid = cid_for_bytes(data, codec)
-        if expected_cid is not None and expected_cid != cid:
-            raise ArtifactIntegrityError(f"artifact CID {cid} does not match expected {expected_cid}")
+        if expected_cid is not None:
+            validate_transport_cid(expected_cid)
+            if expected_cid != cid:
+                raise ArtifactIntegrityError(f"artifact CID {cid} does not match expected {expected_cid}")
         stored_at = int(self._clock_ms())
         with self._lock:
             created = self._write_block(cid, data)
@@ -583,11 +610,17 @@ class DurableCoordinationStore:
     def _root_snapshot_from_row(namespace: str, row: Optional[sqlite3.Row]) -> Dict[str, Any]:
         if row is None:
             return {"namespace": namespace, "root_cid": None, "revision": 0, "transition_cid": None}
+        root_cid = row["root_cid"]
+        transition_cid = row["transition_cid"]
+        if root_cid is not None:
+            validate_transport_cid(root_cid)
+        if transition_cid is not None:
+            validate_transport_cid(transition_cid)
         return {
             "namespace": namespace,
-            "root_cid": row["root_cid"],
+            "root_cid": root_cid,
             "revision": int(row["revision"]),
-            "transition_cid": row["transition_cid"],
+            "transition_cid": transition_cid,
         }
 
     def current_state_root(self, namespace: str) -> Dict[str, Any]:
@@ -1122,4 +1155,5 @@ __all__ = [
     "STATE_ROOT_TRANSITION_SCHEMA",
     "cid_for_artifact",
     "cid_for_bytes",
+    "validate_transport_cid",
 ]

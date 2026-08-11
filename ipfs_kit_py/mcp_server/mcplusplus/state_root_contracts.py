@@ -7,12 +7,13 @@ the later state-root adapter and ``DurableCoordinationStore`` integration.
 
 from __future__ import annotations
 
-import base64
 import re
 from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType
 from typing import Any, Mapping, Protocol, TypeVar
+
+from .coordination_storage import validate_transport_cid
 
 
 _T = TypeVar("_T")
@@ -86,39 +87,12 @@ def _validate_identifier(value: object, name: str) -> str:
     return value
 
 
-def _read_varint(data: bytes, offset: int) -> tuple[int, int]:
-    value = shift = 0
-    while offset < len(data):
-        byte = data[offset]
-        offset += 1
-        value |= (byte & 0x7F) << shift
-        if not byte & 0x80:
-            return value, offset
-        shift += 7
-        if shift > 63:
-            break
-    raise ValueError("CID contains an invalid varint")
-
-
 def _validate_cid(value: object, name: str) -> str:
-    if not isinstance(value, str) or len(value) < 10 or value[0] != "b":
-        raise ValueError(f"{name} must be a lowercase CIDv1")
-    encoded = value[1:]
-    if any(character not in "abcdefghijklmnopqrstuvwxyz234567" for character in encoded):
-        raise ValueError(f"{name} must be lowercase base32")
     try:
-        raw = base64.b32decode(encoded.upper() + "=" * ((8 - len(encoded) % 8) % 8))
-        version, offset = _read_varint(raw, 0)
-        codec, offset = _read_varint(raw, offset)
-        multihash, offset = _read_varint(raw, offset)
-        digest_length, offset = _read_varint(raw, offset)
-    except (ValueError, base64.binascii.Error) as exc:
-        raise ValueError(f"{name} is malformed") from exc
-    if version != 1 or codec not in (0x55, 0x0129) or multihash != 0x12 or digest_length != 32:
-        raise ValueError(f"{name} uses an unsupported CID profile")
-    if len(raw) != offset + digest_length:
-        raise ValueError(f"{name} has an invalid digest length")
-    return value
+        validate_transport_cid(value)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a canonical transport CID") from exc
+    return value  # type: ignore[return-value]
 
 
 def _optional_cid(value: object, name: str) -> str | None:
