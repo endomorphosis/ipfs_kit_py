@@ -28,6 +28,8 @@ task prefix `## KSR-`.
   `IPFS_KIT_AUTO_INSTALL_BINARIES=0` apply to every validation command.
 - Each implementation task owns only its declared outputs. KSR-104 is the sole
   repair task allowed to edit MCP++ package exports or final user docs.
+- KSR-105 is a post-audit seal and owns only its two declared production
+  modules and four focused test modules. It may not edit exports or user docs.
 - Validation runs in the candidate worktree and again after merge.
 - `tests/test_agent_supervisor_receipts.py` is read-only integration evidence,
   not a completion gate while its baseline `_agent_supervisor_rest_binding`
@@ -41,11 +43,12 @@ Wave 1  KSR-001                     closed contracts (complete)
 Wave 2  KSR-002                     verified root CAS (complete)
 Wave 3  KSR-003 | KSR-004           crash/recovery | provider adapter (complete)
 Wave 4  KSR-005                     facade, acceptance, documentation (complete)
-Wave 5  KSR-100                     canonical transport-CID validation
-Wave 6  KSR-101                     verified live root and predecessor chain
-Wave 7  KSR-102                     recovery/publication linearization
-Wave 8  KSR-103                     closed API and semantic dag-json parity
-Wave 9  KSR-104                     repaired acceptance and performance closeout
+Wave 5  KSR-100                     canonical transport-CID validation (complete)
+Wave 6  KSR-101                     verified live root and predecessor chain (complete)
+Wave 7  KSR-102                     recovery/publication linearization (complete)
+Wave 8  KSR-103                     closed API and semantic dag-json parity (complete)
+Wave 9  KSR-104                     repaired acceptance and performance closeout (complete)
+Wave 10 KSR-105                     terminal post-audit integrity seal
 ```
 
 ## KSR-000 Inspect and freeze durable-state authorities
@@ -399,3 +402,35 @@ Wave 9  KSR-104                     repaired acceptance and performance closeout
 - Preconditions: KSR-100 through KSR-103 pass independently; base implementation commit and all four audit reproducers remain recorded.
 - Effects: Converts every audit reproducer into a regression test; pins a datasets-compatible structured CID vector without importing datasets; proves corruption/recovery/process concurrency/provider/import behavior end to end; avoids unconditional healthy root-index rebuild writes and records structural scan/rebuild counts.
 - Acceptance: The complete focused suite and coordination regression pass; all canonical-alias, live-corruption, stale-recovery, late-replay, and raw-root negative cases pass; healthy reopen performs verification but zero root-index rebuild mutations when indexes match; orphan evidence still triggers reconstruction; exact state roots survive restart; two writers cannot overwrite silently; imports remain inert; provider states remain truthful; docs report tested behavior and the known external receipt-test blocker.
+
+## KSR-105 Seal semantic preconditions and reconstruction evidence
+
+- Status: pending
+- Completion: auto
+- Is schedulable: true
+- Review only: false
+- Priority: P0
+- Track: audit-closure
+- Depends on: KSR-104
+- Goal id: KSR-G080
+- Outputs: ipfs_kit_py/mcp_server/mcplusplus/coordination_storage.py, ipfs_kit_py/mcp_server/mcplusplus/state_root_adapter.py, tests/test_semantic_state_root_contracts.py, tests/test_semantic_state_root_adapter.py, tests/test_semantic_state_root_recovery.py, tests/test_semantic_state_root_acceptance.py
+- Validation: IPFS_KIT_AUTO_INSTALL_DEPS=0 IPFS_KIT_AUTO_INSTALL_BINARIES=0 python -m pytest -q tests/test_coordination_storage.py tests/test_semantic_state_root_contracts.py tests/test_semantic_state_root_cas.py tests/test_semantic_state_root_recovery.py tests/test_semantic_state_root_adapter.py tests/test_semantic_state_root_acceptance.py tests/test_semantic_state_root_import_safety.py tests/test_semantic_state_root_performance.py
+- Board namespace: durable-state-roots-v1
+- Bundle: ksr/post-audit-seal
+- Parallel lane: ksr-terminal-audit-seal
+- Resource class: cpu-medium
+- Token class: large
+- Estimated tokens: 18000
+- Implementation timeout seconds: 7200
+- Provider role: codex-implement
+- Context budget tokens: 36000
+- LLM context budget bytes: 294912
+- Plan context: docs/architecture/DURABLE_STATE_ROOTS_PLAN.md sections 4, 5, 7, 8, and 13.6
+- Predicted files: ipfs_kit_py/mcp_server/mcplusplus/coordination_storage.py, ipfs_kit_py/mcp_server/mcplusplus/state_root_adapter.py, tests/test_semantic_state_root_contracts.py, tests/test_semantic_state_root_adapter.py, tests/test_semantic_state_root_recovery.py, tests/test_semantic_state_root_acceptance.py
+- Predicted symbols: validate_semantic_dag_json_cid, DurableStateRootAdapter.compare_and_swap_root, DurableStateRootAdapter.recover_roots, DurableCoordinationStore._reconstructed_root_chain, DurableCoordinationStore.recover, root_recovery_metrics
+- Interfaces: DurableStateRoots@post-audit-3, StateRootRecovery@codec-closed-3, CoordinationTransportCID@canonical-3, StateRootRebuildMetrics@2
+- Allow concurrent with:
+- Conflict policy: Preserve generic raw blocks and raw roots inside `DurableCoordinationStore`, but reject raw semantic inputs before adapter I/O and raw transition evidence before reconstruction writes. Reuse the existing CID decoder, closed recovery report, chain verifier, and counters. Do not add a new validator, canonicalizer, result schema, block store, database, WAL, service, provider, datasets import, or accelerator import.
+- Preconditions: Clean terminal branch head `b9e7e5be98517056087a1f24c5a8a70484d54334`; KSR-100 through KSR-104 are completed; the independent audit reproduces post-commit adapter failure for a raw expected root, untyped raw-root recovery rejection, raw-transition index reconstruction, the missing same-value `a9 82 00` codec-alias vector, and unpinned delete-plus-insert metric semantics.
+- Effects: Validates a non-null semantic expected root as dag-json before calling store CAS; returns a closed corrupt `StateRootRecoveryReport` with no reconstructed roots when semantic recovery encounters a raw root; requires each root-transition block CID itself to use dag-json before any rebuild/index mutation; tests the canonical `a9 02` to non-minimal same-value `a9 82 00` codec encoding at contract and store boundaries; counts successful root-index rebuild mutations as rows deleted plus rows inserted.
+- Acceptance: A raw expected root raises before store CAS and leaves the complete block set, transition rows, and current-root row byte-for-byte unchanged; raw reconstructed roots return a typed corrupt recovery report with no roots; raw-codec transition blocks raise `ArtifactIntegrityError` before rebuild changes artifacts, transitions, or current roots; a true `a9 82 00` dag-json codec alias is rejected while every canonical vector is preserved; a successful explicit two-transition/one-namespace rebuild records exactly six root-index mutations (two transition deletes, one root delete, two transition inserts, one root insert), healthy reopen records zero, and rollback/failure never claims committed mutations; the complete focused matrix remains green and generic raw coordination storage still works.

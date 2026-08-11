@@ -16,7 +16,8 @@ KSR-G000  Durable content-addressed state-root release
 |-- KSR-G040  Optional-provider projection, facade, and acceptance
 |-- KSR-G050  Canonical CID and verified live-root evidence
 |-- KSR-G060  Linearizable recovery and publication
-`-- KSR-G070  Closed semantic adapter and repaired release assurance
+|-- KSR-G070  Closed semantic adapter and repaired release assurance
+`-- KSR-G080  Terminal post-audit integrity seal
 ```
 
 ## KSR-G000 Durable content-addressed state-root release
@@ -29,13 +30,13 @@ KSR-G000  Durable content-addressed state-root release
 - Track: semantic-state-roots
 - Bundle: ksr/root
 - Goal: Extend the existing MCP++ durable coordination store with generic, revisioned, compare-and-swap state roots that preserve caller-owned semantic CIDs and recover safely without a daemon.
-- Evidence: ksr/authority@1, ksr/contracts@2, ksr/root-cas@2, ksr/recovery@2, ksr/provider@1, ksr/acceptance@2
-- Evidence criteria: The final root API composes `DurableCoordinationStore`, uses datasets-supplied semantic CIDs unchanged, rejects non-canonical CID aliases, verifies live root chains, linearizes reconstruction with publication, and passes hermetic corruption, interruption, and concurrent-writer tests.
-- Acceptance criteria: ksr/authority@1; ksr/contracts@2; ksr/root-cas@2; ksr/recovery@2; ksr/provider@1; ksr/acceptance@2
+- Evidence: ksr/authority@1, ksr/contracts@2, ksr/root-cas@2, ksr/recovery@3, ksr/provider@1, ksr/acceptance@3
+- Evidence criteria: The final root API composes `DurableCoordinationStore`, uses datasets-supplied semantic CIDs unchanged, rejects every canonical transport alias, verifies live root chains, validates semantic dag-json preconditions before I/O, rejects raw transition evidence before rebuild mutation, linearizes reconstruction with publication, and passes hermetic corruption, interruption, and concurrent-writer tests.
+- Acceptance criteria: ksr/authority@1; ksr/contracts@2; ksr/root-cas@2; ksr/recovery@3; ksr/provider@1; ksr/acceptance@3
 - Outputs: ipfs_kit_py/mcp_server/mcplusplus/state_root_contracts.py, ipfs_kit_py/mcp_server/mcplusplus/state_root_adapter.py, ipfs_kit_py/mcp_server/mcplusplus/coordination_storage.py, docs/durable_state_roots.md
 - Validation: IPFS_KIT_AUTO_INSTALL_DEPS=0 IPFS_KIT_AUTO_INSTALL_BINARIES=0 python -m pytest -q tests/test_coordination_storage.py tests/test_semantic_state_root_contracts.py tests/test_semantic_state_root_cas.py tests/test_semantic_state_root_recovery.py tests/test_semantic_state_root_adapter.py tests/test_semantic_state_root_acceptance.py tests/test_semantic_state_root_import_safety.py tests/test_semantic_state_root_performance.py
 - Acceptance: Expected semantic CIDs verify without translation; canonical aliases fail closed; current and predecessor evidence verifies before reads or updates; recovery cannot roll a concurrent commit backward; restart/replay is deterministic; corruption and ambiguous forks fail closed; optional provider absence is typed; no daemon, network, install, or mock is required.
-- Gap task: KSR-000 through KSR-005, KSR-100 through KSR-104
+- Gap task: KSR-000 through KSR-005, KSR-100 through KSR-105
 - Refinement: Add only root contracts, indexes, transitions, recovery, and a thin adapter around the existing coordination store; never create another block store or semantic identity authority.
 
 ## KSR-G010 Frozen identity boundary and closed root contracts
@@ -170,3 +171,22 @@ KSR-G000  Durable content-addressed state-root release
 - Acceptance: The exact public protocol is closed and typed; semantic adapter operations require canonical dag-json CIDs supplied by the caller; late exact replay is unchanged and operation-ID reuse conflicts; all audit repros and focused regressions pass with truthful provider status and inert imports; performance evidence is deterministic and documented.
 - Gap task: KSR-103, KSR-104
 - Refinement: Keep raw support inside the generic coordination store, keep datasets as semantic identity authority, and use structural counters rather than fragile wall-clock performance thresholds.
+
+## KSR-G080 Terminal post-audit integrity seal
+
+- Status: active
+- Parent: KSR-G000
+- Depends on: KSR-G070
+- Fib priority: 55
+- Priority: P0
+- Track: audit-closure
+- Bundle: ksr/post-audit-seal
+- Goal: Close the exact semantic-adapter and reconstruction gaps reproduced at clean KSR-104 head `b9e7e5be98517056087a1f24c5a8a70484d54334` without widening the durable-root architecture.
+- Evidence: ksr/semantic-precondition@1, ksr/recovery-codec@1, ksr/canonical-cid-vectors@2, ksr/rebuild-metrics@2, ksr/audit-seal@1
+- Evidence criteria: A raw expected root fails before CAS and leaves blocks/transitions/current root unchanged; semantic recovery returns a closed corrupt report for raw roots; raw transition blocks cannot populate indexes; the exact `a9 82 00` alias fails at contract and store boundaries; rebuild counters equal committed root-index deletes plus inserts.
+- Acceptance criteria: ksr/semantic-precondition@1; ksr/recovery-codec@1; ksr/canonical-cid-vectors@2; ksr/rebuild-metrics@2; ksr/audit-seal@1
+- Outputs: ipfs_kit_py/mcp_server/mcplusplus/coordination_storage.py, ipfs_kit_py/mcp_server/mcplusplus/state_root_adapter.py, tests/test_semantic_state_root_contracts.py, tests/test_semantic_state_root_adapter.py, tests/test_semantic_state_root_recovery.py, tests/test_semantic_state_root_acceptance.py
+- Validation: IPFS_KIT_AUTO_INSTALL_DEPS=0 IPFS_KIT_AUTO_INSTALL_BINARIES=0 python -m pytest -q tests/test_coordination_storage.py tests/test_semantic_state_root_contracts.py tests/test_semantic_state_root_cas.py tests/test_semantic_state_root_recovery.py tests/test_semantic_state_root_adapter.py tests/test_semantic_state_root_acceptance.py tests/test_semantic_state_root_import_safety.py tests/test_semantic_state_root_performance.py
+- Acceptance: All five post-audit cases are durable regressions; invalid semantic/recovery evidence fails before visibility; generic raw block/root support remains available only through `DurableCoordinationStore`; exact valid CIDs, late replay, concurrency, recovery, provider truthfulness, and inert imports remain unchanged.
+- Gap task: KSR-105
+- Refinement: Reuse `validate_semantic_dag_json_cid`, the existing transition-chain reconstruction, closed `StateRootRecoveryReport`, and current structural counters; do not add a validator authority, result type, store, WAL, service, or datasets/accelerate import.

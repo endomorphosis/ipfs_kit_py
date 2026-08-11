@@ -34,6 +34,7 @@ The implementation board was prepared against these exact revisions:
 | `ipfs_kit_py` implementation baseline | `5a7a2df8181cfdc33bc19be09989df7ff83f2d4e` | Branch base for this program |
 | Earlier `ipfs_kit_py` review | `69091bf8f11a3ef1fb0e04e11a6d8a4c87f3fa78` | Prior reconnaissance reference; confirmed ancestor of the baseline |
 | Mcp-Plus-Plus | `dc3164653a48d059ae9812078359daeafb451c07` | Generic MCP-IDL, CID-artifact, receipt, and event-DAG wire authority |
+| Post-repair closure audit | `b9e7e5be98517056087a1f24c5a8a70484d54334` | Clean branch head after KSR-104; authority for the bounded KSR-105 audit seal |
 
 Relevant implementation and tests inspected before planning:
 
@@ -353,11 +354,12 @@ Wave 1  KSR-001                     contracts (complete)
 Wave 2  KSR-002                     root transition and CAS (complete)
 Wave 3  KSR-003 | KSR-004           recovery matrix | provider adapter (complete)
 Wave 4  KSR-005                     facade, acceptance, docs, regressions (complete)
-Wave 5  KSR-100                     canonical transport-CID validation
-Wave 6  KSR-101                     verified live root and predecessor chain
-Wave 7  KSR-102                     recovery/publication linearization
-Wave 8  KSR-103                     closed API and semantic dag-json parity
-Wave 9  KSR-104                     repaired acceptance and performance closeout
+Wave 5  KSR-100                     canonical transport-CID validation (complete)
+Wave 6  KSR-101                     verified live root and predecessor chain (complete)
+Wave 7  KSR-102                     recovery/publication linearization (complete)
+Wave 8  KSR-103                     closed API and semantic dag-json parity (complete)
+Wave 9  KSR-104                     repaired acceptance and performance closeout (complete)
+Wave 10 KSR-105                     terminal post-audit integrity seal
 ```
 
 Use direct clean worktrees, external runtime/state directories, four
@@ -386,7 +388,10 @@ This program does not implement:
 The base implementation board completed at exact commit
 `83793a9b7adedfc4ef534ac5fdc98a509cb225a6`. Its declared focused matrix passed
 (`49 passed`), but an independent read-only audit found four behaviors outside
-that matrix. The release is not accepted until KSR-100 through KSR-104 close
+that matrix. KSR-100 through KSR-104 repaired those behaviors and reached a
+clean terminal head at `b9e7e5be98517056087a1f24c5a8a70484d54334`. A second
+read-only audit then found bounded adapter/reconstruction gaps and one missing
+canonical-CID regression. The release is not accepted until KSR-105 seals
 them.
 
 ### 13.1 Canonical CID aliases
@@ -464,3 +469,37 @@ transition exists. Tests should use deterministic scan/rebuild counters rather
 than a fragile wall-clock threshold. The known, pre-existing
 `_agent_supervisor_rest_binding` receipt-test collection failure remains
 reported and outside this storage repair.
+
+### 13.6 Terminal post-audit integrity seal
+
+The terminal KSR-104 head is clean and its declared focused matrix passed, but
+the follow-up audit reproduced three behaviors that still cross a closed
+boundary:
+
+1. A generic raw root can be supplied as the semantic adapter's non-null
+   `expected_root_cid`. The store commits the dag-json successor, and only the
+   adapter's post-CAS result projection rejects the raw predecessor. The caller
+   therefore receives an exception after a durable root mutation.
+2. `recover_roots` validates reconstructed semantic snapshots outside its
+   closed recovery-error projection. A generic raw root raises instead of
+   returning a typed fail-closed recovery report with no reconstructed roots.
+3. Reconstruction recognizes a closed transition document by schema but does
+   not require the transition block's own CID codec to be dag-json. A raw-codec
+   transition can therefore populate root indexes and is rejected only by a
+   later live read.
+
+The audit also found two evidence gaps. KSR-100 production rejects a true
+same-value overlong dag-json codec varint, but its committed test constructs
+`a9 00 02`, which changes the decoded codec, rather than the canonical
+`a9 02` to non-minimal `a9 82 00` alias. KSR-104 records healthy zero-write and
+orphan reconstruction counters, but must pin exact rebuild mutation semantics
+as deleted root/transition rows plus inserted root/transition rows.
+
+KSR-105 is a single bounded closure task. It validates every semantic CID
+precondition before store I/O; projects raw reconstructed roots as a closed
+corrupt recovery report; rejects raw transition blocks before any rebuild
+mutation; adds the true multibyte codec-alias vector; and proves exact
+structural counter accounting. It may edit only the existing coordination
+store and adapter plus focused contract, adapter, recovery, and acceptance
+tests. It must not add another CID authority, result schema, store, database,
+service, provider, or semantic analyzer.
