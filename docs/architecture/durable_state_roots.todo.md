@@ -370,7 +370,7 @@ Wave 9  KSR-104                     repaired acceptance and performance closeout
 
 ## KSR-104 Close repaired acceptance and performance evidence
 
-- Status: pending
+- Status: completed
 - Completion: auto
 - Is schedulable: true
 - Review only: false
