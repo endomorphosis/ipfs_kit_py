@@ -1,33 +1,73 @@
-"""MCP++ integration layer for ipfs_kit_py (graceful).
+"""MCP++ integration layer and inert durable-state-root facade.
 
-Provides optional packet validation against the canonical Mcp-Plus-Plus spec and
-optional P2P/workflow features imported from ipfs_accelerate_py. All imports are
-guarded so the server runs as a plain MCP server when extras are absent.
+Optional integrations are discovered only when a caller asks for capabilities
+or validation. Importing this package never imports optional providers or
+performs installation work. Durable state roots are exported lazily so their
+public API remains a thin facade over an injected coordination store.
 """
 from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
 HAVE_MCPLUSPLUS = False
-HAVE_VALIDATOR = True
+HAVE_VALIDATOR = True  # The built-in packet shape validator is always present.
 HAVE_SPEC_VALIDATOR = False
 mcplusplus_version = "unknown"
 
-try:  # canonical accelerate mcplusplus module (P2P, CID/UCAN, workflows)
-    import ipfs_accelerate_py.mcplusplus_module as _mpp  # type: ignore
-    HAVE_MCPLUSPLUS = True
-    mcplusplus_version = getattr(_mpp, "__version__", "unknown")
-except Exception:  # pragma: no cover
-    _mpp = None
+_ROOT_EXPORTS = frozenset((
+    "ArtifactWriteResult", "DurableStateRootAdapter", "DurableStateRoots",
+    "ProviderStatus", "RootUpdateStatus", "StateRootCASResult",
+    "StateRootRecoveryReport", "StateRootSnapshot",
+))
 
-try:  # python validator from the spec submodule
-    from validators import validate_envelope  # type: ignore
+
+def _optional_spec_validator() -> Any:
+    """Return the optional validator without making package import eager."""
+
+    global HAVE_SPEC_VALIDATOR
+    try:
+        from validators import validate_envelope  # type: ignore
+    except Exception:  # pragma: no cover - optional dependency
+        HAVE_SPEC_VALIDATOR = False
+        return None
     HAVE_SPEC_VALIDATOR = True
-except Exception:  # pragma: no cover
-    validate_envelope = None  # type: ignore
+    return validate_envelope
+
+
+def _optional_mcplusplus() -> None:
+    """Populate capability metadata only when capability inspection is requested."""
+
+    global HAVE_MCPLUSPLUS, mcplusplus_version
+    try:
+        import ipfs_accelerate_py.mcplusplus_module as mpp  # type: ignore
+    except Exception:  # pragma: no cover - optional dependency
+        HAVE_MCPLUSPLUS = False
+        mcplusplus_version = "unknown"
+        return
+    HAVE_MCPLUSPLUS = True
+    mcplusplus_version = getattr(mpp, "__version__", "unknown")
+
+
+def __getattr__(name: str) -> Any:
+    """Lazily expose the closed durable-state-root contracts and adapter."""
+
+    if name not in _ROOT_EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    if name == "DurableStateRootAdapter":
+        from .state_root_adapter import DurableStateRootAdapter
+
+        value = DurableStateRootAdapter
+    else:
+        from . import state_root_contracts
+
+        value = getattr(state_root_contracts, name)
+    globals()[name] = value
+    return value
 
 
 def get_capabilities() -> Dict[str, Any]:
+    _optional_mcplusplus()
+    _optional_spec_validator()
     try:
         from .p2p_transport import HAVE_LIBP2P
     except Exception:  # pragma: no cover
@@ -87,10 +127,19 @@ def validate_packet(envelope: Dict[str, Any]) -> Optional[str]:
         and all(isinstance(item, str) and item for item in token)
     ):
         return "ucan must be a signed token or non-empty token chain"
-    if not HAVE_SPEC_VALIDATOR or validate_envelope is None:
+    spec_validator = _optional_spec_validator()
+    if spec_validator is None:
         return None
     try:
-        validate_envelope(envelope)
+        spec_validator(envelope)
         return None
     except Exception as e:  # pragma: no cover
         return str(e)
+
+
+__all__ = [
+    "ArtifactWriteResult", "DurableStateRootAdapter", "DurableStateRoots",
+    "ProviderStatus", "RootUpdateStatus", "StateRootCASResult",
+    "StateRootRecoveryReport", "StateRootSnapshot", "get_capabilities",
+    "validate_packet",
+]
