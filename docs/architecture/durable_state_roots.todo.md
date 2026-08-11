@@ -141,7 +141,7 @@ Wave 4  KSR-005                     facade, acceptance, documentation
 
 ## KSR-003 Prove interruption recovery, reconstruction, and corruption handling
 
-- Status: todo
+- Status: completed
 - Completion: auto
 - Is schedulable: true
 - Review only: false
