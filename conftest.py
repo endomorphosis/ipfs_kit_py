@@ -1,72 +1,46 @@
-"""Optional proof-reuse bootstrap for direct pytest node selection.
+"""Source-tree fallback for the kit-owned proof-reuse pytest bridge.
 
-Installed distributions discover the shared plugin through the ``pytest11``
-entry point declared in ``pyproject.toml``.  A source checkout has no entry
-point until it is installed, so this root bootstrap supplies the same plugin
-when autoload is disabled or the matching installed entry point is absent.
-Missing optional proof-reuse packages leave pytest unchanged; errors raised
-from inside an available plugin remain visible.
+Installed distributions discover the bridge through pytest11 metadata.  A
+checkout does not have that metadata, so source tests opt in only when the
+bridge module is importable.  This is deliberately module-level pytest plugin
+declaration; early-conftest hooks can run before pytest's normal plugin policy.
 """
 
 from __future__ import annotations
 
-from importlib import metadata as importlib_metadata
-from importlib.machinery import PathFinder
+import importlib.util
 import os
-
-_PROOF_REUSE_PLUGIN = "ipfs_accelerate_py.testing.proof_reuse.plugin"
-
-
-def _module_available_without_import(module_name: str) -> bool:
-    """Resolve a dotted module spec without executing parent packages."""
-
-    search_path = None
-    parts = module_name.split(".")
-    for index, part in enumerate(parts):
-        try:
-            # Searching each path segment by basename avoids PathFinder's
-            # normal requirement that a qualified parent already be imported.
-            spec = PathFinder.find_spec(part, search_path)
-        except Exception:
-            return False
-        if spec is None:
-            return False
-        search_path = spec.submodule_search_locations
-        if index < len(parts) - 1 and search_path is None:
-            return False
-    return True
+from importlib import metadata
 
 
-def _optional_proof_reuse_plugin() -> tuple[str, ...]:
-    if not _module_available_without_import(_PROOF_REUSE_PLUGIN):
-        return ()
-    return (_PROOF_REUSE_PLUGIN,)
+_BRIDGE = "ipfs_kit_py.pytest_proof_reuse"
 
 
-def _installed_proof_reuse_entry_point() -> bool:
-    """Return whether pytest autoload can discover the shared plugin."""
-
+def _bridge_is_importable() -> bool:
     try:
-        entry_points = importlib_metadata.entry_points()
-        if hasattr(entry_points, "select"):
-            candidates = entry_points.select(group="pytest11")
-        else:  # pragma: no cover - compatibility with older importlib.metadata
-            candidates = entry_points.get("pytest11", ())
+        return importlib.util.find_spec(_BRIDGE) is not None
+    except (ImportError, AttributeError, ValueError):
+        return False
+
+
+def _installed_bridge_exists() -> bool:
+    """Avoid loading the same bridge through both pytest11 and source fallback."""
+    try:
+        entries = metadata.entry_points()
+        selected = entries.select(group="pytest11") if hasattr(entries, "select") else entries.get("pytest11", ())
+        return any(entry.name == "ipfs-kit-proof-reuse" and entry.value == _BRIDGE for entry in selected)
     except Exception:
         return False
-    return any(
-        getattr(entry_point, "value", None) == _PROOF_REUSE_PLUGIN
-        for entry_point in candidates
-    )
 
 
-def pytest_load_initial_conftests(early_config, parser, args):  # noqa: ARG001
-    """Register the optional proof-reuse plugin when discovery needs a hand."""
+_AUTOLOAD_DISABLED = bool(os.environ.get("PYTEST_DISABLE_PLUGIN_AUTOLOAD"))
 
-    if os.environ.get("PYTEST_DISABLE_PLUGIN_AUTOLOAD") not in {"1", "true", "yes"}:
-        if _installed_proof_reuse_entry_point():
-            return
-    plugins = _optional_proof_reuse_plugin()
-    if not plugins:
-        return
-    early_config.pluginmanager.import_plugin(plugins[0])
+# When entry-point autoload is disabled, installed metadata is not evidence that
+# pytest will load the bridge.  Keep the source fallback deterministic in that
+# mode while avoiding duplicate registration during ordinary installed runs.
+pytest_plugins = (
+    (_BRIDGE,)
+    if _bridge_is_importable()
+    and (_AUTOLOAD_DISABLED or not _installed_bridge_exists())
+    else ()
+)
