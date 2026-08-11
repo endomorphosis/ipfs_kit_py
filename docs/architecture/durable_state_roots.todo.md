@@ -77,7 +77,7 @@ Wave 4  KSR-005                     facade, acceptance, documentation
 
 ## KSR-001 Define closed state-root contracts
 
-- Status: todo
+- Status: completed
 - Completion: auto
 - Is schedulable: true
 - Review only: false
