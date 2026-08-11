@@ -405,7 +405,7 @@ Wave 10 KSR-105                     terminal post-audit integrity seal
 
 ## KSR-105 Seal semantic preconditions and reconstruction evidence
 
-- Status: pending
+- Status: completed
 - Completion: auto
 - Is schedulable: true
 - Review only: false
