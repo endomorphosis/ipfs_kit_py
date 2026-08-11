@@ -11,6 +11,7 @@ from ipfs_kit_py.mcp_server.mcplusplus.coordination_storage import (
     DurableCoordinationStore,
     IPFSHeliaBlockBackend,
     cid_for_artifact,
+    cid_for_bytes,
 )
 from ipfs_kit_py.mcp_server.mcplusplus.state_root_adapter import DurableStateRootAdapter
 from ipfs_kit_py.mcp_server.mcplusplus.state_root_contracts import ProviderStatus, RootUpdateStatus
@@ -99,3 +100,44 @@ def test_adapter_projects_verified_reads_and_root_conflicts(tmp_path: Path) -> N
         )
     assert updated.status is RootUpdateStatus.UPDATED
     assert stale.status is RootUpdateStatus.CONFLICT
+
+
+def test_semantic_adapter_rejects_raw_cids_while_generic_store_accepts_them(tmp_path: Path) -> None:
+    payload = _payload()
+    raw_cid = cid_for_artifact(payload, codec="raw")
+    with DurableCoordinationStore(tmp_path / "store") as store:
+        adapter = DurableStateRootAdapter(store)
+        # Raw blocks remain a supported generic coordination-store feature.
+        assert store.put(payload, expected_cid=raw_cid, codec="raw", replicate=False)["cid"] == raw_cid
+        with pytest.raises(ValueError, match="dag-json"):
+            adapter.put_verified(payload, expected_cid=raw_cid, replicate=False)
+        with pytest.raises(ValueError, match="dag-json"):
+            adapter.get_verified(raw_cid)
+        with pytest.raises(ValueError, match="dag-json"):
+            adapter.compare_and_swap_root(
+                "semantic", expected_revision=0, expected_root_cid=None,
+                new_root_cid=raw_cid, operation_id="raw-root",
+            )
+
+        store.compare_and_swap_root(
+            "semantic", expected_revision=0, expected_root_cid=None,
+            new_root_cid=raw_cid, operation_id="generic-raw-root",
+        )
+        with pytest.raises(ValueError, match="dag-json"):
+            adapter.current_root("semantic")
+
+
+@pytest.mark.parametrize("revision,expected_root", [(0, "root"), (1, None)])
+def test_adapter_rejects_inconsistent_expectations_before_store_io(
+    tmp_path: Path, revision: int, expected_root: str | None
+) -> None:
+    with DurableCoordinationStore(tmp_path / "store") as store:
+        adapter = DurableStateRootAdapter(store)
+        absent = cid_for_bytes(b"absent")
+        if expected_root == "root":
+            expected_root = absent
+        with pytest.raises(ValueError):
+            adapter.compare_and_swap_root(
+                "semantic", expected_revision=revision, expected_root_cid=expected_root,
+                new_root_cid=absent, operation_id="invalid-expectation",
+            )

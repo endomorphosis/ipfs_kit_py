@@ -101,6 +101,34 @@ def _optional_cid(value: object, name: str) -> str | None:
     return _validate_cid(value, name)
 
 
+def validate_semantic_dag_json_cid(value: object, name: str = "cid") -> str:
+    """Require a caller-owned canonical CID for a structured semantic artifact.
+
+    The generic coordination store intentionally accepts both of its transport
+    codecs.  The semantic facade is narrower: a raw block has no structured
+    semantic wire representation and therefore cannot cross its boundary.
+    """
+
+    cid = _validate_cid(value, name)
+    if validate_transport_cid(cid) != "dag-json":
+        raise ValueError(f"{name} must be a canonical dag-json CID")
+    return cid
+
+
+def validate_root_expectation(
+    expected_revision: object, expected_root_cid: object
+) -> tuple[int, str | None]:
+    """Validate the one coherent predecessor form for a root CAS request."""
+
+    revision = _require_nonnegative_revision(expected_revision, "expected_revision")
+    root_cid = _optional_cid(expected_root_cid, "expected_root_cid")
+    if revision == 0 and root_cid is not None:
+        raise ValueError("revision-zero expectations must not have a root CID")
+    if revision > 0 and root_cid is None:
+        raise ValueError("non-zero expectations require a root CID")
+    return revision, root_cid
+
+
 def _status(value: object, enum: type[_T], name: str) -> _T:
     if not isinstance(value, enum):
         raise ValueError(f"{name} must be a {enum.__name__}")
@@ -283,4 +311,5 @@ class DurableStateRoots(Protocol):
 
 
 __all__ = ["ArtifactWriteResult", "DurableStateRoots", "ProviderStatus", "RootUpdateStatus",
-           "StateRootCASResult", "StateRootRecoveryReport", "StateRootSnapshot"]
+           "StateRootCASResult", "StateRootRecoveryReport", "StateRootSnapshot",
+           "validate_root_expectation", "validate_semantic_dag_json_cid"]

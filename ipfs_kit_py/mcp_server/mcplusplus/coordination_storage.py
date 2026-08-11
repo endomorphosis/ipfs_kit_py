@@ -606,6 +606,21 @@ class DurableCoordinationStore:
             raise ValueError(f"{name} must be a non-negative integer")
         return value
 
+    @classmethod
+    def _root_expectation(
+        cls, expected_revision: int, expected_root_cid: Optional[str]
+    ) -> tuple[int, Optional[str]]:
+        """Validate the only coherent predecessor representations for CAS."""
+
+        revision = cls._root_revision(expected_revision, "expected_revision")
+        if expected_root_cid is not None:
+            _codec_from_cid(expected_root_cid)
+        if revision == 0 and expected_root_cid is not None:
+            raise ValueError("revision-zero expectations must not have a root CID")
+        if revision > 0 and expected_root_cid is None:
+            raise ValueError("non-zero expectations require a root CID")
+        return revision, expected_root_cid
+
     @staticmethod
     def _root_snapshot_from_row(namespace: str, row: Optional[sqlite3.Row]) -> Dict[str, Any]:
         if row is None:
@@ -752,19 +767,18 @@ class DurableCoordinationStore:
 
         namespace = self._root_namespace(namespace)
         operation_id = self._operation_id(operation_id)
-        expected_revision = self._root_revision(expected_revision, "expected_revision")
-        if expected_root_cid is not None:
-            _codec_from_cid(expected_root_cid)
+        expected_revision, expected_root_cid = self._root_expectation(
+            expected_revision, expected_root_cid
+        )
         _codec_from_cid(new_root_cid)
         if expected_root_cid == new_root_cid:
             raise ValueError("new_root_cid must differ from expected_root_cid")
 
-        # This must happen before visibility and before beginning a writer
-        # transaction.  get_bytes verifies a local block or a repaired backend
-        # block against its CID, and raises on a missing or corrupt successor.
+        # Input validation above is deliberately I/O-free.  A transaction is
+        # then used to resolve an existing operation before reading a proposed
+        # successor: operation IDs are durable idempotency keys, so a changed
+        # reuse is a typed conflict even if its new CID is unavailable.
         self._interrupt_root_cas("before_transaction")
-        self.get_bytes(new_root_cid)
-        self._interrupt_root_cas("after_expectation_verification")
 
         with self._lock:
             connection = self._connection
@@ -781,7 +795,7 @@ class DurableCoordinationStore:
                         and existing["expected_root_cid"] == expected_root_cid
                         and existing["new_root_cid"] == new_root_cid
                     )
-                    if same_request and before["transition_cid"] == existing["transition_cid"]:
+                    if same_request:
                         connection.rollback()
                         return {
                             "status": "unchanged", "before": before, "after": before,
@@ -794,6 +808,10 @@ class DurableCoordinationStore:
                         "transition_cid": None, "reason_code": "operation_id_reused",
                         "local_durable": True, "replicated": False,
                     }
+                # Verify the successor only after replay/reuse resolution,
+                # but before the expectation can publish it.
+                self.get_bytes(new_root_cid)
+                self._interrupt_root_cas("after_expectation_verification")
                 if before["revision"] != expected_revision or before["root_cid"] != expected_root_cid:
                     connection.rollback()
                     return {

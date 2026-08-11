@@ -114,3 +114,28 @@ def test_corruption_stays_closed_and_absent_provider_is_explicit(tmp_path: Path)
                 new_root_cid=cid, operation_id="reject-corrupt",
             )
         assert adapter.current_root("datasets/corrupt").revision == 0
+
+
+def test_public_facade_keeps_late_exact_replay_unchanged(tmp_path: Path) -> None:
+    first, second = _payload("first"), _payload("second")
+    with DurableCoordinationStore(tmp_path / "store") as store:
+        roots = DurableStateRootAdapter(store)
+        first_cid, second_cid = cid_for_artifact(first), cid_for_artifact(second)
+        roots.put_verified(first, expected_cid=first_cid, replicate=False)
+        roots.put_verified(second, expected_cid=second_cid, replicate=False)
+        roots.compare_and_swap_root(
+            "datasets/replay", expected_revision=0, expected_root_cid=None,
+            new_root_cid=first_cid, operation_id="initial",
+        )
+        later = roots.compare_and_swap_root(
+            "datasets/replay", expected_revision=1, expected_root_cid=first_cid,
+            new_root_cid=second_cid, operation_id="later",
+        )
+        replay = roots.compare_and_swap_root(
+            "datasets/replay", expected_revision=0, expected_root_cid=None,
+            new_root_cid=first_cid, operation_id="initial",
+        )
+
+    assert later.status is RootUpdateStatus.UPDATED
+    assert replay.status is RootUpdateStatus.UNCHANGED
+    assert replay.before == replay.after == later.after

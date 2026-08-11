@@ -7,7 +7,8 @@ import pytest
 from ipfs_kit_py.mcp_server.mcplusplus.coordination_storage import cid_for_bytes
 from ipfs_kit_py.mcp_server.mcplusplus.state_root_contracts import (
     ArtifactWriteResult, ProviderStatus, RootUpdateStatus, StateRootCASResult,
-    StateRootRecoveryReport, StateRootSnapshot,
+    StateRootRecoveryReport, StateRootSnapshot, validate_root_expectation,
+    validate_semantic_dag_json_cid,
 )
 
 
@@ -90,3 +91,15 @@ def test_cas_rejects_inconsistent_revisions_and_closed_wire_objects():
         StateRootSnapshot.from_dict({"namespace": "semantic", "root_cid": None, "revision": 0, "transition_cid": None, "extra": True})
     with pytest.raises(ValueError):
         StateRootRecoveryReport(-1, (), (), ())
+
+
+@pytest.mark.parametrize("revision,cid", [(0, CID), (1, None)])
+def test_cas_expectations_are_closed_and_coherent(revision, cid):
+    with pytest.raises(ValueError):
+        validate_root_expectation(revision, cid)
+
+
+def test_semantic_cids_reject_raw_transport_blocks():
+    raw = cid_for_bytes(b"structured-but-raw", codec="raw")
+    with pytest.raises(ValueError, match="dag-json"):
+        validate_semantic_dag_json_cid(raw)
