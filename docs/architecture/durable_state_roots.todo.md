@@ -109,7 +109,7 @@ Wave 4  KSR-005                     facade, acceptance, documentation
 
 ## KSR-002 Add revisioned root CAS to DurableCoordinationStore
 
-- Status: todo
+- Status: completed
 - Completion: auto
 - Is schedulable: true
 - Review only: false
