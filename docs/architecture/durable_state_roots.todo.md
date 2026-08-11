@@ -205,7 +205,7 @@ Wave 4  KSR-005                     facade, acceptance, documentation
 
 ## KSR-005 Publish the facade and close the acceptance matrix
 
-- Status: todo
+- Status: completed
 - Completion: auto
 - Is schedulable: true
 - Review only: false
