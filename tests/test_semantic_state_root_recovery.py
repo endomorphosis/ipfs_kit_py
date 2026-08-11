@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import threading
 
 import pytest
 
@@ -124,6 +125,143 @@ def test_corrupt_transition_fails_closed_on_reconstruction(tmp_path: Path) -> No
         sidecar.unlink()
     with pytest.raises(ArtifactIntegrityError, match="corrupt blocks"):
         _restart(root)
+
+
+def test_recovery_scan_before_cas_cannot_replace_the_later_committed_root(tmp_path: Path) -> None:
+    """The recovery scan itself is fenced, not merely its index writes."""
+
+    root = tmp_path / "scan-before-cas"
+    with DurableCoordinationStore(root) as store:
+        first, second = _successor(store, "one"), _successor(store, "two")
+        store.compare_and_swap_root(
+            "semantic/race", expected_revision=0, expected_root_cid=None,
+            new_root_cid=first, operation_id="one",
+        )
+
+    with _restart(root) as recovering, _restart(root) as publisher:
+        scanned = threading.Event()
+        release_recovery = threading.Event()
+        published = threading.Event()
+        failures: list[BaseException] = []
+        original_iter = recovering._iter_local_blocks
+
+        def paused_scan():
+            for item in original_iter():
+                yield item
+                if not scanned.is_set():
+                    scanned.set()
+                    assert release_recovery.wait(5)
+
+        recovering._iter_local_blocks = paused_scan  # type: ignore[method-assign]
+
+        def rebuild() -> None:
+            try:
+                recovering.recover(rebuild=True)
+            except BaseException as exc:  # pragma: no cover - reported below
+                failures.append(exc)
+
+        def publish() -> None:
+            try:
+                publisher.compare_and_swap_root(
+                    "semantic/race", expected_revision=1, expected_root_cid=first,
+                    new_root_cid=second, operation_id="two",
+                )
+                published.set()
+            except BaseException as exc:  # pragma: no cover - reported below
+                failures.append(exc)
+
+        recovery_thread = threading.Thread(target=rebuild)
+        recovery_thread.start()
+        assert scanned.wait(5)
+        publisher_thread = threading.Thread(target=publish)
+        publisher_thread.start()
+        # The CAS cannot commit while recovery owns the SQLite writer epoch.
+        assert not published.wait(0.1)
+        release_recovery.set()
+        recovery_thread.join(5)
+        publisher_thread.join(5)
+        assert not recovery_thread.is_alive()
+        assert not publisher_thread.is_alive()
+        assert not failures
+        assert recovering.current_root("semantic/race")["revision"] == 2
+        assert publisher.current_root("semantic/race")["root_cid"] == second
+
+
+def test_recovery_scan_during_cas_waits_for_its_committed_transition(tmp_path: Path) -> None:
+    root = tmp_path / "scan-during-cas"
+    transition_written = threading.Event()
+    release_cas = threading.Event()
+
+    def pause_after_transition(point: str) -> None:
+        if point == "after_transition_block_fsync":
+            transition_written.set()
+            assert release_cas.wait(5)
+
+    with DurableCoordinationStore(root) as store:
+        first, second = _successor(store, "one"), _successor(store, "two")
+        store.compare_and_swap_root(
+            "semantic/race", expected_revision=0, expected_root_cid=None,
+            new_root_cid=first, operation_id="one",
+        )
+
+    with DurableCoordinationStore(root, crash_injector=pause_after_transition) as publisher, _restart(root) as recovering:
+        scanned = threading.Event()
+        failures: list[BaseException] = []
+        original_iter = recovering._iter_local_blocks
+
+        def observed_scan():
+            scanned.set()
+            yield from original_iter()
+
+        recovering._iter_local_blocks = observed_scan  # type: ignore[method-assign]
+
+        def publish() -> None:
+            try:
+                publisher.compare_and_swap_root(
+                    "semantic/race", expected_revision=1, expected_root_cid=first,
+                    new_root_cid=second, operation_id="two",
+                )
+            except BaseException as exc:  # pragma: no cover - reported below
+                failures.append(exc)
+
+        def rebuild() -> None:
+            try:
+                recovering.recover(rebuild=True)
+            except BaseException as exc:  # pragma: no cover - reported below
+                failures.append(exc)
+
+        publisher_thread = threading.Thread(target=publish)
+        publisher_thread.start()
+        assert transition_written.wait(5)
+        recovery_thread = threading.Thread(target=rebuild)
+        recovery_thread.start()
+        # The immutable transition is visible on disk but uncommitted; recovery
+        # must wait on the publisher's writer fence before it can enumerate it.
+        assert not scanned.wait(0.1)
+        release_cas.set()
+        publisher_thread.join(5)
+        recovery_thread.join(5)
+        assert not publisher_thread.is_alive()
+        assert not recovery_thread.is_alive()
+        assert not failures
+        assert recovering.current_root("semantic/race")["revision"] == 2
+
+
+def test_rebuild_after_a_committed_cas_retains_every_committed_transition(tmp_path: Path) -> None:
+    root = tmp_path / "commit-before-rebuild"
+    with DurableCoordinationStore(root) as store:
+        first, second = _successor(store, "one"), _successor(store, "two")
+        store.compare_and_swap_root(
+            "semantic/race", expected_revision=0, expected_root_cid=None,
+            new_root_cid=first, operation_id="one",
+        )
+        store.compare_and_swap_root(
+            "semantic/race", expected_revision=1, expected_root_cid=first,
+            new_root_cid=second, operation_id="two",
+        )
+        store.recover(rebuild=True)
+        assert store.current_root("semantic/race")["root_cid"] == second
+        assert [row["new_revision"] for row in store.root_transitions("semantic/race")] == [1, 2]
 
 
 @pytest.mark.parametrize("tamper", ("indexed-field", "broken-predecessor-fork"))

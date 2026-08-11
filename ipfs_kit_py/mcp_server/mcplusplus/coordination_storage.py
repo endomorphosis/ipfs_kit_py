@@ -1092,29 +1092,44 @@ class DurableCoordinationStore:
             yield path.stem, path.read_bytes()
 
     def recover(self, *, rebuild: bool = True) -> Dict[str, Any]:
-        """Verify immutable blocks and optionally recreate all derived indexes."""
+        """Verify immutable blocks and optionally recreate all derived indexes.
 
-        verified: list[Tuple[str, Dict[str, Any], bytes]] = []
-        errors: list[Dict[str, str]] = []
-        corrupt_count = 0
-        for cid, data in self._iter_local_blocks():
+        The immutable scan and any derived-index replacement are one writer
+        epoch.  A CAS obtains this same ``BEGIN IMMEDIATE`` fence *before* it
+        writes its transition block, so a recovery snapshot cannot omit a
+        transition which commits before that recovery's rebuilt indexes do.
+        """
+
+        with self._lock:
+            connection = self._connection
+            connection.execute("BEGIN IMMEDIATE")
             try:
-                if cid_for_bytes(data, _codec_from_cid(cid)) != cid:
-                    raise ArtifactIntegrityError("CID mismatch")
-                value = json.loads(data.decode("utf-8"))
-                if not isinstance(value, dict) or _canonical_json(value) != data:
-                    raise ArtifactIntegrityError("non-canonical JSON")
-                _artifact_kind(value)
-                verified.append((cid, value, data))
-            except Exception as exc:
-                corrupt_count += 1
-                if len(errors) < MAX_RECOVERY_ERRORS:
-                    errors.append({"cid": cid, "error": str(exc)})
-        if errors:
-            suffix = "" if corrupt_count == len(errors) else f" (showing first {len(errors)} of {corrupt_count})"
-            raise ArtifactIntegrityError(f"coordination recovery found corrupt blocks{suffix}: {errors}")
-        if rebuild:
-            with self._lock, self._connection:
+                verified: list[Tuple[str, Dict[str, Any], bytes]] = []
+                errors: list[Dict[str, str]] = []
+                corrupt_count = 0
+                # This must remain inside the writer epoch.  Moving only the
+                # DELETE/INSERT work under the transaction leaves a stale
+                # block snapshot able to roll a later committed root back.
+                for cid, data in self._iter_local_blocks():
+                    try:
+                        if cid_for_bytes(data, _codec_from_cid(cid)) != cid:
+                            raise ArtifactIntegrityError("CID mismatch")
+                        value = json.loads(data.decode("utf-8"))
+                        if not isinstance(value, dict) or _canonical_json(value) != data:
+                            raise ArtifactIntegrityError("non-canonical JSON")
+                        _artifact_kind(value)
+                        verified.append((cid, value, data))
+                    except Exception as exc:
+                        corrupt_count += 1
+                        if len(errors) < MAX_RECOVERY_ERRORS:
+                            errors.append({"cid": cid, "error": str(exc)})
+                if errors:
+                    suffix = "" if corrupt_count == len(errors) else f" (showing first {len(errors)} of {corrupt_count})"
+                    raise ArtifactIntegrityError(f"coordination recovery found corrupt blocks{suffix}: {errors}")
+                if not rebuild:
+                    connection.commit()
+                    return {"verified_blocks": len(verified), "rebuilt": False, "errors": []}
+
                 self._connection.execute("DELETE FROM claims")
                 self._connection.execute("DELETE FROM leases")
                 self._connection.execute("DELETE FROM daemon_health")
@@ -1198,7 +1213,11 @@ class DurableCoordinationStore:
                         "INSERT INTO state_roots(namespace,root_cid,revision,transition_cid) VALUES(?,?,?,?)",
                         (namespace, snapshot["root_cid"], snapshot["revision"], snapshot["transition_cid"]),
                     )
-        return {"verified_blocks": len(verified), "rebuilt": rebuild, "errors": []}
+                connection.commit()
+            except Exception:
+                connection.rollback()
+                raise
+        return {"verified_blocks": len(verified), "rebuilt": True, "errors": []}
 
     def status(self) -> Dict[str, Any]:
         with self._lock:
