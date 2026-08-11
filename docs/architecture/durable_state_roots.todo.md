@@ -306,7 +306,7 @@ Wave 9  KSR-104                     repaired acceptance and performance closeout
 
 ## KSR-102 Linearize recovery with root publication
 
-- Status: pending
+- Status: completed
 - Completion: auto
 - Is schedulable: true
 - Review only: false
