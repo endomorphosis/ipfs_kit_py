@@ -312,17 +312,28 @@ class DurableCoordinationStore:
         self._clock_ms = clock_ms or (lambda: int(time.time() * 1000))
         self._crash_injector = crash_injector
         self._lock = threading.RLock()
+        # These are deliberately structural counters, rather than timings: a
+        # reopen may verify immutable evidence, but it must not rewrite healthy
+        # root indexes merely because historical transitions exist.
+        self._root_recovery_metrics = {
+            "root_index_verifications": 0,
+            "root_index_rebuild_mutations": 0,
+        }
+        self._last_root_indexes_match = True
         self._connection = self._open_database()
         # A missing/recreated index next to existing blocks is recovered
         # automatically. Operators can also request an explicit full rebuild.
         indexed = int(self._connection.execute("SELECT COUNT(*) FROM artifacts").fetchone()[0])
         has_blocks = next(self.blocks_dir.glob("*/*.json"), None) is not None
-        # A transition block can be durable while the process dies before its
-        # SQLite transaction commits.  Its successor must be recovered even
-        # though unrelated artifact rows (notably the successor itself) make
-        # the generic index non-empty.
-        has_root_transitions = self._has_local_state_root_transition()
-        self.recover(rebuild=has_blocks and (indexed == 0 or has_root_transitions))
+        # Verify every immutable block on reopen.  Rebuild only when the
+        # generic index is absent or the authoritative root-transition chain
+        # disagrees with the acceleration rows.  This detects orphan evidence
+        # left by an interrupted CAS without turning every healthy reopen into
+        # a DELETE/INSERT root-index rewrite.
+        if has_blocks:
+            self.recover(rebuild=False)
+            if indexed == 0 or not self._last_root_indexes_match:
+                self.recover(rebuild=True)
 
     def _open_database(self) -> sqlite3.Connection:
         try:
@@ -440,6 +451,16 @@ class DurableCoordinationStore:
                 # rebuild is otherwise needed; this probe must not mask them.
                 continue
         return False
+
+    def root_recovery_metrics(self) -> Dict[str, int]:
+        """Return session-local structural root recovery counters.
+
+        The counters make reopen-cost assertions deterministic.  They do not
+        express elapsed time and are not persisted as coordination state.
+        """
+
+        with self._lock:
+            return dict(self._root_recovery_metrics)
 
     def _interrupt_root_cas(self, boundary: str) -> None:
         """Invoke the optional test-only crash seam at a named durable boundary.
@@ -1109,6 +1130,89 @@ class DurableCoordinationStore:
         for path in sorted(self.blocks_dir.glob("*/*.json")):
             yield path.stem, path.read_bytes()
 
+    def _reconstructed_root_chain(
+        self, verified: list[Tuple[str, Dict[str, Any], bytes]]
+    ) -> tuple[list[tuple[str, Dict[str, Any]]], Dict[str, Dict[str, Any]]]:
+        """Derive the only valid root chain from verified immutable blocks."""
+
+        root_transitions: list[tuple[str, Dict[str, Any]]] = []
+        verified_cids = {cid for cid, _, _ in verified}
+        for cid, value, _ in verified:
+            if value.get("schema") == STATE_ROOT_TRANSITION_SCHEMA:
+                fields = self._state_root_transition_fields(value)
+                if fields["new_root_cid"] not in verified_cids:
+                    raise ArtifactIntegrityError(
+                        f"state root transition {cid} has a missing successor block"
+                    )
+                root_transitions.append((cid, fields))
+
+        snapshots: Dict[str, Dict[str, Any]] = {}
+        operations: set[tuple[str, str]] = set()
+        for cid, fields in sorted(root_transitions, key=lambda item: (
+            item[1]["namespace"], item[1]["new_revision"], item[0]
+        )):
+            operation = (fields["namespace"], fields["operation_id"])
+            if operation in operations:
+                raise ArtifactIntegrityError(f"duplicate state root operation {operation!r}")
+            operations.add(operation)
+            before = snapshots.get(fields["namespace"], {
+                "root_cid": None, "revision": 0, "transition_cid": None,
+            })
+            if (before["root_cid"], before["revision"]) != (
+                fields["expected_root_cid"], fields["expected_revision"]
+            ):
+                raise ArtifactIntegrityError(f"state root transition {cid} breaks its namespace chain")
+            snapshots[fields["namespace"]] = {
+                "root_cid": fields["new_root_cid"], "revision": fields["new_revision"],
+                "transition_cid": cid,
+            }
+        return root_transitions, snapshots
+
+    def _root_indexes_match(
+        self,
+        connection: sqlite3.Connection,
+        root_transitions: list[tuple[str, Dict[str, Any]]],
+        snapshots: Mapping[str, Mapping[str, Any]],
+    ) -> bool:
+        """Check root acceleration rows against immutable reconstruction.
+
+        This is read-only by design.  In particular it catches a transition
+        block written before a crash but absent from SQLite, while allowing a
+        healthy reopen to avoid any root-index mutation.
+        """
+
+        actual_transitions = {
+            row["transition_cid"]: dict(row)
+            for row in connection.execute("SELECT * FROM state_root_transitions")
+        }
+        if set(actual_transitions) != {cid for cid, _ in root_transitions}:
+            return False
+        for cid, fields in root_transitions:
+            row = actual_transitions[cid]
+            if any(row[name] != fields[name] for name in fields):
+                return False
+            artifact = connection.execute(
+                "SELECT kind,schema_uri,codec FROM artifacts WHERE cid=?", (cid,)
+            ).fetchone()
+            if artifact is None or (
+                artifact["kind"] != STATE_ROOT_TRANSITION_SCHEMA
+                or artifact["schema_uri"] != STATE_ROOT_TRANSITION_SCHEMA
+                or artifact["codec"] != "dag-json"
+            ):
+                return False
+        actual_roots = {
+            row["namespace"]: dict(row)
+            for row in connection.execute(
+                "SELECT namespace,root_cid,revision,transition_cid FROM state_roots"
+            )
+        }
+        if set(actual_roots) != set(snapshots):
+            return False
+        return all(
+            all(actual_roots[namespace][field] == value for field, value in snapshot.items())
+            for namespace, snapshot in snapshots.items()
+        )
+
     def recover(self, *, rebuild: bool = True) -> Dict[str, Any]:
         """Verify immutable blocks and optionally recreate all derived indexes.
 
@@ -1144,10 +1248,20 @@ class DurableCoordinationStore:
                 if errors:
                     suffix = "" if corrupt_count == len(errors) else f" (showing first {len(errors)} of {corrupt_count})"
                     raise ArtifactIntegrityError(f"coordination recovery found corrupt blocks{suffix}: {errors}")
+                root_transitions, snapshots = self._reconstructed_root_chain(verified)
+                root_indexes_match = self._root_indexes_match(connection, root_transitions, snapshots)
+                self._last_root_indexes_match = root_indexes_match
+                self._root_recovery_metrics["root_index_verifications"] += 1
                 if not rebuild:
                     connection.commit()
-                    return {"verified_blocks": len(verified), "rebuilt": False, "errors": []}
+                    return {
+                        "verified_blocks": len(verified), "rebuilt": False, "errors": [],
+                    }
 
+                deleted_root_rows = int(connection.execute("SELECT COUNT(*) FROM state_roots").fetchone()[0])
+                deleted_transition_rows = int(
+                    connection.execute("SELECT COUNT(*) FROM state_root_transitions").fetchone()[0]
+                )
                 self._connection.execute("DELETE FROM claims")
                 self._connection.execute("DELETE FROM leases")
                 self._connection.execute("DELETE FROM daemon_health")
@@ -1188,32 +1302,10 @@ class DurableCoordinationStore:
                             "INSERT OR REPLACE INTO index_archives VALUES(?,?,?)",
                             (cid, int(value.get("created_at_ms", 0)), row_count),
                         )
-                root_transitions = []
-                verified_cids = {cid for cid, _, _ in verified}
-                for cid, value, _ in verified:
-                    if value.get("schema") == STATE_ROOT_TRANSITION_SCHEMA:
-                        fields = self._state_root_transition_fields(value)
-                        if fields["new_root_cid"] not in verified_cids:
-                            raise ArtifactIntegrityError(
-                                f"state root transition {cid} has a missing successor block"
-                            )
-                        root_transitions.append((cid, fields))
-                snapshots: Dict[str, Dict[str, Any]] = {}
-                operations: set[tuple[str, str]] = set()
-                for cid, fields in sorted(root_transitions, key=lambda item: (
-                    item[1]["namespace"], item[1]["new_revision"], item[0]
-                )):
-                    operation = (fields["namespace"], fields["operation_id"])
-                    if operation in operations:
-                        raise ArtifactIntegrityError(f"duplicate state root operation {operation!r}")
-                    operations.add(operation)
-                    before = snapshots.get(fields["namespace"], {
-                        "root_cid": None, "revision": 0, "transition_cid": None,
-                    })
-                    if (before["root_cid"], before["revision"]) != (
-                        fields["expected_root_cid"], fields["expected_revision"]
-                    ):
-                        raise ArtifactIntegrityError(f"state root transition {cid} breaks its namespace chain")
+                self._root_recovery_metrics["root_index_rebuild_mutations"] += (
+                    deleted_root_rows + deleted_transition_rows + len(root_transitions) + len(snapshots)
+                )
+                for cid, fields in root_transitions:
                     self._connection.execute(
                         """INSERT INTO state_root_transitions
                            (transition_cid,namespace,operation_id,expected_root_cid,expected_revision,
@@ -1222,10 +1314,6 @@ class DurableCoordinationStore:
                          fields["expected_revision"], fields["new_root_cid"], fields["new_revision"],
                          fields["created_at_ms"]),
                     )
-                    snapshots[fields["namespace"]] = {
-                        "root_cid": fields["new_root_cid"], "revision": fields["new_revision"],
-                        "transition_cid": cid,
-                    }
                 for namespace, snapshot in snapshots.items():
                     self._connection.execute(
                         "INSERT INTO state_roots(namespace,root_cid,revision,transition_cid) VALUES(?,?,?,?)",

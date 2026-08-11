@@ -65,6 +65,12 @@ def __getattr__(name: str) -> Any:
     return value
 
 
+def __dir__() -> list[str]:
+    """Advertise lazy durable-root exports without importing their modules."""
+
+    return sorted(set(globals()) | _ROOT_EXPORTS)
+
+
 def get_capabilities() -> Dict[str, Any]:
     _optional_mcplusplus()
     _optional_spec_validator()

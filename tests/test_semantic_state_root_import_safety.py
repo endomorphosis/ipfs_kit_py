@@ -25,7 +25,8 @@ before_environment = dict(os.environ)
 before_threads = {thread.name for thread in __import__('threading').enumerate()}
 from ipfs_kit_py.mcp_server.mcplusplus import DurableStateRootAdapter, StateRootSnapshot
 after_threads = {thread.name for thread in __import__('threading').enumerate()}
-print(json.dumps({'events': events, 'environment_unchanged': before_environment == dict(os.environ), 'threads_unchanged': before_threads == after_threads, 'exports': [DurableStateRootAdapter.__name__, StateRootSnapshot.__name__]}))
+import ipfs_kit_py.mcp_server.mcplusplus as mcplusplus
+print(json.dumps({'events': events, 'environment_unchanged': before_environment == dict(os.environ), 'threads_unchanged': before_threads == after_threads, 'exports': [DurableStateRootAdapter.__name__, StateRootSnapshot.__name__], 'dir_exports': ['DurableStateRootAdapter' in dir(mcplusplus), 'StateRootSnapshot' in dir(mcplusplus)]}))
 """
     environment = dict(os.environ)
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -40,3 +41,4 @@ print(json.dumps({'events': events, 'environment_unchanged': before_environment 
     assert result["environment_unchanged"] is True
     assert result["threads_unchanged"] is True
     assert result["exports"] == ["DurableStateRootAdapter", "StateRootSnapshot"]
+    assert result["dir_exports"] == [True, True]
