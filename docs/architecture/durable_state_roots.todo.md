@@ -338,7 +338,7 @@ Wave 9  KSR-104                     repaired acceptance and performance closeout
 
 ## KSR-103 Align closed contracts, late replay, and semantic dag-json boundaries
 
-- Status: pending
+- Status: completed
 - Completion: auto
 - Is schedulable: true
 - Review only: false
