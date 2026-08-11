@@ -103,3 +103,13 @@ def test_semantic_cids_reject_raw_transport_blocks():
     raw = cid_for_bytes(b"structured-but-raw", codec="raw")
     with pytest.raises(ValueError, match="dag-json"):
         validate_semantic_dag_json_cid(raw)
+
+
+def test_semantic_cids_reject_the_nonminimal_dag_json_codec_alias():
+    """`a9 82 00` encodes the same codec value as canonical `a9 02`."""
+
+    canonical = _wire(CID)
+    assert canonical[1:3] == b"\xa9\x02"
+    alias = _cid_from_wire(canonical[:2] + b"\x82\x00" + canonical[3:])
+    with pytest.raises(ValueError, match="canonical transport CID"):
+        validate_semantic_dag_json_cid(alias)

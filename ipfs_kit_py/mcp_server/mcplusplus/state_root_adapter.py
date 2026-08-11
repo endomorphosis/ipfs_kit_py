@@ -133,6 +133,13 @@ class DurableStateRootAdapter:
         expected_revision, expected_root_cid = validate_root_expectation(
             expected_revision, expected_root_cid
         )
+        # A predecessor is semantic evidence just as much as the successor.
+        # Do this before delegating so a raw expected root cannot even enter
+        # the generic CAS path (which deliberately still supports raw roots).
+        if expected_root_cid is not None:
+            expected_root_cid = validate_semantic_dag_json_cid(
+                expected_root_cid, "expected_root_cid"
+            )
         new_root_cid = validate_semantic_dag_json_cid(new_root_cid, "new_root_cid")
         result = self._store.compare_and_swap_state_root(
             namespace,
@@ -155,11 +162,21 @@ class DurableStateRootAdapter:
         verification fails.
         """
 
+        report: Mapping[str, Any] | None = None
         try:
             report = self._store.recover(rebuild=True)
+            snapshots = tuple(
+                self._semantic_snapshot(snapshot) for snapshot in self._store.state_roots()
+            )
         except (ArtifactIntegrityError, ValueError) as exc:
-            return StateRootRecoveryReport(0, (), (), ({"code": "corrupt", "message": str(exc)},))
-        snapshots = tuple(self._semantic_snapshot(snapshot) for snapshot in self._store.state_roots())
+            # The generic store is intentionally permitted to recover raw
+            # coordination roots.  They are corrupt from this semantic facade,
+            # however, and must be represented by its closed report rather
+            # than leak a validator exception or partially expose roots.
+            verified_blocks = 0 if report is None else int(report["verified_blocks"])
+            return StateRootRecoveryReport(
+                verified_blocks, (), (), ({"code": "corrupt", "message": str(exc)},)
+            )
         return StateRootRecoveryReport(report["verified_blocks"], snapshots, (), ())
 
 

@@ -1139,6 +1139,15 @@ class DurableCoordinationStore:
         verified_cids = {cid for cid, _, _ in verified}
         for cid, value, _ in verified:
             if value.get("schema") == STATE_ROOT_TRANSITION_SCHEMA:
+                # Root transitions are a closed structured wire record.  The
+                # generic store continues to retain raw artifacts and even
+                # generic raw roots, but raw bytes can never serve as the
+                # immutable transition evidence used to rebuild these indexes.
+                # This check intentionally precedes all rebuild mutation.
+                if _codec_from_cid(cid) != "dag-json":
+                    raise ArtifactIntegrityError(
+                        f"state root transition {cid} has a non-dag-json CID"
+                    )
                 fields = self._state_root_transition_fields(value)
                 if fields["new_root_cid"] not in verified_cids:
                     raise ArtifactIntegrityError(
@@ -1302,7 +1311,7 @@ class DurableCoordinationStore:
                             "INSERT OR REPLACE INTO index_archives VALUES(?,?,?)",
                             (cid, int(value.get("created_at_ms", 0)), row_count),
                         )
-                self._root_recovery_metrics["root_index_rebuild_mutations"] += (
+                root_index_mutations = (
                     deleted_root_rows + deleted_transition_rows + len(root_transitions) + len(snapshots)
                 )
                 for cid, fields in root_transitions:
@@ -1320,6 +1329,10 @@ class DurableCoordinationStore:
                         (namespace, snapshot["root_cid"], snapshot["revision"], snapshot["transition_cid"]),
                     )
                 connection.commit()
+                # Session metrics describe committed index work only.  A
+                # rollback may have executed statements, but it did not make
+                # any root-index mutation durable or visible.
+                self._root_recovery_metrics["root_index_rebuild_mutations"] += root_index_mutations
             except Exception:
                 connection.rollback()
                 raise

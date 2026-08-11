@@ -153,3 +153,35 @@ def test_semantic_facade_rejects_raw_root_while_generic_store_keeps_raw_support(
                 "datasets/raw", expected_revision=0, expected_root_cid=None,
                 new_root_cid=raw_cid, operation_id="reject-raw",
             )
+
+
+def test_raw_expected_root_is_rejected_without_changing_generic_root_evidence(tmp_path: Path) -> None:
+    """The semantic boundary is closed without narrowing generic storage."""
+
+    raw = b"generic predecessor"
+    raw_cid = cid_for_bytes(raw, codec="raw")
+    payload = _payload("semantic-successor")
+    successor = cid_for_artifact(payload)
+    with DurableCoordinationStore(tmp_path / "store") as store:
+        roots = DurableStateRootAdapter(store)
+        store._write_block(raw_cid, raw)
+        store.compare_and_swap_root(
+            "datasets/raw-expected", expected_revision=0, expected_root_cid=None,
+            new_root_cid=raw_cid, operation_id="generic-publish",
+        )
+        roots.put_verified(payload, expected_cid=successor, replicate=False)
+        blocks_before = {
+            path.relative_to(store.root): path.read_bytes() for path in store.blocks_dir.rglob("*.json")
+        }
+        transitions_before = store.root_transitions("datasets/raw-expected")
+        root_before = store.current_root("datasets/raw-expected")
+        with pytest.raises(ValueError, match="dag-json"):
+            roots.compare_and_swap_root(
+                "datasets/raw-expected", expected_revision=1, expected_root_cid=raw_cid,
+                new_root_cid=successor, operation_id="semantic-reject",
+            )
+        assert {
+            path.relative_to(store.root): path.read_bytes() for path in store.blocks_dir.rglob("*.json")
+        } == blocks_before
+        assert store.root_transitions("datasets/raw-expected") == transitions_before
+        assert store.current_root("datasets/raw-expected") == root_before
