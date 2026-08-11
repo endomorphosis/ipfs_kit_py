@@ -145,3 +145,63 @@ def test_root_indexes_rebuild_from_the_immutable_transition(tmp_path: Path) -> N
     with DurableCoordinationStore(root) as store:
         assert store.current_state_root("semantic") == expected
         assert len(store.root_transitions("semantic")) == 1
+
+
+def test_live_root_and_cas_refuse_a_corrupt_current_block_without_mutation(tmp_path: Path) -> None:
+    with DurableCoordinationStore(tmp_path / "store") as store:
+        first, second = (_successor(store, name) for name in ("one", "two"))
+        store.compare_and_swap_root(
+            "semantic", expected_revision=0, expected_root_cid=None, new_root_cid=first, operation_id="one"
+        )
+        store._block_path(first).write_bytes(b"tampered")
+        indexed_before = store._connection.execute(
+            "SELECT root_cid,revision,transition_cid FROM state_roots WHERE namespace='semantic'"
+        ).fetchone()
+        transitions_before = len(store.root_transitions("semantic"))
+
+        with pytest.raises(ArtifactIntegrityError, match="immutable evidence"):
+            store.current_root("semantic")
+        with pytest.raises(ArtifactIntegrityError, match="immutable evidence"):
+            store.compare_and_swap_root(
+                "semantic", expected_revision=1, expected_root_cid=first, new_root_cid=second, operation_id="two"
+            )
+
+        assert tuple(store._connection.execute(
+            "SELECT root_cid,revision,transition_cid FROM state_roots WHERE namespace='semantic'"
+        ).fetchone()) == tuple(indexed_before)
+        assert len(store.root_transitions("semantic")) == transitions_before
+
+
+@pytest.mark.parametrize("corruption", ("swapped-current-transition", "tampered-root-revision", "raw-transition"))
+def test_live_root_rejects_tampered_sqlite_or_raw_transition_evidence(
+    tmp_path: Path, corruption: str
+) -> None:
+    with DurableCoordinationStore(tmp_path / "store") as store:
+        first, second = (_successor(store, name) for name in ("one", "two"))
+        store.compare_and_swap_root(
+            "semantic", expected_revision=0, expected_root_cid=None, new_root_cid=first, operation_id="one"
+        )
+        store.compare_and_swap_root(
+            "semantic", expected_revision=1, expected_root_cid=first, new_root_cid=second, operation_id="two"
+        )
+        rows = store.root_transitions("semantic")
+        if corruption == "swapped-current-transition":
+            store._connection.execute(
+                "UPDATE state_roots SET transition_cid=? WHERE namespace='semantic'", (rows[0]["transition_cid"],)
+            )
+        elif corruption == "tampered-root-revision":
+            store._connection.execute("UPDATE state_roots SET revision=99 WHERE namespace='semantic'")
+        else:
+            transition = store.get(rows[-1]["transition_cid"])
+            raw_cid = store.put(transition, codec="raw")["cid"]
+            store._connection.execute(
+                "UPDATE state_root_transitions SET transition_cid=? WHERE transition_cid=?",
+                (raw_cid, rows[-1]["transition_cid"]),
+            )
+            store._connection.execute(
+                "UPDATE state_roots SET transition_cid=? WHERE namespace='semantic'", (raw_cid,)
+            )
+        store._connection.commit()
+
+        with pytest.raises(ArtifactIntegrityError):
+            store.current_root("semantic")
