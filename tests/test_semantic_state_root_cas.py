@@ -13,6 +13,7 @@ from ipfs_kit_py.mcp_server.mcplusplus.coordination_storage import (
     ArtifactNotFound,
     DurableCoordinationStore,
     STATE_ROOT_TRANSITION_SCHEMA,
+    cid_for_bytes,
 )
 
 
@@ -104,6 +105,46 @@ def test_stale_cid_or_revision_cannot_overwrite_and_replay_does_not_increment(tm
         assert stale_revision["status"] == stale_cid["status"] == "conflict"
         assert store.current_state_root("semantic") == updated["after"]
         assert len(store.root_transitions("semantic")) == 1
+
+
+def test_late_exact_replay_is_unchanged_and_changed_operation_reuse_conflicts(tmp_path: Path) -> None:
+    with DurableCoordinationStore(tmp_path / "store") as store:
+        first, second, changed = (_successor(store, name) for name in ("one", "two", "changed"))
+        first_update = store.compare_and_swap_root(
+            "semantic", expected_revision=0, expected_root_cid=None, new_root_cid=first, operation_id="once"
+        )
+        later = store.compare_and_swap_root(
+            "semantic", expected_revision=1, expected_root_cid=first, new_root_cid=second, operation_id="later"
+        )
+        replay = store.compare_and_swap_root(
+            "semantic", expected_revision=0, expected_root_cid=None, new_root_cid=first, operation_id="once"
+        )
+        reuse = store.compare_and_swap_root(
+            "semantic", expected_revision=0, expected_root_cid=None, new_root_cid=changed, operation_id="once"
+        )
+
+    assert first_update["status"] == later["status"] == "updated"
+    assert replay["status"] == "unchanged"
+    assert replay["before"] == replay["after"] == later["after"]
+    assert reuse["status"] == "conflict"
+    assert reuse["reason_code"] == "operation_id_reused"
+
+
+@pytest.mark.parametrize("revision,expected_root", [(0, "root"), (1, None)])
+def test_inconsistent_expectations_fail_before_successor_io(
+    tmp_path: Path, revision: int, expected_root: str | None
+) -> None:
+    with DurableCoordinationStore(tmp_path / "store") as store:
+        # The CID is valid but absent.  Expectation validation must reject
+        # before this can be read, repaired, or otherwise observed by storage.
+        absent = cid_for_bytes(b"absent")
+        if expected_root == "root":
+            expected_root = absent
+        with pytest.raises(ValueError):
+            store.compare_and_swap_root(
+                "semantic", expected_revision=revision, expected_root_cid=expected_root,
+                new_root_cid=absent, operation_id="invalid-expectation",
+            )
 
 
 def test_two_independent_store_connections_have_one_distinct_winner(tmp_path: Path) -> None:

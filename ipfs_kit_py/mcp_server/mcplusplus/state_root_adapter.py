@@ -17,6 +17,8 @@ from .state_root_contracts import (
     StateRootCASResult,
     StateRootRecoveryReport,
     StateRootSnapshot,
+    validate_root_expectation,
+    validate_semantic_dag_json_cid,
 )
 
 
@@ -54,6 +56,9 @@ class DurableStateRootAdapter:
         be transformed into a remote outcome or be used by a later root CAS.
         """
 
+        # Validate before delegating so an invalid semantic identity cannot
+        # create a local block or invoke an optional provider.
+        expected_cid = validate_semantic_dag_json_cid(expected_cid, "expected_cid")
         local = self._store.put(
             payload, expected_cid=expected_cid, codec="dag-json", replicate=False
         )
@@ -95,12 +100,24 @@ class DurableStateRootAdapter:
     def get_verified(self, cid: str) -> Mapping[str, Any]:
         """Return canonical, CID-verified content through the storage authority."""
 
+        validate_semantic_dag_json_cid(cid)
         return self._store.get(cid)
 
     def current_root(self, namespace: str) -> StateRootSnapshot:
         """Return the current typed root snapshot for ``namespace``."""
 
-        return StateRootSnapshot.from_dict(self._store.current_state_root(namespace))
+        return self._semantic_snapshot(self._store.current_state_root(namespace))
+
+    @staticmethod
+    def _semantic_snapshot(value: Mapping[str, Any]) -> StateRootSnapshot:
+        """Project a generic root only when all CID-bearing fields are structured."""
+
+        snapshot = StateRootSnapshot.from_dict(value)
+        if snapshot.root_cid is not None:
+            validate_semantic_dag_json_cid(snapshot.root_cid, "root_cid")
+        if snapshot.transition_cid is not None:
+            validate_semantic_dag_json_cid(snapshot.transition_cid, "transition_cid")
+        return snapshot
 
     def compare_and_swap_root(
         self,
@@ -113,6 +130,10 @@ class DurableStateRootAdapter:
     ) -> StateRootCASResult:
         """Publish a locally verified successor using the store's CAS boundary."""
 
+        expected_revision, expected_root_cid = validate_root_expectation(
+            expected_revision, expected_root_cid
+        )
+        new_root_cid = validate_semantic_dag_json_cid(new_root_cid, "new_root_cid")
         result = self._store.compare_and_swap_state_root(
             namespace,
             expected_revision=expected_revision,
@@ -120,7 +141,12 @@ class DurableStateRootAdapter:
             new_root_cid=new_root_cid,
             operation_id=operation_id,
         )
-        return StateRootCASResult.from_dict(result)
+        typed = StateRootCASResult.from_dict(result)
+        self._semantic_snapshot(typed.before.to_dict())
+        self._semantic_snapshot(typed.after.to_dict())
+        if typed.transition_cid is not None:
+            validate_semantic_dag_json_cid(typed.transition_cid, "transition_cid")
+        return typed
 
     def recover_roots(self) -> StateRootRecoveryReport:
         """Rebuild root indexes and return closed recovery evidence.
@@ -133,12 +159,8 @@ class DurableStateRootAdapter:
             report = self._store.recover(rebuild=True)
         except (ArtifactIntegrityError, ValueError) as exc:
             return StateRootRecoveryReport(0, (), (), ({"code": "corrupt", "message": str(exc)},))
-        return StateRootRecoveryReport(
-            report["verified_blocks"],
-            tuple(StateRootSnapshot.from_dict(snapshot) for snapshot in self._store.state_roots()),
-            (),
-            (),
-        )
+        snapshots = tuple(self._semantic_snapshot(snapshot) for snapshot in self._store.state_roots())
+        return StateRootRecoveryReport(report["verified_blocks"], snapshots, (), ())
 
 
 __all__ = ["DurableStateRootAdapter"]
