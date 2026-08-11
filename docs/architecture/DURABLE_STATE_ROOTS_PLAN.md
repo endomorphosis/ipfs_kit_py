@@ -349,10 +349,15 @@ to the supervisor.
 
 ```text
 Wave 0  KSR-000                     reviewed control plane (complete)
-Wave 1  KSR-001                     contracts
-Wave 2  KSR-002                     root transition and CAS
-Wave 3  KSR-003 | KSR-004           recovery matrix | provider adapter
-Wave 4  KSR-005                     facade, acceptance, docs, regressions
+Wave 1  KSR-001                     contracts (complete)
+Wave 2  KSR-002                     root transition and CAS (complete)
+Wave 3  KSR-003 | KSR-004           recovery matrix | provider adapter (complete)
+Wave 4  KSR-005                     facade, acceptance, docs, regressions (complete)
+Wave 5  KSR-100                     canonical transport-CID validation
+Wave 6  KSR-101                     verified live root and predecessor chain
+Wave 7  KSR-102                     recovery/publication linearization
+Wave 8  KSR-103                     closed API and semantic dag-json parity
+Wave 9  KSR-104                     repaired acceptance and performance closeout
 ```
 
 Use direct clean worktrees, external runtime/state directories, four
@@ -375,3 +380,87 @@ This program does not implement:
 - a dashboard or user interface;
 - ZK proofs; or
 - refactors of unrelated storage, VFS, bucket, cluster, or WAL families.
+
+## 13. Post-implementation audit and repair program
+
+The base implementation board completed at exact commit
+`83793a9b7adedfc4ef534ac5fdc98a509cb225a6`. Its declared focused matrix passed
+(`49 passed`), but an independent read-only audit found four behaviors outside
+that matrix. The release is not accepted until KSR-100 through KSR-104 close
+them.
+
+### 13.1 Canonical CID aliases
+
+`state_root_contracts._validate_cid` decodes CID bytes but does not prove that
+the input string is their one canonical encoding. It therefore accepts:
+
+- non-minimal varints, such as replacing CID version byte `0x01` with
+  `0x81 0x00`; and
+- lowercase base32 strings with alternate non-zero trailing pad bits.
+
+Both aliases are rejected by a conforming multiformats decoder but were
+accepted as distinct root-identity strings by `StateRootSnapshot`. Repair must
+harden the existing kit transport-CID decoding authority and reuse it from the
+root contracts. It must not add a semantic CID calculator or import datasets.
+
+### 13.2 Unverified live roots and predecessor evidence
+
+At the reviewed commit, `current_state_root` trusts the SQLite row without
+re-reading the referenced root and transition blocks. CAS verifies the proposed
+successor but not the live predecessor. The audit demonstrated:
+
+1. publish revision one;
+2. replace the current root block with corrupt bytes;
+3. observe that `current_root` still reports revision one; and
+4. publish revision two successfully over the corrupt predecessor.
+
+The live read and CAS comparison must verify the root block, transition block,
+transition CID and codec, closed transition fields, namespace, revision, and
+predecessor/successor linkage. A corrupt or inconsistent chain cannot be
+reported as current and cannot be advanced.
+
+### 13.3 Recovery/publication race
+
+`recover(rebuild=True)` currently scans immutable blocks before it acquires the
+SQLite writer transaction. In the audited interleaving, recovery captured a
+revision-one block snapshot, another connection committed revision two, and
+the stale recovery transaction then deleted the new indexes and rebuilt
+revision one. Both live connections reported revision one even though the
+revision-two transition block remained durable.
+
+Reconstruction must establish its block snapshot while fenced against CAS
+transition publication, using the existing SQLite `BEGIN IMMEDIATE` authority
+or a proven equivalent rescan/generation protocol. Recovery must never reduce
+a committed revision or omit a transition committed before its rebuild
+transaction.
+
+### 13.4 Closed API, replay, and semantic codec parity
+
+The storage primitive currently returns open dictionaries while the public
+protocol promises closed values, and it duplicates validation rules from the
+contract module. The semantic adapter also needs an explicit structured-codec
+boundary: raw blocks remain valid coordination-store content, but may not be
+published through the semantic structured-artifact adapter.
+
+The repaired public semantics are:
+
+- the protocol-facing facade returns only the KSR-001 closed result types;
+- invalid revision-zero/non-zero expectations fail before storage mutation;
+- an exact replay of the same namespace, operation ID, expected values, and
+  successor is `unchanged` even after a later revision is current;
+- reuse of an operation ID with different request values is `conflict`;
+- semantic adapter put/get/root operations accept canonical `dag-json` CIDs
+  only and preserve the caller's exact expected CID; and
+- provider availability remains independent of local durability and never
+  falls back to a mock.
+
+### 13.5 Repair assurance and performance
+
+KSR-104 reruns every focused and coordination regression and adds the audit
+reproductions as durable tests. It also records the healthy-reopen behavior:
+the implementation may verify immutable evidence on startup, but must not
+unconditionally delete and rebuild correct root indexes merely because a
+transition exists. Tests should use deterministic scan/rebuild counters rather
+than a fragile wall-clock threshold. The known, pre-existing
+`_agent_supervisor_rest_binding` receipt-test collection failure remains
+reported and outside this storage repair.
