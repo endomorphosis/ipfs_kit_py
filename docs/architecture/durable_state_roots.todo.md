@@ -173,7 +173,7 @@ Wave 4  KSR-005                     facade, acceptance, documentation
 
 ## KSR-004 Add the thin provider-aware state-root adapter
 
-- Status: todo
+- Status: completed
 - Completion: auto
 - Is schedulable: true
 - Review only: false
