@@ -623,15 +623,92 @@ class DurableCoordinationStore:
             "transition_cid": transition_cid,
         }
 
+    def _verified_indexed_state_root(
+        self, namespace: str, connection: sqlite3.Connection
+    ) -> Dict[str, Any]:
+        """Return a root only after proving its complete indexed evidence chain.
+
+        SQLite is an acceleration index, not root authority.  In particular,
+        do not let a locally tampered root row turn an immutable transition
+        into a different live state.  Every indexed transition is checked
+        against its CID-addressed dag-json block, its artifact metadata, and
+        the predecessor reconstructed from the prior transition.
+        """
+
+        root_row = connection.execute(
+            "SELECT root_cid,revision,transition_cid FROM state_roots WHERE namespace=?", (namespace,)
+        ).fetchone()
+        transition_rows = connection.execute(
+            "SELECT * FROM state_root_transitions WHERE namespace=? "
+            "ORDER BY new_revision,transition_cid",
+            (namespace,),
+        ).fetchall()
+
+        try:
+            snapshot = self._root_snapshot_from_row(namespace, root_row)
+            revision = self._root_revision(snapshot["revision"], "revision")
+            if (revision == 0) != (snapshot["root_cid"] is None):
+                raise ValueError("root row has inconsistent initial fields")
+            if (revision == 0) != (snapshot["transition_cid"] is None):
+                raise ValueError("root row has inconsistent transition fields")
+
+            predecessor = {"root_cid": None, "revision": 0, "transition_cid": None}
+            for row in transition_rows:
+                transition_cid = row["transition_cid"]
+                # State-root transitions are structured records.  A raw CID
+                # can name valid coordination bytes, but never this wire type.
+                if _codec_from_cid(transition_cid) != "dag-json":
+                    raise ValueError("state root transition has a non-dag-json CID")
+                artifact_row = connection.execute(
+                    "SELECT kind,schema_uri,codec,byte_length FROM artifacts WHERE cid=?", (transition_cid,)
+                ).fetchone()
+                if artifact_row is None:
+                    raise ValueError("state root transition is absent from artifacts")
+                if (
+                    artifact_row["kind"] != _artifact_kind(self.get(transition_cid))
+                    or
+                    artifact_row["schema_uri"] != STATE_ROOT_TRANSITION_SCHEMA
+                    or artifact_row["codec"] != "dag-json"
+                ):
+                    raise ValueError("state root transition has inconsistent artifact metadata")
+                data = self.get_bytes(transition_cid)
+                if artifact_row["byte_length"] != len(data):
+                    raise ValueError("state root transition has inconsistent artifact length")
+                fields = self._state_root_transition_fields(self.get(transition_cid))
+                row_fields = (
+                    "namespace", "operation_id", "expected_root_cid", "expected_revision",
+                    "new_root_cid", "new_revision", "created_at_ms",
+                )
+                if any(row[name] != fields[name] for name in row_fields):
+                    raise ValueError("state root transition index does not match its block")
+                if (fields["expected_root_cid"], fields["expected_revision"]) != (
+                    predecessor["root_cid"], predecessor["revision"]
+                ):
+                    raise ValueError("state root transition breaks its predecessor chain")
+                # Reading every successor makes a missing or corrupt earlier
+                # root fail even when a later transition is otherwise intact.
+                self.get_bytes(fields["new_root_cid"])
+                predecessor = {
+                    "root_cid": fields["new_root_cid"], "revision": fields["new_revision"],
+                    "transition_cid": transition_cid,
+                }
+
+            if (snapshot["root_cid"], snapshot["revision"], snapshot["transition_cid"]) != (
+                predecessor["root_cid"], predecessor["revision"], predecessor["transition_cid"]
+            ):
+                raise ValueError("root row does not match its indexed transition chain")
+            return snapshot
+        except (ArtifactIntegrityError, ArtifactNotFound) as exc:
+            raise ArtifactIntegrityError(f"state root {namespace!r} has invalid immutable evidence: {exc}") from exc
+        except (KeyError, TypeError, ValueError, sqlite3.DatabaseError) as exc:
+            raise ArtifactIntegrityError(f"state root {namespace!r} has invalid indexed evidence: {exc}") from exc
+
     def current_state_root(self, namespace: str) -> Dict[str, Any]:
         """Return a namespace's current root; absent namespaces begin at revision zero."""
 
         namespace = self._root_namespace(namespace)
         with self._lock:
-            row = self._connection.execute(
-                "SELECT root_cid,revision,transition_cid FROM state_roots WHERE namespace=?", (namespace,)
-            ).fetchone()
-        return self._root_snapshot_from_row(namespace, row)
+            return self._verified_indexed_state_root(namespace, self._connection)
 
     def state_roots(self) -> list[Dict[str, Any]]:
         """List visible non-initial roots in deterministic namespace order."""
@@ -640,7 +717,7 @@ class DurableCoordinationStore:
             rows = self._connection.execute(
                 "SELECT namespace,root_cid,revision,transition_cid FROM state_roots ORDER BY namespace"
             ).fetchall()
-        return [self._root_snapshot_from_row(row["namespace"], row) for row in rows]
+            return [self._verified_indexed_state_root(row["namespace"], self._connection) for row in rows]
 
     def root_transitions(self, namespace: Optional[str] = None) -> list[Dict[str, Any]]:
         """List indexed root transitions, optionally for one namespace."""
@@ -693,10 +770,7 @@ class DurableCoordinationStore:
             connection = self._connection
             connection.execute("BEGIN IMMEDIATE")
             try:
-                current_row = connection.execute(
-                    "SELECT root_cid,revision,transition_cid FROM state_roots WHERE namespace=?", (namespace,)
-                ).fetchone()
-                before = self._root_snapshot_from_row(namespace, current_row)
+                before = self._verified_indexed_state_root(namespace, connection)
                 existing = connection.execute(
                     "SELECT * FROM state_root_transitions WHERE namespace=? AND operation_id=?",
                     (namespace, operation_id),

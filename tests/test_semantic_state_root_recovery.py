@@ -124,3 +124,42 @@ def test_corrupt_transition_fails_closed_on_reconstruction(tmp_path: Path) -> No
         sidecar.unlink()
     with pytest.raises(ArtifactIntegrityError, match="corrupt blocks"):
         _restart(root)
+
+
+@pytest.mark.parametrize("tamper", ("indexed-field", "broken-predecessor-fork"))
+def test_live_indexed_chain_rejects_field_mismatches_and_forks(tmp_path: Path, tamper: str) -> None:
+    with DurableCoordinationStore(tmp_path / tamper) as store:
+        first, second, fork = (_successor(store, label) for label in ("one", "two", "fork"))
+        store.compare_and_swap_root(
+            "semantic/live", expected_revision=0, expected_root_cid=None, new_root_cid=first, operation_id="one"
+        )
+        store.compare_and_swap_root(
+            "semantic/live", expected_revision=1, expected_root_cid=first, new_root_cid=second, operation_id="two"
+        )
+        if tamper == "indexed-field":
+            store._connection.execute(
+                "UPDATE state_root_transitions SET operation_id='not-the-block' "
+                "WHERE namespace='semantic/live' AND new_revision=2"
+            )
+        else:
+            transition = {
+                "schema": STATE_ROOT_TRANSITION_SCHEMA,
+                "namespace": "semantic/live",
+                "operation_id": "fork",
+                "expected_root_cid": None,
+                "expected_revision": 0,
+                "new_root_cid": fork,
+                "new_revision": 1,
+                "created_at_ms": 0,
+            }
+            transition_cid = store.put(transition)["cid"]
+            store._connection.execute(
+                """INSERT INTO state_root_transitions
+                   (transition_cid,namespace,operation_id,expected_root_cid,expected_revision,
+                    new_root_cid,new_revision,created_at_ms) VALUES(?,?,?,?,?,?,?,?)""",
+                (transition_cid, "semantic/live", "fork", None, 0, fork, 1, 0),
+            )
+        store._connection.commit()
+
+        with pytest.raises(ArtifactIntegrityError):
+            store.current_root("semantic/live")
