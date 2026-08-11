@@ -242,7 +242,7 @@ Wave 9  KSR-104                     repaired acceptance and performance closeout
 
 ## KSR-100 Reject non-canonical transport-CID aliases
 
-- Status: pending
+- Status: completed
 - Completion: auto
 - Is schedulable: true
 - Review only: false
