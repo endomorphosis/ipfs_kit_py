@@ -147,11 +147,13 @@ def test_raw_transition_evidence_fails_before_rebuild_mutates_indexes(tmp_path: 
         artifacts_before = list(store._connection.execute("SELECT * FROM artifacts ORDER BY cid"))
         transitions_before = store.root_transitions()
         roots_before = list(store._connection.execute("SELECT * FROM state_roots ORDER BY namespace"))
+        metrics_before = store.root_recovery_metrics()
         with pytest.raises(ArtifactIntegrityError, match="non-dag-json"):
             store.recover(rebuild=True)
         assert list(store._connection.execute("SELECT * FROM artifacts ORDER BY cid")) == artifacts_before
         assert store.root_transitions() == transitions_before
         assert list(store._connection.execute("SELECT * FROM state_roots ORDER BY namespace")) == roots_before
+        assert store.root_recovery_metrics() == metrics_before
         assert raw_transition
 
 

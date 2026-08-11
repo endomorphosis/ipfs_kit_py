@@ -4,7 +4,11 @@ import base64
 
 import pytest
 
-from ipfs_kit_py.mcp_server.mcplusplus.coordination_storage import cid_for_bytes
+from ipfs_kit_py.mcp_server.mcplusplus.coordination_storage import (
+    DurableCoordinationStore,
+    cid_for_artifact,
+    cid_for_bytes,
+)
 from ipfs_kit_py.mcp_server.mcplusplus.state_root_contracts import (
     ArtifactWriteResult, ProviderStatus, RootUpdateStatus, StateRootCASResult,
     StateRootRecoveryReport, StateRootSnapshot, validate_root_expectation,
@@ -105,11 +109,17 @@ def test_semantic_cids_reject_raw_transport_blocks():
         validate_semantic_dag_json_cid(raw)
 
 
-def test_semantic_cids_reject_the_nonminimal_dag_json_codec_alias():
+def test_semantic_cids_reject_the_nonminimal_dag_json_codec_alias(tmp_path):
     """`a9 82 00` encodes the same codec value as canonical `a9 02`."""
 
-    canonical = _wire(CID)
+    artifact = {"schema": "example/state@1", "label": "codec-alias"}
+    canonical = _wire(cid_for_artifact(artifact))
     assert canonical[1:3] == b"\xa9\x02"
     alias = _cid_from_wire(canonical[:2] + b"\x82\x00" + canonical[3:])
     with pytest.raises(ValueError, match="canonical transport CID"):
         validate_semantic_dag_json_cid(alias)
+    with DurableCoordinationStore(tmp_path / "alias-store") as store:
+        blocks_before = tuple(store.blocks_dir.glob("*/*.json"))
+        with pytest.raises(ValueError, match="unsupported or malformed CID"):
+            store.put(artifact, expected_cid=alias, replicate=False)
+        assert tuple(store.blocks_dir.glob("*/*.json")) == blocks_before
