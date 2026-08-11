@@ -30,6 +30,19 @@ PROFILE_G_PREFIX = "mcp++/profile-g/"
 COORDINATION_ARCHIVE_SCHEMA = "mcp++/coordination-index-archive@1"
 DAEMON_HEALTH_SCHEMA = "mcp++/coordination/daemon-health@1"
 STATE_ROOT_TRANSITION_SCHEMA = "mcp++/coordination/state-root-transition@1"
+# These names are deliberately part of the small test seam for this storage
+# primitive.  An injector raises at one boundary to model a process stopping;
+# reopening the store must then derive either the old root or the sole durable
+# transition from immutable blocks.
+ROOT_CAS_INTERRUPTION_POINTS = (
+    "before_transaction",
+    "after_expectation_verification",
+    "after_transition_block_fsync",
+    "after_transition_indexing",
+    "before_sqlite_commit",
+    "after_sqlite_commit",
+)
+MAX_RECOVERY_ERRORS = 32
 PROFILE_G_KINDS = {
     "goal": "Goal",
     "subgoal": "Subgoal",
@@ -254,6 +267,7 @@ class DurableCoordinationStore:
         backend: Optional[BlockBackend | Any] = None,
         retention: Optional[RetentionPolicy] = None,
         clock_ms: Optional[Any] = None,
+        crash_injector: Optional[Any] = None,
     ) -> None:
         root = storage_dir or os.environ.get(
             "MCPPLUSPLUS_COORDINATION_DIR",
@@ -270,13 +284,19 @@ class DurableCoordinationStore:
         )
         self.retention = retention or RetentionPolicy()
         self._clock_ms = clock_ms or (lambda: int(time.time() * 1000))
+        self._crash_injector = crash_injector
         self._lock = threading.RLock()
         self._connection = self._open_database()
         # A missing/recreated index next to existing blocks is recovered
         # automatically. Operators can also request an explicit full rebuild.
         indexed = int(self._connection.execute("SELECT COUNT(*) FROM artifacts").fetchone()[0])
         has_blocks = next(self.blocks_dir.glob("*/*.json"), None) is not None
-        self.recover(rebuild=has_blocks and indexed == 0)
+        # A transition block can be durable while the process dies before its
+        # SQLite transaction commits.  Its successor must be recovered even
+        # though unrelated artifact rows (notably the successor itself) make
+        # the generic index non-empty.
+        has_root_transitions = self._has_local_state_root_transition()
+        self.recover(rebuild=has_blocks and (indexed == 0 or has_root_transitions))
 
     def _open_database(self) -> sqlite3.Connection:
         try:
@@ -377,6 +397,35 @@ class DurableCoordinationStore:
         directory = self.blocks_dir / cid[1:3]
         directory.mkdir(parents=True, exist_ok=True)
         return directory / f"{cid}.json"
+
+    def _has_local_state_root_transition(self) -> bool:
+        """Return whether immutable storage contains a root transition.
+
+        This is intentionally only a startup rebuild trigger.  ``recover``
+        remains the verifier and will reject malformed candidate blocks rather
+        than trusting this inexpensive schema probe.
+        """
+
+        for _, data in self._iter_local_blocks():
+            try:
+                if json.loads(data.decode("utf-8")).get("schema") == STATE_ROOT_TRANSITION_SCHEMA:
+                    return True
+            except (AttributeError, UnicodeDecodeError, json.JSONDecodeError):
+                # The full verifier below handles corrupt blocks when a
+                # rebuild is otherwise needed; this probe must not mask them.
+                continue
+        return False
+
+    def _interrupt_root_cas(self, boundary: str) -> None:
+        """Invoke the optional test-only crash seam at a named durable boundary.
+
+        This deliberately has no recovery behavior of its own: a real process
+        death cannot run cleanup either.  The surrounding transaction and the
+        immutable-block-first ordering are what make reopening safe.
+        """
+
+        if self._crash_injector is not None:
+            self._crash_injector(boundary)
 
     def _write_block(self, cid: str, data: bytes) -> bool:
         path = self._block_path(cid)
@@ -603,7 +652,9 @@ class DurableCoordinationStore:
         # This must happen before visibility and before beginning a writer
         # transaction.  get_bytes verifies a local block or a repaired backend
         # block against its CID, and raises on a missing or corrupt successor.
+        self._interrupt_root_cas("before_transaction")
         self.get_bytes(new_root_cid)
+        self._interrupt_root_cas("after_expectation_verification")
 
         with self._lock:
             connection = self._connection
@@ -657,6 +708,7 @@ class DurableCoordinationStore:
                 data = _canonical_json(transition)
                 transition_cid = cid_for_bytes(data)
                 self._write_block(transition_cid, data)
+                self._interrupt_root_cas("after_transition_block_fsync")
                 kind = _artifact_kind(transition)
                 connection.execute(
                     "INSERT OR IGNORE INTO artifacts VALUES(?,?,?,?,?,?)",
@@ -675,9 +727,12 @@ class DurableCoordinationStore:
                          revision=excluded.revision,transition_cid=excluded.transition_cid""",
                     (namespace, new_root_cid, expected_revision + 1, transition_cid),
                 )
+                self._interrupt_root_cas("after_transition_indexing")
                 after = {"namespace": namespace, "root_cid": new_root_cid,
                          "revision": expected_revision + 1, "transition_cid": transition_cid}
+                self._interrupt_root_cas("before_sqlite_commit")
                 connection.commit()
+                self._interrupt_root_cas("after_sqlite_commit")
             except Exception:
                 connection.rollback()
                 raise
@@ -934,6 +989,7 @@ class DurableCoordinationStore:
 
         verified: list[Tuple[str, Dict[str, Any], bytes]] = []
         errors: list[Dict[str, str]] = []
+        corrupt_count = 0
         for cid, data in self._iter_local_blocks():
             try:
                 if cid_for_bytes(data, _codec_from_cid(cid)) != cid:
@@ -944,9 +1000,12 @@ class DurableCoordinationStore:
                 _artifact_kind(value)
                 verified.append((cid, value, data))
             except Exception as exc:
-                errors.append({"cid": cid, "error": str(exc)})
+                corrupt_count += 1
+                if len(errors) < MAX_RECOVERY_ERRORS:
+                    errors.append({"cid": cid, "error": str(exc)})
         if errors:
-            raise ArtifactIntegrityError(f"coordination recovery found corrupt blocks: {errors}")
+            suffix = "" if corrupt_count == len(errors) else f" (showing first {len(errors)} of {corrupt_count})"
+            raise ArtifactIntegrityError(f"coordination recovery found corrupt blocks{suffix}: {errors}")
         if rebuild:
             with self._lock, self._connection:
                 self._connection.execute("DELETE FROM claims")
@@ -1057,7 +1116,9 @@ __all__ = [
     "DAEMON_HEALTH_SCHEMA",
     "DurableCoordinationStore",
     "IPFSHeliaBlockBackend",
+    "MAX_RECOVERY_ERRORS",
     "RetentionPolicy",
+    "ROOT_CAS_INTERRUPTION_POINTS",
     "STATE_ROOT_TRANSITION_SCHEMA",
     "cid_for_artifact",
     "cid_for_bytes",
