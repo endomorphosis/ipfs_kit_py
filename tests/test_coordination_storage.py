@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +17,38 @@ from ipfs_kit_py.mcp_server.mcplusplus.event_dag import EventDAGStore
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PROFILE_G_VECTORS = REPO_ROOT.parent.parent / "Mcp-Plus-Plus" / "conformance" / "vectors" / "profile_g_artifacts_valid.json"
+
+
+def _profile_g_vectors_path() -> Path:
+    """Resolve Profile G vectors without requiring a monorepo sibling checkout.
+
+    Hermetic seal materialization unpacks this repository alone, so
+    ``REPO_ROOT.parent.parent / "Mcp-Plus-Plus"`` is not available. Prefer an
+    explicit override, then the vendored fixture, then the monorepo sibling path.
+    """
+
+    override = os.environ.get("MCP_PLUS_PLUS_PROFILE_G_VECTORS", "").strip()
+    if override:
+        return Path(override)
+    vendored = (
+        REPO_ROOT
+        / "tests"
+        / "fixtures"
+        / "mcp_plus_plus"
+        / "profile_g_artifacts_valid.json"
+    )
+    if vendored.is_file():
+        return vendored
+    return (
+        REPO_ROOT.parent.parent
+        / "Mcp-Plus-Plus"
+        / "conformance"
+        / "vectors"
+        / "profile_g_artifacts_valid.json"
+    )
+
+
+PROFILE_G_VECTORS = _profile_g_vectors_path()
 
 
 class MemoryHelia:
