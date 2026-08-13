@@ -10,7 +10,7 @@ at the receipt-tested nested revision. This document is a companion to
 | Field | Value |
 | --- | --- |
 | `planning_revision` | `5a7a2df8181cfdc33bc19be09989df7ff83f2d4e` |
-| `inventory_worktree_parent_revision` | `5a7a2df8181cfdc33bc19be09989df7ff83f2d4e` |
+| `inventory_worktree_parent_revision` | `b2c8e625b184c41fa865d906e0037915e3fb9179` |
 
 `inventory_worktree_parent_revision` is immutable and equals the receipt-tested
 kit source revision. Final nested/outer/status commits come from supervisor
@@ -24,7 +24,7 @@ command lines, outcome tallies, logs, or execution claims.
 | Field | Value |
 | --- | --- |
 | path | `artifacts/agent_supervisor/incremental_proof_sealer/baseline_receipts/kit.json` |
-| receipt_digest | `sha256:574181d3de4965af18e2ad8380ea8c9021aed86dade53f34c158dc7089ffa56a` |
+| receipt_digest | `sha256:22d4f9663e3346fd2264efb38538cbedead642c3ba7fe403b5c7b9fc6545f982` |
 | required_command_ids | `kit-proof-certificate`, `kit-reuse-capabilities`, `kit-profile-d`, `kit-coordination`, `kit-modern-wal`, `kit-proof-reuse-bootstrap`, `kit-agent-receipts`, `kit-iroh-release`, `kit-release-receipt` |
 | evidence_origin | `operator_capture` |
 | assurance | `process_observed_only` |
