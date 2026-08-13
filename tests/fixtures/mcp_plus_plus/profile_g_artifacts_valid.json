@@ -1,0 +1,107 @@
+{
+  "model": "DAGEvent",
+  "payload": {"event_type":"envelope","event_cid":"bafkreify4h4axvyk4b4ey6cvurixgg3ul7o3m52j2i7wg67jbavxl2kxlm","parents":[],"timestamp":1783872000,"payload":{"profile":"mcp++/risk-scheduling","suite":"artifacts-valid"}},
+  "schema": "mcp++/profile-g/conformance-suite@1",
+  "profile": "mcp++/risk-scheduling@1.0",
+  "description": "Canonical codec vectors. Signature bytes are structurally validated at the codec stage; trust validation additionally resolves the signer DID.",
+  "cases": [
+    {
+      "id": "goal-valid",
+      "kind": "Goal",
+      "valid": true,
+      "payload": {"schema":"mcp++/profile-g/goal@1","created_at_ms":1783872000000,"parents":[],"correlation_id":"goal-001","owner_did":"did:web:planner.example","objective_cid":"bafkreiguks7mmvwte4ruaslbai7ntsz4g4rbnb6ebneyuv5t535jhrgf6q","policy_cid":"baguqeeraqi2bfupkzntzkyra4uzjlhybarqdav6iq4cimpfdrz6ndch5vaja","parent_goal_cids":[],"labels":["production","research"]},
+      "expected_cid": "baguqeeraeogqdsfrmtt4fcvt65uew4iznpb7hk2fxnyxon63qkauwul5azha"
+    },
+    {
+      "id": "subgoal-valid",
+      "kind": "Subgoal",
+      "valid": true,
+      "payload": {"schema":"mcp++/profile-g/subgoal@1","created_at_ms":1783872000100,"parents":["baguqeerarcdez4ae6sb7twykqtabmqpwobyvepa3v7z25dk7pbmzem4zvjwq"],"correlation_id":"goal-001","goal_cid":"baguqeeraamcfepx76u7siplw3sa3pqtr7ercsjkdz2wyi3xhctygnqztdzpq","parent_subgoal_cid":null,"objective_cid":"bafkreiguks7mmvwte4ruaslbai7ntsz4g4rbnb6ebneyuv5t535jhrgf6q","decomposition_method":"tot-v2","decomposer_cid":"baguqeerayp7mzcixuwlg4si3s7v5m6smiawwjvjce5fdloowiig5x27mruoa","selection_cid":null},
+      "expected_cid": "baguqeerau46t5w67ddpliiokwluqq4lcrrjv7wd5im3wu5ee474kmddolpnq"
+    },
+    {
+      "id": "plan-branch-valid",
+      "kind": "PlanBranch",
+      "valid": true,
+      "payload": {"schema":"mcp++/profile-g/plan-branch@1","created_at_ms":1783872000200,"parents":["baguqeerarcdez4ae6sb7twykqtabmqpwobyvepa3v7z25dk7pbmzem4zvjwq"],"correlation_id":"goal-001","subgoal_cid":"baguqeera4ier5ndxe3t3bsujiqh55vfhnzzkhjdcqwuwbomaxlkphls5kafq","candidate_input_cids":["bafkreigjnrwvx2gqrijopnonygzap6tleqyjotegqa6yrelhlz3p3gjmea"],"task_template_cids":["baguqeeraltpa6euy6qpx2helsb5dngjkpjitejncmfn5nyyhx4njcsnqnnaa"],"evaluator_cid":"baguqeerasnzmi4hovxk6zwody5gcwpfwgp4of4x226mskcqpodlffnvyexsa","score_millionths":810000,"explanation_cid":"bafkreihxr7fom7kkvgmbt72ysh6tyogrligyxf6uo7mlrecazjb2v3pnty"},
+      "expected_cid": "baguqeerayb4f24uliy4js63tv6qxg4w3ldjwagblsvfthnojtdji7mdczwyq"
+    },
+    {
+      "id": "plan-selection-valid",
+      "kind": "PlanSelection",
+      "valid": true,
+      "payload": {"schema":"mcp++/profile-g/plan-selection@1","created_at_ms":1783872000300,"parents":["baguqeerarcdez4ae6sb7twykqtabmqpwobyvepa3v7z25dk7pbmzem4zvjwq"],"correlation_id":"goal-001","subgoal_cid":"baguqeera4ier5ndxe3t3bsujiqh55vfhnzzkhjdcqwuwbomaxlkphls5kafq","plan_branch_cid":"baguqeera6oghmtekuafwk6huevfe3rwzwuhyr6usnytq5j4ftpi3ob6nqzra","selector_did":"did:web:planner.example","proof_cid":"bafkreigbzwrggyucrnusmzisauvzpszxfhr3auxevxshycq6gob557tty4","policy_decision_cid":"baguqeeraq2xdlvmknkr3k5bn7fhptvyweim7aedksenodfkmd4dajkxmqboq","reason_cid":"bafkreiepz7gpm5nr6c75hholweybkbjp5av4khaahqlfuqijixerhw5sxy"},
+      "expected_cid": "baguqeeratzffbffgpzndijxyw3juwfq2f7uembh47uxpr6lmeoxqpu3psimq"
+    },
+    {
+      "id": "task-valid",
+      "kind": "TaskSpec",
+      "valid": true,
+      "payload": {"schema":"mcp++/profile-g/task@1","created_at_ms":1783872000400,"parents":["baguqeerarcdez4ae6sb7twykqtabmqpwobyvepa3v7z25dk7pbmzem4zvjwq"],"correlation_id":"goal-001","subgoal_cid":"baguqeera4ier5ndxe3t3bsujiqh55vfhnzzkhjdcqwuwbomaxlkphls5kafq","plan_branch_cid":"baguqeera6oghmtekuafwk6huevfe3rwzwuhyr6usnytq5j4ftpi3ob6nqzra","selection_cid":"baguqeeramucfcnagjxknsblgl3hk6qkt72sptvu5flrcevnaw7hpi4a7jcda","interface_cid":"bafkreighs3jxy3kjd2hqy3u3qpxngtavydzxp6pq6pf3gilpxp3xnwtdeu","input_cid":"bafkreigjnrwvx2gqrijopnonygzap6tleqyjotegqa6yrelhlz3p3gjmea","tool":"repo.test","dependency_task_cids":["baguqeeraddx23hmyggltpg24jrrompxzv4mz4j65bgo7d2pvqhwssv3cyusa"],"idempotency_key":"task-repo-test-001","resource_class":"cpu-small","deadline_ms":1783875600000,"expected_value_millionths":700000,"max_attempts":3,"execution_mode":"idempotent"},
+      "expected_cid": "baguqeeramg5vdaynjr7hppi4igy34qopeht6k5xy5zbehfubok674m5vlbta"
+    },
+    {
+      "id": "risk-model-valid",
+      "kind": "RiskModel",
+      "valid": true,
+      "payload": {"schema":"mcp++/profile-g/risk-model@1","created_at_ms":1783872000000,"parents":[],"correlation_id":"model-001","name":"event-dag-risk","version":"1.0.0","factor_names":["authority_failures","policy_denials"],"weight_millionths":{"authority_failures":600000,"policy_denials":400000},"saturation_millionths":{"authority_failures":1000000,"policy_denials":1000000},"algorithm":"weighted-saturated-sum-v1","missing_evidence":"challenge","max_history_events":128,"risk_buckets":[250000,500000,750000,1000000]},
+      "expected_cid": "baguqeerawigld5llpyb6ihxfhnnfql3jjew3p4hkqriljxpzkbf73tbryjka"
+    },
+    {
+      "id": "risk-evidence-valid",
+      "kind": "RiskEvidence",
+      "valid": true,
+      "payload": {"schema":"mcp++/profile-g/risk-evidence@1","created_at_ms":1783872000500,"parents":["baguqeerarcdez4ae6sb7twykqtabmqpwobyvepa3v7z25dk7pbmzem4zvjwq"],"correlation_id":"goal-001","subject_cid":"baguqeerab25ufh5invebyjrq7lct3mojdt762xknihiqehaxsrcowz7h5yfq","evidence_type":"policy-denial","observed_cids":["baguqeeraq2xdlvmknkr3k5bn7fhptvyweim7aedksenodfkmd4dajkxmqboq"],"observer_did":"did:web:risk.example","observed_at_ms":1783872000000,"expires_at_ms":1783872300000,"classification":"trust-domain","redacted_cid":"bafkreiepz7gpm5nr6c75hholweybkbjp5av4khaahqlfuqijixerhw5sxy","signer_did":"did:web:risk.example","signature_alg":"EdDSA","signature":"q83v8mSxvVY5rFQ1VDQ01MQfGXqvFUbB_QR8vKX5jM8"},
+      "expected_cid": "baguqeera2syb4wbdy4j3hbz7li3bbrr5irt4bu334hd46d3olc2aqe64e37q"
+    },
+    {
+      "id": "risk-assessment-valid",
+      "kind": "RiskAssessment",
+      "valid": true,
+      "payload": {"schema":"mcp++/profile-g/risk-assessment@1","created_at_ms":1783872000600,"parents":["baguqeerarcdez4ae6sb7twykqtabmqpwobyvepa3v7z25dk7pbmzem4zvjwq"],"correlation_id":"goal-001","task_cid":"baguqeerab25ufh5invebyjrq7lct3mojdt762xknihiqehaxsrcowz7h5yfq","subject_did":"did:web:worker-a.example","model_cid":"baguqeerasnzmi4hovxk6zwody5gcwpfwgp4of4x226mskcqpodlffnvyexsa","evidence_cids":["baguqeera52bfb63w4cklgs2hd4j2opn34uorvykc5hpvtv6a2mpmedykbkha"],"factor_millionths":{"authority_failures":0,"policy_denials":250000},"score_millionths":100000,"confidence_millionths":900000,"action":"allow","assessed_at_ms":1783872000600,"expires_at_ms":1783872300000},
+      "expected_cid": "baguqeeraknzdy67o5goobkvpe2rblrrf3jltxnktlmlnuusfszjqx5jlzftq"
+    },
+    {
+      "id": "neighborhood-record-valid",
+      "kind": "NeighborhoodRecord",
+      "valid": true,
+      "payload": {"schema":"mcp++/profile-g/neighborhood-record@1","created_at_ms":1783872000000,"parents":[],"correlation_id":"capacity-001","peer_did":"did:web:worker-a.example","interface_cids":["bafkreighs3jxy3kjd2hqy3u3qpxngtavydzxp6pq6pf3gilpxp3xnwtdeu"],"resource_classes":["cpu-small"],"capacity_millionths":750000,"health_evidence_cid":"bafkreidcjbhcfjvfvxq3ujoldn6flrfyqyo6etfn3k3tzfajoqttiaeley","trust_domain_cid":"bafkreihxs3rpfcxfqeltptfyem7tjye7ro3v2jirue2vipi4un56agm2du","reachable_artifact_cids":["bafkreigjnrwvx2gqrijopnonygzap6tleqyjotegqa6yrelhlz3p3gjmea"],"valid_from_ms":1783872000000,"expires_at_ms":1783872300000,"signer_did":"did:web:worker-a.example","signature_alg":"EdDSA","signature":"GbYy0zD2UkF6xL35U3Nd6LBngtwCfF0AokQy5NnQq0I"},
+      "expected_cid": "baguqeeraukcaqe2syz5o56yl25ibxs5auqzk7psjpykcepytxbammzn6ytia"
+    },
+    {
+      "id": "schedule-proposal-valid",
+      "kind": "ScheduleProposal",
+      "valid": true,
+      "payload": {"schema":"mcp++/profile-g/schedule-proposal@1","created_at_ms":1783872000700,"parents":["baguqeerarcdez4ae6sb7twykqtabmqpwobyvepa3v7z25dk7pbmzem4zvjwq"],"correlation_id":"goal-001","task_cid":"baguqeerab25ufh5invebyjrq7lct3mojdt762xknihiqehaxsrcowz7h5yfq","risk_assessment_cid":"baguqeerarhai66qctco3qudgjbsap2asfdo23lqdumfsspsstdgqkc6zfw3q","selection_policy_cid":"baguqeeraqi2bfupkzntzkyra4uzjlhybarqdav6iq4cimpfdrz6ndch5vaja","policy_decision_cid":"baguqeeraq2xdlvmknkr3k5bn7fhptvyweim7aedksenodfkmd4dajkxmqboq","logical_epoch":1,"priority_tuple":[0,1,0,-12,-700000,-900000,0,"baguqeerab25ufh5invebyjrq7lct3mojdt762xknihiqehaxsrcowz7h5yfq"],"candidates":[{"peer_did":"did:web:worker-a.example","record_cid":"baguqeeraodhioh4khu73isn4hq5m4zkhz3yc37du77si3ejfgktsjp634w4q","capability_fit_millionths":900000,"expected_finish_ms":1783872060000,"risk_bucket":0}]},
+      "expected_cid": "baguqeera2jkxnfhojip4h5fuauqmjhg2t4pz3n23yxea4bpu37s7vssgykaq"
+    },
+    {
+      "id": "task-claim-valid",
+      "kind": "TaskClaim",
+      "valid": true,
+      "payload": {"schema":"mcp++/profile-g/task-claim@1","created_at_ms":1783872000800,"parents":["baguqeerarcdez4ae6sb7twykqtabmqpwobyvepa3v7z25dk7pbmzem4zvjwq"],"correlation_id":"goal-001","task_cid":"baguqeerab25ufh5invebyjrq7lct3mojdt762xknihiqehaxsrcowz7h5yfq","proposal_cid":"baguqeera5titpc6j3qjqachqbvmnwxjg6yg3kwjuusnzjgxx433krwrkfpvq","claimant_did":"did:web:worker-a.example","record_cid":"baguqeeraodhioh4khu73isn4hq5m4zkhz3yc37du77si3ejfgktsjp634w4q","logical_epoch":1,"requested_lease_ms":60000,"risk_bucket":0,"capability_fit_millionths":900000,"expected_finish_ms":1783872060000,"proof_cid":"bafkreigbzwrggyucrnusmzisauvzpszxfhr3auxevxshycq6gob557tty4","policy_decision_cid":"baguqeeraq2xdlvmknkr3k5bn7fhptvyweim7aedksenodfkmd4dajkxmqboq","attempt":1},
+      "expected_cid": "baguqeerakks7bnxojgffzvzkytumof6wj45v4f4pla66djy34k2wiwh4i35a"
+    },
+    {
+      "id": "neighborhood-attestation-valid",
+      "kind": "NeighborhoodAttestation",
+      "valid": true,
+      "payload": {"schema":"mcp++/profile-g/neighborhood-attestation@1","created_at_ms":1783872000900,"parents":["baguqeerarcdez4ae6sb7twykqtabmqpwobyvepa3v7z25dk7pbmzem4zvjwq"],"correlation_id":"goal-001","proposal_cid":"baguqeera5titpc6j3qjqachqbvmnwxjg6yg3kwjuusnzjgxx433krwrkfpvq","attester_did":"did:web:resolver.example","record_cid":"baguqeeraodhioh4khu73isn4hq5m4zkhz3yc37du77si3ejfgktsjp634w4q","verdict":"support","reason_code":"eligible-and-fresh","evidence_cid":null,"observed_epoch":1,"expires_at_ms":1783872060000,"signer_did":"did:web:resolver.example","signature_alg":"EdDSA","signature":"YfzZz3E9g3gX8kYzKm0C1iC8wuv2GWLx6aZiPiW4hEU"},
+      "expected_cid": "baguqeerapqnxtf2dsunkxzep5cs236pkyd6xhpgrkykra5nni6h4ixi2zftq"
+    },
+    {
+      "id": "claim-resolution-valid",
+      "kind": "ClaimResolution",
+      "valid": true,
+      "payload": {"schema":"mcp++/profile-g/claim-resolution@1","created_at_ms":1783872001000,"parents":["baguqeerarcdez4ae6sb7twykqtabmqpwobyvepa3v7z25dk7pbmzem4zvjwq"],"correlation_id":"goal-001","task_cid":"baguqeerab25ufh5invebyjrq7lct3mojdt762xknihiqehaxsrcowz7h5yfq","logical_epoch":1,"considered_claim_cids":["baguqeeraxdwm25h6grgd5elfisj62hggt2nwg7hy3uhnfuuij4rxlpivytza"],"accepted_claim_cid":"baguqeeraxdwm25h6grgd5elfisj62hggt2nwg7hy3uhnfuuij4rxlpivytza","outcome":"accepted","fencing_token":1,"lease_expires_at_ms":1783872061000,"attestation_cids":["baguqeeraqe5itiuws47dkvc47j2p4px5c4vh2gkehsl4mjowthuxg4rjwcra"],"quorum_policy_cid":"baguqeeral4e25gvyz7tmtk4ammolgwolvvjyswsrrufs3fhjljo2bipyy5rq","policy_decision_cid":"baguqeeraq2xdlvmknkr3k5bn7fhptvyweim7aedksenodfkmd4dajkxmqboq","coordination_receipt_cid":null,"retry_not_before_ms":0,"resolver_did":"did:web:resolver.example"},
+      "expected_cid": "baguqeera7nzz5ku74zuktkrcikmyi3klgbwfvyyxknal7w4uetfqxd5skjjq"
+    },
+    {
+      "id": "task-receipt-valid",
+      "kind": "TaskReceipt",
+      "valid": true,
+      "payload": {"schema":"mcp++/profile-g/task-receipt@1","created_at_ms":1783872050000,"parents":["baguqeerarcdez4ae6sb7twykqtabmqpwobyvepa3v7z25dk7pbmzem4zvjwq"],"correlation_id":"goal-001","task_cid":"baguqeerab25ufh5invebyjrq7lct3mojdt762xknihiqehaxsrcowz7h5yfq","claim_cid":"baguqeeraxdwm25h6grgd5elfisj62hggt2nwg7hy3uhnfuuij4rxlpivytza","resolution_cid":"baguqeera6755lbj5cgka4bc2xr6e264ogjjzi66n4inyzwcvlvy4n4bp3eja","fencing_token":1,"profile_b_receipt_cid":"bafkreidpgkdasegkb6zkedd73ikdmzvqtw7y3njdqgk4scsyn62uf7ymvu","output_cid":"bafkreiha52f3kbuf4bp2b5d62bbahluvh7p5avpvxuujf2qymucckt4mhi","status":"succeeded","failure_class":"none","attempt":1,"started_at_ms":1783872001100,"finished_at_ms":1783872050000,"resource_use_cid":"bafkreic55fjrt4lum7ww3rmojyfrnqizhij3gxla3relz4dl62335256nq","provider":"ipfs_accelerate_py","provider_version":"3.2.0","next_state":"complete"},
+      "expected_cid": "baguqeeraj4cdnh75jbm5nlahu7azcyrncta76qnwxtqgq3cgtoenwx5gf4va"
+    }
+  ]
+}
