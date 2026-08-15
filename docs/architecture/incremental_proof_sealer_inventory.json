@@ -1,0 +1,395 @@
+{
+  "schema_version": "ips/kit-inventory@2",
+  "task_id": "IPS-003",
+  "repository": "kit",
+  "evidence_subset": "ips/kit-inventory@2",
+  "planning_revision": "5a7a2df8181cfdc33bc19be09989df7ff83f2d4e",
+  "inventory_worktree_parent_revision": "b2c8e625b184c41fa865d906e0037915e3fb9179",
+  "baseline_evidence": {
+    "path": "artifacts/agent_supervisor/incremental_proof_sealer/baseline_receipts/kit.json",
+    "receipt_digest": "sha256:22d4f9663e3346fd2264efb38538cbedead642c3ba7fe403b5c7b9fc6545f982",
+    "required_command_ids": [
+      "kit-proof-certificate",
+      "kit-reuse-capabilities",
+      "kit-profile-d",
+      "kit-coordination",
+      "kit-modern-wal",
+      "kit-proof-reuse-bootstrap",
+      "kit-agent-receipts",
+      "kit-iroh-release",
+      "kit-release-receipt"
+    ],
+    "evidence_origin": "operator_capture",
+    "assurance": "process_observed_only",
+    "nonclaim": "pytest_execution_not_cryptographically_proven"
+  },
+  "inspection": {
+    "classification_method": "static source inventory",
+    "scope": "ipfs_kit_py repository-relative paths at inventory_worktree_parent_revision",
+    "assurance": "static_surfaces_only",
+    "nonclaim": "static_inspection_is_not_pytest_execution_and_is_not_cryptographic_proof"
+  },
+  "ownership_candidates": {
+    "kit_storage_authority": [
+      "immutable proof objects, receipts, admitted verification keys, manifests, Merkle nodes, checkpoint/delta seals, tombstones, and invalidation records",
+      "exact-key candidate cache indexes that never decide acceptance",
+      "proof-forest persistence and affected-branch updates",
+      "repository/branch-namespaced current-seal compare-and-swap",
+      "durable seal-transition WAL, deterministic replay, corruption detection, recovery, retention references, and concurrent-writer rejection",
+      "mandatory hermetic local store and optional injected IPFS transport"
+    ],
+    "proposed_package": "ipfs_kit_py.proof_seal_store",
+    "proposed_package_status": "planned_absent_not_present_as_current_structure"
+  },
+  "explicit_nonclaims": [
+    "proof_certificate_store is exact-byte CID transport only; it does not verify cryptography or decide reuse.",
+    "Event-DAG default certificate is a hash commitment explicitly described as non-ZK.",
+    "No inspected kit test performs real proving or directly proves test execution.",
+    "Legacy WAL modules, merkle_clock, Event-DAG Merkle helpers, and ipfs_multiformats testing pseudo-CIDs are not proof-seal authorities.",
+    "MCP++ artifact receipts may include empty signatures arrays; unsigned receipts remain unsigned.",
+    "install_lotus download_params is opt-in Filecoin proving-parameter download and is not automatic proof setup.",
+    "Planned-but-absent proof_seal_store is not counted as current structure.",
+    "Controlled-offline baseline capture disables auto-install and live daemons; operator receipt reference does not establish new real proving.",
+    "Kit never decides whether a cached proof may be admitted; datasets owns semantic acceptance and accelerate owns proving orchestration."
+  ],
+  "classifications": [
+    {
+      "surface": "ipfs_kit_py/proof_certificate_store.py",
+      "family": "strict_cid_transport",
+      "role": "proof_certificate_store",
+      "classification": "integrity_transport",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "proof_certificate_store.py moves immutable certificate bytes by strict CIDv1 sha2-256 multihash checks. Local storage and IPFS are opt-in; never starts a daemon; never uses legacy testing pseudo-CIDs. Transport is not cryptographic verification and not reuse admission."
+    },
+    {
+      "surface": "ipfs_kit_py/test_reuse_capabilities.py",
+      "family": "capability_probe",
+      "role": "reuse_capability_report",
+      "classification": "structural_capability_probe",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Cold discovery of named Kubo/Lotus/Iroh executables only. Never executes binaries, starts daemons, or inspects ~/.ipfs."
+    },
+    {
+      "surface": "ipfs_kit_py/mcp/profile_d_policy.py",
+      "family": "profile_d",
+      "role": "policy_adapter",
+      "classification": "structural_policy_adapter",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "profile_d_policy.py is the single MCP Profile D provider. Delegates evaluation to ipfs_datasets_py and refuses policy-governed execution when unavailable. Not a second deontic evaluator; unavailable evaluator raises rather than inventing allow."
+    },
+    {
+      "surface": "ipfs_kit_py/mcp_server/mcplusplus/artifacts.py",
+      "family": "mcpplusplus",
+      "role": "artifact_cid_receipts",
+      "classification": "integrity_cid_envelope",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "mcplusplus/artifacts.py builds Kubo-conformant CIDv1 raw/sha2-256 intent/decision/output/receipt/event envelopes. Decision and receipt builders leave signatures as empty lists; unsigned receipts remain unsigned."
+    },
+    {
+      "surface": "ipfs_kit_py/mcp_server/mcplusplus/coordination_storage.py",
+      "family": "mcpplusplus",
+      "role": "coordination_cas_store",
+      "classification": "integrity_durable_block_store",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Immutable CID block store with rebuildable SQLite indexes for Profile G claims/leases/health. Local durable write is first; optional backend repairs local copy. CID mismatch raises ArtifactIntegrityError. Not a proof-seal acceptance authority."
+    },
+    {
+      "surface": "ipfs_kit_py/mcp_server/mcplusplus/event_dag.py",
+      "family": "event_dag",
+      "role": "profile_f_retention_and_merkle",
+      "classification": "integrity_only_non_zk",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "event_dag.py Profile F hot/cold retention with Merkle helpers (build_merkle_tree, merkle_proof, verify_merkle_proof). Default certificate is hash commitment, not ZK. Optional MCPPP_PROFILE_F_ZK path delegates to datasets provider and remains unavailable without real artifacts."
+    },
+    {
+      "surface": "ipfs_kit_py/iroh/release.py",
+      "family": "iroh",
+      "role": "release_readiness",
+      "classification": "structural_release_evidence",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "iroh/release.py validates packaged stage-aware readiness and IROH-027 receipts (test/benchmark/security). Stage-aware approval is not cryptographic proof of execution."
+    },
+    {
+      "surface": "ipfs_kit_py/install_lotus.py",
+      "family": "filecoin_setup",
+      "role": "lotus_installer_and_params",
+      "classification": "opt_in_download_surface",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "install_lotus.py installs Lotus binaries and can download Filecoin proving parameters via download_params when operators opt in. auto_install_deps defaults off; IPFS_KIT_AUTO_INSTALL_LOTUS_DEPS is required for dependency auto-install. Not automatic proof setup and not a proving backend."
+    },
+    {
+      "surface": "ipfs_kit_py/core/wal/contracts.py",
+      "family": "modern_wal",
+      "role": "wal_contracts",
+      "classification": "integrity_durability_contract",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Closed WALRecord/WALTransaction/WALSegment/WALCheckpoint contracts with content identities, durability states, and secret/body rejection at construction. Foundation for durable seal transitions; not a cryptographic proof verifier."
+    },
+    {
+      "surface": "ipfs_kit_py/core/wal/writer.py",
+      "family": "modern_wal",
+      "role": "group_commit_writer",
+      "classification": "integrity_durability",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Bounded group-commit writer separating admission from durability acknowledgements."
+    },
+    {
+      "surface": "ipfs_kit_py/core/wal/coordinator.py",
+      "family": "modern_wal",
+      "role": "transaction_coordinator",
+      "classification": "integrity_durability",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Intent is durable before the effect runs; commit is durable before the caller is acknowledged; uncommitted effects are compensated during recovery."
+    },
+    {
+      "surface": "ipfs_kit_py/core/wal/checkpoint.py",
+      "family": "modern_wal",
+      "role": "checkpoint_compaction",
+      "classification": "integrity_durability",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Checkpoints name exact sealed segment identities so compaction cannot hide mismatched bytes."
+    },
+    {
+      "surface": "ipfs_kit_py/core/wal/recovery.py",
+      "family": "modern_wal",
+      "role": "recovery_replay",
+      "classification": "integrity_corruption_recovery",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Replays only fully committed transactions; maintains durable effect ledger; raises on irreconcilable corruption. Direct-execution proving status: absent."
+    },
+    {
+      "surface": "ipfs_kit_py/core/wal/segments.py",
+      "family": "modern_wal",
+      "role": "segment_files",
+      "classification": "integrity_durability",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Segment file durability primitives used by writer and recovery."
+    },
+    {
+      "surface": "ipfs_kit_py/core/wal/compatibility.py",
+      "family": "modern_wal",
+      "role": "compatibility_bridge",
+      "classification": "structural",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Bridge surface for migrating observations onto modern contracts."
+    },
+    {
+      "surface": "ipfs_kit_py/core/vfs/storage.py",
+      "family": "cas_storage",
+      "role": "ranged_vfs_storage_boundary",
+      "classification": "integrity_storage_boundary",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Ranged VFS storage boundary with staged writes and backend capabilities. Candidate substrate for hermetic local CAS; not proof-seal current-root CAS authority."
+    },
+    {
+      "surface": "ipfs_kit_py/wal.py",
+      "family": "legacy_wal",
+      "role": "legacy_operation_wal",
+      "classification": "legacy_not_proof_seal_authority",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Legacy multi-backend operation WAL. Not the modern core.wal contract and not a proof-seal authority."
+    },
+    {
+      "surface": "ipfs_kit_py/storage_wal.py",
+      "family": "legacy_wal",
+      "role": "legacy_storage_wal",
+      "classification": "legacy_not_proof_seal_authority",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Legacy storage WAL with optional Arrow dependencies. Not proof-seal authority."
+    },
+    {
+      "surface": "ipfs_kit_py/enhanced_wal_durability.py",
+      "family": "legacy_wal",
+      "role": "legacy_enhanced_wal",
+      "classification": "legacy_not_proof_seal_authority",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Legacy DurableWAL with fsync/checkpoint helpers. Superseded for new seals by core.wal."
+    },
+    {
+      "surface": "ipfs_kit_py/merkle_clock.py",
+      "family": "non_authority_merkle",
+      "role": "p2p_merkle_clock",
+      "classification": "structural_not_proof_seal_authority",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Append-only hashed events for P2P workflow coordination. Orthogonal to proof-forest Merkle and not a seal authority."
+    },
+    {
+      "surface": "ipfs_kit_py/ipfs_multiformats.py",
+      "family": "pseudo_cid",
+      "role": "multiformats_and_testing_cids",
+      "classification": "pseudo_cid_not_authority",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Multiformats helpers including testing_mode deterministic and QmTest pseudo-CID paths. Explicitly rejected by proof_certificate_store as non-authority."
+    },
+    {
+      "surface": "ipfs_kit_py/proof_seal_store",
+      "family": "planned_absent",
+      "role": "proposed_seal_store",
+      "classification": "planned_absent",
+      "classification_method": "static source inventory",
+      "surfaces_found": 0,
+      "notes": "Proposed package ipfs_kit_py.proof_seal_store is planned-but-absent. Not counted as current structure, current proof path, or recursive verifier."
+    },
+    {
+      "surface": "tests/test_proof_certificate_store.py",
+      "family": "focused_tests",
+      "role": "kit-proof-certificate",
+      "classification": "integrity_only",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Focused suite for strict CID transport. Classification integrity-only; not real proving."
+    },
+    {
+      "surface": "tests/test_reuse_capabilities.py",
+      "family": "focused_tests",
+      "role": "kit-reuse-capabilities",
+      "classification": "structural",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Focused suite for cold capability discovery. Structural; not real proving."
+    },
+    {
+      "surface": "tests/test_profile_d_policy.py",
+      "family": "focused_tests",
+      "role": "kit-profile-d",
+      "classification": "structural",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Focused suite for Profile D adapter unavailable-evaluator refusal behavior."
+    },
+    {
+      "surface": "tests/test_coordination_storage.py",
+      "family": "focused_tests",
+      "role": "kit-coordination",
+      "classification": "integrity_only",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Focused suite for coordination block store, fencing, retention, and corruption integrity paths."
+    },
+    {
+      "surface": "tests/runtime_readiness/wal/",
+      "family": "focused_tests",
+      "role": "kit-modern-wal",
+      "classification": "integrity_corruption_recovery",
+      "classification_method": "static source inventory",
+      "surfaces_found": 4,
+      "notes": "test_wal_contracts.py, test_wal_recovery.py, test_wal_writer.py, test_joined_crash_matrix.py cover modern WAL contracts, writer, recovery, and crash matrix."
+    },
+    {
+      "surface": "tests/test_proof_reuse_bootstrap.py",
+      "family": "focused_tests",
+      "role": "kit-proof-reuse-bootstrap",
+      "classification": "structural_optional_plugin",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Bootstrap suite depends on optional accelerate pytest plugin discovery; static surface only, not direct-execution proof."
+    },
+    {
+      "surface": "tests/test_agent_supervisor_receipts.py",
+      "family": "focused_tests",
+      "role": "kit-agent-receipts",
+      "classification": "structural",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Agent supervisor receipt surface in kit tests. Collection depends on available package wiring."
+    },
+    {
+      "surface": "tests/test_iroh_release_readiness.py",
+      "family": "focused_tests",
+      "role": "kit-iroh-release",
+      "classification": "structural_release_evidence",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "Iroh/KITA release readiness suite for packaged receipts."
+    },
+    {
+      "surface": "tests/runtime_readiness/release/test_joined_release_receipt.py",
+      "family": "focused_tests",
+      "role": "kit-release-receipt",
+      "classification": "structural_release_evidence",
+      "classification_method": "static source inventory",
+      "surfaces_found": 1,
+      "notes": "test_joined_release_receipt.py independently checks joined KITA release receipt binding. Structural evidence check, not real proving."
+    }
+  ],
+  "cid_paths": {
+    "strict": [
+      "ipfs_kit_py/proof_certificate_store.py",
+      "ipfs_kit_py/mcp_server/mcplusplus/artifacts.py",
+      "ipfs_kit_py/mcp_server/mcplusplus/coordination_storage.py"
+    ],
+    "pseudo_or_testing": [
+      "ipfs_kit_py/ipfs_multiformats.py"
+    ]
+  },
+  "merkle_helpers": {
+    "integrity_only_non_zk": [
+      "ipfs_kit_py/mcp_server/mcplusplus/event_dag.py"
+    ],
+    "not_proof_seal_authority": [
+      "ipfs_kit_py/merkle_clock.py"
+    ]
+  },
+  "wal_surfaces": {
+    "modern_authority_candidates": [
+      "ipfs_kit_py/core/wal/contracts.py",
+      "ipfs_kit_py/core/wal/writer.py",
+      "ipfs_kit_py/core/wal/coordinator.py",
+      "ipfs_kit_py/core/wal/checkpoint.py",
+      "ipfs_kit_py/core/wal/recovery.py",
+      "ipfs_kit_py/core/wal/segments.py"
+    ],
+    "legacy_not_authority": [
+      "ipfs_kit_py/wal.py",
+      "ipfs_kit_py/storage_wal.py",
+      "ipfs_kit_py/enhanced_wal_durability.py",
+      "ipfs_kit_py/pin_wal.py",
+      "ipfs_kit_py/car_wal_manager.py"
+    ]
+  },
+  "cas_candidates": {
+    "current_candidates": [
+      "ipfs_kit_py/mcp_server/mcplusplus/coordination_storage.py",
+      "ipfs_kit_py/core/vfs/storage.py",
+      "ipfs_kit_py/proof_certificate_store.py"
+    ],
+    "planned_absent_current_root_cas": "ipfs_kit_py.proof_seal_store"
+  },
+  "corruption_recovery": {
+    "modern_wal": "ipfs_kit_py/core/wal/recovery.py",
+    "coordination_storage": "ipfs_kit_py/mcp_server/mcplusplus/coordination_storage.py",
+    "certificate_transport": "ipfs_kit_py/proof_certificate_store.py"
+  },
+  "recursion_and_direct_execution": {
+    "recursive_verifier": "absent",
+    "direct_execution_proving": "absent",
+    "real_proving_tests": "absent",
+    "signature_verified_execution_receipts": "absent"
+  },
+  "key_download_status": {
+    "install_lotus.download_params": "opt_in_filecoin_proving_parameters",
+    "automatic_on_import": false,
+    "auto_install_deps_default": false
+  }
+}
