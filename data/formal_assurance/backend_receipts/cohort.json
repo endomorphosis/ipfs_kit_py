@@ -1,0 +1,1001 @@
+{
+  "schema": "BackendCertificationCohort@1",
+  "schema_version": "ipfs_kit_py.assurance.backend_cohort@1",
+  "task_id": "FACP-054",
+  "goal_id": "FACP-G520",
+  "evidence_bundle": "facp/backend-cohort@1",
+  "suite_evidence_bundle": "facp/backend-suite@1",
+  "receipt_schema": "BackendCertificationReceipt@1",
+  "support_row_schema": "BackendSupportRow@1",
+  "cohort": [
+    "local_filesystem",
+    "pinned_ipfs",
+    "iroh"
+  ],
+  "required_operations": [
+    "write",
+    "read_back",
+    "digest",
+    "delete",
+    "replay",
+    "timeout",
+    "concurrency",
+    "restart",
+    "corruption",
+    "large_object",
+    "credential",
+    "interface_parity"
+  ],
+  "executed_at": "2026-08-19T18:00:00Z",
+  "live_runners": {
+    "local_filesystem": {
+      "present": true,
+      "kind": "local_durable_directory",
+      "authorized": true,
+      "reason": "local filesystem always available for bounded durable suite"
+    },
+    "pinned_ipfs": {
+      "present": false,
+      "kind": "daemon_binary",
+      "binary": "ipfs",
+      "path": null,
+      "authorized": false,
+      "reason": "ipfs binary not found on PATH; live suite not authorized"
+    },
+    "iroh": {
+      "present": false,
+      "kind": "daemon_binary",
+      "binary": "iroh",
+      "path": null,
+      "authorized": false,
+      "reason": "iroh binary not found on PATH; live suite not authorized"
+    }
+  },
+  "observations": {
+    "local_filesystem": [
+      {
+        "operation": "write",
+        "status": "passed",
+        "environment": "live",
+        "source": "live_observed",
+        "signature_valid": true,
+        "freshness": "current",
+        "digests": {
+          "bytes": "sha256:81e36a906960ffc3e9763e8a67feb88e32303dfa6d779204201a3742e8ed8373",
+          "path": "object.bin"
+        },
+        "limitations": [],
+        "detail": null
+      },
+      {
+        "operation": "read_back",
+        "status": "passed",
+        "environment": "live",
+        "source": "live_observed",
+        "signature_valid": true,
+        "freshness": "current",
+        "digests": {
+          "bytes": "sha256:81e36a906960ffc3e9763e8a67feb88e32303dfa6d779204201a3742e8ed8373"
+        },
+        "limitations": [],
+        "detail": null
+      },
+      {
+        "operation": "digest",
+        "status": "passed",
+        "environment": "live",
+        "source": "live_observed",
+        "signature_valid": true,
+        "freshness": "current",
+        "digests": {
+          "content": "sha256:81e36a906960ffc3e9763e8a67feb88e32303dfa6d779204201a3742e8ed8373"
+        },
+        "limitations": [],
+        "detail": null
+      },
+      {
+        "operation": "delete",
+        "status": "passed",
+        "environment": "live",
+        "source": "live_observed",
+        "signature_valid": true,
+        "freshness": "current",
+        "digests": {
+          "absent": "true"
+        },
+        "limitations": [],
+        "detail": null
+      },
+      {
+        "operation": "replay",
+        "status": "passed",
+        "environment": "live",
+        "source": "live_observed",
+        "signature_valid": true,
+        "freshness": "current",
+        "digests": {
+          "first": "sha256:94ea14c5ecc1b7630331ba4e76e292a3275e44fadb419d3431b62d606ca30bd2",
+          "second": "sha256:94ea14c5ecc1b7630331ba4e76e292a3275e44fadb419d3431b62d606ca30bd2"
+        },
+        "limitations": [],
+        "detail": null
+      },
+      {
+        "operation": "timeout",
+        "status": "passed",
+        "environment": "live",
+        "source": "live_observed",
+        "signature_valid": true,
+        "freshness": "current",
+        "digests": {
+          "deadline_seconds": "0.25",
+          "elapsed": "0.010060"
+        },
+        "limitations": [],
+        "detail": null
+      },
+      {
+        "operation": "concurrency",
+        "status": "passed",
+        "environment": "live",
+        "source": "live_observed",
+        "signature_valid": true,
+        "freshness": "current",
+        "digests": {
+          "workers": "4",
+          "combined": "sha256:e8aca795d158a0bc98a33ec581ac55d09453ebfb167099beed6e32412cef03e1"
+        },
+        "limitations": [],
+        "detail": null
+      },
+      {
+        "operation": "restart",
+        "status": "passed",
+        "environment": "live",
+        "source": "live_observed",
+        "signature_valid": true,
+        "freshness": "current",
+        "digests": {
+          "bytes": "sha256:ac1be99f4f7e189d360be8c2a127d96de28d872eb5874a5bf52bc088a29a6f57"
+        },
+        "limitations": [],
+        "detail": null
+      },
+      {
+        "operation": "corruption",
+        "status": "passed",
+        "environment": "live",
+        "source": "live_observed",
+        "signature_valid": true,
+        "freshness": "current",
+        "digests": {
+          "expected": "sha256:a3af8b7bb3f6edcdaadd83bc4e39ec2b8ad635d1631fa98ba484dc0f3427cace",
+          "tampered": "sha256:87f4c2dbaede441d6af166154e3b58b239b89302d4a7a3a4b3ef421cedfc6231",
+          "detected": "true"
+        },
+        "limitations": [],
+        "detail": null
+      },
+      {
+        "operation": "large_object",
+        "status": "passed",
+        "environment": "live",
+        "source": "live_observed",
+        "signature_valid": true,
+        "freshness": "current",
+        "digests": {
+          "size": "32772",
+          "bytes": "sha256:bdc31fdd2c5d1285864f45a11c664a15181a3573790dff9c4eff1f5b4bf29f64"
+        },
+        "limitations": [],
+        "detail": null
+      },
+      {
+        "operation": "credential",
+        "status": "passed",
+        "environment": "live",
+        "source": "live_observed",
+        "signature_valid": true,
+        "freshness": "current",
+        "digests": {
+          "policy": "none-required",
+          "raw_secret_rejected": "true"
+        },
+        "limitations": [
+          "no_credentials_required"
+        ],
+        "detail": null
+      },
+      {
+        "operation": "interface_parity",
+        "status": "passed",
+        "environment": "live",
+        "source": "live_observed",
+        "signature_valid": true,
+        "freshness": "current",
+        "digests": {
+          "python_path": "sha256:0b82764415663830048f675c07518edfb1f45b3a21e90187cccf4989184bfa36",
+          "python_open": "sha256:0b82764415663830048f675c07518edfb1f45b3a21e90187cccf4989184bfa36"
+        },
+        "limitations": [
+          "cli_mcp_mcpp_not_exercised_in_this_cohort_run"
+        ],
+        "detail": "python Path/open parity verified; other surfaces remain suite-bound"
+      }
+    ],
+    "pinned_ipfs": [],
+    "iroh": []
+  },
+  "receipts": {
+    "local_filesystem": {
+      "schema": "BackendCertificationReceipt@1",
+      "receipt_id": "facp-053-local_filesystem-livequalified-aff8f555f8c2",
+      "backend_id": "local_filesystem",
+      "provider_type": "local_filesystem",
+      "display_name": "Local durable filesystem",
+      "disposition": "LiveQualified",
+      "live_qualified": true,
+      "suite_complete": true,
+      "operations_required": [
+        "write",
+        "read_back",
+        "digest",
+        "delete",
+        "replay",
+        "timeout",
+        "concurrency",
+        "restart",
+        "corruption",
+        "large_object",
+        "credential",
+        "interface_parity"
+      ],
+      "operations_observed": [
+        "write",
+        "read_back",
+        "digest",
+        "delete",
+        "replay",
+        "timeout",
+        "concurrency",
+        "restart",
+        "corruption",
+        "large_object",
+        "credential",
+        "interface_parity"
+      ],
+      "operations_failed": [],
+      "environment": "live",
+      "source": "live_runner",
+      "signature_valid": true,
+      "freshness": "current",
+      "issued_at": "2026-08-19T18:00:00Z",
+      "suite_digest": "sha256:012a0465c4e603d3337cb32062e1397f4cac80f593d0eddda0daaff8f555f8c2",
+      "contract_digest": "sha256:58f62597c1739f2f6f86e504db429dc06882f46ca5b0818d79aa5550437e9812",
+      "reason_codes": [
+        "complete_observed_suite",
+        "live_runner_present",
+        "signature_valid",
+        "freshness_current",
+        "environment_live",
+        "source_live_observed"
+      ],
+      "hidden_fallback": false,
+      "storage_selectable": true,
+      "credentials_stored": false,
+      "live_runner_present": true,
+      "message": "complete current live observed suite",
+      "task_id": "FACP-053",
+      "goal_id": "FACP-G520",
+      "evidence_bundle": "facp/backend-suite@1",
+      "unsafe_promotion": false,
+      "cohort_task_id": "FACP-054",
+      "suite_generator_task_id": "FACP-053"
+    },
+    "pinned_ipfs": {
+      "schema": "BackendCertificationReceipt@1",
+      "receipt_id": "facp-053-pinned_ipfs-unavailable-10097aebbbc6",
+      "backend_id": "pinned_ipfs",
+      "provider_type": "pinned_ipfs",
+      "display_name": "Pinned IPFS daemon configuration",
+      "disposition": "Unavailable",
+      "live_qualified": false,
+      "suite_complete": false,
+      "operations_required": [
+        "write",
+        "read_back",
+        "digest",
+        "delete",
+        "replay",
+        "timeout",
+        "concurrency",
+        "restart",
+        "corruption",
+        "large_object",
+        "credential",
+        "interface_parity"
+      ],
+      "operations_observed": [],
+      "operations_failed": [],
+      "environment": "conditional",
+      "source": "generator_absent_runner",
+      "signature_valid": false,
+      "freshness": "missing",
+      "issued_at": "2026-08-19T18:00:00Z",
+      "suite_digest": "sha256:8bb0bb8a53c2da0af19f7bac7803bb2ad13c054cef8459d3099b10097aebbbc6",
+      "contract_digest": "sha256:1736cbc1bbedfcf27ee4b3104fe6219bb3d1df6521412677b36535dcec4a599d",
+      "reason_codes": [
+        "live_runner_absent",
+        "daemon_required",
+        "live_evidence_unavailable",
+        "live_qualified_requires_complete_observed_suite",
+        "hermetic_generation_only",
+        "configuration_is_not_live_qualification"
+      ],
+      "hidden_fallback": false,
+      "storage_selectable": false,
+      "credentials_stored": false,
+      "live_runner_present": false,
+      "message": "live runner absent; Conditional/Unavailable evidence only",
+      "task_id": "FACP-053",
+      "goal_id": "FACP-G520",
+      "evidence_bundle": "facp/backend-suite@1",
+      "unsafe_promotion": false,
+      "cohort_task_id": "FACP-054",
+      "suite_generator_task_id": "FACP-053"
+    },
+    "iroh": {
+      "schema": "BackendCertificationReceipt@1",
+      "receipt_id": "facp-053-iroh-unavailable-a8e5b4eb4259",
+      "backend_id": "iroh",
+      "provider_type": "iroh",
+      "display_name": "Iroh",
+      "disposition": "Unavailable",
+      "live_qualified": false,
+      "suite_complete": false,
+      "operations_required": [
+        "write",
+        "read_back",
+        "digest",
+        "delete",
+        "replay",
+        "timeout",
+        "concurrency",
+        "restart",
+        "corruption",
+        "large_object",
+        "credential",
+        "interface_parity"
+      ],
+      "operations_observed": [],
+      "operations_failed": [],
+      "environment": "conditional",
+      "source": "generator_absent_runner",
+      "signature_valid": false,
+      "freshness": "missing",
+      "issued_at": "2026-08-19T18:00:00Z",
+      "suite_digest": "sha256:f57ed72e25fa2f2533cc9753b2ef1fa823f7f04dda3cdd89bbfaa8e5b4eb4259",
+      "contract_digest": "sha256:4790b875be15c7641c4fc33a94f3b85d1ac33c7f87043e577656b66d8e9654f8",
+      "reason_codes": [
+        "live_runner_absent",
+        "daemon_required",
+        "live_evidence_unavailable",
+        "live_qualified_requires_complete_observed_suite",
+        "hermetic_generation_only",
+        "configuration_is_not_live_qualification"
+      ],
+      "hidden_fallback": false,
+      "storage_selectable": false,
+      "credentials_stored": false,
+      "live_runner_present": false,
+      "message": "live runner absent; Conditional/Unavailable evidence only",
+      "task_id": "FACP-053",
+      "goal_id": "FACP-G520",
+      "evidence_bundle": "facp/backend-suite@1",
+      "unsafe_promotion": false,
+      "cohort_task_id": "FACP-054",
+      "suite_generator_task_id": "FACP-053"
+    }
+  },
+  "results": {
+    "local_filesystem": {
+      "backend_id": "local_filesystem",
+      "disposition": "LiveQualified",
+      "closed_outcome": "Verified",
+      "live_qualified": true,
+      "suite_complete": true,
+      "live_runner_present": true,
+      "reason_codes": [
+        "complete_observed_suite",
+        "live_runner_present",
+        "signature_valid",
+        "freshness_current",
+        "environment_live",
+        "source_live_observed"
+      ],
+      "operations_required": [
+        "write",
+        "read_back",
+        "digest",
+        "delete",
+        "replay",
+        "timeout",
+        "concurrency",
+        "restart",
+        "corruption",
+        "large_object",
+        "credential",
+        "interface_parity"
+      ],
+      "operations_observed": [
+        "write",
+        "read_back",
+        "digest",
+        "delete",
+        "replay",
+        "timeout",
+        "concurrency",
+        "restart",
+        "corruption",
+        "large_object",
+        "credential",
+        "interface_parity"
+      ],
+      "operations_failed": [],
+      "operations_missing": [],
+      "receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "facp-053-local_filesystem-livequalified-aff8f555f8c2",
+        "backend_id": "local_filesystem",
+        "provider_type": "local_filesystem",
+        "display_name": "Local durable filesystem",
+        "disposition": "LiveQualified",
+        "live_qualified": true,
+        "suite_complete": true,
+        "operations_required": [
+          "write",
+          "read_back",
+          "digest",
+          "delete",
+          "replay",
+          "timeout",
+          "concurrency",
+          "restart",
+          "corruption",
+          "large_object",
+          "credential",
+          "interface_parity"
+        ],
+        "operations_observed": [
+          "write",
+          "read_back",
+          "digest",
+          "delete",
+          "replay",
+          "timeout",
+          "concurrency",
+          "restart",
+          "corruption",
+          "large_object",
+          "credential",
+          "interface_parity"
+        ],
+        "operations_failed": [],
+        "environment": "live",
+        "source": "live_runner",
+        "signature_valid": true,
+        "freshness": "current",
+        "issued_at": "2026-08-19T18:00:00Z",
+        "suite_digest": "sha256:012a0465c4e603d3337cb32062e1397f4cac80f593d0eddda0daaff8f555f8c2",
+        "contract_digest": "sha256:58f62597c1739f2f6f86e504db429dc06882f46ca5b0818d79aa5550437e9812",
+        "reason_codes": [
+          "complete_observed_suite",
+          "live_runner_present",
+          "signature_valid",
+          "freshness_current",
+          "environment_live",
+          "source_live_observed"
+        ],
+        "hidden_fallback": false,
+        "storage_selectable": true,
+        "credentials_stored": false,
+        "live_runner_present": true,
+        "message": "complete current live observed suite",
+        "task_id": "FACP-053",
+        "goal_id": "FACP-G520",
+        "evidence_bundle": "facp/backend-suite@1",
+        "unsafe_promotion": false
+      },
+      "support_row": {
+        "schema": "BackendSupportRow@1",
+        "backend_id": "local_filesystem",
+        "display_name": "Local durable filesystem",
+        "inventory_names": [
+          "filesystem",
+          "local",
+          "local_fs",
+          "local_storage"
+        ],
+        "inventory_tier": "conditional",
+        "live_tier": "production",
+        "disposition": "LiveQualified",
+        "storage_selectable": true,
+        "suite_complete": true,
+        "receipt_schema": "BackendCertificationReceipt@1",
+        "evidence_freshness": "current",
+        "evidence_status": "live_qualified",
+        "reason_codes": [
+          "complete_observed_suite",
+          "live_runner_present",
+          "signature_valid",
+          "freshness_current",
+          "environment_live",
+          "source_live_observed"
+        ],
+        "operations_required": [
+          "write",
+          "read_back",
+          "digest",
+          "delete",
+          "replay",
+          "timeout",
+          "concurrency",
+          "restart",
+          "corruption",
+          "large_object",
+          "credential",
+          "interface_parity"
+        ],
+        "operations_observed": [
+          "write",
+          "read_back",
+          "digest",
+          "delete",
+          "replay",
+          "timeout",
+          "concurrency",
+          "restart",
+          "corruption",
+          "large_object",
+          "credential",
+          "interface_parity"
+        ],
+        "certification_receipt_schema": "BackendCertificationReceipt@1"
+      },
+      "message": "complete current live observed suite",
+      "unsafe_promotion": false
+    },
+    "pinned_ipfs": {
+      "backend_id": "pinned_ipfs",
+      "disposition": "Unavailable",
+      "closed_outcome": "Unavailable",
+      "live_qualified": false,
+      "suite_complete": false,
+      "live_runner_present": false,
+      "reason_codes": [
+        "live_runner_absent",
+        "daemon_required",
+        "live_evidence_unavailable",
+        "live_qualified_requires_complete_observed_suite",
+        "hermetic_generation_only",
+        "configuration_is_not_live_qualification"
+      ],
+      "operations_required": [
+        "write",
+        "read_back",
+        "digest",
+        "delete",
+        "replay",
+        "timeout",
+        "concurrency",
+        "restart",
+        "corruption",
+        "large_object",
+        "credential",
+        "interface_parity"
+      ],
+      "operations_observed": [],
+      "operations_failed": [],
+      "operations_missing": [
+        "write",
+        "read_back",
+        "digest",
+        "delete",
+        "replay",
+        "timeout",
+        "concurrency",
+        "restart",
+        "corruption",
+        "large_object",
+        "credential",
+        "interface_parity"
+      ],
+      "receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "facp-053-pinned_ipfs-unavailable-10097aebbbc6",
+        "backend_id": "pinned_ipfs",
+        "provider_type": "pinned_ipfs",
+        "display_name": "Pinned IPFS daemon configuration",
+        "disposition": "Unavailable",
+        "live_qualified": false,
+        "suite_complete": false,
+        "operations_required": [
+          "write",
+          "read_back",
+          "digest",
+          "delete",
+          "replay",
+          "timeout",
+          "concurrency",
+          "restart",
+          "corruption",
+          "large_object",
+          "credential",
+          "interface_parity"
+        ],
+        "operations_observed": [],
+        "operations_failed": [],
+        "environment": "conditional",
+        "source": "generator_absent_runner",
+        "signature_valid": false,
+        "freshness": "missing",
+        "issued_at": "2026-08-19T18:00:00Z",
+        "suite_digest": "sha256:8bb0bb8a53c2da0af19f7bac7803bb2ad13c054cef8459d3099b10097aebbbc6",
+        "contract_digest": "sha256:1736cbc1bbedfcf27ee4b3104fe6219bb3d1df6521412677b36535dcec4a599d",
+        "reason_codes": [
+          "live_runner_absent",
+          "daemon_required",
+          "live_evidence_unavailable",
+          "live_qualified_requires_complete_observed_suite",
+          "hermetic_generation_only",
+          "configuration_is_not_live_qualification"
+        ],
+        "hidden_fallback": false,
+        "storage_selectable": false,
+        "credentials_stored": false,
+        "live_runner_present": false,
+        "message": "live runner absent; Conditional/Unavailable evidence only",
+        "task_id": "FACP-053",
+        "goal_id": "FACP-G520",
+        "evidence_bundle": "facp/backend-suite@1",
+        "unsafe_promotion": false
+      },
+      "support_row": {
+        "schema": "BackendSupportRow@1",
+        "backend_id": "pinned_ipfs",
+        "display_name": "Pinned IPFS daemon configuration",
+        "inventory_names": [
+          "ipfs",
+          "kubo"
+        ],
+        "inventory_tier": "conditional",
+        "live_tier": "conditional",
+        "disposition": "Conditional",
+        "storage_selectable": false,
+        "suite_complete": false,
+        "receipt_schema": "BackendCertificationReceipt@1",
+        "evidence_freshness": "missing",
+        "evidence_status": "runner_absent",
+        "reason_codes": [
+          "live_runner_absent",
+          "daemon_required",
+          "live_evidence_unavailable",
+          "live_qualified_requires_complete_observed_suite",
+          "hermetic_generation_only",
+          "configuration_is_not_live_qualification"
+        ],
+        "operations_required": [
+          "write",
+          "read_back",
+          "digest",
+          "delete",
+          "replay",
+          "timeout",
+          "concurrency",
+          "restart",
+          "corruption",
+          "large_object",
+          "credential",
+          "interface_parity"
+        ],
+        "operations_observed": [],
+        "certification_receipt_schema": "BackendCertificationReceipt@1"
+      },
+      "message": "live runner absent; Conditional/Unavailable evidence only",
+      "unsafe_promotion": false
+    },
+    "iroh": {
+      "backend_id": "iroh",
+      "disposition": "Unavailable",
+      "closed_outcome": "Unavailable",
+      "live_qualified": false,
+      "suite_complete": false,
+      "live_runner_present": false,
+      "reason_codes": [
+        "live_runner_absent",
+        "daemon_required",
+        "live_evidence_unavailable",
+        "live_qualified_requires_complete_observed_suite",
+        "hermetic_generation_only",
+        "configuration_is_not_live_qualification"
+      ],
+      "operations_required": [
+        "write",
+        "read_back",
+        "digest",
+        "delete",
+        "replay",
+        "timeout",
+        "concurrency",
+        "restart",
+        "corruption",
+        "large_object",
+        "credential",
+        "interface_parity"
+      ],
+      "operations_observed": [],
+      "operations_failed": [],
+      "operations_missing": [
+        "write",
+        "read_back",
+        "digest",
+        "delete",
+        "replay",
+        "timeout",
+        "concurrency",
+        "restart",
+        "corruption",
+        "large_object",
+        "credential",
+        "interface_parity"
+      ],
+      "receipt": {
+        "schema": "BackendCertificationReceipt@1",
+        "receipt_id": "facp-053-iroh-unavailable-a8e5b4eb4259",
+        "backend_id": "iroh",
+        "provider_type": "iroh",
+        "display_name": "Iroh",
+        "disposition": "Unavailable",
+        "live_qualified": false,
+        "suite_complete": false,
+        "operations_required": [
+          "write",
+          "read_back",
+          "digest",
+          "delete",
+          "replay",
+          "timeout",
+          "concurrency",
+          "restart",
+          "corruption",
+          "large_object",
+          "credential",
+          "interface_parity"
+        ],
+        "operations_observed": [],
+        "operations_failed": [],
+        "environment": "conditional",
+        "source": "generator_absent_runner",
+        "signature_valid": false,
+        "freshness": "missing",
+        "issued_at": "2026-08-19T18:00:00Z",
+        "suite_digest": "sha256:f57ed72e25fa2f2533cc9753b2ef1fa823f7f04dda3cdd89bbfaa8e5b4eb4259",
+        "contract_digest": "sha256:4790b875be15c7641c4fc33a94f3b85d1ac33c7f87043e577656b66d8e9654f8",
+        "reason_codes": [
+          "live_runner_absent",
+          "daemon_required",
+          "live_evidence_unavailable",
+          "live_qualified_requires_complete_observed_suite",
+          "hermetic_generation_only",
+          "configuration_is_not_live_qualification"
+        ],
+        "hidden_fallback": false,
+        "storage_selectable": false,
+        "credentials_stored": false,
+        "live_runner_present": false,
+        "message": "live runner absent; Conditional/Unavailable evidence only",
+        "task_id": "FACP-053",
+        "goal_id": "FACP-G520",
+        "evidence_bundle": "facp/backend-suite@1",
+        "unsafe_promotion": false
+      },
+      "support_row": {
+        "schema": "BackendSupportRow@1",
+        "backend_id": "iroh",
+        "display_name": "Iroh",
+        "inventory_names": [
+          "iroh"
+        ],
+        "inventory_tier": "conditional",
+        "live_tier": "conditional",
+        "disposition": "Conditional",
+        "storage_selectable": false,
+        "suite_complete": false,
+        "receipt_schema": "BackendCertificationReceipt@1",
+        "evidence_freshness": "missing",
+        "evidence_status": "runner_absent",
+        "reason_codes": [
+          "live_runner_absent",
+          "daemon_required",
+          "live_evidence_unavailable",
+          "live_qualified_requires_complete_observed_suite",
+          "hermetic_generation_only",
+          "configuration_is_not_live_qualification"
+        ],
+        "operations_required": [
+          "write",
+          "read_back",
+          "digest",
+          "delete",
+          "replay",
+          "timeout",
+          "concurrency",
+          "restart",
+          "corruption",
+          "large_object",
+          "credential",
+          "interface_parity"
+        ],
+        "operations_observed": [],
+        "certification_receipt_schema": "BackendCertificationReceipt@1"
+      },
+      "message": "live runner absent; Conditional/Unavailable evidence only",
+      "unsafe_promotion": false
+    }
+  },
+  "support_matrix": [
+    {
+      "schema": "BackendSupportRow@1",
+      "backend_id": "local_filesystem",
+      "display_name": "Local durable filesystem",
+      "inventory_names": [
+        "filesystem",
+        "local",
+        "local_fs",
+        "local_storage"
+      ],
+      "inventory_tier": "conditional",
+      "live_tier": "production",
+      "disposition": "LiveQualified",
+      "storage_selectable": true,
+      "suite_complete": true,
+      "receipt_schema": "BackendCertificationReceipt@1",
+      "evidence_freshness": "current",
+      "evidence_status": "live_qualified",
+      "reason_codes": [
+        "complete_observed_suite",
+        "live_runner_present",
+        "signature_valid",
+        "freshness_current",
+        "environment_live",
+        "source_live_observed"
+      ],
+      "operations_required": [
+        "write",
+        "read_back",
+        "digest",
+        "delete",
+        "replay",
+        "timeout",
+        "concurrency",
+        "restart",
+        "corruption",
+        "large_object",
+        "credential",
+        "interface_parity"
+      ],
+      "operations_observed": [
+        "write",
+        "read_back",
+        "digest",
+        "delete",
+        "replay",
+        "timeout",
+        "concurrency",
+        "restart",
+        "corruption",
+        "large_object",
+        "credential",
+        "interface_parity"
+      ],
+      "certification_receipt_schema": "BackendCertificationReceipt@1"
+    },
+    {
+      "schema": "BackendSupportRow@1",
+      "backend_id": "pinned_ipfs",
+      "display_name": "Pinned IPFS daemon configuration",
+      "inventory_names": [
+        "ipfs",
+        "kubo"
+      ],
+      "inventory_tier": "conditional",
+      "live_tier": "conditional",
+      "disposition": "Conditional",
+      "storage_selectable": false,
+      "suite_complete": false,
+      "receipt_schema": "BackendCertificationReceipt@1",
+      "evidence_freshness": "missing",
+      "evidence_status": "runner_absent",
+      "reason_codes": [
+        "live_runner_absent",
+        "daemon_required",
+        "live_evidence_unavailable",
+        "live_qualified_requires_complete_observed_suite",
+        "hermetic_generation_only",
+        "configuration_is_not_live_qualification"
+      ],
+      "operations_required": [
+        "write",
+        "read_back",
+        "digest",
+        "delete",
+        "replay",
+        "timeout",
+        "concurrency",
+        "restart",
+        "corruption",
+        "large_object",
+        "credential",
+        "interface_parity"
+      ],
+      "operations_observed": [],
+      "certification_receipt_schema": "BackendCertificationReceipt@1"
+    },
+    {
+      "schema": "BackendSupportRow@1",
+      "backend_id": "iroh",
+      "display_name": "Iroh",
+      "inventory_names": [
+        "iroh"
+      ],
+      "inventory_tier": "conditional",
+      "live_tier": "conditional",
+      "disposition": "Conditional",
+      "storage_selectable": false,
+      "suite_complete": false,
+      "receipt_schema": "BackendCertificationReceipt@1",
+      "evidence_freshness": "missing",
+      "evidence_status": "runner_absent",
+      "reason_codes": [
+        "live_runner_absent",
+        "daemon_required",
+        "live_evidence_unavailable",
+        "live_qualified_requires_complete_observed_suite",
+        "hermetic_generation_only",
+        "configuration_is_not_live_qualification"
+      ],
+      "operations_required": [
+        "write",
+        "read_back",
+        "digest",
+        "delete",
+        "replay",
+        "timeout",
+        "concurrency",
+        "restart",
+        "corruption",
+        "large_object",
+        "credential",
+        "interface_parity"
+      ],
+      "operations_observed": [],
+      "certification_receipt_schema": "BackendCertificationReceipt@1"
+    }
+  ],
+  "suite_digests": {
+    "local_filesystem": "sha256:012a0465c4e603d3337cb32062e1397f4cac80f593d0eddda0daaff8f555f8c2",
+    "pinned_ipfs": "sha256:8bb0bb8a53c2da0af19f7bac7803bb2ad13c054cef8459d3099b10097aebbbc6",
+    "iroh": "sha256:f57ed72e25fa2f2533cc9753b2ef1fa823f7f04dda3cdd89bbfaa8e5b4eb4259"
+  },
+  "contract_digests": {
+    "local_filesystem": "sha256:58f62597c1739f2f6f86e504db429dc06882f46ca5b0818d79aa5550437e9812",
+    "pinned_ipfs": "sha256:1736cbc1bbedfcf27ee4b3104fe6219bb3d1df6521412677b36535dcec4a599d",
+    "iroh": "sha256:4790b875be15c7641c4fc33a94f3b85d1ac33c7f87043e577656b66d8e9654f8"
+  },
+  "unsafe_promotion": false,
+  "notes": [
+    "local_filesystem LiveQualified only after complete current live observed suite",
+    "pinned_ipfs and iroh are not LiveQualified without complete current live evidence",
+    "support_matrix rows are projected from certification results and must match receipts"
+  ]
+}
