@@ -30,9 +30,9 @@ from ipfs_datasets_py.logic.software_contracts.adversarial_assurance import (
     adversarial_assurance_artifact_catalog,
     require_verified_signature_before_persistence,
 )
-from ipfs_datasets_py.tests.unit.logic.software_contracts.adversarial_assurance import (
-    test_mutation_contracts as mutation_fixtures,
-    test_receipt_contracts as receipt_fixtures,
+from tests.adversarial_assurance_store.datasets_test_fixtures import (
+    mutation_fixtures,
+    receipt_fixtures,
 )
 from ipfs_kit_py.mcp_server.mcplusplus.coordination_storage import cid_for_bytes
 

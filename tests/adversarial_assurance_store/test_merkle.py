@@ -34,9 +34,7 @@ from ipfs_datasets_py.logic.software_contracts.adversarial_assurance import (
     SealAvailabilityStatus,
     SignatureVerificationStatus,
 )
-from ipfs_datasets_py.tests.unit.logic.software_contracts.adversarial_assurance import (
-    test_receipt_contracts as receipt_fixtures,
-)
+from tests.adversarial_assurance_store.datasets_test_fixtures import receipt_fixtures
 from ipfs_kit_py.mcp_server.mcplusplus.coordination_storage import (
     DurableCoordinationStore,
     cid_for_artifact,
