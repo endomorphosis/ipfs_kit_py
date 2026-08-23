@@ -1,4 +1,4 @@
-"""Deterministic tests for EAAEF-011 encrypted export storage."""
+"""Security and contract tests for EAAEF-011 encrypted export storage."""
 
 from __future__ import annotations
 
@@ -15,8 +15,11 @@ from ipfs_kit_py.external_agent_handoff.storage import (
     ENCRYPTED_EXPORT_REFERENCE_SCHEMA,
     ENCRYPTION_ALGORITHM,
     HANDOFF_STORAGE_CONTRACT_VERSION,
+    KEY_ENVELOPE_INTERFACE,
+    KEY_ENVELOPE_SCHEMA,
     NORMALIZED_STREAM_SCHEMA,
     EncryptedExportReference,
+    EncryptedExportStore,
     EncryptedHandoffStore,
     HandoffStorageBoundsError,
     HandoffStorageDisclosureError,
@@ -29,12 +32,12 @@ from ipfs_kit_py.external_agent_handoff.storage import (
     aes_256_encrypt_block,
     aes_256_gcm_decrypt,
     aes_256_gcm_encrypt,
+    canonical_storage_json_bytes,
     content_identity,
     digest_sha256,
     normalized_stream_identity,
     sha256_identity,
 )
-
 
 MASTER_KEY = bytes(range(32))
 ALT_MASTER_KEY = bytes(range(32, 64))
@@ -87,13 +90,18 @@ def test_store_returns_exact_exported_bytes_through_encrypted_reference() -> Non
     assert store.retrieve_exported_bytes(export_ref.to_dict()) == EXPORT_A
 
 
-def test_store_is_deterministic_for_the_same_master_key_and_bytes() -> None:
+def test_store_randomizes_ciphertext_while_preserving_plaintext_identity() -> None:
     first = _store().store_exported_bytes(EXPORT_A)
     second = _store().store_exported_bytes(EXPORT_A)
-    assert first == second
-    assert first.content_id == second.content_id
-    assert first.ciphertext_cid == second.ciphertext_cid
-    assert first.to_json() == second.to_json()
+    assert first != second
+    assert first.content_id != second.content_id
+    assert first.ciphertext_cid != second.ciphertext_cid
+    assert first.key_envelope_cid != second.key_envelope_cid
+    assert first.digest_sha256 == second.digest_sha256 == digest_sha256(EXPORT_A)
+    assert _store().key_id == _store().key_id
+    first_store = _store()
+    first_ref = first_store.store_exported_bytes(EXPORT_A)
+    assert first_store.retrieve_exported_bytes(first_ref) == EXPORT_A
     other = _store().store_exported_bytes(EXPORT_B)
     assert other.ciphertext_cid != first.ciphertext_cid
     assert other.digest_sha256 != first.digest_sha256
@@ -323,3 +331,51 @@ def test_memory_blob_store_rejects_identity_collisions() -> None:
         blobs.put(EVENT_A, b"two")
     assert EVENT_A in blobs
     assert "not-a-cid" not in blobs
+
+
+def test_directory_compatibility_adapter_uses_randomized_canonical_storage(
+    tmp_path,
+) -> None:
+    store = EncryptedExportStore(tmp_path / "handoff-store")
+    first = store.store_raw_export(EXPORT_A, master_key=MASTER_KEY)
+    second = store.store_raw_export(EXPORT_A, master_key=MASTER_KEY)
+    assert first["digest_sha256"] == second["digest_sha256"] == digest_sha256(EXPORT_A)
+    assert first["ciphertext_cid"] != second["ciphertext_cid"]
+    assert store.load_raw_export(first, master_key=MASTER_KEY) == EXPORT_A
+    projection = store.emit_normalized_projection((EVENT_A, EVENT_B))
+    assert projection.stream_id == normalized_stream_identity((EVENT_A, EVENT_B))
+    receipt = store.public_receipt(first, event_content_ids=(EVENT_A, EVENT_B))
+    assert receipt.to_dict()["ciphertext_cid"] == first["ciphertext_cid"]
+    assert EXPORT_A not in str(receipt.to_dict()).encode("utf-8")
+
+
+def test_reads_legacy_nonce_ciphertext_tag_wire_form() -> None:
+    blobs = MemoryBlobStore()
+    writer = EncryptedHandoffStore(MASTER_KEY, blobs=blobs)
+    data_key = bytes(reversed(range(32)))
+    digest = digest_sha256(EXPORT_A)
+    digest_raw = bytes.fromhex(digest[7:])
+    ciphertext = aes_256_gcm_encrypt(data_key, b"\x31" * 12, EXPORT_A, aad=digest_raw)
+    wrapped = aes_256_gcm_encrypt(MASTER_KEY, b"\x52" * 12, data_key, aad=digest_raw)
+    envelope = canonical_storage_json_bytes(
+        {
+            "schema": KEY_ENVELOPE_SCHEMA,
+            "interface": KEY_ENVELOPE_INTERFACE,
+            "contract_version": HANDOFF_STORAGE_CONTRACT_VERSION,
+            "wrapping_algorithm": ENCRYPTION_ALGORITHM,
+            "key_id": writer.key_id,
+            "nonce": (b"\x52" * 12).hex(),
+            "wrapped_key": wrapped.hex(),
+        }
+    )
+    ciphertext_cid = sha256_identity(ciphertext)
+    envelope_cid = sha256_identity(envelope)
+    blobs.put(ciphertext_cid, ciphertext)
+    blobs.put(envelope_cid, envelope)
+    reference = EncryptedExportReference(
+        ciphertext_cid=ciphertext_cid,
+        digest_sha256=digest,
+        byte_count=len(EXPORT_A),
+        key_envelope_cid=envelope_cid,
+    )
+    assert writer.retrieve_exported_bytes(reference) == EXPORT_A

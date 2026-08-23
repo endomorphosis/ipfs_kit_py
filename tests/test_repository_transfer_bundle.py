@@ -31,12 +31,14 @@ from ipfs_kit_py.repository_transfer.bundle import (
     RepositoryTransferRequest,
     SourceBundleManifest,
     SourceFileEntry,
+    TransferError,
     TransferIdentityError,
     TransferLocator,
     TransferPolicy,
     TransferRefusal,
     TransferVerdict,
     TransferVersionError,
+    admit_transfer,
     admit_transfer_request,
     artifact_identity,
     canonical_json_bytes,
@@ -87,8 +89,7 @@ def _run_git(args: list[str], cwd: Path) -> str:
         ["git", "-c", "init.defaultBranch=main", *args],
         cwd=cwd,
         env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         check=True,
         text=True,
     )
@@ -656,3 +657,43 @@ def test_content_identity_is_stable() -> None:
     assert first == second
     assert first.startswith("sha256:")
     assert len(first) == 71
+
+
+def test_compact_compatibility_admission_has_no_reconstruction_authority() -> None:
+    request = admit_transfer(mode="managed_alias", locator="repos/core", alias="core")
+    assert request.mode == "managed_alias"
+    assert request.to_dict()["reconstruction_authority"] is False
+    with pytest.raises(TransferError, match="host paths"):
+        admit_transfer(mode="git_bundle", locator="/etc/passwd")
+
+
+def test_quarantine_rejects_symlink_and_preserves_target(tmp_path: Path) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    sentinel = outside / "sentinel"
+    sentinel.write_text("preserved", encoding="utf-8")
+    quarantine = tmp_path / "quarantine"
+    quarantine.symlink_to(outside, target_is_directory=True)
+    request = _request(
+        RepositoryTransferMode.GIT_BUNDLE,
+        {"artifact_id": artifact_identity(b"missing")},
+    )
+    result = transfer_repository(request, quarantine_root=quarantine)
+    assert result.receipt.reason_code == TransferRefusal.QUARANTINE_UNSAFE.value
+    assert sentinel.read_text(encoding="utf-8") == "preserved"
+
+
+def test_quarantine_rejects_populated_unowned_scope_without_deleting(
+    tmp_path: Path,
+) -> None:
+    quarantine = tmp_path / "quarantine"
+    quarantine.mkdir()
+    sentinel = quarantine / "sentinel"
+    sentinel.write_text("caller-owned", encoding="utf-8")
+    request = _request(
+        RepositoryTransferMode.GIT_BUNDLE,
+        {"artifact_id": artifact_identity(b"missing")},
+    )
+    result = transfer_repository(request, quarantine_root=quarantine)
+    assert result.receipt.reason_code == TransferRefusal.QUARANTINE_UNSAFE.value
+    assert sentinel.read_text(encoding="utf-8") == "caller-owned"

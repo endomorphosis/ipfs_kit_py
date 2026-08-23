@@ -12,11 +12,18 @@ import base64
 import hashlib
 import hmac
 import json
+import os
 import re
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+import stat
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any, ClassVar, Final, Protocol
+
+from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 HANDOFF_STORAGE_CONTRACT_VERSION: Final[int] = 1
 CONTRACT_VERSION: Final[int] = HANDOFF_STORAGE_CONTRACT_VERSION
@@ -36,6 +43,9 @@ PUBLIC_RECEIPT_INTERFACE: Final[str] = "HandoffStoragePublicReceipt@1"
 PUBLIC_RECEIPT_SCHEMA: Final[str] = (
     "ipfs_kit_py/external-agent-handoff/public-receipt@1"
 )
+PUBLIC_EXPORT_RECEIPT_SCHEMA: Final[str] = (
+    "ipfs_kit_py/external-agent-handoff/public-export-receipt@1"
+)
 NORMALIZED_PROJECTION_INTERFACE: Final[str] = "HandoffNormalizedProjection@1"
 NORMALIZED_PROJECTION_SCHEMA: Final[str] = (
     "ipfs_kit_py/external-agent-handoff/normalized-projection@1"
@@ -51,6 +61,7 @@ ABSOLUTE_MAX_EXPORT_BYTES: Final[int] = 67_108_864
 DEFAULT_MAX_EVENTS: Final[int] = 1_024
 ABSOLUTE_MAX_EVENTS: Final[int] = 4_096
 ABSOLUTE_MAX_ID_BYTES: Final[int] = 256
+COMPAT_MAX_EXPORT_BYTES: Final[int] = 1_048_576
 AES_KEY_BYTES: Final[int] = 32
 GCM_NONCE_BYTES: Final[int] = 12
 GCM_TAG_BYTES: Final[int] = 16
@@ -60,9 +71,6 @@ _SHA256_RE: Final[re.Pattern[str]] = re.compile(r"^sha256:[0-9a-f]{64}$")
 _CIDV1_RE: Final[re.Pattern[str]] = re.compile(r"^b[a-z2-7]{20,}$")
 _HEX64_RE: Final[re.Pattern[str]] = re.compile(r"^[0-9a-f]{64}$")
 
-_DATA_KEY_INFO: Final[bytes] = b"eaaef-011.data-key.v1"
-_ENC_NONCE_INFO: Final[bytes] = b"eaaef-011.enc-nonce.v1"
-_WRAP_NONCE_INFO: Final[bytes] = b"eaaef-011.wrap-nonce.v1"
 _KEY_ID_INFO: Final[bytes] = b"eaaef-011.key-id.v1"
 
 _HIDDEN_CHAIN_OF_THOUGHT_KEYS: Final[frozenset[str]] = frozenset(
@@ -228,10 +236,15 @@ def sha256_identity(data: bytes) -> str:
     return "sha256:" + hashlib.sha256(bytes(data)).hexdigest()
 
 
-def digest_sha256(data: bytes) -> str:
-    """Return the plaintext digest identity ``sha256:<hex>``."""
+def digest_sha256(data: bytes, *, prefixed: bool = True) -> str:
+    """Return the plaintext SHA-256 digest.
 
-    return sha256_identity(data)
+    The rich contract uses the prefixed identity.  ``prefixed=False`` is kept
+    only for the pre-contract directory-store compatibility surface.
+    """
+
+    identity = sha256_identity(data)
+    return identity if prefixed else identity[7:]
 
 
 def normalized_stream_identity(event_content_ids: Sequence[str]) -> str:
@@ -296,178 +309,21 @@ def _distinct_identities(pairs: Sequence[tuple[str, str]]) -> None:
         seen[identity] = name
 
 
-# ---------------------------------------------------------------------------
-# AES-256-GCM (stdlib-only; encrypt-only block cipher)
-# ---------------------------------------------------------------------------
+def aes_256_encrypt_block(key: bytes, block: bytes) -> bytes:
+    """Encrypt one block with the maintained ``cryptography`` AES primitive."""
 
-_SBOX: Final[bytes] = bytes(
-    [
-        0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
-        0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
-        0xB7, 0xFD, 0x93, 0x26, 0x36, 0x3F, 0xF7, 0xCC, 0x34, 0xA5, 0xE5, 0xF1, 0x71, 0xD8, 0x31, 0x15,
-        0x04, 0xC7, 0x23, 0xC3, 0x18, 0x96, 0x05, 0x9A, 0x07, 0x12, 0x80, 0xE2, 0xEB, 0x27, 0xB2, 0x75,
-        0x09, 0x83, 0x2C, 0x1A, 0x1B, 0x6E, 0x5A, 0xA0, 0x52, 0x3B, 0xD6, 0xB3, 0x29, 0xE3, 0x2F, 0x84,
-        0x53, 0xD1, 0x00, 0xED, 0x20, 0xFC, 0xB1, 0x5B, 0x6A, 0xCB, 0xBE, 0x39, 0x4A, 0x4C, 0x58, 0xCF,
-        0xD0, 0xEF, 0xAA, 0xFB, 0x43, 0x4D, 0x33, 0x85, 0x45, 0xF9, 0x02, 0x7F, 0x50, 0x3C, 0x9F, 0xA8,
-        0x51, 0xA3, 0x40, 0x8F, 0x92, 0x9D, 0x38, 0xF5, 0xBC, 0xB6, 0xDA, 0x21, 0x10, 0xFF, 0xF3, 0xD2,
-        0xCD, 0x0C, 0x13, 0xEC, 0x5F, 0x97, 0x44, 0x17, 0xC4, 0xA7, 0x7E, 0x3D, 0x64, 0x5D, 0x19, 0x73,
-        0x60, 0x81, 0x4F, 0xDC, 0x22, 0x2A, 0x90, 0x88, 0x46, 0xEE, 0xB8, 0x14, 0xDE, 0x5E, 0x0B, 0xDB,
-        0xE0, 0x32, 0x3A, 0x0A, 0x49, 0x06, 0x24, 0x5C, 0xC2, 0xD3, 0xAC, 0x62, 0x91, 0x95, 0xE4, 0x79,
-        0xE7, 0xC8, 0x37, 0x6D, 0x8D, 0xD5, 0x4E, 0xA9, 0x6C, 0x56, 0xF4, 0xEA, 0x65, 0x7A, 0xAE, 0x08,
-        0xBA, 0x78, 0x25, 0x2E, 0x1C, 0xA6, 0xB4, 0xC6, 0xE8, 0xDD, 0x74, 0x1F, 0x4B, 0xBD, 0x8B, 0x8A,
-        0x70, 0x3E, 0xB5, 0x66, 0x48, 0x03, 0xF6, 0x0E, 0x61, 0x35, 0x57, 0xB9, 0x86, 0xC1, 0x1D, 0x9E,
-        0xE1, 0xF8, 0x98, 0x11, 0x69, 0xD9, 0x8E, 0x94, 0x9B, 0x1E, 0x87, 0xE9, 0xCE, 0x55, 0x28, 0xDF,
-        0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16,
-    ]
-)
-_RCON: Final[tuple[int, ...]] = (
-    0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36, 0x6C, 0xD8, 0xAB, 0x4D
-)
-_GF_R: Final[int] = 0xE1000000000000000000000000000000
-
-
-def _xtime(value: int) -> int:
-    value <<= 1
-    if value & 0x100:
-        value ^= 0x11B
-    return value & 0xFF
-
-
-def _mix_column(a: int, b: int, c: int, d: int) -> tuple[int, int, int, int]:
-    return (
-        _xtime(a) ^ _xtime(b) ^ b ^ c ^ d,
-        a ^ _xtime(b) ^ _xtime(c) ^ c ^ d,
-        a ^ b ^ _xtime(c) ^ _xtime(d) ^ d,
-        _xtime(a) ^ a ^ b ^ c ^ _xtime(d),
-    )
-
-
-def _sub_word(word: int) -> int:
-    return (
-        (_SBOX[(word >> 24) & 0xFF] << 24)
-        | (_SBOX[(word >> 16) & 0xFF] << 16)
-        | (_SBOX[(word >> 8) & 0xFF] << 8)
-        | _SBOX[word & 0xFF]
-    )
-
-
-def _rot_word(word: int) -> int:
-    return ((word << 8) & 0xFFFFFFFF) | (word >> 24)
-
-
-def _expand_aes256_key(key: bytes) -> list[bytes]:
+    key = _require_bytes(key, "key")
     if len(key) != AES_KEY_BYTES:
         raise HandoffStorageError("AES-256 key must be 32 bytes")
-    words = [int.from_bytes(key[index : index + 4], "big") for index in range(0, 32, 4)]
-    for index in range(8, 60):
-        temp = words[index - 1]
-        if index % 8 == 0:
-            temp = _sub_word(_rot_word(temp)) ^ (_RCON[index // 8] << 24)
-        elif index % 8 == 4:
-            temp = _sub_word(temp)
-        words.append(words[index - 8] ^ temp)
-    rounds: list[bytes] = []
-    for round_index in range(15):
-        block = b"".join(
-            words[round_index * 4 + offset].to_bytes(4, "big") for offset in range(4)
-        )
-        rounds.append(block)
-    return rounds
-
-
-def aes_256_encrypt_block(key: bytes, block: bytes) -> bytes:
-    """Encrypt one 16-byte block with AES-256."""
-
+    block = _require_bytes(block, "block")
     if len(block) != AES_BLOCK_BYTES:
         raise HandoffStorageError("AES block must be 16 bytes")
-    round_keys = _expand_aes256_key(key)
-    state = bytearray(block[index] ^ round_keys[0][index] for index in range(16))
-    for round_index in range(1, 14):
-        state = bytearray(_SBOX[value] for value in state)
-        state = bytearray(
-            [
-                state[0], state[5], state[10], state[15],
-                state[4], state[9], state[14], state[3],
-                state[8], state[13], state[2], state[7],
-                state[12], state[1], state[6], state[11],
-            ]
-        )
-        mixed = bytearray(16)
-        for column in range(4):
-            values = _mix_column(
-                state[column * 4],
-                state[column * 4 + 1],
-                state[column * 4 + 2],
-                state[column * 4 + 3],
-            )
-            mixed[column * 4 : column * 4 + 4] = values
-        state = bytearray(
-            mixed[index] ^ round_keys[round_index][index] for index in range(16)
-        )
-    state = bytearray(_SBOX[value] for value in state)
-    state = bytearray(
-        [
-            state[0], state[5], state[10], state[15],
-            state[4], state[9], state[14], state[3],
-            state[8], state[13], state[2], state[7],
-            state[12], state[1], state[6], state[11],
-        ]
-    )
-    return bytes(state[index] ^ round_keys[14][index] for index in range(16))
-
-
-def _inc32(block: bytes) -> bytes:
-    counter = int.from_bytes(block[12:], "big")
-    return block[:12] + ((counter + 1) & 0xFFFFFFFF).to_bytes(4, "big")
-
-
-def _gf_mul(x: int, y: int) -> int:
-    z = 0
-    v = y
-    for bit in range(128):
-        if (x >> (127 - bit)) & 1:
-            z ^= v
-        if v & 1:
-            v = (v >> 1) ^ _GF_R
-        else:
-            v >>= 1
-    return z & ((1 << 128) - 1)
-
-
-def _ghash(hash_subkey: bytes, aad: bytes, ciphertext: bytes) -> bytes:
-    y = 0
-    h = int.from_bytes(hash_subkey, "big")
-
-    def update(data: bytes) -> None:
-        nonlocal y
-        for offset in range(0, len(data), 16):
-            block = data[offset : offset + 16]
-            if len(block) < 16:
-                block = block + b"\x00" * (16 - len(block))
-            y = _gf_mul(y ^ int.from_bytes(block, "big"), h)
-
-    update(aad)
-    update(ciphertext)
-    length_block = (len(aad) * 8).to_bytes(8, "big") + (len(ciphertext) * 8).to_bytes(8, "big")
-    y = _gf_mul(y ^ int.from_bytes(length_block, "big"), h)
-    return y.to_bytes(16, "big")
-
-
-def _gctr(key: bytes, icb: bytes, data: bytes) -> bytes:
-    if not data:
-        return b""
-    counter = icb
-    output = bytearray()
-    for offset in range(0, len(data), 16):
-        keystream = aes_256_encrypt_block(key, counter)
-        block = data[offset : offset + 16]
-        output.extend(byte ^ keystream[index] for index, byte in enumerate(block))
-        counter = _inc32(counter)
-    return bytes(output)
+    encryptor = Cipher(algorithms.AES256(key), modes.ECB()).encryptor()
+    return encryptor.update(block) + encryptor.finalize()
 
 
 def aes_256_gcm_encrypt(key: bytes, nonce: bytes, plaintext: bytes, aad: bytes = b"") -> bytes:
-    """Return ``nonce || ciphertext || tag`` for AES-256-GCM."""
+    """Return the legacy-compatible ``nonce || ciphertext || tag`` wire form."""
 
     key = _require_bytes(key, "key")
     nonce = _require_bytes(nonce, "nonce")
@@ -477,12 +333,7 @@ def aes_256_gcm_encrypt(key: bytes, nonce: bytes, plaintext: bytes, aad: bytes =
         raise HandoffStorageError("AES-256-GCM key must be 32 bytes")
     if len(nonce) != GCM_NONCE_BYTES:
         raise HandoffStorageError("AES-256-GCM nonce must be 12 bytes")
-    hash_subkey = aes_256_encrypt_block(key, b"\x00" * 16)
-    j0 = nonce + b"\x00\x00\x00\x01"
-    ciphertext = _gctr(key, _inc32(j0), plaintext)
-    s = _ghash(hash_subkey, aad, ciphertext)
-    tag = _gctr(key, j0, s)
-    return nonce + ciphertext + tag
+    return nonce + AESGCM(key).encrypt(nonce, plaintext, aad)
 
 
 def aes_256_gcm_decrypt(key: bytes, blob: bytes, aad: bytes = b"") -> bytes:
@@ -496,15 +347,10 @@ def aes_256_gcm_decrypt(key: bytes, blob: bytes, aad: bytes = b"") -> bytes:
     if len(blob) < GCM_NONCE_BYTES + GCM_TAG_BYTES:
         raise HandoffStorageIntegrityError("ciphertext is truncated")
     nonce = blob[:GCM_NONCE_BYTES]
-    tag = blob[-GCM_TAG_BYTES:]
-    ciphertext = blob[GCM_NONCE_BYTES:-GCM_TAG_BYTES]
-    hash_subkey = aes_256_encrypt_block(key, b"\x00" * 16)
-    j0 = nonce + b"\x00\x00\x00\x01"
-    s = _ghash(hash_subkey, aad, ciphertext)
-    expected = _gctr(key, j0, s)
-    if not hmac.compare_digest(tag, expected):
-        raise HandoffStorageIntegrityError("ciphertext authentication failed")
-    return _gctr(key, _inc32(j0), ciphertext)
+    try:
+        return AESGCM(key).decrypt(nonce, blob[GCM_NONCE_BYTES:], aad)
+    except InvalidTag as exc:
+        raise HandoffStorageIntegrityError("ciphertext authentication failed") from exc
 
 
 def _hkdf_like(master_key: bytes, info: bytes, length: int) -> bytes:
@@ -704,7 +550,7 @@ class EncryptedExportReference(_CanonicalRecord):
         }
 
     @classmethod
-    def from_dict(cls, payload: Mapping[str, Any]) -> "EncryptedExportReference":
+    def from_dict(cls, payload: Mapping[str, Any]) -> EncryptedExportReference:
         if not isinstance(payload, Mapping):
             raise HandoffStorageError("encrypted export reference must be an object")
         schema = payload.get("schema")
@@ -765,8 +611,14 @@ class NormalizedProjection(_CanonicalRecord):
             "event_content_ids": list(self.event_content_ids),
         }
 
+    @property
+    def stream_id(self) -> str:
+        """Compatibility name for the canonical normalized stream identity."""
+
+        return self.normalized_stream_id
+
     @classmethod
-    def from_dict(cls, payload: Mapping[str, Any]) -> "NormalizedProjection":
+    def from_dict(cls, payload: Mapping[str, Any]) -> NormalizedProjection:
         if not isinstance(payload, Mapping):
             raise HandoffStorageError("normalized projection must be an object")
         return cls(
@@ -845,7 +697,7 @@ class PublicHandoffReceipt(_CanonicalRecord):
         }
 
     @classmethod
-    def from_dict(cls, payload: Mapping[str, Any]) -> "PublicHandoffReceipt":
+    def from_dict(cls, payload: Mapping[str, Any]) -> PublicHandoffReceipt:
         if not isinstance(payload, Mapping):
             raise HandoffStorageError("public receipt must be an object")
         _reject_forbidden_keys(payload, name="public handoff receipt")
@@ -926,8 +778,9 @@ class EncryptedHandoffStore:
     """Managed AES-256-GCM store for exact export bytes and public projections.
 
     Ciphertext, key envelopes, and the ordered normalized stream keep distinct
-    identities.  The wrapping key never appears in public receipts.  Put paths
-    are deterministic for a given master key and plaintext.
+    identities.  The wrapping key never appears in public receipts.  Every put
+    uses a fresh data key and independent random nonces; plaintext identity is
+    stable while encrypted-object identities intentionally are not.
     """
 
     def __init__(
@@ -985,11 +838,9 @@ class EncryptedHandoffStore:
             raise HandoffStorageBoundsError("exported bytes exceed max_export_bytes")
         digest = digest_sha256(plaintext)
         digest_raw = bytes.fromhex(digest.split(":", 1)[1])
-        data_key = _hkdf_like(self._master_key, _DATA_KEY_INFO + digest_raw, AES_KEY_BYTES)
-        enc_nonce = _hkdf_like(self._master_key, _ENC_NONCE_INFO + digest_raw, GCM_NONCE_BYTES)
-        wrap_nonce = _hkdf_like(
-            self._master_key, _WRAP_NONCE_INFO + digest_raw, GCM_NONCE_BYTES
-        )
+        data_key = AESGCM.generate_key(bit_length=256)
+        enc_nonce = os.urandom(GCM_NONCE_BYTES)
+        wrap_nonce = os.urandom(GCM_NONCE_BYTES)
         ciphertext = aes_256_gcm_encrypt(data_key, enc_nonce, plaintext, aad=digest_raw)
         wrapped_key = aes_256_gcm_encrypt(
             self._master_key, wrap_nonce, data_key, aad=digest_raw
@@ -1037,12 +888,25 @@ class EncryptedHandoffStore:
             raise HandoffStorageIntegrityError("key envelope is malformed") from exc
         if not isinstance(envelope, Mapping):
             raise HandoffStorageIntegrityError("key envelope must be an object")
+        if (
+            envelope.get("schema") != KEY_ENVELOPE_SCHEMA
+            or envelope.get("interface") != KEY_ENVELOPE_INTERFACE
+            or envelope.get("contract_version") != HANDOFF_STORAGE_CONTRACT_VERSION
+            or envelope.get("wrapping_algorithm") != ENCRYPTION_ALGORITHM
+        ):
+            raise HandoffStorageIntegrityError("key envelope contract is not admitted")
         if envelope.get("key_id") != self._key_id:
             raise HandoffStorageIntegrityError("key envelope is bound to a different wrapping key")
         try:
             wrapped_key = bytes.fromhex(str(envelope.get("wrapped_key", "")))
+            declared_nonce = bytes.fromhex(str(envelope.get("nonce", "")))
         except ValueError as exc:
-            raise HandoffStorageIntegrityError("key envelope wrapped_key is malformed") from exc
+            raise HandoffStorageIntegrityError("key envelope encryption fields are malformed") from exc
+        if (
+            len(declared_nonce) != GCM_NONCE_BYTES
+            or wrapped_key[:GCM_NONCE_BYTES] != declared_nonce
+        ):
+            raise HandoffStorageIntegrityError("key envelope nonce does not match wrapped key")
         digest_raw = bytes.fromhex(export_ref.digest_sha256.split(":", 1)[1])
         try:
             data_key = aes_256_gcm_decrypt(
@@ -1141,6 +1005,265 @@ class EncryptedHandoffStore:
         return MappingProxyType(dict(self._blobs.items()))
 
 
+# ---------------------------------------------------------------------------
+# Directory-backed compatibility adapter
+# ---------------------------------------------------------------------------
+
+
+def content_cid(payload: bytes | Mapping[str, Any]) -> str:
+    """Return the historical directory-store identity using canonical primitives."""
+
+    if isinstance(payload, Mapping):
+        return content_identity(payload)
+    return sha256_identity(_require_bytes(payload, "payload"))
+
+
+def _private_directory(path: Path) -> Path:
+    absolute = path.absolute()
+    current = Path(absolute.anchor)
+    for component in absolute.parts[1:]:
+        current /= component
+        if current.is_symlink():
+            raise HandoffStorageError("storage roots must not contain symlinks")
+    absolute.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if absolute.resolve(strict=True) != absolute:
+        raise HandoffStorageError("storage root escapes through a symlink")
+    metadata = absolute.stat(follow_symlinks=False)
+    if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != os.geteuid():
+        raise HandoffStorageError("storage root must be an owned directory")
+    if metadata.st_mode & 0o022:
+        raise HandoffStorageError("storage root must not be group/world writable")
+    os.chmod(absolute, 0o700, follow_symlinks=False)
+    return absolute
+
+
+def _private_filename(value: str) -> str:
+    if not re.fullmatch(r"[a-z0-9]{16,128}", value):
+        raise HandoffStorageIdentityError("private object filename is not content-addressed")
+    return value
+
+
+def _read_private_file(directory: Path, filename: str, *, max_bytes: int) -> bytes:
+    name = _private_filename(filename)
+    root_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=root_fd)
+        try:
+            metadata = os.fstat(descriptor)
+            if not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != os.geteuid():
+                raise HandoffStorageError("encrypted object must be an owned regular file")
+            if metadata.st_size > max_bytes:
+                raise HandoffStorageBoundsError("encrypted object exceeds its byte bound")
+            chunks: list[bytes] = []
+            remaining = metadata.st_size
+            while remaining:
+                chunk = os.read(descriptor, min(remaining, 1_048_576))
+                if not chunk:
+                    raise HandoffStorageIntegrityError("encrypted object was truncated")
+                chunks.append(chunk)
+                remaining -= len(chunk)
+            return b"".join(chunks)
+        finally:
+            os.close(descriptor)
+    except FileNotFoundError as exc:
+        raise HandoffStorageError("encrypted export objects are missing") from exc
+    finally:
+        os.close(root_fd)
+
+
+def _write_private_file(directory: Path, filename: str, payload: bytes) -> None:
+    name = _private_filename(filename)
+    data = _require_bytes(payload, "payload")
+    root_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        try:
+            descriptor = os.open(
+                name,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                0o600,
+                dir_fd=root_fd,
+            )
+        except FileExistsError:
+            existing = _read_private_file(directory, name, max_bytes=len(data) + 1)
+            if existing != data:
+                raise HandoffStorageIdentityError(f"identity collision at {name}")
+            return
+        try:
+            view = memoryview(data)
+            while view:
+                written = os.write(descriptor, view)
+                if written <= 0:
+                    raise HandoffStorageError("encrypted object write made no progress")
+                view = view[written:]
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    finally:
+        os.close(root_fd)
+
+
+@dataclass(frozen=True, slots=True)
+class PublicExportReceipt:
+    """Flat compatibility projection of the canonical public receipt."""
+
+    ciphertext_cid: str
+    digest_sha256: str
+    byte_count: int
+    key_envelope_cid: str
+    normalized_stream_id: str
+    event_content_ids: tuple[str, ...]
+    encryption_algorithm: str = ENCRYPTION_ALGORITHM
+    disclosure_class: str = DISCLOSURE_PUBLIC_PROJECTION
+    media_type: str = "application/octet-stream"
+
+    def to_dict(self) -> Mapping[str, Any]:
+        payload = {
+            "schema": PUBLIC_EXPORT_RECEIPT_SCHEMA,
+            "contract_version": HANDOFF_STORAGE_CONTRACT_VERSION,
+            "ciphertext_cid": self.ciphertext_cid,
+            "digest_sha256": self.digest_sha256,
+            "byte_count": self.byte_count,
+            "key_envelope_cid": self.key_envelope_cid,
+            "normalized_stream_id": self.normalized_stream_id,
+            "event_content_ids": list(self.event_content_ids),
+            "encryption_algorithm": self.encryption_algorithm,
+            "disclosure_class": self.disclosure_class,
+            "media_type": self.media_type,
+        }
+        _reject_forbidden_keys(payload, name="public export receipt")
+        return MappingProxyType(payload)
+
+
+def public_receipt_from_reference(
+    reference: Mapping[str, Any],
+    *,
+    event_content_ids: Sequence[str],
+) -> PublicExportReceipt:
+    """Build the flat compatibility receipt from the canonical reference."""
+
+    _reject_forbidden_keys(reference, name="encrypted export reference")
+    export_ref = EncryptedExportReference.from_dict(reference)
+    ids = _event_content_ids(event_content_ids)
+    if not ids:
+        raise HandoffStorageError("normalized projection requires at least one event")
+    return PublicExportReceipt(
+        ciphertext_cid=export_ref.ciphertext_cid,
+        digest_sha256=export_ref.digest_sha256,
+        byte_count=export_ref.byte_count,
+        key_envelope_cid=export_ref.key_envelope_cid,
+        normalized_stream_id=normalized_stream_identity(ids),
+        event_content_ids=ids,
+        encryption_algorithm=export_ref.encryption_algorithm,
+        media_type=export_ref.media_type,
+    )
+
+
+class EncryptedExportStore:
+    """Directory-backed compatibility adapter over :class:`EncryptedHandoffStore`.
+
+    It preserves the established filesystem API without preserving the old
+    deterministic encryption.  Files are content-addressed, owner-only,
+    opened without following symlinks, and never contain plaintext.
+    """
+
+    def __init__(self, root: Path | str) -> None:
+        self.root = _private_directory(Path(root))
+        self.ciphertext_dir = _private_directory(self.root / "ciphertext")
+        self.envelope_dir = _private_directory(self.root / "envelopes")
+        self.projection_dir = _private_directory(self.root / "projections")
+
+    def store_raw_export(
+        self,
+        plaintext: bytes,
+        *,
+        master_key: bytes,
+        media_type: str = "application/octet-stream",
+        retention_class: str = RETENTION_SESSION,
+    ) -> Mapping[str, Any]:
+        data = _require_bytes(plaintext, "raw export")
+        if not data:
+            raise HandoffStorageError("raw export must be nonempty")
+        if len(data) > COMPAT_MAX_EXPORT_BYTES:
+            raise HandoffStorageBoundsError("raw export exceeds the admitted byte bound")
+        store = EncryptedHandoffStore(
+            master_key,
+            max_export_bytes=COMPAT_MAX_EXPORT_BYTES,
+        )
+        reference = store.store_exported_bytes(
+            data,
+            media_type=media_type,
+            retention_class=retention_class,
+        )
+        blobs = store.stored_blobs()
+        _write_private_file(
+            self.ciphertext_dir,
+            reference.ciphertext_cid[7:],
+            blobs[reference.ciphertext_cid],
+        )
+        _write_private_file(
+            self.envelope_dir,
+            reference.key_envelope_cid[7:],
+            blobs[reference.key_envelope_cid],
+        )
+        return MappingProxyType(reference.to_dict())
+
+    def load_raw_export(
+        self,
+        reference: Mapping[str, Any],
+        *,
+        master_key: bytes,
+    ) -> bytes:
+        export_ref = EncryptedExportReference.from_dict(reference)
+        ciphertext = _read_private_file(
+            self.ciphertext_dir,
+            export_ref.ciphertext_cid[7:],
+            max_bytes=COMPAT_MAX_EXPORT_BYTES + GCM_NONCE_BYTES + GCM_TAG_BYTES,
+        )
+        envelope = _read_private_file(
+            self.envelope_dir,
+            export_ref.key_envelope_cid[7:],
+            max_bytes=16_384,
+        )
+        blobs = MemoryBlobStore()
+        blobs.put(export_ref.ciphertext_cid, ciphertext)
+        blobs.put(export_ref.key_envelope_cid, envelope)
+        try:
+            return EncryptedHandoffStore(
+                master_key,
+                blobs=blobs,
+                max_export_bytes=COMPAT_MAX_EXPORT_BYTES,
+            ).retrieve_exported_bytes(export_ref)
+        except HandoffStorageIntegrityError as exc:
+            raise HandoffStorageError("decryption failed") from exc
+
+    def emit_normalized_projection(
+        self,
+        event_content_ids: Sequence[str],
+    ) -> NormalizedProjection:
+        ids = _event_content_ids(event_content_ids)
+        if not ids:
+            raise HandoffStorageError("normalized projection requires at least one event")
+        projection = NormalizedProjection(event_content_ids=ids)
+        encoded = projection.canonical_bytes()
+        _write_private_file(
+            self.projection_dir,
+            projection.normalized_stream_id[7:],
+            encoded,
+        )
+        return projection
+
+    def public_receipt(
+        self,
+        reference: Mapping[str, Any],
+        *,
+        event_content_ids: Sequence[str],
+    ) -> PublicExportReceipt:
+        return public_receipt_from_reference(
+            reference,
+            event_content_ids=event_content_ids,
+        )
+
+
 __all__ = (
     "ABSOLUTE_MAX_EVENTS",
     "ABSOLUTE_MAX_EXPORT_BYTES",
@@ -1163,6 +1286,7 @@ __all__ = (
     "RETENTION_SESSION",
     "BlobStore",
     "EncryptedExportReference",
+    "EncryptedExportStore",
     "EncryptedHandoffStore",
     "HandoffPreservation",
     "HandoffStorageBoundsError",
@@ -1172,13 +1296,16 @@ __all__ = (
     "HandoffStorageIntegrityError",
     "MemoryBlobStore",
     "NormalizedProjection",
+    "PublicExportReceipt",
     "PublicHandoffReceipt",
     "aes_256_encrypt_block",
     "aes_256_gcm_decrypt",
     "aes_256_gcm_encrypt",
     "canonical_storage_json_bytes",
+    "content_cid",
     "content_identity",
     "digest_sha256",
     "normalized_stream_identity",
+    "public_receipt_from_reference",
     "sha256_identity",
 )

@@ -24,6 +24,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import shutil
 import stat
 import subprocess
@@ -34,7 +35,7 @@ from enum import Enum
 from ipaddress import ip_address
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from types import MappingProxyType
-from typing import Any, ClassVar, Final, TypeVar
+from typing import Any, ClassVar, Final
 from urllib.parse import urlparse
 
 CONTRACT_VERSION: Final[int] = 1
@@ -113,6 +114,10 @@ _REF_NAME_RE: Final[re.Pattern[str]] = re.compile(
 )
 _FILE_MODE_RE: Final[re.Pattern[str]] = re.compile(
     r"^(100644|100755|120000|160000|040000)$"
+)
+_QUARANTINE_MARKER: Final[str] = ".eaaef-quarantine-v1"
+_QUARANTINE_SLOT_RE: Final[re.Pattern[str]] = re.compile(
+    r"^[0-9a-f]{16}-[0-9a-f]{16}$"
 )
 
 _HIDDEN_CHAIN_OF_THOUGHT_KEYS: Final[frozenset[str]] = frozenset(
@@ -215,9 +220,6 @@ _GIT_ENV: Final[Mapping[str, str]] = MappingProxyType(
         "LC_ALL": "C",
     }
 )
-
-TEnum = TypeVar("TEnum", bound=Enum)
-
 
 class RepositoryTransferError(ValueError):
     """Malformed or unsafe repository transfer contract."""
@@ -369,7 +371,7 @@ def artifact_identity(data: bytes) -> str:
     return f"sha256:{hashlib.sha256(bytes(data)).hexdigest()}"
 
 
-def _enum(value: Any, enum_type: type[TEnum], name: str) -> TEnum:
+def _enum[TEnum: Enum](value: Any, enum_type: type[TEnum], name: str) -> TEnum:
     if isinstance(value, enum_type):
         return value
     try:
@@ -388,7 +390,7 @@ def looks_like_host_path(value: Any) -> bool:
     if not text:
         return False
     lowered = text.lower()
-    if lowered.startswith("~") or lowered.startswith("\\\\") or lowered.startswith("//"):
+    if lowered.startswith(("~", "\\\\", "//")):
         return True
     if PurePosixPath(text).is_absolute() or PureWindowsPath(text).is_absolute():
         return True
@@ -404,11 +406,9 @@ def looks_like_host_path(value: Any) -> bool:
             return True
     if re.match(r"^[^@\s:/]+@[^@\s:/]+:", text) and "://" not in text:
         return True
-    if text.startswith("./") or text.startswith("../") or "/../" in text or text == "..":
+    if text.startswith(("./", "../")) or "/../" in text or text == "..":
         return True
-    if "\\" in text and not text.startswith("refs\\"):
-        return True
-    return False
+    return "\\" in text and not text.startswith("refs\\")
 
 
 def _is_loopback_or_private_host(host: str) -> bool:
@@ -605,8 +605,7 @@ def _file_mode(value: Any, name: str) -> str:
         text = f"{value:06o}"
     else:
         text = _text(value, name, max_bytes=16)
-        if text.startswith("0o"):
-            text = text[2:]
+        text = text.removeprefix("0o")
         if re.fullmatch(r"[0-7]{3,7}", text):
             text = f"{int(text, 8):06o}"
     if text in {"0644", "000644"}:
@@ -2653,8 +2652,7 @@ def _git(
             ["git", "-c", "init.defaultBranch=main", *args],
             cwd=cwd,
             env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=timeout,
             check=False,
         )
@@ -2683,8 +2681,7 @@ def _git_bytes(
             ["git", "-c", "init.defaultBranch=main", *args],
             cwd=cwd,
             env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=timeout,
             check=False,
         )
@@ -2766,15 +2763,225 @@ def _is_within(child: Path, parent: Path) -> bool:
 def _require_quarantine(path: Path, *, user_checkout: Path | None) -> Path:
     if not isinstance(path, Path):
         raise RepositoryTransferError("quarantine_root must be a path")
-    if user_checkout is not None:
-        if (
-            _same_path(path, user_checkout)
-            or _is_within(path, user_checkout)
-            or _is_within(user_checkout, path)
-        ):
-            raise RepositoryTransferError("quarantine_root must not be a user checkout")
-    path.mkdir(parents=True, exist_ok=True)
+    path = path.absolute()
+    current = Path(path.anchor)
+    for component in path.parts[1:]:
+        current /= component
+        if current.is_symlink():
+            raise RepositoryTransferError("quarantine_root must not contain symlinks")
+    if user_checkout is not None and (
+        _same_path(path, user_checkout)
+        or _is_within(path, user_checkout)
+        or _is_within(user_checkout, path)
+    ):
+        raise RepositoryTransferError("quarantine_root must not be a user checkout")
+    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if path.resolve(strict=True) != path:
+        raise RepositoryTransferError("quarantine_root escapes through a symlink")
+    metadata = path.stat(follow_symlinks=False)
+    if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != os.geteuid():
+        raise RepositoryTransferError("quarantine_root must be an owned directory")
+    if metadata.st_mode & 0o022:
+        raise RepositoryTransferError("quarantine_root must not be group/world writable")
+    os.chmod(path, 0o700, follow_symlinks=False)
+
+    root_fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        entries = set(os.listdir(root_fd))
+        if _QUARANTINE_MARKER not in entries:
+            if entries:
+                raise RepositoryTransferError(
+                    "quarantine_root must be empty before ownership is established"
+                )
+            marker = canonical_json_bytes(
+                {
+                    "schema": "ipfs_kit_py/repository-transfer/quarantine-root@1",
+                    "device": metadata.st_dev,
+                    "inode": metadata.st_ino,
+                    "uid": metadata.st_uid,
+                }
+            )
+            marker_fd = os.open(
+                _QUARANTINE_MARKER,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                0o600,
+                dir_fd=root_fd,
+            )
+            try:
+                view = memoryview(marker)
+                while view:
+                    written = os.write(marker_fd, view)
+                    if written <= 0:
+                        raise RepositoryTransferError(
+                            "quarantine ownership marker write made no progress"
+                        )
+                    view = view[written:]
+                os.fsync(marker_fd)
+            finally:
+                os.close(marker_fd)
+        _validate_quarantine_marker(root_fd, metadata)
+    finally:
+        os.close(root_fd)
     return path
+
+
+def _validate_quarantine_marker(root_fd: int, root_stat: os.stat_result) -> None:
+    try:
+        marker_fd = os.open(
+            _QUARANTINE_MARKER,
+            os.O_RDONLY | os.O_NOFOLLOW,
+            dir_fd=root_fd,
+        )
+    except OSError as exc:
+        raise RepositoryTransferError("quarantine ownership marker is unavailable") from exc
+    try:
+        metadata = os.fstat(marker_fd)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != os.geteuid()
+            or metadata.st_size > 4_096
+        ):
+            raise RepositoryTransferError("quarantine ownership marker is unsafe")
+        raw = b""
+        remaining = metadata.st_size
+        while remaining:
+            chunk = os.read(marker_fd, remaining)
+            if not chunk:
+                raise RepositoryTransferError("quarantine ownership marker is truncated")
+            raw += chunk
+            remaining -= len(chunk)
+    finally:
+        os.close(marker_fd)
+    try:
+        marker = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RepositoryTransferError("quarantine ownership marker is malformed") from exc
+    expected = {
+        "schema": "ipfs_kit_py/repository-transfer/quarantine-root@1",
+        "device": root_stat.st_dev,
+        "inode": root_stat.st_ino,
+        "uid": root_stat.st_uid,
+    }
+    if marker != expected:
+        raise RepositoryTransferError("quarantine ownership marker does not match root")
+
+
+def _open_quarantine_root(path: Path) -> tuple[int, os.stat_result]:
+    try:
+        root_fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    except OSError as exc:
+        raise RepositoryTransferError("quarantine_root cannot be opened safely") from exc
+    try:
+        metadata = os.fstat(root_fd)
+        if (
+            not stat.S_ISDIR(metadata.st_mode)
+            or metadata.st_uid != os.geteuid()
+            or metadata.st_mode & 0o022
+        ):
+            raise RepositoryTransferError("quarantine_root ownership changed")
+        _validate_quarantine_marker(root_fd, metadata)
+        return root_fd, metadata
+    except BaseException:
+        os.close(root_fd)
+        raise
+
+
+def _create_quarantine_slot(
+    quarantine: Path,
+    request_id: str,
+) -> tuple[Path, tuple[int, int]]:
+    root_fd, _ = _open_quarantine_root(quarantine)
+    prefix = hashlib.sha256(request_id.encode("utf-8")).hexdigest()[:16]
+    try:
+        for _ in range(32):
+            name = f"{prefix}-{secrets.token_hex(8)}"
+            try:
+                os.mkdir(name, 0o700, dir_fd=root_fd)
+            except FileExistsError:
+                continue
+            slot_fd = os.open(
+                name,
+                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                dir_fd=root_fd,
+            )
+            try:
+                metadata = os.fstat(slot_fd)
+                if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != os.geteuid():
+                    raise RepositoryTransferError("quarantine slot ownership is unsafe")
+                return quarantine / name, (metadata.st_dev, metadata.st_ino)
+            finally:
+                os.close(slot_fd)
+        raise RepositoryTransferError("unable to allocate a unique quarantine slot")
+    except OSError as exc:
+        raise RepositoryTransferError("quarantine slot allocation failed") from exc
+    finally:
+        os.close(root_fd)
+
+
+def _verify_quarantine_slot(
+    quarantine: Path,
+    destination: Path,
+    identity: tuple[int, int],
+) -> None:
+    if destination.parent != quarantine or not _QUARANTINE_SLOT_RE.fullmatch(
+        destination.name
+    ):
+        raise RepositoryTransferError("quarantine slot escaped its owned root")
+    root_fd, _ = _open_quarantine_root(quarantine)
+    try:
+        metadata = os.stat(destination.name, dir_fd=root_fd, follow_symlinks=False)
+        if (
+            not stat.S_ISDIR(metadata.st_mode)
+            or metadata.st_uid != os.geteuid()
+            or (metadata.st_dev, metadata.st_ino) != identity
+        ):
+            raise RepositoryTransferError("quarantine slot identity changed")
+    except FileNotFoundError as exc:
+        raise RepositoryTransferError("quarantine slot disappeared") from exc
+    except OSError as exc:
+        raise RepositoryTransferError("quarantine slot cannot be verified") from exc
+    finally:
+        os.close(root_fd)
+
+
+def _remove_quarantine_slot(
+    quarantine: Path,
+    destination: Path,
+    identity: tuple[int, int],
+) -> None:
+    if destination.parent != quarantine or not _QUARANTINE_SLOT_RE.fullmatch(
+        destination.name
+    ):
+        raise RepositoryTransferError("quarantine slot escaped its owned root")
+    if not shutil.rmtree.avoids_symlink_attacks:
+        raise RepositoryTransferError("safe recursive quarantine cleanup is unavailable")
+    root_fd, _ = _open_quarantine_root(quarantine)
+    tombstone = f".eaaef-cleanup-{secrets.token_hex(16)}"
+    try:
+        metadata = os.stat(destination.name, dir_fd=root_fd, follow_symlinks=False)
+        if (
+            not stat.S_ISDIR(metadata.st_mode)
+            or metadata.st_uid != os.geteuid()
+            or (metadata.st_dev, metadata.st_ino) != identity
+        ):
+            raise RepositoryTransferError("quarantine slot identity changed")
+        os.rename(
+            destination.name,
+            tombstone,
+            src_dir_fd=root_fd,
+            dst_dir_fd=root_fd,
+        )
+        renamed = os.stat(tombstone, dir_fd=root_fd, follow_symlinks=False)
+        if (
+            not stat.S_ISDIR(renamed.st_mode)
+            or (renamed.st_dev, renamed.st_ino) != identity
+        ):
+            raise RepositoryTransferError("quarantine cleanup identity changed")
+        shutil.rmtree(tombstone, dir_fd=root_fd)
+    except OSError as exc:
+        raise RepositoryTransferError("bounded quarantine cleanup failed") from exc
+    finally:
+        os.close(root_fd)
 
 
 def _worktree_entries(root: Path) -> list[SourceFileEntry]:
@@ -3232,27 +3439,29 @@ def _reconstruct_git_bundle(
     timeout = float(policy.git_timeout_seconds)
     if len(bundle_bytes) > policy.max_artifact_bytes:
         raise TransferBoundsError("git bundle exceeds max_artifact_bytes")
-    staging = destination.parent / ".staging"
-    staging.mkdir(parents=True, exist_ok=True)
-    bundle_path = staging / "source.bundle"
-    bundle_path.write_bytes(bundle_bytes)
-    if destination.exists():
-        shutil.rmtree(destination)
-    _git(
-        ["clone", "--quiet", bundle_path.as_posix(), destination.as_posix()],
-        cwd=staging,
-        timeout=timeout,
+    staging, staging_identity = _create_quarantine_slot(
+        destination.parent,
+        artifact_identity(bundle_bytes),
     )
-    _disable_hooks(destination, timeout=timeout)
-    _clear_origin(destination, timeout=timeout, origin_alias=origin_alias)
-    if head_ref and head_ref != "HEAD":
+    try:
+        bundle_path = staging / "source.bundle"
+        bundle_path.write_bytes(bundle_bytes)
         _git(
-            ["checkout", "--quiet", head_ref],
-            cwd=destination,
+            ["clone", "--quiet", bundle_path.as_posix(), destination.as_posix()],
+            cwd=staging,
             timeout=timeout,
-            check=False,
         )
-    shutil.rmtree(staging, ignore_errors=True)
+        _disable_hooks(destination, timeout=timeout)
+        _clear_origin(destination, timeout=timeout, origin_alias=origin_alias)
+        if head_ref and head_ref != "HEAD":
+            _git(
+                ["checkout", "--quiet", head_ref],
+                cwd=destination,
+                timeout=timeout,
+                check=False,
+            )
+    finally:
+        _remove_quarantine_slot(destination.parent, staging, staging_identity)
 
 
 def _reconstruct_object_set(
@@ -3277,9 +3486,8 @@ def _reconstruct_object_set(
         raise TransferEngineError("object set must include objects and refs")
     if len(objects) > policy.max_objects:
         raise TransferBoundsError("object set exceeds max_objects")
-    if destination.exists():
-        shutil.rmtree(destination)
-    destination.mkdir(parents=True)
+    if any(destination.iterdir()):
+        raise TransferEngineError("quarantine slot is not empty")
     _git(["init", "--quiet"], cwd=destination, timeout=timeout)
     _disable_hooks(destination, timeout=timeout)
     object_root = destination / ".git" / "objects"
@@ -3301,7 +3509,7 @@ def _reconstruct_object_set(
             raw = data_text.encode("utf-8")
         else:
             raise TransferEngineError("object set entry is missing data")
-        header = f"{kind} {len(raw)}\0".encode("utf-8")
+        header = f"{kind} {len(raw)}\0".encode()
         stored = zlib.compress(header + raw)
         actual = hashlib.sha1(header + raw).hexdigest()
         if actual != oid:
@@ -3481,7 +3689,7 @@ def transfer_repository(
     checkout_before = _fingerprint_tree(user_checkout) if user_checkout is not None else ""
     try:
         quarantine = _require_quarantine(quarantine_root, user_checkout=user_checkout)
-    except RepositoryTransferError:
+    except (RepositoryTransferError, OSError):
         result = _refused_result(request, TransferRefusal.QUARANTINE_UNSAFE, policy=bounds)
         _assert_user_checkout_unchanged(user_checkout, checkout_before)
         return result
@@ -3526,11 +3734,34 @@ def transfer_repository(
         result = _refused_result(request, TransferRefusal.BOUNDS_EXCEEDED, policy=bounds)
         _assert_user_checkout_unchanged(user_checkout, checkout_before)
         return result
-    destination = quarantine / request.content_id[7:23]
     try:
-        if destination.exists():
-            shutil.rmtree(destination)
-        destination.mkdir(parents=True)
+        destination, destination_identity = _create_quarantine_slot(
+            quarantine,
+            request.content_id,
+        )
+    except RepositoryTransferError:
+        result = _refused_result(
+            request,
+            TransferRefusal.QUARANTINE_UNSAFE,
+            policy=bounds,
+        )
+        _assert_user_checkout_unchanged(user_checkout, checkout_before)
+        return result
+
+    def refuse_and_clean(reason: TransferRefusal) -> RepositoryTransferResult:
+        try:
+            _remove_quarantine_slot(
+                quarantine,
+                destination,
+                destination_identity,
+            )
+        except RepositoryTransferError:
+            reason = TransferRefusal.QUARANTINE_UNSAFE
+        refused = _refused_result(request, reason, policy=bounds)
+        _assert_user_checkout_unchanged(user_checkout, checkout_before)
+        return refused
+
+    try:
         if resolved.kind is ArtifactKind.GIT_BUNDLE:
             if blob is None:
                 raise TransferEngineError("git bundle bytes are missing")
@@ -3566,10 +3797,7 @@ def transfer_repository(
                 destination, manifest, store, policy=bounds
             )
             if write_error is not None:
-                shutil.rmtree(destination, ignore_errors=True)
-                result = _refused_result(request, write_error, policy=bounds)
-                _assert_user_checkout_unchanged(user_checkout, checkout_before)
-                return result
+                return refuse_and_clean(write_error)
             overlay_entries = list(request.overlay_entries)
             present = {item.path for item in overlay_entries}
             for path in manifest.untracked:
@@ -3581,6 +3809,7 @@ def transfer_repository(
             snapshot = _snapshot_source_tree(
                 destination, origin_alias=resolved.origin_alias, overlay=overlay
             )
+        _verify_quarantine_slot(quarantine, destination, destination_identity)
         expected_head = (
             resolved.declared_head or request.declared_head or request.locator.declared_head
         )
@@ -3588,20 +3817,10 @@ def transfer_repository(
             resolved.declared_tree or request.declared_tree or request.locator.declared_tree
         )
         if expected_head and snapshot.head_commit and snapshot.head_commit != expected_head:
-            shutil.rmtree(destination, ignore_errors=True)
-            result = _refused_result(
-                request, TransferRefusal.DECLARED_STATE_MISMATCH, policy=bounds
-            )
-            _assert_user_checkout_unchanged(user_checkout, checkout_before)
-            return result
+            return refuse_and_clean(TransferRefusal.DECLARED_STATE_MISMATCH)
         reconstructed_tree = snapshot.head_tree
         if expected_tree and reconstructed_tree != expected_tree:
-            shutil.rmtree(destination, ignore_errors=True)
-            result = _refused_result(
-                request, TransferRefusal.DECLARED_STATE_MISMATCH, policy=bounds
-            )
-            _assert_user_checkout_unchanged(user_checkout, checkout_before)
-            return result
+            return refuse_and_clean(TransferRefusal.DECLARED_STATE_MISMATCH)
         artifact_ids = [resolved.artifact_id]
         if manifest is not None:
             artifact_ids.extend(item.digest for item in manifest.files)
@@ -3642,26 +3861,82 @@ def transfer_repository(
         _assert_user_checkout_unchanged(user_checkout, checkout_before)
         return result
     except TransferBoundsError:
-        shutil.rmtree(destination, ignore_errors=True)
-        result = _refused_result(request, TransferRefusal.BOUNDS_EXCEEDED, policy=bounds)
-        _assert_user_checkout_unchanged(user_checkout, checkout_before)
-        return result
+        return refuse_and_clean(TransferRefusal.BOUNDS_EXCEEDED)
     except TransferIdentityError:
-        shutil.rmtree(destination, ignore_errors=True)
-        result = _refused_result(
-            request, TransferRefusal.ARTIFACT_DIGEST_MISMATCH, policy=bounds
-        )
-        _assert_user_checkout_unchanged(user_checkout, checkout_before)
-        return result
+        return refuse_and_clean(TransferRefusal.ARTIFACT_DIGEST_MISMATCH)
     except RepositoryTransferError as exc:
-        shutil.rmtree(destination, ignore_errors=True)
         message = str(exc)
         if "host path" in message:
             reason = TransferRefusal.ARBITRARY_HOST_PATH
         elif "symlink" in message:
             reason = TransferRefusal.UNSAFE_SYMLINK
+        elif "quarantine" in message:
+            reason = TransferRefusal.QUARANTINE_UNSAFE
         else:
             reason = TransferRefusal.ENGINE_FAILURE
-        result = _refused_result(request, reason, policy=bounds)
-        _assert_user_checkout_unchanged(user_checkout, checkout_before)
-        return result
+        return refuse_and_clean(reason)
+
+
+# Historical parse-only compatibility surface.  Admission and reconstruction
+# authority remains exclusively in ``transfer_repository`` above.
+TransferError = RepositoryTransferError
+
+
+@dataclass(frozen=True, slots=True)
+class TransferRequest:
+    mode: str
+    locator: str
+    alias: str = ""
+    object_ids: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        admitted_mode = _enum(self.mode, RepositoryTransferMode, "mode")
+        object.__setattr__(self, "mode", admitted_mode.value)
+        locator = _text(self.locator, "locator", allow_host_path=True)
+        if looks_like_host_path(locator):
+            raise TransferError("arbitrary remote host paths are not accepted")
+        if ".." in PurePosixPath(locator).parts:
+            raise TransferError("path traversal is not accepted")
+        object.__setattr__(self, "locator", locator)
+        alias = _text(self.alias, "alias", required=False)
+        if admitted_mode in {
+            RepositoryTransferMode.MANAGED_ALIAS,
+            RepositoryTransferMode.APPROVED_REMOTE_ALIAS,
+        } and not alias:
+            raise TransferError("alias is required")
+        object.__setattr__(self, "alias", alias)
+        object_ids = tuple(_text(item, "object_id") for item in self.object_ids)
+        if admitted_mode is RepositoryTransferMode.UPLOADED_OBJECT_SET and not object_ids:
+            raise TransferError("uploaded object set requires object ids")
+        if any(len(item) < 8 for item in object_ids):
+            raise TransferError("object id is too short")
+        object.__setattr__(self, "object_ids", object_ids)
+
+    def to_dict(self) -> Mapping[str, Any]:
+        return MappingProxyType(
+            {
+                "schema": "ipfs_kit_py/repository-transfer-request@1",
+                "mode": self.mode,
+                "locator": self.locator,
+                "alias": self.alias,
+                "object_ids": list(self.object_ids),
+                "reconstruction_authority": False,
+            }
+        )
+
+
+def admit_transfer(
+    *,
+    mode: str,
+    locator: str,
+    alias: str = "",
+    object_ids: Sequence[str] = (),
+) -> TransferRequest:
+    """Parse the legacy compact locator without reconstructing or granting authority."""
+
+    return TransferRequest(
+        mode=mode,
+        locator=locator,
+        alias=alias,
+        object_ids=tuple(object_ids),
+    )
