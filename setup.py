@@ -7,6 +7,8 @@ download binaries, or otherwise mutate user state.
 
 from setuptools import setup
 
+PACKAGE_METADATA_SOURCE = "pyproject.toml"
+
 
 if __name__ == "__main__":
     setup()
