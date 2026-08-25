@@ -54,6 +54,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# The proof-context core is a hermetic local CAS/WAL/receipt provider.  Remote
+# IPFS is an explicit opt-in surface and uses injected clients, so this marker
+# intentionally carries no daemon/client dependency into ordinary installs.
+proof-context-ipfs = []
 graphrag = [
     "networkx>=3.0",
     "numpy>=1.20.0",
@@ -289,9 +293,6 @@ ipfs-kit-kernel-vfs = "ipfs_kit_py.cli.kernel_vfs:main"
 [project.entry-points."fsspec.specs"]
 iroh = "ipfs_kit_py.iroh_fsspec:IrohFileSystem"
 "iroh+blob" = "ipfs_kit_py.iroh_fsspec:IrohFileSystem"
-
-[project.entry-points.pytest11]
-ipfs-proof-reuse = "ipfs_accelerate_py.testing.proof_reuse.plugin"
 
 [project.urls]
 Homepage = "https://github.com/endomorphosis/ipfs_kit_py/"
