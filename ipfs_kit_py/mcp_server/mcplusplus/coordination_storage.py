@@ -30,6 +30,8 @@ PROFILE_G_PREFIX = "mcp++/profile-g/"
 COORDINATION_ARCHIVE_SCHEMA = "mcp++/coordination-index-archive@1"
 DAEMON_HEALTH_SCHEMA = "mcp++/coordination/daemon-health@1"
 STATE_ROOT_TRANSITION_SCHEMA = "mcp++/coordination/state-root-transition@1"
+CANONICAL_EVENT_SCHEMA = "ipfs_datasets_py/logic/ir-core/canonical-event@1"
+EVENT_PUBLICATION_SCHEMA = "mcp++/coordination/event-publication@1"
 # These names are deliberately part of the small test seam for this storage
 # primitive.  An injector raises at one boundary to model a process stopping;
 # reopening the store must then derive either the old root or the sole durable
@@ -284,7 +286,7 @@ class IPFSHeliaBlockBackend:
 class DurableCoordinationStore:
     """Immutable artifact persistence with rebuildable claim/lease indexes."""
 
-    DB_VERSION = 2
+    DB_VERSION = 3
 
     def __init__(
         self,
@@ -320,6 +322,7 @@ class DurableCoordinationStore:
             "root_index_rebuild_mutations": 0,
         }
         self._last_root_indexes_match = True
+        self._last_event_publication_indexes_match = True
         self._connection = self._open_database()
         # A missing/recreated index next to existing blocks is recovered
         # automatically. Operators can also request an explicit full rebuild.
@@ -332,7 +335,7 @@ class DurableCoordinationStore:
         # a DELETE/INSERT root-index rewrite.
         if has_blocks:
             self.recover(rebuild=False)
-            if indexed == 0 or not self._last_root_indexes_match:
+            if indexed == 0 or not self._last_root_indexes_match or not self._last_event_publication_indexes_match:
                 self.recover(rebuild=True)
 
     def _open_database(self) -> sqlite3.Connection:
@@ -411,6 +414,16 @@ class DurableCoordinationStore:
             );
             CREATE INDEX IF NOT EXISTS state_root_transitions_namespace_revision
               ON state_root_transitions(namespace, new_revision);
+            CREATE TABLE IF NOT EXISTS event_publications (
+              publication_cid TEXT PRIMARY KEY REFERENCES artifacts(cid),
+              operation_id TEXT NOT NULL UNIQUE,
+              event_cid TEXT NOT NULL UNIQUE REFERENCES artifacts(cid),
+              event_id TEXT NOT NULL UNIQUE,
+              stream_id TEXT NOT NULL,
+              published_at_ms INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS event_publications_stream
+              ON event_publications(stream_id, published_at_ms, publication_cid);
             """
         )
         connection.execute(
@@ -893,6 +906,200 @@ class DurableCoordinationStore:
     current_root = current_state_root
     compare_and_swap_root = compare_and_swap_state_root
 
+    @staticmethod
+    def _canonical_event_fields(event: Mapping[str, Any]) -> Dict[str, Any]:
+        """Validate the storage boundary of the datasets-owned event envelope.
+
+        Semantic identity remains owned by the Datasets schema registry.  Kit
+        deliberately checks only the closed wire boundary it must persist, so
+        it neither assigns event meaning nor becomes a second event subsystem.
+        """
+
+        required = {
+            "schema", "event_id", "event_type", "stream_id", "causal_parent_ids",
+            "correlation_id", "causation_id", "payload",
+        }
+        if not isinstance(event, Mapping) or set(event) != required:
+            raise ValueError("event must be a closed canonical event envelope")
+        if event.get("schema") != CANONICAL_EVENT_SCHEMA:
+            raise ValueError("event must use the canonical event schema")
+        for name in ("event_id", "event_type", "stream_id", "correlation_id", "causation_id"):
+            _require_string(event, name)
+        parents = event["causal_parent_ids"]
+        if not isinstance(parents, list) or any(not isinstance(parent, str) or not parent for parent in parents):
+            raise ValueError("causal_parent_ids must be an array of non-empty strings")
+        if not isinstance(event["payload"], Mapping):
+            raise ValueError("event payload must be an object")
+        # Canonical encoding also rejects non-JSON values and non-finite numbers.
+        value = dict(event)
+        _canonical_json(value)
+        return value
+
+    def _event_publication_fields(self, artifact: Mapping[str, Any]) -> Dict[str, Any]:
+        """Validate the immutable operational evidence for one publication."""
+
+        required = {"schema", "operation_id", "event_cid", "event_id", "stream_id", "published_at_ms"}
+        if set(artifact) != required or artifact.get("schema") != EVENT_PUBLICATION_SCHEMA:
+            raise ValueError("event publication has an invalid schema or fields")
+        return {
+            "operation_id": self._operation_id(artifact["operation_id"]),
+            "event_cid": _require_string(artifact, "event_cid"),
+            "event_id": _require_string(artifact, "event_id"),
+            "stream_id": _require_string(artifact, "stream_id"),
+            "published_at_ms": _require_integer(artifact, "published_at_ms"),
+        }
+
+    def publish_event(self, event: Mapping[str, Any], *, operation_id: str) -> Dict[str, Any]:
+        """Atomically publish one canonical event with a durable replay key.
+
+        The event and its publication evidence are fsynced before their SQLite
+        rows commit together.  Replaying the same operation is logical-once;
+        reusing an operation ID or semantic event ID for different bytes is a
+        typed conflict and never overwrites immutable evidence.
+        """
+
+        value = self._canonical_event_fields(event)
+        operation_id = self._operation_id(operation_id)
+        event_data = _canonical_json(value)
+        event_cid = cid_for_bytes(event_data)
+
+        with self._lock:
+            connection = self._connection
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                existing = connection.execute(
+                    "SELECT * FROM event_publications WHERE operation_id=?", (operation_id,)
+                ).fetchone()
+                if existing is not None:
+                    connection.rollback()
+                    if existing["event_cid"] == event_cid:
+                        return {
+                            "status": "unchanged", "reason_code": "idempotent_replay",
+                            "event_cid": event_cid, "publication_cid": existing["publication_cid"],
+                            "local_durable": True, "replicated": False,
+                        }
+                    return {
+                        "status": "conflict", "reason_code": "operation_id_reused",
+                        "event_cid": existing["event_cid"], "publication_cid": existing["publication_cid"],
+                        "local_durable": True, "replicated": False,
+                    }
+
+                existing_event = connection.execute(
+                    "SELECT * FROM event_publications WHERE event_id=?", (value["event_id"],)
+                ).fetchone()
+                if existing_event is not None:
+                    connection.rollback()
+                    return {
+                        "status": "conflict", "reason_code": "event_id_reused",
+                        "event_cid": existing_event["event_cid"],
+                        "publication_cid": existing_event["publication_cid"],
+                        "local_durable": True, "replicated": False,
+                    }
+
+                publication = {
+                    "schema": EVENT_PUBLICATION_SCHEMA,
+                    "operation_id": operation_id,
+                    "event_cid": event_cid,
+                    "event_id": value["event_id"],
+                    "stream_id": value["stream_id"],
+                    "published_at_ms": int(self._clock_ms()),
+                }
+                publication_data = _canonical_json(publication)
+                publication_cid = cid_for_bytes(publication_data)
+                self._write_block(event_cid, event_data)
+                self._write_block(publication_cid, publication_data)
+                connection.execute(
+                    "INSERT OR IGNORE INTO artifacts VALUES(?,?,?,?,?,?)",
+                    (event_cid, _artifact_kind(value), CANONICAL_EVENT_SCHEMA, "dag-json", len(event_data), publication["published_at_ms"]),
+                )
+                connection.execute(
+                    "INSERT OR IGNORE INTO artifacts VALUES(?,?,?,?,?,?)",
+                    (publication_cid, EVENT_PUBLICATION_SCHEMA, EVENT_PUBLICATION_SCHEMA, "dag-json", len(publication_data), publication["published_at_ms"]),
+                )
+                connection.execute(
+                    "INSERT INTO event_publications VALUES(?,?,?,?,?,?)",
+                    (publication_cid, operation_id, event_cid, value["event_id"], value["stream_id"], publication["published_at_ms"]),
+                )
+                connection.commit()
+            except Exception:
+                connection.rollback()
+                raise
+
+        replicated = False
+        if self.backend is not None:
+            self.backend.store_block(event_cid, event_data, "dag-json")
+            self.backend.store_block(publication_cid, publication_data, "dag-json")
+            replicated = True
+        return {
+            "status": "published", "reason_code": "published", "event_cid": event_cid,
+            "publication_cid": publication_cid, "local_durable": True, "replicated": replicated,
+        }
+
+    # Retain the explicit name for callers that distinguish semantic event
+    # construction (Datasets) from durable publication (Kit).
+    publish_canonical_event = publish_event
+
+    def published_events(self, stream_id: Optional[str] = None) -> list[Dict[str, Any]]:
+        """List durable publication evidence in deterministic publication order."""
+
+        sql = "SELECT * FROM event_publications"
+        params: tuple[Any, ...] = ()
+        if stream_id is not None:
+            if not isinstance(stream_id, str) or not stream_id:
+                raise ValueError("stream_id must be a non-empty string")
+            sql += " WHERE stream_id=?"
+            params = (stream_id,)
+        sql += " ORDER BY published_at_ms,publication_cid"
+        with self._lock:
+            return self._rows(self._connection.execute(sql, params))
+
+    def _reconstructed_event_publications(
+        self, verified: list[Tuple[str, Dict[str, Any], bytes]]
+    ) -> list[tuple[str, Dict[str, Any]]]:
+        """Recover publication indexes only from immutable publication evidence."""
+
+        values = {cid: value for cid, value, _ in verified}
+        publications: list[tuple[str, Dict[str, Any]]] = []
+        operation_ids: set[str] = set()
+        event_cids: set[str] = set()
+        event_ids: set[str] = set()
+        for cid, value, _ in verified:
+            if value.get("schema") != EVENT_PUBLICATION_SCHEMA:
+                continue
+            if _codec_from_cid(cid) != "dag-json":
+                raise ArtifactIntegrityError(f"event publication {cid} has a non-dag-json CID")
+            fields = self._event_publication_fields(value)
+            _codec_from_cid(fields["event_cid"])
+            event = values.get(fields["event_cid"])
+            if event is None:
+                raise ArtifactIntegrityError(f"event publication {cid} has a missing event block")
+            event_fields = self._canonical_event_fields(event)
+            if event_fields["event_id"] != fields["event_id"] or event_fields["stream_id"] != fields["stream_id"]:
+                raise ArtifactIntegrityError(f"event publication {cid} does not match its event block")
+            for name, seen, field in (
+                ("operation_id", operation_ids, fields["operation_id"]),
+                ("event_cid", event_cids, fields["event_cid"]),
+                ("event_id", event_ids, fields["event_id"]),
+            ):
+                if field in seen:
+                    raise ArtifactIntegrityError(f"duplicate event publication {name} {field!r}")
+                seen.add(field)
+            publications.append((cid, fields))
+        return sorted(publications, key=lambda item: (item[1]["published_at_ms"], item[0]))
+
+    @staticmethod
+    def _event_publication_indexes_match(
+        connection: sqlite3.Connection, publications: list[tuple[str, Dict[str, Any]]]
+    ) -> bool:
+        actual = {
+            row["publication_cid"]: dict(row)
+            for row in connection.execute("SELECT * FROM event_publications")
+        }
+        if set(actual) != {cid for cid, _ in publications}:
+            return False
+        fields = ("operation_id", "event_cid", "event_id", "stream_id", "published_at_ms")
+        return all(all(actual[cid][name] == value[name] for name in fields) for cid, value in publications)
+
     def _index_artifact(
         self, connection: sqlite3.Connection, cid: str, kind: str, artifact: Mapping[str, Any]
     ) -> None:
@@ -1258,8 +1465,12 @@ class DurableCoordinationStore:
                     suffix = "" if corrupt_count == len(errors) else f" (showing first {len(errors)} of {corrupt_count})"
                     raise ArtifactIntegrityError(f"coordination recovery found corrupt blocks{suffix}: {errors}")
                 root_transitions, snapshots = self._reconstructed_root_chain(verified)
+                event_publications = self._reconstructed_event_publications(verified)
                 root_indexes_match = self._root_indexes_match(connection, root_transitions, snapshots)
                 self._last_root_indexes_match = root_indexes_match
+                self._last_event_publication_indexes_match = self._event_publication_indexes_match(
+                    connection, event_publications
+                )
                 self._root_recovery_metrics["root_index_verifications"] += 1
                 if not rebuild:
                     connection.commit()
@@ -1277,6 +1488,7 @@ class DurableCoordinationStore:
                 self._connection.execute("DELETE FROM index_archives")
                 self._connection.execute("DELETE FROM state_roots")
                 self._connection.execute("DELETE FROM state_root_transitions")
+                self._connection.execute("DELETE FROM event_publications")
                 self._connection.execute("DELETE FROM artifacts")
                 # Creation order is stable so claims precede resolutions in the
                 # normal case. A second resolution pass handles arbitrary scans.
@@ -1328,6 +1540,12 @@ class DurableCoordinationStore:
                         "INSERT INTO state_roots(namespace,root_cid,revision,transition_cid) VALUES(?,?,?,?)",
                         (namespace, snapshot["root_cid"], snapshot["revision"], snapshot["transition_cid"]),
                     )
+                for cid, fields in event_publications:
+                    self._connection.execute(
+                        "INSERT INTO event_publications VALUES(?,?,?,?,?,?)",
+                        (cid, fields["operation_id"], fields["event_cid"], fields["event_id"],
+                         fields["stream_id"], fields["published_at_ms"]),
+                    )
                 connection.commit()
                 # Session metrics describe committed index work only.  A
                 # rollback may have executed statements, but it did not make
@@ -1342,7 +1560,7 @@ class DurableCoordinationStore:
         with self._lock:
             counts = {
                 table: int(self._connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
-                for table in ("artifacts", "claims", "leases", "daemon_health", "index_archives")
+                for table in ("artifacts", "claims", "leases", "daemon_health", "index_archives", "event_publications")
             }
         return {
             "storage_dir": str(self.root),
@@ -1358,8 +1576,10 @@ __all__ = [
     "ArtifactNotFound",
     "BlockBackend",
     "COORDINATION_ARCHIVE_SCHEMA",
+    "CANONICAL_EVENT_SCHEMA",
     "DAEMON_HEALTH_SCHEMA",
     "DurableCoordinationStore",
+    "EVENT_PUBLICATION_SCHEMA",
     "IPFSHeliaBlockBackend",
     "MAX_RECOVERY_ERRORS",
     "RetentionPolicy",

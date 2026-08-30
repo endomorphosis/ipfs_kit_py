@@ -1,0 +1,34 @@
+{
+  "base_repositories": {
+    "ipfs_accelerate_py": {"commit": "87715e9295626e7918f7fc8a7b1a1531ab04208f", "tree": "1c9a399cc7a599d5904e5be2ae58c6be3650cff7"},
+    "ipfs_datasets_py": {"commit": "3668b8857a9aa7b1a3c847be12725b5cd057d2e7", "tree": "456e09b51d6a07a3a5873436df24054768195320"},
+    "ipfs_kit_py": {"commit": "b6c65ba732733d7e33852713ba18aa3b12235668", "tree": "14da7d92e130b7ba3523d0d6741a3ef7ef1e1bc2"},
+    "lift_coding": {"commit": "bb8869ed72eb7002434345d9969efee729c4f7f6", "tree": "99e85bfe584b7688ffbeff86da1e612dd6893a42"}
+  },
+  "board_namespace": "agent-supervisor-direct-objective-and-event-driven-planning-v1",
+  "canonical_event_schema": "ipfs_datasets_py/logic/ir-core/canonical-event@1",
+  "completion_authoritative": false,
+  "declared_outputs": [
+    "ipfs_kit_py/mcp_server/mcplusplus/coordination_storage.py",
+    "tests/doep/test_doep_031_add_transactional_event_publication.py",
+    "artifacts/agent_supervisor_direct_objective_event_driven_planning/outputs/DOEP-031.json",
+    "artifacts/agent_supervisor_direct_objective_event_driven_planning/receipts/DOEP-031.json"
+  ],
+  "durable_storage": "DurableCoordinationStore",
+  "event_publication_schema": "mcp++/coordination/event-publication@1",
+  "goal_id": "DOEP-G040.S1",
+  "no_competing_subsystem_created": true,
+  "owning_repository": "ipfs_kit_py",
+  "parent_goal_id": "DOEP-G040",
+  "plan_cid": "sha256:6c197a4b92682b3b813656123e09956846dc4f5abadf417f37fb7cc0133ddba4",
+  "plan_epoch": 1,
+  "plan_revision": "DOEP-PLAN-V5",
+  "primary_output": "ipfs_kit_py/mcp_server/mcplusplus/coordination_storage.py",
+  "root_goal_id": "DOEP-G000",
+  "schema": "ipfs_accelerate_py/agent-supervisor/doep-task-output@1",
+  "task_cid": "sha256:874d5734293949adf012407213234bfcd05bde51815b9bd2babceb4a752d0306",
+  "task_id": "DOEP-031",
+  "title": "Add transactional event publication",
+  "validation_profile": "doep-validation/DOEP-PLAN-V5/DOEP-031@1",
+  "worker_completion_insufficient": true
+}
