@@ -272,9 +272,11 @@ def test_wraps_landed_graphrag_backends_not_a_second_engine() -> None:
         encoding="utf-8"
     )
     assert "from ipfs_kit_py.graphrag.vector_index import" in projections_source
+    assert "from ipfs_kit_py.graphrag.projections import" in projections_source
     assert "ExactVectorIndex" in projections_source
     assert "ANNVectorIndex" in projections_source
     assert "HybridRetriever" in projections_source
+    assert "GraphProjection" in projections_source
     for source in (projections_source, resolver_source):
         assert "from ipfs_kit_py.mcp_server.mcplusplus.coordination_storage import" in source
         assert "def _varint" not in source
@@ -299,6 +301,13 @@ def test_capability_probe_types_native_ann_without_importing_it() -> None:
     assert native_ann_available() is any(
         capabilities[kind].available for kind in ("faiss", "hnswlib", "annoy")
     )
+    projections_source = Path(inspect.getsourcefile(probe_projection_backends)).read_text(
+        encoding="utf-8"
+    )
+    assert "importlib.util.find_spec" in projections_source
+    assert "import faiss" not in projections_source
+    assert "import hnswlib" not in projections_source
+    assert "import annoy" not in projections_source
 
 
 # ---------------------------------------------------------------------------
@@ -394,6 +403,11 @@ def test_search_resolves_and_rehashes_before_use(
     assert top.freshness["fresh"] is True
     assert "score" not in top.identity_payload()
     assert all(item in top.limitations for item in ADVISORY_LIMITATIONS)
+    via_method = index.search(query, k=2)
+    assert via_method.authoritative is False
+    assert via_method.results[0].projection_cid == top.projection_cid
+    assert index.authoritative is False
+    assert index.rebuildable is True
 
 
 def test_advisory_flag_is_forced_on_candidates_and_responses(

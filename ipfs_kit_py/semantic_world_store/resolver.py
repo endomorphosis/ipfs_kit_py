@@ -563,7 +563,8 @@ class ExactProjectionResolver:
 
         if candidate.authoritative is not False or candidate.resolved is not False:
             raise ProjectionResolverAdmissionError(
-                "candidate is not an advisory unresolved ANN hit"
+                "candidate is not an advisory unresolved ANN hit; "
+                "similarity never becomes authority"
             )
 
         manifest = self._current_manifest(candidate)

@@ -30,6 +30,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, ClassVar, Final, Iterable, Mapping, Sequence
 
+from ipfs_kit_py.graphrag.projections import GraphProjection
 from ipfs_kit_py.graphrag.retrieval import HybridRetriever, HybridSearchResponse
 from ipfs_kit_py.graphrag.vector_index import (
     ANNBackend,
@@ -663,9 +664,11 @@ class ProjectionIndex:
         self._built = False
         self._native_module: str | None = None
         self._capabilities = probe_projection_backends()
+        self._graph_projection_type: type[GraphProjection] | None = None
         if self._backend_kind == "graph":
             # GraphRAG graph projections are wrap-only rebuildable artifacts.
             # They are never a similarity authority and never the canonical graph.
+            self._graph_projection_type = GraphProjection
             self._engine = None
         elif self._backend_kind == "ann":
             self._engine = ANNVectorIndex(
@@ -720,6 +723,14 @@ class ProjectionIndex:
 
     @property
     def exact_raw_source_fallback_permitted(self) -> bool:
+        return True
+
+    @property
+    def authoritative(self) -> bool:
+        return False
+
+    @property
+    def rebuildable(self) -> bool:
         return True
 
     def backend_artifact(self) -> ProjectionIndexBackendArtifact:
@@ -881,6 +892,11 @@ class ProjectionIndex:
         """
 
         if self._backend_kind == "graph":
+            if self._graph_projection_type is not GraphProjection:
+                raise ProjectionBackendUnavailable(
+                    "index_unavailable: graph backend wrap is missing; "
+                    "exact/raw-source fallback is permitted"
+                )
             raise ProjectionBackendUnavailable(
                 "index_unavailable: graph backend is a rebuildable wrap only and "
                 "cannot serve similarity search; exact/raw-source fallback is permitted"
@@ -1050,6 +1066,14 @@ class ProjectionIndex:
             raise
         except SemanticWorldArtifactAdmissionError as exc:
             raise ProjectionIndexAdmissionError(str(exc)) from exc
+        except VerifiedSemanticStoreNotFound as exc:
+            raise ProjectionIndexError(
+                f"query vector is not stored; exact/raw-source fallback is permitted: {exc}"
+            ) from exc
+        except VerifiedSemanticStoreIntegrityError as exc:
+            raise ProjectionIndexIntegrityError(
+                f"query vector CID does not rehash: {exc}"
+            ) from exc
         except SemanticWorldArtifactError as exc:
             raise ProjectionIndexError(str(exc)) from exc
         self._require_profile(
@@ -1132,6 +1156,30 @@ class ProjectionIndex:
                 )
             )
         return tuple(candidates)
+
+    def search(
+        self,
+        query: CanonicalVectorBytes | Sequence[Any] | str,
+        *,
+        k: int = DEFAULT_QUERY_K,
+        model_cid: str | None = None,
+        text_query: str = "",
+        filters: Mapping[str, Any] | None = None,
+        resolver: Any | None = None,
+        resolve: bool = True,
+    ) -> Any:
+        """Search this rebuildable index.  Hits are resolved before use by default."""
+
+        return search_projection_index(
+            self,
+            query,
+            k=k,
+            model_cid=model_cid,
+            text_query=text_query,
+            filters=filters,
+            resolver=resolver,
+            resolve=resolve,
+        )
 
 
 def rebuild_projection_index(
