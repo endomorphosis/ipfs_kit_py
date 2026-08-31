@@ -455,6 +455,23 @@ def test_advisory_flag_is_forced_on_candidates_and_responses(
             resolution_chain=dict(resolved.resolution_chain),
             authoritative=True,
         )
+    with pytest.raises(Exception, match="exact reuse"):
+        ResolvedProjectionCandidate(
+            projection_cid=resolved.projection_cid,
+            resolved_subject_cid=resolved.resolved_subject_cid,
+            score=resolved.score,
+            manifest_cid=resolved.manifest_cid,
+            model_cid=resolved.model_cid,
+            tokenizer_cid=resolved.tokenizer_cid,
+            preprocessing_profile_cid=resolved.preprocessing_profile_cid,
+            normalization_profile_cid=resolved.normalization_profile_cid,
+            vector_cid=resolved.vector_cid,
+            domain=dict(resolved.domain),
+            freshness=dict(resolved.freshness),
+            environment_binding_cid=resolved.environment_binding_cid,
+            resolution_chain=dict(resolved.resolution_chain),
+            exact_reuse=True,
+        )
 
 
 def test_score_is_not_identity(verified: VerifiedSemanticBlockStore) -> None:
@@ -548,6 +565,17 @@ def test_model_mismatch_is_typed_unavailable(
     with pytest.raises(ProjectionModelUnavailable, match="model_unavailable"):
         search_projection_index(
             index, query, k=1, model_cid=_source_cid("some-other-model")
+        )
+    with pytest.raises(ProjectionModelUnavailable, match="model_unavailable"):
+        search_projection_index(
+            index, query, k=1, tokenizer_cid=_source_cid("some-other-tokenizer")
+        )
+    with pytest.raises(ProjectionModelUnavailable, match="model_unavailable"):
+        search_projection_index(
+            index,
+            query,
+            k=1,
+            preprocessing_profile_cid=_source_cid("some-other-preproc"),
         )
 
 

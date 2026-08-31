@@ -692,12 +692,27 @@ class ExactProjectionResolver:
                 raise
             except VerifiedSemanticStoreIntegrityError as exc:
                 raise ProjectionCandidateCorrupt(str(exc)) from exc
-            except (
-                ProjectionCandidateStale,
-                ProjectionCandidateMissing,
-                ProjectionResolverAdmissionError,
-                VerifiedSemanticStoreError,
-            ) as exc:
+            except Exception as exc:
+                if type(exc).__name__ in _INTEGRITY_STORE_ERRORS:
+                    raise ProjectionCandidateCorrupt(str(exc)) from exc
+                if not isinstance(
+                    exc,
+                    (
+                        ProjectionCandidateStale,
+                        ProjectionCandidateMissing,
+                        ProjectionResolverAdmissionError,
+                        VerifiedSemanticStoreError,
+                    ),
+                ) and type(exc).__name__ not in {
+                    "ProjectionCandidateStale",
+                    "ProjectionCandidateMissing",
+                    "ProjectionResolverAdmissionError",
+                    "VerifiedSemanticStoreError",
+                    "VerifiedSemanticStoreNotFound",
+                    "SemanticWorldArtifactNotFound",
+                    "ProjectionIndexAdmissionError",
+                }:
+                    raise
                 reason = getattr(exc, "reason_code", "rejected_projection_candidate")
                 rejected.append(
                     ProjectionResolutionRejection(

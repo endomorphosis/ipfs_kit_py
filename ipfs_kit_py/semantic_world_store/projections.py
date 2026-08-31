@@ -31,12 +31,18 @@ from types import MappingProxyType
 from typing import Any, ClassVar, Final, Iterable, Mapping, Sequence
 
 from ipfs_kit_py.graphrag.projections import GraphProjection
-from ipfs_kit_py.graphrag.retrieval import HybridRetriever, HybridSearchResponse
+from ipfs_kit_py.graphrag.retrieval import (
+    HybridRetrievalError,
+    HybridRetriever,
+    HybridSearchResponse,
+)
 from ipfs_kit_py.graphrag.vector_index import (
     ANNBackend,
     ANNVectorIndex,
     ExactVectorIndex,
+    VectorIdentityMismatchError,
     VectorIndex,
+    VectorIndexError,
     VectorIndexIdentity,
     VectorRecord,
     VectorSearchResult,
@@ -967,7 +973,14 @@ class ProjectionIndex:
             raise ProjectionBackendUnavailable(
                 "index_unavailable: no rebuildable vector backend is bound"
             )
-        self._engine.rebuild(vector_records, identity=self._vector_identity)
+        try:
+            self._engine.rebuild(vector_records, identity=self._vector_identity)
+        except VectorIdentityMismatchError as exc:
+            raise ProjectionModelUnavailable(
+                f"model_unavailable: vector engine identity mismatch: {exc}"
+            ) from exc
+        except VectorIndexError as exc:
+            raise ProjectionIndexAdmissionError(str(exc)) from exc
         if self._hybrid is not None:
             self._hybrid = HybridRetriever(
                 self._engine, lexical_search=self._lexical_search
@@ -1007,8 +1020,12 @@ class ProjectionIndex:
     def drop_backend(self) -> None:
         """Discard rebuildable backend state.  Verified records remain."""
 
+        engine_error: Exception | None = None
         if self._engine is not None:
-            self._engine.rebuild((), identity=self._vector_identity)
+            try:
+                self._engine.rebuild((), identity=self._vector_identity)
+            except VectorIndexError as exc:
+                engine_error = exc
         self._records = {}
         self._projection_cids = ()
         self._vector_cids = ()
@@ -1018,12 +1035,16 @@ class ProjectionIndex:
             path = self._artifact_path()
             if path.is_file():
                 path.unlink()
+        if engine_error is not None:
+            raise ProjectionIndexAdmissionError(str(engine_error)) from engine_error
 
     def _admit_query(
         self,
         query: CanonicalVectorBytes | Sequence[Any] | str,
         *,
         model_cid: str | None,
+        tokenizer_cid: str | None = None,
+        preprocessing_profile_cid: str | None = None,
         k: int,
     ) -> tuple[tuple[float, ...], CanonicalVectorBytes]:
         if self._backend_kind == "graph":
@@ -1078,6 +1099,8 @@ class ProjectionIndex:
             raise ProjectionIndexError(str(exc)) from exc
         self._require_profile(
             model_cid=model_cid,
+            tokenizer_cid=tokenizer_cid,
+            preprocessing_profile_cid=preprocessing_profile_cid,
             dimension=vector.dimension,
             dtype=vector.dtype,
             byte_order=vector.byte_order,
@@ -1090,51 +1113,72 @@ class ProjectionIndex:
         *,
         k: int = DEFAULT_QUERY_K,
         model_cid: str | None = None,
+        tokenizer_cid: str | None = None,
+        preprocessing_profile_cid: str | None = None,
         text_query: str = "",
         filters: Mapping[str, Any] | None = None,
     ) -> tuple[ProjectionCandidate, ...]:
         """Return unresolved advisory hits.  Not for use until resolved."""
 
-        floats, _query_vector = self._admit_query(query, model_cid=model_cid, k=k)
+        floats, _query_vector = self._admit_query(
+            query,
+            model_cid=model_cid,
+            tokenizer_cid=tokenizer_cid,
+            preprocessing_profile_cid=preprocessing_profile_cid,
+            k=k,
+        )
         hits: Sequence[VectorSearchResult]
-        if self._backend_kind == "hybrid" and self._hybrid is not None:
-            response: HybridSearchResponse = self._hybrid.search(
-                floats,
-                text_query=text_query,
-                k=k,
-                filters=filters,
-                identity=self._vector_identity,
-            )
-            if response.authoritative is not False:
-                raise ProjectionIndexIntegrityError(
-                    "hybrid retrieval claimed authority"
+        try:
+            if self._backend_kind == "hybrid" and self._hybrid is not None:
+                response: HybridSearchResponse = self._hybrid.search(
+                    floats,
+                    text_query=text_query,
+                    k=k,
+                    filters=filters,
+                    identity=self._vector_identity,
                 )
-            ordered: list[VectorSearchResult] = []
-            for item in response.results:
-                if item.authoritative is not False:
+                if response.authoritative is not False:
                     raise ProjectionIndexIntegrityError(
                         "hybrid retrieval claimed authority"
                     )
-                record = self._records.get(item.document_id)
-                if record is None:
-                    continue
-                ordered.append(
-                    VectorSearchResult(
-                        item.document_id,
-                        item.score,
-                        {
-                            "projection_cid": record[0].projection_cid,
-                            "vector_cid": record[0].identity.vector_cid,
-                            "subject_cid": record[0].identity.subject_cid,
-                        },
+                ordered: list[VectorSearchResult] = []
+                for item in response.results:
+                    if item.authoritative is not False:
+                        raise ProjectionIndexIntegrityError(
+                            "hybrid retrieval claimed authority"
+                        )
+                    record = self._records.get(item.document_id)
+                    if record is None:
+                        continue
+                    ordered.append(
+                        VectorSearchResult(
+                            item.document_id,
+                            item.score,
+                            {
+                                "projection_cid": record[0].projection_cid,
+                                "vector_cid": record[0].identity.vector_cid,
+                                "subject_cid": record[0].identity.subject_cid,
+                            },
+                        )
                     )
+                hits = tuple(ordered)
+            else:
+                if self._engine is None:
+                    raise ProjectionBackendUnavailable(
+                        "index_unavailable: no rebuildable vector backend is bound; "
+                        "exact/raw-source fallback is permitted"
+                    )
+                hits = self._engine.search(
+                    floats, k, filters=filters, identity=self._vector_identity
                 )
-            hits = tuple(ordered)
-        else:
-            assert self._engine is not None
-            hits = self._engine.search(
-                floats, k, filters=filters, identity=self._vector_identity
-            )
+        except ProjectionIndexError:
+            raise
+        except VectorIdentityMismatchError as exc:
+            raise ProjectionModelUnavailable(
+                f"model_unavailable: query identity is not pinned to this index: {exc}"
+            ) from exc
+        except (VectorIndexError, HybridRetrievalError) as exc:
+            raise ProjectionIndexError(str(exc)) from exc
 
         candidates: list[ProjectionCandidate] = []
         for hit in hits:
@@ -1163,6 +1207,8 @@ class ProjectionIndex:
         *,
         k: int = DEFAULT_QUERY_K,
         model_cid: str | None = None,
+        tokenizer_cid: str | None = None,
+        preprocessing_profile_cid: str | None = None,
         text_query: str = "",
         filters: Mapping[str, Any] | None = None,
         resolver: Any | None = None,
@@ -1175,6 +1221,8 @@ class ProjectionIndex:
             query,
             k=k,
             model_cid=model_cid,
+            tokenizer_cid=tokenizer_cid,
+            preprocessing_profile_cid=preprocessing_profile_cid,
             text_query=text_query,
             filters=filters,
             resolver=resolver,
@@ -1203,6 +1251,8 @@ def search_projection_index(
     *,
     k: int = DEFAULT_QUERY_K,
     model_cid: str | None = None,
+    tokenizer_cid: str | None = None,
+    preprocessing_profile_cid: str | None = None,
     text_query: str = "",
     filters: Mapping[str, Any] | None = None,
     resolver: Any | None = None,
@@ -1222,6 +1272,8 @@ def search_projection_index(
         query,
         k=k,
         model_cid=model_cid,
+        tokenizer_cid=tokenizer_cid,
+        preprocessing_profile_cid=preprocessing_profile_cid,
         text_query=text_query,
         filters=filters,
     )
