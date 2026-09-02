@@ -375,6 +375,20 @@ live-scanner-qualified = false
 slsa-attestation-live = false
 release-claim = false
 
+[tool.ipfs_kit_py.signed-tags-and-artifacts]
+schema = "ipfs_kit_py/assurance/signed-tags-and-artifacts@1"
+interface = "KitSignedTagsAndArtifacts@1"
+task-id = "PCPR-055"
+goal-id = "PCPR-G600"
+tag-kind = "declared_signed_tag_policy"
+checksum-kind = "declared_artifact_checksum_manifest"
+intended-tag-name = "ipfs_kit_py-v0.3.0"
+hashes-invented = false
+signatures-invented = false
+live-signed-tag = false
+live-artifact-signature = false
+release-claim = false
+
 [tool.setuptools]
 include-package-data = true
 
