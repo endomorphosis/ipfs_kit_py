@@ -55,6 +55,8 @@ from ipfs_kit_py.core.operation_contracts import (
 SCHEMA: Final = "ipfs_kit_py/assurance/pinned-ipfs@1"
 INTERFACE: Final = "LivePinnedIpfsAdapter@1"
 BACKEND_ID: Final = "pinned_ipfs"
+SUPPORT_CLASS: Final = "unavailable"
+LIVE_SUPPORT_CLAIM: Final = False
 CERTIFICATION_SCOPE: Final = (
     "pcpr-021-pinned-ipfs-python; not a closed PCPR release"
 )

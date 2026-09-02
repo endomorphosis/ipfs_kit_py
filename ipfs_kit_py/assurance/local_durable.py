@@ -48,6 +48,8 @@ SCHEMA: Final[str] = "ipfs_kit_py/assurance/local-durable@1"
 INTERFACE: Final[str] = "LiveLocalFilesystemAdapter@1"
 MANIFEST_SCHEMA: Final[str] = "ipfs_kit_py/assurance/local-durable-manifest@1"
 BACKEND_ID: Final[str] = "local_filesystem"
+SUPPORT_CLASS: Final[str] = "conditional"
+LIVE_SUPPORT_CLAIM: Final[bool] = False
 CERTIFICATION_SCOPE: Final[str] = (
     "pcpr-020-local-durable-python; not a closed PCPR release"
 )

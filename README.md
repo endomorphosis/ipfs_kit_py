@@ -5,7 +5,7 @@
 [![Version 0.3.0](https://img.shields.io/badge/Version-0.3.0-green)](./pyproject.toml)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](./LICENSE)
 
-**IPFS Kit Python** is a Python toolkit for building distributed storage applications on IPFS. PCPR local-backend requalification is R&D non-promoted: live local POSIX durability is measured, while missing daemon environments stay typed unavailable. Python/CLI/MCP/MCP++ parity (PCPR-026) is R&D non-promoted: AllInterfaceParityPolicy@1 adapter sessions for local-durable put/get/digest/delete were measured against the live local POSIX store; live MCP stdio/HTTP/P2P server processes and pinned IPFS stay typed unavailable, and adapter sessions cannot mint a closed PCPR release. Pinned IPFS (PCPR-021) is typed unavailable on the sealed validation PATH (no digest-bound Kubo daemon). Iroh (PCPR-022) is experimental and typed unavailable: no digest-bound `ipfs-kit-iroh-sidecar` is present on the sealed validation PATH, live-support claims are removed, and simulated sidecar results cannot mint live qualification. VFS/WAL/current-root recovery (PCPR-023) is R&D non-promoted: hermetic WAL recovery, current-root CAS, ARC coherence, crash recovery, stale-root rejection, corruption, tombstone, invalidation, concurrent writers, restart, and hermetic mount lifecycle are measured; live Linux FUSE, Windows WinFsp, and container FUSE stay typed unavailable unless a real driver is present, and hermetic results cannot mint live qualification. Proof-seal store (PCPR-024) is R&D non-promoted: hermetic exact-byte persistence, candidate versus current separation, fresh verification before reuse, proving-key and witness rejection, WAL, restart, stale-parent rejection, concurrent writers, tombstones, invalidations, corruption, and legacy-certificate staging without admission are measured; live IPFS proof-artifact transport stays typed unavailable, and hermetic results cannot mint live qualification. Sibling test-tree coupling (PCPR-025) is R&D non-promoted: sitecustomize and runtime-readiness/kernel-VFS harnesses no longer inject a sibling checkout onto sys.path; Datasets assurance constructors are packaged Kit vectors and do not require an adjacent tests/ tree; a monorepo sibling checkout is not a vector source. Live IPFS stays typed unavailable, and hermetic source probes cannot mint live qualification. It provides high-level APIs, cluster management, AI/ML integration, and MCP (Model Context Protocol) server support. This is not a closed PCPR release.
+**IPFS Kit Python** is a Python toolkit for building distributed storage applications on IPFS. PCPR local-backend requalification is R&D non-promoted: live local POSIX durability is measured, while missing daemon environments stay typed unavailable. Python/CLI/MCP/MCP++ parity (PCPR-026) is R&D non-promoted: AllInterfaceParityPolicy@1 adapter sessions for local-durable put/get/digest/delete were measured against the live local POSIX store; live MCP stdio/HTTP/P2P server processes and pinned IPFS stay typed unavailable, and adapter sessions cannot mint a closed PCPR release. Pinned IPFS (PCPR-021) is typed unavailable on the sealed validation PATH (no digest-bound Kubo daemon). Iroh (PCPR-022) is experimental and typed unavailable: no digest-bound `ipfs-kit-iroh-sidecar` is present on the sealed validation PATH, live-support claims are removed, and simulated sidecar results cannot mint live qualification. VFS/WAL/current-root recovery (PCPR-023) is R&D non-promoted: hermetic WAL recovery, current-root CAS, ARC coherence, crash recovery, stale-root rejection, corruption, tombstone, invalidation, concurrent writers, restart, and hermetic mount lifecycle are measured; live Linux FUSE, Windows WinFsp, and container FUSE stay typed unavailable unless a real driver is present, and hermetic results cannot mint live qualification. Proof-seal store (PCPR-024) is R&D non-promoted: hermetic exact-byte persistence, candidate versus current separation, fresh verification before reuse, proving-key and witness rejection, WAL, restart, stale-parent rejection, concurrent writers, tombstones, invalidations, corruption, and legacy-certificate staging without admission are measured; live IPFS proof-artifact transport stays typed unavailable, and hermetic results cannot mint live qualification. Sibling test-tree coupling (PCPR-025) is R&D non-promoted: sitecustomize and runtime-readiness/kernel-VFS harnesses no longer inject a sibling checkout onto sys.path; Datasets assurance constructors are packaged Kit vectors and do not require an adjacent tests/ tree; a monorepo sibling checkout is not a vector source. Live IPFS stays typed unavailable, and hermetic source probes cannot mint live qualification. The authoritative support matrix (PCPR-027) classifies current-head Kit surfaces with the closed vocabulary hermetic_qualified, live_qualified, conditional, configuration_only, experimental, unavailable, and unsupported. README claims in the support-matrix section are generated from that matrix. No current-head surface is live_qualified. It provides high-level APIs, cluster management, AI/ML integration, and MCP (Model Context Protocol) server support. This is not a closed PCPR release.
 
 ## 🎯 What Can You Do With This?
 
@@ -53,7 +53,7 @@
 - **🎯 Vector Search**: GraphRAG and knowledge graph integration
 
 ### MCP Server
-- **🌟 MCP surface**: Full-featured MCP server implementation (parity is not PCPR-qualified here)
+- **🌟 MCP surface**: MCP adapter surface (PCPR-026 adapter parity is conditional; live MCP stdio/HTTP/P2P server is unavailable)
 - **🛠️ Tool Integration**: Expose IPFS operations as MCP tools
 - **🔌 Plugin System**: Extensible architecture for custom tools
 - **📡 Real-Time**: WebSocket support for streaming operations
@@ -879,18 +879,43 @@ Built with:
 - **Issues:** [GitHub Issues](https://github.com/endomorphosis/ipfs_kit_py/issues)
 - **Discussions:** [GitHub Discussions](https://github.com/endomorphosis/ipfs_kit_py/discussions)
 
+## 📋 PCPR Support Matrix
+
+<!-- pcpr-027-support-matrix:begin -->
+Authoritative current-head Kit support matrix (PCPR-027). Closed vocabulary: `hermetic_qualified`, `live_qualified`, `conditional`, `configuration_only`, `experimental`, `unavailable`, `unsupported`. Live claims require live evidence. Missing environments stay typed unavailable. Simulated and hermetic results cannot mint live qualification. Zero surfaces are `live_qualified` (count=0). This matrix is R&D non-promoted and is not a closed PCPR release.
+
+Matrix CID: `baguqeeraslvkepfbkgbqaxzmaxwhax46d7qv5gnnefuqjfu4ht47lg5bdqyq`
+
+| Surface | Class | Live claim | Evidence | Source |
+| --- | --- | --- | --- | --- |
+| `local_filesystem` | `conditional` | false | measured | PCPR-020 |
+| `pinned_ipfs` | `unavailable` | false | unavailable | PCPR-021 |
+| `pinned_ipfs_daemon_pin` | `configuration_only` | false | measured | PCPR-021 |
+| `iroh` | `experimental` | false | unavailable | PCPR-022 |
+| `vfs_wal_current_root` | `hermetic_qualified` | false | measured_hermetic | PCPR-023 |
+| `linux_fuse_live` | `unavailable` | false | unavailable | PCPR-023 |
+| `windows_winfsp` | `unsupported` | false | unavailable | PCPR-023 |
+| `container_fuse` | `unavailable` | false | unavailable | PCPR-023 |
+| `proof_seal_store` | `hermetic_qualified` | false | measured_hermetic | PCPR-024 |
+| `sibling_test_tree` | `hermetic_qualified` | false | measured_hermetic | PCPR-025 |
+| `interface_parity` | `conditional` | false | measured | PCPR-026 |
+| `live_mcp_server` | `unavailable` | false | unavailable | PCPR-026 |
+<!-- pcpr-027-support-matrix:end -->
+
 ## 📊 Project Status
 
-- ✅ Core IPFS operations - Production ready
-- ✅ Cluster management - Production ready
-- ✅ MCP server - Production ready
-- ✅ AI/ML integration - Beta
-- ✅ Auto-healing - Beta
+- ⚠️ Core local durable store - conditional (PCPR-020; not live_qualified)
+- ⚠️ Pinned IPFS - unavailable (PCPR-021)
+- ⚠️ Iroh - experimental (PCPR-022)
+- ⚠️ MCP adapter parity - conditional; live MCP server unavailable (PCPR-026)
+- ⚠️ Cluster management - not live_qualified by this matrix
+- ⚠️ AI/ML integration - not live_qualified by this matrix
+- ⚠️ Auto-healing - not live_qualified by this matrix
 - 🚧 GraphRAG - In development
 - 📋 S3 Gateway - Planned
 
 ---
 
 **Version:** 0.3.0  
-**Status:** R&D non-promoted (PCPR-020 local backend measured; PCPR-021 pinned IPFS typed unavailable; PCPR-023 VFS/WAL hermetic measured; PCPR-024 proof-seal store hermetic measured; PCPR-025 sibling test-tree decoupling measured; PCPR-026 Python/CLI/MCP/MCP++ adapter parity measured; not a closed release)  
+**Status:** R&D non-promoted (PCPR-020 local backend measured; PCPR-021 pinned IPFS typed unavailable; PCPR-023 VFS/WAL hermetic measured; PCPR-024 proof-seal store hermetic measured; PCPR-025 sibling test-tree decoupling measured; PCPR-026 Python/CLI/MCP/MCP++ adapter parity measured; PCPR-027 authoritative support matrix generated with zero live_qualified surfaces; not a closed release)  
 **Maintained by:** Benjamin Barber ([@endomorphosis](https://github.com/endomorphosis))
