@@ -1,0 +1,125 @@
+{
+  "artifacts": {
+    "container": {
+      "evidence_kind": "unavailable",
+      "live": false,
+      "reason": "No container digest is bound by this declared-spec lock.",
+      "status": "unavailable"
+    },
+    "sdist": {
+      "evidence_kind": "unavailable",
+      "live": false,
+      "reason": "No published sdist identity is bound by this declared-spec lock.",
+      "status": "unavailable"
+    },
+    "wheel": {
+      "evidence_kind": "unavailable",
+      "live": false,
+      "reason": "No published wheel identity is bound by this declared-spec lock.",
+      "status": "unavailable"
+    }
+  },
+  "closed_release_outcome": null,
+  "commands": {
+    "materialize_lock": "python -c \"from ipfs_kit_py.assurance.dependency_locks import write_release_lock_files; write_release_lock_files()\"",
+    "pip_install_declared": "python -m pip install --no-deps -r packaging/pcpr/locks/cpython312/release.txt",
+    "pip_install_require_hashes": "unavailable"
+  },
+  "direct_requirement_count": 22,
+  "direct_requirements": [
+    "requests>=2.28.0",
+    "httpx>=0.24.0",
+    "aiohttp>=3.8.4",
+    "aiofiles>=23.1.0",
+    "watchdog>=3.0.0",
+    "psutil>=5.9.0",
+    "pyyaml>=6.0",
+    "networkx>=3.0",
+    "jsonpatch>=1.33",
+    "base58>=2.1.1",
+    "multiaddr>=0.0.9",
+    "multiformats>=0.2.0",
+    "python-magic>=0.4.27",
+    "anyio>=3.7.0",
+    "hypercorn>=0.16.0",
+    "trio>=0.22.0",
+    "cryptography>=38.0.0",
+    "cffi>=1.16.0",
+    "protobuf>=5.26.0,<7.0.0",
+    "eth-hash[pycryptodome]>=0.3.3",
+    "eth-keys>=0.4.0",
+    "toml"
+  ],
+  "editable": false,
+  "evidence_kind": "measured",
+  "goal_id": "PCPR-G600",
+  "hashes": {
+    "evidence_kind": "unavailable",
+    "invented": false,
+    "live": false,
+    "reason": "Sealed validation PATH has pip but no admitted live PyPI resolver run; hashes are not invented and are not represented as zero or passing.",
+    "require_hashes": false,
+    "status": "unavailable"
+  },
+  "interface": "KitDependencyLocks@1",
+  "live": false,
+  "lock_cid": "baguqeerapndvhdlxynq6afrv4mfpsa7ajjregns3nwuth5hnho7rf3xc223a",
+  "lock_environment": {
+    "arch": "aarch64",
+    "evidence_kind": "measured",
+    "extra_indexes": [],
+    "index": "https://pypi.org/simple",
+    "os": "linux",
+    "pip_compile_path": "unavailable",
+    "pip_path": "/usr/bin/pip",
+    "python_implementation": "CPython",
+    "python_version": "3.12",
+    "resolver": "declared-spec lock; live pip metadata resolution is typed unavailable in the sealed validation environment",
+    "sealed_path": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin",
+    "sealed_python": "/usr/bin/python3.12",
+    "uv_path": "unavailable"
+  },
+  "lock_kind": "declared_release_profile",
+  "mutable_git": false,
+  "named_git_extras": [
+    "libp2p",
+    "ipld-github"
+  ],
+  "named_git_extras_role": "source-checkout-development-and-integration",
+  "native_dependencies": {
+    "fuse": {
+      "evidence_kind": "unavailable",
+      "live": false,
+      "reason": "FUSE/WinFsp is not this release lock; it remains an extra.",
+      "status": "unavailable"
+    },
+    "ipfs_daemon": {
+      "evidence_kind": "unavailable",
+      "live": false,
+      "reason": "ipfs is absent from the sealed PATH; a daemon is not this lock.",
+      "status": "unavailable"
+    },
+    "libmagic": {
+      "evidence_kind": "unavailable",
+      "live": false,
+      "reason": "Host libmagic is not qualified by this declared-spec lock; python-magic remains a declared PEP 508 spec only.",
+      "status": "unavailable"
+    }
+  },
+  "package_name": "ipfs_kit_py",
+  "package_version": "0.3.0",
+  "path_local": false,
+  "profile": "release",
+  "python_requires": ">=3.12",
+  "release_claim": false,
+  "requirements_authority": "pyproject.toml:project.dependencies",
+  "resolved_transitive": {
+    "evidence_kind": "unavailable",
+    "live": false,
+    "reason": "Transitive resolution was not admitted in the sealed environment.",
+    "status": "unavailable"
+  },
+  "schema": "ipfs_kit_py/assurance/dependency-lock@1",
+  "sibling_source_required": false,
+  "task_id": "PCPR-053"
+}

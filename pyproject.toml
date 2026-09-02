@@ -346,6 +346,21 @@ named-git-extras = ["libp2p", "ipld-github"]
 sibling-trees = ["ipfs_accelerate_py", "ipfs_datasets_py", ".tools"]
 recursive-submodule-trees = ["py-ipld-car", "py-ipld-dag-pb", "py-ipld-unixfs"]
 
+[tool.ipfs_kit_py.dependency-locks]
+schema = "ipfs_kit_py/assurance/dependency-locks@1"
+interface = "KitDependencyLocks@1"
+task-id = "PCPR-053"
+goal-id = "PCPR-G600"
+lock-kind = "declared_release_profile"
+profile = "release"
+python-requires = ">=3.12"
+requirements-authority = "pyproject.toml:project.dependencies"
+named-git-extras-role = "source-checkout-development-and-integration"
+named-git-extras = ["libp2p", "ipld-github"]
+hashes-invented = false
+live-resolver-qualified = false
+release-claim = false
+
 [tool.setuptools]
 include-package-data = true
 
