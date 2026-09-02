@@ -20,11 +20,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _profile_g_vectors_path() -> Path:
-    """Resolve Profile G vectors without requiring a monorepo sibling checkout.
+    """Resolve Profile G vectors without a monorepo sibling checkout.
 
-    Hermetic seal materialization unpacks this repository alone, so
-    ``REPO_ROOT.parent.parent / "Mcp-Plus-Plus"`` is not available. Prefer an
-    explicit override, then the vendored fixture, then the monorepo sibling path.
+    Hermetic seal materialization unpacks this repository alone. Prefer an
+    explicit override, then the vendored kit fixture. A sibling conformance
+    checkout is never consulted (PCPR-025).
     """
 
     override = os.environ.get("MCP_PLUS_PLUS_PROFILE_G_VECTORS", "").strip()
@@ -39,12 +39,10 @@ def _profile_g_vectors_path() -> Path:
     )
     if vendored.is_file():
         return vendored
-    return (
-        REPO_ROOT.parent.parent
-        / "Mcp-Plus-Plus"
-        / "conformance"
-        / "vectors"
-        / "profile_g_artifacts_valid.json"
+    raise FileNotFoundError(
+        "Profile G vectors are unavailable: packaged kit fixture "
+        "tests/fixtures/mcp_plus_plus/profile_g_artifacts_valid.json is "
+        "required. A monorepo sibling checkout is not used."
     )
 
 

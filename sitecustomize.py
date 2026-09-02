@@ -1,14 +1,16 @@
-"""Ensure local repo packages take precedence in tests.
+"""Interpreter bootstrap for a Kit source checkout. Never injects a sibling tree.
 
-Python automatically imports sitecustomize if it is on sys.path.
-We prepend the repo root so the local `mcp` package is preferred
-over any third-party package with the same name.
+Python automatically imports sitecustomize when this file's directory is already
+on sys.path. Installed wheels do not ship this module. This file must not
+prepend parent directories, sibling checkouts, or tests/ trees onto sys.path.
+Installed packages resolve through the ordinary import path and packaged
+vectors (PCPR-025).
 """
 
 from __future__ import annotations
 
-import sys
 import os
+import sys
 import types
 from pathlib import Path
 
@@ -17,11 +19,15 @@ def _truthy(value: str | None) -> bool:
     return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+KIT_ROOT = Path(__file__).resolve().parent
+
+
 def _bootstrap_symai_engines() -> None:
     if not _truthy(os.environ.get("IPFS_DATASETS_PY_SYMAI_SITEBOOT")):
         return
 
     # Keep this best-effort and lazy to avoid affecting normal imports.
+    # Do not insert sibling checkouts onto sys.path; use the installed package.
     try:
         import symai  # noqa: F401
         from symai.functional import EngineRepository
@@ -54,18 +60,17 @@ def _bootstrap_symai_engines() -> None:
         except Exception:
             return
 
-repo_root = Path(__file__).resolve().parent.parent
-repo_root_str = str(repo_root)
-if repo_root_str not in sys.path:
-    sys.path.insert(0, repo_root_str)
 
 _bootstrap_symai_engines()
 
-# If a third-party `mcp` was already imported, drop it so local imports resolve.
+# If a third-party `mcp` was already imported, drop it so the local checkout
+# module (already visible because this file was found) can resolve. Do not
+# insert a parent or sibling directory onto sys.path to achieve that.
 mod = sys.modules.get("mcp")
 if mod is not None:
     mod_path = getattr(mod, "__file__", "") or ""
-    if repo_root_str not in mod_path:
+    local_mcp = KIT_ROOT / "mcp"
+    if local_mcp.exists() and str(KIT_ROOT) not in mod_path:
         sys.modules.pop("mcp", None)
 
 # Provide a lightweight stub for legacy MCP imports during pytest to avoid

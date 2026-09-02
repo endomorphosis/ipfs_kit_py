@@ -21,10 +21,9 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 HERE = Path(__file__).resolve().parent
 PACKAGE_ROOT = HERE.parents[1]  # ipfs_kit_py/ package repo root
-if str(HERE) not in sys.path:
-    sys.path.insert(0, str(HERE))
-if str(PACKAGE_ROOT) not in sys.path:
-    sys.path.insert(0, str(PACKAGE_ROOT))
+# PCPR-025: do not inject this checkout or a sibling tests/ tree onto sys.path.
+# Script execution already puts THIS directory on sys.path[0]. Installed
+# ipfs_kit_py must come from the ordinary import path, not a parent checkout.
 
 import baseline  # noqa: E402 -- executable directly from this directory
 import production  # noqa: E402
@@ -52,6 +51,8 @@ assert PACKAGE_ROOT == baseline.PACKAGE_ROOT
 
 # Full KITA-044 optimization envelope + harness/protected inputs + ARC oracle.
 # Missing files are hashed as an explicit missing presence marker.
+# Installed packages and production identity hash harness/production modules
+# only. Checkout tests are not a required sibling tests tree (PCPR-025).
 BENCHMARK_SOURCE_PATHS = {
     "benchmarks/runtime_readiness/baseline.py",
     "benchmarks/runtime_readiness/protected_timer.py",
@@ -61,10 +62,6 @@ BENCHMARK_SOURCE_PATHS = {
     "benchmarks/runtime_readiness/workloads.json",
     "benchmarks/runtime_readiness/reference_floors.json",
     "ipfs_kit_py/cache/arc/reference.py",
-    "tests/runtime_readiness/release/test_backpressure_and_resources.py",
-    "tests/runtime_readiness/release/test_benchmark_harness.py",
-    "tests/runtime_readiness/release/test_production_benchmark_binding.py",
-    "tests/runtime_readiness/release/test_production_performance_gate.py",
 }
 OPTIMIZATION_SOURCE_PATHS = {
     "ipfs_kit_py/core/performance.py",

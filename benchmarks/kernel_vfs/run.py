@@ -28,10 +28,8 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 HERE = Path(__file__).resolve().parent
 PACKAGE_ROOT = HERE.parents[1]
-if str(HERE) not in sys.path:
-    sys.path.insert(0, str(HERE))
-if str(PACKAGE_ROOT) not in sys.path:
-    sys.path.insert(0, str(PACKAGE_ROOT))
+# PCPR-025: do not inject this checkout or a sibling tests/ tree onto sys.path.
+# Script execution already puts THIS directory on sys.path[0].
 
 import baseline  # noqa: E402 -- executable directly from this directory
 
