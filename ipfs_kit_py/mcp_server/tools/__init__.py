@@ -7,22 +7,9 @@ generator, so no surface maintains its own copy.
 from __future__ import annotations
 
 import re
+from collections.abc import ItemsView, Iterator, KeysView, Mapping, ValuesView
 from typing import Any, Awaitable, Callable, Dict
 from urllib.parse import unquote
-
-from . import (
-    bitswap_tools,
-    block_tools,
-    car_tools,
-    cluster_tools,
-    dag_tools,
-    ipfs_tools,
-    mfs_tools,
-    name_tools,
-    pin_tools,
-    stats_tools,
-    swarm_tools,
-)
 
 
 async def iroh_diagnostics(
@@ -41,28 +28,118 @@ async def iroh_diagnostics(
 
     return await managed_iroh_diagnostics(instance=instance, format=format, persist=persist)
 
+
+def _load_tool_groups() -> Dict[str, Dict[str, Callable[..., Awaitable]]]:
+    """Import live-kit tool modules only when a caller inspects TOOL_GROUPS.
+
+    Adapter projection (operation_adapter) must remain importable without
+    anyio or a live kit constructor. Missing optional deps stay typed
+    unavailable at the first TOOL_GROUPS access, not at package import.
+    """
+
+    from . import (
+        bitswap_tools,
+        block_tools,
+        car_tools,
+        cluster_tools,
+        dag_tools,
+        ipfs_tools,
+        mfs_tools,
+        name_tools,
+        pin_tools,
+        stats_tools,
+        swarm_tools,
+    )
+
+    return {
+        "ipfs_tools": {
+            "ipfs_add": ipfs_tools.ipfs_add,
+            "ipfs_cat": ipfs_tools.ipfs_cat,
+            "ipfs_ls": ipfs_tools.ipfs_ls,
+        },
+        "pin_tools": {
+            "pin_add": pin_tools.pin_add,
+            "pin_ls": pin_tools.pin_ls,
+            "pin_rm": pin_tools.pin_rm,
+            "get_pinset": pin_tools.get_pinset,
+        },
+        "dag_tools": {"dag_get": dag_tools.dag_get, "dag_put": dag_tools.dag_put},
+        "mfs_tools": {
+            "files_ls": mfs_tools.files_ls,
+            "files_mkdir": mfs_tools.files_mkdir,
+            "files_stat": mfs_tools.files_stat,
+            "files_write": mfs_tools.files_write,
+            "files_read": mfs_tools.files_read,
+            "files_rm": mfs_tools.files_rm,
+        },
+        "swarm_tools": {
+            "node_id": swarm_tools.node_id,
+            "swarm_peers": swarm_tools.swarm_peers,
+        },
+        "name_tools": {
+            "name_publish": name_tools.name_publish,
+            "name_resolve": name_tools.name_resolve,
+        },
+        "car_tools": {"create_car": car_tools.create_car},
+        "cluster_tools": {"cluster_status": cluster_tools.cluster_status},
+        "block_tools": {
+            "block_put": block_tools.block_put,
+            "block_get": block_tools.block_get,
+            "block_stat": block_tools.block_stat,
+        },
+        "bitswap_tools": {
+            "bitswap_stat": bitswap_tools.bitswap_stat,
+            "bitswap_wantlist": bitswap_tools.bitswap_wantlist,
+        },
+        "stats_tools": {
+            "stats_bw": stats_tools.stats_bw,
+            "stats_repo": stats_tools.stats_repo,
+        },
+        "iroh_tools": {"iroh_diagnostics": iroh_diagnostics},
+    }
+
+
+class _LazyToolGroups(Mapping[str, Dict[str, Callable[..., Awaitable]]]):
+    """Fail-closed lazy TOOL_GROUPS. Import of this package stays inert."""
+
+    def __init__(self) -> None:
+        self._loaded: Dict[str, Dict[str, Callable[..., Awaitable]]] | None = None
+
+    def _mapping(self) -> Dict[str, Dict[str, Callable[..., Awaitable]]]:
+        if self._loaded is None:
+            self._loaded = _load_tool_groups()
+        return self._loaded
+
+    def __getitem__(self, key: str) -> Dict[str, Callable[..., Awaitable]]:
+        return self._mapping()[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._mapping())
+
+    def __len__(self) -> int:
+        return len(self._mapping())
+
+    def __contains__(self, key: object) -> bool:
+        return key in self._mapping()
+
+    def get(self, key: str, default: Any = None) -> Any:  # type: ignore[override]
+        return self._mapping().get(key, default)
+
+    def keys(self) -> KeysView[str]:
+        return self._mapping().keys()
+
+    def items(self) -> ItemsView[str, Dict[str, Callable[..., Awaitable]]]:
+        return self._mapping().items()
+
+    def values(self) -> ValuesView[Dict[str, Callable[..., Awaitable]]]:
+        return self._mapping().values()
+
+
 # This is the sole category-to-tool registry.  MCP, CLI, FastMCP, and SDK
-# generation consume this object through HierarchicalToolManager.
-TOOL_GROUPS: Dict[str, Dict[str, Callable[..., Awaitable]]] = {
-    "ipfs_tools": {"ipfs_add": ipfs_tools.ipfs_add, "ipfs_cat": ipfs_tools.ipfs_cat,
-                   "ipfs_ls": ipfs_tools.ipfs_ls},
-    "pin_tools": {"pin_add": pin_tools.pin_add, "pin_ls": pin_tools.pin_ls,
-                  "pin_rm": pin_tools.pin_rm, "get_pinset": pin_tools.get_pinset},
-    "dag_tools": {"dag_get": dag_tools.dag_get, "dag_put": dag_tools.dag_put},
-    "mfs_tools": {"files_ls": mfs_tools.files_ls, "files_mkdir": mfs_tools.files_mkdir,
-                  "files_stat": mfs_tools.files_stat, "files_write": mfs_tools.files_write,
-                  "files_read": mfs_tools.files_read, "files_rm": mfs_tools.files_rm},
-    "swarm_tools": {"node_id": swarm_tools.node_id, "swarm_peers": swarm_tools.swarm_peers},
-    "name_tools": {"name_publish": name_tools.name_publish, "name_resolve": name_tools.name_resolve},
-    "car_tools": {"create_car": car_tools.create_car},
-    "cluster_tools": {"cluster_status": cluster_tools.cluster_status},
-    "block_tools": {"block_put": block_tools.block_put, "block_get": block_tools.block_get,
-                    "block_stat": block_tools.block_stat},
-    "bitswap_tools": {"bitswap_stat": bitswap_tools.bitswap_stat,
-                      "bitswap_wantlist": bitswap_tools.bitswap_wantlist},
-    "stats_tools": {"stats_bw": stats_tools.stats_bw, "stats_repo": stats_tools.stats_repo},
-    "iroh_tools": {"iroh_diagnostics": iroh_diagnostics},
-}
+# generation consume this object through HierarchicalToolManager.  Accessing
+# it may require optional live-kit dependencies; importing this package does
+# not.
+TOOL_GROUPS: Mapping[str, Dict[str, Callable[..., Awaitable]]] = _LazyToolGroups()
 
 
 # MCP protocol, REST, and tool dispatch all use this module as their source of
