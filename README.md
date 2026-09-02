@@ -1,11 +1,11 @@
 # IPFS Kit Python
 
-[![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)](https://github.com/endomorphosis/ipfs_kit_py)
+[![R&D non-promoted](https://img.shields.io/badge/Status-R%26D%20non--promoted-yellow)](https://github.com/endomorphosis/ipfs_kit_py)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-blue)](https://www.python.org/downloads/)
 [![Version 0.3.0](https://img.shields.io/badge/Version-0.3.0-green)](./pyproject.toml)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](./LICENSE)
 
-**IPFS Kit Python** is a comprehensive, production-ready Python toolkit for building distributed storage applications on IPFS. It provides high-level APIs, advanced cluster management, AI/ML integration, and seamless MCP (Model Context Protocol) server support for modern decentralized applications.
+**IPFS Kit Python** is a Python toolkit for building distributed storage applications on IPFS. PCPR local-backend requalification is R&D non-promoted: live local POSIX durability is measured, while missing CLI/MCP/MCP++ and daemon environments stay typed unavailable. It provides high-level APIs, cluster management, AI/ML integration, and MCP (Model Context Protocol) server support. This is not a closed PCPR release.
 
 ## 🎯 What Can You Do With This?
 
@@ -13,7 +13,7 @@
 - **Build Decentralized Apps**: High-level Python API for IPFS without complexity
 - **Scale with Clusters**: Multi-node cluster management with automatic replication
 - **Integrate AI Models**: Store and retrieve ML models/datasets on IPFS
-- **Create Storage Services**: Production-ready foundation for IPFS-based services
+- **Create Storage Services**: Local durable store and IPFS-oriented foundation for storage services
 
 ### For Data Scientists
 - **Distributed Datasets**: Store and share large datasets across IPFS network
@@ -53,7 +53,7 @@
 - **🎯 Vector Search**: GraphRAG and knowledge graph integration
 
 ### MCP Server
-- **🌟 Production Ready**: Full-featured MCP server implementation
+- **🌟 MCP surface**: Full-featured MCP server implementation (parity is not PCPR-qualified here)
 - **🛠️ Tool Integration**: Expose IPFS operations as MCP tools
 - **🔌 Plugin System**: Extensible architecture for custom tools
 - **📡 Real-Time**: WebSocket support for streaming operations
@@ -892,5 +892,5 @@ Built with:
 ---
 
 **Version:** 0.3.0  
-**Status:** Production Ready  
+**Status:** R&D non-promoted (PCPR-020 local backend; not a closed release)  
 **Maintained by:** Benjamin Barber ([@endomorphosis](https://github.com/endomorphosis))
