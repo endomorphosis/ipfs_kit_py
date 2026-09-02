@@ -361,6 +361,20 @@ hashes-invented = false
 live-resolver-qualified = false
 release-claim = false
 
+[tool.ipfs_kit_py.sbom-and-provenance]
+schema = "ipfs_kit_py/assurance/sbom-and-provenance@1"
+interface = "KitSbomAndProvenance@1"
+task-id = "PCPR-054"
+goal-id = "PCPR-G600"
+sbom-kind = "declared_release_profile"
+provenance-kind = "declared_build_binding"
+spdx-version = "SPDX-2.3"
+files-analyzed = false
+hashes-invented = false
+live-scanner-qualified = false
+slsa-attestation-live = false
+release-claim = false
+
 [tool.setuptools]
 include-package-data = true
 
