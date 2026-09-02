@@ -20,6 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
     "Topic :: Software Development :: Libraries",
     "Topic :: System :: Distributed Computing",
     "Topic :: Database",
@@ -93,6 +94,7 @@ arrow = [
     "pandas>=1.3.0",
 ]
 libp2p = [
+    # Source-checkout development extra only. Not the PCPR-051 release profile.
     "libp2p @ git+https://github.com/libp2p/py-libp2p.git@main",  # Track upstream main (moving target)
     "multiaddr>=0.0.9",  # For peer addressing
     "multiformats>=0.2.0",  # For content addressing
@@ -141,6 +143,7 @@ ipld = [
     # pip install git+https://github.com/storacha/py-ipld-unixfs.git
 ]
 ipld-github = [
+    # Source-checkout development extra only. Not the PCPR-051 release profile.
     # IPLD packages including GitHub-only dependencies
     # Install with: pip install -e .[ipld-github]
     "ipld-unixfs @ git+https://github.com/storacha/py-ipld-unixfs.git",
@@ -225,10 +228,10 @@ full = [
     "pyarrow>=11.0.0",
     "pandas>=1.3.0",
     
-    # Networking and protocols
+    # Networking and protocols. Mutable Git extras stay in named
+    # source-checkout extras (libp2p, ipld-github), not this release extra.
     "multiformats>=0.2.0",
     "multiaddr>=0.0.9",
-    "libp2p @ git+https://github.com/libp2p/py-libp2p.git@main",
     "protobuf>=5.26.0,<7.0.0",
     "eth-hash[pycryptodome]>=0.3.3",
     "eth-keys>=0.4.0",
@@ -325,15 +328,38 @@ windows_live_gate_env = "IPFS_KIT_KERNEL_VFS_WINDOWS_LIVE_GATE"
 import_is_not_capability = true
 default_wheel_inert = true
 
+[tool.ipfs_kit_py.clean-package]
+schema = "ipfs_kit_py/assurance/clean-package@1"
+interface = "KitCleanPackage@1"
+task-id = "PCPR-051"
+goal-id = "PCPR-G600"
+requires-sibling-source-trees = false
+requires-recursive-submodules = false
+editable-local-dependencies = false
+sys-path-injection = false
+import-network = false
+mutable-git-release-requires = false
+runtime-requires-authority = "pyproject.toml:project.dependencies"
+development-requirements-role = "source-checkout-development-and-integration"
+named-git-extras-role = "source-checkout-development-and-integration"
+named-git-extras = ["libp2p", "ipld-github"]
+sibling-trees = ["ipfs_accelerate_py", "ipfs_datasets_py", ".tools"]
+recursive-submodule-trees = ["py-ipld-car", "py-ipld-dag-pb", "py-ipld-unixfs"]
+
 [tool.setuptools]
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = ["ipfs_kit_py*", "external*"]
+include = ["ipfs_kit_py", "ipfs_kit_py.*"]
+exclude = [
+    "ipfs_accelerate_py*",
+    "ipfs_datasets_py*",
+    "external*",
+    "ipfs_kit_py.tests*",
+]
 
 [tool.setuptools.package-data]
 "ipfs_kit_py" = ["**/*"]
-"external" = ["**/*"]
 
 # Developer-local daemon downloads are runtime state, never Python package
 # data.  Keep the broad legacy package-data rule above for compatibility while

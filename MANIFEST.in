@@ -5,3 +5,14 @@ recursive-exclude ipfs_kit_py/bin *
 recursive-exclude ipfs_kit_py __pycache__ *.py[cod]
 recursive-exclude ipfs_kit_py *.receipt.json *.key *.pem
 global-exclude .DS_Store
+# PCPR-051: clean installs must not require sibling source trees or
+# recursive submodule checkouts. These directories are gitlinks or
+# development-checkout clutter and are not distribution members.
+prune ipfs_accelerate_py
+prune ipfs_datasets_py
+prune .tools
+prune py-ipld-car
+prune py-ipld-dag-pb
+prune py-ipld-unixfs
+prune archive
+prune backup
