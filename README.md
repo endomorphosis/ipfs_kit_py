@@ -5,7 +5,7 @@
 [![Version 0.3.0](https://img.shields.io/badge/Version-0.3.0-green)](./pyproject.toml)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](./LICENSE)
 
-**IPFS Kit Python** is a Python toolkit for building distributed storage applications on IPFS. PCPR local-backend requalification is R&D non-promoted: live local POSIX durability is measured, while missing CLI/MCP/MCP++ and daemon environments stay typed unavailable. It provides high-level APIs, cluster management, AI/ML integration, and MCP (Model Context Protocol) server support. This is not a closed PCPR release.
+**IPFS Kit Python** is a Python toolkit for building distributed storage applications on IPFS. PCPR local-backend requalification is R&D non-promoted: live local POSIX durability is measured, while missing CLI/MCP/MCP++ and daemon environments stay typed unavailable. Pinned IPFS (PCPR-021) is typed unavailable on the sealed validation PATH (no digest-bound Kubo daemon). It provides high-level APIs, cluster management, AI/ML integration, and MCP (Model Context Protocol) server support. This is not a closed PCPR release.
 
 ## 🎯 What Can You Do With This?
 
@@ -892,5 +892,5 @@ Built with:
 ---
 
 **Version:** 0.3.0  
-**Status:** R&D non-promoted (PCPR-020 local backend; not a closed release)  
+**Status:** R&D non-promoted (PCPR-020 local backend measured; PCPR-021 pinned IPFS typed unavailable; not a closed release)  
 **Maintained by:** Benjamin Barber ([@endomorphosis](https://github.com/endomorphosis))
