@@ -1,0 +1,20 @@
+{
+  "capsule_cids": [
+    "bafkreihvtxeeorzuhiq7efbde3ld6epsnkg2ycf46xojxqptwhgcmwno2e",
+    "bafkreifwuzoexs7g23vb76pd2hut6vb5qtjfnjoiggm7pmzbit4pekr2l4",
+    "bafkreibiftotu25brkiapgeggn6tmc5oitnboj2i7kr22jyv2idra4g6hm"
+  ],
+  "freshness": "fresh",
+  "interface": "DatasetsContextPack@1",
+  "opaque": false,
+  "repository_state_cid": "baguqeerajorugdc52stghgeujb4hq74rkt2ikk6fpw72lebmjiuvyvctvraa",
+  "required_source_cids": {
+    "surrounding_source": "bafkreia2bjp4cpebvscty2ciwibbgubliiji6ok7ddo52jnj5hpvmfq2mi",
+    "target_source": "bafkreih2gdfklkg6ypikg6cho2ijyqohbib4fw55vtiasnh46m6lk2tmfe",
+    "test_source": "bafkreigqatkl3tydc5rsjlp7tdetjliqi7eenypwrlxuaonl6uvkzqnoia"
+  },
+  "scanned_tree_oid": "08fd20feca64070950335c120c8ae8d7d56fc07de7a745dab7b08ac2520c7f04",
+  "schema": "ipfs_datasets_py/datasets-context-pack@1",
+  "task_class": "typed_formal_logic_api_modification",
+  "task_id": "PCPR-061"
+}

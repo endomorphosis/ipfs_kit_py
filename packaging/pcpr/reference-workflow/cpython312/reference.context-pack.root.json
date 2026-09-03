@@ -1,0 +1,213 @@
+{
+  "applied": false,
+  "closed_release_outcome": null,
+  "context_pack": {
+    "constructed": true,
+    "constructed_by": "ipfs_datasets_py",
+    "current_root_published": true,
+    "evidence_kind": "measured",
+    "identity": {
+      "capsule_cids": [
+        "bafkreihvtxeeorzuhiq7efbde3ld6epsnkg2ycf46xojxqptwhgcmwno2e",
+        "bafkreifwuzoexs7g23vb76pd2hut6vb5qtjfnjoiggm7pmzbit4pekr2l4",
+        "bafkreibiftotu25brkiapgeggn6tmc5oitnboj2i7kr22jyv2idra4g6hm"
+      ],
+      "freshness": "fresh",
+      "interface": "DatasetsContextPack@1",
+      "opaque": false,
+      "repository_state_cid": "baguqeerajorugdc52stghgeujb4hq74rkt2ikk6fpw72lebmjiuvyvctvraa",
+      "required_source_cids": {
+        "surrounding_source": "bafkreia2bjp4cpebvscty2ciwibbgubliiji6ok7ddo52jnj5hpvmfq2mi",
+        "target_source": "bafkreih2gdfklkg6ypikg6cho2ijyqohbib4fw55vtiasnh46m6lk2tmfe",
+        "test_source": "bafkreigqatkl3tydc5rsjlp7tdetjliqi7eenypwrlxuaonl6uvkzqnoia"
+      },
+      "scanned_tree_oid": "08fd20feca64070950335c120c8ae8d7d56fc07de7a745dab7b08ac2520c7f04",
+      "schema": "ipfs_datasets_py/datasets-context-pack@1",
+      "task_class": "typed_formal_logic_api_modification",
+      "task_id": "PCPR-061"
+    },
+    "live": false,
+    "owner_interface": "DatasetsContextPack@1",
+    "owner_schema": "ipfs_datasets_py/datasets-context-pack@1",
+    "pack_cid": "bafkreih72d3nncekez43wmtlczq5mdtymzniluujypwybpgu3mtt7i4v2e",
+    "pack_document_cid": "baguqeera5ykn6pm3xvty6taigxxjtnguutg7oznw4ez52jv676igcif4wkda",
+    "reminted": false,
+    "stored": true,
+    "task_id": "PCPR-061"
+  },
+  "contracts_frozen": false,
+  "current_root": {
+    "backend": "hermetic_context_pack_root",
+    "cas": true,
+    "current_cid": "bafkreihjdjarrlr24sperlq3zl4hjrksbol4b5saxquie3wpyi6xwsobwi",
+    "evidence_kind": "measured_hermetic",
+    "generation": 1,
+    "live": false,
+    "object_digest": "e91a4118ae3ae49e48ae1bcaf874c5520b97c0f640bc28826ecfc23d7b49c1b2",
+    "parent_cid": "",
+    "published": true,
+    "restart_verified": true,
+    "schema": "ipfs_kit_py/assurance/context-pack-current-root-pointer@1",
+    "stale_parent_rejected": true,
+    "transition_cid": "baguqeeralttivvntxar66ont7scvxm5xxqknhbvtn3tmsz7yxfutv67mnaoa"
+  },
+  "document_cid": "baguqeera4ejmqjdeuqvaiyyurcbxqkjl25qkmfpbm4ltl45le4ghoo67scoa",
+  "duckdb_or_quack_state_written": false,
+  "durable_artifact_receipt": {
+    "artifact_kind": "context_pack",
+    "backend": "hermetic_context_pack_root",
+    "bytes_cid": "bafkreihjdjarrlr24sperlq3zl4hjrksbol4b5saxquie3wpyi6xwsobwi",
+    "bytes_sha256": "e91a4118ae3ae49e48ae1bcaf874c5520b97c0f640bc28826ecfc23d7b49c1b2",
+    "bytes_size": 834,
+    "duckdb_or_quack_state_written": false,
+    "evidence_kind": "measured_hermetic",
+    "goal_id": "PCPR-G700",
+    "interface": "DurableArtifactReceipt@1",
+    "ipfs_daemon": {
+      "evidence_kind": "unavailable",
+      "live": false,
+      "reason": "Sealed PATH has no live IPFS daemon. Hermetic CAS is not IPFS.",
+      "status": "unavailable"
+    },
+    "live": false,
+    "owner_repository": "ipfs_kit_py",
+    "pack_cid": "bafkreih72d3nncekez43wmtlczq5mdtymzniluujypwybpgu3mtt7i4v2e",
+    "pack_owner_interface": "DatasetsContextPack@1",
+    "pack_owner_repository": "ipfs_datasets_py",
+    "pack_owner_schema": "ipfs_datasets_py/datasets-context-pack@1",
+    "quack": {
+      "evidence_kind": "unavailable",
+      "live": false,
+      "reason": "No admitted Quack-fenced session. Direct Quack writes are prohibited.",
+      "status": "unavailable"
+    },
+    "receipt_cid": "baguqeera6ejhhbaci3r5lme7duvw436hxwxrn65skl37bsix5of5g5tmwpcq",
+    "schema": "pcpr/shared-contracts/durable-artifact-receipt@1",
+    "stored": true,
+    "task_id": "PCPR-062"
+  },
+  "evidence_kind": "measured",
+  "execution": {
+    "deferred": true,
+    "live": false,
+    "performed": false,
+    "task_id": "PCPR-063"
+  },
+  "goal_id": "PCPR-G700",
+  "hashes_invented": false,
+  "idea": "Modify a typed formal-logic API while reusing unaffected proofs, selecting only impacted tests, rejecting stale-tree evidence, and producing a complete proof-carrying execution receipt.",
+  "idea_digest": "baguqeeracbayojdov4jmqiirx22pavrg6nabazcocru6y3scrdx5e54mw2zq",
+  "interface": "KitContextPackStorage@1",
+  "ipfs_daemon": {
+    "evidence_kind": "unavailable",
+    "live": false,
+    "reason": "Sealed PATH has no live IPFS daemon.",
+    "status": "unavailable"
+  },
+  "language": "Python",
+  "live": false,
+  "live_bytes_store": {
+    "evidence_kind": "unavailable",
+    "live": false,
+    "reason": "Hermetic ContextPack persist is not live IPFS, Iroh, or Quack publication.",
+    "status": "unavailable"
+  },
+  "live_current_root": {
+    "evidence_kind": "unavailable",
+    "live": false,
+    "reason": "Hermetic current-root CAS is not a live durable-backend publication.",
+    "status": "unavailable"
+  },
+  "lock_cid": "baguqeerawsekbbbt5ccctjt4tydzeahfkahsatb6q5x7k6cy4inrii5lhqmq",
+  "materialization": {
+    "admitted": false,
+    "applied": false,
+    "duckdb_or_quack_state_written": false,
+    "evidence_kind": "unavailable",
+    "kind": "hermetic_store_not_live",
+    "live": false
+  },
+  "objective_cid": "baguqeeraynsn7tjr3iaggnreylzxo3akaooqwp5bf5oheaa6eubth2zwqeba",
+  "objective_id": "PCPR-G700",
+  "objective_kind": "declared_context_pack_root",
+  "operator_blocking_task": {
+    "action": "Keep the hermetic current root. Do not write DuckDB or Quack state. Do not claim live IPFS. PCPR-063 executes the deterministic-first route against this stored identity.",
+    "applied": false,
+    "evidence_kind": "unavailable",
+    "live": false,
+    "reason": "Hermetic persist and CAS are not live durable publication. Sealed validation has no admitted Quack-fenced session and no live IPFS daemon.",
+    "requires": "An admitted Quack-fenced state-owner session and a live qualified durable backend before the ContextPack current root is published as live",
+    "status": "typed_blocked",
+    "task_id": "pcpr-062-operator-live-context-pack-root"
+  },
+  "owned_contracts": [
+    "DurableArtifactReceipt"
+  ],
+  "owner_interface": "DatasetsContextPack@1",
+  "owner_repository": "ipfs_kit_py",
+  "owner_schema": "ipfs_datasets_py/datasets-context-pack@1",
+  "pack_owner_repository": "ipfs_datasets_py",
+  "package_name": "ipfs_kit_py",
+  "package_version": "0.3.0",
+  "portfolio_id": "portfolio:pcpr-v1",
+  "portfolio_version": "proof-carrying-platform-0.1.0",
+  "prerequisite_task_id": "PCPR-061",
+  "program_id": "proof-carrying-platform-qualification-and-release-v1",
+  "quack_fenced_session": {
+    "evidence_kind": "unavailable",
+    "live": false,
+    "reason": "No admitted Quack-fenced state-owner session was observed. Direct DuckDB writes are prohibited.",
+    "status": "unavailable"
+  },
+  "release_claim": false,
+  "schema": "ipfs_kit_py/assurance/declared-context-pack-root@1",
+  "sibling_source_required": false,
+  "signatures_invented": false,
+  "source": {
+    "binding": "current_head_not_mutable_main",
+    "commit": {
+      "evidence_kind": "measured",
+      "field": "PCPR-062 receipt current_tree_binding",
+      "live": false,
+      "status": "observed_at_evaluation"
+    },
+    "kind": "git",
+    "mutable_main_reference": false,
+    "repository": "endomorphosis/ipfs_kit_py"
+  },
+  "source_date_epoch": "0",
+  "storage": {
+    "backend": "hermetic_context_pack_root",
+    "bytes_cid": "bafkreihjdjarrlr24sperlq3zl4hjrksbol4b5saxquie3wpyi6xwsobwi",
+    "bytes_sha256": "e91a4118ae3ae49e48ae1bcaf874c5520b97c0f640bc28826ecfc23d7b49c1b2",
+    "bytes_size": 834,
+    "bytes_verified": true,
+    "current_root_published": true,
+    "deferred": false,
+    "durable_artifact_receipt_cid": "baguqeera6ejhhbaci3r5lme7duvw436hxwxrn65skl37bsix5of5g5tmwpcq",
+    "evidence_kind": "measured_hermetic",
+    "live": false,
+    "reason": "Kit verified and stored exact DatasetsContextPack@1 bytes through hermetic CAS. Live IPFS publication stays typed unavailable.",
+    "stored": true,
+    "task_id": "PCPR-062"
+  },
+  "submitted_live": false,
+  "task_id": "PCPR-062",
+  "this_task_created_competing_authority": false,
+  "transition": {
+    "backend": "hermetic_context_pack_root",
+    "current_cid": "bafkreihjdjarrlr24sperlq3zl4hjrksbol4b5saxquie3wpyi6xwsobwi",
+    "evidence_kind": "measured_hermetic",
+    "generation": 1,
+    "goal_id": "PCPR-G700",
+    "live": false,
+    "object_digest": "e91a4118ae3ae49e48ae1bcaf874c5520b97c0f640bc28826ecfc23d7b49c1b2",
+    "parent_cid": "",
+    "restart_verified": true,
+    "schema": "ipfs_kit_py/assurance/context-pack-root-transition@1",
+    "stale_parent_rejected": true,
+    "swapped": true,
+    "task_id": "PCPR-062",
+    "transition_cid": "baguqeeralttivvntxar66ont7scvxm5xxqknhbvtn3tmsz7yxfutv67mnaoa"
+  }
+}
