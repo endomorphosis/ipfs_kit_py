@@ -482,6 +482,18 @@ live-application = false
 live-storage = false
 release-claim = false
 
+[tool.ipfs_kit_py.selected-tests-and-proofs]
+schema = "ipfs_kit_py/assurance/selected-tests-and-proofs-binding@1"
+interface = "KitSelectedTestsAndProofsBinding@1"
+task-id = "PCPR-065"
+goal-id = "PCPR-G700"
+objective-kind = "declared_selected_tests_and_proofs_binding"
+portfolio-id = "portfolio:pcpr-v1"
+portfolio-version = "proof-carrying-platform-0.1.0"
+live-application = false
+live-storage = false
+release-claim = false
+
 [tool.setuptools]
 include-package-data = true
 
