@@ -594,6 +594,19 @@ live-storage = false
 live-client = false
 release-claim = false
 
+[tool.ipfs_kit_py.generic-mcp-client]
+schema = "ipfs_kit_py/assurance/generic-mcp-client-binding@1"
+interface = "KitGenericMcpClientBinding@1"
+task-id = "PCPR-081"
+goal-id = "PCPR-G800"
+objective-kind = "declared_generic_mcp_client_binding"
+portfolio-id = "portfolio:pcpr-v1"
+portfolio-version = "proof-carrying-platform-0.1.0"
+live-application = false
+live-storage = false
+live-client = false
+release-claim = false
+
 [tool.setuptools]
 include-package-data = true
 
