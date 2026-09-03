@@ -420,6 +420,19 @@ live-tag-protection = false
 governance-gate-complete = false
 release-claim = false
 
+[tool.ipfs_kit_py.reference-high-level-objective]
+schema = "ipfs_kit_py/assurance/reference-high-level-objective-binding@1"
+interface = "KitReferenceHighLevelObjectiveBinding@1"
+task-id = "PCPR-060"
+goal-id = "PCPR-G700"
+objective-kind = "declared_reference_high_level_objective_binding"
+portfolio-id = "portfolio:pcpr-v1"
+portfolio-version = "proof-carrying-platform-0.1.0"
+live-objective-submission = false
+live-materialization = false
+live-storage = false
+release-claim = false
+
 [tool.setuptools]
 include-package-data = true
 
