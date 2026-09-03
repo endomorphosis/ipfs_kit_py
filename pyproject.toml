@@ -494,6 +494,18 @@ live-application = false
 live-storage = false
 release-claim = false
 
+[tool.ipfs_kit_py.unrelated-state-change]
+schema = "ipfs_kit_py/assurance/unrelated-state-change-binding@1"
+interface = "KitUnrelatedStateChangeBinding@1"
+task-id = "PCPR-066"
+goal-id = "PCPR-G700"
+objective-kind = "declared_unrelated_state_change_binding"
+portfolio-id = "portfolio:pcpr-v1"
+portfolio-version = "proof-carrying-platform-0.1.0"
+live-application = false
+live-storage = false
+release-claim = false
+
 [tool.setuptools]
 include-package-data = true
 
