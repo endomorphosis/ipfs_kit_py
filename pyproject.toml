@@ -581,6 +581,19 @@ live-storage = false
 live-chain = false
 release-claim = false
 
+[tool.ipfs_kit_py.python-external-client]
+schema = "ipfs_kit_py/assurance/python-external-client-binding@1"
+interface = "KitPythonExternalClientBinding@1"
+task-id = "PCPR-080"
+goal-id = "PCPR-G800"
+objective-kind = "declared_python_external_client_binding"
+portfolio-id = "portfolio:pcpr-v1"
+portfolio-version = "proof-carrying-platform-0.1.0"
+live-application = false
+live-storage = false
+live-client = false
+release-claim = false
+
 [tool.setuptools]
 include-package-data = true
 
