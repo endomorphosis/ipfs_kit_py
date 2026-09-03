@@ -433,6 +433,19 @@ live-materialization = false
 live-storage = false
 release-claim = false
 
+[tool.ipfs_kit_py.semantic-context-pack]
+schema = "ipfs_kit_py/assurance/semantic-context-pack-binding@1"
+interface = "KitSemanticContextPackBinding@1"
+task-id = "PCPR-061"
+goal-id = "PCPR-G700"
+objective-kind = "declared_semantic_context_pack_binding"
+portfolio-id = "portfolio:pcpr-v1"
+portfolio-version = "proof-carrying-platform-0.1.0"
+live-objective-submission = false
+live-materialization = false
+live-storage = false
+release-claim = false
+
 [tool.setuptools]
 include-package-data = true
 
