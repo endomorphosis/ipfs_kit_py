@@ -711,6 +711,19 @@ live-storage = false
 live-client = false
 release-claim = false
 
+[tool.ipfs_kit_py.next-bounded-pilot]
+schema = "ipfs_kit_py/assurance/next-bounded-pilot-binding@1"
+interface = "KitNextBoundedPilotBinding@1"
+task-id = "PCPR-096"
+goal-id = "PCPR-G900"
+objective-kind = "declared_next_bounded_pilot_recommendation_binding"
+portfolio-id = "portfolio:pcpr-v1"
+portfolio-version = "proof-carrying-platform-0.1.0"
+live-application = false
+live-storage = false
+live-client = false
+release-claim = false
+
 [tool.setuptools]
 include-package-data = true
 
