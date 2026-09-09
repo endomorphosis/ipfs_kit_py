@@ -54,3 +54,65 @@ archive boundary without affecting any coordination artifact referenced by
 that event. The Event DAG archive and coordination index archive serve
 different purposes: the former proves event inclusion, while the latter
 preserves rebuildable query-index history.
+
+## Existing native DuckDB owner adapter
+
+`ipfs_kit_py.mcp_server.mcplusplus.duckdb_coordination_storage.DuckDBCoordinationStore`
+provides immutable kit block persistence and state-root CAS within an existing
+DuckDB + Quack owner's database. The launcher supplies its already-open native
+connection, shared reentrant transaction lock, exact owner identity, and one
+fixed namespace. The adapter does not open or close a connection, start a
+server, use a filesystem block store, or offer a replication fallback. It
+rejects an in-memory catalog because it cannot issue durable receipts there.
+
+Construct the adapter after native readiness and outside a caller transaction:
+
+```python
+store = DuckDBCoordinationStore(
+    owner_connection,
+    transaction_lock=owner_transaction_lock,
+    owner_identity=ready_owner_identity,
+    namespace="source-forest/spar/profile1",
+)
+block = store.put(manifest, codec="dag-json", replicate=False)
+before = store.current_state_root(store.namespace)
+receipt = store.compare_and_swap_state_root(
+    store.namespace,
+    expected_revision=before["revision"],
+    expected_root_cid=before["root_cid"],
+    new_root_cid=block["cid"],
+    operation_id="source-publication-1",
+)
+```
+
+Each access verifies the latest native generation, schema revision, fence,
+database UUID, process birth, and the exact READY server/store binding. A stale
+adapter fails closed; the replacement native owner must construct a new adapter.
+The fixed namespace is also bound to the database UUID and store ID. Content and
+operations in another namespace are inaccessible even when their CIDs are known.
+
+The existing kit canonical CID encoding and closed state-root transition schema
+are reused. `put` verifies an optional `expected_cid`; `get`, `get_bytes`, and
+`has` verify stored bytes, canonical encoding, and metadata on every read. Root
+reads verify the complete transition chain, including the immutable contents of
+earlier roots. Missing or corrupted history fails closed without rebuilding,
+resetting, or creating replacement authority.
+
+A successful CAS commits the transition block, operation record, and current root
+pointer together under the native transaction lock. The existing result shapes
+are retained: `updated`, `unchanged` / `idempotent_replay`, and `conflict` /
+`stale_expectation` or `operation_id_reused`. Replaying an earlier successful
+operation returns the current verified root without rolling it back. Revisions
+prevent an old expectation from succeeding after an A → B → A root sequence.
+
+Reads acquire the shared reentrant lock but never begin, commit, or roll back a
+transaction, allowing a native status snapshot to read root and block evidence in
+its own transaction. Writes own a transaction and roll it back on exceptions,
+including interruption. Persistence durability is supplied by the admitted native
+DuckDB database and WAL. Root CAS receipts prove kit persistence only; they do
+not grant task completion or datasets semantic acceptance.
+
+`tests/test_duckdb_coordination_storage.py` exercises real persistent DuckDB
+connections with raw and native-style mapping rows, competing CAS calls,
+transaction rollback, owner fences, namespace isolation, corruption, and abrupt
+process exit before and after commit followed by a new native generation.
