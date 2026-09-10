@@ -1102,11 +1102,16 @@ class DurableCoordinationStore:
             connection = self._connection
             connection.execute("BEGIN IMMEDIATE")
             try:
+                # A prior writer may have fsynced publication evidence and
+                # then failed before committing its derived index. Check it
+                # under this writer fence, including already-open peers,
+                # before minting another timestamped publication record.
+                self._reconcile_event_publication_index(connection)
                 existing = connection.execute(
                     "SELECT * FROM event_publications WHERE operation_id=?", (operation_id,)
                 ).fetchone()
                 if existing is not None:
-                    connection.rollback()
+                    connection.commit()
                     if existing["event_cid"] == event_cid:
                         return {
                             "status": "unchanged", "reason_code": "idempotent_replay",
@@ -1123,7 +1128,7 @@ class DurableCoordinationStore:
                     "SELECT * FROM event_publications WHERE event_id=?", (value["event_id"],)
                 ).fetchone()
                 if existing_event is not None:
-                    connection.rollback()
+                    connection.commit()
                     return {
                         "status": "conflict", "reason_code": "event_id_reused",
                         "event_cid": existing_event["event_cid"],
@@ -1221,6 +1226,34 @@ class DurableCoordinationStore:
                 seen.add(field)
             publications.append((cid, fields))
         return sorted(publications, key=lambda item: (item[1]["published_at_ms"], item[0]))
+
+    def _reconcile_event_publication_index(self, connection: sqlite3.Connection) -> None:
+        """Recover publication rows from blocks inside the caller's writer epoch.
+
+        Only derived publication/artifact rows are recovered. Immutable bytes,
+        root chains and unrelated operational indexes are never rewritten.
+        Conflicting immutable publications remain an integrity failure.
+        """
+
+        verified = self._verified_local_blocks()
+        publications = self._reconstructed_event_publications(verified)
+        if self._event_publication_indexes_match(connection, publications):
+            return
+        blocks = {cid: (value, data) for cid, value, data in verified}
+        connection.execute("DELETE FROM event_publications")
+        for cid, fields in publications:
+            for artifact_cid in (fields["event_cid"], cid):
+                value, data = blocks[artifact_cid]
+                connection.execute(
+                    "INSERT OR IGNORE INTO artifacts VALUES(?,?,?,?,?,?)",
+                    (artifact_cid, _artifact_kind(value), value["schema"], "dag-json",
+                     len(data), fields["published_at_ms"]),
+                )
+            connection.execute(
+                "INSERT INTO event_publications VALUES(?,?,?,?,?,?)",
+                (cid, fields["operation_id"], fields["event_cid"], fields["event_id"],
+                 fields["stream_id"], fields["published_at_ms"]),
+            )
 
     @staticmethod
     def _event_publication_indexes_match(
@@ -1564,6 +1597,33 @@ class DurableCoordinationStore:
             for namespace, snapshot in snapshots.items()
         )
 
+    def _verified_local_blocks(self) -> list[Tuple[str, Dict[str, Any], bytes]]:
+        """Verify immutable bytes while the caller holds its writer epoch."""
+
+        verified: list[Tuple[str, Dict[str, Any], bytes]] = []
+        errors: list[Dict[str, str]] = []
+        corrupt_count = 0
+        # This must remain inside the writer epoch.  Moving only the
+        # DELETE/INSERT work under the transaction leaves a stale
+        # block snapshot able to roll a later committed root back.
+        for cid, data in self._iter_local_blocks():
+            try:
+                if cid_for_bytes(data, _codec_from_cid(cid)) != cid:
+                    raise ArtifactIntegrityError("CID mismatch")
+                value = json.loads(data.decode("utf-8"))
+                if not isinstance(value, dict) or _canonical_json(value) != data:
+                    raise ArtifactIntegrityError("non-canonical JSON")
+                _artifact_kind(value)
+                verified.append((cid, value, data))
+            except Exception as exc:
+                corrupt_count += 1
+                if len(errors) < MAX_RECOVERY_ERRORS:
+                    errors.append({"cid": cid, "error": str(exc)})
+        if errors:
+            suffix = "" if corrupt_count == len(errors) else f" (showing first {len(errors)} of {corrupt_count})"
+            raise ArtifactIntegrityError(f"coordination recovery found corrupt blocks{suffix}: {errors}")
+        return verified
+
     def recover(self, *, rebuild: bool = True) -> Dict[str, Any]:
         """Verify immutable blocks and optionally recreate all derived indexes.
 
@@ -1577,28 +1637,7 @@ class DurableCoordinationStore:
             connection = self._connection
             connection.execute("BEGIN IMMEDIATE")
             try:
-                verified: list[Tuple[str, Dict[str, Any], bytes]] = []
-                errors: list[Dict[str, str]] = []
-                corrupt_count = 0
-                # This must remain inside the writer epoch.  Moving only the
-                # DELETE/INSERT work under the transaction leaves a stale
-                # block snapshot able to roll a later committed root back.
-                for cid, data in self._iter_local_blocks():
-                    try:
-                        if cid_for_bytes(data, _codec_from_cid(cid)) != cid:
-                            raise ArtifactIntegrityError("CID mismatch")
-                        value = json.loads(data.decode("utf-8"))
-                        if not isinstance(value, dict) or _canonical_json(value) != data:
-                            raise ArtifactIntegrityError("non-canonical JSON")
-                        _artifact_kind(value)
-                        verified.append((cid, value, data))
-                    except Exception as exc:
-                        corrupt_count += 1
-                        if len(errors) < MAX_RECOVERY_ERRORS:
-                            errors.append({"cid": cid, "error": str(exc)})
-                if errors:
-                    suffix = "" if corrupt_count == len(errors) else f" (showing first {len(errors)} of {corrupt_count})"
-                    raise ArtifactIntegrityError(f"coordination recovery found corrupt blocks{suffix}: {errors}")
+                verified = self._verified_local_blocks()
                 root_transitions, snapshots = self._reconstructed_root_chain(verified)
                 event_publications = self._reconstructed_event_publications(verified)
                 root_indexes_match = self._root_indexes_match(connection, root_transitions, snapshots)
