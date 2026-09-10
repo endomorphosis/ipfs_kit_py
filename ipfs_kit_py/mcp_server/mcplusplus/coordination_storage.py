@@ -10,6 +10,11 @@ bridge (``put``/``get``), or an object implementing ``store_block`` and
 ``load_block``.  Local durable storage is always written first, making restart
 recovery independent of daemon availability; backend reads repair the local
 copy.
+
+For cross-repository ContextPacks this module is Kit's exact-bytes, CID, WAL,
+recovery, and current-root CAS surface.  Datasets retains semantic identity;
+Accelerate retains operational admission.  Callers must reuse
+:class:`DurableCoordinationStore` rather than introducing a competing store.
 """
 
 from __future__ import annotations
@@ -23,6 +28,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Dict, Iterator, Mapping, Optional, Protocol, Tuple
 
 
@@ -32,6 +38,52 @@ DAEMON_HEALTH_SCHEMA = "mcp++/coordination/daemon-health@1"
 STATE_ROOT_TRANSITION_SCHEMA = "mcp++/coordination/state-root-transition@1"
 CANONICAL_EVENT_SCHEMA = "ipfs_datasets_py/logic/ir-core/canonical-event@1"
 EVENT_PUBLICATION_SCHEMA = "mcp++/coordination/event-publication@1"
+# Datasets owns ContextPack semantic identity.  Kit persists the closed wire
+# bytes and publishes current-root CAS transitions; it does not interpret
+# sufficiency, freshness, or admission, and must not become a second builder.
+SUPERVISOR_CONTEXT_PACK_SCHEMA = (
+    "ipfs_datasets_py/proof-context/supervisor-context-pack@1"
+)
+SUPERVISOR_CONTEXT_PACK_SCHEMA_VERSION = "supervisor-context-pack/v1"
+KIT_CONTEXT_PACK_STORAGE_OWNERSHIP = MappingProxyType(
+    {
+        "canonical_semantic_identity": "ipfs_datasets_py",
+        "exact_bytes_cid_storage": "ipfs_kit_py",
+        "operational_admission": "ipfs_accelerate_py",
+    }
+)
+SUPERVISOR_CONTEXT_PACK_STORAGE_FORBIDDEN_FIELDS = frozenset(
+    {
+        "authorization",
+        "authorization_decision",
+        "completion_authoritative",
+        "duckdb",
+        "ducklake",
+        "execution_admission",
+        "lease_id",
+        "policy",
+        "policy_id",
+        "policy_revision",
+        "receipt_bytes",
+        "storage_bytes",
+        "terminal_status",
+    }
+)
+SUPERVISOR_CONTEXT_PACK_STORAGE_REQUIRED_FIELDS = frozenset(
+    {
+        "capsule_cids",
+        "expansion_required",
+        "pack_cid",
+        "producer",
+        "repository_state_cid",
+        "required_source_cids",
+        "scanned_tree_oid",
+        "schema",
+        "schema_version",
+        "sufficiency_state",
+        "task_id",
+    }
+)
 # These names are deliberately part of the small test seam for this storage
 # primitive.  An injector raises at one boundary to model a process stopping;
 # reopening the store must then derive either the old root or the sole durable
@@ -563,6 +615,89 @@ class DurableCoordinationStore:
         if actual_kind != kind:
             raise ValueError(f"artifact kind is {actual_kind}, expected {kind}")
         return self.put(artifact, expected_cid=expected_cid, codec="dag-json")
+
+    @staticmethod
+    def _supervisor_context_pack_fields(artifact: Mapping[str, Any]) -> Dict[str, Any]:
+        """Validate only the closed storage boundary of a supervisor ContextPack.
+
+        Semantic sufficiency and freshness remain Datasets-owned.  Kit rejects
+        authority-bearing fields and unknown keys so durable storage cannot
+        quietly become a second ContextPack or admission subsystem.
+        """
+
+        if not isinstance(artifact, Mapping):
+            raise ValueError("supervisor ContextPack must be an object")
+        keys = set(artifact)
+        if keys != SUPERVISOR_CONTEXT_PACK_STORAGE_REQUIRED_FIELDS:
+            missing = sorted(SUPERVISOR_CONTEXT_PACK_STORAGE_REQUIRED_FIELDS - keys)
+            unknown = sorted(keys - SUPERVISOR_CONTEXT_PACK_STORAGE_REQUIRED_FIELDS)
+            problems = []
+            if missing:
+                problems.append(f"missing {', '.join(missing)}")
+            if unknown:
+                problems.append(f"unknown {', '.join(unknown)}")
+            raise ValueError("supervisor ContextPack has " + "; ".join(problems))
+        if keys & SUPERVISOR_CONTEXT_PACK_STORAGE_FORBIDDEN_FIELDS:
+            raise ValueError("supervisor ContextPack carries forbidden authority fields")
+        if artifact.get("schema") != SUPERVISOR_CONTEXT_PACK_SCHEMA:
+            raise ValueError("supervisor ContextPack must use the datasets-owned schema")
+        if artifact.get("schema_version") != SUPERVISOR_CONTEXT_PACK_SCHEMA_VERSION:
+            raise ValueError("supervisor ContextPack schema_version is unsupported")
+        for name in (
+            "pack_cid",
+            "producer",
+            "repository_state_cid",
+            "scanned_tree_oid",
+            "sufficiency_state",
+            "task_id",
+        ):
+            _require_string(artifact, name)
+        if not isinstance(artifact["expansion_required"], bool):
+            raise ValueError("expansion_required must be a boolean")
+        sources = artifact["required_source_cids"]
+        if not isinstance(sources, Mapping) or set(sources) != {
+            "target_source",
+            "surrounding_source",
+            "test_source",
+        }:
+            raise ValueError("required_source_cids must carry the exact source keys")
+        if any(not isinstance(cid, str) or not cid for cid in sources.values()):
+            raise ValueError("required_source_cids values must be non-empty strings")
+        capsules = artifact["capsule_cids"]
+        if not isinstance(capsules, list) or any(
+            not isinstance(cid, str) or not cid for cid in capsules
+        ):
+            raise ValueError("capsule_cids must be an array of non-empty strings")
+        value = dict(artifact)
+        value["required_source_cids"] = dict(sources)
+        value["capsule_cids"] = list(capsules)
+        _canonical_json(value)
+        return value
+
+    def put_supervisor_context_pack(
+        self,
+        artifact: Mapping[str, Any],
+        *,
+        expected_cid: Optional[str] = None,
+        replicate: bool = True,
+    ) -> Dict[str, Any]:
+        """Persist a datasets-owned supervisor ContextPack as exact durable bytes.
+
+        This reuses the existing immutable block store and indexes.  It does not
+        mint semantic identity, admit execution, or open a second ContextPack
+        subsystem — only content-addressed durability and optional replication.
+        """
+
+        value = self._supervisor_context_pack_fields(artifact)
+        stored = self.put(
+            value, expected_cid=expected_cid, codec="dag-json", replicate=replicate
+        )
+        return {
+            **stored,
+            "local_durable": True,
+            "schema": SUPERVISOR_CONTEXT_PACK_SCHEMA,
+            "ownership": dict(KIT_CONTEXT_PACK_STORAGE_OWNERSHIP),
+        }
 
     def get_bytes(self, cid: str) -> bytes:
         codec = _codec_from_cid(cid)
@@ -1560,7 +1695,16 @@ class DurableCoordinationStore:
         with self._lock:
             counts = {
                 table: int(self._connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
-                for table in ("artifacts", "claims", "leases", "daemon_health", "index_archives", "event_publications")
+                for table in (
+                    "artifacts",
+                    "claims",
+                    "leases",
+                    "daemon_health",
+                    "index_archives",
+                    "event_publications",
+                    "state_roots",
+                    "state_root_transitions",
+                )
             }
         return {
             "storage_dir": str(self.root),
@@ -1568,6 +1712,9 @@ class DurableCoordinationStore:
             "counts": counts,
             "artifact_retention": "permanent",
             "index_retention": self.retention.__dict__.copy(),
+            "durable_storage": "DurableCoordinationStore",
+            "current_root_cas": "compare_and_swap_state_root",
+            "ownership": dict(KIT_CONTEXT_PACK_STORAGE_OWNERSHIP),
         }
 
 
@@ -1581,10 +1728,15 @@ __all__ = [
     "DurableCoordinationStore",
     "EVENT_PUBLICATION_SCHEMA",
     "IPFSHeliaBlockBackend",
+    "KIT_CONTEXT_PACK_STORAGE_OWNERSHIP",
     "MAX_RECOVERY_ERRORS",
     "RetentionPolicy",
     "ROOT_CAS_INTERRUPTION_POINTS",
     "STATE_ROOT_TRANSITION_SCHEMA",
+    "SUPERVISOR_CONTEXT_PACK_SCHEMA",
+    "SUPERVISOR_CONTEXT_PACK_SCHEMA_VERSION",
+    "SUPERVISOR_CONTEXT_PACK_STORAGE_FORBIDDEN_FIELDS",
+    "SUPERVISOR_CONTEXT_PACK_STORAGE_REQUIRED_FIELDS",
     "cid_for_artifact",
     "cid_for_bytes",
     "validate_transport_cid",
