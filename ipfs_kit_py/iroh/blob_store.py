@@ -906,7 +906,19 @@ def _new_hasher() -> Any:
             "BLAKE3 support is required for verified Iroh blob operations",
             operation="blobs.hash",
         ) from None
-    return blake3.blake3()
+    threads = 1
+    try:
+        from ipfs_accelerate_py.agent_supervisor.runtime.hash_pressure import (
+            hash_worker_limit,
+        )
+
+        threads = hash_worker_limit()
+    except Exception:
+        threads = 1
+    try:
+        return blake3.blake3(max_threads=max(1, threads))
+    except TypeError:
+        return blake3.blake3()
 
 
 def _hash_bytes(value: bytes) -> str:
