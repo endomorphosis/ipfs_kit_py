@@ -4,6 +4,7 @@ Mirrors the ipfs_datasets_py manager: exposes meta-tools (list_categories,
 list_tools, get_schema, dispatch) instead of flooding the top level, with a
 per-category circuit breaker and structured per-request tracing.
 """
+
 from __future__ import annotations
 
 import inspect
@@ -93,12 +94,18 @@ class HierarchicalToolManager:
             raise ToolNotFoundError(category, tool)
         return self._groups[category][tool]
 
-    async def dispatch(self, category: str, tool: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def dispatch(
+        self, category: str, tool: str, params: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         request_id = str(uuid.uuid4())
         t0 = time.monotonic()
         breaker = self._breakers.setdefault(category, CircuitBreaker(category))
         if breaker.state == CircuitState.OPEN:
-            return {"status": "error", "error": f"circuit '{category}' open", "request_id": request_id}
+            return {
+                "status": "error",
+                "error": f"circuit '{category}' open",
+                "request_id": request_id,
+            }
         fn = self._lookup(category, tool)
         params = params or {}
         sig = inspect.signature(fn)
@@ -107,9 +114,23 @@ class HierarchicalToolManager:
             result = await fn(**filtered) if inspect.iscoroutinefunction(fn) else fn(**filtered)
             breaker.on_success()
             result.setdefault("request_id", request_id)
-            logger.info("dispatch ok request_id=%s tool=%s/%s ms=%.1f", request_id, category, tool, (time.monotonic() - t0) * 1000)
+            logger.info(
+                "dispatch ok request_id=%s tool=%s/%s ms=%.1f",
+                request_id,
+                category,
+                tool,
+                (time.monotonic() - t0) * 1000,
+            )
             return result
         except Exception as e:
             breaker.on_failure()
-            logger.error("dispatch err request_id=%s tool=%s/%s err=%s", request_id, category, tool, e)
-            return {"status": "error", "error": str(e), "category": category, "tool": tool, "request_id": request_id}
+            logger.error(
+                "dispatch err request_id=%s tool=%s/%s err=%s", request_id, category, tool, e
+            )
+            return {
+                "status": "error",
+                "error": str(e),
+                "category": category,
+                "tool": tool,
+                "request_id": request_id,
+            }

@@ -14,10 +14,7 @@ import requests
 import logging
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 # Constants
@@ -25,6 +22,7 @@ MCP_URL = "http://localhost:9991"
 API_PREFIX = "/api/v0"
 BASE_URL = f"{MCP_URL}{API_PREFIX}"
 RESULTS_FILE = "storage_backend_results.json"
+
 
 def check_server_health():
     """Check if the MCP server is running and get controller info."""
@@ -36,6 +34,7 @@ def check_server_health():
         logger.error(f"Failed to connect to MCP server: {e}")
         return {"success": False, "error": str(e)}
 
+
 def get_storage_backends():
     """Get list of storage backends from health check."""
     health = check_server_health()
@@ -44,10 +43,14 @@ def get_storage_backends():
 
     # Extract controllers that start with storage_ or match known storage names
     controllers = health.get("controllers", {})
-    storage_backends = {k: v for k, v in controllers.items()
-                        if k.startswith("storage_") or k in ["s3", "filecoin", "storacha", "lassie"]}
+    storage_backends = {
+        k: v
+        for k, v in controllers.items()
+        if k.startswith("storage_") or k in ["s3", "filecoin", "storacha", "lassie"]
+    }
 
     return storage_backends
+
 
 def test_backend_status(backend_name):
     """Test if a backend responds to status check."""
@@ -56,7 +59,7 @@ def test_backend_status(backend_name):
         f"{BASE_URL}/storage/{backend_name}/status",
         f"{BASE_URL}/{backend_name}/status",
         f"{BASE_URL}/storage/{backend_name.replace('storage_', '')}/status",
-        f"{BASE_URL}/{backend_name.replace('storage_', '')}/status"
+        f"{BASE_URL}/{backend_name.replace('storage_', '')}/status",
     ]
 
     for endpoint in endpoints:
@@ -69,14 +72,17 @@ def test_backend_status(backend_name):
                     "success": True,
                     "endpoint": endpoint,
                     "is_available": is_available,
-                    "result": result
+                    "result": result,
                 }
         except Exception:
             continue
 
     return {"success": False, "error": "No working status endpoint found"}
 
-def test_backend_operation(backend_name, operation, test_cid="bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"):
+
+def test_backend_operation(
+    backend_name, operation, test_cid="bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+):
     """Test if a backend can perform from_ipfs or to_ipfs operations."""
     clean_name = backend_name.replace("storage_", "")
 
@@ -85,7 +91,7 @@ def test_backend_operation(backend_name, operation, test_cid="bafybeigdyrzt5sfp7
         f"{BASE_URL}/storage/{backend_name}/{operation}",
         f"{BASE_URL}/{backend_name}/{operation}",
         f"{BASE_URL}/storage/{clean_name}/{operation}",
-        f"{BASE_URL}/{clean_name}/{operation}"
+        f"{BASE_URL}/{clean_name}/{operation}",
     ]
 
     # Prepare parameters based on the backend type and operation
@@ -115,7 +121,9 @@ def test_backend_operation(backend_name, operation, test_cid="bafybeigdyrzt5sfp7
     # Try each endpoint
     for endpoint in endpoints:
         try:
-            logger.info(f"Testing {operation} on {backend_name} at {endpoint} with params: {params}")
+            logger.info(
+                f"Testing {operation} on {backend_name} at {endpoint} with params: {params}"
+            )
             response = requests.post(endpoint, json=params)
 
             # Consider 200 OK or 422 Unprocessable Entity (missing parameters but endpoint exists)
@@ -125,12 +133,13 @@ def test_backend_operation(backend_name, operation, test_cid="bafybeigdyrzt5sfp7
                     "endpoint": endpoint,
                     "status_code": response.status_code,
                     "result": response.json() if response.status_code == 200 else None,
-                    "error": response.text if response.status_code != 200 else None
+                    "error": response.text if response.status_code != 200 else None,
                 }
         except Exception as e:
             logger.warning(f"Error testing {endpoint}: {e}")
 
     return {"success": False, "error": "No working endpoint found"}
+
 
 def create_backend_proxy(backend_name):
     """
@@ -247,6 +256,7 @@ async def {clean_name}_status():
     logger.info(f"Created proxy file {proxy_file} for {backend_name}")
     return proxy_file
 
+
 def update_mcp_server_with_proxies(proxy_files):
     """
     Create an updated server file that includes the proxy endpoints.
@@ -276,8 +286,9 @@ def update_mcp_server_with_proxies(proxy_files):
         # Find where to add the import code
         app_creation_marker = "def create_app():"
         if app_creation_marker in server_code:
-            server_code = server_code.replace(app_creation_marker,
-                                           proxy_import_code + "\n" + app_creation_marker)
+            server_code = server_code.replace(
+                app_creation_marker, proxy_import_code + "\n" + app_creation_marker
+            )
 
         # Write the updated server file
         with open(updated_server_file, "w") as f:
@@ -288,6 +299,7 @@ def update_mcp_server_with_proxies(proxy_files):
     except Exception as e:
         logger.error(f"Failed to update server file: {e}")
         return None
+
 
 def create_startup_script():
     """Create a script to restart the MCP server with storage backends enabled."""
@@ -312,6 +324,7 @@ echo "MCP Server started with storage backends enabled (PID: $(cat mcp_storage_s
     os.chmod(script_file, 0o755)
     logger.info(f"Created startup script: {script_file}")
     return script_file
+
 
 def create_test_fix_script():
     """Create a script to test the fixed storage backends."""
@@ -398,6 +411,7 @@ echo -e "\nAll tests completed."
     logger.info(f"Created test script: {script_file}")
     return script_file
 
+
 def main():
     """Test and fix MCP storage backends."""
     print("=== MCP Storage Backend Tester & Fixer ===\n")
@@ -438,17 +452,22 @@ def main():
         if backend_name not in ["storage_lassie", "lassie"]:
             from_ipfs = test_backend_operation(backend_name, "from_ipfs")
             operations["from_ipfs"] = from_ipfs
-            print(f"from_ipfs operation: {'✅ Success' if from_ipfs.get('success', False) else '❌ Failed'}")
+            print(
+                f"from_ipfs operation: {'✅ Success' if from_ipfs.get('success', False) else '❌ Failed'}"
+            )
 
         to_ipfs = test_backend_operation(backend_name, "to_ipfs")
         operations["to_ipfs"] = to_ipfs
-        print(f"to_ipfs operation: {'✅ Success' if to_ipfs.get('success', False) else '❌ Failed'}")
+        print(
+            f"to_ipfs operation: {'✅ Success' if to_ipfs.get('success', False) else '❌ Failed'}"
+        )
 
         # Record results
         results["backends"][backend_name] = {
             "status": status,
             "operations": operations,
-            "needs_fix": not is_available or not any(op.get("success", False) for op in operations.values())
+            "needs_fix": not is_available
+            or not any(op.get("success", False) for op in operations.values()),
         }
 
     # Step 4: Create proxy files for backends that need fixes
@@ -486,8 +505,12 @@ def main():
 
     # Print summary
     print("\n=== SUMMARY ===")
-    fixed_backends = [name for name, info in results["backends"].items() if info.get("needs_fix", False)]
-    working_backends = [name for name, info in results["backends"].items() if not info.get("needs_fix", False)]
+    fixed_backends = [
+        name for name, info in results["backends"].items() if info.get("needs_fix", False)
+    ]
+    working_backends = [
+        name for name, info in results["backends"].items() if not info.get("needs_fix", False)
+    ]
 
     if working_backends:
         print(f"✅ Working backends: {', '.join(working_backends)}")
@@ -500,6 +523,7 @@ def main():
         print(f"3. Test the backends: ./{results.get('test_script')}")
     else:
         print("✅ All backends are working!")
+
 
 if __name__ == "__main__":
     main()

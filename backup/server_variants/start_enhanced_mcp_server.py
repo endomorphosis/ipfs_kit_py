@@ -10,8 +10,11 @@ import logging
 import importlib.util
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("enhanced-mcp")
+
 
 def start_server():
     """Start the enhanced MCP server with integrated FS and tools"""
@@ -24,6 +27,7 @@ def start_server():
 
     # The server should have started in the module's execution
     logger.info("Server module loaded successfully")
+
 
 if __name__ == "__main__":
     start_server()

@@ -73,6 +73,7 @@ try:
 except ImportError:
     # For development/testing
     import sys
+
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
     from ipfs_kit_py.openapi_schema import get_openapi_schema
 
@@ -95,7 +96,7 @@ try:
         WebSocketDisconnect,
         BackgroundTasks,
     )
-    
+
     # Handle WebSocketState import based on FastAPI/Starlette version
     # In FastAPI < 0.100, WebSocketState was in fastapi module
     # In FastAPI >= 0.100, WebSocketState moved to starlette.websockets
@@ -109,10 +110,12 @@ try:
         except ImportError:
             # Fallback for when WebSocketState is not available
             from enum import Enum
+
             class WebSocketState(str, Enum):
                 CONNECTING = "CONNECTING"
                 CONNECTED = "CONNECTED"
                 DISCONNECTED = "DISCONNECTED"
+
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
     from fastapi.routing import APIRouter
@@ -157,15 +160,16 @@ try:
     # First try relative imports (when used as a package)
     from .error import IPFSError
     from .simulated_api import IPFSSimpleAPI  # Emergency fix
-    
+
     # Import WebSocket notifications
     try:
         from .websocket_notifications import (
-            handle_notification_websocket, 
-            emit_event, 
+            handle_notification_websocket,
+            emit_event,
             NotificationType,
-            notification_manager
+            notification_manager,
         )
+
         NOTIFICATIONS_AVAILABLE = True
     except ImportError:
         NOTIFICATIONS_AVAILABLE = False
@@ -184,10 +188,11 @@ try:
         GRAPHQL_AVAILABLE = graphql_schema.GRAPHQL_AVAILABLE
     except ImportError:
         GRAPHQL_AVAILABLE = False
-        
+
     # Try to import WAL API
     try:
         from . import wal_api
+
         WAL_API_AVAILABLE = True
     except ImportError:
         WAL_API_AVAILABLE = False
@@ -195,6 +200,7 @@ try:
     # Try to import FS Journal API
     try:
         from . import fs_journal_api
+
         FS_JOURNAL_AVAILABLE = True
     except ImportError:
         FS_JOURNAL_AVAILABLE = False
@@ -202,6 +208,7 @@ try:
     # Try to import Metadata Index API
     try:
         from . import metadata_index_api
+
         METADATA_INDEX_AVAILABLE = True
     except ImportError:
         METADATA_INDEX_AVAILABLE = False
@@ -209,6 +216,7 @@ try:
     # Try to import Enhanced Pin API
     try:
         from . import enhanced_pin_api
+
         ENHANCED_PIN_API_AVAILABLE = True
     except ImportError:
         ENHANCED_PIN_API_AVAILABLE = False
@@ -216,6 +224,7 @@ try:
     # Try to import Benchmarking API
     try:
         from . import benchmarking_api
+
         BENCHMARKING_AVAILABLE = True
     except ImportError:
         BENCHMARKING_AVAILABLE = False
@@ -223,30 +232,33 @@ try:
     # Try to import Storage Backends API
     try:
         from . import storage_backends_api
+
         STORAGE_BACKENDS_AVAILABLE = True
     except ImportError:
         STORAGE_BACKENDS_AVAILABLE = False
-    
+
     # Try to import Observability API
     try:
         from . import observability_api
+
         OBSERVABILITY_AVAILABLE = True
     except ImportError:
         OBSERVABILITY_AVAILABLE = False
-        
+
     # Try to import LibP2P API (DISABLED due to protobuf conflicts)
     try:
         # DISABLED: from . import libp2p
         # LibP2P API disabled to avoid protobuf conflicts
         raise ImportError("LibP2P API disabled due to protobuf conflicts")
-        
+
         LIBP2P_AVAILABLE = True
     except ImportError:
         LIBP2P_AVAILABLE = False
-        
+
     # Try to import WebRTC API
     try:
         from . import webrtc_streaming
+
         WEBRTC_AVAILABLE = True
     except ImportError:
         WEBRTC_AVAILABLE = False
@@ -274,10 +286,11 @@ except ImportError:
         GRAPHQL_AVAILABLE = graphql_schema.GRAPHQL_AVAILABLE
     except ImportError:
         GRAPHQL_AVAILABLE = False
-        
+
     # Try to import WAL API
     try:
         from ipfs_kit_py import wal_api
+
         WAL_API_AVAILABLE = True
     except ImportError:
         WAL_API_AVAILABLE = False
@@ -285,6 +298,7 @@ except ImportError:
     # Try to import FS Journal API
     try:
         from ipfs_kit_py import fs_journal_api
+
         FS_JOURNAL_AVAILABLE = True
     except ImportError:
         FS_JOURNAL_AVAILABLE = False
@@ -292,6 +306,7 @@ except ImportError:
     # Try to import Metadata Index API
     try:
         from ipfs_kit_py import metadata_index_api
+
         METADATA_INDEX_AVAILABLE = True
     except ImportError:
         METADATA_INDEX_AVAILABLE = False
@@ -299,6 +314,7 @@ except ImportError:
     # Try to import Enhanced Pin API
     try:
         from ipfs_kit_py import enhanced_pin_api
+
         ENHANCED_PIN_API_AVAILABLE = True
     except ImportError:
         ENHANCED_PIN_API_AVAILABLE = False
@@ -306,6 +322,7 @@ except ImportError:
     # Try to import Benchmarking API
     try:
         from ipfs_kit_py import benchmarking_api
+
         BENCHMARKING_AVAILABLE = True
     except ImportError:
         BENCHMARKING_AVAILABLE = False
@@ -313,13 +330,15 @@ except ImportError:
     # Try to import Storage Backends API
     try:
         from ipfs_kit_py import storage_backends_api
+
         STORAGE_BACKENDS_AVAILABLE = True
     except ImportError:
         STORAGE_BACKENDS_AVAILABLE = False
-    
+
     # Try to import Observability API
     try:
         from ipfs_kit_py import observability_api
+
         OBSERVABILITY_AVAILABLE = True
     except ImportError:
         OBSERVABILITY_AVAILABLE = False
@@ -487,14 +506,14 @@ if FASTAPI_AVAILABLE:
         redoc_url="/redoc",
         openapi_url="/openapi.json",
     )
-    
+
     # Override the default OpenAPI schema with our custom schema
     def custom_openapi():
         if app.openapi_schema:
             return app.openapi_schema
         app.openapi_schema = get_openapi_schema()
         return app.openapi_schema
-        
+
     app.openapi = custom_openapi
 
     # Add CORS middleware
@@ -522,6 +541,7 @@ ipfs_api = IPFSSimpleAPI(config_path=config_path)
 
 # Add an explicit endpoint to serve the OpenAPI schema
 if FASTAPI_AVAILABLE:
+
     @app.get("/api/openapi", tags=["System"])
     def get_openapi():
         """
@@ -529,6 +549,7 @@ if FASTAPI_AVAILABLE:
         This is useful for generating client libraries or documentation.
         """
         return get_openapi_schema()
+
 
 # Configure logging level from environment or config
 log_level = os.environ.get("IPFS_KIT_LOG_LEVEL", "INFO").upper()
@@ -557,49 +578,50 @@ if FASTAPI_AVAILABLE:
         "rate_limit": int(os.environ.get("IPFS_KIT_RATE_LIMIT", 100)),  # requests per minute
         "metrics_enabled": os.environ.get("IPFS_KIT_METRICS_ENABLED", "true").lower() == "true",
     }
-    
+
     # Add the performance metrics instance to app state if it exists on the API
     if hasattr(ipfs_api, "performance_metrics"):
         app.state.performance_metrics = ipfs_api.performance_metrics
     else:
         # Create a new instance if not available
         from .performance_metrics import PerformanceMetrics
+
         app.state.performance_metrics = PerformanceMetrics(
             metrics_dir=os.environ.get("IPFS_KIT_METRICS_DIR"),
             enable_logging=True,
-            track_system_resources=True
+            track_system_resources=True,
         )
 
 # Create FS Journal router if available
 if FASTAPI_AVAILABLE and FS_JOURNAL_AVAILABLE:
     fs_journal_router = fastapi.APIRouter(prefix="/api/v0/fs-journal", tags=["fs_journal"])
-    
+
     @fs_journal_router.get("/status", response_model=Dict[str, Any])
     async def fs_journal_status():
         """
         Get the status of the filesystem journaling.
-        
+
         This endpoint returns the current status of the filesystem journaling,
         including transaction history, integrity status, and performance metrics.
-        
+
         Returns:
             Filesystem journal status information
         """
         try:
             # Get API from app state
             api = app.state.ipfs_api
-            
+
             # Check if FS Journal integration is available
             if not hasattr(api, "fs_journal") or not api.fs_journal:
                 raise HTTPException(
                     status_code=404,
-                    detail="Filesystem journaling is not enabled. Use --enable-fs-journal when starting the server."
+                    detail="Filesystem journaling is not enabled. Use --enable-fs-journal when starting the server.",
                 )
-                
+
             # Get journal status
             logger.info("Getting filesystem journal status")
             result = api.fs_journal.status()
-            
+
             return {
                 "success": True,
                 "operation": "fs_journal_status",
@@ -609,130 +631,139 @@ if FASTAPI_AVAILABLE and FS_JOURNAL_AVAILABLE:
                 "total_size": result.get("total_size", 0),
                 "health": result.get("health", "unknown"),
                 "last_checkpoint": result.get("last_checkpoint", None),
-                "performance": result.get("performance", {})
+                "performance": result.get("performance", {}),
             }
         except HTTPException:
             # Re-raise HTTP exceptions
             raise
         except Exception as e:
             logger.exception(f"Error getting filesystem journal status: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error getting filesystem journal status: {str(e)}")
-    
+            raise HTTPException(
+                status_code=500, detail=f"Error getting filesystem journal status: {str(e)}"
+            )
+
     @fs_journal_router.post("/checkpoint", response_model=Dict[str, Any])
     async def fs_journal_checkpoint():
         """
         Create a new checkpoint in the filesystem journal.
-        
+
         This endpoint creates a new checkpoint in the journal, ensuring data consistency
         by marking a known-good state that can be recovered to if needed.
-        
+
         Returns:
             Checkpoint creation status
         """
         try:
             # Get API from app state
             api = app.state.ipfs_api
-            
+
             # Check if FS Journal integration is available
             if not hasattr(api, "fs_journal") or not api.fs_journal:
                 raise HTTPException(
                     status_code=404,
-                    detail="Filesystem journaling is not enabled. Use --enable-fs-journal when starting the server."
+                    detail="Filesystem journaling is not enabled. Use --enable-fs-journal when starting the server.",
                 )
-                
+
             # Create checkpoint
             logger.info("Creating filesystem journal checkpoint")
             result = api.fs_journal.checkpoint()
-            
+
             return {
                 "success": True,
                 "operation": "fs_journal_checkpoint",
                 "timestamp": time.time(),
                 "checkpoint_id": result.get("checkpoint_id"),
                 "transaction_count": result.get("transaction_count", 0),
-                "size": result.get("size", 0)
+                "size": result.get("size", 0),
             }
         except HTTPException:
             # Re-raise HTTP exceptions
             raise
         except Exception as e:
             logger.exception(f"Error creating filesystem journal checkpoint: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error creating filesystem journal checkpoint: {str(e)}")
-    
+            raise HTTPException(
+                status_code=500, detail=f"Error creating filesystem journal checkpoint: {str(e)}"
+            )
+
     @fs_journal_router.post("/rollback", response_model=Dict[str, Any])
     async def fs_journal_rollback(checkpoint_id: Optional[str] = None):
         """
         Rollback to a previous checkpoint in the filesystem journal.
-        
+
         This endpoint rolls back the filesystem to a previous checkpoint state,
         restoring data consistency after errors or crashes.
-        
+
         Parameters:
         - **checkpoint_id**: The checkpoint ID to roll back to. If not provided, rolls back to the last checkpoint.
-        
+
         Returns:
             Rollback status
         """
         try:
             # Get API from app state
             api = app.state.ipfs_api
-            
+
             # Check if FS Journal integration is available
             if not hasattr(api, "fs_journal") or not api.fs_journal:
                 raise HTTPException(
                     status_code=404,
-                    detail="Filesystem journaling is not enabled. Use --enable-fs-journal when starting the server."
+                    detail="Filesystem journaling is not enabled. Use --enable-fs-journal when starting the server.",
                 )
-                
+
             # Roll back to checkpoint
-            logger.info(f"Rolling back filesystem journal to checkpoint: {checkpoint_id or 'latest'}")
+            logger.info(
+                f"Rolling back filesystem journal to checkpoint: {checkpoint_id or 'latest'}"
+            )
             result = api.fs_journal.rollback(checkpoint_id=checkpoint_id)
-            
+
             return {
                 "success": True,
                 "operation": "fs_journal_rollback",
                 "timestamp": time.time(),
                 "checkpoint_id": result.get("checkpoint_id"),
                 "transactions_reverted": result.get("transactions_reverted", 0),
-                "status": result.get("status", "unknown")
+                "status": result.get("status", "unknown"),
             }
         except HTTPException:
             # Re-raise HTTP exceptions
             raise
         except Exception as e:
             logger.exception(f"Error rolling back filesystem journal: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error rolling back filesystem journal: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error rolling back filesystem journal: {str(e)}"
+            )
+
 
 # Create Metadata Index router if available
 if FASTAPI_AVAILABLE and METADATA_INDEX_AVAILABLE:
     metadata_index_router = fastapi.APIRouter(prefix="/api/v0/metadata", tags=["metadata"])
-    
+
     @metadata_index_router.get("/status", response_model=Dict[str, Any])
     async def metadata_index_status():
         """
         Get the status of the metadata indexing service.
-        
+
         This endpoint returns the current status of the Arrow-based metadata indexing service,
         including index size, record count, and available fields.
-        
+
         Returns:
             Metadata indexing status information
         """
         try:
             # Get API from app state
             api = app.state.ipfs_api
-            
+
             # Check if metadata indexing is available
             if not hasattr(api, "metadata_index") or not api.metadata_index:
                 raise HTTPException(
                     status_code=404,
-                    detail="Metadata indexing is not enabled. Use --enable-metadata-index when starting the server."
+                    detail="Metadata indexing is not enabled. Use --enable-metadata-index when starting the server.",
                 )
-                
+
             # Get index status
             logger.info("Getting metadata index status")
             result = api.metadata_index.status()
-            
+
             return {
                 "success": True,
                 "operation": "metadata_index_status",
@@ -742,52 +773,58 @@ if FASTAPI_AVAILABLE and METADATA_INDEX_AVAILABLE:
                 "index_size": result.get("index_size", 0),
                 "last_updated": result.get("last_updated", 0),
                 "available_fields": result.get("available_fields", []),
-                "schema": result.get("schema", {})
+                "schema": result.get("schema", {}),
             }
         except HTTPException:
             # Re-raise HTTP exceptions
             raise
         except Exception as e:
             logger.exception(f"Error getting metadata index status: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error getting metadata index status: {str(e)}")
-    
+            raise HTTPException(
+                status_code=500, detail=f"Error getting metadata index status: {str(e)}"
+            )
+
     @metadata_index_router.post("/search", response_model=Dict[str, Any])
     async def metadata_index_search(
         query: str,
         fields: Optional[List[str]] = None,
         limit: int = Query(10, ge=1, le=1000),
-        offset: int = Query(0, ge=0)
+        offset: int = Query(0, ge=0),
     ):
         """
         Search the metadata index.
-        
+
         This endpoint performs a text search across the metadata index,
         allowing efficient discovery of content by metadata properties.
-        
+
         Parameters:
         - **query**: The search query string
         - **fields**: Optional list of fields to search in. If not provided, searches all text fields.
         - **limit**: Maximum number of results to return (default: 10, max: 1000)
         - **offset**: Number of results to skip (default: 0)
-        
+
         Returns:
             Search results with matching records
         """
         try:
             # Get API from app state
             api = app.state.ipfs_api
-            
+
             # Check if metadata indexing is available
             if not hasattr(api, "metadata_index") or not api.metadata_index:
                 raise HTTPException(
                     status_code=404,
-                    detail="Metadata indexing is not enabled. Use --enable-metadata-index when starting the server."
+                    detail="Metadata indexing is not enabled. Use --enable-metadata-index when starting the server.",
                 )
-                
+
             # Search index
-            logger.info(f"Searching metadata index: query='{query}', fields={fields}, limit={limit}, offset={offset}")
-            result = api.metadata_index.search_text(query, fields=fields, limit=limit, offset=offset)
-            
+            logger.info(
+                f"Searching metadata index: query='{query}', fields={fields}, limit={limit}, offset={offset}"
+            )
+            result = api.metadata_index.search_text(
+                query, fields=fields, limit=limit, offset=offset
+            )
+
             # Process result for JSON response
             search_results = []
             for i in range(result.num_rows):
@@ -795,7 +832,7 @@ if FASTAPI_AVAILABLE and METADATA_INDEX_AVAILABLE:
                 for field in result.schema:
                     row[field.name] = result.column(field.name)[i].as_py()
                 search_results.append(row)
-            
+
             return {
                 "success": True,
                 "operation": "metadata_index_search",
@@ -804,7 +841,7 @@ if FASTAPI_AVAILABLE and METADATA_INDEX_AVAILABLE:
                 "fields": fields,
                 "results": search_results,
                 "count": len(search_results),
-                "total": result.num_rows
+                "total": result.num_rows,
             }
         except HTTPException:
             # Re-raise HTTP exceptions
@@ -812,62 +849,68 @@ if FASTAPI_AVAILABLE and METADATA_INDEX_AVAILABLE:
         except Exception as e:
             logger.exception(f"Error searching metadata index: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error searching metadata index: {str(e)}")
-    
+
     @metadata_index_router.post("/filter", response_model=Dict[str, Any])
     async def metadata_index_filter(
         filters: List[Dict[str, Any]],
         limit: int = Query(10, ge=1, le=1000),
-        offset: int = Query(0, ge=0)
+        offset: int = Query(0, ge=0),
     ):
         """
         Filter the metadata index.
-        
+
         This endpoint filters the metadata index by specific field conditions,
         allowing precise content discovery based on metadata properties.
-        
+
         The filter format is a list of conditions, where each condition is a dictionary with:
         - **field**: The field name to filter on
         - **op**: The operation to perform (==, !=, >, <, >=, <=, contains, in, not_in)
         - **value**: The value to compare against
-        
+
         Parameters:
         - **filters**: List of filter conditions
         - **limit**: Maximum number of results to return (default: 10, max: 1000)
         - **offset**: Number of results to skip (default: 0)
-        
+
         Returns:
             Filter results with matching records
         """
         try:
             # Get API from app state
             api = app.state.ipfs_api
-            
+
             # Check if metadata indexing is available
             if not hasattr(api, "metadata_index") or not api.metadata_index:
                 raise HTTPException(
                     status_code=404,
-                    detail="Metadata indexing is not enabled. Use --enable-metadata-index when starting the server."
+                    detail="Metadata indexing is not enabled. Use --enable-metadata-index when starting the server.",
                 )
-                
+
             # Convert filter format for Arrow index
             arrow_filters = []
             for filter_condition in filters:
-                if "field" not in filter_condition or "op" not in filter_condition or "value" not in filter_condition:
+                if (
+                    "field" not in filter_condition
+                    or "op" not in filter_condition
+                    or "value" not in filter_condition
+                ):
                     raise HTTPException(
                         status_code=400,
-                        detail="Invalid filter format. Each filter must have 'field', 'op', and 'value' properties."
+                        detail="Invalid filter format. Each filter must have 'field', 'op', and 'value' properties.",
                     )
-                
+
                 field = filter_condition["field"]
                 op = filter_condition["op"]
                 value = filter_condition["value"]
-                
+
                 arrow_filters.append((field, op, value))
-            
+
             # Filter index
-            logger.info(f"Filtering metadata index: filters={arrow_filters}, limit={limit}, offset={offset}")
+            logger.info(
+                f"Filtering metadata index: filters={arrow_filters}, limit={limit}, offset={offset}"
+            )
             result = api.metadata_index.query(filters=arrow_filters, limit=limit, offset=offset)
-            
+
             # Process result for JSON response
             filter_results = []
             for i in range(result.num_rows):
@@ -875,7 +918,7 @@ if FASTAPI_AVAILABLE and METADATA_INDEX_AVAILABLE:
                 for field in result.schema:
                     row[field.name] = result.column(field.name)[i].as_py()
                 filter_results.append(row)
-            
+
             return {
                 "success": True,
                 "operation": "metadata_index_filter",
@@ -883,7 +926,7 @@ if FASTAPI_AVAILABLE and METADATA_INDEX_AVAILABLE:
                 "filters": filters,
                 "results": filter_results,
                 "count": len(filter_results),
-                "total": result.num_rows
+                "total": result.num_rows,
             }
         except HTTPException:
             # Re-raise HTTP exceptions
@@ -891,19 +934,19 @@ if FASTAPI_AVAILABLE and METADATA_INDEX_AVAILABLE:
         except Exception as e:
             logger.exception(f"Error filtering metadata index: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error filtering metadata index: {str(e)}")
-    
+
     @metadata_index_router.post("/aggregate", response_model=Dict[str, Any])
     async def metadata_index_aggregate(
         group_by: List[str],
         aggregate_functions: List[Dict[str, Any]],
-        filters: Optional[List[Dict[str, Any]]] = None
+        filters: Optional[List[Dict[str, Any]]] = None,
     ):
         """
         Perform aggregations on the metadata index.
-        
+
         This endpoint performs aggregation operations on the metadata index,
         such as count, sum, average, min, max, etc., grouped by specific fields.
-        
+
         Parameters:
         - **group_by**: List of field names to group by
         - **aggregate_functions**: List of aggregation functions to apply
@@ -911,46 +954,50 @@ if FASTAPI_AVAILABLE and METADATA_INDEX_AVAILABLE:
           - A 'field' to apply it to (except for 'count')
           - And an optional 'alias' to name the result
         - **filters**: Optional list of filter conditions to apply before aggregation
-        
+
         Returns:
             Aggregation results grouped by the specified fields
         """
         try:
             # Get API from app state
             api = app.state.ipfs_api
-            
+
             # Check if metadata indexing is available
             if not hasattr(api, "metadata_index") or not api.metadata_index:
                 raise HTTPException(
                     status_code=404,
-                    detail="Metadata indexing is not enabled. Use --enable-metadata-index when starting the server."
+                    detail="Metadata indexing is not enabled. Use --enable-metadata-index when starting the server.",
                 )
-                
+
             # Convert filter format for Arrow index if provided
             arrow_filters = None
             if filters:
                 arrow_filters = []
                 for filter_condition in filters:
-                    if "field" not in filter_condition or "op" not in filter_condition or "value" not in filter_condition:
+                    if (
+                        "field" not in filter_condition
+                        or "op" not in filter_condition
+                        or "value" not in filter_condition
+                    ):
                         raise HTTPException(
                             status_code=400,
-                            detail="Invalid filter format. Each filter must have 'field', 'op', and 'value' properties."
+                            detail="Invalid filter format. Each filter must have 'field', 'op', and 'value' properties.",
                         )
-                    
+
                     field = filter_condition["field"]
                     op = filter_condition["op"]
                     value = filter_condition["value"]
-                    
+
                     arrow_filters.append((field, op, value))
-            
+
             # Perform aggregation
-            logger.info(f"Aggregating metadata index: group_by={group_by}, aggregate_functions={aggregate_functions}, filters={arrow_filters}")
-            result = api.metadata_index.aggregate(
-                group_by=group_by,
-                aggregations=aggregate_functions,
-                filters=arrow_filters
+            logger.info(
+                f"Aggregating metadata index: group_by={group_by}, aggregate_functions={aggregate_functions}, filters={arrow_filters}"
             )
-            
+            result = api.metadata_index.aggregate(
+                group_by=group_by, aggregations=aggregate_functions, filters=arrow_filters
+            )
+
             # Process result for JSON response
             agg_results = []
             for i in range(result.num_rows):
@@ -958,7 +1005,7 @@ if FASTAPI_AVAILABLE and METADATA_INDEX_AVAILABLE:
                 for field in result.schema:
                     row[field.name] = result.column(field.name)[i].as_py()
                 agg_results.append(row)
-            
+
             return {
                 "success": True,
                 "operation": "metadata_index_aggregate",
@@ -967,41 +1014,43 @@ if FASTAPI_AVAILABLE and METADATA_INDEX_AVAILABLE:
                 "aggregate_functions": aggregate_functions,
                 "filters": filters,
                 "results": agg_results,
-                "count": len(agg_results)
+                "count": len(agg_results),
             }
         except HTTPException:
             # Re-raise HTTP exceptions
             raise
         except Exception as e:
             logger.exception(f"Error aggregating metadata index: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error aggregating metadata index: {str(e)}")
-    
+            raise HTTPException(
+                status_code=500, detail=f"Error aggregating metadata index: {str(e)}"
+            )
+
     @metadata_index_router.post("/reindex", response_model=Dict[str, Any])
     async def metadata_index_reindex():
         """
         Rebuild the metadata index.
-        
+
         This endpoint triggers a rebuild of the metadata index,
         scanning all content in IPFS and updating the index accordingly.
-        
+
         Returns:
             Reindexing status
         """
         try:
             # Get API from app state
             api = app.state.ipfs_api
-            
+
             # Check if metadata indexing is available
             if not hasattr(api, "metadata_index") or not api.metadata_index:
                 raise HTTPException(
                     status_code=404,
-                    detail="Metadata indexing is not enabled. Use --enable-metadata-index when starting the server."
+                    detail="Metadata indexing is not enabled. Use --enable-metadata-index when starting the server.",
                 )
-                
+
             # Rebuild index
             logger.info("Rebuilding metadata index")
             result = api.metadata_index.rebuild()
-            
+
             return {
                 "success": True,
                 "operation": "metadata_index_reindex",
@@ -1009,45 +1058,48 @@ if FASTAPI_AVAILABLE and METADATA_INDEX_AVAILABLE:
                 "records_processed": result.get("records_processed", 0),
                 "index_size": result.get("index_size", 0),
                 "elapsed_time": result.get("elapsed_time", 0),
-                "status": result.get("status", "completed")
+                "status": result.get("status", "completed"),
             }
         except HTTPException:
             # Re-raise HTTP exceptions
             raise
         except Exception as e:
             logger.exception(f"Error rebuilding metadata index: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error rebuilding metadata index: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error rebuilding metadata index: {str(e)}"
+            )
+
 
 # Create Benchmarking router if available
 if FASTAPI_AVAILABLE and BENCHMARKING_AVAILABLE:
     benchmark_router = fastapi.APIRouter(prefix="/api/v0/benchmark", tags=["benchmark"])
-    
+
     @benchmark_router.get("/status", response_model=Dict[str, Any])
     async def benchmark_status():
         """
         Get the status of the benchmarking system.
-        
+
         This endpoint returns the current status of the benchmarking system,
         including available benchmark suites and recent benchmark results.
-        
+
         Returns:
             Benchmarking system status information
         """
         try:
             # Get API from app state
             api = app.state.ipfs_api
-            
+
             # Check if benchmarking is available
             if not hasattr(api, "benchmark") or not api.benchmark:
                 raise HTTPException(
                     status_code=404,
-                    detail="Benchmarking is not enabled. Use --enable-benchmarking when starting the server."
+                    detail="Benchmarking is not enabled. Use --enable-benchmarking when starting the server.",
                 )
-                
+
             # Get benchmark status
             logger.info("Getting benchmark status")
             result = api.benchmark.status()
-            
+
             return {
                 "success": True,
                 "operation": "benchmark_status",
@@ -1055,7 +1107,7 @@ if FASTAPI_AVAILABLE and BENCHMARKING_AVAILABLE:
                 "enabled": result.get("enabled", False),
                 "available_suites": result.get("available_suites", []),
                 "recent_results": result.get("recent_results", []),
-                "default_iterations": result.get("default_iterations", 5)
+                "default_iterations": result.get("default_iterations", 5),
             }
         except HTTPException:
             # Re-raise HTTP exceptions
@@ -1063,63 +1115,64 @@ if FASTAPI_AVAILABLE and BENCHMARKING_AVAILABLE:
         except Exception as e:
             logger.exception(f"Error getting benchmark status: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error getting benchmark status: {str(e)}")
-    
+
     @benchmark_router.post("/run", response_model=Dict[str, Any])
     async def run_benchmark(
         suite: str = Query(..., description="The benchmark suite to run"),
-        iterations: Optional[int] = Query(None, description="Number of iterations to run, defaults to suite default"),
-        background_tasks: BackgroundTasks = None
+        iterations: Optional[int] = Query(
+            None, description="Number of iterations to run, defaults to suite default"
+        ),
+        background_tasks: BackgroundTasks = None,
     ):
         """
         Run a benchmark suite.
-        
+
         This endpoint runs a specified benchmark suite, measuring performance
         of various IPFS operations and returning the results.
-        
+
         Parameters:
         - **suite**: The benchmark suite to run (e.g., 'core', 'api', 'add', 'get', 'cat', 'pin', 'cache', 'fs')
         - **iterations**: Number of iterations to run (default: suite default)
-        
+
         Returns:
             Benchmark run status and tracking ID
         """
         try:
             # Get API from app state
             api = app.state.ipfs_api
-            
+
             # Check if benchmarking is available
             if not hasattr(api, "benchmark") or not api.benchmark:
                 raise HTTPException(
                     status_code=404,
-                    detail="Benchmarking is not enabled. Use --enable-benchmarking when starting the server."
+                    detail="Benchmarking is not enabled. Use --enable-benchmarking when starting the server.",
                 )
-                
+
             # Create a tracking ID for the benchmark run
             tracking_id = f"benchmark_{int(time.time())}_{suite}"
-            
+
             # Start benchmark in the background
-            logger.info(f"Starting benchmark suite '{suite}' with {iterations} iterations, tracking ID: {tracking_id}")
-            
+            logger.info(
+                f"Starting benchmark suite '{suite}' with {iterations} iterations, tracking ID: {tracking_id}"
+            )
+
             # Add the benchmark task to background tasks
             if background_tasks:
                 background_tasks.add_task(
                     api.benchmark.run_suite,
                     suite=suite,
                     iterations=iterations,
-                    tracking_id=tracking_id
+                    tracking_id=tracking_id,
                 )
             else:
                 # If no background tasks available, start in a separate thread
                 import threading
+
                 threading.Thread(
                     target=api.benchmark.run_suite,
-                    kwargs={
-                        "suite": suite,
-                        "iterations": iterations,
-                        "tracking_id": tracking_id
-                    }
+                    kwargs={"suite": suite, "iterations": iterations, "tracking_id": tracking_id},
                 ).start()
-            
+
             return {
                 "success": True,
                 "operation": "benchmark_run",
@@ -1127,7 +1180,7 @@ if FASTAPI_AVAILABLE and BENCHMARKING_AVAILABLE:
                 "tracking_id": tracking_id,
                 "suite": suite,
                 "iterations": iterations,
-                "status": "started"
+                "status": "started",
             }
         except HTTPException:
             # Re-raise HTTP exceptions
@@ -1135,42 +1188,42 @@ if FASTAPI_AVAILABLE and BENCHMARKING_AVAILABLE:
         except Exception as e:
             logger.exception(f"Error running benchmark: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error running benchmark: {str(e)}")
-    
+
     @benchmark_router.get("/results/{tracking_id}", response_model=Dict[str, Any])
     async def benchmark_results(tracking_id: str):
         """
         Get benchmark results.
-        
+
         This endpoint retrieves the results of a previously run benchmark,
         including performance metrics for each operation.
-        
+
         Parameters:
         - **tracking_id**: The tracking ID of the benchmark run
-        
+
         Returns:
             Detailed benchmark results
         """
         try:
             # Get API from app state
             api = app.state.ipfs_api
-            
+
             # Check if benchmarking is available
             if not hasattr(api, "benchmark") or not api.benchmark:
                 raise HTTPException(
                     status_code=404,
-                    detail="Benchmarking is not enabled. Use --enable-benchmarking when starting the server."
+                    detail="Benchmarking is not enabled. Use --enable-benchmarking when starting the server.",
                 )
-                
+
             # Get benchmark results
             logger.info(f"Getting benchmark results for tracking ID: {tracking_id}")
             result = api.benchmark.get_results(tracking_id)
-            
+
             if not result:
                 raise HTTPException(
                     status_code=404,
-                    detail=f"No benchmark results found for tracking ID: {tracking_id}"
+                    detail=f"No benchmark results found for tracking ID: {tracking_id}",
                 )
-            
+
             return {
                 "success": True,
                 "operation": "benchmark_results",
@@ -1183,54 +1236,56 @@ if FASTAPI_AVAILABLE and BENCHMARKING_AVAILABLE:
                 "duration": result.get("duration"),
                 "results": result.get("results", {}),
                 "status": result.get("status", "complete"),
-                "system_info": result.get("system_info", {})
+                "system_info": result.get("system_info", {}),
             }
         except HTTPException:
             # Re-raise HTTP exceptions
             raise
         except Exception as e:
             logger.exception(f"Error getting benchmark results: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error getting benchmark results: {str(e)}")
-    
+            raise HTTPException(
+                status_code=500, detail=f"Error getting benchmark results: {str(e)}"
+            )
+
     @benchmark_router.get("/compare", response_model=Dict[str, Any])
     async def benchmark_compare(
         baseline_id: str = Query(..., description="The tracking ID of the baseline benchmark"),
-        comparison_id: str = Query(..., description="The tracking ID of the comparison benchmark")
+        comparison_id: str = Query(..., description="The tracking ID of the comparison benchmark"),
     ):
         """
         Compare benchmark results.
-        
+
         This endpoint compares the results of two previously run benchmarks,
         calculating percentage differences and performance changes.
-        
+
         Parameters:
         - **baseline_id**: The tracking ID of the baseline benchmark
         - **comparison_id**: The tracking ID of the comparison benchmark
-        
+
         Returns:
             Detailed benchmark comparison
         """
         try:
             # Get API from app state
             api = app.state.ipfs_api
-            
+
             # Check if benchmarking is available
             if not hasattr(api, "benchmark") or not api.benchmark:
                 raise HTTPException(
                     status_code=404,
-                    detail="Benchmarking is not enabled. Use --enable-benchmarking when starting the server."
+                    detail="Benchmarking is not enabled. Use --enable-benchmarking when starting the server.",
                 )
-                
+
             # Compare benchmark results
             logger.info(f"Comparing benchmark results: {baseline_id} vs {comparison_id}")
             result = api.benchmark.compare_results(baseline_id, comparison_id)
-            
+
             if not result:
                 raise HTTPException(
                     status_code=404,
-                    detail=f"Could not compare benchmark results. One or both tracking IDs not found."
+                    detail=f"Could not compare benchmark results. One or both tracking IDs not found.",
                 )
-            
+
             return {
                 "success": True,
                 "operation": "benchmark_compare",
@@ -1239,48 +1294,50 @@ if FASTAPI_AVAILABLE and BENCHMARKING_AVAILABLE:
                 "comparison_id": comparison_id,
                 "comparison": result.get("comparison", {}),
                 "summary": result.get("summary", {}),
-                "improvement": result.get("improvement", False)
+                "improvement": result.get("improvement", False),
             }
         except HTTPException:
             # Re-raise HTTP exceptions
             raise
         except Exception as e:
             logger.exception(f"Error comparing benchmark results: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error comparing benchmark results: {str(e)}")
-    
+            raise HTTPException(
+                status_code=500, detail=f"Error comparing benchmark results: {str(e)}"
+            )
+
     @benchmark_router.get("/history", response_model=Dict[str, Any])
     async def benchmark_history(
         suite: Optional[str] = Query(None, description="Filter by benchmark suite"),
-        limit: int = Query(10, ge=1, le=100, description="Maximum number of results to return")
+        limit: int = Query(10, ge=1, le=100, description="Maximum number of results to return"),
     ):
         """
         Get benchmark history.
-        
+
         This endpoint retrieves the history of benchmark runs,
         allowing tracking of performance over time.
-        
+
         Parameters:
         - **suite**: Optional benchmark suite to filter by
         - **limit**: Maximum number of results to return (default: 10, max: 100)
-        
+
         Returns:
             Historical benchmark results
         """
         try:
             # Get API from app state
             api = app.state.ipfs_api
-            
+
             # Check if benchmarking is available
             if not hasattr(api, "benchmark") or not api.benchmark:
                 raise HTTPException(
                     status_code=404,
-                    detail="Benchmarking is not enabled. Use --enable-benchmarking when starting the server."
+                    detail="Benchmarking is not enabled. Use --enable-benchmarking when starting the server.",
                 )
-                
+
             # Get benchmark history
             logger.info(f"Getting benchmark history: suite={suite}, limit={limit}")
             result = api.benchmark.get_history(suite=suite, limit=limit)
-            
+
             return {
                 "success": True,
                 "operation": "benchmark_history",
@@ -1288,77 +1345,82 @@ if FASTAPI_AVAILABLE and BENCHMARKING_AVAILABLE:
                 "suite": suite,
                 "limit": limit,
                 "history": result.get("history", []),
-                "count": len(result.get("history", []))
+                "count": len(result.get("history", [])),
             }
         except HTTPException:
             # Re-raise HTTP exceptions
             raise
         except Exception as e:
             logger.exception(f"Error getting benchmark history: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error getting benchmark history: {str(e)}")
-    
+            raise HTTPException(
+                status_code=500, detail=f"Error getting benchmark history: {str(e)}"
+            )
+
     @benchmark_router.post("/custom", response_model=Dict[str, Any])
     async def run_custom_benchmark(
         operations: List[Dict[str, Any]] = Body(..., description="List of operations to benchmark"),
         iterations: int = Query(5, ge=1, le=100, description="Number of iterations to run"),
-        background_tasks: BackgroundTasks = None
+        background_tasks: BackgroundTasks = None,
     ):
         """
         Run a custom benchmark.
-        
+
         This endpoint runs a custom benchmark with specified operations,
         allowing flexible performance testing of specific functionality.
-        
+
         Each operation in the list should have:
         - **name**: A name for the operation
         - **function**: The function to call (e.g., 'add', 'cat', 'pin')
         - **args**: Optional list of positional arguments
         - **kwargs**: Optional dictionary of keyword arguments
-        
+
         Parameters:
         - **operations**: List of operations to benchmark
         - **iterations**: Number of iterations to run (default: 5, max: 100)
-        
+
         Returns:
             Benchmark run status and tracking ID
         """
         try:
             # Get API from app state
             api = app.state.ipfs_api
-            
+
             # Check if benchmarking is available
             if not hasattr(api, "benchmark") or not api.benchmark:
                 raise HTTPException(
                     status_code=404,
-                    detail="Benchmarking is not enabled. Use --enable-benchmarking when starting the server."
+                    detail="Benchmarking is not enabled. Use --enable-benchmarking when starting the server.",
                 )
-                
+
             # Create a tracking ID for the benchmark run
             tracking_id = f"custom_benchmark_{int(time.time())}"
-            
+
             # Start benchmark in the background
-            logger.info(f"Starting custom benchmark with {len(operations)} operations, {iterations} iterations, tracking ID: {tracking_id}")
-            
+            logger.info(
+                f"Starting custom benchmark with {len(operations)} operations, {iterations} iterations, tracking ID: {tracking_id}"
+            )
+
             # Add the benchmark task to background tasks
             if background_tasks:
                 background_tasks.add_task(
                     api.benchmark.run_custom,
                     operations=operations,
                     iterations=iterations,
-                    tracking_id=tracking_id
+                    tracking_id=tracking_id,
                 )
             else:
                 # If no background tasks available, start in a separate thread
                 import threading
+
                 threading.Thread(
                     target=api.benchmark.run_custom,
                     kwargs={
                         "operations": operations,
                         "iterations": iterations,
-                        "tracking_id": tracking_id
-                    }
+                        "tracking_id": tracking_id,
+                    },
                 ).start()
-            
+
             return {
                 "success": True,
                 "operation": "custom_benchmark_run",
@@ -1366,7 +1428,7 @@ if FASTAPI_AVAILABLE and BENCHMARKING_AVAILABLE:
                 "tracking_id": tracking_id,
                 "operations_count": len(operations),
                 "iterations": iterations,
-                "status": "started"
+                "status": "started",
             }
         except HTTPException:
             # Re-raise HTTP exceptions
@@ -1374,6 +1436,7 @@ if FASTAPI_AVAILABLE and BENCHMARKING_AVAILABLE:
         except Exception as e:
             logger.exception(f"Error running custom benchmark: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error running custom benchmark: {str(e)}")
+
 
 # Only add router and define endpoints if FastAPI is available
 if FASTAPI_AVAILABLE:
@@ -1390,6 +1453,7 @@ if FASTAPI_AVAILABLE:
     if WEBRTC_AVAILABLE:
         try:
             from .webrtc_api import webrtc_router
+
             if webrtc_router:
                 app.include_router(webrtc_router)
                 logger.info("WebRTC API available at /api/v0/webrtc")
@@ -1402,18 +1466,22 @@ if FASTAPI_AVAILABLE:
     if GRAPHQL_AVAILABLE:
         try:
             from .graphql_schema import graphql_router
+
             if graphql_router:
                 app.include_router(graphql_router)
                 logger.info("GraphQL API available at /graphql")
             else:
-                logger.warning("GRAPHQL_AVAILABLE is True, but graphql_router could not be imported.")
+                logger.warning(
+                    "GRAPHQL_AVAILABLE is True, but graphql_router could not be imported."
+                )
         except ImportError:
             logger.warning("Failed to import graphql_router despite GRAPHQL_AVAILABLE=True.")
 
     # WAL API
     if WAL_API_AVAILABLE:
         try:
-            from .wal_api import wal_router # Assuming router is defined here
+            from .wal_api import wal_router  # Assuming router is defined here
+
             if wal_router:
                 app.include_router(wal_router)
                 logger.info("WAL API available at /api/v0/wal")
@@ -1427,11 +1495,14 @@ if FASTAPI_AVAILABLE:
         try:
             # Assuming the router is defined in fs_journal_api.py based on previous structure
             from .fs_journal_api import fs_journal_router
+
             if fs_journal_router:
                 app.include_router(fs_journal_router)
                 logger.info("Filesystem Journal API available at /api/v0/fs-journal")
             else:
-                 logger.warning("FS_JOURNAL_AVAILABLE is True, but fs_journal_router could not be imported.")
+                logger.warning(
+                    "FS_JOURNAL_AVAILABLE is True, but fs_journal_router could not be imported."
+                )
         except ImportError:
             logger.warning("Failed to import fs_journal_router despite FS_JOURNAL_AVAILABLE=True.")
 
@@ -1440,36 +1511,49 @@ if FASTAPI_AVAILABLE:
         try:
             # Assuming the router is defined in metadata_index_api.py
             from .metadata_index_api import metadata_index_router
+
             if metadata_index_router:
                 app.include_router(metadata_index_router)
                 logger.info("Metadata Index API available at /api/v0/metadata")
             else:
-                logger.warning("METADATA_INDEX_AVAILABLE is True, but metadata_index_router could not be imported.")
+                logger.warning(
+                    "METADATA_INDEX_AVAILABLE is True, but metadata_index_router could not be imported."
+                )
         except ImportError:
-            logger.warning("Failed to import metadata_index_router despite METADATA_INDEX_AVAILABLE=True.")
+            logger.warning(
+                "Failed to import metadata_index_router despite METADATA_INDEX_AVAILABLE=True."
+            )
 
     # Enhanced Pin API
     if ENHANCED_PIN_API_AVAILABLE:
         try:
             from .enhanced_pin_api import enhanced_pin_router
+
             if enhanced_pin_router:
                 app.include_router(enhanced_pin_router)
                 logger.info("Enhanced Pin API available at /api/v0/enhanced-pins")
             else:
-                logger.warning("ENHANCED_PIN_API_AVAILABLE is True, but enhanced_pin_router could not be imported.")
+                logger.warning(
+                    "ENHANCED_PIN_API_AVAILABLE is True, but enhanced_pin_router could not be imported."
+                )
         except ImportError:
-            logger.warning("Failed to import enhanced_pin_router despite ENHANCED_PIN_API_AVAILABLE=True.")
+            logger.warning(
+                "Failed to import enhanced_pin_router despite ENHANCED_PIN_API_AVAILABLE=True."
+            )
 
     # Benchmarking API
     if BENCHMARKING_AVAILABLE:
         try:
             # Assuming the router is defined in benchmarking_api.py
             from .benchmarking_api import benchmark_router
+
             if benchmark_router:
                 app.include_router(benchmark_router)
                 logger.info("Benchmarking API available at /api/v0/benchmark")
             else:
-                logger.warning("BENCHMARKING_AVAILABLE is True, but benchmark_router could not be imported.")
+                logger.warning(
+                    "BENCHMARKING_AVAILABLE is True, but benchmark_router could not be imported."
+                )
         except ImportError:
             logger.warning("Failed to import benchmark_router despite BENCHMARKING_AVAILABLE=True.")
 
@@ -1478,26 +1562,36 @@ if FASTAPI_AVAILABLE:
         try:
             # Import from .storage_backends_api as confirmed earlier
             from .storage_backends_api import storage_router
+
             if storage_router:
                 app.include_router(storage_router)
                 logger.info("Storage Backends API available at /api/v0/storage")
             else:
-                logger.warning("STORAGE_BACKENDS_AVAILABLE is True, but storage_router could not be imported from .storage_backends_api.")
+                logger.warning(
+                    "STORAGE_BACKENDS_AVAILABLE is True, but storage_router could not be imported from .storage_backends_api."
+                )
         except ImportError:
-             logger.warning("Failed to import storage_router from .storage_backends_api despite STORAGE_BACKENDS_AVAILABLE=True.")
+            logger.warning(
+                "Failed to import storage_router from .storage_backends_api despite STORAGE_BACKENDS_AVAILABLE=True."
+            )
 
     # Observability API
     if OBSERVABILITY_AVAILABLE:
         try:
             # Assuming the router is defined in observability_api.py
             from .observability_api import observability_router
+
             if observability_router:
                 app.include_router(observability_router)
                 logger.info("Observability API available at /api/v0/observability")
             else:
-                logger.warning("OBSERVABILITY_AVAILABLE is True, but observability_router could not be imported.")
+                logger.warning(
+                    "OBSERVABILITY_AVAILABLE is True, but observability_router could not be imported."
+                )
         except ImportError:
-            logger.warning("Failed to import observability_router despite OBSERVABILITY_AVAILABLE=True.")
+            logger.warning(
+                "Failed to import observability_router despite OBSERVABILITY_AVAILABLE=True."
+            )
 
     # Health check endpoint
     @app.get("/health")
@@ -1509,26 +1603,26 @@ if FASTAPI_AVAILABLE:
             if GRAPHQL_AVAILABLE
             else {"available": False}
         )
-        
+
         # Get API status
         api_status = "ok"
         ipfs_version = None
         ipfs_id = None
         ipfs_peers = 0
-        
+
         try:
             api = app.state.ipfs_api
-            
+
             # Check if IPFS daemon is responsive
             version_result = api.version()
             if version_result.get("success", False):
                 ipfs_version = version_result.get("version")
-                
+
             # Get IPFS node ID
             id_result = api.id()
             if id_result.get("success", False):
                 ipfs_id = id_result.get("id")
-                
+
             # Count connected peers
             peers_result = api.peers()
             if peers_result.get("success", False):
@@ -1536,41 +1630,38 @@ if FASTAPI_AVAILABLE:
                     ipfs_peers = len(peers_result.get("peers", []))
                 elif isinstance(peers_result.get("Peers"), list):
                     ipfs_peers = len(peers_result.get("Peers", []))
-                    
+
         except Exception as e:
             api_status = f"error: {str(e)}"
-            
+
         # Get system metrics if available
         system_metrics = {}
-        if hasattr(app.state, "performance_metrics") and app.state.performance_metrics.track_system_resources:
+        if (
+            hasattr(app.state, "performance_metrics")
+            and app.state.performance_metrics.track_system_resources
+        ):
             try:
                 system_metrics = app.state.performance_metrics.get_system_utilization()
             except Exception as e:
                 logger.warning(f"Error getting system metrics: {e}")
-                
+
         return {
-            "status": "ok", 
+            "status": "ok",
             "timestamp": time.time(),
             "version": "0.1.0",
             "api_status": api_status,
-            "ipfs": {
-                "version": ipfs_version,
-                "id": ipfs_id,
-                "peers": ipfs_peers
-            },
+            "ipfs": {"version": ipfs_version, "id": ipfs_id, "peers": ipfs_peers},
             "system": system_metrics,
-            "graphql": graphql_status
+            "graphql": graphql_status,
         }
-            
+
     # Add Prometheus metrics endpoint if enabled and available
     if PROMETHEUS_AVAILABLE and app.state.config.get("metrics_enabled", False):
         # Try to add metrics endpoint
         try:
             metrics_path = os.environ.get("IPFS_KIT_METRICS_PATH", "/metrics")
             metrics_added = add_prometheus_metrics_endpoint(
-                app, 
-                app.state.performance_metrics,
-                path=metrics_path
+                app, app.state.performance_metrics, path=metrics_path
             )
             if metrics_added:
                 logger.info(f"Prometheus metrics endpoint added at {metrics_path}")
@@ -1787,7 +1878,7 @@ if FASTAPI_AVAILABLE:
             # Ensure result has success flag
             if isinstance(result, dict) and "success" not in result:
                 result["success"] = True
-                
+
             # Emit notification event if successful
             if NOTIFICATIONS_AVAILABLE and background_tasks and result.get("success", False):
                 cid = result.get("Hash") or result.get("cid")
@@ -1801,26 +1892,22 @@ if FASTAPI_AVAILABLE:
                             "size": len(content),
                             "pinned": pin,
                             "wrapped": wrap_with_directory,
-                            "mime_type": file.content_type
-                        }
+                            "mime_type": file.content_type,
+                        },
                     )
-                    
+
                     # If content was pinned, also emit pin event
                     if pin:
                         background_tasks.add_task(
                             emit_event,
                             NotificationType.PIN_ADDED.value,
-                            {
-                                "cid": cid,
-                                "recursive": True,
-                                "success": True
-                            }
+                            {"cid": cid, "recursive": True, "success": True},
                         )
 
             return result
         except Exception as e:
             logger.exception(f"Error uploading file: {str(e)}")
-            
+
             # Emit error event
             if NOTIFICATIONS_AVAILABLE and background_tasks:
                 background_tasks.add_task(
@@ -1830,10 +1917,10 @@ if FASTAPI_AVAILABLE:
                         "operation": "upload_file",
                         "filename": file.filename,
                         "error": str(e),
-                        "error_type": type(e).__name__
-                    }
+                        "error_type": type(e).__name__,
+                    },
                 )
-                
+
             return {
                 "success": False,
                 "error": str(e),
@@ -1931,8 +2018,8 @@ if FASTAPI_AVAILABLE:
 
 
 def run_server(
-    host="127.0.0.1", 
-    port=8000, 
+    host="127.0.0.1",
+    port=8000,
     reload=False,
     workers=1,
     config_path=None,
@@ -1953,10 +2040,10 @@ def run_server(
 ):
     """
     Run the IPFS Kit API server.
-    
+
     This function starts a FastAPI server that provides a RESTful API for IPFS Kit,
     including comprehensive endpoint documentation and GraphQL support.
-    
+
     Args:
         host (str): Hostname or IP address to bind to. Use "0.0.0.0" to listen on all interfaces.
                    Default: "127.0.0.1"
@@ -1972,7 +2059,7 @@ def run_server(
         debug (bool): Enable debug mode. Default: False
         enable_libp2p (bool, optional): Enable direct peer-to-peer communication using LibP2P.
                                        Default: None (use config setting)
-        enable_webrtc (bool, optional): Enable WebRTC for real-time streaming. 
+        enable_webrtc (bool, optional): Enable WebRTC for real-time streaming.
                                        Default: None (use config setting)
         enable_wal (bool, optional): Enable Write-Ahead Log for data consistency.
                                     Default: None (use config setting)
@@ -1985,75 +2072,72 @@ def run_server(
         enable_metadata_index (bool, optional): Enable Arrow-based metadata indexing.
                                               Default: None (use config setting)
         storage_backends (List[str], optional): List of storage backends to enable.
-                                              Options: "ipfs", "s3", "storacha", "huggingface", 
+                                              Options: "ipfs", "s3", "storacha", "huggingface",
                                               "filecoin", "lassie".
                                               Default: None (use config setting)
     """
     # Set environment variables for configuration
     if config_path:
         os.environ["IPFS_KIT_CONFIG_PATH"] = config_path
-    
+
     if log_level:
         os.environ["IPFS_KIT_LOG_LEVEL"] = log_level.upper()
-    
+
     if auth_enabled is not None:
         os.environ["IPFS_KIT_AUTH_ENABLED"] = str(auth_enabled).lower()
-    
+
     if cors_origins:
         if isinstance(cors_origins, list):
             cors_origins = ",".join(cors_origins)
         os.environ["IPFS_KIT_CORS_ORIGINS"] = cors_origins
-    
+
     if debug:
         os.environ["IPFS_KIT_DEBUG"] = "true"
-        
+
     # Set environment variables for additional features
     if enable_libp2p is not None:
         os.environ["IPFS_KIT_ENABLE_LIBP2P"] = str(enable_libp2p).lower()
-        
+
     if enable_webrtc is not None:
         os.environ["IPFS_KIT_ENABLE_WEBRTC"] = str(enable_webrtc).lower()
-        
+
     if enable_wal is not None:
         os.environ["IPFS_KIT_ENABLE_WAL"] = str(enable_wal).lower()
-        
+
     if enable_fs_journal is not None:
         os.environ["IPFS_KIT_ENABLE_FS_JOURNAL"] = str(enable_fs_journal).lower()
-        
+
     if enable_benchmarking is not None:
         os.environ["IPFS_KIT_ENABLE_BENCHMARKING"] = str(enable_benchmarking).lower()
-        
+
     if enable_observability is not None:
         os.environ["IPFS_KIT_ENABLE_OBSERVABILITY"] = str(enable_observability).lower()
-        
+
     if enable_metadata_index is not None:
         os.environ["IPFS_KIT_ENABLE_METADATA_INDEX"] = str(enable_metadata_index).lower()
-        
+
     if storage_backends is not None:
         if isinstance(storage_backends, list):
             os.environ["IPFS_KIT_STORAGE_BACKENDS"] = ",".join(storage_backends)
         else:
             os.environ["IPFS_KIT_STORAGE_BACKENDS"] = storage_backends
-        
+
     # Configure uvicorn options
-    uvicorn_kwargs = {
-        "host": host,
-        "port": port,
-        "reload": reload,
-        "log_level": log_level.lower()
-    }
-    
+    uvicorn_kwargs = {"host": host, "port": port, "reload": reload, "log_level": log_level.lower()}
+
     # Add workers if specified and not using reload
     if workers > 1 and not reload:
         uvicorn_kwargs["workers"] = workers
-    
+
     # Add SSL configuration if provided
     if ssl_certfile and ssl_keyfile:
         uvicorn_kwargs["ssl_certfile"] = ssl_certfile
         uvicorn_kwargs["ssl_keyfile"] = ssl_keyfile
-    
+
     # Run the server
-    uvicorn.run("ipfs_kit_py.api:app", host=host, port=port, reload=reload, log_level=log_level.lower())
+    uvicorn.run(
+        "ipfs_kit_py.api:app", host=host, port=port, reload=reload, log_level=log_level.lower()
+    )
 
 
 if __name__ == "__main__":
@@ -2061,14 +2145,26 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="IPFS Kit API Server")
-    parser.add_argument("--host", default="127.0.0.1", help="Host to bind to. Use 0.0.0.0 to listen on all interfaces.")
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host to bind to. Use 0.0.0.0 to listen on all interfaces.",
+    )
     parser.add_argument("--port", type=int, default=8000, help="Port to bind to")
     parser.add_argument("--reload", action="store_true", help="Enable auto-reload for development")
-    parser.add_argument("--workers", type=int, default=1, help="Number of worker processes (ignored if reload=True)")
+    parser.add_argument(
+        "--workers", type=int, default=1, help="Number of worker processes (ignored if reload=True)"
+    )
     parser.add_argument("--config", dest="config_path", help="Path to configuration file")
-    parser.add_argument("--log-level", default="info", choices=["debug", "info", "warning", "error"], 
-                      help="Logging level (debug, info, warning, error)")
-    parser.add_argument("--auth", dest="auth_enabled", action="store_true", help="Enable token-based authentication")
+    parser.add_argument(
+        "--log-level",
+        default="info",
+        choices=["debug", "info", "warning", "error"],
+        help="Logging level (debug, info, warning, error)",
+    )
+    parser.add_argument(
+        "--auth", dest="auth_enabled", action="store_true", help="Enable token-based authentication"
+    )
     parser.add_argument("--cors-origins", help="Comma-separated list of allowed CORS origins")
     parser.add_argument("--ssl-cert", dest="ssl_certfile", help="Path to SSL certificate file")
     parser.add_argument("--ssl-key", dest="ssl_keyfile", help="Path to SSL key file")
@@ -2086,23 +2182,46 @@ if __name__ == "__main__":
         ipfs_api = IPFSSimpleAPI(config_path=args.config_path)
 
     # Add feature-specific command line arguments
-    feature_group = parser.add_argument_group('Advanced Features')
-    feature_group.add_argument('--enable-libp2p', action='store_true', help='Enable direct peer-to-peer communication using LibP2P')
-    feature_group.add_argument('--enable-webrtc', action='store_true', help='Enable WebRTC for real-time streaming')
-    feature_group.add_argument('--enable-wal', action='store_true', help='Enable Write-Ahead Log for data consistency')
-    feature_group.add_argument('--enable-fs-journal', action='store_true', help='Enable filesystem journaling for transactions')
-    feature_group.add_argument('--enable-benchmarking', action='store_true', help='Enable performance benchmarking tools')
-    feature_group.add_argument('--enable-observability', action='store_true', help='Enable Prometheus metrics and monitoring')
-    feature_group.add_argument('--enable-metadata-index', action='store_true', help='Enable Arrow-based metadata indexing')
-    feature_group.add_argument('--storage-backends', help='Comma-separated list of storage backends to enable (e.g., "ipfs,s3,storacha,huggingface,filecoin,lassie")')
-    
+    feature_group = parser.add_argument_group("Advanced Features")
+    feature_group.add_argument(
+        "--enable-libp2p",
+        action="store_true",
+        help="Enable direct peer-to-peer communication using LibP2P",
+    )
+    feature_group.add_argument(
+        "--enable-webrtc", action="store_true", help="Enable WebRTC for real-time streaming"
+    )
+    feature_group.add_argument(
+        "--enable-wal", action="store_true", help="Enable Write-Ahead Log for data consistency"
+    )
+    feature_group.add_argument(
+        "--enable-fs-journal",
+        action="store_true",
+        help="Enable filesystem journaling for transactions",
+    )
+    feature_group.add_argument(
+        "--enable-benchmarking", action="store_true", help="Enable performance benchmarking tools"
+    )
+    feature_group.add_argument(
+        "--enable-observability",
+        action="store_true",
+        help="Enable Prometheus metrics and monitoring",
+    )
+    feature_group.add_argument(
+        "--enable-metadata-index", action="store_true", help="Enable Arrow-based metadata indexing"
+    )
+    feature_group.add_argument(
+        "--storage-backends",
+        help='Comma-separated list of storage backends to enable (e.g., "ipfs,s3,storacha,huggingface,filecoin,lassie")',
+    )
+
     args = parser.parse_args()
 
     # Process CORS origins if provided
     cors_origins = None
     if args.cors_origins:
         cors_origins = args.cors_origins.split(",")
-        
+
     # Process storage backends if provided
     storage_backends = None
     if args.storage_backends:
@@ -2132,5 +2251,5 @@ if __name__ == "__main__":
         enable_benchmarking=args.enable_benchmarking,
         enable_observability=args.enable_observability,
         enable_metadata_index=args.enable_metadata_index,
-        storage_backends=storage_backends
+        storage_backends=storage_backends,
     )

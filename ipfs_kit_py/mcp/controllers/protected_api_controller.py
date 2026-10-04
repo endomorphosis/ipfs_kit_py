@@ -21,46 +21,39 @@ class ProtectedAPIController:
     """
     Controller for protected API endpoints.
     """
-    
+
     def __init__(self):
         """Initialize the controller."""
         self.router = APIRouter(tags=["protected"])
-    
+
     def register_routes(self):
         """Register protected API routes."""
-        
+
         @self.router.get("/user_info")
-        async def get_user_info(user = Depends(require_auth)):
+        async def get_user_info(user=Depends(require_auth)):
             """
             Get information about the authenticated user.
             Requires authentication.
             """
             return {"user": user}
-        
+
         @self.router.get("/admin_info")
-        async def get_admin_info(user = Depends(require_permission("admin:access"))):
+        async def get_admin_info(user=Depends(require_permission("admin:access"))):
             """
             Get administrative information.
             Requires admin:access permission.
             """
-            return {
-                "message": "You have admin access!",
-                "user": user
-            }
-        
+            return {"message": "You have admin access!", "user": user}
+
         @self.router.get("/backend_info/{backend_id}")
         async def get_backend_info(
-            backend_id: str,
-            user = Depends(require_backend_access("ipfs", Operation.RETRIEVE))
+            backend_id: str, user=Depends(require_backend_access("ipfs", Operation.RETRIEVE))
         ):
             """
             Get information about a specific backend.
             Requires access to the specified backend.
             """
-            return {
-                "message": f"You have access to the {backend_id} backend!",
-                "user": user
-            }
-        
+            return {"message": f"You have access to the {backend_id} backend!", "user": user}
+
         # Return the router
         return self.router

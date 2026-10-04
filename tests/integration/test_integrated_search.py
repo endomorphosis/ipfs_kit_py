@@ -167,11 +167,13 @@ class TestIntegratedSearch(unittest.TestCase):
 
         # Patch the modules *before* creating the instance to prevent ImportError
         # Use the mock classes defined within this test file
-        with patch('ipfs_kit_py.integrated_search.IPLDGraphDB', MockIPLDGraphDB), \
-             patch('ipfs_kit_py.integrated_search.IPFSArrowIndex', MockIPFSArrowIndex):
-
+        with (
+            patch("ipfs_kit_py.integrated_search.IPLDGraphDB", MockIPLDGraphDB),
+            patch("ipfs_kit_py.integrated_search.IPFSArrowIndex", MockIPFSArrowIndex),
+        ):
             # Import the class *after* patching its dependencies
             from ipfs_kit_py.integrated_search import MetadataEnhancedGraphRAG
+
             # Now instantiate the class; the ImportError should be prevented
             self.integrated_search = MetadataEnhancedGraphRAG(ipfs_client=self.ipfs)
 
@@ -243,8 +245,10 @@ class TestIntegratedSearch(unittest.TestCase):
 
     def test_metadata_only_search(self):
         """Test search with only metadata filters."""
-        with patch('ipfs_kit_py.integrated_search.IPLDGraphDB', MockIPLDGraphDB), \
-             patch('ipfs_kit_py.integrated_search.IPFSArrowIndex', MockIPFSArrowIndex):
+        with (
+            patch("ipfs_kit_py.integrated_search.IPLDGraphDB", MockIPLDGraphDB),
+            patch("ipfs_kit_py.integrated_search.IPFSArrowIndex", MockIPFSArrowIndex),
+        ):
             # Search for PyTorch models
             results = self.integrated_search.hybrid_search(
                 metadata_filters=[("mime_type", "==", "application/x-pytorch")]
@@ -264,8 +268,10 @@ class TestIntegratedSearch(unittest.TestCase):
 
     def test_vector_only_search(self):
         """Test search with only vector similarity."""
-        with patch('ipfs_kit_py.integrated_search.IPLDGraphDB', MockIPLDGraphDB), \
-             patch('ipfs_kit_py.integrated_search.IPFSArrowIndex', MockIPFSArrowIndex):
+        with (
+            patch("ipfs_kit_py.integrated_search.IPLDGraphDB", MockIPLDGraphDB),
+            patch("ipfs_kit_py.integrated_search.IPFSArrowIndex", MockIPFSArrowIndex),
+        ):
             # Search using a vector that should be closer to ModelA
             query_vector = [0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95, 1.0]
             results = self.integrated_search.hybrid_search(query_vector=query_vector)
@@ -284,12 +290,15 @@ class TestIntegratedSearch(unittest.TestCase):
 
     def test_combined_search(self):
         """Test combined metadata and vector search."""
-        with patch('ipfs_kit_py.integrated_search.IPLDGraphDB', MockIPLDGraphDB), \
-             patch('ipfs_kit_py.integrated_search.IPFSArrowIndex', MockIPFSArrowIndex):
+        with (
+            patch("ipfs_kit_py.integrated_search.IPLDGraphDB", MockIPLDGraphDB),
+            patch("ipfs_kit_py.integrated_search.IPFSArrowIndex", MockIPFSArrowIndex),
+        ):
             # Search for computer vision models with vector similarity
             query_vector = [0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95, 1.0]
             results = self.integrated_search.hybrid_search(
-                query_vector=query_vector, metadata_filters=[("tags", "contains", "computer-vision")]
+                query_vector=query_vector,
+                metadata_filters=[("tags", "contains", "computer-vision")],
             )
 
             self.assertEqual(len(results), 2)
@@ -298,8 +307,10 @@ class TestIntegratedSearch(unittest.TestCase):
 
     def test_text_query_conversion(self):
         """Test that text queries are properly converted to vectors."""
-        with patch('ipfs_kit_py.integrated_search.IPLDGraphDB', MockIPLDGraphDB), \
-             patch('ipfs_kit_py.integrated_search.IPFSArrowIndex', MockIPFSArrowIndex):
+        with (
+            patch("ipfs_kit_py.integrated_search.IPLDGraphDB", MockIPLDGraphDB),
+            patch("ipfs_kit_py.integrated_search.IPFSArrowIndex", MockIPFSArrowIndex),
+        ):
             # Should convert text to a vector internally
             results = self.integrated_search.hybrid_search(query_text="image classification model")
 
@@ -309,8 +320,10 @@ class TestIntegratedSearch(unittest.TestCase):
 
     def test_llm_context_generation(self):
         """Test generating LLM context from search results."""
-        with patch('ipfs_kit_py.integrated_search.IPLDGraphDB', MockIPLDGraphDB), \
-             patch('ipfs_kit_py.integrated_search.IPFSArrowIndex', MockIPFSArrowIndex):
+        with (
+            patch("ipfs_kit_py.integrated_search.IPLDGraphDB", MockIPLDGraphDB),
+            patch("ipfs_kit_py.integrated_search.IPFSArrowIndex", MockIPFSArrowIndex),
+        ):
             # Get some search results
             results = self.integrated_search.hybrid_search(query_text="image classification")
 
@@ -326,8 +339,10 @@ class TestIntegratedSearch(unittest.TestCase):
 
     def test_error_handling(self):
         """Test the error handling in the implementation."""
-        with patch('ipfs_kit_py.integrated_search.IPLDGraphDB', MockIPLDGraphDB), \
-             patch('ipfs_kit_py.integrated_search.IPFSArrowIndex', MockIPFSArrowIndex):
+        with (
+            patch("ipfs_kit_py.integrated_search.IPLDGraphDB", MockIPLDGraphDB),
+            patch("ipfs_kit_py.integrated_search.IPFSArrowIndex", MockIPFSArrowIndex),
+        ):
             # Mock failure in graph vector search
             original_method = self.integrated_search.graph_db.graph_vector_search
 
@@ -347,8 +362,10 @@ class TestIntegratedSearch(unittest.TestCase):
 
     def test_index_entity(self):
         """Test indexing an entity in both systems."""
-        with patch('ipfs_kit_py.integrated_search.IPLDGraphDB', MockIPLDGraphDB), \
-             patch('ipfs_kit_py.integrated_search.IPFSArrowIndex', MockIPFSArrowIndex):
+        with (
+            patch("ipfs_kit_py.integrated_search.IPLDGraphDB", MockIPLDGraphDB),
+            patch("ipfs_kit_py.integrated_search.IPFSArrowIndex", MockIPFSArrowIndex),
+        ):
             # Index a new entity
             result = self.integrated_search.index_entity(
                 entity_id="QmNewEntity",

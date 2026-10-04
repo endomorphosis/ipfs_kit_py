@@ -5,6 +5,7 @@ hierarchical meta-tools. Transports: stdio (default), HTTP via Hypercorn+Trio,
 and optional libp2p P2P. Runtime is anyio (trio backend), so all surfaces share
 one async core.
 """
+
 from __future__ import annotations
 
 import json
@@ -58,7 +59,10 @@ class MCPServer:
             return {
                 "protocolVersion": PROTOCOL_VERSION,
                 "serverInfo": SERVER_INFO,
-                "capabilities": {"tools": {}, "experimental": {"mcp++": mcplusplus.get_capabilities()}},
+                "capabilities": {
+                    "tools": {},
+                    "experimental": {"mcp++": mcplusplus.get_capabilities()},
+                },
             }
         if method == "tools/list":
             return {"tools": self.tm.all_tool_schemas()}
@@ -70,6 +74,7 @@ class MCPServer:
             return {"frontier": frontier, "count": len(self._dag)}
         if method in ("mcp++/ucan/validate", "mcp++/ucan/delegate"):
             from .mcplusplus import delegation
+
             return delegation.validate_raw_delegation_chain(
                 raw_chain=params.get("chain") or params.get("delegations") or [],
                 resource=params.get("resource", "*"),
@@ -78,6 +83,7 @@ class MCPServer:
             )
         if method == "mcp++/policy/evaluate":
             from .mcplusplus import delegation
+
             return delegation.evaluate_policy(
                 tool=params.get("tool", ""),
                 deny=params.get("deny", []),
@@ -96,6 +102,7 @@ class MCPServer:
             result = await self.tm.dispatch(category, tool, args)
             if params.get("profile_b") or envelope is not None:
                 from .mcplusplus import artifacts
+
                 parents = [n["event_cid"] for n in self._dag[-1:]]
                 meta = artifacts.envelope_from_payloads(
                     interface_cid=self._interface_cid(),
@@ -125,21 +132,24 @@ class MCPServer:
     def _interface_cid(self) -> str:
         """Kubo CIDv1 over the canonical interface descriptor set (Profile A)."""
         from .mcplusplus import artifacts
+
         return artifacts.compute_artifact_cid({"interfaces": self._interface_descriptors()})
 
     def _interface_descriptors(self):
         """Profile A: canonical interface descriptors derived from the registry."""
         out = []
         for s in self.tm.all_tool_schemas():
-            out.append({
-                "namespace": f"ipfs_kit/{s['category']}",
-                "name": s["name"],
-                "input_schema": s.get("inputSchema", {}),
-                "output_schema": {"type": "object"},
-                "errors": ["IPFSError", "ToolNotFound"],
-                "semantic_tags": s.get("tags", []),
-                "compatibility": {"mcp": True, "mcp++": True},
-            })
+            out.append(
+                {
+                    "namespace": f"ipfs_kit/{s['category']}",
+                    "name": s["name"],
+                    "input_schema": s.get("inputSchema", {}),
+                    "output_schema": {"type": "object"},
+                    "errors": ["IPFSError", "ToolNotFound"],
+                    "semantic_tags": s.get("tags", []),
+                    "compatibility": {"mcp": True, "mcp++": True},
+                }
+            )
         return out
 
 
@@ -186,8 +196,13 @@ async def serve_http(host: str = "127.0.0.1", port: int = 8004) -> None:
             await send({"type": "http.response.body", "body": b""})
             return
         data = json.dumps(resp).encode()
-        await send({"type": "http.response.start", "status": 200,
-                    "headers": [(b"content-type", b"application/json")]})
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [(b"content-type", b"application/json")],
+            }
+        )
         await send({"type": "http.response.body", "body": data})
 
     cfg = Config()
@@ -197,12 +212,14 @@ async def serve_http(host: str = "127.0.0.1", port: int = 8004) -> None:
 
 async def serve_p2p() -> None:
     from .p2p_transport import serve_p2p as _serve
+
     server = MCPServer()
     await _serve(server.handle)
 
 
 def main(argv=None) -> None:
     import argparse
+
     p = argparse.ArgumentParser("ipfs-kit-mcp")
     p.add_argument("--transport", choices=["stdio", "http", "p2p"], default="stdio")
     p.add_argument("--host", default="127.0.0.1")

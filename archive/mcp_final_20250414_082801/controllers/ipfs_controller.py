@@ -17,7 +17,8 @@ from fastapi import (
     Form,
     Response,
     Request,
-    Path)  # Added Query, Path
+    Path,
+)  # Added Query, Path
 
 # Import Pydantic models for request/response validation
 from pydantic import BaseModel, Field
@@ -33,11 +34,13 @@ logger = logging.getLogger(__name__)
 # --- Swarm Operation Models ---
 class PeerAddressRequest(BaseModel):
     """Request model for a peer address."""
+
     peer_addr: str
 
 
 class SwarmPeersResponse(BaseModel):
     """Response model for swarm peers request."""
+
     success: bool
     peers: Optional[List[Dict[str, Any]]] = None
     peer_count: Optional[int] = None
@@ -51,6 +54,7 @@ class SwarmPeersResponse(BaseModel):
 
 class SwarmConnectResponse(BaseModel):
     """Response model for swarm connect request."""
+
     success: bool
     connected: Optional[bool] = None
     peer: Optional[str] = None
@@ -64,6 +68,7 @@ class SwarmConnectResponse(BaseModel):
 
 class SwarmDisconnectResponse(BaseModel):
     """Response model for swarm disconnect request."""
+
     success: bool
     disconnected: Optional[bool] = None
     peer: Optional[str] = None
@@ -81,17 +86,20 @@ class SwarmDisconnectResponse(BaseModel):
 # Define Pydantic models for requests and responses (Existing models follow)
 class ContentRequest(BaseModel):
     """Request model for adding content."""
+
     content: str = Field(..., description="Content to add to IPFS")
     filename: Optional[str] = Field(None, description="Optional filename for the content")
 
 
 class CIDRequest(BaseModel):
     """Request model for operations using a CID."""
+
     cid: str = Field(..., description="Content Identifier (CID)")
 
 
 class OperationResponse(BaseModel):
     """Base response model for operations."""
+
     success: bool = Field(..., description="Whether the operation was successful")
     operation_id: str = Field(..., description="Unique identifier for this operation")
     duration_ms: float = Field(..., description="Duration of the operation in milliseconds")
@@ -99,6 +107,7 @@ class OperationResponse(BaseModel):
 
 class AddContentResponse(OperationResponse):
     """Response model for adding content."""
+
     cid: Optional[str] = Field(None, description="Content Identifier (CID) of the added content")
     Hash: Optional[str] = Field(None, description="Legacy Hash field for compatibility")
     content_size_bytes: Optional[int] = Field(None, description="Size of the content in bytes")
@@ -106,6 +115,7 @@ class AddContentResponse(OperationResponse):
 
 class GetContentResponse(OperationResponse):
     """Response model for getting content."""
+
     cid: str = Field(..., description="Content Identifier (CID) of the content")
     data: Optional[bytes] = Field(None, description="Content data")
     content_size_bytes: Optional[int] = Field(None, description="Size of the content in bytes")
@@ -116,17 +126,20 @@ class GetContentResponse(OperationResponse):
 
 class PinResponse(OperationResponse):
     """Response model for pin operations."""
+
     cid: str = Field(..., description="Content Identifier (CID) of the pinned content")
 
 
 class FilesLsRequest(BaseModel):
     """Request model for listing files in MFS."""
+
     path: str = Field("/", description="Path to list in MFS")
     long: bool = Field(False, description="Show detailed file information")
 
 
 class FilesMkdirRequest(BaseModel):
     """Request model for creating a directory in MFS."""
+
     path: str = Field(..., description="Path of the directory to create")
     parents: bool = Field(False, description="Create parent directories if they don't exist")
     flush: bool = Field(True, description="Flush changes to disk immediately")
@@ -134,11 +147,13 @@ class FilesMkdirRequest(BaseModel):
 
 class FilesStatRequest(BaseModel):
     """Request model for getting file stats in MFS."""
+
     path: str = Field(..., description="Path of the file/directory to stat")
 
 
 class FilesWriteRequest(BaseModel):
     """Request model for writing to a file in MFS."""
+
     path: str = Field(..., description="Path of the file to write to")
     content: str = Field(..., description="Content to write")
     create: bool = Field(True, description="Create the file if it doesn't exist")
@@ -149,6 +164,7 @@ class FilesWriteRequest(BaseModel):
 
 class FilesReadRequest(BaseModel):
     """Request model for reading a file from MFS."""
+
     path: str = Field(..., description="Path of the file to read")
     offset: int = Field(0, description="Offset to start reading from")
     count: Optional[int] = Field(None, description="Number of bytes to read")
@@ -156,6 +172,7 @@ class FilesReadRequest(BaseModel):
 
 class FilesRmRequest(BaseModel):
     """Request model for removing a file/directory from MFS."""
+
     path: str = Field(..., description="Path of the file/directory to remove")
     recursive: bool = Field(False, description="Remove directories recursively")
     force: bool = Field(False, description="Force removal")
@@ -164,12 +181,14 @@ class FilesRmRequest(BaseModel):
 
 class ListPinsResponse(OperationResponse):
     """Response model for listing pins."""
+
     pins: Optional[List[Dict[str, Any]]] = Field(None, description="List of pinned content")
     count: Optional[int] = Field(None, description="Number of pinned items")
 
 
 class ReplicationStatusResponse(OperationResponse):
     """Response model for replication status."""
+
     cid: str = Field(..., description="Content Identifier (CID)")
     replication: Dict[str, Any] = Field(..., description="Replication status details")
     needs_replication: bool = Field(
@@ -179,6 +198,7 @@ class ReplicationStatusResponse(OperationResponse):
 
 class MakeDirRequest(BaseModel):
     """Request model for creating a directory in MFS."""
+
     path: str = Field(..., description="Path in MFS to create")
     parents: bool = Field(
         False, description="Whether to create parent directories if they don't exist"
@@ -187,6 +207,7 @@ class MakeDirRequest(BaseModel):
 
 class StatsResponse(BaseModel):
     """Response model for operation statistics."""
+
     operation_stats: Dict[str, Any] = Field(..., description="Operation statistics")
     timestamp: float = Field(..., description="Timestamp of the statistics")
     success: bool = Field(..., description="Whether the operation was successful")
@@ -202,6 +223,7 @@ class StatsResponse(BaseModel):
 
 class DaemonStatusRequest(BaseModel):
     """Request model for checking daemon status."""
+
     daemon_type: Optional[str] = Field(
         None, description="Type of daemon to check (ipfs, ipfs_cluster_service, etc.)"
     )
@@ -209,6 +231,7 @@ class DaemonStatusRequest(BaseModel):
 
 class DaemonStatusResponse(OperationResponse):
     """Response model for daemon status checks."""
+
     daemon_status: Dict[str, Any] = Field(..., description="Status of the requested daemon(s)")
     overall_status: str = Field(..., description="Overall status (healthy, degraded, or critical)")
     status_code: int = Field(
@@ -219,6 +242,7 @@ class DaemonStatusResponse(OperationResponse):
 
 class DAGPutRequest(BaseModel):
     """Request model for putting a DAG node."""
+
     object: Any = Field(..., description="Object to store as a DAG node")
     format: str = Field("json", description="Format to use (json or cbor)")
     pin: bool = Field(True, description="Whether to pin the node")
@@ -226,6 +250,7 @@ class DAGPutRequest(BaseModel):
 
 class DAGPutResponse(OperationResponse):
     """Response model for putting a DAG node."""
+
     cid: Optional[str] = Field(None, description="Content Identifier (CID) of the DAG node")
     format: str = Field("json", description="Format used")
     pin: bool = Field(True, description="Whether the node was pinned")
@@ -233,6 +258,7 @@ class DAGPutResponse(OperationResponse):
 
 class DAGGetResponse(OperationResponse):
     """Response model for getting a DAG node."""
+
     cid: str = Field(..., description="Content Identifier (CID) of the DAG node")
     object: Optional[Any] = Field(None, description="DAG node object")
     path: Optional[str] = Field(None, description="Path within the DAG node")
@@ -240,6 +266,7 @@ class DAGGetResponse(OperationResponse):
 
 class DAGResolveResponse(OperationResponse):
     """Response model for resolving a DAG path."""
+
     path: str = Field(..., description="DAG path that was resolved")
     cid: Optional[str] = Field(None, description="Resolved CID")
     remainder_path: Optional[str] = Field(None, description="Remainder path, if any")
@@ -247,12 +274,14 @@ class DAGResolveResponse(OperationResponse):
 
 class BlockPutRequest(BaseModel):
     """Request model for putting a block."""
+
     data: str = Field(..., description="Block data to store (base64 encoded)")
     format: str = Field("dag-pb", description="Format to use (dag-pb, raw, etc.)")
 
 
 class BlockPutResponse(OperationResponse):
     """Response model for putting a block."""
+
     cid: Optional[str] = Field(None, description="Content Identifier (CID) of the block")
     format: str = Field("dag-pb", description="Format used")
     size: Optional[int] = Field(None, description="Size of the block in bytes")
@@ -260,6 +289,7 @@ class BlockPutResponse(OperationResponse):
 
 class BlockGetResponse(OperationResponse):
     """Response model for getting a block."""
+
     cid: str = Field(..., description="Content Identifier (CID) of the block")
     data: Optional[bytes] = Field(None, description="Block data")
     size: Optional[int] = Field(None, description="Size of the block in bytes")
@@ -267,6 +297,7 @@ class BlockGetResponse(OperationResponse):
 
 class BlockStatResponse(OperationResponse):
     """Response model for block statistics."""
+
     cid: str = Field(..., description="Content Identifier (CID) of the block")
     size: Optional[int] = Field(None, description="Size of the block in bytes")
     key: Optional[str] = Field(None, description="Block key (same as CID)")
@@ -275,11 +306,13 @@ class BlockStatResponse(OperationResponse):
 
 class DHTFindPeerRequest(BaseModel):
     """Request model for finding a peer using DHT."""
+
     peer_id: str = Field(..., description="ID of the peer to find")
 
 
 class DHTFindPeerResponse(OperationResponse):
     """Response model for finding a peer using DHT."""
+
     peer_id: str = Field(..., description="ID of the peer that was searched for")
     responses: List[Dict[str, Any]] = Field([], description="Information about found peers")
     peers_found: int = Field(0, description="Number of peers found")
@@ -287,12 +320,14 @@ class DHTFindPeerResponse(OperationResponse):
 
 class DHTFindProvsRequest(BaseModel):
     """Request model for finding providers for a CID using DHT."""
+
     cid: str = Field(..., description="Content ID to find providers for")
     num_providers: Optional[int] = Field(None, description="Maximum number of providers to find")
 
 
 class DHTFindProvsResponse(OperationResponse):
     """Response model for finding providers for a CID using DHT."""
+
     cid: str = Field(..., description="Content ID that was searched for")
     providers: List[Dict[str, Any]] = Field([], description="Information about providers")
     count: int = Field(0, description="Number of providers found")
@@ -303,6 +338,7 @@ class DHTFindProvsResponse(OperationResponse):
 
 class NodeIDResponse(OperationResponse):
     """Response model for node ID information."""
+
     peer_id: str = Field(..., description="Peer ID of the IPFS node")
     addresses: List[str] = Field([], description="Multiaddresses of the IPFS node")
     agent_version: Optional[str] = Field(None, description="Agent version string")
@@ -312,6 +348,7 @@ class NodeIDResponse(OperationResponse):
 
 class GetTarResponse(OperationResponse):
     """Response model for getting content as TAR archive."""
+
     cid: str = Field(..., description="Content Identifier (CID) of the content")
     output_dir: str = Field(..., description="Directory where content was saved")
     files: List[str] = Field([], description="List of files in the archive")
@@ -319,6 +356,7 @@ class GetTarResponse(OperationResponse):
 
 class FileUploadForm(BaseModel):
     """Form model for file uploads."""
+
     file: UploadFile
     pin: bool = False
     wrap_with_directory: bool = False
@@ -334,6 +372,7 @@ class IPFSController:
     Handles HTTP requests related to IPFS operations and delegates
     the business logic to the IPFS model.
     """
+
     def __init__(self, ipfs_model):
         """
         Initialize the IPFS controller.
@@ -924,7 +963,7 @@ class IPFSController:
                     "cid": cid,
                     "output_dir": output_dir,
                     "files": [f"simulated_file_{i}.txt" for i in range(3)],
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Add operation tracking fields for consistency
@@ -959,7 +998,7 @@ class IPFSController:
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "cid": cid
+                "cid": cid,
             }
 
     async def get_content(self, cid: str) -> Response:
@@ -1344,7 +1383,7 @@ class IPFSController:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "cid": cid,
-                "pinned": False
+                "pinned": False,
             }
 
     async def unpin_content(
@@ -1411,7 +1450,9 @@ class IPFSController:
                             pin_cid = (
                                 pin
                                 if isinstance(pin, str)
-                                else pin.get("cid") if isinstance(pin, dict) else None
+                                else pin.get("cid")
+                                if isinstance(pin, dict)
+                                else None
                             )
                             if pin_cid == cid:
                                 is_pinned = True
@@ -1625,11 +1666,7 @@ class IPFSController:
                     # Format used by some IPFS implementations
                     for cid, pin_info in result["PinLsList"].items():
                         result["pins"].append(
-                            {
-                                "cid": cid,
-                                "type": pin_info.get("Type", "recursive"),
-                                "pinned": True
-                            }
+                            {"cid": cid, "type": pin_info.get("Type", "recursive"), "pinned": True}
                         )
                     logger.debug(f"Extracted {len(result['pins'])} pins from PinLsList format")
                 elif "pinned" in result and isinstance(result["pinned"], list):
@@ -1648,11 +1685,7 @@ class IPFSController:
                 if not isinstance(pin, dict):
                     # Convert string CIDs to proper pin objects
                     if isinstance(pin, str):
-                        result["pins"][i] = {
-                            "cid": pin,
-                            "type": "recursive",
-                            "pinned": True
-                        }
+                        result["pins"][i] = {"cid": pin, "type": "recursive", "pinned": True}
                     continue
 
                 # Normalize cid field (some implementations use "hash" or "Hash")
@@ -1699,7 +1732,7 @@ class IPFSController:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "pins": [],
-                "count": 0
+                "count": 0,
             }
 
     async def get_stats(self) -> Dict[str, Any]:
@@ -1772,14 +1805,12 @@ class IPFSController:
                     try:
                         # Import the appropriate module based on daemon type
                         if daemon_type == "ipfs_cluster_service":
-                            from ipfs_kit_py.ipfs_cluster_service import (
-                                ipfs_cluster_service)
+                            from ipfs_kit_py.ipfs_cluster_service import ipfs_cluster_service
 
                             cluster_service = ipfs_cluster_service()
                             cluster_result = cluster_service.ipfs_cluster_service_status()
                         else:  # ipfs_cluster_follow
-                            from ipfs_kit_py.ipfs_cluster_follow import (
-                                ipfs_cluster_follow)
+                            from ipfs_kit_py.ipfs_cluster_follow import ipfs_cluster_follow
 
                             cluster_follow = ipfs_cluster_follow()
                             cluster_result = cluster_follow.ipfs_cluster_follow_status()
@@ -1799,7 +1830,7 @@ class IPFSController:
                                     "running": cluster_result.get("process_running", False),
                                     "type": daemon_type,
                                     "process_count": cluster_result.get("process_count", 0),
-                                    "details": cluster_result
+                                    "details": cluster_result,
                                 }
                             },
                         }
@@ -1877,7 +1908,7 @@ class IPFSController:
                 "daemon_status": {"overall": "error", "daemons": {}},
                 "status_code": 500,
                 "overall_status": "critical",
-                "daemon_type": daemon_type
+                "daemon_type": daemon_type,
             }
 
     def reset(self):
@@ -1938,7 +1969,7 @@ class IPFSController:
                         "backends": ["memory"],
                         "mode": "unknown",
                     },
-                    "needs_replication": True
+                    "needs_replication": True,
                 }
                 logger.debug(
                     f"Generated basic replication status for {cid} due to missing cache_manager"
@@ -2015,7 +2046,7 @@ class IPFSController:
                     "backends": [],
                     "mode": "unknown",
                 },
-                "needs_replication": True
+                "needs_replication": True,
             }
 
     async def get_node_id(self) -> Dict[str, Any]:
@@ -2056,7 +2087,7 @@ class IPFSController:
                         "/ipfs/kad/1.0.0",
                         "/ipfs/ping/1.0.0",
                     ],
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Standardize response format
@@ -2134,7 +2165,7 @@ class IPFSController:
                     "Repo": "12",
                     "System": "amd64/linux",
                     "Golang": "go1.16.15",
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Standardize response: most implementations return "Version" with capital letter
@@ -2215,7 +2246,7 @@ class IPFSController:
                     "duration_ms": (time.time() - start_time) * 1000,
                     "Peers": peers,
                     "peer_count": len(peers),
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Standardize response: ensure "Peers" field exists
@@ -2263,7 +2294,7 @@ class IPFSController:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "Peers": [],
-                "peer_count": 0
+                "peer_count": 0,
             }
 
     async def connect_peer(self, address: str = Body(..., embed=True)) -> Dict[str, Any]:
@@ -2300,7 +2331,7 @@ class IPFSController:
                         "Strings": [f"connect {address} success"],
                         "connected": True,
                         "address": address,
-                        "simulated": True
+                        "simulated": True,
                     }
 
                 # Otherwise return the actual error
@@ -2310,7 +2341,7 @@ class IPFSController:
                     "duration_ms": (time.time() - start_time) * 1000,
                     "error": result.get("error", f"Failed to connect to {address}"),
                     "error_type": result.get("error_type", "connection_error"),
-                    "address": address
+                    "address": address,
                 }
 
             # Add convenience field
@@ -2342,7 +2373,7 @@ class IPFSController:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "address": address,
-                "connected": False
+                "connected": False,
             }
 
     async def disconnect_peer(self, address: str = Body(..., embed=True)) -> Dict[str, Any]:
@@ -2381,7 +2412,7 @@ class IPFSController:
                         "Strings": [f"disconnect {address} success"],
                         "disconnected": True,
                         "address": address,
-                        "simulated": True
+                        "simulated": True,
                     }
 
                 # Otherwise return the actual error
@@ -2391,7 +2422,7 @@ class IPFSController:
                     "duration_ms": (time.time() - start_time) * 1000,
                     "error": result.get("error", f"Failed to disconnect from {address}"),
                     "error_type": result.get("error_type", "connection_error"),
-                    "address": address
+                    "address": address,
                 }
 
             # Add convenience field
@@ -2423,7 +2454,7 @@ class IPFSController:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "address": address,
-                "disconnected": False
+                "disconnected": False,
             }
 
     async def dht_findpeer(self, request: DHTFindPeerRequest) -> Dict[str, Any]:
@@ -2476,7 +2507,7 @@ class IPFSController:
                     "peer_id": request.peer_id,
                     "responses": responses,
                     "peers_found": len(responses),
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Add operation tracking fields for consistency
@@ -2503,7 +2534,7 @@ class IPFSController:
                 "error_type": type(e).__name__,
                 "peer_id": request.peer_id,
                 "responses": [],
-                "peers_found": 0
+                "peers_found": 0,
             }
 
     async def dht_findprovs(self, request: DHTFindProvsRequest) -> Dict[str, Any]:
@@ -2559,7 +2590,7 @@ class IPFSController:
                     "providers": providers,
                     "count": len(providers),
                     "num_providers": request.num_providers,
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Add operation tracking fields for consistency
@@ -2788,8 +2819,8 @@ class IPFSController:
             raise HTTPException(status_code=500, detail=f"Error getting node ID: {str(e)}")
 
     async def write_file_v2(
-    self,
-    path: str,
+        self,
+        path: str,
         content: Union[str, bytes] = Body(...),
         create: bool = True,
         truncate: bool = True,
@@ -2862,7 +2893,7 @@ class IPFSController:
                         "offset": offset,
                         "count": count,
                         "flush": flush,
-                        "simulated": True
+                        "simulated": True,
                     }
 
                 # Otherwise return the actual error
@@ -2874,7 +2905,7 @@ class IPFSController:
                     "error_type": result.get("error_type", "write_error"),
                     "path": path,
                     "create": create,
-                    "truncate": truncate
+                    "truncate": truncate,
                 }
 
             # Add metadata for reference
@@ -2921,7 +2952,7 @@ class IPFSController:
                 "truncate": truncate,
                 "offset": offset,
                 "count": count,
-                "flush": flush
+                "flush": flush,
             }
 
     async def remove_file_v2(
@@ -2968,7 +2999,7 @@ class IPFSController:
                         "removed": True,
                         "recursive": recursive,
                         "force": force,
-                        "simulated": True
+                        "simulated": True,
                     }
 
                 # Otherwise return the actual error
@@ -2981,7 +3012,7 @@ class IPFSController:
                     "path": path,
                     "removed": False,
                     "recursive": recursive,
-                    "force": force
+                    "force": force,
                 }
 
             # Add metadata for reference
@@ -3017,7 +3048,7 @@ class IPFSController:
                 "path": path,
                 "removed": False,
                 "recursive": recursive,
-                "force": force
+                "force": force,
             }
 
     async def stat_file_v2(self, path: str) -> Dict[str, Any]:
@@ -3071,9 +3102,8 @@ class IPFSController:
                     "success": True,
                     "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
-                    "path": path
-                    **stat_info,
-                    "simulated": True
+                    "path": path**stat_info,
+                    "simulated": True,
                 }
 
             # Add path for reference
@@ -3105,7 +3135,7 @@ class IPFSController:
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "path": path
+                "path": path,
             }
 
     async def make_directory_v2(self, request: MakeDirRequest = Body(...)) -> Dict[str, Any]:
@@ -3146,7 +3176,7 @@ class IPFSController:
                         "duration_ms": (time.time() - start_time) * 1000,
                         "path": path,
                         "created": True,
-                        "simulated": True
+                        "simulated": True,
                     }
 
                 # Otherwise return the actual error
@@ -3157,7 +3187,7 @@ class IPFSController:
                     "error": result.get("error", f"Failed to create directory {path}"),
                     "error_type": result.get("error_type", "mkdir_error"),
                     "path": path,
-                    "created": False
+                    "created": False,
                 }
 
             # Add convenience field
@@ -3185,7 +3215,7 @@ class IPFSController:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "path": path,
-                "created": False
+                "created": False,
             }
 
     async def publish_name(
@@ -3230,7 +3260,7 @@ class IPFSController:
                     "key": key,
                     "Name": f"/ipns/k51q{uuid.uuid4().hex[:36]}",
                     "Value": path,
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Standardize response: ensure "Name" and "Value" fields exist
@@ -3270,7 +3300,7 @@ class IPFSController:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "path": path,
-                "key": key
+                "key": key,
             }
 
     async def resolve_name(self, name: str, recursive: bool = True) -> Dict[str, Any]:
@@ -3309,7 +3339,7 @@ class IPFSController:
                     "duration_ms": (time.time() - start_time) * 1000,
                     "name": name,
                     "Path": f"/ipfs/Qm{uuid.uuid4().hex[:38]}",
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Standardize response: ensure "Path" field exists
@@ -3343,7 +3373,7 @@ class IPFSController:
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "name": name
+                "name": name,
             }
 
     async def get_dag_node(self, cid: str, path: str = "") -> Dict[str, Any]:
@@ -3404,7 +3434,7 @@ class IPFSController:
                     "cid": cid,
                     "path": path,
                     "node": sim_node,
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Ensure node data is included
@@ -3446,7 +3476,7 @@ class IPFSController:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "cid": cid,
-                "path": path
+                "path": path,
             }
 
     async def put_dag_node(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -3483,7 +3513,7 @@ class IPFSController:
                     "operation_id": operation_id,
                     "duration_ms": (time.time() - start_time) * 1000,
                     "Cid": {"/": f"bafy{uuid.uuid4().hex[:38]}"},
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Standardize response: ensure "Cid" field exists in expected format
@@ -3569,7 +3599,7 @@ class IPFSController:
                     "Key": cid,
                     "Size": random.randint(1024, 1024 * 1024),
                     "cid": cid,
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Standardize response: ensure "Key" and "Size" fields exist
@@ -3606,7 +3636,7 @@ class IPFSController:
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "cid": cid
+                "cid": cid,
             }
 
     async def get_block_json(self, request: Request, cid: str = None) -> Dict[str, Any]:
@@ -3861,7 +3891,7 @@ class IPFSController:
                     "duration_ms": (time.time() - start_time) * 1000,
                     "peer_id": peer_id,
                     "Responses": [{"ID": peer_id, "Addrs": addresses}],
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Standardize response: ensure "Responses" field exists
@@ -3972,7 +4002,7 @@ class IPFSController:
                     "cid": cid,
                     "num_providers": provider_count,
                     "Responses": providers,
-                    "simulated": True
+                    "simulated": True,
                 }
 
             # Standardize response: ensure "Responses" field exists
@@ -4019,8 +4049,8 @@ class IPFSController:
             }
 
     async def handle_add_request(
-    self,
-    request: Request,
+        self,
+        request: Request,
         content_request: Optional[ContentRequest] = None,
         file: Optional[UploadFile] = File(None),
         pin: bool = Form(False),
@@ -4122,7 +4152,7 @@ class IPFSController:
                 "cid": "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa",
                 "Hash": "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa",
                 "content_size_bytes": 16,
-                "simulated": True
+                "simulated": True,
             }
 
     def dag_put(self, dag_request: DAGPutRequest) -> DAGPutResponse:
@@ -4215,7 +4245,7 @@ class IPFSController:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "cid": cid,
-                "path": path
+                "path": path,
             }
 
     def dag_resolve(self, path: str) -> DAGResolveResponse:
@@ -4258,7 +4288,7 @@ class IPFSController:
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "path": path
+                "path": path,
             }
 
     def block_put(self, block_request: BlockPutRequest) -> BlockPutResponse:
@@ -4414,7 +4444,7 @@ class IPFSController:
                 "duration_ms": (time.time() - start_time) * 1000,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "cid": cid
+                "cid": cid,
             }
 
     def get_version_v2(self):

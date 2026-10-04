@@ -24,6 +24,7 @@ app = FastAPI(title="Simple MCP Test Server")
 # Define the API prefix to match the test script's expectations
 api_prefix = "/api/v0"
 
+
 # Health endpoint - the most important one for initial test
 @app.get(f"{api_prefix}/health")
 async def health():
@@ -32,8 +33,9 @@ async def health():
         "success": True,
         "healthy": True,
         "timestamp": time.time(),
-        "message": "MCP Test Server is healthy"
+        "message": "MCP Test Server is healthy",
     }
+
 
 # Daemon status endpoint
 @app.get(f"{api_prefix}/daemon/status")
@@ -41,12 +43,10 @@ async def daemon_status():
     """Daemon status endpoint."""
     return {
         "success": True,
-        "daemon_status": {
-            "ipfs": {"running": True},
-            "ipfs_cluster_service": {"running": False}
-        },
-        "timestamp": time.time()
+        "daemon_status": {"ipfs": {"running": True}, "ipfs_cluster_service": {"running": False}},
+        "timestamp": time.time(),
     }
+
 
 # Basic IPFS operations for testing
 @app.post(f"{api_prefix}/ipfs/add")
@@ -58,8 +58,9 @@ async def ipfs_add(file: UploadFile = File(...)):
         "cid": "QmSimulatedCid123456789",
         "size": 1024,
         "timestamp": time.time(),
-        "simulated": True
+        "simulated": True,
     }
+
 
 @app.post(f"{api_prefix}/ipfs/add_string")
 async def ipfs_add_string(request_data: dict = Body(...)):
@@ -69,13 +70,15 @@ async def ipfs_add_string(request_data: dict = Body(...)):
         "cid": "QmSimulatedStringCid123456789",
         "size": len(request_data.get("content", "")),
         "timestamp": time.time(),
-        "simulated": True
+        "simulated": True,
     }
+
 
 @app.get(f"{api_prefix}/ipfs/cat/{{cid}}")
 async def ipfs_cat(cid: str):
     """Retrieve content from IPFS by CID."""
     return f"Simulated content for {cid}"
+
 
 @app.post(f"{api_prefix}/ipfs/pin")
 async def ipfs_pin(request_data: dict = Body(...)):
@@ -85,8 +88,9 @@ async def ipfs_pin(request_data: dict = Body(...)):
         "cid": request_data.get("cid", ""),
         "pinned": True,
         "timestamp": time.time(),
-        "simulated": True
+        "simulated": True,
     }
+
 
 @app.get(f"{api_prefix}/ipfs/pins")
 async def ipfs_pins():
@@ -95,8 +99,9 @@ async def ipfs_pins():
         "success": True,
         "pins": ["QmSimulatedCid123456789"],
         "timestamp": time.time(),
-        "simulated": True
+        "simulated": True,
     }
+
 
 @app.post(f"{api_prefix}/ipfs/unpin")
 async def ipfs_unpin(request_data: dict = Body(...)):
@@ -106,8 +111,9 @@ async def ipfs_unpin(request_data: dict = Body(...)):
         "cid": request_data.get("cid", ""),
         "unpinned": True,
         "timestamp": time.time(),
-        "simulated": True
+        "simulated": True,
     }
+
 
 # Files API (MFS) endpoints
 @app.post(f"{api_prefix}/ipfs/files/mkdir")
@@ -118,21 +124,21 @@ async def ipfs_files_mkdir(request_data: dict = Body(...)):
         "path": request_data.get("path", ""),
         "created": True,
         "timestamp": time.time(),
-        "simulated": True
+        "simulated": True,
     }
+
 
 @app.get(f"{api_prefix}/ipfs/files/ls")
 async def ipfs_files_ls(path: str = "/", long: str = "false"):
     """List files in MFS."""
     return {
         "success": True,
-        "entries": [
-            {"name": "test-dir", "type": "directory", "size": 0}
-        ],
+        "entries": [{"name": "test-dir", "type": "directory", "size": 0}],
         "path": path,
         "timestamp": time.time(),
-        "simulated": True
+        "simulated": True,
     }
+
 
 @app.get(f"{api_prefix}/ipfs/files/stat")
 async def ipfs_files_stat(path: str):
@@ -144,8 +150,9 @@ async def ipfs_files_stat(path: str):
         "type": "directory",
         "blocks": 0,
         "timestamp": time.time(),
-        "simulated": True
+        "simulated": True,
     }
+
 
 # IPNS endpoints
 @app.post(f"{api_prefix}/ipfs/name/publish")
@@ -156,8 +163,9 @@ async def ipfs_name_publish(request_data: dict = Body(...)):
         "Name": "k51qzi5uqu5dkkuju2tz5qxr1oi3xpbtot9zknkjz30xkpc7zos7u3j4816kxm",
         "Value": request_data.get("path", ""),
         "timestamp": time.time(),
-        "simulated": True
+        "simulated": True,
     }
+
 
 @app.get(f"{api_prefix}/ipfs/name/resolve")
 async def ipfs_name_resolve(name: str):
@@ -166,8 +174,9 @@ async def ipfs_name_resolve(name: str):
         "success": True,
         "Path": "/ipfs/QmSimulatedCid123456789",
         "timestamp": time.time(),
-        "simulated": True
+        "simulated": True,
     }
+
 
 # DAG endpoints
 @app.post(f"{api_prefix}/ipfs/dag/put")
@@ -177,8 +186,9 @@ async def ipfs_dag_put(request_data: dict = Body(...)):
         "success": True,
         "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
         "timestamp": time.time(),
-        "simulated": True
+        "simulated": True,
     }
+
 
 @app.get(f"{api_prefix}/ipfs/dag/get")
 async def ipfs_dag_get(cid: str):
@@ -188,8 +198,9 @@ async def ipfs_dag_get(cid: str):
         "data": "test data",
         "links": [],
         "timestamp": time.time(),
-        "simulated": True
+        "simulated": True,
     }
+
 
 # Block endpoints
 @app.post(f"{api_prefix}/ipfs/block/put")
@@ -199,56 +210,41 @@ async def ipfs_block_put(request_data: dict = Body(...)):
         "success": True,
         "cid": "QmSimulatedBlockCid123456789",
         "timestamp": time.time(),
-        "simulated": True
+        "simulated": True,
     }
+
 
 @app.get(f"{api_prefix}/ipfs/block/stat")
 async def ipfs_block_stat(cid: str):
     """Get IPFS block stats."""
-    return {
-        "success": True,
-        "Key": cid,
-        "Size": 1024,
-        "timestamp": time.time(),
-        "simulated": True
-    }
+    return {"success": True, "Key": cid, "Size": 1024, "timestamp": time.time(), "simulated": True}
+
 
 @app.get(f"{api_prefix}/ipfs/block/get/{{cid}}")
 async def ipfs_block_get(cid: str):
     """Get IPFS block."""
     return PlainTextResponse(f"Simulated block data for {cid}")
 
+
 # DHT endpoints
 @app.get(f"{api_prefix}/ipfs/dht/findprovs")
 async def ipfs_dht_findprovs(cid: str):
     """Find providers for CID."""
-    return {
-        "success": True,
-        "providers": [],
-        "timestamp": time.time(),
-        "simulated": True
-    }
+    return {"success": True, "providers": [], "timestamp": time.time(), "simulated": True}
+
 
 @app.get(f"{api_prefix}/ipfs/dht/findpeer")
 async def ipfs_dht_findpeer(peer_id: str):
     """Find peer by ID."""
-    return {
-        "success": True,
-        "addresses": [],
-        "timestamp": time.time(),
-        "simulated": True
-    }
+    return {"success": True, "addresses": [], "timestamp": time.time(), "simulated": True}
+
 
 # Controller endpoints
 @app.get(f"{api_prefix}/cli/version")
 async def cli_version():
     """Get CLI version."""
-    return {
-        "success": True,
-        "version": "0.1.0",
-        "timestamp": time.time(),
-        "simulated": True
-    }
+    return {"success": True, "version": "0.1.0", "timestamp": time.time(), "simulated": True}
+
 
 @app.post(f"{api_prefix}/cli/command")
 async def cli_command(request_data: dict = Body(...)):
@@ -257,68 +253,45 @@ async def cli_command(request_data: dict = Body(...)):
         "success": True,
         "output": "Simulated command output",
         "timestamp": time.time(),
-        "simulated": True
+        "simulated": True,
     }
+
 
 @app.get(f"{api_prefix}/credentials/list")
 async def credentials_list():
     """List credentials."""
-    return {
-        "success": True,
-        "credentials": [],
-        "timestamp": time.time(),
-        "simulated": True
-    }
+    return {"success": True, "credentials": [], "timestamp": time.time(), "simulated": True}
+
 
 @app.get(f"{api_prefix}/distributed/status")
 async def distributed_status():
     """Get distributed status."""
-    return {
-        "success": True,
-        "status": "idle",
-        "timestamp": time.time(),
-        "simulated": True
-    }
+    return {"success": True, "status": "idle", "timestamp": time.time(), "simulated": True}
+
 
 @app.get(f"{api_prefix}/webrtc/capabilities")
 async def webrtc_capabilities():
     """Get WebRTC capabilities."""
-    return {
-        "success": True,
-        "webrtc_available": False,
-        "timestamp": time.time(),
-        "simulated": True
-    }
+    return {"success": True, "webrtc_available": False, "timestamp": time.time(), "simulated": True}
+
 
 @app.get(f"{api_prefix}/fs_journal/status")
 async def fs_journal_status():
     """Get filesystem journal status."""
-    return {
-        "success": True,
-        "enabled": False,
-        "timestamp": time.time(),
-        "simulated": True
-    }
+    return {"success": True, "enabled": False, "timestamp": time.time(), "simulated": True}
+
 
 @app.get(f"{api_prefix}/debug")
 async def debug():
     """Get debug state."""
-    return {
-        "success": True,
-        "operations": [],
-        "count": 0,
-        "timestamp": time.time()
-    }
+    return {"success": True, "operations": [], "count": 0, "timestamp": time.time()}
+
 
 @app.get(f"{api_prefix}/operations")
 async def operations():
     """Get operation log."""
-    return {
-        "success": True,
-        "operations": [],
-        "count": 0,
-        "timestamp": time.time()
-    }
+    return {"success": True, "operations": [], "count": 0, "timestamp": time.time()}
+
 
 # Root endpoint for basic info
 @app.get("/")
@@ -355,9 +328,10 @@ async def root():
             f"{api_prefix}/webrtc/capabilities",
             f"{api_prefix}/fs_journal/status",
             f"{api_prefix}/debug",
-            f"{api_prefix}/operations"
-        ]
+            f"{api_prefix}/operations",
+        ],
     }
+
 
 # Function to verify route registration
 def test_routes():
@@ -366,17 +340,18 @@ def test_routes():
     for route in app.routes:
         print(f"Path: {route.path}, Methods: {route.methods}")
 
+
 # Run the server
 if __name__ == "__main__":
     # Test route registration if requested
     if "--test-routes" in sys.argv:
         test_routes()
         sys.exit(0)
-    
+
     port = int(os.environ.get("PORT", 8000))
     # Use 0.0.0.0 to listen on all interfaces (localhost, 127.0.0.1, etc.)
     host = os.environ.get("HOST", "0.0.0.0")
-    
+
     print(f"Starting simple MCP test server at {host}:{port}")
     print(f"Health endpoint at: http://localhost:{port}{api_prefix}/health")
     print(f"Health endpoint at: http://127.0.0.1:{port}{api_prefix}/health")
