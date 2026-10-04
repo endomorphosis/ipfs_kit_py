@@ -10,14 +10,20 @@ import logging
 import time
 
 # Configure logging
-logging.basicConfig(level=logging.INFO,
-                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("simple_fix_mcp_api")
 
 # Paths to files we'll modify
-WEBRTC_CONTROLLER_PATH = "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/webrtc_controller_anyio.py"
-IPFS_CONTROLLER_PATH = "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller_anyio.py"
+WEBRTC_CONTROLLER_PATH = (
+    "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/webrtc_controller_anyio.py"
+)
+IPFS_CONTROLLER_PATH = (
+    "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller_anyio.py"
+)
 SERVER_PATH = "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/server_anyio.py"
+
 
 # Make backups of files
 def backup_file(file_path):
@@ -30,6 +36,7 @@ def backup_file(file_path):
         logger.error(f"File not found: {file_path}")
         return False
 
+
 # Fix WebRTC controller's check_dependencies method
 def fix_webrtc_controller():
     logger.info("Fixing WebRTC controller dependency check...")
@@ -38,7 +45,7 @@ def fix_webrtc_controller():
 
     try:
         # Read the file
-        with open(WEBRTC_CONTROLLER_PATH, 'r') as f:
+        with open(WEBRTC_CONTROLLER_PATH, "r") as f:
             content = f.read()
 
         # Look for the check_dependencies method
@@ -91,7 +98,9 @@ def fix_webrtc_controller():
                     # Find the end of the method by looking for the next method definition
                     method_body = parts[1]
                     next_method_idx = method_body.find("async def")
-                    if next_method_idx == -1:  # No next method found, try finding a class definition
+                    if (
+                        next_method_idx == -1
+                    ):  # No next method found, try finding a class definition
                         next_method_idx = method_body.find("class ")
 
                     if next_method_idx != -1:
@@ -102,7 +111,7 @@ def fix_webrtc_controller():
                         new_content = parts[0] + new_method
 
             # Write the updated content
-            with open(WEBRTC_CONTROLLER_PATH, 'w') as f:
+            with open(WEBRTC_CONTROLLER_PATH, "w") as f:
                 f.write(new_content)
 
             logger.info("✅ Successfully fixed WebRTC controller")
@@ -113,6 +122,7 @@ def fix_webrtc_controller():
     except Exception as e:
         logger.error(f"Error fixing WebRTC controller: {e}")
         return False
+
 
 # Create a script for starting the fixed MCP server
 def create_fixed_server_script():
@@ -179,7 +189,7 @@ if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=9991)
 '''
 
-    with open(script_path, 'w') as f:
+    with open(script_path, "w") as f:
         f.write(script_content)
 
     # Make it executable
@@ -187,6 +197,7 @@ if __name__ == "__main__":
 
     logger.info(f"✅ Successfully created {script_path}")
     return True
+
 
 def main():
     logger.info("Starting simple MCP API fixes...")
@@ -198,12 +209,12 @@ def main():
     script_created = create_fixed_server_script()
 
     # Report status
-    logger.info("\n" + "="*50)
+    logger.info("\n" + "=" * 50)
     logger.info("MCP API FIX SUMMARY")
-    logger.info("="*50)
+    logger.info("=" * 50)
     logger.info(f"WebRTC controller: {'✅ Fixed' if webrtc_fixed else '❌ Failed'}")
     logger.info(f"Fixed server script: {'✅ Created' if script_created else '❌ Failed'}")
-    logger.info("="*50)
+    logger.info("=" * 50)
 
     if script_created:
         logger.info("\nTo run the fixed MCP server:")
@@ -214,6 +225,7 @@ def main():
     logger.info("  python test_mcp_api.py --url http://localhost:9991")
 
     return 0 if webrtc_fixed and script_created else 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

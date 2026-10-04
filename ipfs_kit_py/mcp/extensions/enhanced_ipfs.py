@@ -532,7 +532,7 @@ def create_ipfs_router(api_prefix: str) -> APIRouter:
     return router
 
 
-def run_ipfs_command(command, input_data = None, output_file = None):
+def run_ipfs_command(command, input_data=None, output_file=None):
     """
     Run an IPFS command and return the result.
 

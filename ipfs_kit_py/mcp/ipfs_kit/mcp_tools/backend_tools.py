@@ -10,17 +10,17 @@ logger = logging.getLogger(__name__)
 
 class BackendTools:
     """Tools for backend operations."""
-    
+
     def __init__(self, backend_monitor):
         self.backend_monitor = backend_monitor
-    
+
     async def get_backend_status(self, backend_name: Optional[str] = None) -> Dict[str, Any]:
         """Get backend status."""
         if backend_name:
             return await self.backend_monitor.check_backend_health(backend_name)
         else:
             return await self.backend_monitor.check_all_backends()
-    
+
     async def get_backend_detailed(self, backend_name: str) -> Dict[str, Any]:
         """Get detailed backend information."""
         try:
@@ -32,7 +32,7 @@ class BackendTools:
             return backend_info
         except Exception as e:
             return {"error": str(e)}
-    
+
     async def restart_backend(self, backend_name: str) -> Dict[str, Any]:
         """Restart a backend."""
         try:
@@ -40,7 +40,7 @@ class BackendTools:
             return {"success": result, "message": f"Backend {backend_name} restart initiated"}
         except Exception as e:
             return {"error": str(e)}
-    
+
     async def get_backend_config(self, backend_name: str) -> Dict[str, Any]:
         """Get backend configuration."""
         try:
@@ -52,7 +52,7 @@ class BackendTools:
                 return {"error": f"Backend {backend_name} not found"}
         except Exception as e:
             return {"error": str(e)}
-    
+
     async def set_backend_config(self, backend_name: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """Set backend configuration."""
         try:
@@ -64,7 +64,7 @@ class BackendTools:
                 return {"error": f"Backend {backend_name} not found"}
         except Exception as e:
             return {"error": str(e)}
-    
+
     async def get_metrics_history(self, backend_name: str, limit: int = 10) -> Dict[str, Any]:
         """Get metrics history for a backend."""
         try:

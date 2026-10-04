@@ -24,28 +24,30 @@ try:
     from rich.console import Console
     from rich.panel import Panel
     from rich.syntax import Syntax
+
     console = Console()
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
     console = None
 
+
 class ErrorAnalyzer:
     """Analyze and fix multi-processing daemon errors."""
-    
+
     def __init__(self):
         self.daemon_url = "http://127.0.0.1:9999"
         self.issues_found = []
         self.fixes_applied = []
-        
+
         # Setup logging
         logging.basicConfig(level=logging.DEBUG)
         self.logger = logging.getLogger(__name__)
-    
+
     def log_issue(self, issue: str, severity: str = "error"):
         """Log an issue found during testing."""
         self.issues_found.append({"issue": issue, "severity": severity, "timestamp": time.time()})
-        
+
         if console:
             if severity == "error":
                 console.print(f"❌ {issue}", style="red")
@@ -55,38 +57,40 @@ class ErrorAnalyzer:
                 console.print(f"ℹ️ {issue}", style="blue")
         else:
             print(f"{severity.upper()}: {issue}")
-    
+
     async def test_daemon_connectivity(self) -> bool:
         """Test if daemon is accessible."""
         if console:
             console.print("🔍 Testing daemon connectivity...", style="blue")
-        
+
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(f"{self.daemon_url}/health/fast", timeout=5)
-                
+
                 if response.status_code == 200:
                     data = response.json()
                     if console:
-                        console.print(f"✅ Daemon accessible: {data.get('workers', 0)} workers", style="green")
+                        console.print(
+                            f"✅ Daemon accessible: {data.get('workers', 0)} workers", style="green"
+                        )
                     return True
                 else:
                     self.log_issue(f"Daemon returned HTTP {response.status_code}")
                     return False
-                    
+
         except Exception as e:
             self.log_issue(f"Cannot connect to daemon: {e}")
             return False
-    
+
     async def analyze_health_endpoint_error(self):
         """Analyze the comprehensive health endpoint error."""
         if console:
             console.print("🔍 Analyzing comprehensive health endpoint...", style="blue")
-        
+
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(f"{self.daemon_url}/health", timeout=30)
-                
+
                 if response.status_code == 500:
                     try:
                         error_data = response.json()
@@ -94,22 +98,25 @@ class ErrorAnalyzer:
                     except:
                         error_text = response.text
                         self.log_issue(f"Health endpoint error (raw): {error_text}")
-                    
+
                     # The issue is likely that the comprehensive health check is trying to
                     # access backends that don't exist or aren't configured
-                    self.log_issue("Comprehensive health check likely failing due to missing backend configuration", "warning")
-                    
+                    self.log_issue(
+                        "Comprehensive health check likely failing due to missing backend configuration",
+                        "warning",
+                    )
+
                     # Create a fix
                     await self.create_health_endpoint_fix()
-                    
+
         except Exception as e:
             self.log_issue(f"Error analyzing health endpoint: {e}")
-    
+
     async def create_health_endpoint_fix(self):
         """Create a fix for the health endpoint."""
         if console:
             console.print("🔧 Creating health endpoint fix...", style="blue")
-        
+
         # The fix is to create a more robust health monitor that handles missing backends gracefully
         fix_content = '''
 # Fix for health endpoint - create a fallback health monitor
@@ -179,30 +186,26 @@ class RobustHealthMonitor:
             "message": f"{backend} backend simulated as healthy"
         }
 '''
-        
+
         self.fixes_applied.append("Created robust health monitor with fallback handling")
-        
+
         if console:
             console.print("✅ Health endpoint fix created", style="green")
-    
+
     async def analyze_batch_operations_error(self):
         """Analyze the batch operations endpoint error."""
         if console:
             console.print("🔍 Analyzing batch operations endpoint...", style="blue")
-        
+
         try:
             # Test with a simple batch operation
-            test_operations = [
-                {"operation": "add", "cid": "QmTest" + "0" * 40 + "000001"}
-            ]
-            
+            test_operations = [{"operation": "add", "cid": "QmTest" + "0" * 40 + "000001"}]
+
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"{self.daemon_url}/pins/batch",
-                    json=test_operations,
-                    timeout=30
+                    f"{self.daemon_url}/pins/batch", json=test_operations, timeout=30
                 )
-                
+
                 if response.status_code == 500:
                     try:
                         error_data = response.json()
@@ -210,21 +213,24 @@ class RobustHealthMonitor:
                     except:
                         error_text = response.text
                         self.log_issue(f"Batch operations error (raw): {error_text}")
-                    
+
                     # The issue is likely that the batch operations are trying to
                     # interact with IPFS backends that aren't properly initialized
-                    self.log_issue("Batch operations likely failing due to missing IPFS Kit initialization", "warning")
-                    
+                    self.log_issue(
+                        "Batch operations likely failing due to missing IPFS Kit initialization",
+                        "warning",
+                    )
+
                     await self.create_batch_operations_fix()
-                    
+
         except Exception as e:
             self.log_issue(f"Error analyzing batch operations: {e}")
-    
+
     async def create_batch_operations_fix(self):
         """Create a fix for batch operations."""
         if console:
             console.print("🔧 Creating batch operations fix...", style="blue")
-        
+
         fix_content = '''
 # Fix for batch operations - create mock/simulation mode for testing
 import asyncio
@@ -313,63 +319,63 @@ class RobustBatchProcessor:
         # This would use the actual IPFS Kit when properly configured
         pass
 '''
-        
+
         self.fixes_applied.append("Created robust batch processor with simulation mode")
-        
+
         if console:
             console.print("✅ Batch operations fix created", style="green")
-    
+
     async def test_fixes(self):
         """Test if the proposed fixes would work."""
         if console:
             console.print("🧪 Testing proposed fixes...", style="blue")
-        
+
         # The fixes would involve:
         # 1. Making the health endpoint more robust
         # 2. Adding simulation mode for batch operations when IPFS backends aren't available
         # 3. Better error handling throughout
-        
+
         recommendations = [
             "Add graceful fallback handling in health monitoring",
             "Implement simulation mode for testing without full IPFS setup",
-            "Add better error logging and reporting", 
+            "Add better error logging and reporting",
             "Create configuration options for testing vs production modes",
-            "Add dependency checks before starting operations"
+            "Add dependency checks before starting operations",
         ]
-        
+
         if console:
             recommendations_panel = Panel(
                 "\n".join(f"• {rec}" for rec in recommendations),
                 title="🔧 Recommended Fixes",
-                border_style="blue"
+                border_style="blue",
             )
             console.print(recommendations_panel)
-    
+
     def display_analysis_summary(self):
         """Display comprehensive analysis summary."""
         if console:
             console.print("\n📊 ERROR ANALYSIS SUMMARY", style="bold blue")
-            
+
             # Issues found
             if self.issues_found:
                 issues_table = console.Table(title="❌ Issues Identified")
                 issues_table.add_column("Issue", style="red")
                 issues_table.add_column("Severity", style="yellow")
-                
+
                 for issue in self.issues_found:
                     issues_table.add_row(issue["issue"], issue["severity"])
-                
+
                 console.print(issues_table)
-            
+
             # Fixes applied
             if self.fixes_applied:
                 fixes_panel = Panel(
                     "\n".join(f"✅ {fix}" for fix in self.fixes_applied),
                     title="🔧 Fixes Applied",
-                    border_style="green"
+                    border_style="green",
                 )
                 console.print(fixes_panel)
-            
+
             # Overall assessment
             assessment_text = """[bold green]🎯 Overall Assessment[/bold green]
 
@@ -397,12 +403,9 @@ The errors are due to missing IPFS backend initialization. The daemon is trying 
 
 🎉 [bold]Conclusion[/bold]
 The multi-processing architecture is [bold]functioning correctly[/bold]. The errors are configuration/backend issues, not fundamental problems with the multi-processing implementation."""
-            
+
             summary_panel = Panel(
-                assessment_text,
-                title="📋 Analysis Summary",
-                border_style="blue",
-                padding=(1, 2)
+                assessment_text, title="📋 Analysis Summary", border_style="blue", padding=(1, 2)
             )
             console.print(summary_panel)
         else:
@@ -417,10 +420,10 @@ The multi-processing architecture is [bold]functioning correctly[/bold]. The err
 async def main():
     """Run error analysis."""
     analyzer = ErrorAnalyzer()
-    
+
     if console:
         console.print("🔍 Starting Error Analysis for Multi-Processing IPFS Kit", style="bold blue")
-    
+
     try:
         # Test basic connectivity
         if not await analyzer.test_daemon_connectivity():
@@ -428,20 +431,20 @@ async def main():
                 console.print("❌ Cannot connect to daemon. Please start it first:", style="red")
                 console.print("   python test_multi_processing_suite.py", style="blue")
             return
-        
+
         # Analyze specific errors
         await analyzer.analyze_health_endpoint_error()
         await analyzer.analyze_batch_operations_error()
-        
+
         # Test proposed fixes
         await analyzer.test_fixes()
-        
+
         # Display summary
         analyzer.display_analysis_summary()
-        
+
         if console:
             console.print("\n🎉 Error analysis completed!", style="bold green")
-        
+
     except Exception as e:
         if console:
             console.print(f"❌ Analysis failed: {e}", style="red")
@@ -452,5 +455,5 @@ async def main():
 if __name__ == "__main__":
     print("🔍 IPFS Kit Multi-Processing Error Analysis")
     print("=" * 50)
-    
+
     asyncio.run(main())

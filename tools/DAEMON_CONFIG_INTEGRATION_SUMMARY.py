@@ -153,7 +153,7 @@ validation = manager.validate_daemon_configs()
 ```
 Tests passed: 9/9
 - Installer Imports: PASSED
-- Binary Availability: PASSED  
+- Binary Availability: PASSED
 - Installer Instantiation: PASSED
 - Core Imports: PASSED
 - Availability Flags: PASSED
@@ -216,14 +216,15 @@ import os
 import sys
 from datetime import datetime
 
+
 def main():
     """Display the daemon configuration integration summary."""
     print(__doc__)
-    
-    print(f"\n{'='*80}")
+
+    print(f"\n{'=' * 80}")
     print("IMPLEMENTATION STATUS")
-    print(f"{'='*80}")
-    
+    print(f"{'=' * 80}")
+
     # Check if files exist
     files_to_check = [
         ("Daemon Config Manager", "ipfs_kit_py/daemon_config_manager.py"),
@@ -231,27 +232,27 @@ def main():
         ("Integration Test", "test_daemon_config_integration.py"),
         ("Simple Test", "test_daemon_config_simple.py"),
     ]
-    
+
     for description, filepath in files_to_check:
         if os.path.exists(filepath):
             print(f"✅ {description}: {filepath}")
         else:
             print(f"❌ {description}: {filepath} (NOT FOUND)")
-    
+
     # Check if patches were applied
     patches_to_check = [
         ("install_ipfs patch", "ipfs_kit_py/install_ipfs.py", "ensure_daemon_configured"),
         ("install_lotus patch", "ipfs_kit_py/install_lotus.py", "ensure_daemon_configured"),
         ("ipfs_kit patch", "ipfs_kit_py/ipfs_kit.py", "daemon_config_manager"),
     ]
-    
-    print(f"\n{'='*80}")
+
+    print(f"\n{'=' * 80}")
     print("PATCH STATUS")
-    print(f"{'='*80}")
-    
+    print(f"{'=' * 80}")
+
     for description, filepath, search_term in patches_to_check:
         if os.path.exists(filepath):
-            with open(filepath, 'r') as f:
+            with open(filepath, "r") as f:
                 content = f.read()
                 if search_term in content:
                     print(f"✅ {description}: Applied")
@@ -259,10 +260,11 @@ def main():
                     print(f"❌ {description}: Not Applied")
         else:
             print(f"❌ {description}: File not found")
-    
-    print(f"\n{'='*80}")
+
+    print(f"\n{'=' * 80}")
     print(f"Summary generated on: {datetime.now().isoformat()}")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
+
 
 if __name__ == "__main__":
     main()

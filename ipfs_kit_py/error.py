@@ -201,8 +201,7 @@ def perform_with_retry(
                 time.sleep(sleep_time)
             else:
                 logger.error(
-                    f"All {max_retries} retry attempts failed for operation. "
-                    f"Last error: {str(e)}"
+                    f"All {max_retries} retry attempts failed for operation. Last error: {str(e)}"
                 )
 
     # If we get here, all retries failed

@@ -16,9 +16,7 @@ def main() -> None:
     example = Path(__file__).resolve().parents[1] / "config" / "iroh-backend.example.yaml"
     document = yaml.safe_load(example.read_text(encoding="utf-8"))
     manager = BackendManager(root)
-    result = manager.create_backend(
-        document.pop("name"), document.pop("type"), config=document
-    )
+    result = manager.create_backend(document.pop("name"), document.pop("type"), config=document)
     if "error" in result and result.get("code") != "backend_exists":
         raise SystemExit(result["error"])
 

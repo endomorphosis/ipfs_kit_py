@@ -14,19 +14,20 @@ from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger(__name__)
 
+
 class GetBackendsHandler:
     """Handler for get_backends MCP RPC calls."""
-    
+
     def __init__(self, ipfs_kit_dir: Path):
         self.ipfs_kit_dir = ipfs_kit_dir
         self.category = "backend"
         self.priority = 1
         self.complexity = 1
-    
+
     async def handle(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Handle get_backends RPC call.
-        
+
         Legacy function: get_backends
         New implementation: backend_discovery_service
         Category: backend
@@ -34,7 +35,7 @@ class GetBackendsHandler:
         try:
             # Execute the new bucket-centric implementation
             result = await self._execute_backend_discovery_service(params)
-            
+
             return {
                 "success": True,
                 "method": "get_backends",
@@ -42,25 +43,23 @@ class GetBackendsHandler:
                 "data": result,
                 "source": "comprehensive_bridge",
                 "priority": 1,
-                "complexity": 1
+                "complexity": 1,
             }
-            
+
         except Exception as e:
             logger.error(f"Error in get_backends handler: {e}")
             return {
                 "success": False,
                 "error": str(e),
                 "method": "get_backends",
-                "category": "backend"
+                "category": "backend",
             }
-    
+
     async def _execute_backend_discovery_service(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute the new implementation for get_backends."""
         # TODO: Implement bucket operations: scan_backend_configs, load_backend_metadata
         # TODO: Use state files: backends/*.json, backend_registry.json
-        
-        
-        
+
         # Comprehensive implementation placeholder
         return {
             "message": "Comprehensive feature implementation in progress",
@@ -77,6 +76,6 @@ class GetBackendsHandler:
                 "This handler bridges legacy comprehensive dashboard functionality",
                 "to the new bucket-centric architecture with light initialization",
                 "Progressive enhancement ensures graceful fallbacks",
-                "State management uses ~/.ipfs_kit/ directory structure"
-            ]
+                "State management uses ~/.ipfs_kit/ directory structure",
+            ],
         }

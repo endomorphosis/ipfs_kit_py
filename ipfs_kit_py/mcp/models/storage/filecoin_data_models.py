@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 class TipsetKeyModel(BaseModel):
     """Tipset key model for Filecoin operations."""
-    
+
     cid: str = Field(..., description="The CID of the tipset")
     height: Optional[int] = Field(None, description="The height of the tipset")
     parents: Optional[List[str]] = Field(None, description="Parent tipset CIDs")
@@ -17,7 +17,7 @@ class TipsetKeyModel(BaseModel):
 
 class FilecoinDeal(BaseModel):
     """Model for Filecoin storage deals."""
-    
+
     deal_id: str = Field(..., description="The ID of the storage deal")
     status: str = Field(..., description="Current status of the deal")
     provider: str = Field(..., description="Storage provider address")
@@ -33,7 +33,7 @@ class FilecoinDeal(BaseModel):
 
 class FilecoinTipset(BaseModel):
     """Model for Filecoin tipsets."""
-    
+
     height: int = Field(..., description="The height of the tipset")
     key: List[str] = Field(..., description="The CIDs that form the tipset key")
     timestamp: int = Field(..., description="The timestamp of the tipset")

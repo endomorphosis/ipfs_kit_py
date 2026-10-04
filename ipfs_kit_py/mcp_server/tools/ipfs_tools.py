@@ -1,4 +1,5 @@
 """IPFS content tool group (add / cat)."""
+
 from __future__ import annotations
 
 import uuid

@@ -33,6 +33,7 @@ import uvicorn
 try:
     from mcp import McpServer
     from mcp.types import Tool, TextContent
+
     MCP_AVAILABLE = True
 except ImportError:
     MCP_AVAILABLE = False
@@ -43,14 +44,21 @@ try:
     from ..bucket_vfs_manager import BucketType, VFSStructureType, get_global_bucket_manager
     from ..enhanced_bucket_index import EnhancedBucketIndex
     from ..error import create_result_dict
+
     IPFS_KIT_AVAILABLE = True
 except ImportError:
     # Create simple fallback classes when imports aren't available
     class UnifiedBucketInterface:
-        def __init__(self, **kwargs): pass
+        def __init__(self, **kwargs):
+            pass
+
     class EnhancedBucketIndex:
-        def __init__(self, **kwargs): pass
-    def get_global_bucket_manager(**kwargs): return None
+        def __init__(self, **kwargs):
+            pass
+
+    def get_global_bucket_manager(**kwargs):
+        return None
+
     IPFS_KIT_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
@@ -59,53 +67,53 @@ logger = logging.getLogger(__name__)
 class RefactoredUnifiedMCPDashboard:
     """
     Refactored Unified MCP Server + Dashboard on single port (8004).
-    
+
     Key improvements:
     - Separated HTML template from Python code
     - External CSS and JavaScript files
     - Better maintainability and modularity
     - Clean template rendering with Jinja2
     """
-    
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """Initialize the refactored unified MCP server and dashboard."""
         if config is None:
             config = {
-                'host': '127.0.0.1',
-                'port': 8004,  # Single port for both MCP and dashboard
-                'data_dir': '~/.ipfs_kit',
-                'debug': False,
-                'update_interval': 3
+                "host": "127.0.0.1",
+                "port": 8004,  # Single port for both MCP and dashboard
+                "data_dir": "~/.ipfs_kit",
+                "debug": False,
+                "update_interval": 3,
             }
-        
+
         self.config = config
-        self.host = config.get('host', '127.0.0.1')
-        self.port = config.get('port', 8004)
-        self.data_dir = Path(config.get('data_dir', '~/.ipfs_kit')).expanduser()
-        self.debug = config.get('debug', False)
-        self.update_interval = config.get('update_interval', 3)
-        
+        self.host = config.get("host", "127.0.0.1")
+        self.port = config.get("port", 8004)
+        self.data_dir = Path(config.get("data_dir", "~/.ipfs_kit")).expanduser()
+        self.debug = config.get("debug", False)
+        self.update_interval = config.get("update_interval", 3)
+
         # Set up paths for templates and static files
         self.mcp_dir = Path(__file__).parent
         self.template_dir = self.mcp_dir / "dashboard_templates"
         self.static_dir = self.mcp_dir / "dashboard_static"
-        
+
         # Initialize FastAPI app with both MCP and dashboard routes
         self.app = FastAPI(
             title="IPFS Kit - Refactored MCP Server & Dashboard",
             version="4.0.0",
-            description="Single-port MCP server with integrated dashboard (refactored)"
+            description="Single-port MCP server with integrated dashboard (refactored)",
         )
-        
+
         # Setup template engine
         self.templates = Jinja2Templates(directory=str(self.template_dir))
-        
+
         # Setup components
         self._setup_middleware()
         self._setup_static_files()
         self._register_mcp_tools()
         self._setup_routes()
-        
+
         # Initialize IPFS Kit components if available
         if IPFS_KIT_AVAILABLE:
             try:
@@ -142,7 +150,7 @@ class RefactoredUnifiedMCPDashboard:
         if not MCP_AVAILABLE:
             logger.warning("MCP not available, skipping tool registration")
             return
-            
+
         self.mcp_tools = [
             Tool(
                 name="list_buckets",
@@ -152,10 +160,10 @@ class RefactoredUnifiedMCPDashboard:
                     "properties": {
                         "backend_filter": {
                             "type": "string",
-                            "description": "Optional backend type filter"
+                            "description": "Optional backend type filter",
                         }
-                    }
-                }
+                    },
+                },
             ),
             Tool(
                 name="create_bucket",
@@ -165,21 +173,19 @@ class RefactoredUnifiedMCPDashboard:
                     "properties": {
                         "name": {"type": "string"},
                         "backend": {"type": "string"},
-                        "bucket_type": {"type": "string"}
+                        "bucket_type": {"type": "string"},
                     },
-                    "required": ["name", "backend"]
-                }
+                    "required": ["name", "backend"],
+                },
             ),
             Tool(
                 name="delete_bucket",
                 description="Delete a storage bucket",
                 inputSchema={
                     "type": "object",
-                    "properties": {
-                        "name": {"type": "string"}
-                    },
-                    "required": ["name"]
-                }
+                    "properties": {"name": {"type": "string"}},
+                    "required": ["name"],
+                },
             ),
             Tool(
                 name="add_pin",
@@ -189,32 +195,30 @@ class RefactoredUnifiedMCPDashboard:
                     "properties": {
                         "bucket": {"type": "string"},
                         "cid": {"type": "string"},
-                        "name": {"type": "string"}
+                        "name": {"type": "string"},
                     },
-                    "required": ["bucket", "cid"]
-                }
+                    "required": ["bucket", "cid"],
+                },
             ),
             Tool(
                 name="remove_pin",
                 description="Remove a pin from a bucket",
                 inputSchema={
                     "type": "object",
-                    "properties": {
-                        "cid": {"type": "string"}
-                    },
-                    "required": ["cid"]
-                }
+                    "properties": {"cid": {"type": "string"}},
+                    "required": ["cid"],
+                },
             ),
             Tool(
                 name="get_system_status",
                 description="Get current system status and metrics",
-                inputSchema={"type": "object", "properties": {}}
-            )
+                inputSchema={"type": "object", "properties": {}},
+            ),
         ]
 
     def _setup_routes(self):
         """Setup all API routes for both MCP and dashboard."""
-        
+
         @self.app.post("/mcp/initialize")
         async def mcp_initialize():
             """MCP initialization endpoint."""
@@ -224,7 +228,9 @@ class RefactoredUnifiedMCPDashboard:
         async def mcp_list_tools():
             """List available MCP tools."""
             return {
-                "tools": [tool.dict() for tool in self.mcp_tools] if hasattr(self, 'mcp_tools') else []
+                "tools": [tool.dict() for tool in self.mcp_tools]
+                if hasattr(self, "mcp_tools")
+                else []
             }
 
         @self.app.post("/mcp/tools/call")
@@ -234,7 +240,7 @@ class RefactoredUnifiedMCPDashboard:
                 body = await request.json()
                 tool_name = body.get("name")
                 arguments = body.get("arguments", {})
-                
+
                 if tool_name == "list_buckets":
                     result = await self._handle_list_buckets(arguments)
                 elif tool_name == "create_bucket":
@@ -249,18 +255,19 @@ class RefactoredUnifiedMCPDashboard:
                     result = await self._handle_get_system_status(arguments)
                 else:
                     result = {"error": f"Unknown tool: {tool_name}"}
-                
-                return {"content": [TextContent(type="text", text=json.dumps(result, indent=2)).dict()]}
+
+                return {
+                    "content": [TextContent(type="text", text=json.dumps(result, indent=2)).dict()]
+                }
             except Exception as e:
                 return {"error": str(e)}
 
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard_home(request: Request):
             """Serve the main dashboard."""
-            return self.templates.TemplateResponse("unified_dashboard.html", {
-                "request": request,
-                "port": self.port
-            })
+            return self.templates.TemplateResponse(
+                "unified_dashboard.html", {"request": request, "port": self.port}
+            )
 
         @self.app.get("/api/system/overview")
         async def get_system_overview():
@@ -270,14 +277,14 @@ class RefactoredUnifiedMCPDashboard:
                 services_data = await self._get_services_status()
                 backends_data = await self._get_backends_status()
                 buckets_data = await self._get_buckets_status()
-                
+
                 return {
                     "system": system_data,
                     "services": len(services_data.get("services", [])),
                     "backends": len(backends_data.get("backends", [])),
                     "buckets": len(buckets_data.get("buckets", [])),
                     "peer_id": await self._get_ipfs_peer_id(),
-                    "addresses": await self._get_ipfs_addresses()
+                    "addresses": await self._get_ipfs_addresses(),
                 }
             except Exception as e:
                 logger.error(f"Error getting system overview: {e}")
@@ -319,7 +326,7 @@ class RefactoredUnifiedMCPDashboard:
                 body = await request.json()
                 cid = body.get("cid")
                 name = body.get("name", "")
-                
+
                 result = await self._add_pin(cid, name)
                 return result
             except Exception as e:
@@ -333,12 +340,12 @@ class RefactoredUnifiedMCPDashboard:
                 return result
             except Exception as e:
                 return {"success": False, "error": str(e)}
-        
+
         @self.app.get("/api/config")
         async def get_config():
             """Get system configuration."""
             return await self._get_config_status()
-        
+
         @self.app.get("/health")
         async def health_check():
             """Health check endpoint."""
@@ -347,7 +354,7 @@ class RefactoredUnifiedMCPDashboard:
                 "version": "4.0.0",
                 "unified_mode": True,
                 "timestamp": datetime.now().isoformat(),
-                "message": "Unified MCP dashboard running"
+                "message": "Unified MCP dashboard running",
             }
 
     def _get_system_metrics(self):
@@ -355,28 +362,18 @@ class RefactoredUnifiedMCPDashboard:
         try:
             cpu_percent = psutil.cpu_percent(interval=1)
             memory = psutil.virtual_memory()
-            disk = psutil.disk_usage('/')
+            disk = psutil.disk_usage("/")
             network = psutil.net_io_counters()
-            
+
             return {
-                "cpu": {
-                    "usage": cpu_percent,
-                    "count": psutil.cpu_count()
-                },
-                "memory": {
-                    "total": memory.total,
-                    "used": memory.used,
-                    "percent": memory.percent
-                },
+                "cpu": {"usage": cpu_percent, "count": psutil.cpu_count()},
+                "memory": {"total": memory.total, "used": memory.used, "percent": memory.percent},
                 "disk": {
                     "total": disk.total,
                     "used": disk.used,
-                    "percent": (disk.used / disk.total) * 100
+                    "percent": (disk.used / disk.total) * 100,
                 },
-                "network": {
-                    "sent": network.bytes_sent,
-                    "recv": network.bytes_recv
-                }
+                "network": {"sent": network.bytes_sent, "recv": network.bytes_recv},
             }
         except Exception as e:
             logger.error(f"Error getting system metrics: {e}")
@@ -384,45 +381,49 @@ class RefactoredUnifiedMCPDashboard:
                 "cpu": {"usage": 0, "count": 0},
                 "memory": {"total": 0, "used": 0, "percent": 0},
                 "disk": {"total": 0, "used": 0, "percent": 0},
-                "network": {"sent": 0, "recv": 0}
+                "network": {"sent": 0, "recv": 0},
             }
 
     async def _get_services_status(self):
         """Get status of all services."""
         services = []
-        
+
         # MCP Server (always running if we're here)
-        services.append({
-            "name": "MCP Server",
-            "status": "running",
-            "type": "mcp",
-            "description": "Model Context Protocol Server"
-        })
-        
+        services.append(
+            {
+                "name": "MCP Server",
+                "status": "running",
+                "type": "mcp",
+                "description": "Model Context Protocol Server",
+            }
+        )
+
         # Check IPFS daemon
         ipfs_status = await self._check_ipfs_daemon()
-        services.append({
-            "name": "IPFS Daemon",
-            "status": ipfs_status["status"],
-            "type": "ipfs",
-            "description": "InterPlanetary File System Daemon",
-            "error": ipfs_status.get("error")
-        })
-        
+        services.append(
+            {
+                "name": "IPFS Daemon",
+                "status": ipfs_status["status"],
+                "type": "ipfs",
+                "description": "InterPlanetary File System Daemon",
+                "error": ipfs_status.get("error"),
+            }
+        )
+
         return {
             "services": services,
             "summary": {
                 "total": len(services),
                 "running": len([s for s in services if s["status"] == "running"]),
-                "stopped": len([s for s in services if s["status"] in ["stopped", "error"]])
-            }
+                "stopped": len([s for s in services if s["status"] in ["stopped", "error"]]),
+            },
         }
 
     async def _get_backends_status(self):
         """Get status of storage backends."""
         if not self.bucket_interface:
             return {"backends": []}
-        
+
         try:
             result = await self.bucket_interface.list_backend_buckets()
             if result["success"]:
@@ -434,7 +435,7 @@ class RefactoredUnifiedMCPDashboard:
                             "name": backend_name,
                             "type": backend_name,
                             "status": "online",
-                            "buckets": []
+                            "buckets": [],
                         }
                     backends[backend_name]["buckets"].append(bucket["bucket_name"])
                 return {"backends": list(backends.values())}
@@ -449,7 +450,7 @@ class RefactoredUnifiedMCPDashboard:
         """Get status of buckets."""
         if not self.bucket_interface:
             return {"buckets": []}
-        
+
         try:
             result = await self.bucket_interface.list_backend_buckets()
             if result["success"]:
@@ -465,7 +466,7 @@ class RefactoredUnifiedMCPDashboard:
         """Get pinned items."""
         if not self.global_pin_index:
             return {"pins": []}
-        
+
         try:
             all_pins = self.global_pin_index.get_all_pins()
             return {"pins": all_pins}
@@ -482,25 +483,25 @@ class RefactoredUnifiedMCPDashboard:
                     "port": self.port,
                     "host": self.host,
                     "data_dir": str(self.data_dir),
-                    "debug": self.debug
+                    "debug": self.debug,
                 },
                 "mcp": {
                     "enabled": True,
                     "protocol_version": "1.0",
-                    "tools_available": MCP_AVAILABLE
+                    "tools_available": MCP_AVAILABLE,
                 },
                 "backends": {
                     "available": [b.value for b in BackendType],
-                    "configured": list(self.bucket_vfs_managers.keys())
+                    "configured": list(self.bucket_vfs_managers.keys()),
                 },
                 "features": {
                     "unified_dashboard": True,
                     "bucket_management": True,
                     "pin_management": True,
-                    "service_management": True
-                }
+                    "service_management": True,
+                },
             }
-            
+
             return {"config": config, "status": "loaded"}
         except Exception as e:
             logger.error(f"Error getting config: {e}")
@@ -566,10 +567,10 @@ class RefactoredUnifiedMCPDashboard:
             name = arguments.get("name")
             backend = arguments.get("backend")
             bucket_type = arguments.get("bucket_type", "standard")
-            
+
             if not name or not backend:
                 return create_result_dict(False, "Name and backend are required")
-            
+
             # This would need actual bucket creation implementation
             result = {"name": name, "backend": backend, "type": bucket_type}
             return create_result_dict(True, f"Bucket '{name}' created successfully", result)
@@ -582,7 +583,7 @@ class RefactoredUnifiedMCPDashboard:
             name = arguments.get("name")
             if not name:
                 return create_result_dict(False, "Name is required")
-            
+
             # This would need actual bucket deletion implementation
             return create_result_dict(True, f"Bucket '{name}' deleted successfully")
         except Exception as e:
@@ -604,7 +605,7 @@ class RefactoredUnifiedMCPDashboard:
             name = arguments.get("name")
             if not bucket or not cid:
                 return create_result_dict(False, "Bucket and CID are required")
-            
+
             result = await self._add_pin(cid, name)
             return result
         except Exception as e:
@@ -616,7 +617,7 @@ class RefactoredUnifiedMCPDashboard:
             cid = arguments.get("cid")
             if not cid:
                 return create_result_dict(False, "CID is required")
-            
+
             result = await self._remove_pin(cid)
             return result
         except Exception as e:
@@ -627,22 +628,18 @@ class RefactoredUnifiedMCPDashboard:
         logger.info(f"Starting Refactored Unified MCP Dashboard on {self.host}:{self.port}")
         logger.info(f"Template directory: {self.template_dir}")
         logger.info(f"Static directory: {self.static_dir}")
-        
+
         uvicorn.run(
-            self.app,
-            host=self.host,
-            port=self.port,
-            log_level="debug" if self.debug else "info"
+            self.app, host=self.host, port=self.port, log_level="debug" if self.debug else "info"
         )
 
 
 def main():
     """Main entry point."""
     logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    
+
     dashboard = RefactoredUnifiedMCPDashboard()
     dashboard.run()
 
