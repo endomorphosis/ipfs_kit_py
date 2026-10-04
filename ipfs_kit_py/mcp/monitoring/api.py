@@ -33,7 +33,7 @@ router = APIRouter(prefix="/api/v0/monitoring", tags=["monitoring"])
 
 class MonitoringAPIService:
     """Service class providing monitoring API endpoints."""
-    
+
     def __init__(
         self,
         monitoring_manager: MonitoringManager,
@@ -43,7 +43,7 @@ class MonitoringAPIService:
     ):
         """
         Initialize the monitoring API service.
-        
+
         Args:
             monitoring_manager: MCP monitoring manager
             prometheus_integration: Prometheus integration
@@ -54,12 +54,13 @@ class MonitoringAPIService:
         self.prometheus = prometheus_integration
         self.health = health_manager
         self.alerts = alert_manager
-        
+
         # Register routes with the router
         self._register_routes()
-    
+
     def _register_routes(self) -> None:
         """Register API routes with the router."""
+
         # Metrics routes
         @router.get(
             "/metrics",
@@ -74,16 +75,16 @@ class MonitoringAPIService:
             """Get all metrics in JSON or Prometheus format."""
             # Update collection time
             self.prometheus.last_scrape_time = time.time()
-            
+
             # Collect custom metrics before returning
             self.prometheus.collect_custom_metrics()
-            
+
             # Return in requested format
             if format.lower() == "prometheus":
                 return PlainTextResponse(self.monitoring.get_metrics(format="prometheus"))
             else:
                 return self.monitoring.get_metrics()
-        
+
         @router.get(
             "/metrics/{tag}",
             summary="Get metrics by tag",
@@ -102,10 +103,9 @@ class MonitoringAPIService:
             except ValueError:
                 # Invalid tag
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid metric tag: {tag}"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid metric tag: {tag}"
                 )
-        
+
         # Health check routes
         @router.get(
             "/health",
@@ -116,7 +116,7 @@ class MonitoringAPIService:
         async def get_health() -> Dict[str, Any]:
             """Get overall system health status."""
             summary = self.health.get_health_summary()
-            
+
             # Add response status code based on health
             status_code = status.HTTP_200_OK
             if summary["status"] == HealthStatus.DEGRADED:
@@ -125,12 +125,9 @@ class MonitoringAPIService:
                 status_code = status.HTTP_503_SERVICE_UNAVAILABLE
             elif summary["status"] == HealthStatus.UNKNOWN:
                 status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-            
-            return JSONResponse(
-                content=summary,
-                status_code=status_code
-            )
-        
+
+            return JSONResponse(content=summary, status_code=status_code)
+
         @router.get(
             "/health/checks",
             summary="Get all health checks",
@@ -140,7 +137,7 @@ class MonitoringAPIService:
         async def get_health_checks() -> Dict[str, Any]:
             """Get all health checks."""
             checks = self.health.get_checks()
-            
+
             # Convert to dictionary
             check_data = {}
             for check in checks:
@@ -156,12 +153,9 @@ class MonitoringAPIService:
                     "enabled": check.enabled,
                     "labels": check.labels,
                 }
-            
-            return {
-                "checks": check_data,
-                "count": len(checks)
-            }
-        
+
+            return {"checks": check_data, "count": len(checks)}
+
         @router.get(
             "/health/checks/{check_id}",
             summary="Get health check by ID",
@@ -174,15 +168,15 @@ class MonitoringAPIService:
             if not check:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Health check not found: {check_id}"
+                    detail=f"Health check not found: {check_id}",
                 )
-            
+
             # Get latest result
             result = self.health.get_result(check_id)
-            
+
             # Get history
             history = self.health.get_result_history(check_id, limit=10)
-            
+
             # Convert to dictionary
             check_data = {
                 "id": check.id,
@@ -196,7 +190,7 @@ class MonitoringAPIService:
                 "enabled": check.enabled,
                 "labels": check.labels,
             }
-            
+
             # Add result if available
             if result:
                 check_data["latest_result"] = {
@@ -206,7 +200,7 @@ class MonitoringAPIService:
                     "details": result.details,
                     "error": result.error,
                 }
-            
+
             # Add history if available
             if history:
                 check_data["history"] = [
@@ -218,9 +212,9 @@ class MonitoringAPIService:
                     }
                     for r in history
                 ]
-            
+
             return check_data
-        
+
         @router.post(
             "/health/checks/{check_id}/run",
             summary="Run health check",
@@ -234,17 +228,17 @@ class MonitoringAPIService:
             if not check:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Health check not found: {check_id}"
+                    detail=f"Health check not found: {check_id}",
                 )
-            
+
             # Run check
             result = self.health.run_check(check_id)
             if not result:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to run health check: {check_id}"
+                    detail=f"Failed to run health check: {check_id}",
                 )
-            
+
             # Return result
             return {
                 "id": check_id,
@@ -254,7 +248,7 @@ class MonitoringAPIService:
                 "details": result.details,
                 "error": result.error,
             }
-        
+
         @router.post(
             "/health/run-all",
             summary="Run all health checks",
@@ -265,7 +259,7 @@ class MonitoringAPIService:
             """Run all health checks."""
             # Run all checks
             results = self.health.run_all_checks()
-            
+
             # Convert to dictionary
             result_data = {}
             for check_id, result in results.items():
@@ -276,19 +270,20 @@ class MonitoringAPIService:
                     "details": result.details,
                     "error": result.error,
                 }
-            
+
             # Get overall status
             summary = self.health.get_health_summary()
-            
+
             return {
                 "results": result_data,
                 "count": len(results),
                 "status": summary["status"],
                 "counts": summary["counts"],
             }
-        
+
         # Alert routes (only if alert manager is available)
         if self.alerts:
+
             @router.get(
                 "/alerts",
                 summary="Get all alerts",
@@ -308,12 +303,12 @@ class MonitoringAPIService:
                     except ValueError:
                         raise HTTPException(
                             status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"Invalid alert state: {state}"
+                            detail=f"Invalid alert state: {state}",
                         )
-                
+
                 # Get alerts
                 alerts = self.alerts.get_alerts(state=alert_state)
-                
+
                 # Filter by severity if provided
                 if severity:
                     try:
@@ -322,36 +317,37 @@ class MonitoringAPIService:
                     except ValueError:
                         raise HTTPException(
                             status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"Invalid alert severity: {severity}"
+                            detail=f"Invalid alert severity: {severity}",
                         )
-                
+
                 # Convert to dictionary
                 alert_data = []
                 for alert in alerts:
-                    alert_data.append({
-                        "id": alert.id,
-                        "rule_id": alert.rule_id,
-                        "name": alert.name,
-                        "description": alert.description,
-                        "metric_name": alert.metric_name,
-                        "value": alert.value,
-                        "threshold": alert.threshold,
-                        "comparison": alert.comparison,
-                        "severity": alert.severity,
-                        "state": alert.state,
-                        "labels": alert.labels,
-                        "started_at": alert.started_at.isoformat(),
-                        "updated_at": alert.updated_at.isoformat(),
-                        "resolved_at": alert.resolved_at.isoformat() if alert.resolved_at else None,
-                        "suppressed": alert.suppressed,
-                        "notification_count": alert.notification_count,
-                    })
-                
-                return {
-                    "alerts": alert_data,
-                    "count": len(alert_data)
-                }
-            
+                    alert_data.append(
+                        {
+                            "id": alert.id,
+                            "rule_id": alert.rule_id,
+                            "name": alert.name,
+                            "description": alert.description,
+                            "metric_name": alert.metric_name,
+                            "value": alert.value,
+                            "threshold": alert.threshold,
+                            "comparison": alert.comparison,
+                            "severity": alert.severity,
+                            "state": alert.state,
+                            "labels": alert.labels,
+                            "started_at": alert.started_at.isoformat(),
+                            "updated_at": alert.updated_at.isoformat(),
+                            "resolved_at": alert.resolved_at.isoformat()
+                            if alert.resolved_at
+                            else None,
+                            "suppressed": alert.suppressed,
+                            "notification_count": alert.notification_count,
+                        }
+                    )
+
+                return {"alerts": alert_data, "count": len(alert_data)}
+
             @router.get(
                 "/alerts/{alert_id}",
                 summary="Get alert by ID",
@@ -363,10 +359,9 @@ class MonitoringAPIService:
                 alert = self.alerts.get_alert(alert_id)
                 if not alert:
                     raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Alert not found: {alert_id}"
+                        status_code=status.HTTP_404_NOT_FOUND, detail=f"Alert not found: {alert_id}"
                     )
-                
+
                 # Convert to dictionary
                 return {
                     "id": alert.id,
@@ -384,14 +379,16 @@ class MonitoringAPIService:
                     "updated_at": alert.updated_at.isoformat(),
                     "resolved_at": alert.resolved_at.isoformat() if alert.resolved_at else None,
                     "suppressed": alert.suppressed,
-                    "suppressed_until": alert.suppressed_until.isoformat() if alert.suppressed_until else None,
+                    "suppressed_until": alert.suppressed_until.isoformat()
+                    if alert.suppressed_until
+                    else None,
                     "suppressed_reason": alert.suppressed_reason,
                     "notified_at": alert.notified_at.isoformat() if alert.notified_at else None,
                     "notification_count": alert.notification_count,
                     "last_value": alert.last_value,
                     "last_checked": alert.last_checked.isoformat(),
                 }
-            
+
             @router.get(
                 "/alerts/history",
                 summary="Get alert history",
@@ -403,25 +400,26 @@ class MonitoringAPIService:
             ) -> Dict[str, Any]:
                 """Get alert history."""
                 history = self.alerts.get_alert_history(limit=limit)
-                
+
                 # Convert to dictionary
                 history_data = []
                 for alert in history:
-                    history_data.append({
-                        "id": alert.id,
-                        "rule_id": alert.rule_id,
-                        "name": alert.name,
-                        "severity": alert.severity,
-                        "state": alert.state,
-                        "started_at": alert.started_at.isoformat(),
-                        "resolved_at": alert.resolved_at.isoformat() if alert.resolved_at else None,
-                    })
-                
-                return {
-                    "history": history_data,
-                    "count": len(history_data)
-                }
-            
+                    history_data.append(
+                        {
+                            "id": alert.id,
+                            "rule_id": alert.rule_id,
+                            "name": alert.name,
+                            "severity": alert.severity,
+                            "state": alert.state,
+                            "started_at": alert.started_at.isoformat(),
+                            "resolved_at": alert.resolved_at.isoformat()
+                            if alert.resolved_at
+                            else None,
+                        }
+                    )
+
+                return {"history": history_data, "count": len(history_data)}
+
             @router.get(
                 "/alerts/rules",
                 summary="Get alert rules",
@@ -431,31 +429,30 @@ class MonitoringAPIService:
             async def get_alert_rules() -> Dict[str, Any]:
                 """Get all alert rules."""
                 rules = self.alerts.get_rules()
-                
+
                 # Convert to dictionary
                 rule_data = []
                 for rule in rules:
-                    rule_data.append({
-                        "id": rule.id,
-                        "name": rule.name,
-                        "description": rule.description,
-                        "metric_name": rule.metric_name,
-                        "threshold": rule.threshold,
-                        "comparison": rule.comparison,
-                        "severity": rule.severity,
-                        "duration": rule.duration,
-                        "enabled": rule.enabled,
-                        "labels": rule.labels,
-                        "notifications": [n for n in rule.notifications],
-                        "auto_resolve": rule.auto_resolve,
-                        "resolve_duration": rule.resolve_duration,
-                    })
-                
-                return {
-                    "rules": rule_data,
-                    "count": len(rule_data)
-                }
-            
+                    rule_data.append(
+                        {
+                            "id": rule.id,
+                            "name": rule.name,
+                            "description": rule.description,
+                            "metric_name": rule.metric_name,
+                            "threshold": rule.threshold,
+                            "comparison": rule.comparison,
+                            "severity": rule.severity,
+                            "duration": rule.duration,
+                            "enabled": rule.enabled,
+                            "labels": rule.labels,
+                            "notifications": [n for n in rule.notifications],
+                            "auto_resolve": rule.auto_resolve,
+                            "resolve_duration": rule.resolve_duration,
+                        }
+                    )
+
+                return {"rules": rule_data, "count": len(rule_data)}
+
             @router.post(
                 "/alerts/check",
                 summary="Check alerts",
@@ -466,25 +463,25 @@ class MonitoringAPIService:
                 """Manually check all alert rules."""
                 # Run alert check
                 self.alerts.check_alerts()
-                
+
                 # Get current alerts
                 alerts = self.alerts.get_alerts()
-                
+
                 # Count by state and severity
                 state_counts = {}
                 severity_counts = {}
-                
+
                 for alert in alerts:
                     state_counts[alert.state] = state_counts.get(alert.state, 0) + 1
                     severity_counts[alert.severity] = severity_counts.get(alert.severity, 0) + 1
-                
+
                 return {
                     "checked_at": datetime.now().isoformat(),
                     "alert_count": len(alerts),
                     "state_counts": state_counts,
                     "severity_counts": severity_counts,
                 }
-        
+
         # System info route
         @router.get(
             "/system",
@@ -495,7 +492,7 @@ class MonitoringAPIService:
         async def get_system_info() -> Dict[str, Any]:
             """Get detailed system information."""
             return self.monitoring.get_system_info()
-        
+
         # Dashboard routes
         @router.get(
             "/dashboard",
@@ -1052,13 +1049,13 @@ def create_monitoring_api(
 ) -> MonitoringAPIService:
     """
     Create the monitoring API service.
-    
+
     Args:
         monitoring_manager: MCP monitoring manager
         prometheus_integration: Prometheus integration
         health_manager: Health check manager
         alert_manager: Optional alert manager
-        
+
     Returns:
         MonitoringAPIService instance
     """

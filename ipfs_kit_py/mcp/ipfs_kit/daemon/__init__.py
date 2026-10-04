@@ -3,7 +3,7 @@ IPFS Kit Daemon Package.
 
 This package provides the daemon architecture for IPFS Kit:
 - IPFSKitDaemon: Standalone daemon for backend management
-- IPFSKitDaemonClient: Client library for communicating with daemon  
+- IPFSKitDaemonClient: Client library for communicating with daemon
 - DaemonAwareComponent: Base class for daemon-aware components
 - CLI tools and launchers
 
@@ -18,9 +18,9 @@ from .daemon_client import check_daemon_health, ensure_daemon_running
 
 __all__ = [
     "IPFSKitDaemonClient",
-    "DaemonAwareComponent", 
+    "DaemonAwareComponent",
     "check_daemon_health",
-    "ensure_daemon_running"
+    "ensure_daemon_running",
 ]
 
 __version__ = "1.0.0"

@@ -106,12 +106,14 @@ class _CoroutineValue(Coroutine):
 # Check for WASM dependencies
 try:
     import wasmtime
+
     HAS_WASMTIME = True
 except ImportError:
     HAS_WASMTIME = False
 
 try:
     import wasmer
+
     HAS_WASMER = True
 except ImportError:
     HAS_WASMER = False
@@ -120,15 +122,15 @@ except ImportError:
 class WasmIPFSBridge:
     """
     Bridge between Python IPFS Kit and WebAssembly runtime.
-    
+
     Enables IPFS operations to be called from WASM modules and
     allows WASM modules to be stored/retrieved from IPFS.
     """
-    
+
     def __init__(self, ipfs_api=None, runtime: str = "wasmtime"):
         """
         Initialize WASM bridge.
-        
+
         Args:
             ipfs_api: IPFS API instance
             runtime: WASM runtime to use ("wasmtime" or "wasmer")
@@ -168,14 +170,14 @@ class WasmIPFSBridge:
         if exports is None:
             raise Exception("Invalid WASM module: missing exports")
         return exports
-    
+
     async def load_wasm_module(self, cid: str) -> Optional[Any]:
         """
         Load a WASM module from IPFS.
-        
+
         Args:
             cid: IPFS CID of the WASM module
-            
+
         Returns:
             Compiled WASM module instance
         """
@@ -267,65 +269,74 @@ class WasmIPFSBridge:
         if self.runtime == "wasmer":
             return self._load_wasmer_module(wasm_bytes)
         raise Exception(f"Unsupported runtime: {self.runtime}")
-    
+
     def _load_wasmtime_module(self, wasm_bytes: bytes) -> Any:
         """Load WASM module using Wasmtime."""
         from wasmtime import Store, Module, Instance
-        
+
         store = Store()
         module = Module(store.engine, wasm_bytes)
         instance = Instance(store, module, [])
-        
+
         return instance
-    
+
     def _load_wasmer_module(self, wasm_bytes: bytes) -> Any:
         """Load WASM module using Wasmer."""
         from wasmer import engine, Store, Module, Instance
         from wasmer_compiler_cranelift import Compiler
-        
+
         store = Store(engine.JIT(Compiler))
         module = Module(store, wasm_bytes)
         instance = Instance(module)
-        
+
         return instance
-    
-    async def store_wasm_module(self, wasm_bytes: bytes, metadata: Optional[Dict[str, Any]] = None) -> str:
+
+    async def store_wasm_module(
+        self, wasm_bytes: bytes, metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
         """
         Store a WASM module in IPFS.
-        
+
         Args:
             wasm_bytes: Compiled WASM binary
             metadata: Optional metadata about the module
-            
+
         Returns:
             CID of stored WASM module
         """
         try:
             if self.ipfs_api is None:
                 raise Exception("IPFS API not initialized")
-            
+
             # Store WASM binary
             result = await self.ipfs_api.add(wasm_bytes)
             cid = None
             if isinstance(result, dict):
-                cid = result.get("cid") or result.get("Hash") or result.get("Cid") or result.get("CID")
+                cid = (
+                    result.get("cid")
+                    or result.get("Hash")
+                    or result.get("Cid")
+                    or result.get("CID")
+                )
             elif isinstance(result, str):
                 cid = result
             if not cid:
                 raise Exception("IPFS add() did not return a CID")
-            
+
             # Store metadata if provided
             if metadata:
                 metadata_cid = await self.ipfs_api.add(metadata)
                 logger.info(f"Stored WASM metadata at {metadata_cid}")
-            
+
             logger.info(f"Stored WASM module at {cid}")
             return cid
         except Exception as e:
             logger.error(f"Error storing WASM module: {e}")
             raise
 
-    async def store_module(self, wasm_bytes: bytes, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def store_module(
+        self, wasm_bytes: bytes, metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Phase-6 compatibility wrapper returning a dict payload."""
         if self.ipfs_api is None:
             raise Exception("IPFS API not initialized")
@@ -334,23 +345,26 @@ class WasmIPFSBridge:
         if metadata is not None:
             result["metadata"] = metadata
         return result
-    
-    async def execute_wasm_function(self, module: Any, function_name: str, 
-                                   args: List[Any] = None) -> Any:
+
+    async def execute_wasm_function(
+        self, module: Any, function_name: str, args: List[Any] = None
+    ) -> Any:
         """
         Execute a function in a WASM module.
-        
+
         Args:
             module: Compiled WASM module instance
             function_name: Name of function to execute
             args: Function arguments
-            
+
         Returns:
             Function result
         """
         return self.execute_function(module, function_name, args or [])
 
-    def execute_function(self, module: Any, function_name: str, args: Optional[List[Any]] = None) -> Any:
+    def execute_function(
+        self, module: Any, function_name: str, args: Optional[List[Any]] = None
+    ) -> Any:
         """Compatibility wrapper used by Phase-6 tests."""
         args = args or []
         exports = self._get_exports(module)
@@ -365,7 +379,11 @@ class WasmIPFSBridge:
         if callable(exports):
             store = getattr(module, "store", None)
             exported = exports(store)
-            func = exported.get(function_name) if isinstance(exported, dict) else exported[function_name]
+            func = (
+                exported.get(function_name)
+                if isinstance(exported, dict)
+                else exported[function_name]
+            )
             return func(store, *args) if store is not None else func(*args)
 
         func = getattr(exports, function_name, None)
@@ -388,7 +406,9 @@ class WasmIPFSBridge:
 
     def write_memory(self, module: Any, offset: int, data: bytes) -> None:
         exports = self._get_exports(module)
-        memory = exports.get("memory") if isinstance(exports, dict) else getattr(exports, "memory", None)
+        memory = (
+            exports.get("memory") if isinstance(exports, dict) else getattr(exports, "memory", None)
+        )
         if memory is None:
             raise Exception("No memory export found")
 
@@ -399,7 +419,9 @@ class WasmIPFSBridge:
 
     def read_memory(self, module: Any, offset: int, length: int) -> bytes:
         exports = self._get_exports(module)
-        memory = exports.get("memory") if isinstance(exports, dict) else getattr(exports, "memory", None)
+        memory = (
+            exports.get("memory") if isinstance(exports, dict) else getattr(exports, "memory", None)
+        )
         if memory is None:
             raise Exception("No memory export found")
 
@@ -439,61 +461,58 @@ class WasmIPFSBridge:
             except Exception:
                 continue
         return funcs
-    
+
     def create_ipfs_imports(self) -> Dict[str, Any]:
         """
         Create IPFS host functions that can be imported by WASM modules.
-        
+
         Returns:
             Dictionary of host functions
         """
         imports = {}
-        
+
         # Add IPFS operations as host functions
         if self.runtime == "wasmtime":
             imports = self._create_wasmtime_imports()
         elif self.runtime == "wasmer":
             imports = self._create_wasmer_imports()
-        
+
         return imports
-    
+
     def _create_wasmtime_imports(self) -> Dict[str, Any]:
         """Create host functions for Wasmtime."""
         from wasmtime import Func, FuncType, ValType
-        
+
         # Define host functions
         def ipfs_add(data_ptr: int, data_len: int) -> int:
             """Host function to add data to IPFS."""
             # Implementation would read from WASM memory and call IPFS API
             return 0
-        
+
         def ipfs_get(cid_ptr: int, cid_len: int) -> int:
             """Host function to get data from IPFS."""
             # Implementation would call IPFS API and write to WASM memory
             return 0
-        
-        return {
-            "ipfs_add": ipfs_add,
-            "ipfs_get": ipfs_get
-        }
-    
+
+        return {"ipfs_add": ipfs_add, "ipfs_get": ipfs_get}
+
     def _create_wasmer_imports(self) -> Dict[str, Any]:
         """Create host functions for Wasmer."""
         from wasmer import Function, FunctionType, Type
-        
+
         # Define host functions
         def ipfs_add(data_ptr: int, data_len: int) -> int:
             """Host function to add data to IPFS."""
             return 0
-        
+
         def ipfs_get(cid_ptr: int, cid_len: int) -> int:
             """Host function to get data from IPFS."""
             return 0
-        
+
         return {
             "ipfs": {
                 "add": Function(FunctionType([Type.I32, Type.I32], [Type.I32]), ipfs_add),
-                "get": Function(FunctionType([Type.I32, Type.I32], [Type.I32]), ipfs_get)
+                "get": Function(FunctionType([Type.I32, Type.I32], [Type.I32]), ipfs_get),
             }
         }
 
@@ -501,10 +520,10 @@ class WasmIPFSBridge:
 class WasmModuleRegistry:
     """
     Registry for WASM modules stored in IPFS.
-    
+
     Manages metadata, versioning, and discovery of WASM modules.
     """
-    
+
     def __init__(self, ipfs_api=None):
         """Initialize WASM module registry."""
         self.ipfs_api = ipfs_api
@@ -516,12 +535,12 @@ class WasmModuleRegistry:
     ) -> bool:
         """
         Register a WASM module.
-        
+
         Args:
             name: Module name
             cid: IPFS CID of module
             metadata: Optional metadata
-            
+
         Returns:
             True if successful
         """
@@ -529,9 +548,9 @@ class WasmModuleRegistry:
             self.modules[name] = {
                 "cid": cid,
                 "metadata": metadata or {},
-                "registered_at": None  # Would use datetime
+                "registered_at": None,  # Would use datetime
             }
-            
+
             logger.info(f"Registered WASM module {name} at {cid}")
             return True
         except Exception as e:
@@ -541,10 +560,10 @@ class WasmModuleRegistry:
     async def get_module(self, name: str) -> Optional[Dict[str, Any]]:
         """
         Get module information.
-        
+
         Args:
             name: Module name
-            
+
         Returns:
             Module metadata
         """
@@ -553,13 +572,11 @@ class WasmModuleRegistry:
     def list_modules(self) -> List[Dict[str, Any]]:
         """
         List all registered modules.
-        
+
         Returns:
             List of module metadata
         """
-        return _AwaitableList(
-            [{"name": name, **info} for name, info in self.modules.items()]
-        )
+        return _AwaitableList([{"name": name, **info} for name, info in self.modules.items()])
 
     async def unregister_module(self, name: str) -> bool:
         if name not in self.modules:
@@ -573,16 +590,18 @@ class WasmJSBindings:
     """
     Generate JavaScript bindings for browser-based WASM usage.
     """
-    
+
     @staticmethod
-    def generate_js_bindings(module_info: Any = None, functions: Optional[List[str]] = None, **kwargs) -> str:
+    def generate_js_bindings(
+        module_info: Any = None, functions: Optional[List[str]] = None, **kwargs
+    ) -> str:
         """
         Generate JavaScript wrapper for WASM module.
-        
+
         Args:
             module_name: Name of the WASM module
             functions: List of exported function names
-            
+
         Returns:
             JavaScript code for browser
         """
@@ -635,7 +654,7 @@ class ${module_name}WASM {
     }
 """
         ).substitute(module_name=module_name)
-        
+
         # Add wrapper for each function
         wrapper_tmpl = Template(
             """
@@ -649,7 +668,7 @@ class ${module_name}WASM {
         )
         for func in functions:
             js_code += wrapper_tmpl.substitute(func=str(func))
-        
+
         js_code += Template(
             """
     }
@@ -658,7 +677,7 @@ class ${module_name}WASM {
     export default ${module_name}WASM;
     """
         ).substitute(module_name=module_name)
-        
+
         return js_code
 
     def generate_typescript_definitions(self, module_info: Dict[str, Any]) -> str:
@@ -666,14 +685,18 @@ class ${module_name}WASM {
         name = str((module_info or {}).get("name") or "WasmModule")
         funcs = list((module_info or {}).get("functions") or [])
 
-        lines: List[str] = [f"// TypeScript definitions for {name}", f"export interface {name}Exports {{"]
+        lines: List[str] = [
+            f"// TypeScript definitions for {name}",
+            f"export interface {name}Exports {{",
+        ]
         for f in funcs:
             if isinstance(f, dict):
                 fn = str(f.get("name") or "func")
                 params = f.get("params") or []
                 ret = str(f.get("return") or "any")
                 param_list = ", ".join(
-                    f"arg{i}: {str(p) if isinstance(p, str) else 'any'}" for i, p in enumerate(params)
+                    f"arg{i}: {str(p) if isinstance(p, str) else 'any'}"
+                    for i, p in enumerate(params)
                 )
                 lines.append(f"  {fn}({param_list}): {ret};")
             else:
@@ -692,4 +715,3 @@ def create_wasm_bridge(ipfs_api=None, runtime: str = "wasmtime") -> WasmIPFSBrid
 def create_wasm_registry(ipfs_api=None) -> WasmModuleRegistry:
     """Create WASM module registry instance."""
     return WasmModuleRegistry(ipfs_api=ipfs_api)
-

@@ -39,6 +39,7 @@ import uvicorn
 try:
     from mcp import McpServer
     from mcp.types import Tool, TextContent
+
     MCP_AVAILABLE = True
 except ImportError:
     MCP_AVAILABLE = False
@@ -49,14 +50,21 @@ try:
     from .bucket_vfs_manager import BucketType, VFSStructureType, get_global_bucket_manager
     from .enhanced_bucket_index import EnhancedBucketIndex
     from .error import create_result_dict
+
     IPFS_KIT_AVAILABLE = True
 except ImportError:
     # Create simple fallback classes when imports aren't available
     class UnifiedBucketInterface:
-        def __init__(self, **kwargs): pass
+        def __init__(self, **kwargs):
+            pass
+
     class EnhancedBucketIndex:
-        def __init__(self, **kwargs): pass
-    def get_global_bucket_manager(**kwargs): return None
+        def __init__(self, **kwargs):
+            pass
+
+    def get_global_bucket_manager(**kwargs):
+        return None
+
     IPFS_KIT_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
@@ -65,7 +73,7 @@ logger = logging.getLogger(__name__)
 class UnifiedMCPDashboard:
     """
     Unified MCP Server + Dashboard on single port (8004).
-    
+
     Provides:
     - MCP protocol endpoints for VS Code integration
     - Beautiful responsive dashboard UI
@@ -74,37 +82,37 @@ class UnifiedMCPDashboard:
     - Modern aesthetic design with pleasing colors
     - Complete IPFS Kit backend integration
     """
-    
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """Initialize the unified MCP server and dashboard."""
         if config is None:
             config = {
-                'host': '127.0.0.1',
-                'port': 8004,  # Single port for both MCP and dashboard
-                'data_dir': '~/.ipfs_kit',
-                'debug': False,
-                'update_interval': 3
+                "host": "127.0.0.1",
+                "port": 8004,  # Single port for both MCP and dashboard
+                "data_dir": "~/.ipfs_kit",
+                "debug": False,
+                "update_interval": 3,
             }
-        
+
         self.config = config
-        self.host = config.get('host', '127.0.0.1')
-        self.port = config.get('port', 8004)
-        self.data_dir = Path(config.get('data_dir', '~/.ipfs_kit')).expanduser()
-        self.debug = config.get('debug', False)
-        self.update_interval = config.get('update_interval', 3)
-        
+        self.host = config.get("host", "127.0.0.1")
+        self.port = config.get("port", 8004)
+        self.data_dir = Path(config.get("data_dir", "~/.ipfs_kit")).expanduser()
+        self.debug = config.get("debug", False)
+        self.update_interval = config.get("update_interval", 3)
+
         # Initialize FastAPI app with both MCP and dashboard routes
         self.app = FastAPI(
             title="IPFS Kit - Unified MCP Server & Dashboard",
             version="4.0.0",
-            description="Single-port MCP server with integrated dashboard"
+            description="Single-port MCP server with integrated dashboard",
         )
-        
+
         # Initialize MCP components if available
         if MCP_AVAILABLE:
             self.mcp_server = McpServer("ipfs-kit")
             self._register_mcp_tools()
-        
+
         # Initialize IPFS Kit components if available
         if IPFS_KIT_AVAILABLE:
             try:
@@ -120,23 +128,23 @@ class UnifiedMCPDashboard:
             self.bucket_manager = None
             self.bucket_interface = None
             self.bucket_index = None
-        
+
         # Data caches for efficiency
         self.system_metrics_cache = {}
         self.backends_cache = {}
         self.services_cache = {}
         self.pins_cache = {}
         self.last_update = 0
-        
+
         self._setup_static_files()
         self._setup_routes()
         self._setup_middleware()
-    
+
     def _setup_static_files(self):
         """Setup static file serving and template directories."""
         # Get the directory where this file is located
         current_dir = Path(__file__).parent.parent
-        
+
         # Setup template directory
         template_dir = current_dir / "templates"
         if template_dir.exists():
@@ -144,7 +152,7 @@ class UnifiedMCPDashboard:
         else:
             logger.warning(f"Template directory not found: {template_dir}")
             self.templates = None
-        
+
         # Setup static files directory
         static_dir = current_dir / "static"
         if static_dir.exists():
@@ -161,7 +169,7 @@ class UnifiedMCPDashboard:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-    
+
     def _register_mcp_tools(self):
         """Register MCP tools for VS Code integration."""
         if not MCP_AVAILABLE:
@@ -169,6 +177,7 @@ class UnifiedMCPDashboard:
 
         # Import all tools from the cli
         from ipfs_kit_py.cli import create_parser
+
         parser = create_parser()
         for command, subparser in parser._subparsers._group_actions[0].choices.items():
             for action, action_parser in subparser._subparsers._group_actions[0].choices.items():
@@ -176,32 +185,36 @@ class UnifiedMCPDashboard:
                 description = action_parser.description
                 input_schema = {
                     "type": "object",
-                    "properties": {arg.dest: {"type": "string"} for arg in action_parser._actions if arg.dest not in ["help"]},
-                    "required": [arg.dest for arg in action_parser._actions if arg.required and arg.dest not in ["help"]]
+                    "properties": {
+                        arg.dest: {"type": "string"}
+                        for arg in action_parser._actions
+                        if arg.dest not in ["help"]
+                    },
+                    "required": [
+                        arg.dest
+                        for arg in action_parser._actions
+                        if arg.required and arg.dest not in ["help"]
+                    ],
                 }
-                tool = Tool(
-                    name=tool_name,
-                    description=description,
-                    inputSchema=input_schema
-                )
+                tool = Tool(name=tool_name, description=description, inputSchema=input_schema)
                 self.mcp_server.register_tool(tool)
-    
+
     def _setup_routes(self):
         """Setup all API routes for both MCP and dashboard."""
-        
+
         # MCP Protocol Routes (for VS Code integration)
         @self.app.post("/mcp/initialize")
         async def mcp_initialize(request: Request):
             """MCP initialization endpoint."""
             return {"capabilities": {"tools": {}, "resources": {}}}
-        
+
         @self.app.post("/mcp/tools/list")
         async def mcp_list_tools():
             """List available MCP tools."""
             if not MCP_AVAILABLE:
                 return {"tools": []}
             return {"tools": [tool.model_dump() for tool in self.mcp_server.tools.values()]}
-        
+
         @self.app.post("/mcp/tools/call")
         async def mcp_call_tool(request: Request):
             """Execute MCP tool."""
@@ -211,12 +224,13 @@ class UnifiedMCPDashboard:
 
             # Import the cli and execute the command
             from ipfs_kit_py.cli import main as cli_main
+
             command = tool_name.split("_")
             args = [command[0], command[1]]
             for key, value in arguments.items():
                 args.append(f"--{key}")
                 args.append(value)
-            
+
             # This is a simplified way to call the CLI.
             # A more robust solution would use a dedicated function to handle the commands.
             class MockArgs:
@@ -230,6 +244,7 @@ class UnifiedMCPDashboard:
                 # A better solution would be to refactor the CLI to be more modular.
                 import io
                 from contextlib import redirect_stdout
+
                 f = io.StringIO()
                 with redirect_stdout(f):
                     await cli_main(args)
@@ -237,33 +252,33 @@ class UnifiedMCPDashboard:
                 return {"content": [{"type": "text", "text": output}]}
             except Exception as e:
                 return {"content": [{"type": "text", "text": str(e)}]}
-        
+
         # Dashboard API Routes
         @self.app.get("/")
         async def dashboard_home(request: Request):
             """Serve the main dashboard."""
             return await self._get_dashboard_html(request)
-        
+
         @self.app.get("/api/system/overview")
         async def api_system_overview():
             """Get system overview data."""
             return await self._get_system_overview()
-        
+
         @self.app.get("/api/system/metrics")
         async def api_system_metrics():
             """Get detailed system metrics."""
             return await self._get_system_metrics()
-        
+
         @self.app.get("/api/backends")
         async def api_backends():
             """Get backends data."""
             return await self._get_backends_data()
-        
+
         @self.app.get("/api/buckets")
         async def api_buckets():
             """Get buckets data."""
             return await self._get_buckets_data()
-        
+
         @self.app.post("/api/buckets")
         async def api_create_bucket(request: Request):
             """Create a new bucket."""
@@ -272,21 +287,19 @@ class UnifiedMCPDashboard:
                 bucket_name = data.get("name") or data.get("bucket_name")
                 bucket_type = data.get("bucket_type", "general")
                 description = data.get("description", "")
-                
+
                 if not bucket_name:
                     return JSONResponse(
-                        status_code=400,
-                        content={"error": "Bucket name is required"}
+                        status_code=400, content={"error": "Bucket name is required"}
                     )
-                
+
                 # Create bucket using the bucket manager
                 result = await self._create_bucket(bucket_name, bucket_type, description)
                 return JSONResponse(content=result)
             except Exception as e:
                 logger.error(f"Error in create_bucket API: {e}")
                 return JSONResponse(
-                    status_code=500,
-                    content={"error": f"Failed to create bucket: {str(e)}"}
+                    status_code=500, content={"error": f"Failed to create bucket: {str(e)}"}
                 )
 
         @self.app.delete("/api/buckets/{bucket_name}")
@@ -298,8 +311,7 @@ class UnifiedMCPDashboard:
             except Exception as e:
                 logger.error(f"Error in delete_bucket API: {e}")
                 return JSONResponse(
-                    status_code=500,
-                    content={"error": f"Failed to delete bucket: {str(e)}"}
+                    status_code=500, content={"error": f"Failed to delete bucket: {str(e)}"}
                 )
 
         @self.app.get("/api/buckets/{bucket_name}")
@@ -311,8 +323,7 @@ class UnifiedMCPDashboard:
             except Exception as e:
                 logger.error(f"Error in get_bucket_details API: {e}")
                 return JSONResponse(
-                    status_code=500,
-                    content={"error": f"Failed to get bucket details: {str(e)}"}
+                    status_code=500, content={"error": f"Failed to get bucket details: {str(e)}"}
                 )
 
         @self.app.post("/api/buckets/{bucket_name}/upload")
@@ -324,8 +335,7 @@ class UnifiedMCPDashboard:
             except Exception as e:
                 logger.error(f"Error in upload_to_bucket API: {e}")
                 return JSONResponse(
-                    status_code=500,
-                    content={"error": f"Failed to upload file: {str(e)}"}
+                    status_code=500, content={"error": f"Failed to upload file: {str(e)}"}
                 )
 
         @self.app.get("/api/buckets/{bucket_name}/download/{file_path:path}")
@@ -338,27 +348,27 @@ class UnifiedMCPDashboard:
             except Exception as e:
                 logger.error(f"Error in download_file API: {e}")
                 raise HTTPException(status_code=500, detail=f"Failed to download file: {str(e)}")
-        
+
         @self.app.get("/api/services")
         async def api_services():
             """Get services status."""
             return await self._get_services_data()
-        
+
         @self.app.get("/api/services/test")
         async def api_services_test():
             """Test services endpoint with simple data."""
             return {
                 "services": [
                     {"name": "IPFS Daemon", "status": "running"},
-                    {"name": "Test Service", "status": "stopped"}
+                    {"name": "Test Service", "status": "stopped"},
                 ]
             }
-        
+
         @self.app.get("/api/config")
         async def api_config():
             """Get configuration data."""
             return await self._get_config_data()
-        
+
         @self.app.post("/api/config")
         async def api_update_config(request: Request):
             """Update configuration data."""
@@ -368,12 +378,12 @@ class UnifiedMCPDashboard:
                 return {"success": True, "result": result}
             except Exception as e:
                 return {"success": False, "error": str(e)}
-        
+
         @self.app.get("/api/config/backends")
         async def api_backend_configs():
             """Get all backend configurations."""
             return await self._get_backend_configs()
-        
+
         @self.app.get("/api/pins")
         async def api_pins():
             """Get all pins."""
@@ -399,7 +409,7 @@ class UnifiedMCPDashboard:
                 return await self._remove_pin(cid)
             except Exception as e:
                 return {"success": False, "error": str(e)}
-        
+
         @self.app.post("/api/config/backends/{backend_name}")
         async def api_update_backend_config(backend_name: str, request: Request):
             """Update a specific backend configuration."""
@@ -409,7 +419,7 @@ class UnifiedMCPDashboard:
                 return {"success": True, "result": result}
             except Exception as e:
                 return {"success": False, "error": str(e)}
-        
+
         # Comprehensive backend management endpoints
         @self.app.post("/api/backends/create")
         async def api_create_backend(request: Request):
@@ -417,10 +427,10 @@ class UnifiedMCPDashboard:
             try:
                 backend_data = await request.json()
                 result = await self._create_backend_config(backend_data)
-                
+
                 # Update the cache
                 await self._update_backends_cache()
-                
+
                 return {"success": True, "result": result}
             except Exception as e:
                 logger.error(f"Error creating backend: {e}")
@@ -430,13 +440,13 @@ class UnifiedMCPDashboard:
         async def api_remove_backend(backend_name: str, request: Request):
             """Remove a backend configuration."""
             try:
-                data = await request.json() if hasattr(request, 'body') else {}
-                force = data.get('force', False)
+                data = await request.json() if hasattr(request, "body") else {}
+                force = data.get("force", False)
                 result = await self._remove_backend_config(backend_name, force)
-                
+
                 # Update the cache
                 await self._update_backends_cache()
-                
+
                 return {"success": True, "result": result}
             except Exception as e:
                 logger.error(f"Error removing backend {backend_name}: {e}")
@@ -459,13 +469,37 @@ class UnifiedMCPDashboard:
                 return {
                     "success": True,
                     "types": [
-                        {"name": "s3", "display": "S3 Compatible", "description": "Amazon S3 or S3-compatible storage"},
-                        {"name": "huggingface", "display": "HuggingFace Hub", "description": "HuggingFace model and dataset hub"},
-                        {"name": "storacha", "display": "Storacha", "description": "Storacha decentralized storage"},
-                        {"name": "ipfs", "display": "IPFS", "description": "InterPlanetary File System"},
-                        {"name": "filecoin", "display": "Filecoin", "description": "Filecoin decentralized storage network"},
-                        {"name": "gdrive", "display": "Google Drive", "description": "Google Drive cloud storage"}
-                    ]
+                        {
+                            "name": "s3",
+                            "display": "S3 Compatible",
+                            "description": "Amazon S3 or S3-compatible storage",
+                        },
+                        {
+                            "name": "huggingface",
+                            "display": "HuggingFace Hub",
+                            "description": "HuggingFace model and dataset hub",
+                        },
+                        {
+                            "name": "storacha",
+                            "display": "Storacha",
+                            "description": "Storacha decentralized storage",
+                        },
+                        {
+                            "name": "ipfs",
+                            "display": "IPFS",
+                            "description": "InterPlanetary File System",
+                        },
+                        {
+                            "name": "filecoin",
+                            "display": "Filecoin",
+                            "description": "Filecoin decentralized storage network",
+                        },
+                        {
+                            "name": "gdrive",
+                            "display": "Google Drive",
+                            "description": "Google Drive cloud storage",
+                        },
+                    ],
                 }
             except Exception as e:
                 logger.error(f"Error getting backend types: {e}")
@@ -514,7 +548,7 @@ class UnifiedMCPDashboard:
             except Exception as e:
                 logger.error(f"Error executing config CLI command: {e}")
                 return {"success": False, "error": str(e)}
-        
+
         # Health endpoint
         @self.app.get("/health")
         async def health_check():
@@ -523,25 +557,27 @@ class UnifiedMCPDashboard:
                 "status": "healthy",
                 "timestamp": datetime.now().isoformat(),
                 "version": "4.0.0",
-                "unified_mode": True
+                "unified_mode": True,
             }
-    
+
     async def _get_system_overview(self):
         """Get system overview with caching."""
         now = time.time()
         if now - self.last_update > self.update_interval or not self.system_metrics_cache:
             await self._update_caches()
-        
+
         return {
             "mcp_server": {"status": "running", "port": self.port},
             "services": len(self.services_cache.get("services", [])),
             "backends": len(self.backends_cache.get("backends", [])),
-            "buckets": sum(len(b.get("buckets", [])) for b in self.backends_cache.get("backends", [])),
+            "buckets": sum(
+                len(b.get("buckets", [])) for b in self.backends_cache.get("backends", [])
+            ),
             "pins": len(self.pins_cache.get("pins", [])),
             "system": self.system_metrics_cache,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
-    
+
     async def _get_daemon_status(self):
         """Get IPFS daemon status."""
         try:
@@ -553,14 +589,14 @@ class UnifiedMCPDashboard:
             )
             stdout = result.stdout or b""
             stderr = result.stderr or b""
-            
+
             if result.returncode == 0:
                 daemon_info = json.loads(stdout.decode())
                 return {
                     "status": "running",
                     "peer_id": daemon_info.get("ID"),
                     "addresses": daemon_info.get("Addresses", []),
-                    "version": "unknown"
+                    "version": "unknown",
                 }
             else:
                 return {"status": "stopped", "error": stderr.decode()}
@@ -577,7 +613,7 @@ class UnifiedMCPDashboard:
                 stderr=subprocess.PIPE,
             )
             stdout = result.stdout or b""
-            
+
             if result.returncode == 0 and stdout.decode().strip():
                 return {"status": "running", "port": port}
             else:
@@ -614,35 +650,35 @@ class UnifiedMCPDashboard:
                 yaml_file = config_dir / f"{backend_name}.yaml"
                 if yaml_file.exists():
                     return True
-            
-            # Check for JSON config files  
+
+            # Check for JSON config files
             backends_dir = self.data_dir / "backends"
             if backends_dir.exists():
                 json_file = backends_dir / f"{backend_name}.json"
                 if json_file.exists():
                     return True
-                    
+
             return False
         except Exception:
             return False
-    
+
     async def _get_backends_data(self):
         """Get backends data."""
         if not self.backends_cache or time.time() - self.last_update > self.update_interval:
             await self._update_backends_cache()
         return self.backends_cache
-    
+
     async def _get_buckets_data(self):
         """Get buckets data from multiple sources."""
         backends = await self._get_backends_data()
         all_buckets = []
-        
+
         # Get buckets from backends
         for backend in backends.get("backends", []):
             for bucket in backend.get("buckets", []):
                 bucket["backend"] = backend["name"]
                 all_buckets.append(bucket)
-        
+
         # Get bucket configurations from bucket_configs directory
         try:
             bucket_configs_dir = self.data_dir / "bucket_configs"
@@ -650,9 +686,10 @@ class UnifiedMCPDashboard:
                 for config_file in bucket_configs_dir.glob("*.yaml"):
                     try:
                         import yaml
-                        with open(config_file, 'r') as f:
+
+                        with open(config_file, "r") as f:
                             config_data = yaml.safe_load(f)
-                        
+
                         bucket_name = config_data.get("bucket_name", config_file.stem)
                         bucket_data = {
                             "name": bucket_name,
@@ -674,17 +711,19 @@ class UnifiedMCPDashboard:
                             "size_bytes": 0,  # Will be calculated from actual data
                             "files_count": 0,  # Will be calculated from actual data
                             "created_at": config_data.get("created_at", ""),
-                            "last_modified": datetime.fromtimestamp(config_file.stat().st_mtime).isoformat(),
+                            "last_modified": datetime.fromtimestamp(
+                                config_file.stat().st_mtime
+                            ).isoformat(),
                             "description": f"Bucket configuration: {bucket_name}",
-                            "tags": []
+                            "tags": [],
                         }
                         all_buckets.append(bucket_data)
-                        
+
                     except Exception as e:
                         logger.error(f"Error loading bucket config {config_file}: {e}")
         except Exception as e:
             logger.error(f"Error loading bucket configs: {e}")
-        
+
         # Get buckets from filesystem
         try:
             buckets_dir = self.data_dir / "buckets"
@@ -696,11 +735,11 @@ class UnifiedMCPDashboard:
                         metadata = {}
                         if metadata_file.exists():
                             try:
-                                with open(metadata_file, 'r') as f:
+                                with open(metadata_file, "r") as f:
                                     metadata = json.load(f)
                             except Exception:
                                 pass
-                        
+
                         # Count files and calculate size
                         file_count = 0
                         total_size = 0
@@ -708,7 +747,7 @@ class UnifiedMCPDashboard:
                             if item.is_file() and item.name != "metadata.json":
                                 file_count += 1
                                 total_size += item.stat().st_size
-                        
+
                         bucket_data = {
                             "name": bucket_path.name,
                             "type": metadata.get("type", "general"),
@@ -716,20 +755,23 @@ class UnifiedMCPDashboard:
                             "size_bytes": total_size,
                             "files_count": file_count,
                             "created_at": metadata.get("created_at", ""),
-                            "last_modified": datetime.fromtimestamp(bucket_path.stat().st_mtime).isoformat(),
+                            "last_modified": datetime.fromtimestamp(
+                                bucket_path.stat().st_mtime
+                            ).isoformat(),
                             "description": metadata.get("description", ""),
-                            "tags": metadata.get("tags", [])
+                            "tags": metadata.get("tags", []),
                         }
                         all_buckets.append(bucket_data)
         except Exception as e:
             logger.error(f"Error loading buckets from filesystem: {e}")
-        
+
         # Also get buckets from simple bucket manager
         try:
             from .simple_bucket_manager import get_simple_bucket_manager
+
             bucket_manager = get_simple_bucket_manager()
             result = await bucket_manager.list_buckets()
-            
+
             if result.get("success") and result.get("data", {}).get("buckets"):
                 for bucket in result["data"]["buckets"]:
                     # Convert simple bucket format to expected format with proper type conversion
@@ -737,24 +779,28 @@ class UnifiedMCPDashboard:
                         "name": str(bucket.get("name", "")),
                         "type": str(bucket.get("type", "general")),
                         "backend": "Simple Bucket Manager",
-                        "size_bytes": int(bucket.get("size_bytes", 0)) if bucket.get("size_bytes") is not None else 0,
-                        "files_count": int(bucket.get("file_count", 0)) if bucket.get("file_count") is not None else 0,
+                        "size_bytes": int(bucket.get("size_bytes", 0))
+                        if bucket.get("size_bytes") is not None
+                        else 0,
+                        "files_count": int(bucket.get("file_count", 0))
+                        if bucket.get("file_count") is not None
+                        else 0,
                         "created_at": str(bucket.get("created_at", "")),
                         "last_modified": str(bucket.get("last_modified", "")),
                         "description": str(bucket.get("description", "")),
-                        "tags": list(bucket.get("tags", [])) if bucket.get("tags") else []
+                        "tags": list(bucket.get("tags", [])) if bucket.get("tags") else [],
                     }
                     all_buckets.append(bucket_data)
         except Exception as e:
             logger.error(f"Error loading buckets from simple bucket manager: {e}")
-        
+
         return {"buckets": all_buckets}
 
     async def _get_pins_data(self):
         """Get pins data from UnifiedBucketInterface."""
         if not self.bucket_interface:
             return {"pins": []}
-        
+
         try:
             result = await self.bucket_interface.list_all_pins()
             if result["success"]:
@@ -777,26 +823,29 @@ class UnifiedMCPDashboard:
             list_buckets_result = await self.bucket_interface.list_backend_buckets()
             if not list_buckets_result["success"] or not list_buckets_result["data"]["buckets"]:
                 return {"success": False, "error": "No buckets available to add pin to."}
-            
+
             # Use the first available bucket
             target_bucket = list_buckets_result["data"]["buckets"][0]
             bucket_name = target_bucket["bucket_name"]
             backend_type = BackendType[target_bucket["backend"].upper()]
 
             # Create dummy content for the pin (in a real scenario, content would be provided)
-            content = f"Dummy content for {cid}".encode('utf-8')
+            content = f"Dummy content for {cid}".encode("utf-8")
 
             result = await self.bucket_interface.add_content_pin(
                 backend=backend_type,
                 bucket_name=bucket_name,
                 content_hash=cid,
-                file_path=f"/pins/{cid}", # Example file path
+                file_path=f"/pins/{cid}",  # Example file path
                 content=content,
-                metadata={"name": name} if name else {}
+                metadata={"name": name} if name else {},
             )
-            
+
             if result["success"]:
-                return {"success": True, "message": f"Pin {cid} added successfully to bucket {bucket_name}"}
+                return {
+                    "success": True,
+                    "message": f"Pin {cid} added successfully to bucket {bucket_name}",
+                }
             else:
                 return {"success": False, "error": result["error"]}
         except Exception as e:
@@ -817,8 +866,10 @@ class UnifiedMCPDashboard:
         except Exception as e:
             logger.error(f"Error removing pin: {e}")
             return {"success": False, "error": str(e)}
-    
-    async def _create_bucket(self, bucket_name: str, bucket_type: str = "general", description: str = ""):
+
+    async def _create_bucket(
+        self, bucket_name: str, bucket_type: str = "general", description: str = ""
+    ):
         """Create a new bucket using UnifiedBucketInterface."""
         if not self.bucket_interface:
             return {"success": False, "error": "Bucket interface not initialized"}
@@ -835,9 +886,9 @@ class UnifiedMCPDashboard:
                 backend=BackendType.IPFS,
                 bucket_name=bucket_name,
                 bucket_type=bucket_type_enum,
-                metadata={"description": description}
+                metadata={"description": description},
             )
-            
+
             if result["success"]:
                 return {
                     "success": True,
@@ -846,15 +897,15 @@ class UnifiedMCPDashboard:
                         "name": bucket_name,
                         "type": bucket_type,
                         "description": description,
-                        "created_at": datetime.now().isoformat()
-                    }
+                        "created_at": datetime.now().isoformat(),
+                    },
                 }
             else:
                 return {"success": False, "error": result["error"]}
         except Exception as e:
             logger.error(f"Error creating bucket: {e}")
             return {"success": False, "error": str(e)}
-    
+
     async def _delete_bucket(self, bucket_name: str):
         """Delete a bucket using UnifiedBucketInterface."""
         if not self.bucket_interface:
@@ -862,12 +913,9 @@ class UnifiedMCPDashboard:
 
         try:
             result = await self.bucket_interface.delete_bucket(bucket_name)
-            
+
             if result["success"]:
-                return {
-                    "success": True,
-                    "message": f"Bucket '{bucket_name}' deleted successfully"
-                }
+                return {"success": True, "message": f"Bucket '{bucket_name}' deleted successfully"}
             else:
                 return {"success": False, "error": result["error"]}
         except Exception as e:
@@ -881,7 +929,7 @@ class UnifiedMCPDashboard:
 
         try:
             result = await self.bucket_interface.get_bucket_details(bucket_name)
-            
+
             if result["success"]:
                 return {"success": True, "bucket": result["data"]}
             else:
@@ -901,15 +949,12 @@ class UnifiedMCPDashboard:
             result = await self.bucket_interface.add_content_pin(
                 backend=BackendType.IPFS,
                 bucket_name=bucket_name,
-                content_hash=file.filename, # Using filename as CID for simplicity
+                content_hash=file.filename,  # Using filename as CID for simplicity
                 file_path=f"/{file.filename}",
                 content=content,
-                metadata={
-                    "content_type": file.content_type,
-                    "size": len(content)
-                }
+                metadata={"content_type": file.content_type, "size": len(content)},
             )
-            
+
             if result["success"]:
                 return {
                     "success": True,
@@ -917,8 +962,8 @@ class UnifiedMCPDashboard:
                     "file": {
                         "name": file.filename,
                         "size": len(content),
-                        "content_type": file.content_type
-                    }
+                        "content_type": file.content_type,
+                    },
                 }
             else:
                 return {"success": False, "error": result["error"]}
@@ -933,17 +978,13 @@ class UnifiedMCPDashboard:
 
         try:
             result = await self.bucket_interface.get_content_from_bucket(bucket_name, file_path)
-            
+
             if result["success"]:
                 content = result["data"]["content"]
-                media_type = result["data"].get("content_type", 'application/octet-stream')
+                media_type = result["data"].get("content_type", "application/octet-stream")
                 filename = Path(file_path).name
-                
-                return FileResponse(
-                    content=content,
-                    media_type=media_type,
-                    filename=filename
-                )
+
+                return FileResponse(content=content, media_type=media_type, filename=filename)
             else:
                 raise HTTPException(status_code=404, detail=result["error"])
         except HTTPException:
@@ -951,38 +992,38 @@ class UnifiedMCPDashboard:
         except Exception as e:
             logger.error(f"Error downloading file from bucket: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-    
+
     async def _get_services_data(self):
         """Get services data."""
         if not self.services_cache or time.time() - self.last_update > self.update_interval:
             await self._update_services_cache()
         return self.services_cache
-    
+
     async def _get_system_metrics(self):
         """Get system performance metrics."""
         return {
             "cpu": {
                 "usage": psutil.cpu_percent(interval=0.1),
                 "cores": psutil.cpu_count(),
-                "load_avg": os.getloadavg() if hasattr(os, 'getloadavg') else [0, 0, 0]
+                "load_avg": os.getloadavg() if hasattr(os, "getloadavg") else [0, 0, 0],
             },
             "memory": {
                 "total": psutil.virtual_memory().total,
                 "used": psutil.virtual_memory().used,
-                "percent": psutil.virtual_memory().percent
+                "percent": psutil.virtual_memory().percent,
             },
             "disk": {
-                "total": psutil.disk_usage('/').total,
-                "used": psutil.disk_usage('/').used,
-                "percent": psutil.disk_usage('/').percent
+                "total": psutil.disk_usage("/").total,
+                "used": psutil.disk_usage("/").used,
+                "percent": psutil.disk_usage("/").percent,
             },
             "network": {
                 "sent": psutil.net_io_counters().bytes_sent,
-                "recv": psutil.net_io_counters().bytes_recv
+                "recv": psutil.net_io_counters().bytes_recv,
             },
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
-    
+
     async def _update_caches(self):
         """Update all data caches."""
         self.last_update = time.time()
@@ -991,7 +1032,7 @@ class UnifiedMCPDashboard:
             tg.start_soon(self._update_services_cache)
             tg.start_soon(self._update_pins_cache)
             tg.start_soon(self._update_system_metrics_cache)
-    
+
     async def _update_backends_cache(self):
         """Update backends cache from UnifiedBucketInterface."""
         if not self.bucket_interface:
@@ -1006,78 +1047,94 @@ class UnifiedMCPDashboard:
                     backend_name = bucket["backend"]
                     # Assuming each bucket represents a backend configuration
                     # This might need refinement based on how backends are truly defined vs. buckets
-                    backends_data.append({
-                        "name": bucket["bucket_name"], # Using bucket_name as backend name
-                        "type": backend_name,
-                        "enabled": True, # Assuming enabled if listed
-                        "config": bucket.get("backend_config", {}),
-                        "metadata": bucket.get("metadata", {}),
-                        "created_at": bucket.get("created_at", ""),
-                        "status": "configured",
-                        "last_modified": bucket.get("last_modified", datetime.now().isoformat()),
-                        "buckets": [] # This backend represents itself as a bucket, so no sub-buckets here
-                    })
+                    backends_data.append(
+                        {
+                            "name": bucket["bucket_name"],  # Using bucket_name as backend name
+                            "type": backend_name,
+                            "enabled": True,  # Assuming enabled if listed
+                            "config": bucket.get("backend_config", {}),
+                            "metadata": bucket.get("metadata", {}),
+                            "created_at": bucket.get("created_at", ""),
+                            "status": "configured",
+                            "last_modified": bucket.get(
+                                "last_modified", datetime.now().isoformat()
+                            ),
+                            "buckets": [],  # This backend represents itself as a bucket, so no sub-buckets here
+                        }
+                    )
                 self.backends_cache = {"backends": backends_data}
             else:
-                logger.error(f"Error updating backends cache from UnifiedBucketInterface: {result['error']}")
+                logger.error(
+                    f"Error updating backends cache from UnifiedBucketInterface: {result['error']}"
+                )
                 self.backends_cache = {"backends": []}
         except Exception as e:
             logger.error(f"Error updating backends cache: {e}")
             self.backends_cache = {"backends": []}
-    
+
     async def _update_services_cache(self):
         """Update services cache with comprehensive service detection."""
         services = []
-        
+
         # Core IPFS service
         daemon_status = await self._get_daemon_status()
-        services.append({
-            "name": "IPFS Daemon",
-            "type": "core_service",
-            "status": daemon_status["status"],
-            "port": 5001 if daemon_status["status"] == "running" else None,
-            "description": "Core IPFS daemon for distributed storage"
-        })
-        
+        services.append(
+            {
+                "name": "IPFS Daemon",
+                "type": "core_service",
+                "status": daemon_status["status"],
+                "port": 5001 if daemon_status["status"] == "running" else None,
+                "description": "Core IPFS daemon for distributed storage",
+            }
+        )
+
         # IPFS Cluster services
         cluster_service_status = await self._check_service_status("ipfs-cluster-service", 9094)
-        services.append({
-            "name": "IPFS Cluster Service",
-            "type": "cluster_service",
-            "status": cluster_service_status["status"],
-            "port": 9094 if cluster_service_status["status"] == "running" else None,
-            "description": "IPFS Cluster orchestration service"
-        })
-        
+        services.append(
+            {
+                "name": "IPFS Cluster Service",
+                "type": "cluster_service",
+                "status": cluster_service_status["status"],
+                "port": 9094 if cluster_service_status["status"] == "running" else None,
+                "description": "IPFS Cluster orchestration service",
+            }
+        )
+
         cluster_follow_status = await self._check_service_status("ipfs-cluster-follow", 9095)
-        services.append({
-            "name": "IPFS Cluster Follow",
-            "type": "cluster_service", 
-            "status": cluster_follow_status["status"],
-            "port": 9095 if cluster_follow_status["status"] == "running" else None,
-            "description": "IPFS Cluster follow service for joining clusters"
-        })
-        
+        services.append(
+            {
+                "name": "IPFS Cluster Follow",
+                "type": "cluster_service",
+                "status": cluster_follow_status["status"],
+                "port": 9095 if cluster_follow_status["status"] == "running" else None,
+                "description": "IPFS Cluster follow service for joining clusters",
+            }
+        )
+
         # Filecoin services
         lotus_daemon_status = await self._check_service_status("lotus daemon", 1234)
-        services.append({
-            "name": "Lotus Daemon",
-            "type": "storage_service",
-            "status": lotus_daemon_status["status"],
-            "port": 1234 if lotus_daemon_status["status"] == "running" else None,
-            "description": "Filecoin Lotus node daemon"
-        })
-        
+        services.append(
+            {
+                "name": "Lotus Daemon",
+                "type": "storage_service",
+                "status": lotus_daemon_status["status"],
+                "port": 1234 if lotus_daemon_status["status"] == "running" else None,
+                "description": "Filecoin Lotus node daemon",
+            }
+        )
+
         # Lassie (IPFS retrieval client)
         lassie_status = await self._check_binary_availability("lassie")
-        services.append({
-            "name": "Lassie",
-            "type": "storage_service",
-            "status": "configured" if lassie_status else "not_available",
-            "port": None,
-            "description": "IPFS content retrieval client"
-        })
-        
+        services.append(
+            {
+                "name": "Lassie",
+                "type": "storage_service",
+                "status": "configured" if lassie_status else "not_available",
+                "port": None,
+                "description": "IPFS content retrieval client",
+            }
+        )
+
         # Storage backend integrations
         backend_configs = await self._get_backend_configs()
         storage_backends = [
@@ -1085,46 +1142,46 @@ class UnifiedMCPDashboard:
                 "name": "S3 Kit",
                 "type": "storage_backend",
                 "config_types": ["s3"],
-                "description": "Amazon S3 storage integration"
+                "description": "Amazon S3 storage integration",
             },
             {
-                "name": "Google Drive Kit", 
+                "name": "Google Drive Kit",
                 "type": "storage_backend",
                 "config_types": ["gdrive", "google_drive"],
-                "description": "Google Drive storage integration"
+                "description": "Google Drive storage integration",
             },
             {
                 "name": "Storacha Kit",
                 "type": "storage_backend",
                 "config_types": ["storacha", "web3storage"],
-                "description": "Web3.Storage (Storacha) integration"
+                "description": "Web3.Storage (Storacha) integration",
             },
             {
                 "name": "HuggingFace Kit",
                 "type": "storage_backend",
                 "config_types": ["huggingface", "hf"],
-                "description": "HuggingFace Hub integration"
+                "description": "HuggingFace Hub integration",
             },
             {
                 "name": "GitHub Kit",
                 "type": "storage_backend",
                 "config_types": ["github"],
-                "description": "GitHub repository integration"
+                "description": "GitHub repository integration",
             },
             {
                 "name": "FTP Kit",
                 "type": "storage_backend",
                 "config_types": ["ftp"],
-                "description": "FTP server integration"
+                "description": "FTP server integration",
             },
             {
                 "name": "SSH/SFTP Kit",
                 "type": "storage_backend",
                 "config_types": ["sshfs", "ssh", "sftp"],
-                "description": "SSH/SFTP server integration"
-            }
+                "description": "SSH/SFTP server integration",
+            },
         ]
-        
+
         for backend in storage_backends:
             # Check if any backend configuration exists for this type
             config_available = any(
@@ -1132,61 +1189,67 @@ class UnifiedMCPDashboard:
                 for backend_config in backend_configs.values()
                 if isinstance(backend_config, dict) and "config" in backend_config
             )
-            
-            services.append({
-                "name": backend["name"],
-                "type": backend["type"],
-                "status": "configured" if config_available else "not_configured",
-                "port": None,
-                "description": backend["description"]
-            })
-        
+
+            services.append(
+                {
+                    "name": backend["name"],
+                    "type": backend["type"],
+                    "status": "configured" if config_available else "not_configured",
+                    "port": None,
+                    "description": backend["description"],
+                }
+            )
+
         # Data format support services
         data_services = [
             {
                 "name": "Apache Arrow",
                 "type": "data_format",
                 "check": await self._check_binary_availability("arrow"),
-                "description": "Columnar data format support"
+                "description": "Columnar data format support",
             },
             {
                 "name": "Apache Parquet",
-                "type": "data_format", 
+                "type": "data_format",
                 "check": await self._check_python_module("pyarrow"),
-                "description": "Compressed columnar storage format"
-            }
+                "description": "Compressed columnar storage format",
+            },
         ]
-        
+
         for service in data_services:
-            services.append({
-                "name": service["name"],
-                "type": service["type"],
-                "status": "available" if service["check"] else "not_available",
-                "port": None,
-                "description": service["description"]
-            })
-        
+            services.append(
+                {
+                    "name": service["name"],
+                    "type": service["type"],
+                    "status": "available" if service["check"] else "not_available",
+                    "port": None,
+                    "description": service["description"],
+                }
+            )
+
         # LibP2P networking (currently disabled due to conflicts)
-        services.append({
-            "name": "LibP2P",
-            "type": "networking",
-            "status": "disabled",
-            "port": None,
-            "description": "P2P networking protocol (disabled due to protobuf conflicts)"
-        })
-        
+        services.append(
+            {
+                "name": "LibP2P",
+                "type": "networking",
+                "status": "disabled",
+                "port": None,
+                "description": "P2P networking protocol (disabled due to protobuf conflicts)",
+            }
+        )
+
         # Calculate summary statistics
         total_services = len(services)
         running_services = sum(1 for s in services if s["status"] == "running")
         configured_services = sum(1 for s in services if s["status"] in ["configured", "available"])
         error_services = sum(1 for s in services if s["status"] in ["error", "stopped"])
-        
+
         self.services_cache = {
             "services": services,
             "summary": {
                 "total": total_services,
                 "running": running_services,
-                "configured": configured_services, 
+                "configured": configured_services,
                 "stopped": error_services,
                 "by_type": {
                     "core_service": len([s for s in services if s["type"] == "core_service"]),
@@ -1194,15 +1257,15 @@ class UnifiedMCPDashboard:
                     "storage_service": len([s for s in services if s["type"] == "storage_service"]),
                     "storage_backend": len([s for s in services if s["type"] == "storage_backend"]),
                     "data_format": len([s for s in services if s["type"] == "data_format"]),
-                    "networking": len([s for s in services if s["type"] == "networking"])
-                }
-            }
+                    "networking": len([s for s in services if s["type"] == "networking"]),
+                },
+            },
         }
-    
+
     async def _update_system_metrics_cache(self):
         """Update system metrics cache."""
         self.system_metrics_cache = await self._get_system_metrics()
-    
+
     async def _update_pins_cache(self):
         """Update pins cache from UnifiedBucketInterface."""
         if not self.bucket_interface:
@@ -1214,25 +1277,30 @@ class UnifiedMCPDashboard:
             if result["success"]:
                 self.pins_cache = {"pins": result["data"]["pins"]}
             else:
-                logger.error(f"Error updating pins cache from UnifiedBucketInterface: {result['error']}")
+                logger.error(
+                    f"Error updating pins cache from UnifiedBucketInterface: {result['error']}"
+                )
                 self.pins_cache = {"pins": []}
         except Exception as e:
             logger.error(f"Error updating pins cache: {e}")
             self.pins_cache = {"pins": []}
-    
+
     async def _get_config_data(self):
         """Get configuration data from UnifiedBucketInterface and local files."""
         config_data = {}
-        
+
         # Get backend configurations from UnifiedBucketInterface
         if self.bucket_interface:
             try:
                 backends_result = await self.bucket_interface.list_backend_buckets()
                 if backends_result["success"]:
-                    config_data["backends"] = {b["bucket_name"]:
- b for b in backends_result["data"]["buckets"]}
+                    config_data["backends"] = {
+                        b["bucket_name"]: b for b in backends_result["data"]["buckets"]
+                    }
                 else:
-                    logger.error(f"Error getting backend configs from UnifiedBucketInterface: {backends_result['error']}")
+                    logger.error(
+                        f"Error getting backend configs from UnifiedBucketInterface: {backends_result['error']}"
+                    )
                     config_data["backends"] = {}
             except Exception as e:
                 logger.error(f"Error getting backend configs from UnifiedBucketInterface: {e}")
@@ -1246,7 +1314,7 @@ class UnifiedMCPDashboard:
                     config_data["main"] = yaml.safe_load(f)
             except Exception as e:
                 logger.warning(f"Error reading main config file {main_config_file}: {e}")
-        
+
         # Read metadata (if it exists locally)
         metadata_file = self.data_dir / "metadata.json"
         if metadata_file.exists():
@@ -1255,13 +1323,13 @@ class UnifiedMCPDashboard:
                     config_data["metadata"] = json.load(f)
             except Exception as e:
                 logger.warning(f"Error reading metadata file {metadata_file}: {e}")
-        
+
         return {
             "config": config_data,
             "data_dir": str(self.data_dir),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
-    
+
     async def _update_config_data(self, config_data):
         """Update configuration data."""
         try:
@@ -1269,16 +1337,16 @@ class UnifiedMCPDashboard:
             if "main" in config_data and config_data["main"]:
                 main_config_file = self.data_dir / "config.yaml"
                 self.data_dir.mkdir(exist_ok=True)
-                with open(main_config_file, 'w') as f:
+                with open(main_config_file, "w") as f:
                     yaml.dump(config_data["main"], f, default_flow_style=False)
-            
+
             # Update metadata if provided
             if "metadata" in config_data and config_data["metadata"]:
                 metadata_file = self.data_dir / "metadata.json"
                 self.data_dir.mkdir(exist_ok=True)
-                with open(metadata_file, 'w') as f:
+                with open(metadata_file, "w") as f:
                     json.dump(config_data["metadata"], f, indent=2)
-            
+
             # Update backend configurations via UnifiedBucketInterface
             if "backends" in config_data and self.bucket_interface:
                 for backend_name, backend_config in config_data["backends"].items():
@@ -1288,12 +1356,12 @@ class UnifiedMCPDashboard:
         except Exception as e:
             logger.error(f"Error updating config data: {e}")
             return {"error": str(e)}
-    
+
     async def _get_backend_configs(self):
         """Get all backend configurations from UnifiedBucketInterface."""
         if not self.bucket_interface:
             return {"error": "Bucket interface not initialized"}
-        
+
         try:
             result = await self.bucket_interface.list_backend_buckets()
             if result["success"]:
@@ -1304,18 +1372,20 @@ class UnifiedMCPDashboard:
                         backends[backend_name] = {
                             "name": backend_name,
                             "type": backend_name,
-                            "status": "configured", # Assuming if it's listed, it's configured
-                            "buckets": []
+                            "status": "configured",  # Assuming if it's listed, it's configured
+                            "buckets": [],
                         }
                     backends[backend_name]["buckets"].append(bucket["bucket_name"])
                 return backends
             else:
-                logger.error(f"Error getting backends from UnifiedBucketInterface: {result['error']}")
+                logger.error(
+                    f"Error getting backends from UnifiedBucketInterface: {result['error']}"
+                )
                 return {"error": result["error"]}
         except Exception as e:
             logger.error(f"Error getting backend configs: {e}")
             return {"error": str(e)}
-    
+
     async def _update_backend_config(self, backend_name: str, config_data):
         """Update a specific backend configuration by updating the corresponding bucket's metadata."""
         if not self.bucket_interface:
@@ -1330,34 +1400,40 @@ class UnifiedMCPDashboard:
                 if bucket.get("bucket_name") == backend_name:
                     existing_bucket = bucket
                     break
-            
+
             if not existing_bucket:
                 return {"error": f"Backend '{backend_name}' (bucket) not found"}
 
             # Merge new config_data into existing backend_config and metadata
-            updated_backend_config = {**existing_bucket.get("backend_config", {}), **config_data.get("config", {})}
-            updated_metadata = {**existing_bucket.get("metadata", {}), **config_data.get("metadata", {})}
+            updated_backend_config = {
+                **existing_bucket.get("backend_config", {}),
+                **config_data.get("config", {}),
+            }
+            updated_metadata = {
+                **existing_bucket.get("metadata", {}),
+                **config_data.get("metadata", {}),
+            }
 
             # Call the update_bucket method on UnifiedBucketInterface
             result = await self.bucket_interface.update_bucket(
                 bucket_name=backend_name,
                 backend_config=updated_backend_config,
-                metadata=updated_metadata
+                metadata=updated_metadata,
             )
-            
+
             if result["success"]:
                 return {
                     "status": "updated",
                     "backend": backend_name,
                     "message": f"Backend '{backend_name}' (bucket) updated successfully.",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
             else:
                 return {"error": result["error"]}
         except Exception as e:
             logger.error(f"Error updating backend config: {e}")
             return {"error": str(e)}
-    
+
     async def _create_backend_config(self, backend_data):
         """Create a new backend configuration by creating a bucket."""
         if not self.bucket_interface:
@@ -1366,10 +1442,10 @@ class UnifiedMCPDashboard:
         try:
             backend_name = backend_data.get("name")
             backend_type_str = backend_data.get("type")
-            
+
             if not backend_name or not backend_type_str:
                 return {"error": "Backend name and type are required"}
-            
+
             try:
                 backend_type = BackendType[backend_type_str.upper()]
             except KeyError:
@@ -1378,26 +1454,26 @@ class UnifiedMCPDashboard:
             # Use the UnifiedBucketInterface to create a bucket, which represents the backend config
             result = await self.bucket_interface.create_backend_bucket(
                 backend=backend_type,
-                bucket_name=backend_name, # Use backend_name as bucket_name
-                bucket_type=BucketType.GENERAL, # Default bucket type
-                backend_config=backend_data.get("config", {}), # Pass config as backend_config
-                metadata=backend_data.get("metadata", {})
+                bucket_name=backend_name,  # Use backend_name as bucket_name
+                bucket_type=BucketType.GENERAL,  # Default bucket type
+                backend_config=backend_data.get("config", {}),  # Pass config as backend_config
+                metadata=backend_data.get("metadata", {}),
             )
-            
+
             if result["success"]:
                 return {
                     "status": "created",
                     "backend": backend_name,
                     "type": backend_type_str,
                     "message": f"Backend '{backend_name}' created successfully as a bucket.",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
             else:
                 return {"error": result["error"]}
         except Exception as e:
             logger.error(f"Error creating backend config: {e}")
             return {"error": str(e)}
-    
+
     async def _remove_backend_config(self, backend_name: str, force: bool = False):
         """Remove a backend configuration by deleting the corresponding bucket."""
         if not self.bucket_interface:
@@ -1406,42 +1482,44 @@ class UnifiedMCPDashboard:
         try:
             # Assuming backend_name is the bucket_name
             result = await self.bucket_interface.delete_bucket(backend_name)
-            
+
             if result["success"]:
                 return {
                     "status": "removed",
                     "backend": backend_name,
                     "message": f"Backend '{backend_name}' (bucket) removed successfully.",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
             else:
                 return {"error": result["error"]}
         except Exception as e:
             logger.error(f"Error removing backend config: {e}")
             return {"error": str(e)}
-    
+
     async def _test_backend_connection(self, backend_name: str):
         """Test connection to a backend."""
         try:
             # Get backend configuration
             backends = await self._get_backend_configs()
-            
+
             if backend_name not in backends:
                 return {"error": f"Backend '{backend_name}' not found"}
-            
+
             backend_info = backends[backend_name]
-            backend_config = backend_info.get("config", {}) if isinstance(backend_info, dict) else {}
+            backend_config = (
+                backend_info.get("config", {}) if isinstance(backend_info, dict) else {}
+            )
             backend_type = backend_config.get("type")
-            
+
             # Mock connection tests - in practice, these would be real connection attempts
             if backend_type == "s3":
                 # Test S3 connection
                 endpoint = backend_config.get("endpoint")
                 bucket = backend_config.get("bucket")
-                
+
                 if not endpoint or not bucket:
                     return {"error": "S3 backend missing endpoint or bucket configuration"}
-                
+
                 return {
                     "status": "connected",
                     "backend": backend_name,
@@ -1449,13 +1527,13 @@ class UnifiedMCPDashboard:
                     "endpoint": endpoint,
                     "bucket": bucket,
                     "message": "S3 connection test successful (mock)",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
-                
+
             elif backend_type == "ipfs":
                 # Test IPFS connection
                 api_url = backend_config.get("api_url", "http://127.0.0.1:5001")
-                
+
                 try:
                     # Simple test - check if IPFS daemon is responding
                     result = await anyio.run_process(
@@ -1463,7 +1541,7 @@ class UnifiedMCPDashboard:
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                     )
-                    
+
                     if result.returncode == 0:
                         return {
                             "status": "connected",
@@ -1471,7 +1549,7 @@ class UnifiedMCPDashboard:
                             "type": backend_type,
                             "api_url": api_url,
                             "message": "IPFS daemon is responding",
-                            "timestamp": datetime.now().isoformat()
+                            "timestamp": datetime.now().isoformat(),
                         }
                     else:
                         return {
@@ -1479,7 +1557,7 @@ class UnifiedMCPDashboard:
                             "backend": backend_name,
                             "type": backend_type,
                             "error": "IPFS daemon not responding",
-                            "timestamp": datetime.now().isoformat()
+                            "timestamp": datetime.now().isoformat(),
                         }
                 except Exception as e:
                     return {
@@ -1487,9 +1565,9 @@ class UnifiedMCPDashboard:
                         "backend": backend_name,
                         "type": backend_type,
                         "error": f"IPFS test failed: {str(e)}",
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": datetime.now().isoformat(),
                     }
-            
+
             else:
                 # Generic test for other backend types
                 backend_display_type = backend_type.upper() if backend_type else "UNKNOWN"
@@ -1498,32 +1576,32 @@ class UnifiedMCPDashboard:
                     "backend": backend_name,
                     "type": backend_type,
                     "message": f"{backend_display_type} connection test successful (mock)",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
-                
+
         except Exception as e:
             logger.error(f"Error testing backend {backend_name}: {e}")
             return {"error": str(e)}
-    
+
     async def _execute_cli_command(self, command: str, args: str = "", format: str = "json"):
         """Execute a CLI command with simplified interface."""
         try:
             # Parse args into a list
             args_list = args.split() if args else []
-            
+
             # Handle basic CLI commands that map to existing functionality
             if command == "backends":
                 if len(args_list) == 0 or args_list[0] == "list":
                     backends = await self._get_backends_data()
                     return {"success": True, "command": "backends list", "result": backends}
-            
+
             elif command == "config":
                 if len(args_list) == 0 or args_list[0] == "show":
                     config = await self._get_config_data()
                     return {"success": True, "command": "config show", "result": config}
-            
+
             return {"success": False, "error": f"Command '{command}' not implemented"}
-            
+
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -1533,7 +1611,7 @@ class UnifiedMCPDashboard:
             command = command_data.get("command", "")
             action = command_data.get("action", "")
             args = command_data.get("args", {})
-            
+
             # Route to appropriate handler
             if command == "backend":
                 return await self._handle_cli_backend_command(command_data)
@@ -1541,7 +1619,7 @@ class UnifiedMCPDashboard:
                 return await self._handle_cli_config_command(command_data)
             else:
                 return {"success": False, "error": f"Unknown command: {command}"}
-                
+
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -1550,12 +1628,12 @@ class UnifiedMCPDashboard:
         try:
             action = command_data.get("action", "")
             args = command_data.get("args", {})
-            
+
             if action == "list":
                 # ipfs-kit backend list [--configured]
                 configured_only = args.get("configured", False)
                 backends = await self._get_backends_data()
-                
+
                 # Filter to configured only if requested
                 if configured_only:
                     filtered_backends = []
@@ -1563,22 +1641,22 @@ class UnifiedMCPDashboard:
                         if backend.get("status") == "configured":
                             filtered_backends.append(backend)
                     backends["backends"] = filtered_backends
-                
+
                 return {
                     "success": True,
                     "command": "backend list",
                     "result": backends,
-                    "cli_output": self._format_backends_table(backends.get("backends", []))
+                    "cli_output": self._format_backends_table(backends.get("backends", [])),
                 }
-            
+
             elif action == "create":
                 # ipfs-kit backend create <name> <type> [options]
                 name = args.get("name", "")
                 backend_type = args.get("type", "")
-                
+
                 if not name or not backend_type:
                     return {"success": False, "error": "Backend name and type are required"}
-                
+
                 config = {
                     "name": name,
                     "type": backend_type,
@@ -1588,72 +1666,72 @@ class UnifiedMCPDashboard:
                     "token": args.get("token"),
                     "bucket": args.get("bucket"),
                     "region": args.get("region"),
-                    "enabled": True
+                    "enabled": True,
                 }
-                
+
                 # Remove None values
                 config = {k: v for k, v in config.items() if v is not None}
-                
+
                 result = await self._create_backend_config(config)
                 return {
                     "success": True,
                     "command": f"backend create {name}",
                     "result": result,
-                    "cli_output": f"✅ Backend '{name}' created successfully."
+                    "cli_output": f"✅ Backend '{name}' created successfully.",
                 }
-            
+
             elif action == "show":
                 # ipfs-kit backend show <name>
                 name = args.get("name", "")
                 if not name:
                     return {"success": False, "error": "Backend name is required"}
-                
+
                 backend_configs = await self._get_backend_configs()
                 if name not in backend_configs:
                     return {"success": False, "error": f"Backend '{name}' not found"}
-                
+
                 return {
                     "success": True,
                     "command": f"backend show {name}",
                     "result": backend_configs[name],
-                    "cli_output": json.dumps(backend_configs[name], indent=2)
+                    "cli_output": json.dumps(backend_configs[name], indent=2),
                 }
-            
+
             elif action == "update":
                 # ipfs-kit backend update <name> [options]
                 name = args.get("name", "")
                 if not name:
                     return {"success": False, "error": "Backend name is required"}
-                
+
                 updates = {k: v for k, v in args.items() if k != "name" and v is not None}
                 result = await self._update_backend_config(name, {"config": updates})
-                
+
                 return {
                     "success": True,
                     "command": f"backend update {name}",
                     "result": result,
-                    "cli_output": f"✅ Backend '{name}' updated successfully."
+                    "cli_output": f"✅ Backend '{name}' updated successfully.",
                 }
-            
+
             elif action == "remove":
                 # ipfs-kit backend remove <name> [--force]
                 name = args.get("name", "")
                 force = args.get("force", False)
-                
+
                 if not name:
                     return {"success": False, "error": "Backend name is required"}
-                
+
                 result = await self._remove_backend_config(name, force)
                 return {
                     "success": True,
                     "command": f"backend remove {name}",
                     "result": result,
-                    "cli_output": f"✅ Backend '{name}' removed successfully."
+                    "cli_output": f"✅ Backend '{name}' removed successfully.",
                 }
-            
+
             else:
                 return {"success": False, "error": f"Unknown backend action: {action}"}
-                
+
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -1662,12 +1740,12 @@ class UnifiedMCPDashboard:
         try:
             action = command_data.get("action", "")
             args = command_data.get("args", {})
-            
+
             if action == "show":
                 # ipfs-kit config show [--backend <backend>]
                 backend_filter = args.get("backend")
                 config = await self._get_config_data()
-                
+
                 if backend_filter and backend_filter != "all":
                     # Filter to specific backend
                     filtered_config = {}
@@ -1679,7 +1757,7 @@ class UnifiedMCPDashboard:
                     "success": True,
                     "command": "config show",
                     "result": config,
-                    "cli_output": json.dumps(config, indent=2)
+                    "cli_output": json.dumps(config, indent=2),
                 }
 
             elif action == "set":
@@ -1701,7 +1779,7 @@ class UnifiedMCPDashboard:
                     "success": True,
                     "command": f"config set {key}",
                     "result": result,
-                    "cli_output": f"✅ Configuration updated: {key} = {value}"
+                    "cli_output": f"✅ Configuration updated: {key} = {value}",
                 }
 
             elif action == "validate":
@@ -1713,7 +1791,7 @@ class UnifiedMCPDashboard:
                     "success": True,
                     "command": "config validate",
                     "result": results,
-                    "cli_output": self._format_validation_results(results)
+                    "cli_output": self._format_validation_results(results),
                 }
 
             else:
@@ -1804,12 +1882,14 @@ class UnifiedMCPDashboard:
                     is_valid = False
                     error_msg = "Missing file path"
 
-                results.append({
-                    "file": config.get("file", f"{name}.config"),
-                    "backend": name,
-                    "valid": is_valid,
-                    "error": error_msg
-                })
+                results.append(
+                    {
+                        "file": config.get("file", f"{name}.config"),
+                        "backend": name,
+                        "valid": is_valid,
+                        "error": error_msg,
+                    }
+                )
 
             return results
 
@@ -1822,15 +1902,14 @@ class UnifiedMCPDashboard:
             self.app,
             host=self.host,
             port=self.port,
-            log_level="info" if not self.debug else "debug"
+            log_level="info" if not self.debug else "debug",
         )
 
 
 def main():
     """Main entry point for the unified MCP dashboard."""
     logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
     dashboard = UnifiedMCPDashboard()

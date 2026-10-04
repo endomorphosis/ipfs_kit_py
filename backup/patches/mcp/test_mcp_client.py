@@ -15,10 +15,10 @@ import logging
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 class MCPClient:
     """Simple MCP client to test the server."""
@@ -55,7 +55,9 @@ class MCPClient:
         """Call a tool on the MCP server."""
         try:
             if tool_name not in self.tools:
-                logger.error(f"Tool '{tool_name}' not found. Available tools: {', '.join(self.tools.keys())}")
+                logger.error(
+                    f"Tool '{tool_name}' not found. Available tools: {', '.join(self.tools.keys())}"
+                )
                 return None
 
             tool_schema = self.tools[tool_name]
@@ -68,10 +70,7 @@ class MCPClient:
                     return None
 
             # Call the tool
-            payload = {
-                "name": tool_name,
-                "args": args
-            }
+            payload = {"name": tool_name, "args": args}
 
             logger.info(f"Calling tool {tool_name} with args: {args}")
             response = requests.post(f"{self.server_url}/mcp/tools", json=payload)
@@ -90,6 +89,7 @@ class MCPClient:
         except Exception as e:
             logger.error(f"Error getting server health: {e}")
             return None
+
 
 def main():
     """Run MCP client tests."""
@@ -122,7 +122,9 @@ def main():
     # Test write_file
     logger.info("\nTesting write_file tool...")
     test_file_content = "This is a test file created by the MCP client"
-    result = client.call_tool("write_file", path="test_mcp_client_output.txt", content=test_file_content)
+    result = client.call_tool(
+        "write_file", path="test_mcp_client_output.txt", content=test_file_content
+    )
     if result and result.get("success"):
         logger.info(f"write_file result: {json.dumps(result, indent=2)}")
 
@@ -134,7 +136,9 @@ def main():
         if content == test_file_content:
             logger.info("read_file successful: content matches")
         else:
-            logger.warning(f"read_file: content mismatch. Expected '{test_file_content}', got '{content}'")
+            logger.warning(
+                f"read_file: content mismatch. Expected '{test_file_content}', got '{content}'"
+            )
 
     # Step 4: Test the IPFS tools
     logger.info("\n=== Testing IPFS Tools ===")
@@ -161,6 +165,7 @@ def main():
     logger.info("\n=== Test Results ===")
     logger.info("All tests completed. The MCP server is working as expected.")
     logger.info(f"Available tools: {', '.join(client.tools.keys())}")
+
 
 if __name__ == "__main__":
     main()

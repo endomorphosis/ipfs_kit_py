@@ -51,7 +51,11 @@ class FakeAdapter:
             value = value(request)
         if isinstance(value, Exception):
             raise value
-        body = value if isinstance(value, dict) and ({"result", "error"} & value.keys()) else {"result": value}
+        body = (
+            value
+            if isinstance(value, dict) and ({"result", "error"} & value.keys())
+            else {"result": value}
+        )
         return {
             "jsonrpc": "2.0",
             "protocol_version": PROTOCOL_VERSION,
@@ -198,9 +202,7 @@ def test_recursive_redaction_does_not_mutate_input() -> None:
 
 
 class FakeProcess:
-    def __init__(
-        self, stdout: bytes, stderr: bytes = b"", returncode: int = 0
-    ) -> None:
+    def __init__(self, stdout: bytes, stderr: bytes = b"", returncode: int = 0) -> None:
         self.stdout = stdout
         self.stderr = stderr
         self.returncode = returncode
@@ -228,9 +230,7 @@ async def test_diagnostic_cli_uses_an_argument_vector_and_parses_exact_output() 
             b"iroh-blobs 0.103.0; iroh-docs 0.101.0; iroh-gossip 0.101.0)\n"
         )
 
-    version = await DiagnosticCLIAdapter(
-        "/safe path/sidecar", process_factory=factory
-    ).version()
+    version = await DiagnosticCLIAdapter("/safe path/sidecar", process_factory=factory).version()
     assert calls == [("/safe path/sidecar", "--version")]
     assert version.iroh_docs == "0.101.0"
 

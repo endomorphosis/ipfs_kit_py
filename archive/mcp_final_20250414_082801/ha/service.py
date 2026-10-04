@@ -768,9 +768,7 @@ class HighAvailabilityService:
             logger.error("Error reading config file %s: %s", self.config_path, e)
             return None
         except json.JSONDecodeError as e:
-            logger.error(
-                "Config file %s contains invalid JSON: %s", self.config_path, e
-            )
+            logger.error("Config file %s contains invalid JSON: %s", self.config_path, e)
             return None
         except Exception as e:
             logger.error(

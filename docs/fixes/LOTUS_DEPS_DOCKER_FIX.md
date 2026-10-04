@@ -38,13 +38,13 @@ Enhanced `_check_hwloc_library_direct()` in `ipfs_kit_py/install_lotus.py` to ch
 
 ```python
 lib_paths = [
-    "/usr/lib", 
+    "/usr/lib",
     "/usr/lib/x86_64-linux-gnu",  # Debian/Ubuntu x86_64
     "/usr/lib/aarch64-linux-gnu",  # Debian/Ubuntu ARM64
     "/usr/lib/arm-linux-gnueabihf",  # Debian/Ubuntu ARM32
-    "/usr/local/lib", 
-    "/lib", 
-    "/lib64", 
+    "/usr/local/lib",
+    "/lib",
+    "/lib64",
     "/usr/lib64",
     # ... macOS and Windows paths ...
 ]

@@ -182,10 +182,12 @@ HAS_FEATURE = False
 try:
     import sys
     from pathlib import Path
+
     feature_path = Path(__file__).parent.parent / "external" / "feature_pkg"
     if feature_path.exists():
         sys.path.insert(0, str(feature_path))
     from feature_pkg import Feature
+
     HAS_FEATURE = True
     logger.info("feature_pkg available")
 except ImportError:
@@ -360,6 +362,7 @@ else:
 Check availability:
 ```python
 from ipfs_kit_py.mcp.ai.utils import check_dependencies
+
 deps = check_dependencies()
 # Returns dict of all dependencies with bool status
 ```
@@ -477,9 +480,7 @@ from ipfs_kit_py.mcp.enhanced_server import EnhancedMCPServer
 
 # Enable dataset storage for all MCP operations
 server = EnhancedMCPServer(
-    enable_dataset_storage=True,
-    ipfs_client=ipfs_client,
-    dataset_batch_size=100
+    enable_dataset_storage=True, ipfs_client=ipfs_client, dataset_batch_size=100
 )
 
 # All 97+ MCP commands automatically tracked!
@@ -501,9 +502,7 @@ result = integration.text_generation("prompt")
 from ipfs_kit_py.bucket_vfs_manager import BucketVFSManager
 
 manager = BucketVFSManager(
-    storage_path="/path/to/buckets",
-    enable_dataset_storage=True,
-    enable_compute_layer=True
+    storage_path="/path/to/buckets", enable_dataset_storage=True, enable_compute_layer=True
 )
 
 # All bucket operations automatically tracked!

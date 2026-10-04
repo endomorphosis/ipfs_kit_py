@@ -33,7 +33,11 @@ SCHEMAS = {
     "ipfs": {
         "name": "IPFS",
         "fields": {
-            "api_endpoint": {"type": "text", "required": True, "default": "/ip4/127.0.0.1/tcp/5001"},
+            "api_endpoint": {
+                "type": "text",
+                "required": True,
+                "default": "/ip4/127.0.0.1/tcp/5001",
+            },
         },
     },
     "filecoin": {
@@ -88,7 +92,11 @@ SCHEMAS = {
     "arrow": {
         "name": "Arrow",
         "fields": {
-            "memory_pool": {"type": "select", "choices": ["system", "jemalloc"], "default": "system"},
+            "memory_pool": {
+                "type": "select",
+                "choices": ["system", "jemalloc"],
+                "default": "system",
+            },
             "thread_count": {"type": "number", "required": False},
         },
     },
@@ -96,7 +104,11 @@ SCHEMAS = {
         "name": "Parquet",
         "fields": {
             "storage_path": {"type": "text", "required": True},
-            "compression": {"type": "select", "choices": ["snappy", "gzip", "brotli", "lz4"], "default": "snappy"},
+            "compression": {
+                "type": "select",
+                "choices": ["snappy", "gzip", "brotli", "lz4"],
+                "default": "snappy",
+            },
             "batch_size": {"type": "number", "default": 10000},
         },
     },

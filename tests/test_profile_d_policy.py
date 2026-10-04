@@ -71,8 +71,12 @@ def test_ipfs_kit_http_and_p2p_paths_share_canonical_profile_d_evaluation() -> N
         return sent[0]["status"], json.loads(sent[1]["body"])
 
     http_status, http_response = asyncio.run(call_http())
-    p2p_response = json.loads(asyncio.run(handle_stream_message(json.dumps(request).encode(), server.handle)))
-    initialization = asyncio.run(server.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}))
+    p2p_response = json.loads(
+        asyncio.run(handle_stream_message(json.dumps(request).encode(), server.handle))
+    )
+    initialization = asyncio.run(
+        server.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+    )
 
     assert "mcp++/deontic-policy" in initialization["result"]["capabilities"]["mcpPlusPlusProfiles"]
     assert http_status == 200
