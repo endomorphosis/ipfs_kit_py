@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class LassieModelAnyIO(BaseStorageModel):
     """Model for Lassie operations with AnyIO support."""
+
     def __init__(
         self,
         lassie_kit_instance=None,
@@ -359,9 +360,7 @@ class LassieModelAnyIO(BaseStorageModel):
         result["duration_ms"] = (time.time() - start_time) * 1000
         return result
 
-    async def extract_car_async(
-        self, car_file: str, output_dir: Optional[str] = None
-    ):
+    async def extract_car_async(self, car_file: str, output_dir: Optional[str] = None):
         """Extract content from a CAR file asynchronously.
 
         Args:
@@ -545,9 +544,7 @@ class LassieModelAnyIO(BaseStorageModel):
         result["duration_ms"] = (time.time() - start_time) * 1000
         return result
 
-    def ipfs_to_lassie(
-        self, cid: str, output_file: Optional[str] = None, pin: bool = True
-    ):
+    def ipfs_to_lassie(self, cid: str, output_file: Optional[str] = None, pin: bool = True):
         """Store IPFS content using Lassie.
 
         Args:
@@ -640,7 +637,9 @@ class LassieModelAnyIO(BaseStorageModel):
                 try:
                     os.unlink(temp_file.name)
                 except Exception as cleanup_err:
-                    logger.warning("Failed to remove temporary file %s: %s", temp_file.name, cleanup_err)
+                    logger.warning(
+                        "Failed to remove temporary file %s: %s", temp_file.name, cleanup_err
+                    )
 
         # Add duration
         result["duration_ms"] = (time.time() - start_time) * 1000
@@ -768,7 +767,9 @@ class LassieModelAnyIO(BaseStorageModel):
                 try:
                     await anyio.to_thread.run_sync(lambda: os.unlink(output_file))
                 except Exception as cleanup_err:
-                    logger.warning("Failed to remove temporary file %s: %s", output_file, cleanup_err)
+                    logger.warning(
+                        "Failed to remove temporary file %s: %s", output_file, cleanup_err
+                    )
 
         # Add duration
         result["duration_ms"] = (time.time() - start_time) * 1000

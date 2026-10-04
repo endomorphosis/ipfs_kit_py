@@ -18,6 +18,7 @@ import os
 # Write to both console and log file
 log_file = open("health_debug.log", "w")
 
+
 def log(message):
     """Log a message to both console and file."""
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -26,9 +27,11 @@ def log(message):
     log_file.write(full_message + "\n")
     log_file.flush()
 
+
 # Generate a unique server ID
 server_id = str(uuid.uuid4())
 start_time = time.time()
+
 
 class HealthHandler(http.server.BaseHTTPRequestHandler):
     """Simple HTTP request handler for health endpoint."""
@@ -36,10 +39,10 @@ class HealthHandler(http.server.BaseHTTPRequestHandler):
     def _set_headers(self, status_code=200):
         """Set common headers for responses."""
         self.send_response(status_code)
-        self.send_header('Content-type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header("Content-type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
     def _get_health_data(self):
@@ -59,47 +62,44 @@ class HealthHandler(http.server.BaseHTTPRequestHandler):
                 "huggingface": True,
                 "storacha": True,
                 "lassie": True,
-                "s3": True
+                "s3": True,
             },
             "storage_backends": {
-                "ipfs": {
-                    "available": True,
-                    "simulation": False
-                },
+                "ipfs": {"available": True, "simulation": False},
                 "filecoin": {
                     "available": True,
                     "simulation": True,
                     "mock": True,
-                    "token_available": True
+                    "token_available": True,
                 },
                 "huggingface": {
                     "available": True,
                     "simulation": True,
                     "mock": True,
                     "token_available": True,
-                    "credentials_available": True
+                    "credentials_available": True,
                 },
                 "s3": {
                     "available": True,
                     "simulation": True,
                     "mock": True,
                     "token_available": True,
-                    "credentials_available": True
+                    "credentials_available": True,
                 },
                 "storacha": {
                     "available": True,
                     "simulation": True,
                     "mock": True,
-                    "token_available": True
+                    "token_available": True,
                 },
                 "lassie": {
                     "available": True,
                     "simulation": True,
                     "mock": True,
                     "token_available": True,
-                    "binary_available": True
-                }
-            }
+                    "binary_available": True,
+                },
+            },
         }
 
     def do_GET(self):
@@ -110,12 +110,16 @@ class HealthHandler(http.server.BaseHTTPRequestHandler):
             self._set_headers()
 
             # Return health data for these endpoints
-            response = self._get_health_data() if self.path != "/" else {
-                "message": "Debug Health Endpoint is running",
-                "endpoints": ["/health", "/api/v0/health"],
-                "server_id": server_id,
-                "uptime": time.time() - start_time
-            }
+            response = (
+                self._get_health_data()
+                if self.path != "/"
+                else {
+                    "message": "Debug Health Endpoint is running",
+                    "endpoints": ["/health", "/api/v0/health"],
+                    "server_id": server_id,
+                    "uptime": time.time() - start_time,
+                }
+            )
 
             # Send the response
             self.wfile.write(json.dumps(response).encode())
@@ -134,6 +138,7 @@ class HealthHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         """Override the default logging to use our log function."""
         log(f"{self.address_string()} - {format % args}")
+
 
 def run_server(port=9996):
     """Run the HTTP server on the specified port."""
@@ -159,6 +164,7 @@ def run_server(port=9996):
     except Exception as e:
         log(f"Error starting server: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     port = 9996

@@ -32,11 +32,8 @@ from starlette.middleware.cors import CORSMiddleware
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("comprehensive_mcp_server.log"),
-        logging.StreamHandler()
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("comprehensive_mcp_server.log"), logging.StreamHandler()],
 )
 logger = logging.getLogger("comprehensive-mcp")
 
@@ -49,37 +46,36 @@ server_initialized = False
 server_start_time = datetime.now()
 tools = {}  # Dictionary to store registered tools
 
+
 class Context:
     """Simplified Context class for tool implementations."""
-    
+
     def __init__(self):
         """Initialize a new context."""
         self.data = {}
-    
+
     def set(self, key: str, value: Any) -> None:
         """Set a value in the context."""
         self.data[key] = value
-    
+
     def get(self, key: str, default: Optional[Any] = None) -> Any:
         """Get a value from the context."""
         return self.data.get(key, default)
-    
+
     def has(self, key: str) -> bool:
         """Check if a key exists in the context."""
         return key in self.data
 
+
 # Create a global context
 global_context = Context()
 
+
 def register_tool(name: str, handler: Callable, description: str, schema: Dict[str, Any]) -> None:
     """Register a tool with the MCP server."""
-    tools[name] = {
-        "name": name,
-        "description": description,
-        "schema": schema,
-        "handler": handler
-    }
+    tools[name] = {"name": name, "description": description, "schema": schema, "handler": handler}
     logger.info(f"Registered tool: {name}")
+
 
 async def handle_ping(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the ping tool request."""
@@ -88,12 +84,13 @@ async def handle_ping(params: Dict[str, Any], context: Context) -> Dict[str, Any
         "message": "pong",
         "timestamp": datetime.now().isoformat(),
         "elapsed_ms": params.get("delay", 0),
-        "server_uptime_seconds": (datetime.now() - server_start_time).total_seconds()
+        "server_uptime_seconds": (datetime.now() - server_start_time).total_seconds(),
     }
+
 
 async def handle_health(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the health tool request.
-    
+
     This tool returns the health status of the MCP server.
     """
     return {
@@ -102,31 +99,26 @@ async def handle_health(params: Dict[str, Any], context: Context) -> Dict[str, A
         "uptime_seconds": (datetime.now() - server_start_time).total_seconds(),
         "registered_tools": len(tools),
         "memory_usage_mb": get_memory_usage(),
-        "cpu_usage_percent": get_cpu_usage()
+        "cpu_usage_percent": get_cpu_usage(),
     }
+
 
 async def handle_list_tools(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the list_tools tool request.
-    
+
     This tool returns a list of all registered tools.
     """
     tool_list = []
     for name, tool in tools.items():
-        tool_info = {
-            "name": name,
-            "description": tool["description"],
-            "schema": tool["schema"]
-        }
+        tool_info = {"name": name, "description": tool["description"], "schema": tool["schema"]}
         tool_list.append(tool_info)
-    
-    return {
-        "status": "success",
-        "tools": tool_list
-    }
+
+    return {"status": "success", "tools": tool_list}
+
 
 async def handle_server_info(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the server_info tool request.
-    
+
     This tool returns information about the MCP server.
     """
     return {
@@ -137,46 +129,38 @@ async def handle_server_info(params: Dict[str, Any], context: Context) -> Dict[s
         "registered_tools": len(tools),
         "platform": sys.platform,
         "python_version": sys.version,
-        "server_pid": os.getpid()
+        "server_pid": os.getpid(),
     }
+
 
 async def handle_vfs_ls(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the vfs_ls tool request.
-    
+
     This tool lists the contents of a directory in the virtual filesystem.
     """
     path = params.get("path", "/")
-    
+
     # Get the VFS base directory
     vfs_base = context.get("vfs_base", os.path.expanduser("~/vfs"))
-    
+
     # Ensure the VFS base directory exists
     os.makedirs(vfs_base, exist_ok=True)
-    
+
     # Resolve the absolute path
     target_path = os.path.normpath(os.path.join(vfs_base, path.lstrip("/")))
-    
+
     # Security check - ensure the path is within the VFS base directory
     if not target_path.startswith(vfs_base):
-        return {
-            "status": "error",
-            "error": "Path traversal not allowed"
-        }
-    
+        return {"status": "error", "error": "Path traversal not allowed"}
+
     # Check if the path exists
     if not os.path.exists(target_path):
-        return {
-            "status": "error",
-            "error": f"Path not found: {path}"
-        }
-    
+        return {"status": "error", "error": f"Path not found: {path}"}
+
     # Check if the path is a directory
     if not os.path.isdir(target_path):
-        return {
-            "status": "error",
-            "error": f"Path is not a directory: {path}"
-        }
-    
+        return {"status": "error", "error": f"Path is not a directory: {path}"}
+
     # List the directory contents
     entries = []
     for entry in os.listdir(target_path):
@@ -185,636 +169,463 @@ async def handle_vfs_ls(params: Dict[str, Any], context: Context) -> Dict[str, A
             "name": entry,
             "type": "directory" if os.path.isdir(entry_path) else "file",
             "size": os.path.getsize(entry_path) if os.path.isfile(entry_path) else 0,
-            "mtime": os.path.getmtime(entry_path)
+            "mtime": os.path.getmtime(entry_path),
         }
         entries.append(entry_info)
-    
-    return {
-        "status": "success",
-        "path": path,
-        "entries": entries
-    }
+
+    return {"status": "success", "path": path, "entries": entries}
+
 
 async def handle_vfs_mkdir(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the vfs_mkdir tool request.
-    
+
     This tool creates a directory in the virtual filesystem.
     """
     path = params.get("path")
     parents = params.get("parents", True)
-    
+
     # Validate required parameters
     if path is None:
-        return {
-            "status": "error",
-            "error": "Path parameter is required"
-        }
-    
+        return {"status": "error", "error": "Path parameter is required"}
+
     # Get the VFS base directory
     vfs_base = context.get("vfs_base", os.path.expanduser("~/vfs"))
-    
+
     # Ensure the VFS base directory exists
     os.makedirs(vfs_base, exist_ok=True)
-    
+
     # Resolve the absolute path
     target_path = os.path.normpath(os.path.join(vfs_base, path.lstrip("/")))
-    
+
     # Security check - ensure the path is within the VFS base directory
     if not target_path.startswith(vfs_base):
-        return {
-            "status": "error",
-            "error": "Path traversal not allowed"
-        }
-    
+        return {"status": "error", "error": "Path traversal not allowed"}
+
     try:
         # Create the directory
         os.makedirs(target_path, exist_ok=True) if parents else os.mkdir(target_path)
-        
-        return {
-            "status": "success",
-            "path": path
-        }
+
+        return {"status": "success", "path": path}
     except FileExistsError:
-        return {
-            "status": "error",
-            "error": f"Directory already exists: {path}"
-        }
+        return {"status": "error", "error": f"Directory already exists: {path}"}
     except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
+
 
 async def handle_vfs_rmdir(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the vfs_rmdir tool request.
-    
+
     This tool removes a directory in the virtual filesystem.
     """
     path = params.get("path")
     recursive = params.get("recursive", False)
-    
+
     # Validate required parameters
     if path is None:
-        return {
-            "status": "error",
-            "error": "Path parameter is required"
-        }
-    
+        return {"status": "error", "error": "Path parameter is required"}
+
     # Get the VFS base directory
     vfs_base = context.get("vfs_base", os.path.expanduser("~/vfs"))
-    
+
     # Resolve the absolute path
     target_path = os.path.normpath(os.path.join(vfs_base, path.lstrip("/")))
-    
+
     # Security check - ensure the path is within the VFS base directory
     if not target_path.startswith(vfs_base):
-        return {
-            "status": "error",
-            "error": "Path traversal not allowed"
-        }
-    
+        return {"status": "error", "error": "Path traversal not allowed"}
+
     # Check if the path exists
     if not os.path.exists(target_path):
-        return {
-            "status": "error",
-            "error": f"Path not found: {path}"
-        }
-    
+        return {"status": "error", "error": f"Path not found: {path}"}
+
     # Check if the path is a directory
     if not os.path.isdir(target_path):
-        return {
-            "status": "error",
-            "error": f"Path is not a directory: {path}"
-        }
-    
+        return {"status": "error", "error": f"Path is not a directory: {path}"}
+
     try:
         if recursive:
             import shutil
+
             shutil.rmtree(target_path)
         else:
             os.rmdir(target_path)
-        
-        return {
-            "status": "success",
-            "path": path
-        }
+
+        return {"status": "success", "path": path}
     except OSError as e:
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
+
 
 async def handle_vfs_read(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the vfs_read tool request.
-    
+
     This tool reads a file from the virtual filesystem.
     """
     path = params.get("path")
-    
+
     # Validate required parameters
     if path is None:
-        return {
-            "status": "error",
-            "error": "Path parameter is required"
-        }
-    
+        return {"status": "error", "error": "Path parameter is required"}
+
     # Get the VFS base directory
     vfs_base = context.get("vfs_base", os.path.expanduser("~/vfs"))
-    
+
     # Resolve the absolute path
     target_path = os.path.normpath(os.path.join(vfs_base, path.lstrip("/")))
-    
+
     # Security check - ensure the path is within the VFS base directory
     if not target_path.startswith(vfs_base):
-        return {
-            "status": "error",
-            "error": "Path traversal not allowed"
-        }
-    
+        return {"status": "error", "error": "Path traversal not allowed"}
+
     # Check if the path exists
     if not os.path.exists(target_path):
-        return {
-            "status": "error",
-            "error": f"Path not found: {path}"
-        }
-    
+        return {"status": "error", "error": f"Path not found: {path}"}
+
     # Check if the path is a file
     if not os.path.isfile(target_path):
-        return {
-            "status": "error",
-            "error": f"Path is not a file: {path}"
-        }
-    
+        return {"status": "error", "error": f"Path is not a file: {path}"}
+
     try:
         with open(target_path, "r") as f:
             content = f.read()
-        
-        return {
-            "status": "success",
-            "path": path,
-            "content": content,
-            "size": len(content)
-        }
+
+        return {"status": "success", "path": path, "content": content, "size": len(content)}
     except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
+
 
 async def handle_vfs_write(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the vfs_write tool request.
-    
+
     This tool writes data to a file in the virtual filesystem.
     """
     path = params.get("path")
     content = params.get("content")
-    
+
     # Validate required parameters
     if path is None or content is None:
-        return {
-            "status": "error",
-            "error": "Path and content parameters are required"
-        }
-    
+        return {"status": "error", "error": "Path and content parameters are required"}
+
     # Get the VFS base directory
     vfs_base = context.get("vfs_base", os.path.expanduser("~/vfs"))
-    
+
     # Ensure the VFS base directory exists
     os.makedirs(vfs_base, exist_ok=True)
-    
+
     # Resolve the absolute path
     target_path = os.path.normpath(os.path.join(vfs_base, path.lstrip("/")))
-    
+
     # Security check - ensure the path is within the VFS base directory
     if not target_path.startswith(vfs_base):
-        return {
-            "status": "error",
-            "error": "Path traversal not allowed"
-        }
-    
+        return {"status": "error", "error": "Path traversal not allowed"}
+
     # Create parent directories if they don't exist
     os.makedirs(os.path.dirname(target_path), exist_ok=True)
-    
+
     try:
         with open(target_path, "w") as f:
             f.write(content)
-        
-        return {
-            "status": "success",
-            "path": path,
-            "size": len(content)
-        }
+
+        return {"status": "success", "path": path, "size": len(content)}
     except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
+
 
 async def handle_vfs_rm(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the vfs_rm tool request.
-    
+
     This tool removes a file from the virtual filesystem.
     """
     path = params.get("path")
-    
+
     # Validate required parameters
     if path is None:
-        return {
-            "status": "error",
-            "error": "Path parameter is required"
-        }
-    
+        return {"status": "error", "error": "Path parameter is required"}
+
     # Get the VFS base directory
     vfs_base = context.get("vfs_base", os.path.expanduser("~/vfs"))
-    
+
     # Resolve the absolute path
     target_path = os.path.normpath(os.path.join(vfs_base, path.lstrip("/")))
-    
+
     # Security check - ensure the path is within the VFS base directory
     if not target_path.startswith(vfs_base):
-        return {
-            "status": "error",
-            "error": "Path traversal not allowed"
-        }
-    
+        return {"status": "error", "error": "Path traversal not allowed"}
+
     # Check if the path exists
     if not os.path.exists(target_path):
-        return {
-            "status": "error",
-            "error": f"Path not found: {path}"
-        }
-    
+        return {"status": "error", "error": f"Path not found: {path}"}
+
     # Check if the path is a file
     if not os.path.isfile(target_path):
-        return {
-            "status": "error",
-            "error": f"Path is not a file: {path}"
-        }
-    
+        return {"status": "error", "error": f"Path is not a file: {path}"}
+
     try:
         os.remove(target_path)
-        
-        return {
-            "status": "success",
-            "path": path
-        }
+
+        return {"status": "success", "path": path}
     except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
+
 
 async def handle_ipfs_add(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the ipfs_add tool request.
-    
+
     This tool adds content to IPFS.
     """
     content = params.get("content")
     pin = params.get("pin", True)
-    
+
     # Validate required parameters
     if content is None:
-        return {
-            "status": "error",
-            "error": "Content parameter is required"
-        }
-    
+        return {"status": "error", "error": "Content parameter is required"}
+
     # Simulate IPFS add functionality using a mock CID generation
     # In a real implementation, this would use ipfsapi or a similar library
     cid = generate_mock_cid(content)
-    
+
     # Store in local mock database
     mock_ipfs = context.get("mock_ipfs", {})
     mock_ipfs[cid] = content
     context.set("mock_ipfs", mock_ipfs)
-    
+
     # Add to pinned items if requested
     if pin:
         mock_pins = context.get("mock_pins", set())
         mock_pins.add(cid)
         context.set("mock_pins", mock_pins)
-    
-    return {
-        "status": "success",
-        "cid": cid,
-        "size": len(content),
-        "pinned": pin
-    }
+
+    return {"status": "success", "cid": cid, "size": len(content), "pinned": pin}
+
 
 async def handle_ipfs_cat(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the ipfs_cat tool request.
-    
+
     This tool retrieves content from IPFS.
     """
     cid = params.get("cid")
-    
+
     # Validate required parameters
     if cid is None:
-        return {
-            "status": "error",
-            "error": "CID parameter is required"
-        }
-    
+        return {"status": "error", "error": "CID parameter is required"}
+
     # Get the mock IPFS database
     mock_ipfs = context.get("mock_ipfs", {})
-    
+
     # Check if the CID exists
     if cid not in mock_ipfs:
-        return {
-            "status": "error",
-            "error": f"CID not found: {cid}"
-        }
-    
+        return {"status": "error", "error": f"CID not found: {cid}"}
+
     # Return the content
     content = mock_ipfs[cid]
-    
-    return {
-        "status": "success",
-        "cid": cid,
-        "content": content,
-        "size": len(content)
-    }
+
+    return {"status": "success", "cid": cid, "content": content, "size": len(content)}
+
 
 async def handle_ipfs_pin_add(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the ipfs_pin_add tool request.
-    
+
     This tool pins a CID in IPFS.
     """
     cid = params.get("cid")
-    
+
     # Validate required parameters
     if cid is None:
-        return {
-            "status": "error",
-            "error": "CID parameter is required"
-        }
-    
+        return {"status": "error", "error": "CID parameter is required"}
+
     # Get the mock IPFS database
     mock_ipfs = context.get("mock_ipfs", {})
-    
+
     # Check if the CID exists
     if cid not in mock_ipfs:
-        return {
-            "status": "error",
-            "error": f"CID not found: {cid}"
-        }
-    
+        return {"status": "error", "error": f"CID not found: {cid}"}
+
     # Add to pinned items
     mock_pins = context.get("mock_pins", set())
     mock_pins.add(cid)
     context.set("mock_pins", mock_pins)
-    
-    return {
-        "status": "success",
-        "cid": cid,
-        "pinned": True
-    }
+
+    return {"status": "success", "cid": cid, "pinned": True}
+
 
 async def handle_ipfs_pin_rm(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the ipfs_pin_rm tool request.
-    
+
     This tool unpins a CID in IPFS.
     """
     cid = params.get("cid")
-    
+
     # Validate required parameters
     if cid is None:
-        return {
-            "status": "error",
-            "error": "CID parameter is required"
-        }
-    
+        return {"status": "error", "error": "CID parameter is required"}
+
     # Get the mock pins
     mock_pins = context.get("mock_pins", set())
-    
+
     # Check if the CID is pinned
     if cid not in mock_pins:
-        return {
-            "status": "error",
-            "error": f"CID is not pinned: {cid}"
-        }
-    
+        return {"status": "error", "error": f"CID is not pinned: {cid}"}
+
     # Remove from pinned items
     mock_pins.remove(cid)
     context.set("mock_pins", mock_pins)
-    
-    return {
-        "status": "success",
-        "cid": cid,
-        "pinned": False
-    }
+
+    return {"status": "success", "cid": cid, "pinned": False}
+
 
 async def handle_ipfs_pin_ls(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the ipfs_pin_ls tool request.
-    
+
     This tool lists pinned CIDs in IPFS.
     """
     # Get the mock pins
     mock_pins = context.get("mock_pins", set())
-    
+
     # Convert set to list for JSON serialization
     pinned = list(mock_pins)
-    
-    return {
-        "status": "success",
-        "pinned": pinned,
-        "count": len(pinned)
-    }
+
+    return {"status": "success", "pinned": pinned, "count": len(pinned)}
+
 
 async def handle_ipfs_files_mkdir(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the ipfs_files_mkdir tool request.
-    
+
     This tool creates a directory in the IPFS MFS (Mutable File System).
     """
     path = params.get("path")
     parents = params.get("parents", True)
-    
+
     # Validate required parameters
     if path is None:
-        return {
-            "status": "error",
-            "error": "Path parameter is required"
-        }
-    
+        return {"status": "error", "error": "Path parameter is required"}
+
     # Get the MFS base directory
     mfs_base = context.get("mfs_base", os.path.expanduser("~/mfs"))
-    
+
     # Ensure the MFS base directory exists
     os.makedirs(mfs_base, exist_ok=True)
-    
+
     # Resolve the absolute path
     target_path = os.path.normpath(os.path.join(mfs_base, path.lstrip("/")))
-    
+
     # Security check - ensure the path is within the MFS base directory
     if not target_path.startswith(mfs_base):
-        return {
-            "status": "error",
-            "error": "Path traversal not allowed"
-        }
-    
+        return {"status": "error", "error": "Path traversal not allowed"}
+
     try:
         # Create the directory
         os.makedirs(target_path, exist_ok=True) if parents else os.mkdir(target_path)
-        
-        return {
-            "status": "success",
-            "path": path
-        }
+
+        return {"status": "success", "path": path}
     except FileExistsError:
-        return {
-            "status": "error",
-            "error": f"Directory already exists: {path}"
-        }
+        return {"status": "error", "error": f"Directory already exists: {path}"}
     except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
+
 
 async def handle_ipfs_files_write(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the ipfs_files_write tool request.
-    
+
     This tool writes data to a file in the IPFS MFS (Mutable File System).
     """
     path = params.get("path")
     content = params.get("content")
-    
+
     # Validate required parameters
     if path is None or content is None:
-        return {
-            "status": "error",
-            "error": "Path and content parameters are required"
-        }
-    
+        return {"status": "error", "error": "Path and content parameters are required"}
+
     # Get the MFS base directory
     mfs_base = context.get("mfs_base", os.path.expanduser("~/mfs"))
-    
+
     # Ensure the MFS base directory exists
     os.makedirs(mfs_base, exist_ok=True)
-    
+
     # Resolve the absolute path
     target_path = os.path.normpath(os.path.join(mfs_base, path.lstrip("/")))
-    
+
     # Security check - ensure the path is within the MFS base directory
     if not target_path.startswith(mfs_base):
-        return {
-            "status": "error",
-            "error": "Path traversal not allowed"
-        }
-    
+        return {"status": "error", "error": "Path traversal not allowed"}
+
     # Create parent directories if they don't exist
     os.makedirs(os.path.dirname(target_path), exist_ok=True)
-    
+
     try:
         with open(target_path, "w") as f:
             f.write(content)
-        
-        return {
-            "status": "success",
-            "path": path,
-            "size": len(content)
-        }
+
+        return {"status": "success", "path": path, "size": len(content)}
     except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
+
 
 async def handle_ipfs_files_read(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the ipfs_files_read tool request.
-    
+
     This tool reads a file from the IPFS MFS (Mutable File System).
     """
     path = params.get("path")
-    
+
     # Validate required parameters
     if path is None:
-        return {
-            "status": "error",
-            "error": "Path parameter is required"
-        }
-    
+        return {"status": "error", "error": "Path parameter is required"}
+
     # Get the MFS base directory
     mfs_base = context.get("mfs_base", os.path.expanduser("~/mfs"))
-    
+
     # Resolve the absolute path
     target_path = os.path.normpath(os.path.join(mfs_base, path.lstrip("/")))
-    
+
     # Security check - ensure the path is within the MFS base directory
     if not target_path.startswith(mfs_base):
-        return {
-            "status": "error",
-            "error": "Path traversal not allowed"
-        }
-    
+        return {"status": "error", "error": "Path traversal not allowed"}
+
     # Check if the path exists
     if not os.path.exists(target_path):
-        return {
-            "status": "error",
-            "error": f"Path not found: {path}"
-        }
-    
+        return {"status": "error", "error": f"Path not found: {path}"}
+
     # Check if the path is a file
     if not os.path.isfile(target_path):
-        return {
-            "status": "error",
-            "error": f"Path is not a file: {path}"
-        }
-    
+        return {"status": "error", "error": f"Path is not a file: {path}"}
+
     try:
         with open(target_path, "r") as f:
             content = f.read()
-        
-        return {
-            "status": "success",
-            "path": path,
-            "content": content,
-            "size": len(content)
-        }
+
+        return {"status": "success", "path": path, "content": content, "size": len(content)}
     except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
+
 
 async def handle_ipfs_files_ls(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the ipfs_files_ls tool request.
-    
+
     This tool lists the contents of a directory in the IPFS MFS (Mutable File System).
     """
     path = params.get("path", "/")
     long_format = params.get("long", False)
-    
+
     # Get the MFS base directory
     mfs_base = context.get("mfs_base", os.path.expanduser("~/mfs"))
-    
+
     # Ensure the MFS base directory exists
     os.makedirs(mfs_base, exist_ok=True)
-    
+
     # Resolve the absolute path
     target_path = os.path.normpath(os.path.join(mfs_base, path.lstrip("/")))
-    
+
     # Security check - ensure the path is within the MFS base directory
     if not target_path.startswith(mfs_base):
-        return {
-            "status": "error",
-            "error": "Path traversal not allowed"
-        }
-    
+        return {"status": "error", "error": "Path traversal not allowed"}
+
     # Check if the path exists
     if not os.path.exists(target_path):
-        return {
-            "status": "error",
-            "error": f"Path not found: {path}"
-        }
-    
+        return {"status": "error", "error": f"Path not found: {path}"}
+
     # Check if the path is a directory
     if not os.path.isdir(target_path):
-        return {
-            "status": "error",
-            "error": f"Path is not a directory: {path}"
-        }
-    
+        return {"status": "error", "error": f"Path is not a directory: {path}"}
+
     # List the directory contents
     entries = []
     for entry in os.listdir(target_path):
@@ -825,156 +636,139 @@ async def handle_ipfs_files_ls(params: Dict[str, Any], context: Context) -> Dict
                 "type": "directory" if os.path.isdir(entry_path) else "file",
                 "size": os.path.getsize(entry_path) if os.path.isfile(entry_path) else 0,
                 "mtime": os.path.getmtime(entry_path),
-                "cid": generate_mock_cid(entry)  # Mock CID for consistency
+                "cid": generate_mock_cid(entry),  # Mock CID for consistency
             }
         else:
-            entry_info = {
-                "name": entry
-            }
+            entry_info = {"name": entry}
         entries.append(entry_info)
-    
-    return {
-        "status": "success",
-        "path": path,
-        "entries": entries
-    }
+
+    return {"status": "success", "path": path, "entries": entries}
+
 
 async def handle_ipfs_files_rm(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the ipfs_files_rm tool request.
-    
+
     This tool removes a file or directory from the IPFS MFS (Mutable File System).
     """
     path = params.get("path")
     recursive = params.get("recursive", False)
     force = params.get("force", False)
-    
+
     # Validate required parameters
     if path is None:
-        return {
-            "status": "error",
-            "error": "Path parameter is required"
-        }
-    
+        return {"status": "error", "error": "Path parameter is required"}
+
     # Get the MFS base directory
     mfs_base = context.get("mfs_base", os.path.expanduser("~/mfs"))
-    
+
     # Resolve the absolute path
     target_path = os.path.normpath(os.path.join(mfs_base, path.lstrip("/")))
-    
+
     # Security check - ensure the path is within the MFS base directory
     if not target_path.startswith(mfs_base):
-        return {
-            "status": "error",
-            "error": "Path traversal not allowed"
-        }
-    
+        return {"status": "error", "error": "Path traversal not allowed"}
+
     # Check if the path exists
     if not os.path.exists(target_path):
         if force:
-            return {
-                "status": "success",
-                "path": path
-            }
+            return {"status": "success", "path": path}
         else:
-            return {
-                "status": "error",
-                "error": f"Path not found: {path}"
-            }
-    
+            return {"status": "error", "error": f"Path not found: {path}"}
+
     try:
         if os.path.isdir(target_path):
             if recursive:
                 import shutil
+
                 shutil.rmtree(target_path)
             else:
                 os.rmdir(target_path)
         else:
             os.remove(target_path)
-        
-        return {
-            "status": "success",
-            "path": path
-        }
+
+        return {"status": "success", "path": path}
     except OSError as e:
         if force:
-            return {
-                "status": "success",
-                "path": path,
-                "warning": str(e)
-            }
+            return {"status": "success", "path": path, "warning": str(e)}
         else:
-            return {
-                "status": "error",
-                "error": str(e)
-            }
+            return {"status": "error", "error": str(e)}
+
 
 async def handle_initialize(params: Dict[str, Any], context: Context) -> Dict[str, Any]:
     """Handle the initialize tool request."""
     global server_initialized
-    
+
     # Set up MFS and VFS directories
     mfs_base = os.path.expanduser("~/mfs")
     vfs_base = os.path.expanduser("~/vfs")
-    
+
     # Create directories if they don't exist
     os.makedirs(mfs_base, exist_ok=True)
     os.makedirs(vfs_base, exist_ok=True)
-    
+
     # Store in context
     context.set("mfs_base", mfs_base)
     context.set("vfs_base", vfs_base)
     context.set("mock_ipfs", {})
     context.set("mock_pins", set())
-    
+
     # Add some sample content
     sample_cid = generate_mock_cid("Hello, IPFS!")
     context.get("mock_ipfs")[sample_cid] = "Hello, IPFS!"
     context.get("mock_pins").add(sample_cid)
-    
+
     # Create a sample file in MFS
     with open(os.path.join(mfs_base, "welcome.txt"), "w") as f:
         f.write("Welcome to the IPFS MFS!")
-    
+
     # Create a sample file in VFS
     with open(os.path.join(vfs_base, "welcome.txt"), "w") as f:
         f.write("Welcome to the Virtual File System!")
-    
+
     server_initialized = True
-    
+
     return {
         "status": "success",
         "message": "Server initialized",
         "mfs_path": mfs_base,
         "vfs_path": vfs_base,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
+
 # Helper functions
+
 
 def generate_mock_cid(content: str) -> str:
     """Generate a mock CID for the given content."""
     import hashlib
+
     hash_obj = hashlib.sha256(content.encode())
     return f"Qm{hash_obj.hexdigest()[:44]}"
+
 
 def get_memory_usage() -> float:
     """Get the current memory usage in MB."""
     try:
         import psutil
+
         process = psutil.Process(os.getpid())
         memory_info = process.memory_info()
         return memory_info.rss / 1024 / 1024
     except ImportError:
         return 0.0
 
+
 def get_cpu_usage() -> float:
     """Get the current CPU usage."""
     try:
         import psutil
+
         process = psutil.Process(os.getpid())
         return process.cpu_percent(interval=0.1)
     except ImportError:
         return 0.0
+
 
 # Register all the built-in tools
 def register_all_tools():
@@ -990,52 +784,40 @@ def register_all_tools():
                 "delay": {
                     "type": "integer",
                     "description": "Delay in milliseconds before responding",
-                    "default": 0
+                    "default": 0,
                 }
-            }
-        }
+            },
+        },
     )
-    
+
     register_tool(
         name="health",
         handler=handle_health,
         description="Get the health status of the MCP server",
-        schema={
-            "type": "object",
-            "properties": {}
-        }
+        schema={"type": "object", "properties": {}},
     )
-    
+
     register_tool(
         name="list_tools",
         handler=handle_list_tools,
         description="List all registered tools",
-        schema={
-            "type": "object",
-            "properties": {}
-        }
+        schema={"type": "object", "properties": {}},
     )
-    
+
     register_tool(
         name="server_info",
         handler=handle_server_info,
         description="Get information about the MCP server",
-        schema={
-            "type": "object",
-            "properties": {}
-        }
+        schema={"type": "object", "properties": {}},
     )
-    
+
     register_tool(
         name="initialize",
         handler=handle_initialize,
         description="Initialize the server and prepare resources",
-        schema={
-            "type": "object",
-            "properties": {}
-        }
+        schema={"type": "object", "properties": {}},
     )
-    
+
     # VFS tools
     register_tool(
         name="vfs_ls",
@@ -1044,15 +826,11 @@ def register_all_tools():
         schema={
             "type": "object",
             "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to list",
-                    "default": "/"
-                }
-            }
-        }
+                "path": {"type": "string", "description": "Path to list", "default": "/"}
+            },
+        },
     )
-    
+
     register_tool(
         name="vfs_mkdir",
         handler=handle_vfs_mkdir,
@@ -1060,20 +838,17 @@ def register_all_tools():
         schema={
             "type": "object",
             "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to create"
-                },
+                "path": {"type": "string", "description": "Path to create"},
                 "parents": {
                     "type": "boolean",
                     "description": "Create parent directories if they don't exist",
-                    "default": True
-                }
+                    "default": True,
+                },
             },
-            "required": ["path"]
-        }
+            "required": ["path"],
+        },
     )
-    
+
     register_tool(
         name="vfs_rmdir",
         handler=handle_vfs_rmdir,
@@ -1081,36 +856,28 @@ def register_all_tools():
         schema={
             "type": "object",
             "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to remove"
-                },
+                "path": {"type": "string", "description": "Path to remove"},
                 "recursive": {
                     "type": "boolean",
                     "description": "Remove directory and its contents recursively",
-                    "default": False
-                }
+                    "default": False,
+                },
             },
-            "required": ["path"]
-        }
+            "required": ["path"],
+        },
     )
-    
+
     register_tool(
         name="vfs_read",
         handler=handle_vfs_read,
         description="Read a file from the virtual filesystem",
         schema={
             "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to read"
-                }
-            },
-            "required": ["path"]
-        }
+            "properties": {"path": {"type": "string", "description": "Path to read"}},
+            "required": ["path"],
+        },
     )
-    
+
     register_tool(
         name="vfs_write",
         handler=handle_vfs_write,
@@ -1118,35 +885,24 @@ def register_all_tools():
         schema={
             "type": "object",
             "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to write to"
-                },
-                "content": {
-                    "type": "string",
-                    "description": "Content to write"
-                }
+                "path": {"type": "string", "description": "Path to write to"},
+                "content": {"type": "string", "description": "Content to write"},
             },
-            "required": ["path", "content"]
-        }
+            "required": ["path", "content"],
+        },
     )
-    
+
     register_tool(
         name="vfs_rm",
         handler=handle_vfs_rm,
         description="Remove a file from the virtual filesystem",
         schema={
             "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to remove"
-                }
-            },
-            "required": ["path"]
-        }
+            "properties": {"path": {"type": "string", "description": "Path to remove"}},
+            "required": ["path"],
+        },
     )
-    
+
     # IPFS core tools
     register_tool(
         name="ipfs_add",
@@ -1155,20 +911,17 @@ def register_all_tools():
         schema={
             "type": "object",
             "properties": {
-                "content": {
-                    "type": "string",
-                    "description": "Content to add to IPFS"
-                },
+                "content": {"type": "string", "description": "Content to add to IPFS"},
                 "pin": {
                     "type": "boolean",
                     "description": "Whether to pin the content",
-                    "default": True
-                }
+                    "default": True,
+                },
             },
-            "required": ["content"]
-        }
+            "required": ["content"],
+        },
     )
-    
+
     register_tool(
         name="ipfs_cat",
         handler=handle_ipfs_cat,
@@ -1176,57 +929,41 @@ def register_all_tools():
         schema={
             "type": "object",
             "properties": {
-                "cid": {
-                    "type": "string",
-                    "description": "CID of the content to retrieve"
-                }
+                "cid": {"type": "string", "description": "CID of the content to retrieve"}
             },
-            "required": ["cid"]
-        }
+            "required": ["cid"],
+        },
     )
-    
+
     register_tool(
         name="ipfs_pin_add",
         handler=handle_ipfs_pin_add,
         description="Pin a CID in IPFS",
         schema={
             "type": "object",
-            "properties": {
-                "cid": {
-                    "type": "string",
-                    "description": "CID to pin"
-                }
-            },
-            "required": ["cid"]
-        }
+            "properties": {"cid": {"type": "string", "description": "CID to pin"}},
+            "required": ["cid"],
+        },
     )
-    
+
     register_tool(
         name="ipfs_pin_rm",
         handler=handle_ipfs_pin_rm,
         description="Unpin a CID in IPFS",
         schema={
             "type": "object",
-            "properties": {
-                "cid": {
-                    "type": "string",
-                    "description": "CID to unpin"
-                }
-            },
-            "required": ["cid"]
-        }
+            "properties": {"cid": {"type": "string", "description": "CID to unpin"}},
+            "required": ["cid"],
+        },
     )
-    
+
     register_tool(
         name="ipfs_pin_ls",
         handler=handle_ipfs_pin_ls,
         description="List pinned CIDs in IPFS",
-        schema={
-            "type": "object",
-            "properties": {}
-        }
+        schema={"type": "object", "properties": {}},
     )
-    
+
     # IPFS MFS tools
     register_tool(
         name="ipfs_files_mkdir",
@@ -1235,20 +972,17 @@ def register_all_tools():
         schema={
             "type": "object",
             "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to create"
-                },
+                "path": {"type": "string", "description": "Path to create"},
                 "parents": {
                     "type": "boolean",
                     "description": "Create parent directories if they don't exist",
-                    "default": True
-                }
+                    "default": True,
+                },
             },
-            "required": ["path"]
-        }
+            "required": ["path"],
+        },
     )
-    
+
     register_tool(
         name="ipfs_files_write",
         handler=handle_ipfs_files_write,
@@ -1256,35 +990,24 @@ def register_all_tools():
         schema={
             "type": "object",
             "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to write to"
-                },
-                "content": {
-                    "type": "string",
-                    "description": "Content to write"
-                }
+                "path": {"type": "string", "description": "Path to write to"},
+                "content": {"type": "string", "description": "Content to write"},
             },
-            "required": ["path", "content"]
-        }
+            "required": ["path", "content"],
+        },
     )
-    
+
     register_tool(
         name="ipfs_files_read",
         handler=handle_ipfs_files_read,
         description="Read a file from the IPFS MFS",
         schema={
             "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to read"
-                }
-            },
-            "required": ["path"]
-        }
+            "properties": {"path": {"type": "string", "description": "Path to read"}},
+            "required": ["path"],
+        },
     )
-    
+
     register_tool(
         name="ipfs_files_ls",
         handler=handle_ipfs_files_ls,
@@ -1292,20 +1015,16 @@ def register_all_tools():
         schema={
             "type": "object",
             "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to list",
-                    "default": "/"
-                },
+                "path": {"type": "string", "description": "Path to list", "default": "/"},
                 "long": {
                     "type": "boolean",
                     "description": "Use long listing format",
-                    "default": False
-                }
-            }
-        }
+                    "default": False,
+                },
+            },
+        },
     )
-    
+
     register_tool(
         name="ipfs_files_rm",
         handler=handle_ipfs_files_rm,
@@ -1313,99 +1032,91 @@ def register_all_tools():
         schema={
             "type": "object",
             "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to remove"
-                },
+                "path": {"type": "string", "description": "Path to remove"},
                 "recursive": {
                     "type": "boolean",
                     "description": "Remove directory and its contents recursively",
-                    "default": False
+                    "default": False,
                 },
                 "force": {
                     "type": "boolean",
                     "description": "Ignore nonexistent files",
-                    "default": False
-                }
+                    "default": False,
+                },
             },
-            "required": ["path"]
-        }
+            "required": ["path"],
+        },
     )
 
+
 # MCP Server route handlers
+
 
 async def handle_mcp_invoke(request):
     """Handle MCP invoke requests."""
     try:
         # Parse the request body
         body = await request.json()
-        
+
         # Extract the tool name and parameters
         tool_name = body.get("name")
         params = body.get("params", {})
-        
+
         # Check if the tool exists
         if tool_name not in tools:
-            return JSONResponse({
-                "error": f"Tool not found: {tool_name}"
-            }, status_code=404)
-        
+            return JSONResponse({"error": f"Tool not found: {tool_name}"}, status_code=404)
+
         # Get the tool
         tool = tools[tool_name]
-        
+
         # Create a context for this request
         context = Context()
-        
+
         # Initialize the server if not already initialized
         if not server_initialized and tool_name != "initialize":
             await handle_initialize({}, global_context)
-        
+
         # Call the tool handler
         result = await tool["handler"](params, context)
-        
+
         # Return the result
         return JSONResponse(result)
     except Exception as e:
         logger.error(f"Error handling invoke request: {e}")
         logger.error(traceback.format_exc())
-        return JSONResponse({
-            "error": f"Internal server error: {str(e)}"
-        }, status_code=500)
+        return JSONResponse({"error": f"Internal server error: {str(e)}"}, status_code=500)
+
 
 async def handle_mcp_execute(request):
     """Handle MCP execute requests."""
     try:
         # Parse the request body
         body = await request.json()
-        
+
         # Extract the tool name and parameters
         tool_name = body.get("name")
         params = body.get("input", {})
-        
+
         # Check if the tool exists
         if tool_name not in tools:
-            return JSONResponse({
-                "error": f"Tool not found: {tool_name}"
-            }, status_code=404)
-        
+            return JSONResponse({"error": f"Tool not found: {tool_name}"}, status_code=404)
+
         # Get the tool
         tool = tools[tool_name]
-        
+
         # Create a context for this request
         context = Context()
-        
+
         # Initialize the server if not already initialized
         if not server_initialized and tool_name != "initialize":
             await handle_initialize({}, global_context)
-        
+
         # Call the tool handler
         result = await tool["handler"](params, context)
-        
+
         # Return the result in the expected format
         if "error" in result:
-            return JSONResponse({
-                "error": result["error"]
-            })
+            return JSONResponse({"error": result["error"]})
         else:
             # Remove the status field for MCP/execute responses
             if "status" in result:
@@ -1414,25 +1125,24 @@ async def handle_mcp_execute(request):
     except Exception as e:
         logger.error(f"Error handling execute request: {e}")
         logger.error(traceback.format_exc())
-        return JSONResponse({
-            "error": f"Internal server error: {str(e)}"
-        }, status_code=500)
+        return JSONResponse({"error": f"Internal server error: {str(e)}"}, status_code=500)
+
 
 async def handle_jsonrpc(request):
     """Handle JSON-RPC requests."""
     try:
         # Parse the request body
         body = await request.json()
-        
+
         # Check if it's a batch request
         is_batch = isinstance(body, list)
-        
+
         # Convert to list for uniform processing
         if not is_batch:
             batch = [body]
         else:
             batch = body
-        
+
         # Process each request
         results = []
         for req in batch:
@@ -1440,51 +1150,45 @@ async def handle_jsonrpc(request):
             method = req.get("method")
             params = req.get("params", {})
             id = req.get("id")
-            
+
             # Special case for MCP tool invocation
             if method == "MCP.invoke" and isinstance(params, dict):
                 tool_name = params.get("name")
                 tool_params = params.get("params", {})
-                
+
                 # Check if the tool exists
                 if tool_name in tools:
                     # Create a context for this request
                     context = Context()
-                    
+
                     # Initialize the server if not already initialized
                     if not server_initialized and tool_name != "initialize":
                         await handle_initialize({}, global_context)
-                    
+
                     # Call the tool handler
                     result = await tools[tool_name]["handler"](tool_params, context)
-                    
+
                     # Add the result to the batch
-                    results.append({
-                        "jsonrpc": "2.0",
-                        "id": id,
-                        "result": result
-                    })
+                    results.append({"jsonrpc": "2.0", "id": id, "result": result})
                 else:
                     # Tool not found
-                    results.append({
-                        "jsonrpc": "2.0",
-                        "id": id,
-                        "error": {
-                            "code": -32601,
-                            "message": f"Tool not found: {tool_name}"
+                    results.append(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": id,
+                            "error": {"code": -32601, "message": f"Tool not found: {tool_name}"},
                         }
-                    })
+                    )
             else:
                 # Method not found
-                results.append({
-                    "jsonrpc": "2.0",
-                    "id": id,
-                    "error": {
-                        "code": -32601,
-                        "message": f"Method not found: {method}"
+                results.append(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": id,
+                        "error": {"code": -32601, "message": f"Method not found: {method}"},
                     }
-                })
-        
+                )
+
         # Return the results
         if not is_batch:
             return JSONResponse(results[0])
@@ -1493,14 +1197,15 @@ async def handle_jsonrpc(request):
     except Exception as e:
         logger.error(f"Error handling JSON-RPC request: {e}")
         logger.error(traceback.format_exc())
-        return JSONResponse({
-            "jsonrpc": "2.0",
-            "id": None,
-            "error": {
-                "code": -32603,
-                "message": f"Internal server error: {str(e)}"
-            }
-        }, status_code=500)
+        return JSONResponse(
+            {
+                "jsonrpc": "2.0",
+                "id": None,
+                "error": {"code": -32603, "message": f"Internal server error: {str(e)}"},
+            },
+            status_code=500,
+        )
+
 
 async def handle_openapi_spec(request):
     """Handle OpenAPI specification requests."""
@@ -1509,7 +1214,7 @@ async def handle_openapi_spec(request):
         "info": {
             "title": "MCP Server API",
             "description": "API for the MCP Server",
-            "version": __version__
+            "version": __version__,
         },
         "paths": {
             "/mcp/invoke": {
@@ -1524,29 +1229,23 @@ async def handle_openapi_spec(request):
                                     "properties": {
                                         "name": {
                                             "type": "string",
-                                            "description": "Name of the tool to invoke"
+                                            "description": "Name of the tool to invoke",
                                         },
                                         "params": {
                                             "type": "object",
-                                            "description": "Parameters for the tool"
-                                        }
+                                            "description": "Parameters for the tool",
+                                        },
                                     },
-                                    "required": ["name"]
+                                    "required": ["name"],
                                 }
                             }
-                        }
+                        },
                     },
                     "responses": {
-                        "200": {
-                            "description": "Tool invocation result"
-                        },
-                        "404": {
-                            "description": "Tool not found"
-                        },
-                        "500": {
-                            "description": "Internal server error"
-                        }
-                    }
+                        "200": {"description": "Tool invocation result"},
+                        "404": {"description": "Tool not found"},
+                        "500": {"description": "Internal server error"},
+                    },
                 }
             },
             "/mcp/execute": {
@@ -1561,65 +1260,56 @@ async def handle_openapi_spec(request):
                                     "properties": {
                                         "name": {
                                             "type": "string",
-                                            "description": "Name of the tool to execute"
+                                            "description": "Name of the tool to execute",
                                         },
                                         "input": {
                                             "type": "object",
-                                            "description": "Input for the tool"
-                                        }
+                                            "description": "Input for the tool",
+                                        },
                                     },
-                                    "required": ["name"]
+                                    "required": ["name"],
                                 }
                             }
-                        }
+                        },
                     },
                     "responses": {
-                        "200": {
-                            "description": "Tool execution result"
-                        },
-                        "404": {
-                            "description": "Tool not found"
-                        },
-                        "500": {
-                            "description": "Internal server error"
-                        }
-                    }
+                        "200": {"description": "Tool execution result"},
+                        "404": {"description": "Tool not found"},
+                        "500": {"description": "Internal server error"},
+                    },
                 }
-            }
+            },
         },
-        "components": {
-            "schemas": {}
-        }
+        "components": {"schemas": {}},
     }
-    
+
     # Add tool schemas
     for name, tool in tools.items():
         spec["components"]["schemas"][name] = tool["schema"]
-    
+
     return JSONResponse(spec)
+
 
 async def handle_tools_list(request):
     """Handle tools list requests."""
     tool_list = []
     for name, tool in tools.items():
-        tool_info = {
-            "name": name,
-            "description": tool["description"],
-            "schema": tool["schema"]
-        }
+        tool_info = {"name": name, "description": tool["description"], "schema": tool["schema"]}
         tool_list.append(tool_info)
-    
-    return JSONResponse({
-        "tools": tool_list
-    })
+
+    return JSONResponse({"tools": tool_list})
+
 
 async def handle_version(request):
     """Handle version requests."""
-    return JSONResponse({
-        "version": __version__,
-        "server": "Comprehensive MCP Server",
-        "uptime_seconds": (datetime.now() - server_start_time).total_seconds()
-    })
+    return JSONResponse(
+        {
+            "version": __version__,
+            "server": "Comprehensive MCP Server",
+            "uptime_seconds": (datetime.now() - server_start_time).total_seconds(),
+        }
+    )
+
 
 # Define the routes
 routes = [
@@ -1628,14 +1318,11 @@ routes = [
     Route("/jsonrpc", handle_jsonrpc, methods=["POST"]),
     Route("/openapi.json", handle_openapi_spec),
     Route("/tools", handle_tools_list),
-    Route("/version", handle_version)
+    Route("/version", handle_version),
 ]
 
 # Create the Starlette application
-app = Starlette(
-    debug=False,
-    routes=routes
-)
+app = Starlette(debug=False, routes=routes)
 
 # Add CORS middleware
 app.add_middleware(
@@ -1643,8 +1330,9 @@ app.add_middleware(
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
+
 
 # Signal handlers
 def handle_exit_signal(sig, frame):
@@ -1652,9 +1340,11 @@ def handle_exit_signal(sig, frame):
     logger.info("Received exit signal, shutting down...")
     sys.exit(0)
 
+
 # Register the signal handlers
 signal.signal(signal.SIGINT, handle_exit_signal)
 signal.signal(signal.SIGTERM, handle_exit_signal)
+
 
 def main():
     """Main entry point for the MCP server."""
@@ -1664,26 +1354,28 @@ def main():
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind to")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
-    
+
     # Set up global variables
     global PORT
     PORT = args.port
-    
+
     # Set up logging level
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
-    
+
     # Register all tools
     register_all_tools()
-    
+
     # Print startup information
     logger.info(f"Starting Comprehensive MCP Server v{__version__}")
     logger.info(f"Listening on {args.host}:{args.port}")
     logger.info(f"Registered {len(tools)} tools")
-    
+
     # Start the server using uvicorn
     import uvicorn
+
     uvicorn.run(app, host=args.host, port=args.port)
+
 
 if __name__ == "__main__":
     main()

@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 class StorageBackendType(str, Enum):
     """Enum for supported storage backend types."""
+
     IPFS = "ipfs"
     MOCK = "mock"
     FILECOIN = "filecoin"
@@ -30,6 +31,7 @@ class StorageBackendType(str, Enum):
 
 class ContentReference:
     """Reference to content across multiple storage backends."""
+
     def __init__(self, content_id: str, content_hash: str, metadata: Dict[str, Any]):
         self.content_id = content_id
         self.content_hash = content_hash

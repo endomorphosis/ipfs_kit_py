@@ -21,23 +21,26 @@ from typing import Optional, Dict, Any, List, Tuple
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger("fix-import-hanging")
 
-def import_with_timeout(module_name: str, timeout: int = 10) -> Tuple[bool, Optional[Any], Optional[str]]:
+
+def import_with_timeout(
+    module_name: str, timeout: int = 10
+) -> Tuple[bool, Optional[Any], Optional[str]]:
     """
     Import a module with a timeout to prevent hanging.
-    
+
     Args:
         module_name: Name of the module to import
         timeout: Timeout in seconds
-        
+
     Returns:
         Tuple of (success, module, error_message)
     """
     result_queue = multiprocessing.Queue()
-    
+
     def import_target(module_name, result_queue):
         """Target function for importing a module in a separate process."""
         try:
@@ -46,25 +49,25 @@ def import_with_timeout(module_name: str, timeout: int = 10) -> Tuple[bool, Opti
         except Exception as e:
             error_message = f"Error importing {module_name}: {str(e)}\n{traceback.format_exc()}"
             result_queue.put((False, error_message))
-    
+
     # Start the import in a separate process
     process = multiprocessing.Process(target=import_target, args=(module_name, result_queue))
     process.start()
-    
+
     # Wait for the process to complete or timeout
     process.join(timeout)
-    
+
     if process.is_alive():
         # The import is hanging, terminate the process
         process.terminate()
         process.join()
         logger.error(f"Import of {module_name} timed out after {timeout} seconds")
         return False, None, f"Import timed out after {timeout} seconds"
-    
+
     # Get the result
     try:
         success, error_message = result_queue.get(block=False)
-        
+
         if success:
             # The import was successful, now actually import the module in this process
             try:
@@ -78,31 +81,33 @@ def import_with_timeout(module_name: str, timeout: int = 10) -> Tuple[bool, Opti
     except Exception as e:
         return False, None, f"Error getting result: {str(e)}"
 
+
 def safe_import_unified_ipfs_tools() -> Tuple[bool, Optional[Any]]:
     """
     Safely import the unified_ipfs_tools module, addressing known issues.
-    
+
     Returns:
         Tuple of (success, module)
     """
     logger.info("Attempting to safely import unified_ipfs_tools...")
-    
+
     # First, try importing with timeout to detect hanging
     success, module, error = import_with_timeout("unified_ipfs_tools")
-    
+
     if success:
         logger.info("✅ Successfully imported unified_ipfs_tools")
         return True, module
     else:
         logger.error(f"❌ Error importing unified_ipfs_tools: {error}")
         logger.info("Attempting to import with patching...")
-        
+
         # Create a patched version of the module
         patch_unified_ipfs_tools()
-        
+
         # Try importing the patched version
         try:
             import patched_unified_ipfs_tools
+
             logger.info("✅ Successfully imported patched_unified_ipfs_tools")
             return True, patched_unified_ipfs_tools
         except Exception as e:
@@ -110,10 +115,11 @@ def safe_import_unified_ipfs_tools() -> Tuple[bool, Optional[Any]]:
             logger.error(traceback.format_exc())
             return False, None
 
+
 def patch_unified_ipfs_tools() -> bool:
     """
     Create a patched version of the unified_ipfs_tools module that avoids import hanging.
-    
+
     Returns:
         bool: True if patching was successful, False otherwise
     """
@@ -121,10 +127,10 @@ def patch_unified_ipfs_tools() -> bool:
         # Read the original file
         with open("unified_ipfs_tools.py", "r") as f:
             content = f.read()
-        
+
         # Apply patches to prevent hanging
         patched_content = content
-        
+
         # Patch 1: Remove the problematic fixed_ipfs_model import
         import_block = """
 # Try to import fixed IPFS model if available
@@ -157,34 +163,34 @@ except Exception as e:
     TOOL_STATUS["fixed_ipfs_model_available"] = False
     FIXED_TOOL_MAP = {}
 """
-        
+
         replacement = """
 # Removed the problematic fixed_ipfs_model import to prevent hanging
 TOOL_STATUS["fixed_ipfs_model_available"] = False
 FIXED_TOOL_MAP = {}
 logger.info("⚠️ Fixed IPFS model import explicitly disabled to prevent hanging")
 """
-        
+
         patched_content = patched_content.replace(import_block, replacement)
-        
+
         # Patch 2: Modify initialize_components to avoid initializing fixed_ipfs_model
         initialize_block = """
         # if TOOL_STATUS["fixed_ipfs_model_available"] and fixed_ipfs_model_instance is None:
         #      fixed_ipfs_model_instance = FixedIPFSModel()
         #      logger.info("✅ Fixed IPFS Model initialized")
 """
-        
+
         replacement = """
         # Fixed IPFS Model initialization removed to prevent hanging
         # fixed_ipfs_model_instance will always be None
 """
-        
+
         patched_content = patched_content.replace(initialize_block, replacement)
-        
+
         # Write the patched content to a new file
         with open("patched_unified_ipfs_tools.py", "w") as f:
             f.write(patched_content)
-        
+
         logger.info("✅ Successfully created patched_unified_ipfs_tools.py")
         return True
     except Exception as e:
@@ -192,31 +198,33 @@ logger.info("⚠️ Fixed IPFS model import explicitly disabled to prevent hangi
         logger.error(traceback.format_exc())
         return False
 
+
 def safe_import_final_mcp_server() -> Tuple[bool, Optional[Any]]:
     """
     Safely import the final_mcp_server module, addressing known issues.
-    
+
     Returns:
         Tuple of (success, module)
     """
     logger.info("Attempting to safely import final_mcp_server...")
-    
+
     # First, try importing with timeout to detect hanging
     success, module, error = import_with_timeout("final_mcp_server")
-    
+
     if success:
         logger.info("✅ Successfully imported final_mcp_server")
         return True, module
     else:
         logger.error(f"❌ Error importing final_mcp_server: {error}")
         logger.info("Attempting to import with patching...")
-        
+
         # Create a patched version of the module
         patch_final_mcp_server()
-        
+
         # Try importing the patched version
         try:
             import patched_final_mcp_server
+
             logger.info("✅ Successfully imported patched_final_mcp_server")
             return True, patched_final_mcp_server
         except Exception as e:
@@ -224,10 +232,11 @@ def safe_import_final_mcp_server() -> Tuple[bool, Optional[Any]]:
             logger.error(traceback.format_exc())
             return False, None
 
+
 def patch_final_mcp_server() -> bool:
     """
     Create a patched version of the final_mcp_server module that avoids import hanging.
-    
+
     Returns:
         bool: True if patching was successful, False otherwise
     """
@@ -235,10 +244,10 @@ def patch_final_mcp_server() -> bool:
         # Read the original file
         with open("final_mcp_server.py", "r") as f:
             content = f.read()
-        
+
         # Apply patches to prevent hanging
         patched_content = content
-        
+
         # Patch: Modify the register_ipfs_tools function to avoid the problematic imports
         register_ipfs_block = """
 def register_ipfs_tools():
@@ -252,7 +261,7 @@ def register_ipfs_tools():
   except ImportError:
     logger.warning("ipfs_extensions not found, trying other methods...")
 """
-        
+
         replacement = """
 def register_ipfs_tools():
   try:
@@ -296,13 +305,13 @@ def register_ipfs_tools():
   except ImportError:
     logger.warning("ipfs_extensions not found, trying other methods...")
 """
-        
+
         patched_content = patched_content.replace(register_ipfs_block, replacement)
-        
+
         # Write the patched content to a new file
         with open("patched_final_mcp_server.py", "w") as f:
             f.write(patched_content)
-        
+
         logger.info("✅ Successfully created patched_final_mcp_server.py")
         return True
     except Exception as e:
@@ -310,15 +319,16 @@ def register_ipfs_tools():
         logger.error(traceback.format_exc())
         return False
 
+
 if __name__ == "__main__":
     logger.info("Starting import hanging fix...")
-    
+
     # Test importing unified_ipfs_tools
     success_unified, module_unified = safe_import_unified_ipfs_tools()
-    
+
     # Test importing final_mcp_server
     success_final, module_final = safe_import_final_mcp_server()
-    
+
     if success_unified and success_final:
         logger.info("✅ Successfully addressed import hanging issues")
         sys.exit(0)

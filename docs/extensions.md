@@ -19,13 +19,14 @@ Extensions are typically Python classes that encapsulate a specific set of funct
 1.  **Define the Extension Class**:
     ```python
     # Example: my_custom_extension.py
-    from ipfs_kit_py.high_level_api import PluginBase # Assuming PluginBase exists
+    from ipfs_kit_py.high_level_api import PluginBase  # Assuming PluginBase exists
+
 
     class MyCustomExtension(PluginBase):
         def __init__(self, ipfs_kit, config=None):
             super().__init__(ipfs_kit, config)
-            self.api_key = config.get('api_key') if config else None
-            self.service_url = config.get('service_url', 'https://api.example.com')
+            self.api_key = config.get("api_key") if config else None
+            self.service_url = config.get("service_url", "https://api.example.com")
             # Use self.ipfs_kit to access core kit functionality if needed
             # e.g., self.ipfs_kit.add(...)
 
@@ -56,20 +57,19 @@ Extensions are typically Python classes that encapsulate a specific set of funct
             return {"success": True, "result": f"Action performed on {data.get('item')}"}
 
         def get_service_status(self) -> dict:
-             """Another example method."""
-             # Placeholder
-             return {"success": True, "status": "OK", "url": self.service_url}
-
+            """Another example method."""
+            # Placeholder
+            return {"success": True, "status": "OK", "url": self.service_url}
     ```
 2.  **Configure the Extension**: Add configuration for your extension in the main `ipfs-kit-py` config file or dictionary, typically under a dedicated key matching the extension's name or a general `extensions` key.
     ```python
     # Example configuration snippet
     config = {
-        'extensions': {
-            'my_custom_service': { # Matches get_name()
-                'enabled': True,
-                'api_key': 'YOUR_API_KEY_HERE', # Load securely!
-                'service_url': 'https://custom.example.com/api'
+        "extensions": {
+            "my_custom_service": {  # Matches get_name()
+                "enabled": True,
+                "api_key": "YOUR_API_KEY_HERE",  # Load securely!
+                "service_url": "https://custom.example.com/api",
             }
             # Potentially other extensions
         },
@@ -79,7 +79,7 @@ Extensions are typically Python classes that encapsulate a specific set of funct
 3.  **Register the Extension**: This might happen automatically during kit initialization if extensions are defined in the config, or you might need to register manually.
     ```python
     from ipfs_kit_py.high_level_api import IPFSSimpleAPI
-    from my_custom_extension import MyCustomExtension # Import your class
+    from my_custom_extension import MyCustomExtension  # Import your class
 
     kit = IPFSSimpleAPI(config=config)
 
@@ -88,7 +88,6 @@ Extensions are typically Python classes that encapsulate a specific set of funct
     # if extension_config.get('enabled'):
     #     my_extension = MyCustomExtension(kit, extension_config)
     #     kit.register_extension(my_extension) # Assuming register_extension method exists
-
     ```
 
 ## Using the Extension
@@ -101,8 +100,8 @@ Once registered, call the extension's methods. The exact syntax depends on the i
 # action_result = kit.perform_custom_action(data={"item": "test"})
 
 # Option B: Using a dispatcher method like __call__
-status_result = kit('my_custom_service.get_service_status')
-action_result = kit('my_custom_service.perform_custom_action', data={"item": "test"})
+status_result = kit("my_custom_service.get_service_status")
+action_result = kit("my_custom_service.perform_custom_action", data={"item": "test"})
 
 # Option C: Using a dedicated call_extension method
 # status_result = kit.call_extension('my_custom_service', 'get_service_status')

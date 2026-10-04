@@ -1,6 +1,7 @@
 import subprocess
 import sys
 
+
 def test_start_dashboard():
     """
     Tests that the `ipfs-kit mcp start` command runs without errors.

@@ -111,37 +111,39 @@ The following diagram illustrates the data flow through the WAL system:
 The WAL uses Apache Arrow for efficient data representation and Parquet for durable storage. The schema defines the structure of operation records:
 
 ```python
-schema = pa.schema([
-    # Operation identification
-    pa.field('operation_id', pa.string()),
-    pa.field('operation_type', pa.string()),  # add, pin, remove, etc.
-    
-    # Status and timing
-    pa.field('status', pa.string()),  # pending, processing, completed, failed
-    pa.field('timestamp', pa.timestamp('ms')),
-    pa.field('updated_at', pa.timestamp('ms')),
-    pa.field('completed_at', pa.timestamp('ms')),
-    
-    # Storage backend
-    pa.field('backend', pa.string()),  # ipfs, s3, storacha
-    
-    # Operation details
-    pa.field('parameters', pa.map_(pa.string(), pa.string())),
-    pa.field('result', pa.struct([
-        pa.field('cid', pa.string()),
-        pa.field('size', pa.int64()),
-        pa.field('destination', pa.string())
-    ])),
-    
-    # Error tracking
-    pa.field('error', pa.string()),
-    pa.field('error_type', pa.string()),
-    pa.field('retry_count', pa.int32()),
-    pa.field('max_retries', pa.int32()),
-    
-    # Next retry
-    pa.field('next_retry_at', pa.timestamp('ms')),
-])
+schema = pa.schema(
+    [
+        # Operation identification
+        pa.field("operation_id", pa.string()),
+        pa.field("operation_type", pa.string()),  # add, pin, remove, etc.
+        # Status and timing
+        pa.field("status", pa.string()),  # pending, processing, completed, failed
+        pa.field("timestamp", pa.timestamp("ms")),
+        pa.field("updated_at", pa.timestamp("ms")),
+        pa.field("completed_at", pa.timestamp("ms")),
+        # Storage backend
+        pa.field("backend", pa.string()),  # ipfs, s3, storacha
+        # Operation details
+        pa.field("parameters", pa.map_(pa.string(), pa.string())),
+        pa.field(
+            "result",
+            pa.struct(
+                [
+                    pa.field("cid", pa.string()),
+                    pa.field("size", pa.int64()),
+                    pa.field("destination", pa.string()),
+                ]
+            ),
+        ),
+        # Error tracking
+        pa.field("error", pa.string()),
+        pa.field("error_type", pa.string()),
+        pa.field("retry_count", pa.int32()),
+        pa.field("max_retries", pa.int32()),
+        # Next retry
+        pa.field("next_retry_at", pa.timestamp("ms")),
+    ]
+)
 ```
 
 ### Partitioning Strategy
@@ -282,7 +284,8 @@ print(f"Dashboard created. HTML report: {dashboard['html_report']}")
 
 # Open the dashboard in a browser
 import webbrowser
-webbrowser.open(dashboard['html_report'])
+
+webbrowser.open(dashboard["html_report"])
 ```
 
 You can also use the command-line tool for visualization:
@@ -341,25 +344,17 @@ benchmark = WALBenchmark()
 
 # Benchmark single operations
 results = benchmark.benchmark_add_operation(
-    num_operations=100,
-    file_size_kb=10,
-    backends=["ipfs", "s3", "storacha"]
+    num_operations=100, file_size_kb=10, backends=["ipfs", "s3", "storacha"]
 )
 
 # Benchmark batch operations
 batch_results = benchmark.benchmark_batch_operations(
-    num_batches=10,
-    batch_size=10,
-    file_size_kb=10,
-    backends=["ipfs", "s3", "storacha"]
+    num_batches=10, batch_size=10, file_size_kb=10, backends=["ipfs", "s3", "storacha"]
 )
 
 # Benchmark recovery capabilities
 recovery_results = benchmark.benchmark_recovery(
-    num_operations=50,
-    file_size_kb=10,
-    failure_rate=0.2,
-    backend="ipfs"
+    num_operations=50, file_size_kb=10, failure_rate=0.2, backend="ipfs"
 )
 
 # Generate visualization plots
@@ -393,42 +388,28 @@ The WAL system can be configured through the high-level API to customize its beh
 config = {
     "wal": {
         # Basic configuration
-        "enabled": True,                # Enable/disable WAL functionality
-        "base_path": "~/.ipfs_kit/wal", # Base directory for WAL storage
-        
+        "enabled": True,  # Enable/disable WAL functionality
+        "base_path": "~/.ipfs_kit/wal",  # Base directory for WAL storage
         # Partitioning settings
-        "partition_size": 1000,         # Maximum operations per partition
-        
+        "partition_size": 1000,  # Maximum operations per partition
         # Retry behavior
-        "max_retries": 5,               # Maximum retry attempts for failed operations
-        "retry_delay": 60,              # Seconds between retry attempts
-        "processing_interval": 10,      # Seconds between processing cycles
-        
+        "max_retries": 5,  # Maximum retry attempts for failed operations
+        "retry_delay": 60,  # Seconds between retry attempts
+        "processing_interval": 10,  # Seconds between processing cycles
         # Storage management
-        "archive_completed": True,      # Move completed operations to archive
-        "cleanup_interval": 86400,      # Cleanup interval in seconds (24 hours)
-        "max_age_days": 30,             # Maximum age of archived operations (days)
-        
+        "archive_completed": True,  # Move completed operations to archive
+        "cleanup_interval": 86400,  # Cleanup interval in seconds (24 hours)
+        "max_age_days": 30,  # Maximum age of archived operations (days)
         # Health monitoring
-        "health_check_interval": 60,    # Backend health check interval (seconds)
-        "health_check_timeout": 10,     # Timeout for health check requests (seconds)
-        "health_history_size": 25,      # Number of historical health checks to maintain
-        
+        "health_check_interval": 60,  # Backend health check interval (seconds)
+        "health_check_timeout": 10,  # Timeout for health check requests (seconds)
+        "health_history_size": 25,  # Number of historical health checks to maintain
         # Backend-specific configuration
         "backends": {
-            "ipfs": {
-                "endpoint": "http://localhost:5001/api/v0",
-                "connection_timeout": 5
-            },
-            "s3": {
-                "region": "us-west-2",
-                "connection_timeout": 10
-            },
-            "storacha": {
-                "endpoint": "https://api.web3.storage",
-                "connection_timeout": 15
-            }
-        }
+            "ipfs": {"endpoint": "http://localhost:5001/api/v0", "connection_timeout": 5},
+            "s3": {"region": "us-west-2", "connection_timeout": 10},
+            "storacha": {"endpoint": "https://api.web3.storage", "connection_timeout": 15},
+        },
     }
 }
 
@@ -488,11 +469,12 @@ def _check_ipfs_health(self, config):
         # Try to get the IPFS node ID
         response = requests.post(
             f"{config.get('endpoint', 'http://localhost:5001/api/v0')}/id",
-            timeout=config.get('connection_timeout', 5)
+            timeout=config.get("connection_timeout", 5),
         )
         return response.status_code == 200
     except requests.exceptions.RequestException:
         return False
+
 
 # S3 health check
 def _check_s3_health(self, config):
@@ -501,19 +483,19 @@ def _check_s3_health(self, config):
         import boto3
         from botocore.config import Config
         from botocore.exceptions import ClientError
-        
+
         # Create S3 client with timeout
         s3_config = Config(
-            connect_timeout=config.get('connection_timeout', 10),
-            retries={'max_attempts': 1}
+            connect_timeout=config.get("connection_timeout", 10), retries={"max_attempts": 1}
         )
-        s3 = boto3.client('s3', config=s3_config, region_name=config.get('region'))
-        
+        s3 = boto3.client("s3", config=s3_config, region_name=config.get("region"))
+
         # Try to list buckets (simple operation to check service availability)
         s3.list_buckets()
         return True
     except (ImportError, ClientError):
         return False
+
 
 # Storacha health check
 def _check_storacha_health(self, config):
@@ -521,7 +503,7 @@ def _check_storacha_health(self, config):
     try:
         response = requests.get(
             f"{config.get('endpoint', 'https://api.web3.storage')}/status",
-            timeout=config.get('connection_timeout', 15)
+            timeout=config.get("connection_timeout", 15),
         )
         return response.status_code == 200
     except requests.exceptions.RequestException:
@@ -539,7 +521,9 @@ print("Backend Health:")
 for backend, status in health_status.items():
     print(f"  {backend}: {status['status']}")
     print(f"    Last check: {datetime.fromtimestamp(status['last_check'])}")
-    print(f"    Check history: {''.join('✓' if check else '✗' for check in status['check_history'])}")
+    print(
+        f"    Check history: {''.join('✓' if check else '✗' for check in status['check_history'])}"
+    )
 ```
 
 Or through the CLI:
@@ -616,14 +600,13 @@ with open(test_file, "w") as f:
 # Add file to IPFS
 print("Adding file to IPFS...")
 result = subprocess.run(
-    ["python", "-m", "ipfs_kit_py.wal_cli", "add", test_file],
-    capture_output=True,
-    text=True
+    ["python", "-m", "ipfs_kit_py.wal_cli", "add", test_file], capture_output=True, text=True
 )
 print(result.stdout)
 
 # Extract operation ID from output
 import json
+
 output_lines = result.stdout.strip().split("\n")
 for line in output_lines:
     if "Result:" in line:
@@ -633,31 +616,19 @@ for line in output_lines:
 
 # Check WAL status
 print("\nChecking WAL status...")
-subprocess.run(
-    ["python", "-m", "ipfs_kit_py.wal_cli", "status"],
-    text=True
-)
+subprocess.run(["python", "-m", "ipfs_kit_py.wal_cli", "status"], text=True)
 
 # Show operation details
 print(f"\nShowing operation details for {operation_id}...")
-subprocess.run(
-    ["python", "-m", "ipfs_kit_py.wal_cli", "show", operation_id],
-    text=True
-)
+subprocess.run(["python", "-m", "ipfs_kit_py.wal_cli", "show", operation_id], text=True)
 
 # Wait for operation to complete
 print(f"\nWaiting for operation {operation_id} to complete...")
-subprocess.run(
-    ["python", "-m", "ipfs_kit_py.wal_cli", "wait", operation_id],
-    text=True
-)
+subprocess.run(["python", "-m", "ipfs_kit_py.wal_cli", "wait", operation_id], text=True)
 
 # Check backend health
 print("\nChecking backend health...")
-subprocess.run(
-    ["python", "-m", "ipfs_kit_py.wal_cli", "health"],
-    text=True
-)
+subprocess.run(["python", "-m", "ipfs_kit_py.wal_cli", "health"], text=True)
 ```
 
 ### WAL Visualization Example
@@ -721,7 +692,9 @@ import argparse
 
 # Create argument parser
 parser = argparse.ArgumentParser(description="WAL Performance Benchmark Example")
-parser.add_argument("--output-dir", default="./benchmark_results", help="Output directory for benchmark results")
+parser.add_argument(
+    "--output-dir", default="./benchmark_results", help="Output directory for benchmark results"
+)
 parser.add_argument("--num-operations", type=int, default=100, help="Number of operations")
 parser.add_argument("--file-size-kb", type=int, default=10, help="Size of test files in KB")
 parser.add_argument("--plots", action="store_true", help="Generate plots")
@@ -734,11 +707,13 @@ print("Creating WAL benchmark tool...")
 benchmark = WALBenchmark(output_dir=args.output_dir)
 
 # Run add operation benchmark
-print(f"Benchmarking add operations ({args.num_operations} operations, {args.file_size_kb}KB files)...")
+print(
+    f"Benchmarking add operations ({args.num_operations} operations, {args.file_size_kb}KB files)..."
+)
 results = benchmark.benchmark_add_operation(
     num_operations=args.num_operations,
     file_size_kb=args.file_size_kb,
-    backends=["ipfs", "s3", "storacha"]
+    backends=["ipfs", "s3", "storacha"],
 )
 
 # Run batch operations benchmark
@@ -747,16 +722,13 @@ batch_results = benchmark.benchmark_batch_operations(
     num_batches=10,
     batch_size=10,
     file_size_kb=args.file_size_kb,
-    backends=["ipfs", "s3", "storacha"]
+    backends=["ipfs", "s3", "storacha"],
 )
 
 # Run recovery benchmark
 print("Benchmarking recovery capabilities...")
 recovery_results = benchmark.benchmark_recovery(
-    num_operations=50,
-    file_size_kb=args.file_size_kb,
-    failure_rate=0.2,
-    backend="ipfs"
+    num_operations=50, file_size_kb=args.file_size_kb, failure_rate=0.2, backend="ipfs"
 )
 
 # Save results
@@ -792,14 +764,13 @@ with open(test_file, "w") as f:
 # Add file to IPFS using integrated CLI
 print("Adding file to IPFS...")
 result = subprocess.run(
-    ["python", "-m", "ipfs_kit_py.cli", "wal", "add", test_file],
-    capture_output=True,
-    text=True
+    ["python", "-m", "ipfs_kit_py.cli", "wal", "add", test_file], capture_output=True, text=True
 )
 print(result.stdout)
 
 # Extract operation ID from output
 import json
+
 output_lines = result.stdout.strip().split("\n")
 for line in output_lines:
     if "Result:" in line:
@@ -809,31 +780,19 @@ for line in output_lines:
 
 # Check WAL status using integrated CLI
 print("\nChecking WAL status...")
-subprocess.run(
-    ["python", "-m", "ipfs_kit_py.cli", "wal", "status"],
-    text=True
-)
+subprocess.run(["python", "-m", "ipfs_kit_py.cli", "wal", "status"], text=True)
 
 # Show operation details using integrated CLI
 print(f"\nShowing operation details for {operation_id}...")
-subprocess.run(
-    ["python", "-m", "ipfs_kit_py.cli", "wal", "show", operation_id],
-    text=True
-)
+subprocess.run(["python", "-m", "ipfs_kit_py.cli", "wal", "show", operation_id], text=True)
 
 # Wait for operation to complete using integrated CLI
 print(f"\nWaiting for operation {operation_id} to complete...")
-subprocess.run(
-    ["python", "-m", "ipfs_kit_py.cli", "wal", "wait", operation_id],
-    text=True
-)
+subprocess.run(["python", "-m", "ipfs_kit_py.cli", "wal", "wait", operation_id], text=True)
 
 # Check backend health using integrated CLI
 print("\nChecking backend health...")
-subprocess.run(
-    ["python", "-m", "ipfs_kit_py.cli", "wal", "health"],
-    text=True
-)
+subprocess.run(["python", "-m", "ipfs_kit_py.cli", "wal", "health"], text=True)
 ```
 
 ## Advanced Topics
@@ -853,18 +812,18 @@ def _handle_transient_failure(self, operation_id, error, error_type):
     operation = self.get_operation(operation_id)
     if not operation:
         return False
-        
+
     # Check retry count
     retry_count = operation.get("retry_count", 0)
     max_retries = operation.get("max_retries", self.max_retries)
-    
+
     if retry_count < max_retries:
         # Calculate next retry time with exponential backoff
         base_delay = self.retry_delay
-        backoff_factor = min(2 ** retry_count, 10)  # Cap at 10x
+        backoff_factor = min(2**retry_count, 10)  # Cap at 10x
         next_retry_delay = base_delay * backoff_factor
         next_retry_at = int(time.time() * 1000) + (next_retry_delay * 1000)
-        
+
         # Update operation status
         self.update_operation_status(
             operation_id,
@@ -873,19 +832,14 @@ def _handle_transient_failure(self, operation_id, error, error_type):
                 "retry_count": retry_count + 1,
                 "next_retry_at": next_retry_at,
                 "error": error,
-                "error_type": error_type
-            }
+                "error_type": error_type,
+            },
         )
         return True
     else:
         # Max retries reached
         self.update_operation_status(
-            operation_id,
-            OperationStatus.FAILED,
-            {
-                "error": error,
-                "error_type": error_type
-            }
+            operation_id, OperationStatus.FAILED, {"error": error, "error_type": error_type}
         )
         return False
 ```
@@ -925,11 +879,11 @@ For permanent failures, the WAL provides manual intervention options:
 ```python
 def handle_permanent_failure(self, operation_id, new_backend=None):
     """Handle a permanent failure by potentially moving to a different backend.
-    
+
     Args:
         operation_id: ID of the failed operation
         new_backend: Optional new backend to try
-        
+
     Returns:
         New operation ID if redirected, or None if not possible
     """
@@ -937,38 +891,35 @@ def handle_permanent_failure(self, operation_id, new_backend=None):
     operation = self.get_operation(operation_id)
     if not operation:
         return None
-        
+
     # Check if operation is failed
     if operation.get("status") != OperationStatus.FAILED.value:
         return None
-        
+
     # If no new backend specified, mark as permanently failed
     if not new_backend:
         self.update_operation_status(
             operation_id,
             OperationStatus.FAILED,
-            {
-                "error_type": "permanent_failure",
-                "error": "Operation marked as permanently failed"
-            }
+            {"error_type": "permanent_failure", "error": "Operation marked as permanently failed"},
         )
         return None
-        
+
     # Create a new operation with the same parameters but different backend
     new_operation = {
         "operation_type": operation.get("operation_type"),
         "parameters": operation.get("parameters", {}),
-        "max_retries": operation.get("max_retries")
+        "max_retries": operation.get("max_retries"),
     }
-    
+
     # Add to the new backend
     result = self.add_operation(
         operation_type=new_operation["operation_type"],
         backend=new_backend,
         parameters=new_operation["parameters"],
-        max_retries=new_operation["max_retries"]
+        max_retries=new_operation["max_retries"],
     )
-    
+
     # Return the new operation ID
     return result.get("operation_id")
 ```
@@ -1028,12 +979,13 @@ To add a new operation type to the WAL system:
    ```python
    class OperationType(enum.Enum):
        """Types of operations that can be stored in the WAL."""
+
        # Existing types
        ADD = "add"
        GET = "get"
        PIN = "pin"
        UNPIN = "unpin"
-       
+
        # New operation type
        MY_NEW_OPERATION = "my_new_operation"
    ```
@@ -1071,20 +1023,13 @@ To add a new operation type to the WAL system:
    def register_wal_commands(subparsers):
        """Register WAL commands with the CLI."""
        # Existing commands
-       
+
        # New operation command
        my_new_operation_parser = wal_subparsers.add_parser(
-           "my_new_operation", 
-           help="Perform my new operation"
+           "my_new_operation", help="Perform my new operation"
        )
-       my_new_operation_parser.add_argument(
-           "param1",
-           help="First parameter"
-       )
-       my_new_operation_parser.add_argument(
-           "param2",
-           help="Second parameter"
-       )
+       my_new_operation_parser.add_argument("param1", help="First parameter")
+       my_new_operation_parser.add_argument("param2", help="Second parameter")
    ```
 
 5. Add command handler in `wal_cli_integration.py`:
@@ -1125,11 +1070,12 @@ To add support for monitoring a new backend type:
    ```python
    class BackendType(enum.Enum):
        """Types of storage backends."""
+
        # Existing backends
        IPFS = "ipfs"
        S3 = "s3"
        STORACHA = "storacha"
-       
+
        # New backend
        MY_NEW_BACKEND = "my_new_backend"
    ```
@@ -1139,10 +1085,10 @@ To add support for monitoring a new backend type:
    ```python
    def _check_my_new_backend_health(self, config):
        """Check if my new backend is responsive.
-       
+
        Args:
            config: Backend configuration
-           
+
        Returns:
            True if healthy, False otherwise
        """
@@ -1151,7 +1097,7 @@ To add support for monitoring a new backend type:
            # For example, make an API call to check status
            response = requests.get(
                f"{config.get('endpoint', 'https://api.mynewbackend.com')}/status",
-               timeout=config.get('connection_timeout', 10)
+               timeout=config.get("connection_timeout", 10),
            )
            return response.status_code == 200
        except requests.exceptions.RequestException:
@@ -1199,9 +1145,9 @@ To add support for monitoring a new backend type:
            "ipfs": "#3498DB",
            "s3": "#F1C40F",
            "storacha": "#9B59B6",
-           "my_new_backend": "#2ECC71"  # Add color for new backend
+           "my_new_backend": "#2ECC71",  # Add color for new backend
        }
-       
+
        # Rest of the implementation
    ```
 
@@ -1215,20 +1161,20 @@ To add support for monitoring a new backend type:
            backend_configs={
                BackendType.MY_NEW_BACKEND.value: {
                    "endpoint": "https://api.mynewbackend.com",
-                   "connection_timeout": 10
+                   "connection_timeout": 10,
                }
-           }
+           },
        )
-       
+
        # Mock the health check response
-       with patch('requests.get') as mock_get:
+       with patch("requests.get") as mock_get:
            mock_response = MagicMock()
            mock_response.status_code = 200
            mock_get.return_value = mock_response
-           
+
            # Check health
            health_monitor._check_backend(BackendType.MY_NEW_BACKEND.value)
-           
+
            # Verify status
            status = health_monitor.get_status(BackendType.MY_NEW_BACKEND.value)
            assert status["status"] == "online"
@@ -1269,7 +1215,8 @@ Enable debug logging for more detailed information:
 
 ```python
 import logging
-logging.getLogger('ipfs_kit_py.storage_wal').setLevel(logging.DEBUG)
+
+logging.getLogger("ipfs_kit_py.storage_wal").setLevel(logging.DEBUG)
 ```
 
 Or use the `--debug` flag with CLI tools:
@@ -1310,7 +1257,9 @@ ipfs-kit wal --debug status
    for backend, status in health_status.items():
        print(f"Backend: {backend}")
        print(f"  Status: {status['status']}")
-       print(f"  Health history: {''.join('✓' if check else '✗' for check in status['check_history'])}")
+       print(
+           f"  Health history: {''.join('✓' if check else '✗' for check in status['check_history'])}"
+       )
    ```
 
 3. **Performance Analysis**:
@@ -1325,10 +1274,11 @@ ipfs-kit wal --debug status
    # Get path to current partition
    wal_path = "~/.ipfs_kit/wal/partitions"
    expanded_path = os.path.expanduser(wal_path)
-   partition_files = [f for f in os.listdir(expanded_path) if f.endswith('.parquet')]
-   
+   partition_files = [f for f in os.listdir(expanded_path) if f.endswith(".parquet")]
+
    # Read latest partition
    import pyarrow.parquet as pq
+
    latest_partition = os.path.join(expanded_path, sorted(partition_files)[-1])
    table = pq.read_table(latest_partition)
    print(f"Partition contents: {table.to_pandas()}")

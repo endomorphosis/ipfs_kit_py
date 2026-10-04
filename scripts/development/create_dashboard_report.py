@@ -3,28 +3,30 @@
 Simple Screenshot Tool using Headless Browser Alternative
 Creates visual documentation of the MCP Services Dashboard
 """
+
 import requests
 import json
 import time
 from pathlib import Path
 
+
 def create_services_report():
     """Create a detailed visual report of the services."""
-    
+
     base_url = "http://127.0.0.1:8004"
-    
+
     # Get services data
     try:
         response = requests.get(f"{base_url}/api/services", timeout=5)
         services_data = response.json().get("services", {})
-        
+
         response2 = requests.get(f"{base_url}/api/mcp/status", timeout=5)
         mcp_data = response2.json().get("data", {})
-        
+
     except Exception as e:
         print(f"Error fetching data: {e}")
         return
-    
+
     # Create HTML report
     html_report = f"""
 <!DOCTYPE html>
@@ -149,46 +151,46 @@ def create_services_report():
                 <div>Total Services</div>
             </div>
             <div class="status-card">
-                <div class="status-number">{mcp_data.get('total_tools', 0)}</div>
+                <div class="status-number">{mcp_data.get("total_tools", 0)}</div>
                 <div>MCP Tools</div>
             </div>
             <div class="status-card">
-                <div class="status-number">{sum(1 for s in services_data.values() if s.get('status') == 'running')}</div>
+                <div class="status-number">{sum(1 for s in services_data.values() if s.get("status") == "running")}</div>
                 <div>Running</div>
             </div>
             <div class="status-card">
-                <div class="status-number">{sum(1 for s in services_data.values() if s.get('status') == 'stopped')}</div>
+                <div class="status-number">{sum(1 for s in services_data.values() if s.get("status") == "stopped")}</div>
                 <div>Stopped</div>
             </div>
             <div class="status-card">
-                <div class="status-number">{sum(1 for s in services_data.values() if s.get('status') == 'not_configured')}</div>
+                <div class="status-number">{sum(1 for s in services_data.values() if s.get("status") == "not_configured")}</div>
                 <div>Not Configured</div>
             </div>
         </div>
         
         <div class="services-grid">
     """
-    
+
     # Add service cards
     for service_id, service in services_data.items():
-        status = service.get('status', 'unknown')
+        status = service.get("status", "unknown")
         actions_html = ""
-        for action in service.get('actions', []):
+        for action in service.get("actions", []):
             actions_html += f'<button class="action-btn">{action.title()}</button>'
-        
+
         html_report += f"""
             <div class="service-card">
                 <div class="service-header">
-                    <div class="service-name">{service.get('name', service_id)}</div>
-                    <span class="status-badge status-{status}">{status.replace('_', ' ').title()}</span>
+                    <div class="service-name">{service.get("name", service_id)}</div>
+                    <span class="status-badge status-{status}">{status.replace("_", " ").title()}</span>
                 </div>
-                <div class="service-description">{service.get('description', '')}</div>
+                <div class="service-description">{service.get("description", "")}</div>
                 <div class="service-actions">
                     {actions_html}
                 </div>
             </div>
         """
-    
+
     html_report += f"""
         </div>
         
@@ -202,23 +204,24 @@ def create_services_report():
         </div>
         
         <div class="timestamp">
-            Generated: {time.strftime('%Y-%m-%d %H:%M:%S')} | Server: {mcp_data.get('uptime', 0):.1f}s uptime
+            Generated: {time.strftime("%Y-%m-%d %H:%M:%S")} | Server: {mcp_data.get("uptime", 0):.1f}s uptime
         </div>
     </div>
 </body>
 </html>
     """
-    
+
     # Save to file
     report_file = Path("mcp_services_dashboard_working.html")
-    with open(report_file, 'w', encoding='utf-8') as f:
+    with open(report_file, "w", encoding="utf-8") as f:
         f.write(html_report)
-    
+
     print(f"✅ HTML report saved to: {report_file}")
     print(f"📊 Services captured: {len(services_data)}")
     print(f"🔧 MCP Tools available: {mcp_data.get('total_tools', 0)}")
-    
+
     return report_file
+
 
 if __name__ == "__main__":
     create_services_report()

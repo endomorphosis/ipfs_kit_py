@@ -41,18 +41,18 @@ class _SDKResult(dict):
 class MobileSDKGenerator:
     """
     Generate mobile SDK packages for iOS and Android.
-    
+
     Creates platform-specific bindings and builds optimized libraries
     for mobile deployment.
     """
-    
+
     def __init__(self, output_dir: Optional[str] = None):
         """Initialize mobile SDK generator."""
         self.output_dir = output_dir or os.path.expanduser("~/.ipfs_kit/mobile_sdk")
         os.makedirs(self.output_dir, exist_ok=True)
-        
+
         logger.info(f"Mobile SDK generator initialized at {self.output_dir}")
-    
+
     def generate_ios_sdk(
         self,
         *,
@@ -62,9 +62,9 @@ class MobileSDKGenerator:
     ) -> Dict[str, Any]:
         """
         Generate iOS SDK package.
-        
+
         Creates Swift bindings and builds XCFramework for iOS/iPadOS.
-        
+
         Returns:
             Dictionary with SDK generation results
         """
@@ -74,27 +74,27 @@ class MobileSDKGenerator:
 
             contents: Dict[str, str] = {}
             files: List[str] = []
-            
+
             # Generate Swift bridge
             swift_bridge = self._generate_swift_bridge()
             bridge_path = os.path.join(ios_dir, "IPFSKitBridge.swift")
-            with open(bridge_path, 'w') as f:
+            with open(bridge_path, "w") as f:
                 f.write(swift_bridge)
             contents["IPFSKitBridge.swift"] = swift_bridge
             files.append("IPFSKitBridge.swift")
-            
+
             if include_swift_package:
                 package_swift = self._generate_swift_package()
                 package_path = os.path.join(ios_dir, "Package.swift")
-                with open(package_path, 'w') as f:
+                with open(package_path, "w") as f:
                     f.write(package_swift)
                 contents["Package.swift"] = package_swift
                 files.append("Package.swift")
-            
+
             if include_cocoapods:
                 podspec = self._generate_podspec()
                 podspec_path = os.path.join(ios_dir, "IPFSKit.podspec")
-                with open(podspec_path, 'w') as f:
+                with open(podspec_path, "w") as f:
                     f.write(podspec)
                 contents["IPFSKit.podspec"] = podspec
                 files.append("IPFSKit.podspec")
@@ -102,32 +102,34 @@ class MobileSDKGenerator:
             if include_carthage:
                 cartfile = self._generate_cartfile()
                 cartfile_path = os.path.join(ios_dir, "Cartfile")
-                with open(cartfile_path, 'w') as f:
+                with open(cartfile_path, "w") as f:
                     f.write(cartfile)
                 contents["Cartfile"] = cartfile
                 files.append("Cartfile")
-            
+
             # Generate README
             readme = self._generate_ios_readme()
             readme_path = os.path.join(ios_dir, "README.md")
-            with open(readme_path, 'w') as f:
+            with open(readme_path, "w") as f:
                 f.write(readme)
             contents["README.md"] = readme
             files.append("README.md")
-            
+
             logger.info(f"Generated iOS SDK at {ios_dir}")
-            
-            return _SDKResult({
-                "success": True,
-                "platform": "iOS",
-                "output_dir": ios_dir,
-                "files": files,
-                "contents": contents,
-            })
+
+            return _SDKResult(
+                {
+                    "success": True,
+                    "platform": "iOS",
+                    "output_dir": ios_dir,
+                    "files": files,
+                    "contents": contents,
+                }
+            )
         except Exception as e:
             logger.error(f"Error generating iOS SDK: {e}")
             return {"success": False, "error": str(e)}
-    
+
     def generate_android_sdk(
         self,
         *,
@@ -138,9 +140,9 @@ class MobileSDKGenerator:
     ) -> Dict[str, Any]:
         """
         Generate Android SDK package.
-        
+
         Creates Kotlin bindings and builds AAR library for Android.
-        
+
         Returns:
             Dictionary with SDK generation results
         """
@@ -150,15 +152,15 @@ class MobileSDKGenerator:
 
             contents: Dict[str, str] = {}
             files: List[str] = []
-            
+
             # Generate Kotlin bridge
             kotlin_bridge = self._generate_kotlin_bridge()
             bridge_path = os.path.join(android_dir, "IPFSKitBridge.kt")
-            with open(bridge_path, 'w') as f:
+            with open(bridge_path, "w") as f:
                 f.write(kotlin_bridge)
             contents["IPFSKitBridge.kt"] = kotlin_bridge
             files.append("IPFSKitBridge.kt")
-            
+
             # Generate build.gradle
             gradle = self._generate_gradle_build(
                 min_sdk_version=min_sdk_version,
@@ -167,40 +169,42 @@ class MobileSDKGenerator:
                 compile_sdk_version=compile_sdk_version,
             )
             gradle_path = os.path.join(android_dir, "build.gradle")
-            with open(gradle_path, 'w') as f:
+            with open(gradle_path, "w") as f:
                 f.write(gradle)
             contents["build.gradle"] = gradle
             files.append("build.gradle")
-            
+
             # Generate AndroidManifest.xml
             manifest = self._generate_android_manifest()
             manifest_path = os.path.join(android_dir, "AndroidManifest.xml")
-            with open(manifest_path, 'w') as f:
+            with open(manifest_path, "w") as f:
                 f.write(manifest)
             contents["AndroidManifest.xml"] = manifest
             files.append("AndroidManifest.xml")
-            
+
             # Generate README
             readme = self._generate_android_readme()
             readme_path = os.path.join(android_dir, "README.md")
-            with open(readme_path, 'w') as f:
+            with open(readme_path, "w") as f:
                 f.write(readme)
             contents["README.md"] = readme
             files.append("README.md")
-            
+
             logger.info(f"Generated Android SDK at {android_dir}")
-            
-            return _SDKResult({
-                "success": True,
-                "platform": "Android",
-                "output_dir": android_dir,
-                "files": files,
-                "contents": contents,
-            })
+
+            return _SDKResult(
+                {
+                    "success": True,
+                    "platform": "Android",
+                    "output_dir": android_dir,
+                    "files": files,
+                    "contents": contents,
+                }
+            )
         except Exception as e:
             logger.error(f"Error generating Android SDK: {e}")
             return {"success": False, "error": str(e)}
-    
+
     def _generate_swift_bridge(self) -> str:
         """Generate Swift bridge code."""
         return """//
@@ -363,7 +367,7 @@ Task {
     _ = try? await IPFSKitClient().get(cid: "bafy...")
 }
 """
-    
+
     def _generate_swift_package(self) -> str:
         """Generate Package.swift for Swift Package Manager."""
         return """// swift-tools-version:5.5
@@ -390,7 +394,7 @@ let package = Package(
     ]
 )
 """
-    
+
     def _generate_podspec(self) -> str:
         """Generate CocoaPods podspec."""
         return """Pod::Spec.new do |s|
@@ -418,7 +422,7 @@ end
         return """# IPFS Kit iOS SDK (Carthage)
 github \"endomorphosis/ipfs_kit_py\" \"main\"
 """
-    
+
     def _generate_ios_readme(self) -> str:
         """Generate iOS README."""
         return """# IPFS Kit iOS SDK
@@ -486,7 +490,7 @@ Task {
 
 AGPL-3.0 - See LICENSE file for details.
 """
-    
+
     def _generate_kotlin_bridge(self) -> str:
         """Generate Kotlin bridge code."""
         return """package org.ipfskit.mobile
@@ -680,7 +684,7 @@ class IPFSKitClient {
     }
 }
 """
-    
+
     def _generate_gradle_build(
         self,
         *,
@@ -742,7 +746,7 @@ dependencies {{
             target_sdk_version=int(target_sdk_version),
             kotlin_version=str(kotlin_version),
         )
-    
+
     def _generate_android_manifest(self) -> str:
         """Generate Android manifest."""
         return """<?xml version="1.0" encoding="utf-8"?>
@@ -754,7 +758,7 @@ dependencies {{
     
 </manifest>
 """
-    
+
     def _generate_android_readme(self) -> str:
         """Generate Android README."""
         return """# IPFS Kit Android SDK
