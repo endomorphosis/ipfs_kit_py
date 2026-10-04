@@ -216,6 +216,7 @@
 ```python
 from ipfs_kit_py.mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
 
+
 class TestMCP(unittest.TestCase):
     def setUp(self):
         self.server = EnhancedMCPServerWithDaemonMgmt()
@@ -224,6 +225,7 @@ class TestMCP(unittest.TestCase):
 **After:**
 ```python
 from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
+
 
 class TestMCP(unittest.TestCase):
     def setUp(self):
@@ -235,13 +237,13 @@ class TestMCP(unittest.TestCase):
 **Before:**
 ```python
 server_path = "mcp/enhanced_mcp_server_with_daemon_mgmt.py"
-subprocess.run(['python3', server_path])
+subprocess.run(["python3", server_path])
 ```
 
 **After:**
 ```python
 server_path = "ipfs_kit_py/mcp/servers/unified_mcp_server.py"
-subprocess.run(['python3', server_path])
+subprocess.run(["python3", server_path])
 ```
 
 #### Pattern 3: Integration Class
@@ -249,6 +251,7 @@ subprocess.run(['python3', server_path])
 **Before:**
 ```python
 from mcp.enhanced_mcp_server_with_daemon_mgmt import IPFSKitIntegration
+
 
 def test_integration():
     integration = IPFSKitIntegration()
@@ -258,6 +261,7 @@ def test_integration():
 **After:**
 ```python
 from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
+
 
 def test_integration():
     server = create_mcp_server()
@@ -272,18 +276,16 @@ def test_integration():
 import unittest
 from ipfs_kit_py.mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
 
+
 class TestMCPTools(unittest.TestCase):
     def setUp(self):
-        self.server = EnhancedMCPServerWithDaemonMgmt(
-            host="localhost",
-            port=8004
-        )
+        self.server = EnhancedMCPServerWithDaemonMgmt(host="localhost", port=8004)
         self.server.start()
-    
+
     def tearDown(self):
-        if hasattr(self, 'server'):
+        if hasattr(self, "server"):
             self.server.stop()
-    
+
     def test_server_tools(self):
         tools = self.server.list_tools()
         self.assertGreater(len(tools), 0)
@@ -294,18 +296,16 @@ class TestMCPTools(unittest.TestCase):
 import unittest
 from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
 
+
 class TestMCPTools(unittest.TestCase):
     def setUp(self):
-        self.server = create_mcp_server(
-            host="localhost",
-            port=8004
-        )
+        self.server = create_mcp_server(host="localhost", port=8004)
         # Note: start() called automatically in create_mcp_server if needed
-    
+
     def tearDown(self):
-        if hasattr(self, 'server') and hasattr(self.server, 'stop'):
+        if hasattr(self, "server") and hasattr(self.server, "stop"):
             self.server.stop()
-    
+
     def test_server_tools(self):
         # Same test code - interface is compatible
         tools = self.server.list_tools()
@@ -333,6 +333,7 @@ class TestMCPTools(unittest.TestCase):
 ```python
 from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
 from ipfs_kit_py.mcp.controllers.storage.s3_controller_anyio import S3Controller
+
 
 class TestNewFeature(unittest.TestCase):
     def setUp(self):
@@ -469,6 +470,7 @@ from ipfs_kit_py.mcp.controllers.storage.s3_controller import S3Controller
 ```python
 from ipfs_kit_py.mcp.auth.audit_logging import AuditLogger
 
+
 def test_with_audit():
     logger = AuditLogger()
     logger.log_event("test_event", {"data": "test"})
@@ -477,6 +479,7 @@ def test_with_audit():
 **Journal Integration:**
 ```python
 from ipfs_kit_py.filesystem_journal import FilesystemJournal
+
 
 def test_with_journal():
     journal = FilesystemJournal()
@@ -490,14 +493,15 @@ def test_with_journal():
 import unittest
 from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
 
+
 class TestFeature(unittest.TestCase):
     def setUp(self):
         self.server = create_mcp_server()
-    
+
     def tearDown(self):
-        if hasattr(self, 'server'):
+        if hasattr(self, "server"):
             self.server.stop()
-    
+
     def test_feature(self):
         # Test code
         pass

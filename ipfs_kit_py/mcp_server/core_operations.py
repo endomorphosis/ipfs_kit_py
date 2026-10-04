@@ -5,6 +5,7 @@ async functions. They wrap the synchronous ``ipfs_kit`` orchestrator (run in a
 worker thread so we stay cooperative under trio/anyio) and normalise results to
 the aligned ``{"status": ...}`` envelope shared with ipfs_datasets_py.
 """
+
 from __future__ import annotations
 
 import functools
@@ -21,6 +22,7 @@ def get_kit():
     if _kit is None:
         try:
             from ipfs_kit_py.ipfs_kit import ipfs_kit
+
             _kit = ipfs_kit.create(auto_start_daemons=False)
         except Exception:  # pragma: no cover - environment without daemon
             _kit = _StubKit()

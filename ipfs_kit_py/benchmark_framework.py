@@ -363,7 +363,7 @@ class BenchmarkSuite:
 
         # Run benchmark iterations
         for i in range(iterations):
-            logger.info(f"  Iteration {i+1}/{iterations}")
+            logger.info(f"  Iteration {i + 1}/{iterations}")
 
             try:
                 result = test_func(**kwargs)
@@ -658,7 +658,7 @@ class BenchmarkSuite:
         logger.info(f"  Iterations: {iterations}")
 
         for i in range(iterations):
-            logger.info(f"  Iteration {i+1}/{iterations}")
+            logger.info(f"  Iteration {i + 1}/{iterations}")
 
             with BenchmarkContext(
                 f"{name}_iteration_{i}",
@@ -1068,9 +1068,9 @@ class BenchmarkSuite:
                 if result.get("success", False):
                     cid = result.get("Hash") or result.get("cid")
                     test_cids.append(cid)
-                    logger.info(f"Added test file {i+1}/{num_test_files} with CID: {cid}")
+                    logger.info(f"Added test file {i + 1}/{num_test_files} with CID: {cid}")
                 else:
-                    logger.warning(f"Failed to add test file {i+1}/{num_test_files}: {result}")
+                    logger.warning(f"Failed to add test file {i + 1}/{num_test_files}: {result}")
 
                 # Clean up temp file
                 os.unlink(path)

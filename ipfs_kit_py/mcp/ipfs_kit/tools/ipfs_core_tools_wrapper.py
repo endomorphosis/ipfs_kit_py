@@ -16,14 +16,14 @@ from ipfs_kit_py.tools.ipfs_core_tools import *
 
 # Maintain backward compatibility
 __all__ = [
-    'IPFSClient',
-    'ipfs_client',
-    'handle_ipfs_add',
-    'handle_ipfs_cat',
-    'handle_ipfs_get',
-    'handle_ipfs_ls',
-    'handle_ipfs_pin_add',
-    'handle_ipfs_pin_rm',
-    'handle_ipfs_pin_ls',
-    'handle_ipfs_pin_update',
+    "IPFSClient",
+    "ipfs_client",
+    "handle_ipfs_add",
+    "handle_ipfs_cat",
+    "handle_ipfs_get",
+    "handle_ipfs_ls",
+    "handle_ipfs_pin_add",
+    "handle_ipfs_pin_rm",
+    "handle_ipfs_pin_ls",
+    "handle_ipfs_pin_update",
 ]

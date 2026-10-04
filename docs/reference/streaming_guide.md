@@ -138,25 +138,22 @@ To stream content FROM IPFS to clients, IPFS Kit provides a WebSocket endpoint t
 async def websocket_stream(websocket: WebSocket, cid: str):
     """Stream content from IPFS to the client via WebSocket."""
     await websocket.accept()
-    
+
     try:
         # Initialize stream with progress tracking
         stream = IPFSContentStream(ipfs_api, cid)
-        
+
         # Send metadata about the content
         metadata = await stream.get_metadata()
         await websocket.send_json(metadata)
-        
+
         # Stream content in chunks
         async for chunk in stream.iter_chunks(chunk_size=65536):  # 64KB chunks
             await websocket.send_bytes(chunk)
-            
+
     except Exception as e:
         # Send error message
-        await websocket.send_json({
-            "error": str(e),
-            "type": "error"
-        })
+        await websocket.send_json({"error": str(e), "type": "error"})
     finally:
         # Ensure resources are cleaned up
         await stream.close()
@@ -178,44 +175,37 @@ To stream content TO IPFS from clients, IPFS Kit provides a WebSocket endpoint t
 async def websocket_upload(websocket: WebSocket):
     """Stream content from the client to IPFS via WebSocket."""
     await websocket.accept()
-    
+
     try:
         # Receive metadata about the upload
         metadata = await websocket.receive_json()
         filename = metadata.get("filename", "unnamed")
-        
+
         # Initialize upload handler
         upload_handler = IPFSUploadHandler(ipfs_api)
-        
+
         # Process chunks as they arrive
         while True:
             chunk = await websocket.receive_bytes()
             if not chunk:
                 break  # End of stream
-                
+
             # Add chunk to IPFS
             await upload_handler.add_chunk(chunk)
-            
+
             # Send progress update
             progress = upload_handler.get_progress()
             await websocket.send_json(progress)
-        
+
         # Finalize the upload
         result = await upload_handler.finalize()
-        
+
         # Send final result with CID
-        await websocket.send_json({
-            "success": True,
-            "cid": result["cid"],
-            "size": result["size"]
-        })
-        
+        await websocket.send_json({"success": True, "cid": result["cid"], "size": result["size"]})
+
     except Exception as e:
         # Send error message
-        await websocket.send_json({
-            "error": str(e),
-            "type": "error"
-        })
+        await websocket.send_json({"error": str(e), "type": "error"})
 ```
 
 The `IPFSUploadHandler` class manages the incremental upload process, including:
@@ -234,9 +224,10 @@ IPFS Kit also supports bidirectional streaming, which allows simultaneous transf
 async def websocket_bidirectional(websocket: WebSocket):
     """Bidirectional streaming between client and IPFS."""
     await websocket.accept()
-    
+
     # Set up concurrent tasks for sending and receiving
     async with anyio.create_task_group() as task_group:
+
         async def run_incoming():
             await handle_incoming(websocket)
             task_group.cancel_scope.cancel()
@@ -259,30 +250,31 @@ For simpler use cases where only server-to-client streaming is needed, IPFS Kit 
 @app.get("/sse/stream/{cid}")
 async def sse_stream(cid: str, request: Request):
     """Stream content from IPFS using Server-Sent Events."""
+
     # Create event source response
     async def event_generator():
         # Initialize stream
         stream = IPFSContentStream(ipfs_api, cid)
-        
+
         # Send metadata
         metadata = await stream.get_metadata()
         yield f"event: metadata\ndata: {json.dumps(metadata)}\n\n"
-        
+
         # Stream content in chunks
         try:
             async for chunk in stream.iter_chunks(chunk_size=65536):
                 # Encode chunk as base64 for text transport
                 chunk_b64 = base64.b64encode(chunk).decode()
                 yield f"event: chunk\ndata: {chunk_b64}\n\n"
-                
+
             # Signal completion
             yield f"event: complete\ndata: {json.dumps({'success': True})}\n\n"
-            
+
         except Exception as e:
             yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
         finally:
             await stream.close()
-    
+
     return EventSourceResponse(event_generator())
 ```
 
@@ -298,34 +290,30 @@ async def get_ipfs_content(cid: str, request: Request, response: Response):
     metadata = await ipfs_api.get_metadata(cid)
     content_length = metadata.get("size", 0)
     content_type = metadata.get("mime_type", "application/octet-stream")
-    
+
     # Set content headers
     response.headers["Content-Type"] = content_type
     response.headers["Accept-Ranges"] = "bytes"
-    
+
     # Check for Range header
     range_header = request.headers.get("Range")
     if range_header:
         # Parse range header
         start, end = parse_range_header(range_header, content_length)
-        
+
         # Set partial content status and headers
         response.status_code = 206
         response.headers["Content-Range"] = f"bytes {start}-{end}/{content_length}"
         response.headers["Content-Length"] = str(end - start + 1)
-        
+
         # Stream the requested range
         return StreamingResponse(
-            ipfs_api.cat_range(cid, start, end - start + 1),
-            media_type=content_type
+            ipfs_api.cat_range(cid, start, end - start + 1), media_type=content_type
         )
     else:
         # Stream the full content
         response.headers["Content-Length"] = str(content_length)
-        return StreamingResponse(
-            ipfs_api.cat(cid),
-            media_type=content_type
-        )
+        return StreamingResponse(ipfs_api.cat(cid), media_type=content_type)
 ```
 
 This implementation supports standard HTTP Range requests as specified in RFC 7233, allowing for efficient seeking in media content.
@@ -341,13 +329,13 @@ The core of WebRTC streaming is the `IPFSMediaStreamTrack` class, which extends 
 ```python
 class IPFSMediaStreamTrack(MediaStreamTrack):
     """MediaStreamTrack that sources content directly from IPFS."""
-    
+
     kind = "video"  # Default kind, can be changed to "audio"
-    
+
     def __init__(self, track=None, ipfs_api=None, cid=None, kind="video", frame_rate=30):
         """
         Initialize an IPFS media stream track.
-        
+
         Args:
             track: Optional source track to relay
             ipfs_api: IPFS API instance for content retrieval
@@ -361,7 +349,9 @@ class IPFSMediaStreamTrack(MediaStreamTrack):
         self.cid = cid
         self.kind = kind
         self.frame_rate = frame_rate
-        self._buffer_send, self._buffer_receive = anyio.create_memory_object_stream(30)  # Frame buffer
+        self._buffer_send, self._buffer_receive = anyio.create_memory_object_stream(
+            30
+        )  # Frame buffer
         self._task = None
         self._start_time = None
         self._frame_count = 0
@@ -369,7 +359,7 @@ class IPFSMediaStreamTrack(MediaStreamTrack):
         self._content_loaded = False
         self._stopped = False
         self._decoder = None
-        
+
         # For adaptive bitrate control
         self._last_timestamp = time.time()
         self._stats = {
@@ -378,7 +368,7 @@ class IPFSMediaStreamTrack(MediaStreamTrack):
             "bitrate": 0,
             "latency": 0,
         }
-        
+
         # Start loading content if CID is provided
         if self.ipfs_api and self.cid:
             self._task = anyio.lowlevel.spawn_system_task(self._load_content)
@@ -503,13 +493,15 @@ def on_icecandidate(candidate):
     """Handle ICE candidate generation."""
     if candidate:
         # Send candidate to the other peer via signaling channel
-        websocket.send_json({
-            "type": "candidate",
-            "pc_id": pc_id,
-            "candidate": candidate.candidate,
-            "sdpMid": candidate.sdpMid,
-            "sdpMLineIndex": candidate.sdpMLineIndex
-        })
+        websocket.send_json(
+            {
+                "type": "candidate",
+                "pc_id": pc_id,
+                "candidate": candidate.candidate,
+                "sdpMid": candidate.sdpMid,
+                "sdpMLineIndex": candidate.sdpMLineIndex,
+            }
+        )
 ```
 
 ICE candidates are collected and exchanged through the signaling channel to establish the most efficient peer-to-peer connection possible.
@@ -595,25 +587,25 @@ The `NotificationManager` class handles subscription management for the notifica
 ```python
 class NotificationManager:
     """Manages WebSocket subscriptions and notifications."""
-    
+
     def __init__(self):
         """Initialize the notification manager."""
         # Maps connection ID to WebSocket and subscriptions
         self.active_connections = {}
-        
+
         # Maps notification types to sets of connection IDs
         self.subscriptions = {}
-        
+
         # Event history for persistent notifications
         self.event_history = []
         self.max_history_size = 1000
-        
+
         # Metrics collection
         self.metrics = {
             "connections_total": 0,
             "active_connections": 0,
             "notifications_sent": 0,
-            "subscriptions_by_type": {}
+            "subscriptions_by_type": {},
         }
 ```
 
@@ -682,23 +674,24 @@ The notification system maintains a history of recent events, allowing clients t
 async def get_history(self, limit=50, notification_type=None):
     """
     Get notification history.
-    
+
     Args:
         limit: Maximum number of history items to retrieve
         notification_type: Optional type to filter history
-        
+
     Returns:
         List of historical notification events
     """
     # Filter history based on type if specified
     if notification_type:
         history = [
-            event for event in self.event_history
+            event
+            for event in self.event_history
             if event.get("notification_type") == notification_type
         ]
     else:
         history = self.event_history
-    
+
     # Apply limit
     return history[-limit:]
 ```
@@ -719,55 +712,45 @@ async def handle_upload(websocket):
     """Handle file upload with notifications."""
     # Accept WebSocket connection
     await websocket.accept()
-    
+
     # Initialize upload handler
     upload_handler = IPFSUploadHandler(ipfs_api)
-    
+
     try:
         # Process chunks
         while True:
             chunk = await websocket.receive_bytes()
             if not chunk:
                 break
-                
+
             # Add chunk
             result = await upload_handler.add_chunk(chunk)
-            
+
             # Emit progress notification
             await emit_event(
                 NotificationType.CONTENT_ADDED,
                 {
                     "bytes_processed": upload_handler.bytes_processed,
                     "total_bytes": upload_handler.total_bytes,
-                    "percent": upload_handler.percent_complete
-                }
+                    "percent": upload_handler.percent_complete,
+                },
             )
-            
+
         # Finalize upload
         final_result = await upload_handler.finalize()
-        
+
         # Emit completion notification
         await emit_event(
             NotificationType.CONTENT_ADDED,
-            {
-                "cid": final_result["cid"],
-                "size": final_result["size"],
-                "complete": True
-            }
+            {"cid": final_result["cid"], "size": final_result["size"], "complete": True},
         )
-        
+
         # Send result to client
         await websocket.send_json(final_result)
-        
+
     except Exception as e:
         # Emit error notification
-        await emit_event(
-            NotificationType.SYSTEM_ERROR,
-            {
-                "error": str(e),
-                "operation": "upload"
-            }
-        )
+        await emit_event(NotificationType.SYSTEM_ERROR, {"error": str(e), "operation": "upload"})
         raise
 ```
 
@@ -780,29 +763,28 @@ The unified dashboard example demonstrates integration of WebRTC streaming and W
 ```python
 class UnifiedDashboard:
     """Unified dashboard for WebRTC streaming and WebSocket notifications."""
-    
+
     def __init__(self, api_url="http://localhost:8000"):
         """Initialize the dashboard components."""
         # Set up WebRTC client
         self.webrtc_client = WebRTCClient(api_url)
-        
+
         # Set up notification client
         self.notification_client = NotificationClient(
-            api_url=api_url,
-            on_notification=self._handle_notification
+            api_url=api_url, on_notification=self._handle_notification
         )
-        
+
         # Initialize UI components
         self._init_ui()
-        
+
         # Connect to services
         self.connect_services()
-    
+
     def _handle_notification(self, notification):
         """Handle incoming notifications."""
         # Process based on notification type
         notification_type = notification.get("notification_type")
-        
+
         if notification_type.startswith("webrtc_"):
             # Update WebRTC status display
             self._update_webrtc_status(notification)
@@ -893,41 +875,43 @@ For desktop applications, a more persistent integration pattern can be used:
 # PyQt example
 class IPFSDesktopApp(QMainWindow):
     """Desktop application with IPFS streaming integration."""
-    
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("IPFS Streaming Desktop")
-        
+
         # Initialize UI
         self.init_ui()
-        
+
         # Set up IPFS Kit clients
         self.ipfs_api = IPFSSimpleAPI()
         self.webrtc_client = WebRTCClient(on_frame=self.handle_frame)
         self.notification_client = NotificationClient(on_notification=self.handle_notification)
-        
+
         # Connect signals and slots
         self.streamButton.clicked.connect(self.toggle_streaming)
-        
+
         # Start an AnyIO blocking portal for async operations
         self.portal = anyio.from_thread.start_blocking_portal()
 
         # Connect services
         self.portal.call(self.connect_services)
-    
+
     async def connect_services(self):
         """Connect to IPFS services."""
         await self.notification_client.connect()
         await self.webrtc_client.connect()
-        
+
         # Subscribe to relevant notifications
-        await self.notification_client.subscribe([
-            "webrtc_connection_established",
-            "webrtc_stream_started",
-            "webrtc_quality_changed",
-            "system_error"
-        ])
-    
+        await self.notification_client.subscribe(
+            [
+                "webrtc_connection_established",
+                "webrtc_stream_started",
+                "webrtc_quality_changed",
+                "system_error",
+            ]
+        )
+
     def handle_frame(self, frame):
         """Handle received video frame."""
         # Convert frame to QImage and display
@@ -936,21 +920,21 @@ class IPFSDesktopApp(QMainWindow):
         q_img = QImage(frame.data, width, height, bytes_per_line, QImage.Format_RGB888)
         pixmap = QPixmap.fromImage(q_img)
         self.videoLabel.setPixmap(pixmap)
-    
+
     def handle_notification(self, notification):
         """Handle incoming notification."""
         # Process notification and update UI
         notification_type = notification.get("notification_type")
         self.statusBar().showMessage(f"Event: {notification_type}")
-        
+
         # Add to notification list
         item = QListWidgetItem(f"{notification_type}: {notification.get('data', {})}")
         self.notificationList.insertItem(0, item)
-        
+
         # Keep list at reasonable size
         while self.notificationList.count() > 100:
             self.notificationList.takeItem(self.notificationList.count() - 1)
-    
+
     def toggle_streaming(self):
         """Start or stop streaming."""
         if self.streamButton.text() == "Start Streaming":
@@ -959,7 +943,7 @@ class IPFSDesktopApp(QMainWindow):
             if not cid:
                 QMessageBox.warning(self, "Warning", "Please enter a valid CID")
                 return
-            
+
             # Start streaming
             self.portal.call(self.webrtc_client.request_stream, cid)
             self.streamButton.setText("Stop Streaming")
@@ -982,7 +966,7 @@ For WebRTC media streaming, implementing adaptive bitrate is essential for optim
 ```python
 class AdaptiveBitrateController:
     """Controls adaptive bitrate for WebRTC streaming."""
-    
+
     def __init__(self, track):
         """Initialize with a media track."""
         self.track = track
@@ -996,40 +980,44 @@ class AdaptiveBitrateController:
         self.current_level_index = 2  # Start at medium quality
         self.last_adaptation = time.time()
         self.sample_window = []  # For statistics
-    
+
     def add_sample(self, stats):
         """Add a connection quality sample."""
-        self.sample_window.append({
-            "timestamp": time.time(),
-            "rtt": stats.get("rtt", 0),
-            "packet_loss": stats.get("packet_loss", 0),
-            "jitter": stats.get("jitter", 0),
-            "bandwidth_estimate": stats.get("bandwidth_estimate", 0)
-        })
-        
+        self.sample_window.append(
+            {
+                "timestamp": time.time(),
+                "rtt": stats.get("rtt", 0),
+                "packet_loss": stats.get("packet_loss", 0),
+                "jitter": stats.get("jitter", 0),
+                "bandwidth_estimate": stats.get("bandwidth_estimate", 0),
+            }
+        )
+
         # Keep window at reasonable size
         if len(self.sample_window) > 30:
             self.sample_window = self.sample_window[-30:]
-        
+
         # Consider adaptation if enough time has passed
         if time.time() - self.last_adaptation > 5.0:  # Every 5 seconds
             self._adapt_quality()
             self.last_adaptation = time.time()
-    
+
     def _adapt_quality(self):
         """Adapt quality based on network conditions."""
         if not self.sample_window:
             return
-        
+
         # Calculate key metrics
         avg_rtt = sum(s["rtt"] for s in self.sample_window) / len(self.sample_window)
-        avg_packet_loss = sum(s["packet_loss"] for s in self.sample_window) / len(self.sample_window)
-        
+        avg_packet_loss = sum(s["packet_loss"] for s in self.sample_window) / len(
+            self.sample_window
+        )
+
         # Simple scoring system for network conditions
         score = 100
         score -= avg_rtt * 10  # Reduce score as RTT increases
         score -= avg_packet_loss * 500  # Heavily penalize packet loss
-        
+
         # Determine quality level based on score
         if score > 80:
             # Network is good, consider increasing quality
@@ -1037,29 +1025,28 @@ class AdaptiveBitrateController:
         elif score < 40:
             # Network is poor, reduce quality
             self._decrease_quality()
-    
+
     def _increase_quality(self):
         """Try to increase quality if possible."""
         if self.current_level_index > 0:
             # Move to higher quality
             self.current_level_index -= 1
             self._apply_quality_settings()
-    
+
     def _decrease_quality(self):
         """Decrease quality to improve performance."""
         if self.current_level_index < len(self.quality_levels) - 1:
             # Move to lower quality
             self.current_level_index += 1
             self._apply_quality_settings()
-    
+
     def _apply_quality_settings(self):
         """Apply the current quality settings to the track."""
         settings = self.quality_levels[self.current_level_index]
         # Apply to encoder if track supports it
         if hasattr(self.track, "set_encoding_parameters"):
             self.track.set_encoding_parameters(
-                height=settings["height"],
-                bitrate=settings["bitrate"]
+                height=settings["height"], bitrate=settings["bitrate"]
             )
 ```
 
@@ -1072,11 +1059,11 @@ Effective buffer management is crucial for smooth streaming with minimal latency
 ```python
 class StreamBuffer:
     """Manages streaming buffer for optimal performance."""
-    
+
     def __init__(self, target_duration=2.0, max_duration=5.0, min_duration=0.5):
         """
         Initialize buffer manager.
-        
+
         Args:
             target_duration: Target buffer duration in seconds
             max_duration: Maximum buffer duration before throttling
@@ -1092,71 +1079,73 @@ class StreamBuffer:
         self.playback_ready = anyio.Event()
         self.throttle = anyio.Event()
         self.throttle.set()  # Start unthrottled
-    
+
     async def add_frame(self, frame):
         """
         Add a frame to the buffer.
-        
+
         Args:
             frame: The frame to add
         """
         # Wait if throttled
         await self.throttle.wait()
-        
+
         # Add frame to buffer
         await self.buffer_send.send(frame)
         self.buffer_count += 1
-        
+
         # Update buffer duration estimate
-        if hasattr(frame, 'time_base') and hasattr(frame, 'pts'):
+        if hasattr(frame, "time_base") and hasattr(frame, "pts"):
             frame_duration = frame.time_base * frame.pts
             self.frame_durations.append(frame_duration)
             if len(self.frame_durations) > 30:
                 self.frame_durations = self.frame_durations[-30:]
-            
-            self.buffer_duration = self.buffer_count * (sum(self.frame_durations) / len(self.frame_durations))
+
+            self.buffer_duration = self.buffer_count * (
+                sum(self.frame_durations) / len(self.frame_durations)
+            )
         else:
             # Estimate based on queue size
             self.buffer_duration = self.buffer_count / 30.0  # Assume 30fps
-        
+
         # Set playback_ready when buffer reaches minimum duration
         if self.buffer_duration >= self.min_duration and not self.playback_ready.is_set():
             self.playback_ready.set()
-        
+
         # Throttle input if buffer exceeds maximum duration
         if self.buffer_duration > self.max_duration:
             self.throttle.clear()
-    
+
     async def get_frame(self):
         """
         Get a frame from the buffer when available.
-        
+
         Returns:
             The next frame from the buffer
         """
         # Wait until playback is ready
         await self.playback_ready.wait()
-        
+
         # Get frame from buffer
         frame = await self.buffer_receive.receive()
         self.buffer_count = max(0, self.buffer_count - 1)
-        
+
         # Update buffer duration estimate
-        if hasattr(frame, 'time_base') and hasattr(frame, 'pts'):
+        if hasattr(frame, "time_base") and hasattr(frame, "pts"):
             frame_duration = frame.time_base * frame.pts
             self.buffer_duration -= frame_duration
         else:
             # Estimate based on queue size
             self.buffer_duration = self.buffer.qsize() / 30.0  # Assume 30fps
-        
+
         # Unthrottle input if buffer drops below target duration
         if self.buffer_duration < self.target_duration and not self.throttle.is_set():
             self.throttle.set()
-        
+
         # Clear playback_ready if buffer is empty
         if self.buffer.empty():
             self.playback_ready.clear()
-        
+
         return frame
 ```
 
@@ -1173,37 +1162,34 @@ Network optimization is crucial for efficient streaming, especially in distribut
 ```python
 class NetworkOptimizer:
     """Optimizes network usage for streaming."""
-    
+
     def __init__(self, ipfs_api):
         """Initialize with IPFS API."""
         self.ipfs_api = ipfs_api
         self.peer_latencies = {}  # Peer ID -> latency
         self.preferred_peers = []
         self.max_preferred_peers = 5
-    
+
     async def optimize(self):
         """Perform network optimization."""
         # Get connected peers
         peers = await self.ipfs_api.swarm_peers()
-        
+
         # Measure latency to each peer
         for peer in peers:
             peer_id = peer["peer"]
             latency = await self._measure_peer_latency(peer_id)
             self.peer_latencies[peer_id] = latency
-        
+
         # Sort peers by latency
-        sorted_peers = sorted(
-            self.peer_latencies.items(),
-            key=lambda x: x[1]
-        )
-        
+        sorted_peers = sorted(self.peer_latencies.items(), key=lambda x: x[1])
+
         # Select preferred peers (lowest latency)
-        self.preferred_peers = [p[0] for p in sorted_peers[:self.max_preferred_peers]]
-        
+        self.preferred_peers = [p[0] for p in sorted_peers[: self.max_preferred_peers]]
+
         # Optimize connections
         await self._optimize_connections()
-    
+
     async def _measure_peer_latency(self, peer_id):
         """Measure latency to a peer."""
         start_time = time.time()
@@ -1215,23 +1201,17 @@ class NetworkOptimizer:
             return float("inf")
         except Exception:
             return float("inf")
-    
+
     async def _optimize_connections(self):
         """Optimize network connections."""
         # Protect connections to preferred peers
         for peer_id in self.preferred_peers:
             await self.ipfs_api.swarm_protect(peer_id)
-        
+
         # Configure connection manager
-        await self.ipfs_api.config_set(
-            "Swarm.ConnMgr.HighWater", 
-            len(self.preferred_peers) + 10
-        )
-        await self.ipfs_api.config_set(
-            "Swarm.ConnMgr.LowWater", 
-            len(self.preferred_peers)
-        )
-        
+        await self.ipfs_api.config_set("Swarm.ConnMgr.HighWater", len(self.preferred_peers) + 10)
+        await self.ipfs_api.config_set("Swarm.ConnMgr.LowWater", len(self.preferred_peers))
+
         # Optimize DHT for content retrieval
         if self.preferred_peers:
             # Provide content to preferred peers first
@@ -1319,45 +1299,41 @@ Notifications should be filtered based on user permissions:
 ```python
 class AuthorizedNotificationManager(NotificationManager):
     """Notification manager with authorization."""
-    
+
     async def subscribe(self, connection_id, notification_types, filters=None, user=None):
         """Subscribe with authorization check."""
         if not user:
-            return {
-                "success": False,
-                "error": "User not authenticated",
-                "subscribed_types": []
-            }
-        
+            return {"success": False, "error": "User not authenticated", "subscribed_types": []}
+
         # Filter notification types based on user permissions
         authorized_types = []
         unauthorized_types = []
-        
+
         for n_type in notification_types:
             if self._user_can_subscribe(user, n_type):
                 authorized_types.append(n_type)
             else:
                 unauthorized_types.append(n_type)
-        
+
         # Continue with standard subscription for authorized types
         result = await super().subscribe(connection_id, authorized_types, filters)
-        
+
         # Add information about unauthorized types
         result["unauthorized_types"] = unauthorized_types
-        
+
         return result
-    
+
     def _user_can_subscribe(self, user, notification_type):
         """Check if user can subscribe to notification type."""
         # Implement permission checks
         if notification_type.startswith("system_") and user["role"] != "admin":
             return False
-        
+
         if notification_type.startswith("webrtc_") and not user["permissions"].get("webrtc", False):
             return False
-        
+
         # Add more permission checks as needed
-        
+
         return True
 ```
 
@@ -1526,25 +1502,20 @@ async def monitor_system_metrics(websocket):
     """Send real-time system metrics to client."""
     # Accept connection
     await websocket.accept()
-    
+
     try:
         while True:
             # Collect metrics
             metrics = await collect_system_metrics()
-            
+
             # Send metrics to client
-            await websocket.send_json({
-                "type": "metrics",
-                "timestamp": time.time(),
-                "metrics": metrics
-            })
-            
-            # Emit notification for monitoring tools
-            await emit_event(
-                NotificationType.SYSTEM_METRICS,
-                metrics
+            await websocket.send_json(
+                {"type": "metrics", "timestamp": time.time(), "metrics": metrics}
             )
-            
+
+            # Emit notification for monitoring tools
+            await emit_event(NotificationType.SYSTEM_METRICS, metrics)
+
             # Wait before sending next update
             await anyio.sleep(1.0)
     except WebSocketDisconnect:
@@ -1567,14 +1538,14 @@ async def process_content(cid, task_id, process_type):
             "message": f"Starting {process_type} processing for {cid}",
             "task_id": task_id,
             "cid": cid,
-            "status": "starting"
-        }
+            "status": "starting",
+        },
     )
-    
+
     try:
         # Start processing
         processor = ContentProcessor(ipfs_api, process_type)
-        
+
         # Process with progress updates
         async for progress in processor.process(cid):
             # Emit progress notification
@@ -1585,13 +1556,13 @@ async def process_content(cid, task_id, process_type):
                     "task_id": task_id,
                     "cid": cid,
                     "status": "processing",
-                    "progress": progress
-                }
+                    "progress": progress,
+                },
             )
-        
+
         # Get result
         result = await processor.get_result()
-        
+
         # Emit completion notification
         await emit_event(
             NotificationType.SYSTEM_INFO,
@@ -1600,12 +1571,12 @@ async def process_content(cid, task_id, process_type):
                 "task_id": task_id,
                 "cid": cid,
                 "status": "completed",
-                "result": result
-            }
+                "result": result,
+            },
         )
-        
+
         return result
-        
+
     except Exception as e:
         # Emit error notification
         await emit_event(
@@ -1615,8 +1586,8 @@ async def process_content(cid, task_id, process_type):
                 "task_id": task_id,
                 "cid": cid,
                 "status": "failed",
-                "error": str(e)
-            }
+                "error": str(e),
+            },
         )
         raise
 ```
@@ -1644,7 +1615,7 @@ async def websocket_webrtc(websocket: WebSocket):
     """WebRTC signaling with improved connection success."""
     # Accept connection
     await websocket.accept()
-    
+
     # Create WebRTC manager with enhanced ICE configuration
     manager = WebRTCStreamingManager(
         ipfs_api=ipfs_api,
@@ -1653,13 +1624,13 @@ async def websocket_webrtc(websocket: WebSocket):
             {
                 "urls": ["turn:turn.example.com:3478"],
                 "username": "username",
-                "credential": "password"
-            }
+                "credential": "password",
+            },
         ],
         ice_transport_policy="all",
-        bundle_policy="max-bundle"
+        bundle_policy="max-bundle",
     )
-    
+
     # Continue with normal signaling
     # ...
 ```
@@ -1678,7 +1649,7 @@ async def websocket_notifications(websocket: WebSocket):
     """WebSocket notifications with improved reliability."""
     # Accept connection
     await websocket.accept()
-    
+
     # Set up ping-pong for connection keepalive
     async with anyio.create_task_group() as task_group:
         task_group.start_soon(ping_client, websocket)
@@ -1689,6 +1660,7 @@ async def websocket_notifications(websocket: WebSocket):
         finally:
             # Clean up ping task
             task_group.cancel_scope.cancel()
+
 
 async def ping_client(websocket):
     """Send periodic pings to keep connection alive."""
@@ -1753,15 +1725,15 @@ class LowLatencyStreamTrack(IPFSMediaStreamTrack):
 async def websocket_stream(websocket: WebSocket, cid: str):
     """Memory-efficient WebSocket streaming."""
     await websocket.accept()
-    
+
     # Use resource manager for cleanup
     with IPFSResourceManager() as resources:
         # Create streaming pipe with limited buffer
         pipe = resources.create_pipe(
             max_buffer=5 * 1024 * 1024,  # 5MB maximum buffer
-            chunk_size=32 * 1024  # 32KB chunks
+            chunk_size=32 * 1024,  # 32KB chunks
         )
-        
+
         async with anyio.create_task_group() as task_group:
             # Start content fetching in background
             task_group.start_soon(fetch_content_to_pipe, cid, pipe)
@@ -1784,7 +1756,7 @@ async def websocket_stream(websocket: WebSocket, cid: str):
                 # Handle errors
                 task_group.cancel_scope.cancel()
                 logger.error(f"Streaming error: {e}")
-            
+
             # Send error to client if still connected
             try:
                 await websocket.send_json({"error": str(e)})
@@ -1802,8 +1774,10 @@ async def websocket_stream(websocket: WebSocket, cid: str):
 @pc.on("icecandidateerror")
 def on_icecandidateerror(error):
     """Handle ICE candidate errors."""
-    logger.error(f"ICE candidate error: {error.errorText} (URL: {error.url}, errorCode: {error.errorCode})")
-    
+    logger.error(
+        f"ICE candidate error: {error.errorText} (URL: {error.url}, errorCode: {error.errorCode})"
+    )
+
     # Emit diagnostic notification
     emit_event(
         NotificationType.WEBRTC_ERROR,
@@ -1811,16 +1785,14 @@ def on_icecandidateerror(error):
             "error": "ICE candidate error",
             "error_text": error.errorText,
             "error_code": error.errorCode,
-            "url": error.url
-        }
+            "url": error.url,
+        },
     )
-    
+
     # Fallback to relay-only
     if error.errorCode == 701:  # STUN binding error
         logger.info("Falling back to relay-only transport policy")
-        pc.setConfiguration({
-            "iceTransportPolicy": "relay"
-        })
+        pc.setConfiguration({"iceTransportPolicy": "relay"})
 ```
 
 **Problem**: "Failed to load content from IPFS" errors in streaming.
@@ -1829,7 +1801,7 @@ def on_icecandidateerror(error):
 ```python
 class ResilienceContentStream:
     """Content stream with automatic retries and gateway fallback."""
-    
+
     def __init__(self, ipfs_api, cid, max_retries=3, use_gateways=True):
         """Initialize with resilience features."""
         self.ipfs_api = ipfs_api
@@ -1839,11 +1811,11 @@ class ResilienceContentStream:
         self.gateways = [
             "https://ipfs.io/ipfs/",
             "https://gateway.pinata.cloud/ipfs/",
-            "https://cloudflare-ipfs.com/ipfs/"
+            "https://cloudflare-ipfs.com/ipfs/",
         ]
         self.current_source = "local"
         self.retry_count = 0
-    
+
     async def iter_chunks(self, chunk_size=65536):
         """Iterate through content chunks with resilience."""
         while True:
@@ -1861,8 +1833,10 @@ class ResilienceContentStream:
                     break  # Success, exit loop
             except Exception as e:
                 self.retry_count += 1
-                logger.warning(f"Content retrieval failed: {e}, retry {self.retry_count}/{self.max_retries}")
-                
+                logger.warning(
+                    f"Content retrieval failed: {e}, retry {self.retry_count}/{self.max_retries}"
+                )
+
                 if self.retry_count >= self.max_retries:
                     if self.current_source == "local" and self.use_gateways:
                         # Switch to gateway source
@@ -1871,15 +1845,15 @@ class ResilienceContentStream:
                     else:
                         # All retries and fallbacks failed
                         raise Exception(f"Failed to retrieve content after all retries: {e}")
-                
+
                 # Brief delay before retry
                 await anyio.sleep(0.5 * min(self.retry_count, 3))
-    
+
     async def _local_iter_chunks(self, chunk_size):
         """Iterate through chunks from local IPFS node."""
         # Implementation for local node access
         # ...
-    
+
     async def _gateway_iter_chunks(self, gateway_url, chunk_size):
         """Iterate through chunks from IPFS gateway."""
         # Implementation for gateway access

@@ -51,7 +51,7 @@ except Exception as e:
 try:
     # Example directory CID (replace with a real one if needed)
     dir_cid = "ipfs://QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"
-    files = fs.ls(dir_cid, detail=True) # Use detail=True for more info
+    files = fs.ls(dir_cid, detail=True)  # Use detail=True for more info
     print(f"Contents of {dir_cid}:")
     for item in files:
         print(f"- {item['name']} (type: {item['type']}, size: {item.get('size', 'N/A')})")
@@ -79,17 +79,17 @@ fs = IPFSFileSystem(
     socket_path="/var/run/ipfs/api.sock",  # Unix socket for better performance
     role="worker",
     cache_config={
-        'memory_cache_size': 500 * 1024 * 1024,  # 500MB memory cache
-        'local_cache_size': 5 * 1024 * 1024 * 1024,  # 5GB disk cache
-        'local_cache_path': '/tmp/ipfs_cache',
-        'max_item_size': 100 * 1024 * 1024,  # Max size for memory cache items
-        'promotion_threshold': 3, # Access count to promote from disk to memory
-        'demotion_threshold': 30 # Days inactive to demote from memory to disk
+        "memory_cache_size": 500 * 1024 * 1024,  # 500MB memory cache
+        "local_cache_size": 5 * 1024 * 1024 * 1024,  # 5GB disk cache
+        "local_cache_path": "/tmp/ipfs_cache",
+        "max_item_size": 100 * 1024 * 1024,  # Max size for memory cache items
+        "promotion_threshold": 3,  # Access count to promote from disk to memory
+        "demotion_threshold": 30,  # Days inactive to demote from memory to disk
     },
-    use_mmap=True, # Use memory mapping for large files
-    enable_metrics=True, # Enable performance metrics
-    gateway_urls=["https://ipfs.io/ipfs/", "https://dweb.link/ipfs/"], # Fallback gateways
-    use_gateway_fallback=True # Use gateways if local daemon fails
+    use_mmap=True,  # Use memory mapping for large files
+    enable_metrics=True,  # Enable performance metrics
+    gateway_urls=["https://ipfs.io/ipfs/", "https://dweb.link/ipfs/"],  # Fallback gateways
+    use_gateway_fallback=True,  # Use gateways if local daemon fails
 )
 
 # Get file details (ensure prefix)
@@ -102,15 +102,14 @@ except Exception as e:
 
 # Walk through a directory tree (ensure prefix)
 try:
-    dir_cid = "ipfs://QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn" # Example CID
+    dir_cid = "ipfs://QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"  # Example CID
     print(f"\nWalking directory: {dir_cid}")
     for root, dirs, files in fs.walk(dir_cid):
         print(f"Directory: {root}")
         print(f"  Subdirectories: {dirs}")
-        print(f"  Files: {[f['name'] for f in files]}") # Extract names for clarity
+        print(f"  Files: {[f['name'] for f in files]}")  # Extract names for clarity
 except Exception as e:
     print(f"Error walking directory: {e}")
-
 ```
 
 ### Integration with Data Science Tools
@@ -122,7 +121,7 @@ import fsspec
 
 # Read a CSV file directly from IPFS (ensure prefix)
 try:
-    df = pd.read_csv("ipfs://QmCSVbfpQL6BjGog5c85xwsJ8arFiBg9ACdHF6RbqXegcV") # Example CID
+    df = pd.read_csv("ipfs://QmCSVbfpQL6BjGog5c85xwsJ8arFiBg9ACdHF6RbqXegcV")  # Example CID
     print("\nCSV Head:")
     print(df.head())
 except Exception as e:
@@ -131,7 +130,7 @@ except Exception as e:
 
 # Read a Parquet file (ensure prefix)
 try:
-    fs_pq = fsspec.filesystem("ipfs") # Get instance if needed
+    fs_pq = fsspec.filesystem("ipfs")  # Get instance if needed
     # Example Parquet CID
     table = pq.read_table("ipfs://QmXH6qjnYXCSfc5Wn1jZyZV8AtrNKgWbXLLGJvXVYzk4wC", filesystem=fs_pq)
     df2 = table.to_pandas()
@@ -141,7 +140,6 @@ except ImportError:
     print("\nPyArrow needed for Parquet reading.")
 except Exception as e:
     print(f"Error reading Parquet: {e}")
-
 ```
 
 ## Performance Characteristics
@@ -262,7 +260,7 @@ for item in dir_contents:
 fs = api.get_filesystem(
     gateway_urls=["https://ipfs.io/ipfs/", "https://dweb.link/ipfs/"],
     use_gateway_fallback=True,
-    enable_metrics=True
+    enable_metrics=True,
 )
 ```
 

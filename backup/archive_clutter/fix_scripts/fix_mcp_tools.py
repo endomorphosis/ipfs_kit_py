@@ -12,21 +12,22 @@ import re
 import tempfile
 import shutil
 
+
 def fix_execute_tool():
     """Improve the execute_tool method to better handle IPFS tool adapters"""
     filepath = "/home/barberb/ipfs_kit_py/final_mcp_server.py"
-    
-    with open(filepath, 'r') as f:
+
+    with open(filepath, "r") as f:
         content = f.read()
-    
+
     # Find the execute_tool method
-    pattern = r'async def execute_tool\(self, tool_name: str, arguments: Dict\[str, Any\] = None, context: Optional\[Dict\[str, Any\]\] = None\):(.*?)(?=def|class|@)'
+    pattern = r"async def execute_tool\(self, tool_name: str, arguments: Dict\[str, Any\] = None, context: Optional\[Dict\[str, Any\]\] = None\):(.*?)(?=def|class|@)"
     match = re.search(pattern, content, re.DOTALL)
-    
+
     if not match:
         print("execute_tool method not found")
         return False
-    
+
     old_method = match.group(0)
     new_method = """async def execute_tool(self, tool_name: str, arguments: Dict[str, Any] = None, context: Optional[Dict[str, Any]] = None):
         arguments = arguments or {}; context_obj = SimpleContext(context or {})
@@ -102,40 +103,47 @@ def fix_execute_tool():
             
             return {"error": str(e), "detail": traceback_msg}
 """
-    
+
     # Replace the old method with the new one
     new_content = content.replace(old_method, new_method)
-    
+
     # Write back to the file
-    with open(filepath, 'w') as f:
+    with open(filepath, "w") as f:
         f.write(new_content)
-    
+
     print("execute_tool method updated successfully")
     return True
+
 
 def update_tool_wrappers():
     """Add a better wrapper in unified_ipfs_tools.py"""
     filepath = "/home/barberb/ipfs_kit_py/unified_ipfs_tools.py"
-    
-    with open(filepath, 'r') as f:
+
+    with open(filepath, "r") as f:
         content = f.read()
-    
+
     # Find the register_all_ipfs_tools function
-    pattern = r'def register_all_ipfs_tools\(mcp_server\):(.*?)(?=def|class|$)'
+    pattern = r"def register_all_ipfs_tools\(mcp_server\):(.*?)(?=def|class|$)"
     match = re.search(pattern, content, re.DOTALL)
-    
+
     if not match:
         print("register_all_ipfs_tools function not found")
         return False
-    
+
     # Add import for ipfs_tool_adapters
-    if 'from ipfs_tool_adapters import get_tool_handler' not in content:
-        import_section = content.find('import logging')
+    if "from ipfs_tool_adapters import get_tool_handler" not in content:
+        import_section = content.find("import logging")
         if import_section != -1:
-            content = content[:import_section + len('import logging')] + '\nimport traceback\ntry:\n    from ipfs_tool_adapters import get_tool_handler\nexcept ImportError:\n    print("ipfs_tool_adapters not available, some features will be limited")\n' + content[import_section + len('import logging'):]
-    
+            content = (
+                content[: import_section + len("import logging")]
+                + '\nimport traceback\ntry:\n    from ipfs_tool_adapters import get_tool_handler\nexcept ImportError:\n    print("ipfs_tool_adapters not available, some features will be limited")\n'
+                + content[import_section + len("import logging") :]
+            )
+
     # Add better tool registration inside the function
-    register_section = content.find('# Each function with its expected parameters for direct adaptation')
+    register_section = content.find(
+        "# Each function with its expected parameters for direct adaptation"
+    )
     if register_section != -1:
         direct_handlers_section = """            # Register the direct handlers first for better compatibility
             if using_direct_handlers:
@@ -154,13 +162,14 @@ def update_tool_wrappers():
             
 """
         content = content[:register_section] + direct_handlers_section + content[register_section:]
-    
+
     # Write back to the file
-    with open(filepath, 'w') as f:
+    with open(filepath, "w") as f:
         f.write(content)
-    
+
     print("Tool registration in unified_ipfs_tools.py updated successfully")
     return True
+
 
 if __name__ == "__main__":
     print("Fixing IPFS MCP Tool Handlers...")
@@ -168,10 +177,10 @@ if __name__ == "__main__":
         print("MCP Server execute_tool method fixed successfully.")
     else:
         print("Failed to fix execute_tool method.")
-    
+
     if update_tool_wrappers():
         print("Tool wrappers in unified_ipfs_tools.py updated successfully.")
     else:
         print("Failed to update tool wrappers.")
-    
+
     print("All fixes applied. Please restart the MCP server for changes to take effect.")

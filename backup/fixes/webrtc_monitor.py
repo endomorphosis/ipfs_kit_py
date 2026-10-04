@@ -11,6 +11,7 @@ import re
 import time
 import json
 import logging
+
 # import anyio # Replaced by anyio
 import threading
 from typing import Dict, List, Any, Optional, Set
@@ -19,14 +20,15 @@ from datetime import datetime
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class WebRTCConnectionStats:
     """Statistics for a WebRTC connection."""
+
     connection_id: str
     created_at: float
     updated_at: float
@@ -42,11 +44,7 @@ class WebRTCConnectionStats:
 
     def add_event(self, event_type: str, details: Optional[Dict[str, Any]] = None):
         """Add a lifecycle event with timestamp."""
-        event = {
-            "type": event_type,
-            "timestamp": time.time(),
-            "details": details or {}
-        }
+        event = {"type": event_type, "timestamp": time.time(), "details": details or {}}
         self.lifecycle_events.append(event)
         self.updated_at = time.time()
 
@@ -136,6 +134,7 @@ class WebRTCConnectionStats:
         """Check if there are pending async tasks."""
         return len(self.async_tasks) > 0
 
+
 class WebRTCMonitor:
     """
     Monitor and track WebRTC connections and operations.
@@ -144,9 +143,7 @@ class WebRTCMonitor:
     track async tasks, and help with debugging WebRTC-related issues.
     """
 
-    def __init__(self,
-                log_dir: Optional[str] = None,
-                debug_mode: bool = False):
+    def __init__(self, log_dir: Optional[str] = None, debug_mode: bool = False):
         """
         Initialize the WebRTC monitor.
 
@@ -183,9 +180,7 @@ class WebRTCMonitor:
             if connection_id not in self.connections:
                 now = time.time()
                 self.connections[connection_id] = WebRTCConnectionStats(
-                    connection_id=connection_id,
-                    created_at=now,
-                    updated_at=now
+                    connection_id=connection_id, created_at=now, updated_at=now
                 )
                 self._log_event("connection_created", {"connection_id": connection_id})
                 logger.info(f"Started tracking WebRTC connection: {connection_id}")
@@ -205,11 +200,14 @@ class WebRTCMonitor:
                 stats = self.connections.pop(connection_id)
 
                 # Log the event
-                self._log_event("connection_removed", {
-                    "connection_id": connection_id,
-                    "age_seconds": stats.age_seconds,
-                    "final_state": stats.connection_state
-                })
+                self._log_event(
+                    "connection_removed",
+                    {
+                        "connection_id": connection_id,
+                        "age_seconds": stats.age_seconds,
+                        "final_state": stats.connection_state,
+                    },
+                )
 
                 # Save final stats to log file if logging is enabled
                 if self.log_dir:
@@ -233,11 +231,14 @@ class WebRTCMonitor:
             stats = self.track_connection(connection_id)
             stats.update_state(state_type, state_value)
 
-            self._log_event(f"connection_state_update", {
-                "connection_id": connection_id,
-                "state_type": state_type,
-                "state_value": state_value
-            })
+            self._log_event(
+                f"connection_state_update",
+                {
+                    "connection_id": connection_id,
+                    "state_type": state_type,
+                    "state_value": state_value,
+                },
+            )
 
             logger.debug(f"Updated {state_type} state for {connection_id}: {state_value}")
 
@@ -253,10 +254,9 @@ class WebRTCMonitor:
             stats = self.track_connection(connection_id)
             stats.add_async_task(task_id)
 
-            self._log_event("async_task_added", {
-                "connection_id": connection_id,
-                "task_id": task_id
-            })
+            self._log_event(
+                "async_task_added", {"connection_id": connection_id, "task_id": task_id}
+            )
 
             logger.debug(f"Added async task {task_id} for {connection_id}")
 
@@ -273,10 +273,9 @@ class WebRTCMonitor:
                 stats = self.connections[connection_id]
                 stats.remove_async_task(task_id)
 
-                self._log_event("async_task_removed", {
-                    "connection_id": connection_id,
-                    "task_id": task_id
-                })
+                self._log_event(
+                    "async_task_removed", {"connection_id": connection_id, "task_id": task_id}
+                )
 
                 logger.debug(f"Removed async task {task_id} for {connection_id}")
 
@@ -295,14 +294,17 @@ class WebRTCMonitor:
                 "operation_type": operation_type,
                 "start_time": time.time(),
                 "details": details or {},
-                "status": "started"
+                "status": "started",
             }
 
-            self._log_event("operation_started", {
-                "operation_id": operation_id,
-                "operation_type": operation_type,
-                "details": details
-            })
+            self._log_event(
+                "operation_started",
+                {
+                    "operation_id": operation_id,
+                    "operation_type": operation_type,
+                    "details": details,
+                },
+            )
 
             logger.debug(f"Started WebRTC operation: {operation_type} ({operation_id})")
 
@@ -325,12 +327,15 @@ class WebRTCMonitor:
                 if result:
                     operation["result"] = result
 
-                self._log_event("operation_updated", {
-                    "operation_id": operation_id,
-                    "status": status,
-                    "duration": operation["duration"],
-                    "result": result
-                })
+                self._log_event(
+                    "operation_updated",
+                    {
+                        "operation_id": operation_id,
+                        "status": status,
+                        "duration": operation["duration"],
+                        "result": result,
+                    },
+                )
 
                 logger.debug(f"Updated WebRTC operation: {operation_id} ({status})")
 
@@ -355,15 +360,17 @@ class WebRTCMonitor:
                 if connection_id in self.connections:
                     return {
                         "connection": self.connections[connection_id].to_dict(),
-                        "timestamp": time.time()
+                        "timestamp": time.time(),
                     }
                 return {"error": "Connection not found", "timestamp": time.time()}
 
             # Get stats for all connections
             return {
-                "connections": {conn_id: stats.to_dict() for conn_id, stats in self.connections.items()},
+                "connections": {
+                    conn_id: stats.to_dict() for conn_id, stats in self.connections.items()
+                },
                 "count": len(self.connections),
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
     def get_active_operations(self):
@@ -382,7 +389,7 @@ class WebRTCMonitor:
             return {
                 "operations": active_operations,
                 "count": len(active_operations),
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
     def get_pending_tasks(self):
@@ -401,7 +408,7 @@ class WebRTCMonitor:
             return {
                 "tasks": pending_tasks,
                 "count": sum(len(tasks) for tasks in pending_tasks.values()),
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
     def get_summary(self):
@@ -420,7 +427,7 @@ class WebRTCMonitor:
                 "new": 0,
                 "connecting": 0,
                 "closed": 0,
-                "failed": 0
+                "failed": 0,
             }
 
             for stats in self.connections.values():
@@ -443,7 +450,7 @@ class WebRTCMonitor:
                 "started": 0,
                 "completed": 0,
                 "failed": 0,
-                "canceled": 0
+                "canceled": 0,
             }
 
             for operation in self.operations.values():
@@ -462,16 +469,12 @@ class WebRTCMonitor:
                 "event_count": len(self.event_log),
                 "timestamp": time.time(),
                 "debug_mode": self.debug_mode,
-                "logging_enabled": self.log_dir is not None
+                "logging_enabled": self.log_dir is not None,
             }
 
     def _log_event(self, event_type: str, details: Dict[str, Any] = None):
         """Log an event to the internal event log."""
-        event = {
-            "type": event_type,
-            "timestamp": time.time(),
-            "details": details or {}
-        }
+        event = {"type": event_type, "timestamp": time.time(), "details": details or {}}
 
         self.event_log.append(event)
 
@@ -515,7 +518,7 @@ class WebRTCMonitor:
 
             # Create log filename with timestamp and operation ID
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            op_type = re.sub(r'[^a-zA-Z0-9]', '_', operation["operation_type"])
+            op_type = re.sub(r"[^a-zA-Z0-9]", "_", operation["operation_type"])
             filename = f"{timestamp}_{op_type}_{operation['operation_id']}.json"
             log_path = os.path.join(operations_dir, filename)
 
@@ -527,6 +530,7 @@ class WebRTCMonitor:
 
         except Exception as e:
             logger.error(f"Error writing operation log: {e}")
+
 
 class AsyncTaskTracker:
     """
@@ -597,7 +601,9 @@ class AsyncTaskTracker:
 
         return await anyio.gather(*tasks, return_exceptions=True)
 
+
 # Helper functions for using the monitor with the WebRTC AnyIO fix
+
 
 def wrap_webrtc_method(func, monitor: WebRTCMonitor, connection_id: str = None):
     """
@@ -611,6 +617,7 @@ def wrap_webrtc_method(func, monitor: WebRTCMonitor, connection_id: str = None):
     Returns:
         Wrapped function
     """
+
     def wrapper(*args, **kwargs):
         # Extract connection ID if not provided
         conn_id = connection_id
@@ -622,11 +629,15 @@ def wrap_webrtc_method(func, monitor: WebRTCMonitor, connection_id: str = None):
         operation_id = f"{func.__name__}_{int(time.time() * 1000)}"
 
         # Track the operation
-        monitor.add_operation(operation_id, func.__name__, {
-            "connection_id": conn_id,
-            "args": str(args[1:]),  # Skip self
-            "kwargs": str(kwargs)
-        })
+        monitor.add_operation(
+            operation_id,
+            func.__name__,
+            {
+                "connection_id": conn_id,
+                "args": str(args[1:]),  # Skip self
+                "kwargs": str(kwargs),
+            },
+        )
 
         try:
             # Run the wrapped function
@@ -646,13 +657,13 @@ def wrap_webrtc_method(func, monitor: WebRTCMonitor, connection_id: str = None):
 
         except Exception as e:
             # Update operation status
-            monitor.update_operation(operation_id, "failed", {
-                "error": str(e),
-                "error_type": type(e).__name__
-            })
+            monitor.update_operation(
+                operation_id, "failed", {"error": str(e), "error_type": type(e).__name__}
+            )
             raise
 
     return wrapper
+
 
 def wrap_async_webrtc_method(func, monitor: WebRTCMonitor, connection_id: str = None):
     """
@@ -666,6 +677,7 @@ def wrap_async_webrtc_method(func, monitor: WebRTCMonitor, connection_id: str = 
     Returns:
         Wrapped async function
     """
+
     async def wrapper(*args, **kwargs):
         # Extract connection ID if not provided
         conn_id = connection_id
@@ -677,11 +689,15 @@ def wrap_async_webrtc_method(func, monitor: WebRTCMonitor, connection_id: str = 
         operation_id = f"{func.__name__}_{int(time.time() * 1000)}"
 
         # Track the operation
-        monitor.add_operation(operation_id, func.__name__, {
-            "connection_id": conn_id,
-            "args": str(args[1:]),  # Skip self
-            "kwargs": str(kwargs)
-        })
+        monitor.add_operation(
+            operation_id,
+            func.__name__,
+            {
+                "connection_id": conn_id,
+                "args": str(args[1:]),  # Skip self
+                "kwargs": str(kwargs),
+            },
+        )
 
         try:
             # Run the wrapped function
@@ -701,13 +717,13 @@ def wrap_async_webrtc_method(func, monitor: WebRTCMonitor, connection_id: str = 
 
         except Exception as e:
             # Update operation status
-            monitor.update_operation(operation_id, "failed", {
-                "error": str(e),
-                "error_type": type(e).__name__
-            })
+            monitor.update_operation(
+                operation_id, "failed", {"error": str(e), "error_type": type(e).__name__}
+            )
             raise
 
     return wrapper
+
 
 def apply_webrtc_monitoring(ipfs_model, log_dir: str = None, debug_mode: bool = False):
     """
@@ -757,6 +773,7 @@ def apply_webrtc_monitoring(ipfs_model, log_dir: str = None, debug_mode: bool = 
 
     logger.info(f"Applied WebRTC monitoring to IPFS model")
     return monitor
+
 
 if __name__ == "__main__":
     # Example usage

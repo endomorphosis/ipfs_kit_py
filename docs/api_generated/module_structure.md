@@ -34,19 +34,21 @@ This package uses an integrated JIT import system for optimal performance:
 from ipfs_kit_py.core import jit_manager
 
 # Check feature availability (fast)
-if jit_manager.check_feature('enhanced_features'):
+if jit_manager.check_feature("enhanced_features"):
     # Modules loaded on-demand
-    enhanced_index = jit_manager.get_module('enhanced_pin_index')
+    enhanced_index = jit_manager.get_module("enhanced_pin_index")
 
 # Use decorators for automatic feature handling
 from ipfs_kit_py.core import require_feature, optional_feature
 
-@require_feature('daemon')
+
+@require_feature("daemon")
 def start_daemon():
     # Only runs if daemon components are available
     pass
 
-@optional_feature('analytics', fallback_result={})
+
+@optional_feature("analytics", fallback_result={})
 def get_analytics():
     # Returns {} if analytics not available
     return complex_analytics()
@@ -70,9 +72,9 @@ from ipfs_kit_py import install_ipfs, install_lotus, install_lassie, install_sto
 # Check installation status
 from ipfs_kit_py import (
     INSTALL_IPFS_AVAILABLE,
-    INSTALL_LOTUS_AVAILABLE, 
+    INSTALL_LOTUS_AVAILABLE,
     INSTALL_LASSIE_AVAILABLE,
-    INSTALL_STORACHA_AVAILABLE
+    INSTALL_STORACHA_AVAILABLE,
 )
 
 # Use installers directly
@@ -8244,9 +8246,7 @@ client.authenticate(token="your_token")
 
 # Create a model
 model = await client.create_model(
-    name="My Model",
-    description="My model description",
-    model_type="classification"
+    name="My Model", description="My model description", model_type="classification"
 )
 
 # Upload a version
@@ -8255,7 +8255,7 @@ version = await client.upload_model_version(
     version="1.0.0",
     model_path="path/to/model.pt",
     format="pytorch",
-    framework="pytorch"
+    framework="pytorch",
 )
 
 print(f"Model {model['name']} version {version['version']} uploaded!")
