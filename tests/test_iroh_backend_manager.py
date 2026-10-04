@@ -59,9 +59,17 @@ def test_create_persists_refs_owner_only_and_redacts_all_public_results(
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
     assert manager.show_backend("team_archive")["credentials"] == created["backend"]["credentials"]
-    assert manager.list_backends()["backends"][0]["credentials"] == created["backend"]["credentials"]
-    assert manager.get_backend_info("team_archive")["config"]["credentials"] == created["backend"]["credentials"]
-    assert manager.get_backend_config("team_archive", redact=False)["credentials"] == document["credentials"]
+    assert (
+        manager.list_backends()["backends"][0]["credentials"] == created["backend"]["credentials"]
+    )
+    assert (
+        manager.get_backend_info("team_archive")["config"]["credentials"]
+        == created["backend"]["credentials"]
+    )
+    assert (
+        manager.get_backend_config("team_archive", redact=False)["credentials"]
+        == document["credentials"]
+    )
 
 
 @pytest.mark.parametrize(
@@ -71,7 +79,10 @@ def test_create_persists_refs_owner_only_and_redacts_all_public_results(
         (lambda value: value["credentials"].update({"token": "inline"}), "secret reference"),
         (lambda value: value["service"].update({"rpc_endpoint": "tcp://127.0.0.1:4919"}), "local"),
         (lambda value: value["namespace"].update({"id": "bafy-not-an-iroh-id"}), "namespace.id"),
-        (lambda value: value["sync"].update({"conflict_policy": "last-write-wins"}), "conflict_policy"),
+        (
+            lambda value: value["sync"].update({"conflict_policy": "last-write-wins"}),
+            "conflict_policy",
+        ),
     ],
 )
 def test_invalid_or_unknown_iroh_settings_are_rejected_without_a_partial_file(

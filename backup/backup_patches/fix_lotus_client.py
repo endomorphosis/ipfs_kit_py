@@ -16,9 +16,10 @@ import logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("fix_lotus_client")
+
 
 def fix_lotus_client():
     """Fix indentation issues in lotus_kit.py file."""
@@ -33,8 +34,7 @@ def fix_lotus_client():
 
     # Find the problematic method
     method_pattern = re.compile(
-        r"def client_retrieve_legacy\(self, data_cid, out_file, \*\*kwargs\):(.*?)def",
-        re.DOTALL
+        r"def client_retrieve_legacy\(self, data_cid, out_file, \*\*kwargs\):(.*?)def", re.DOTALL
     )
 
     match = method_pattern.search(content)
@@ -72,6 +72,7 @@ def fix_lotus_client():
 
     logger.info(f"Fixed client_retrieve_legacy method in {file_path}")
     return True
+
 
 if __name__ == "__main__":
     success = fix_lotus_client()

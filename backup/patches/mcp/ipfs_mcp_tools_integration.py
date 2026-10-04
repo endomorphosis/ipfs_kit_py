@@ -22,11 +22,13 @@ logger = logging.getLogger(__name__)
 # Try to import ipfshttpclient, fall back to using subprocess if not available
 try:
     import ipfshttpclient
+
     IPFS_CLIENT_AVAILABLE = True
 except ImportError:
     logger.warning("ipfshttpclient not available, falling back to subprocess")
     IPFS_CLIENT_AVAILABLE = False
     import subprocess
+
 
 def register_ipfs_tools(mcp_server) -> bool:
     """
@@ -55,7 +57,10 @@ def register_ipfs_tools(mcp_server) -> bool:
             try:
                 # Validate input
                 if content is None and file_path is None:
-                    return {"success": False, "error": "Either content or file_path must be provided"}
+                    return {
+                        "success": False,
+                        "error": "Either content or file_path must be provided",
+                    }
 
                 # Determine file_name if not provided
                 if file_name is None:
@@ -73,12 +78,12 @@ def register_ipfs_tools(mcp_server) -> bool:
                             with tempfile.NamedTemporaryFile(delete=False) as temp:
                                 # Write content to the file
                                 if isinstance(content, str):
-                                    temp.write(content.encode('utf-8'))
+                                    temp.write(content.encode("utf-8"))
                                 elif isinstance(content, bytes):
                                     temp.write(content)
                                 else:
                                     # Try to convert to string
-                                    temp.write(str(content).encode('utf-8'))
+                                    temp.write(str(content).encode("utf-8"))
 
                                 temp_path = temp.name
 
@@ -97,7 +102,7 @@ def register_ipfs_tools(mcp_server) -> bool:
                                     "success": True,
                                     "cid": result["Hash"],
                                     "size": result["Size"],
-                                    "name": file_name
+                                    "name": file_name,
                                 }
                             except Exception as e:
                                 # Cleanup the temporary file in case of error
@@ -107,7 +112,10 @@ def register_ipfs_tools(mcp_server) -> bool:
 
                         else:  # Use file_path
                             if not os.path.exists(file_path):
-                                return {"success": False, "error": f"File does not exist: {file_path}"}
+                                return {
+                                    "success": False,
+                                    "error": f"File does not exist: {file_path}",
+                                }
 
                             # Add the file to IPFS
                             result = client.add(file_path, pin=pin)
@@ -120,7 +128,7 @@ def register_ipfs_tools(mcp_server) -> bool:
                                 "success": True,
                                 "cid": result["Hash"],
                                 "size": result["Size"],
-                                "name": file_name
+                                "name": file_name,
                             }
 
                 else:  # Use subprocess
@@ -129,12 +137,12 @@ def register_ipfs_tools(mcp_server) -> bool:
                         with tempfile.NamedTemporaryFile(delete=False) as temp:
                             # Write content to the file
                             if isinstance(content, str):
-                                temp.write(content.encode('utf-8'))
+                                temp.write(content.encode("utf-8"))
                             elif isinstance(content, bytes):
                                 temp.write(content)
                             else:
                                 # Try to convert to string
-                                temp.write(str(content).encode('utf-8'))
+                                temp.write(str(content).encode("utf-8"))
 
                             temp_path = temp.name
 
@@ -143,7 +151,10 @@ def register_ipfs_tools(mcp_server) -> bool:
                         file_to_add = file_path
 
                         if not os.path.exists(file_to_add):
-                            return {"success": False, "error": f"File does not exist: {file_to_add}"}
+                            return {
+                                "success": False,
+                                "error": f"File does not exist: {file_to_add}",
+                            }
 
                     try:
                         # Add the file to IPFS
@@ -162,7 +173,9 @@ def register_ipfs_tools(mcp_server) -> bool:
 
                         # Get the file size
                         cmd_stat = ["ipfs", "files", "stat", f"/ipfs/{cid}"]
-                        process_stat = subprocess.run(cmd_stat, capture_output=True, text=True, check=True)
+                        process_stat = subprocess.run(
+                            cmd_stat, capture_output=True, text=True, check=True
+                        )
 
                         # Parse the output to get the size
                         stat_output = process_stat.stdout.strip()
@@ -172,32 +185,21 @@ def register_ipfs_tools(mcp_server) -> bool:
                                 size = int(line.split(":")[1].strip())
                                 break
 
-                        return {
-                            "success": True,
-                            "cid": cid,
-                            "size": size,
-                            "name": file_name
-                        }
+                        return {"success": True, "cid": cid, "size": size, "name": file_name}
 
                     except subprocess.CalledProcessError as e:
                         # Cleanup the temporary file if created
                         if content is not None and os.path.exists(temp_path):
                             os.unlink(temp_path)
 
-                        return {
-                            "success": False,
-                            "error": f"IPFS add failed: {e.stderr}"
-                        }
+                        return {"success": False, "error": f"IPFS add failed: {e.stderr}"}
 
                     except Exception as e:
                         # Cleanup the temporary file if created
                         if content is not None and os.path.exists(temp_path):
                             os.unlink(temp_path)
 
-                        return {
-                            "success": False,
-                            "error": f"IPFS add failed: {str(e)}"
-                        }
+                        return {"success": False, "error": f"IPFS add failed: {str(e)}"}
 
             except Exception as e:
                 logger.error(f"Error in ipfs_add: {e}")
@@ -225,12 +227,12 @@ def register_ipfs_tools(mcp_server) -> bool:
                             stats = client.files.stat(f"/ipfs/{cid}")
 
                             # Convert binary data to base64
-                            content_base64 = base64.b64encode(content).decode('utf-8')
+                            content_base64 = base64.b64encode(content).decode("utf-8")
 
                             return {
                                 "success": True,
                                 "content_base64": content_base64,
-                                "size": stats["Size"] if "Size" in stats else len(content)
+                                "size": stats["Size"] if "Size" in stats else len(content),
                             }
                         except Exception as e:
                             return {"success": False, "error": f"IPFS cat failed: {str(e)}"}
@@ -249,14 +251,18 @@ def register_ipfs_tools(mcp_server) -> bool:
                         cmd.append(cid)
 
                         # Run the command
-                        process = subprocess.run(cmd, capture_output=True, check=True, timeout=timeout)
+                        process = subprocess.run(
+                            cmd, capture_output=True, check=True, timeout=timeout
+                        )
 
                         # Get the content from the output
                         content = process.stdout
 
                         # Get the size
                         cmd_stat = ["ipfs", "files", "stat", f"/ipfs/{cid}"]
-                        process_stat = subprocess.run(cmd_stat, capture_output=True, text=True, check=True)
+                        process_stat = subprocess.run(
+                            cmd_stat, capture_output=True, text=True, check=True
+                        )
 
                         # Parse the output to get the size
                         stat_output = process_stat.stdout.strip()
@@ -267,31 +273,24 @@ def register_ipfs_tools(mcp_server) -> bool:
                                 break
 
                         # Convert binary data to base64
-                        content_base64 = base64.b64encode(content).decode('utf-8')
+                        content_base64 = base64.b64encode(content).decode("utf-8")
 
-                        return {
-                            "success": True,
-                            "content_base64": content_base64,
-                            "size": size
-                        }
+                        return {"success": True, "content_base64": content_base64, "size": size}
 
                     except subprocess.CalledProcessError as e:
                         return {
                             "success": False,
-                            "error": f"IPFS cat failed: {e.stderr.decode('utf-8')}"
+                            "error": f"IPFS cat failed: {e.stderr.decode('utf-8')}",
                         }
 
                     except subprocess.TimeoutExpired:
                         return {
                             "success": False,
-                            "error": f"IPFS cat timed out after {timeout} seconds"
+                            "error": f"IPFS cat timed out after {timeout} seconds",
                         }
 
                     except Exception as e:
-                        return {
-                            "success": False,
-                            "error": f"IPFS cat failed: {str(e)}"
-                        }
+                        return {"success": False, "error": f"IPFS cat failed: {str(e)}"}
 
             except Exception as e:
                 logger.error(f"Error in ipfs_cat: {e}")
@@ -319,12 +318,14 @@ def register_ipfs_tools(mcp_server) -> bool:
                             entries = []
                             for entry in result.get("Objects", []):
                                 for link in entry.get("Links", []):
-                                    entries.append({
-                                        "name": link.get("Name", ""),
-                                        "cid": link.get("Hash", ""),
-                                        "size": link.get("Size", 0),
-                                        "type": link.get("Type", 0)
-                                    })
+                                    entries.append(
+                                        {
+                                            "name": link.get("Name", ""),
+                                            "cid": link.get("Hash", ""),
+                                            "size": link.get("Size", 0),
+                                            "type": link.get("Type", 0),
+                                        }
+                                    )
 
                             # If recursive, handle the entries
                             if recursive and entries:
@@ -334,24 +335,26 @@ def register_ipfs_tools(mcp_server) -> bool:
                                     for entry in entries:
                                         if entry.get("type") == 1:  # Directory
                                             try:
-                                                sub_result = await ipfs_ls(entry["cid"], recursive=True)
+                                                sub_result = await ipfs_ls(
+                                                    entry["cid"], recursive=True
+                                                )
                                                 if sub_result.get("success", False):
                                                     for sub_entry in sub_result.get("entries", []):
                                                         # Prefix the name with the parent directory
-                                                        sub_entry["name"] = f"{entry['name']}/{sub_entry['name']}"
+                                                        sub_entry["name"] = (
+                                                            f"{entry['name']}/{sub_entry['name']}"
+                                                        )
                                                         all_entries.append(sub_entry)
                                             except Exception as sub_e:
-                                                logger.warning(f"Error in recursive ls for {entry['cid']}: {sub_e}")
+                                                logger.warning(
+                                                    f"Error in recursive ls for {entry['cid']}: {sub_e}"
+                                                )
 
                                     entries = all_entries
                                 except Exception as rec_e:
                                     logger.warning(f"Error in recursive processing: {rec_e}")
 
-                            return {
-                                "success": True,
-                                "entries": entries,
-                                "count": len(entries)
-                            }
+                            return {"success": True, "entries": entries, "count": len(entries)}
                         except Exception as e:
                             return {"success": False, "error": f"IPFS ls failed: {str(e)}"}
 
@@ -367,7 +370,9 @@ def register_ipfs_tools(mcp_server) -> bool:
                         cmd.append(cid)
 
                         # Run the command
-                        process = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=timeout)
+                        process = subprocess.run(
+                            cmd, capture_output=True, text=True, check=True, timeout=timeout
+                        )
 
                         # Parse the output
                         entries = []
@@ -408,36 +413,28 @@ def register_ipfs_tools(mcp_server) -> bool:
                                     except:
                                         size = 0
 
-                                entries.append({
-                                    "name": entry_name,
-                                    "cid": entry_cid,
-                                    "size": size,
-                                    "type": entry_type
-                                })
+                                entries.append(
+                                    {
+                                        "name": entry_name,
+                                        "cid": entry_cid,
+                                        "size": size,
+                                        "type": entry_type,
+                                    }
+                                )
 
-                        return {
-                            "success": True,
-                            "entries": entries,
-                            "count": len(entries)
-                        }
+                        return {"success": True, "entries": entries, "count": len(entries)}
 
                     except subprocess.CalledProcessError as e:
-                        return {
-                            "success": False,
-                            "error": f"IPFS ls failed: {e.stderr}"
-                        }
+                        return {"success": False, "error": f"IPFS ls failed: {e.stderr}"}
 
                     except subprocess.TimeoutExpired:
                         return {
                             "success": False,
-                            "error": f"IPFS ls timed out after {timeout} seconds"
+                            "error": f"IPFS ls timed out after {timeout} seconds",
                         }
 
                     except Exception as e:
-                        return {
-                            "success": False,
-                            "error": f"IPFS ls failed: {str(e)}"
-                        }
+                        return {"success": False, "error": f"IPFS ls failed: {str(e)}"}
 
             except Exception as e:
                 logger.error(f"Error in ipfs_ls: {e}")
@@ -453,7 +450,10 @@ def register_ipfs_tools(mcp_server) -> bool:
                 # Validate type
                 valid_types = ["all", "direct", "indirect", "recursive"]
                 if type not in valid_types:
-                    return {"success": False, "error": f"Invalid pin type. Must be one of: {', '.join(valid_types)}"}
+                    return {
+                        "success": False,
+                        "error": f"Invalid pin type. Must be one of: {', '.join(valid_types)}",
+                    }
 
                 # Use ipfshttpclient if available
                 if IPFS_CLIENT_AVAILABLE:
@@ -465,11 +465,7 @@ def register_ipfs_tools(mcp_server) -> bool:
                             # Process the result
                             pins = result.get("Keys", {})
 
-                            return {
-                                "success": True,
-                                "pins": pins,
-                                "count": len(pins)
-                            }
+                            return {"success": True, "pins": pins, "count": len(pins)}
                         except Exception as e:
                             return {"success": False, "error": f"IPFS pin ls failed: {str(e)}"}
 
@@ -483,7 +479,9 @@ def register_ipfs_tools(mcp_server) -> bool:
                             cmd.extend(["--type", type])
 
                         # Run the command
-                        process = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=timeout)
+                        process = subprocess.run(
+                            cmd, capture_output=True, text=True, check=True, timeout=timeout
+                        )
 
                         # Parse the output
                         pins = {}
@@ -503,29 +501,19 @@ def register_ipfs_tools(mcp_server) -> bool:
 
                                 pins[cid] = {"type": pin_type}
 
-                        return {
-                            "success": True,
-                            "pins": pins,
-                            "count": len(pins)
-                        }
+                        return {"success": True, "pins": pins, "count": len(pins)}
 
                     except subprocess.CalledProcessError as e:
-                        return {
-                            "success": False,
-                            "error": f"IPFS pin ls failed: {e.stderr}"
-                        }
+                        return {"success": False, "error": f"IPFS pin ls failed: {e.stderr}"}
 
                     except subprocess.TimeoutExpired:
                         return {
                             "success": False,
-                            "error": f"IPFS pin ls timed out after {timeout} seconds"
+                            "error": f"IPFS pin ls timed out after {timeout} seconds",
                         }
 
                     except Exception as e:
-                        return {
-                            "success": False,
-                            "error": f"IPFS pin ls failed: {str(e)}"
-                        }
+                        return {"success": False, "error": f"IPFS pin ls failed: {str(e)}"}
 
             except Exception as e:
                 logger.error(f"Error in ipfs_pin_ls: {e}")
@@ -545,49 +533,43 @@ def register_ipfs_tools(mcp_server) -> bool:
                             # Get the node ID
                             result = client.id()
 
-                            return {
-                                "success": True,
-                                "id": result
-                            }
+                            return {"success": True, "id": result}
                         except Exception as e:
                             return {"success": False, "error": f"IPFS id failed: {str(e)}"}
 
                 else:  # Use subprocess
                     try:
                         # Run the command
-                        process = subprocess.run(["ipfs", "id"], capture_output=True, text=True, check=True, timeout=timeout)
+                        process = subprocess.run(
+                            ["ipfs", "id"],
+                            capture_output=True,
+                            text=True,
+                            check=True,
+                            timeout=timeout,
+                        )
 
                         # Parse the output
                         try:
                             result = json.loads(process.stdout)
 
-                            return {
-                                "success": True,
-                                "id": result
-                            }
+                            return {"success": True, "id": result}
                         except json.JSONDecodeError:
                             return {
                                 "success": False,
-                                "error": "Failed to parse IPFS id output as JSON"
+                                "error": "Failed to parse IPFS id output as JSON",
                             }
 
                     except subprocess.CalledProcessError as e:
-                        return {
-                            "success": False,
-                            "error": f"IPFS id failed: {e.stderr}"
-                        }
+                        return {"success": False, "error": f"IPFS id failed: {e.stderr}"}
 
                     except subprocess.TimeoutExpired:
                         return {
                             "success": False,
-                            "error": f"IPFS id timed out after {timeout} seconds"
+                            "error": f"IPFS id timed out after {timeout} seconds",
                         }
 
                     except Exception as e:
-                        return {
-                            "success": False,
-                            "error": f"IPFS id failed: {str(e)}"
-                        }
+                        return {"success": False, "error": f"IPFS id failed: {str(e)}"}
 
             except Exception as e:
                 logger.error(f"Error in ipfs_id: {e}")
@@ -601,6 +583,7 @@ def register_ipfs_tools(mcp_server) -> bool:
     except Exception as e:
         logger.error(f"Error registering IPFS tools: {e}")
         return False
+
 
 if __name__ == "__main__":
     print("IPFS MCP Tools Integration Module")

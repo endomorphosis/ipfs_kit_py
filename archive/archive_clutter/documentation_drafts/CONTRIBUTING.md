@@ -87,12 +87,13 @@ Once an issue has been filed create a branch for it using the following conventi
         ```python
         # Python example
         DEFAULT_TIMEOUT = 30  # constant
-        
+
+
         class UserAccount:  # class name in PascalCase
             def __init__(self, user_id, email_address):  # parameters in snake_case
                 self.user_id = user_id
                 self.email_address = email_address
-                
+
             def calculate_account_balance(self):  # method in snake_case
                 total_balance = 0  # variable in snake_case
                 return total_balance

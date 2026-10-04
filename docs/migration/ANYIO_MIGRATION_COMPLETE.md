@@ -120,7 +120,8 @@ The migration introduced anyio task groups in several patterns:
    ```python
    # Old (fire-and-forget)
    async_io.create_task(background_loop())
-   
+
+
    # New (with task group from caller)
    def start_service(task_group):
        task_group.start_soon(background_loop)

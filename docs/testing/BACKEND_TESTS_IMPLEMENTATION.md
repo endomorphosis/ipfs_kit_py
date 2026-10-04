@@ -135,11 +135,12 @@ Total                        |  78+ (not counting subcases)
 ```python
 MOCK_MODE = os.environ.get("BACKEND_MOCK_MODE", "true").lower() == "true"
 
+
 @pytest.fixture
 def backend_instance():
     if MOCK_MODE:
         # Use mocked version
-        with patch('module.Client') as mock:
+        with patch("module.Client") as mock:
             yield Backend(config)
     else:
         # Use real backend

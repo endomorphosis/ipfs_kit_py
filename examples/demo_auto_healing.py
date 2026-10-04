@@ -22,19 +22,17 @@ def demo_error_capture():
     print("=" * 60)
     print("Demo 1: Error Capture")
     print("=" * 60)
-    
+
     error_capture = ErrorCapture(max_log_lines=20)
-    
+
     try:
         # Trigger a test error
         raise ValueError("This is a demonstration error for auto-healing")
     except Exception as e:
         captured = error_capture.capture_error(
-            e,
-            command="ipfs-kit demo test",
-            arguments={'demo': True, 'test_mode': True}
+            e, command="ipfs-kit demo test", arguments={"demo": True, "test_mode": True}
         )
-        
+
         print("\n✓ Error captured successfully!")
         print(f"  Error Type: {captured.error_type}")
         print(f"  Error Message: {captured.error_message}")
@@ -53,14 +51,14 @@ def demo_config():
     print("\n" + "=" * 60)
     print("Demo 2: Configuration Management")
     print("=" * 60)
-    
+
     # Create a test configuration
     config = AutoHealConfig(
         enabled=True,
         github_repo="owner/repo",
         max_log_lines=50,
     )
-    
+
     print("\n✓ Configuration created:")
     print(f"  Enabled: {config.enabled}")
     print(f"  Repository: {config.github_repo}")
@@ -68,7 +66,7 @@ def demo_config():
     print(f"  Include stack trace: {config.include_stack_trace}")
     print(f"  Auto-create issues: {config.auto_create_issues}")
     print(f"  Issue labels: {', '.join(config.issue_labels)}")
-    
+
     print(f"\n  Is Configured: {config.is_configured()}")
     if not config.is_configured():
         print("  ⚠️  Note: Needs GITHUB_TOKEN to be fully configured")
@@ -79,36 +77,36 @@ def demo_issue_format():
     print("\n" + "=" * 60)
     print("Demo 3: GitHub Issue Formatting")
     print("=" * 60)
-    
-    config = AutoHealConfig(
-        enabled=True,
-        github_token='demo_token',
-        github_repo='owner/repo'
-    )
-    
+
+    config = AutoHealConfig(enabled=True, github_token="demo_token", github_repo="owner/repo")
+
     creator = GitHubIssueCreator(config)
-    
+
     # Create a sample error
     from ipfs_kit_py.auto_heal.error_capture import CapturedError
-    
+
     error = CapturedError(
-        error_type='ConnectionError',
-        error_message='Failed to connect to IPFS daemon on localhost:5001',
+        error_type="ConnectionError",
+        error_message="Failed to connect to IPFS daemon on localhost:5001",
         stack_trace='Traceback (most recent call last):\n  File "test.py", line 10, in <module>\n    connect_to_ipfs()\nConnectionError: Failed to connect',
-        timestamp='2024-01-31T10:00:00Z',
-        command='ipfs-kit daemon start',
-        arguments={'port': 5001},
-        environment={'IPFS_PATH': '/home/user/.ipfs'},
-        log_context=['Starting IPFS daemon...', 'Checking port availability...', 'ERROR: Port already in use'],
-        working_directory='/home/user/project',
-        python_version='3.12.0'
+        timestamp="2024-01-31T10:00:00Z",
+        command="ipfs-kit daemon start",
+        arguments={"port": 5001},
+        environment={"IPFS_PATH": "/home/user/.ipfs"},
+        log_context=[
+            "Starting IPFS daemon...",
+            "Checking port availability...",
+            "ERROR: Port already in use",
+        ],
+        working_directory="/home/user/project",
+        python_version="3.12.0",
     )
-    
+
     title = creator._format_issue_title(error)
-    
+
     print("\n✓ Issue title formatted:")
     print(f"  {title}")
-    
+
     print("\n✓ Issue body would contain:")
     print("  - Error type and message")
     print("  - Full stack trace")
@@ -124,7 +122,7 @@ def demo_error_patterns():
     print("\n" + "=" * 60)
     print("Demo 4: Error Pattern Recognition")
     print("=" * 60)
-    
+
     test_errors = [
         ("ModuleNotFoundError: No module named 'flask'", "Missing Dependency"),
         ("FileNotFoundError: [Errno 2] No such file or directory: 'config.json'", "Missing File"),
@@ -132,16 +130,21 @@ def demo_error_patterns():
         ("ConnectionRefusedError: [Errno 111] Connection refused", "Connection Error"),
         ("AttributeError: 'NoneType' object has no attribute 'get'", "Logic Error"),
     ]
-    
+
     print("\n✓ The system recognizes these error patterns:")
     print()
-    
+
     for error_msg, pattern_type in test_errors:
         print(f"  Pattern: {pattern_type}")
         print(f"  Example: {error_msg}")
-        
+
         # Determine if fixable
-        fixable = pattern_type in ["Missing Dependency", "Missing File", "Permission Error", "Connection Error"]
+        fixable = pattern_type in [
+            "Missing Dependency",
+            "Missing File",
+            "Permission Error",
+            "Connection Error",
+        ]
         if fixable:
             print(f"  Auto-fix: ✓ Can generate automatic fix")
         else:
@@ -154,12 +157,12 @@ def main():
     print("\n" + "=" * 60)
     print("IPFS-Kit Auto-Healing Feature Demo")
     print("=" * 60)
-    
+
     demo_error_capture()
     demo_config()
     demo_issue_format()
     demo_error_patterns()
-    
+
     print("\n" + "=" * 60)
     print("Demo Complete!")
     print("=" * 60)
@@ -173,5 +176,5 @@ def main():
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
