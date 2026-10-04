@@ -47,13 +47,17 @@ class TransformersIntegration:
         """
         self.api = api
         if not _transformers_available:
-            logger.debug("transformers not available. Install with: pip install ipfs_kit_py[transformers]")
+            logger.debug(
+                "transformers not available. Install with: pip install ipfs_kit_py[transformers]"
+            )
 
     def is_available(self) -> bool:
         """Check if transformers integration is available."""
         return _transformers_available
 
-    def from_auto_download(self, model_name: str, s3cfg: Optional[Dict[str, str]] = None, **kwargs: Any) -> Any:
+    def from_auto_download(
+        self, model_name: str, s3cfg: Optional[Dict[str, str]] = None, **kwargs: Any
+    ) -> Any:
         """Load a model from auto-download.
 
         Args:

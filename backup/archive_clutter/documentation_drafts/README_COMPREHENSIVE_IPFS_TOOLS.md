@@ -112,20 +112,18 @@ To stop the MCP server and optionally the IPFS daemon:
 ### Adding Content to IPFS
 
 ```python
-result = use_mcp_tool("direct-ipfs-kit-mcp", "add_content", {
-    "content": "Hello, IPFS!",
-    "filename": "hello.txt",
-    "pin": True
-})
+result = use_mcp_tool(
+    "direct-ipfs-kit-mcp",
+    "add_content",
+    {"content": "Hello, IPFS!", "filename": "hello.txt", "pin": True},
+)
 # Returns: {"Hash": "QmWATWQ7fVPP2EFGu71UkfnqhYXDYH566qy47CnJDgvs8u", "Name": "hello.txt", "Size": "12"}
 ```
 
 ### Reading a File from MFS
 
 ```python
-result = use_mcp_tool("direct-ipfs-kit-mcp", "read_file", {
-    "path": "/hello.txt"
-})
+result = use_mcp_tool("direct-ipfs-kit-mcp", "read_file", {"path": "/hello.txt"})
 # Returns: {"Content": "Hello, IPFS!", "Size": 12}
 ```
 
@@ -133,16 +131,18 @@ result = use_mcp_tool("direct-ipfs-kit-mcp", "read_file", {
 
 ```python
 # Map an IPFS CID to a virtual filesystem path
-result = use_mcp_tool("direct-ipfs-kit-mcp", "map_ipfs_to_fs", {
-    "cid": "QmWATWQ7fVPP2EFGu71UkfnqhYXDYH566qy47CnJDgvs8u",
-    "path": "/ipfs/hello.txt"
-})
+result = use_mcp_tool(
+    "direct-ipfs-kit-mcp",
+    "map_ipfs_to_fs",
+    {"cid": "QmWATWQ7fVPP2EFGu71UkfnqhYXDYH566qy47CnJDgvs8u", "path": "/ipfs/hello.txt"},
+)
 
 # Sync a local directory to IPFS
-result = use_mcp_tool("direct-ipfs-kit-mcp", "sync_fs_to_ipfs", {
-    "fs_path": "/local/documents",
-    "ipfs_path": "/ipfs/documents"
-})
+result = use_mcp_tool(
+    "direct-ipfs-kit-mcp",
+    "sync_fs_to_ipfs",
+    {"fs_path": "/local/documents", "ipfs_path": "/ipfs/documents"},
+)
 ```
 
 ## Architecture

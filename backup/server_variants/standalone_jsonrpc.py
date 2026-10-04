@@ -21,16 +21,16 @@ import uvicorn
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename='standalone_jsonrpc.log',
-    filemode='w'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    filename="standalone_jsonrpc.log",
+    filemode="w",
 )
 logger = logging.getLogger(__name__)
 
 # Add console handler
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
@@ -38,7 +38,7 @@ logger.addHandler(console_handler)
 app = FastAPI(
     title="Standalone VS Code JSON-RPC Language Server",
     description="Minimal server implementing just what VS Code needs",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # Add CORS middleware to allow all origins
@@ -53,6 +53,7 @@ app.add_middleware(
 # Track client sessions
 client_sessions: Dict[int, Dict[str, Any]] = {}
 
+
 @app.get("/")
 async def root():
     """Root endpoint with server info."""
@@ -60,8 +61,9 @@ async def root():
         "message": "Standalone VS Code JSON-RPC Language Server is running",
         "endpoints": ["/jsonrpc"],
         "version": "1.0.0",
-        "server_id": str(uuid.uuid4())
+        "server_id": str(uuid.uuid4()),
     }
+
 
 @app.post("/jsonrpc")
 async def jsonrpc_handler(request: Request):
@@ -87,7 +89,7 @@ async def jsonrpc_handler(request: Request):
                 client_sessions[process_id] = {
                     "initialized": True,
                     "rootUri": params.get("rootUri"),
-                    "capabilities": params.get("capabilities", {})
+                    "capabilities": params.get("capabilities", {}),
                 }
                 logger.info(f"Registered client session for process ID: {process_id}")
 
@@ -99,21 +101,18 @@ async def jsonrpc_handler(request: Request):
                     "capabilities": {
                         "textDocumentSync": {
                             "openClose": True,
-                            "change": 1  # Full document sync
+                            "change": 1,  # Full document sync
                         },
                         "completionProvider": {
                             "resolveProvider": False,
-                            "triggerCharacters": ["/"]
+                            "triggerCharacters": ["/"],
                         },
                         "hoverProvider": True,
                         "definitionProvider": True,
-                        "referencesProvider": True
+                        "referencesProvider": True,
                     },
-                    "serverInfo": {
-                        "name": "MCP IPFS Tools Server",
-                        "version": "1.0.0"
-                    }
-                }
+                    "serverInfo": {"name": "MCP IPFS Tools Server", "version": "1.0.0"},
+                },
             }
 
         # Handle 'initialized' notification
@@ -157,30 +156,24 @@ async def jsonrpc_handler(request: Request):
         # For any other method, log it and return a stub response
         else:
             logger.info(f"Received unsupported method: {method}")
-            return {
-                "jsonrpc": "2.0",
-                "id": req_id,
-                "result": None
-            }
+            return {"jsonrpc": "2.0", "id": req_id, "result": None}
 
     except Exception as e:
         logger.error(f"Error handling JSON-RPC request: {e}", exc_info=True)
         return {
             "jsonrpc": "2.0",
             "id": data.get("id") if "data" in locals() else None,
-            "error": {
-                "code": -32603,
-                "message": f"Internal server error: {str(e)}"
-            }
+            "error": {"code": -32603, "message": f"Internal server error: {str(e)}"},
         }
+
 
 def main():
     """Run the standalone JSON-RPC Language Server."""
     parser = argparse.ArgumentParser(description="Start the standalone JSON-RPC Language Server")
-    parser.add_argument("--port", type=int, default=9995,
-                      help="Port number to use (default: 9995)")
-    parser.add_argument("--host", type=str, default="0.0.0.0",
-                      help="Host to bind to (default: 0.0.0.0)")
+    parser.add_argument("--port", type=int, default=9995, help="Port number to use (default: 9995)")
+    parser.add_argument(
+        "--host", type=str, default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)"
+    )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
 
     args = parser.parse_args()
@@ -199,11 +192,12 @@ def main():
             "standalone_jsonrpc:app",
             host=args.host,
             port=args.port,
-            log_level="debug" if args.debug else "info"
+            log_level="debug" if args.debug else "info",
         )
     except Exception as e:
         logger.error(f"Error starting server: {e}", exc_info=True)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

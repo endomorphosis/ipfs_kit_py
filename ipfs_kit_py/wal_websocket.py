@@ -27,6 +27,7 @@ from anyio.abc import TaskGroup
 # WebSocket imports - wrapped in try/except for graceful fallback
 try:
     from fastapi import WebSocket, WebSocketDisconnect, Depends
+
     # Handle WebSocketState import based on FastAPI/Starlette version
     try:
         from fastapi import WebSocketState
@@ -40,11 +41,13 @@ try:
                 CONNECTING = "CONNECTING"
                 CONNECTED = "CONNECTED"
                 DISCONNECTED = "DISCONNECTED"
+
     import websockets
+
     WEBSOCKET_AVAILABLE = True
 except ImportError:
     WEBSOCKET_AVAILABLE = False
-    
+
 # Import WAL components
 try:
     from .storage_wal import (
@@ -52,10 +55,11 @@ try:
         BackendHealthMonitor,
         OperationType,
         OperationStatus,
-        BackendType
+        BackendType,
     )
     from .wal_integration import WALIntegration
     from .wal_api import get_wal_instance
+
     WAL_AVAILABLE = True
 except ImportError:
     WAL_AVAILABLE = False
@@ -63,9 +67,11 @@ except ImportError:
 # Configure logging
 logger = logging.getLogger(__name__)
 
+
 # Define subscription types
 class SubscriptionType(str, Enum):
     """Types of WebSocket subscriptions."""
+
     ALL_OPERATIONS = "all_operations"
     SPECIFIC_OPERATION = "specific_operation"
     BACKEND_HEALTH = "backend_health"
@@ -74,16 +80,17 @@ class SubscriptionType(str, Enum):
     OPERATIONS_BY_BACKEND = "operations_by_backend"
     OPERATIONS_BY_TYPE = "operations_by_type"
 
+
 class WALConnectionManager:
     """
     Manages WebSocket connections for the WAL system.
-    
+
     This class handles:
     - Connection management
     - Subscription tracking
     - Broadcasting messages to subscribers
     """
-    
+
     def __init__(self):
         """Initialize the connection manager."""
         self.active_connections: List[WebSocket] = []
@@ -95,11 +102,11 @@ class WALConnectionManager:
         self.health_subscribers: Set[WebSocket] = set()
         self.metrics_subscribers: Set[WebSocket] = set()
         self.all_operations_subscribers: Set[WebSocket] = set()
-        
+
     async def connect(self, websocket: WebSocket):
         """
         Handle a new WebSocket connection.
-        
+
         Args:
             websocket: WebSocket connection
         """
@@ -107,20 +114,20 @@ class WALConnectionManager:
             # Accept the connection with timeout
             with anyio.fail_after(5.0):  # 5-second timeout
                 await websocket.accept()
-                
+
             self.active_connections.append(websocket)
             self.connection_subscriptions[websocket] = {}
-            
+
             # Send welcome message
             await self.send_message(
-                websocket, 
+                websocket,
                 {
                     "type": "connection_established",
                     "message": "Connected to WAL WebSocket API",
-                    "timestamp": time.time()
-                }
+                    "timestamp": time.time(),
+                },
             )
-            
+
             return True
         except anyio.TimeoutError:
             logger.error("Timeout accepting WebSocket connection")
@@ -128,178 +135,183 @@ class WALConnectionManager:
         except Exception as e:
             logger.error(f"Error accepting WebSocket connection: {e}")
             return False
-        
+
     def disconnect(self, websocket: WebSocket):
         """
         Handle a WebSocket disconnection.
-        
+
         Args:
             websocket: WebSocket connection
         """
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-            
+
         # Remove from all subscription lists
         if websocket in self.connection_subscriptions:
             del self.connection_subscriptions[websocket]
-            
+
         # Remove from operation subscribers
         for operation_id, subscribers in self.operation_subscribers.items():
             if websocket in subscribers:
                 subscribers.remove(websocket)
-                
+
         # Remove from status subscribers
         for status, subscribers in self.status_subscribers.items():
             if websocket in subscribers:
                 subscribers.remove(websocket)
-                
+
         # Remove from backend subscribers
         for backend, subscribers in self.backend_subscribers.items():
             if websocket in subscribers:
                 subscribers.remove(websocket)
-                
+
         # Remove from type subscribers
         for operation_type, subscribers in self.type_subscribers.items():
             if websocket in subscribers:
                 subscribers.remove(websocket)
-                
+
         # Remove from other subscribers
         if websocket in self.health_subscribers:
             self.health_subscribers.remove(websocket)
-            
+
         if websocket in self.metrics_subscribers:
             self.metrics_subscribers.remove(websocket)
-            
+
         if websocket in self.all_operations_subscribers:
             self.all_operations_subscribers.remove(websocket)
-    
-    def subscribe(self, websocket: WebSocket, subscription_type: SubscriptionType, parameters: Dict[str, Any] = None):
+
+    def subscribe(
+        self,
+        websocket: WebSocket,
+        subscription_type: SubscriptionType,
+        parameters: Dict[str, Any] = None,
+    ):
         """
         Subscribe a connection to a specific topic.
-        
+
         Args:
             websocket: WebSocket connection
             subscription_type: Type of subscription
             parameters: Additional parameters for the subscription
         """
         parameters = parameters or {}
-        
+
         # Store subscription in connection-specific list
         if websocket not in self.connection_subscriptions:
             self.connection_subscriptions[websocket] = {}
-            
+
         subscription_id = f"{subscription_type.value}_{int(time.time() * 1000)}"
         self.connection_subscriptions[websocket][subscription_id] = {
             "type": subscription_type.value,
             "parameters": parameters,
-            "created_at": time.time()
+            "created_at": time.time(),
         }
-        
+
         # Add to specific subscription list
         if subscription_type == SubscriptionType.ALL_OPERATIONS:
             self.all_operations_subscribers.add(websocket)
-            
+
         elif subscription_type == SubscriptionType.SPECIFIC_OPERATION:
             operation_id = parameters.get("operation_id")
             if operation_id:
                 if operation_id not in self.operation_subscribers:
                     self.operation_subscribers[operation_id] = set()
                 self.operation_subscribers[operation_id].add(websocket)
-                
+
         elif subscription_type == SubscriptionType.BACKEND_HEALTH:
             self.health_subscribers.add(websocket)
-            
+
         elif subscription_type == SubscriptionType.METRICS:
             self.metrics_subscribers.add(websocket)
-            
+
         elif subscription_type == SubscriptionType.OPERATIONS_BY_STATUS:
             status = parameters.get("status")
             if status:
                 if status not in self.status_subscribers:
                     self.status_subscribers[status] = set()
                 self.status_subscribers[status].add(websocket)
-                
+
         elif subscription_type == SubscriptionType.OPERATIONS_BY_BACKEND:
             backend = parameters.get("backend")
             if backend:
                 if backend not in self.backend_subscribers:
                     self.backend_subscribers[backend] = set()
                 self.backend_subscribers[backend].add(websocket)
-                
+
         elif subscription_type == SubscriptionType.OPERATIONS_BY_TYPE:
             operation_type = parameters.get("operation_type")
             if operation_type:
                 if operation_type not in self.type_subscribers:
                     self.type_subscribers[operation_type] = set()
                 self.type_subscribers[operation_type].add(websocket)
-        
+
         return subscription_id
-    
+
     def unsubscribe(self, websocket: WebSocket, subscription_id: str):
         """
         Unsubscribe a connection from a specific subscription.
-        
+
         Args:
             websocket: WebSocket connection
             subscription_id: ID of the subscription to remove
         """
         if websocket not in self.connection_subscriptions:
             return False
-            
+
         if subscription_id not in self.connection_subscriptions[websocket]:
             return False
-            
+
         # Get subscription details before removing
         subscription = self.connection_subscriptions[websocket][subscription_id]
         subscription_type = subscription["type"]
         parameters = subscription["parameters"]
-        
+
         # Remove from specific subscription list
         if subscription_type == SubscriptionType.ALL_OPERATIONS:
             if websocket in self.all_operations_subscribers:
                 self.all_operations_subscribers.remove(websocket)
-                
+
         elif subscription_type == SubscriptionType.SPECIFIC_OPERATION:
             operation_id = parameters.get("operation_id")
             if operation_id and operation_id in self.operation_subscribers:
                 if websocket in self.operation_subscribers[operation_id]:
                     self.operation_subscribers[operation_id].remove(websocket)
-                    
+
         elif subscription_type == SubscriptionType.BACKEND_HEALTH:
             if websocket in self.health_subscribers:
                 self.health_subscribers.remove(websocket)
-                
+
         elif subscription_type == SubscriptionType.METRICS:
             if websocket in self.metrics_subscribers:
                 self.metrics_subscribers.remove(websocket)
-                
+
         elif subscription_type == SubscriptionType.OPERATIONS_BY_STATUS:
             status = parameters.get("status")
             if status and status in self.status_subscribers:
                 if websocket in self.status_subscribers[status]:
                     self.status_subscribers[status].remove(websocket)
-                    
+
         elif subscription_type == SubscriptionType.OPERATIONS_BY_BACKEND:
             backend = parameters.get("backend")
             if backend and backend in self.backend_subscribers:
                 if websocket in self.backend_subscribers[backend]:
                     self.backend_subscribers[backend].remove(websocket)
-                    
+
         elif subscription_type == SubscriptionType.OPERATIONS_BY_TYPE:
             operation_type = parameters.get("operation_type")
             if operation_type and operation_type in self.type_subscribers:
                 if websocket in self.type_subscribers[operation_type]:
                     self.type_subscribers[operation_type].remove(websocket)
-        
+
         # Remove from connection subscriptions
         del self.connection_subscriptions[websocket][subscription_id]
-        
+
         return True
-    
+
     async def send_message(self, websocket: WebSocket, message: Dict[str, Any]):
         """
         Send a message to a specific WebSocket connection.
-        
+
         Args:
             websocket: WebSocket connection
             message: Message to send
@@ -317,11 +329,11 @@ class WALConnectionManager:
                 logger.error(f"Error sending message to WebSocket: {e}")
                 return False
         return False
-        
+
     async def broadcast_operation_update(self, operation: Dict[str, Any]):
         """
         Broadcast an operation update to interested subscribers.
-        
+
         Args:
             operation: Updated operation data
         """
@@ -329,45 +341,41 @@ class WALConnectionManager:
         status = operation.get("status")
         backend = operation.get("backend")
         operation_type = operation.get("operation_type")
-        
+
         if not operation_id:
             return
-            
+
         # Prepare the message
-        message = {
-            "type": "operation_update",
-            "operation": operation,
-            "timestamp": time.time()
-        }
-        
+        message = {"type": "operation_update", "operation": operation, "timestamp": time.time()}
+
         # Build list of subscribers to notify
         subscribers_to_notify = set()
-        
+
         # Add specific operation subscribers
         if operation_id in self.operation_subscribers:
             subscribers_to_notify.update(self.operation_subscribers[operation_id])
-            
+
         # Add status subscribers
         if status and status in self.status_subscribers:
             subscribers_to_notify.update(self.status_subscribers[status])
-            
+
         # Add backend subscribers
         if backend and backend in self.backend_subscribers:
             subscribers_to_notify.update(self.backend_subscribers[backend])
-            
+
         # Add type subscribers
         if operation_type and operation_type in self.type_subscribers:
             subscribers_to_notify.update(self.type_subscribers[operation_type])
-            
+
         # Add all operations subscribers
         subscribers_to_notify.update(self.all_operations_subscribers)
-        
+
         if not subscribers_to_notify:
             return
-            
+
         # Use memory streams for collecting results
         send_stream, receive_stream = anyio.create_memory_object_stream(len(subscribers_to_notify))
-        
+
         # Function to send notification and report result
         async def send_notification(websocket: WebSocket):
             """Send notification to a specific WebSocket."""
@@ -375,26 +383,26 @@ class WALConnectionManager:
                 if websocket.client_state != WebSocketState.CONNECTED:
                     await send_stream.send((False, "WebSocket disconnected"))
                     return
-                    
+
                 # Send with timeout
                 with anyio.fail_after(5.0):  # 5-second timeout
                     await websocket.send_json(message)
-                    
+
                 # Report success
                 await send_stream.send((True, None))
             except Exception as e:
                 # Report error
                 await send_stream.send((False, str(e)))
-        
+
         # Send to all subscribers concurrently
         async with anyio.create_task_group() as tg:
             # Start all send tasks
             for websocket in subscribers_to_notify:
                 tg.start_soon(send_notification, websocket)
-                
+
             # Close send stream when all tasks are done
             tg.start_soon(send_stream.aclose)
-            
+
         # Collect results (optional)
         sent_count = 0
         async with receive_stream:
@@ -403,29 +411,27 @@ class WALConnectionManager:
                     sent_count += 1
                 elif error:
                     logger.error(f"Error sending operation update: {error}")
-        
+
         return sent_count
-            
+
     async def broadcast_health_update(self, health_data: Dict[str, Any]):
         """
         Broadcast a health update to interested subscribers.
-        
+
         Args:
             health_data: Updated health data
         """
         # Prepare the message
-        message = {
-            "type": "health_update",
-            "health_data": health_data,
-            "timestamp": time.time()
-        }
-        
+        message = {"type": "health_update", "health_data": health_data, "timestamp": time.time()}
+
         if not self.health_subscribers:
             return
-            
+
         # Use memory streams for collecting results
-        send_stream, receive_stream = anyio.create_memory_object_stream(len(self.health_subscribers))
-        
+        send_stream, receive_stream = anyio.create_memory_object_stream(
+            len(self.health_subscribers)
+        )
+
         # Function to send notification and report result
         async def send_notification(websocket: WebSocket):
             """Send notification to a specific WebSocket."""
@@ -433,26 +439,26 @@ class WALConnectionManager:
                 if websocket.client_state != WebSocketState.CONNECTED:
                     await send_stream.send((False, "WebSocket disconnected"))
                     return
-                    
+
                 # Send with timeout
                 with anyio.fail_after(5.0):  # 5-second timeout
                     await websocket.send_json(message)
-                    
+
                 # Report success
                 await send_stream.send((True, None))
             except Exception as e:
                 # Report error
                 await send_stream.send((False, str(e)))
-        
+
         # Send to all subscribers concurrently
         async with anyio.create_task_group() as tg:
             # Start all send tasks
             for websocket in self.health_subscribers:
                 tg.start_soon(send_notification, websocket)
-                
+
             # Close send stream when all tasks are done
             tg.start_soon(send_stream.aclose)
-            
+
         # Collect results (optional)
         sent_count = 0
         async with receive_stream:
@@ -461,29 +467,27 @@ class WALConnectionManager:
                     sent_count += 1
                 elif error:
                     logger.error(f"Error sending health update: {error}")
-        
+
         return sent_count
-            
+
     async def broadcast_metrics_update(self, metrics_data: Dict[str, Any]):
         """
         Broadcast metrics update to interested subscribers.
-        
+
         Args:
             metrics_data: Updated metrics data
         """
         # Prepare the message
-        message = {
-            "type": "metrics_update",
-            "metrics_data": metrics_data,
-            "timestamp": time.time()
-        }
-        
+        message = {"type": "metrics_update", "metrics_data": metrics_data, "timestamp": time.time()}
+
         if not self.metrics_subscribers:
             return
-            
+
         # Use memory streams for collecting results
-        send_stream, receive_stream = anyio.create_memory_object_stream(len(self.metrics_subscribers))
-        
+        send_stream, receive_stream = anyio.create_memory_object_stream(
+            len(self.metrics_subscribers)
+        )
+
         # Function to send notification and report result
         async def send_notification(websocket: WebSocket):
             """Send notification to a specific WebSocket."""
@@ -491,26 +495,26 @@ class WALConnectionManager:
                 if websocket.client_state != WebSocketState.CONNECTED:
                     await send_stream.send((False, "WebSocket disconnected"))
                     return
-                    
+
                 # Send with timeout
                 with anyio.fail_after(5.0):  # 5-second timeout
                     await websocket.send_json(message)
-                    
+
                 # Report success
                 await send_stream.send((True, None))
             except Exception as e:
                 # Report error
                 await send_stream.send((False, str(e)))
-        
+
         # Send to all subscribers concurrently
         async with anyio.create_task_group() as tg:
             # Start all send tasks
             for websocket in self.metrics_subscribers:
                 tg.start_soon(send_notification, websocket)
-                
+
             # Close send stream when all tasks are done
             tg.start_soon(send_stream.aclose)
-            
+
         # Collect results (optional)
         sent_count = 0
         async with receive_stream:
@@ -519,21 +523,22 @@ class WALConnectionManager:
                     sent_count += 1
                 elif error:
                     logger.error(f"Error sending metrics update: {error}")
-        
+
         return sent_count
+
 
 class WALWebSocketHandler:
     """
     Handles WebSocket connections and events for the WAL system.
-    
+
     This class manages communication between WAL and WebSocket clients,
     including message routing and event handling.
     """
-    
+
     def __init__(self, wal: StorageWriteAheadLog):
         """
         Initialize the WebSocket handler.
-        
+
         Args:
             wal: WAL instance
         """
@@ -541,23 +546,23 @@ class WALWebSocketHandler:
         self.connection_manager = WALConnectionManager()
         self.running = False
         self.task_group = None
-        
+
         # Set up WAL integration
         self._setup_wal_integration()
-        
+
     def _setup_wal_integration(self):
         """Set up callbacks and integrations with the WAL system."""
         # Register status change callback
         if self.wal.health_monitor:
             self.wal.health_monitor.status_change_callback = self._on_backend_status_change
-            
+
         # TODO: Set up operation status change callback
         # This would require extending the WAL to support status change callbacks
-        
+
     async def handle_connection(self, websocket: WebSocket):
         """
         Handle a new WebSocket connection.
-        
+
         Args:
             websocket: WebSocket connection
         """
@@ -566,12 +571,12 @@ class WALWebSocketHandler:
         if not connection_success:
             logger.error("Failed to establish WebSocket connection")
             return
-        
+
         try:
             # Start the update task if not already running
             if not self.running:
                 await self.start_update_task()
-            
+
             # Process messages until disconnection
             while True:
                 try:
@@ -587,10 +592,7 @@ class WALWebSocketHandler:
                     # Send ping to keep connection alive
                     try:
                         with anyio.fail_after(5.0):  # 5-second ping timeout
-                            await websocket.send_json({
-                                "type": "ping",
-                                "timestamp": time.time()
-                            })
+                            await websocket.send_json({"type": "ping", "timestamp": time.time()})
                     except Exception:
                         # Connection is probably dead
                         logger.info("Connection appears dead during ping")
@@ -605,7 +607,7 @@ class WALWebSocketHandler:
                     if "connection" in str(e).lower():
                         # Connection-related errors should terminate the handler
                         break
-                
+
         except anyio.get_cancelled_exc_class():
             # Task cancelled
             logger.debug("WebSocket handler task cancelled")
@@ -615,7 +617,7 @@ class WALWebSocketHandler:
         finally:
             # Always disconnect from the manager
             self.connection_manager.disconnect(websocket)
-            
+
             # Ensure socket is properly closed
             try:
                 if websocket.client_state != WebSocketState.DISCONNECTED:
@@ -623,17 +625,17 @@ class WALWebSocketHandler:
                         await websocket.close(code=1000, reason="Handler complete")
             except Exception as e:
                 logger.debug(f"Error closing WebSocket: {e}")
-            
+
     async def handle_message(self, websocket: WebSocket, message: Dict[str, Any]):
         """
         Handle a message from a WebSocket connection.
-        
+
         Args:
             websocket: WebSocket connection
             message: Message from the client
         """
         action = message.get("action")
-        
+
         if action == "subscribe":
             await self.handle_subscribe(websocket, message)
         elif action == "unsubscribe":
@@ -648,17 +650,13 @@ class WALWebSocketHandler:
             # Unknown action
             await self.connection_manager.send_message(
                 websocket,
-                {
-                    "type": "error",
-                    "message": f"Unknown action: {action}",
-                    "timestamp": time.time()
-                }
+                {"type": "error", "message": f"Unknown action: {action}", "timestamp": time.time()},
             )
-            
+
     async def handle_subscribe(self, websocket: WebSocket, message: Dict[str, Any]):
         """
         Handle a subscription request.
-        
+
         Args:
             websocket: WebSocket connection
             message: Subscription request message
@@ -666,7 +664,7 @@ class WALWebSocketHandler:
         try:
             subscription_type_str = message.get("subscription_type")
             parameters = message.get("parameters", {})
-            
+
             # Validate subscription type
             try:
                 subscription_type = SubscriptionType(subscription_type_str)
@@ -676,11 +674,11 @@ class WALWebSocketHandler:
                     {
                         "type": "error",
                         "message": f"Invalid subscription type: {subscription_type_str}",
-                        "timestamp": time.time()
-                    }
+                        "timestamp": time.time(),
+                    },
                 )
                 return
-                
+
             # Validate required parameters
             if subscription_type == SubscriptionType.SPECIFIC_OPERATION:
                 if "operation_id" not in parameters:
@@ -689,11 +687,11 @@ class WALWebSocketHandler:
                         {
                             "type": "error",
                             "message": "Missing required parameter: operation_id",
-                            "timestamp": time.time()
-                        }
+                            "timestamp": time.time(),
+                        },
                     )
                     return
-                    
+
             elif subscription_type == SubscriptionType.OPERATIONS_BY_STATUS:
                 if "status" not in parameters:
                     await self.connection_manager.send_message(
@@ -701,11 +699,11 @@ class WALWebSocketHandler:
                         {
                             "type": "error",
                             "message": "Missing required parameter: status",
-                            "timestamp": time.time()
-                        }
+                            "timestamp": time.time(),
+                        },
                     )
                     return
-                    
+
             elif subscription_type == SubscriptionType.OPERATIONS_BY_BACKEND:
                 if "backend" not in parameters:
                     await self.connection_manager.send_message(
@@ -713,11 +711,11 @@ class WALWebSocketHandler:
                         {
                             "type": "error",
                             "message": "Missing required parameter: backend",
-                            "timestamp": time.time()
-                        }
+                            "timestamp": time.time(),
+                        },
                     )
                     return
-                    
+
             elif subscription_type == SubscriptionType.OPERATIONS_BY_TYPE:
                 if "operation_type" not in parameters:
                     await self.connection_manager.send_message(
@@ -725,18 +723,16 @@ class WALWebSocketHandler:
                         {
                             "type": "error",
                             "message": "Missing required parameter: operation_type",
-                            "timestamp": time.time()
-                        }
+                            "timestamp": time.time(),
+                        },
                     )
                     return
-            
+
             # Create subscription
             subscription_id = self.connection_manager.subscribe(
-                websocket,
-                subscription_type,
-                parameters
+                websocket, subscription_type, parameters
             )
-            
+
             # Send confirmation
             await self.connection_manager.send_message(
                 websocket,
@@ -745,10 +741,10 @@ class WALWebSocketHandler:
                     "subscription_id": subscription_id,
                     "subscription_type": subscription_type.value,
                     "parameters": parameters,
-                    "timestamp": time.time()
-                }
+                    "timestamp": time.time(),
+                },
             )
-            
+
             # Send initial data based on subscription type
             if subscription_type == SubscriptionType.SPECIFIC_OPERATION:
                 operation_id = parameters.get("operation_id")
@@ -759,10 +755,10 @@ class WALWebSocketHandler:
                         {
                             "type": "operation_update",
                             "operation": operation,
-                            "timestamp": time.time()
-                        }
+                            "timestamp": time.time(),
+                        },
                     )
-                    
+
             elif subscription_type == SubscriptionType.BACKEND_HEALTH:
                 if self.wal.health_monitor:
                     health_data = self.wal.health_monitor.get_status()
@@ -771,10 +767,10 @@ class WALWebSocketHandler:
                         {
                             "type": "health_update",
                             "health_data": health_data,
-                            "timestamp": time.time()
-                        }
+                            "timestamp": time.time(),
+                        },
                     )
-                    
+
             elif subscription_type == SubscriptionType.METRICS:
                 metrics_data = self.wal.get_statistics()
                 await self.connection_manager.send_message(
@@ -782,33 +778,25 @@ class WALWebSocketHandler:
                     {
                         "type": "metrics_update",
                         "metrics_data": metrics_data,
-                        "timestamp": time.time()
-                    }
+                        "timestamp": time.time(),
+                    },
                 )
-                
+
             elif subscription_type == SubscriptionType.OPERATIONS_BY_STATUS:
                 status = parameters.get("status")
                 operations = self.wal.get_operations_by_status(status, limit=100)
                 await self.connection_manager.send_message(
                     websocket,
-                    {
-                        "type": "operations_list",
-                        "operations": operations,
-                        "timestamp": time.time()
-                    }
+                    {"type": "operations_list", "operations": operations, "timestamp": time.time()},
                 )
-                
+
             elif subscription_type == SubscriptionType.ALL_OPERATIONS:
                 operations = self.wal.get_operations(limit=100)
                 await self.connection_manager.send_message(
                     websocket,
-                    {
-                        "type": "operations_list",
-                        "operations": operations,
-                        "timestamp": time.time()
-                    }
+                    {"type": "operations_list", "operations": operations, "timestamp": time.time()},
                 )
-                
+
         except Exception as e:
             logger.error(f"Error handling subscription: {e}")
             await self.connection_manager.send_message(
@@ -816,90 +804,85 @@ class WALWebSocketHandler:
                 {
                     "type": "error",
                     "message": f"Error creating subscription: {str(e)}",
-                    "timestamp": time.time()
-                }
+                    "timestamp": time.time(),
+                },
             )
-            
+
     async def handle_unsubscribe(self, websocket: WebSocket, message: Dict[str, Any]):
         """
         Handle an unsubscribe request.
-        
+
         Args:
             websocket: WebSocket connection
             message: Unsubscribe request message
         """
         subscription_id = message.get("subscription_id")
-        
+
         if not subscription_id:
             await self.connection_manager.send_message(
                 websocket,
                 {
                     "type": "error",
                     "message": "Missing required parameter: subscription_id",
-                    "timestamp": time.time()
-                }
+                    "timestamp": time.time(),
+                },
             )
             return
-            
+
         success = self.connection_manager.unsubscribe(websocket, subscription_id)
-        
+
         await self.connection_manager.send_message(
             websocket,
             {
                 "type": "unsubscribe_result",
                 "subscription_id": subscription_id,
                 "success": success,
-                "timestamp": time.time()
-            }
+                "timestamp": time.time(),
+            },
         )
-        
+
     async def handle_get_operation(self, websocket: WebSocket, message: Dict[str, Any]):
         """
         Handle a request for a specific operation.
-        
+
         Args:
             websocket: WebSocket connection
             message: Operation request message
         """
         operation_id = message.get("operation_id")
-        
+
         if not operation_id:
             await self.connection_manager.send_message(
                 websocket,
                 {
                     "type": "error",
                     "message": "Missing required parameter: operation_id",
-                    "timestamp": time.time()
-                }
+                    "timestamp": time.time(),
+                },
             )
             return
-            
+
         operation = self.wal.get_operation(operation_id)
-        
+
         if not operation:
             await self.connection_manager.send_message(
                 websocket,
                 {
                     "type": "error",
                     "message": f"Operation not found: {operation_id}",
-                    "timestamp": time.time()
-                }
+                    "timestamp": time.time(),
+                },
             )
             return
-            
+
         await self.connection_manager.send_message(
-            websocket,
-            {
-                "type": "operation_data",
-                "operation": operation,
-                "timestamp": time.time()
-            }
+            websocket, {"type": "operation_data", "operation": operation, "timestamp": time.time()}
         )
-        
+
     async def handle_get_health(self, websocket: WebSocket, message: Dict[str, Any]):
         """
         Handle a request for backend health status.
-        
+
         Args:
             websocket: WebSocket connection
             message: Health request message
@@ -910,50 +893,41 @@ class WALWebSocketHandler:
                 {
                     "type": "error",
                     "message": "Health monitoring not enabled",
-                    "timestamp": time.time()
-                }
+                    "timestamp": time.time(),
+                },
             )
             return
-            
+
         backend = message.get("backend")
-        
+
         if backend:
             health_data = self.wal.health_monitor.get_status(backend)
         else:
             health_data = self.wal.health_monitor.get_status()
-            
+
         await self.connection_manager.send_message(
-            websocket,
-            {
-                "type": "health_data",
-                "health_data": health_data,
-                "timestamp": time.time()
-            }
+            websocket, {"type": "health_data", "health_data": health_data, "timestamp": time.time()}
         )
-        
+
     async def handle_get_metrics(self, websocket: WebSocket, message: Dict[str, Any]):
         """
         Handle a request for WAL metrics.
-        
+
         Args:
             websocket: WebSocket connection
             message: Metrics request message
         """
         metrics_data = self.wal.get_statistics()
-        
+
         await self.connection_manager.send_message(
             websocket,
-            {
-                "type": "metrics_data",
-                "metrics_data": metrics_data,
-                "timestamp": time.time()
-            }
+            {"type": "metrics_data", "metrics_data": metrics_data, "timestamp": time.time()},
         )
-        
+
     def _on_backend_status_change(self, backend: str, old_status: str, new_status: str):
         """
         Handle backend status change event.
-        
+
         Args:
             backend: Backend name
             old_status: Previous status
@@ -961,27 +935,27 @@ class WALWebSocketHandler:
         """
         if not self.wal.health_monitor:
             return
-            
+
         # Get full health data
         health_data = self.wal.health_monitor.get_status()
-        
+
         # Schedule broadcast using anyio
         anyio.from_thread.run(self.connection_manager.broadcast_health_update, health_data)
-        
+
     async def start_update_task(self):
         """Start the periodic update task."""
         if self.running:
             return
-            
+
         self.running = True
-        
+
         # Create task group if needed
         self.task_group = anyio.create_task_group()
-        
+
         # Start the update loop in the task group
         await self.task_group.__aenter__()
         self.task_group.start_soon(self._update_loop)
-        
+
     async def _update_loop(self):
         """Periodic update loop for pushing updates to clients."""
         try:
@@ -990,32 +964,37 @@ class WALWebSocketHandler:
                 if self.connection_manager.metrics_subscribers:
                     metrics_data = self.wal.get_statistics()
                     await self.connection_manager.broadcast_metrics_update(metrics_data)
-                
+
                 # Check for operation updates
                 # This is inefficient - in a real implementation, we'd track operation changes
                 # Here we just periodically check for pending/processing operations
-                if (self.connection_manager.all_operations_subscribers or 
-                    self.connection_manager.operation_subscribers or
-                    self.connection_manager.status_subscribers or
-                    self.connection_manager.backend_subscribers or
-                    self.connection_manager.type_subscribers):
-                    
+                if (
+                    self.connection_manager.all_operations_subscribers
+                    or self.connection_manager.operation_subscribers
+                    or self.connection_manager.status_subscribers
+                    or self.connection_manager.backend_subscribers
+                    or self.connection_manager.type_subscribers
+                ):
                     # Only fetch operations if someone is listening
                     operations = []
-                    
+
                     # Add pending operations (most interesting to watch)
-                    operations.extend(self.wal.get_operations_by_status(OperationStatus.PENDING.value))
-                    
+                    operations.extend(
+                        self.wal.get_operations_by_status(OperationStatus.PENDING.value)
+                    )
+
                     # Add processing operations
-                    operations.extend(self.wal.get_operations_by_status(OperationStatus.PROCESSING.value))
-                    
+                    operations.extend(
+                        self.wal.get_operations_by_status(OperationStatus.PROCESSING.value)
+                    )
+
                     # Broadcast each operation update
                     for operation in operations:
                         await self.connection_manager.broadcast_operation_update(operation)
-                
+
                 # Wait for next update
                 await anyio.sleep(5)
-                
+
         except anyio.get_cancelled_exc_class():
             # Task was cancelled
             logger.debug("Update loop task cancelled")
@@ -1023,7 +1002,7 @@ class WALWebSocketHandler:
         except Exception as e:
             logger.error(f"Error in update loop: {e}")
             self.running = False
-            
+
     async def stop(self):
         """Stop the WebSocket handler."""
         self.running = False
@@ -1031,22 +1010,23 @@ class WALWebSocketHandler:
             await self.task_group.__aexit__(None, None, None)
             self.task_group = None
 
+
 # Function to register WAL WebSocket with the API
 def register_wal_websocket(app):
     """
     Register the WAL WebSocket with the FastAPI application.
-    
+
     Args:
         app: FastAPI application
     """
     if not WEBSOCKET_AVAILABLE:
         logger.warning("WebSockets not available. WAL WebSocket API not registered.")
         return False
-        
+
     if not WAL_AVAILABLE:
         logger.warning("WAL system not available. WAL WebSocket API not registered.")
         return False
-        
+
     try:
         # Create WAL instance if not available in API
         def get_wal_websocket_handler(request):
@@ -1054,20 +1034,20 @@ def register_wal_websocket(app):
             # Check if handler already exists
             if hasattr(app.state, "wal_websocket_handler"):
                 return app.state.wal_websocket_handler
-                
+
             # Get WAL instance
             wal = get_wal_instance(request)
             if wal is None:
                 raise Exception("WAL system not available")
-                
+
             # Create handler
             handler = WALWebSocketHandler(wal)
-            
+
             # Store in app state
             app.state.wal_websocket_handler = handler
-            
+
             return handler
-        
+
         # Register WebSocket endpoint
         @app.websocket("/api/v0/wal/ws")
         async def wal_websocket(websocket: WebSocket):
@@ -1081,12 +1061,13 @@ def register_wal_websocket(app):
                 logger.error(f"Error setting up WAL WebSocket: {e}")
                 if websocket.client_state != WebSocketState.DISCONNECTED:
                     await websocket.close(code=1011, reason=f"Internal server error: {str(e)}")
-        
+
         logger.info("WAL WebSocket API registered successfully with the FastAPI app.")
         return True
     except Exception as e:
         logger.exception(f"Error registering WAL WebSocket API: {str(e)}")
         return False
+
 
 # JavaScript client example
 WEBSOCKET_CLIENT_EXAMPLE = """

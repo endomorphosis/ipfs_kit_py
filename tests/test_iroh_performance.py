@@ -67,9 +67,7 @@ class MeasuredBlobStore:
         self.ranges.append(end - start)
         return self.values[blob_hash][start:end]
 
-    def ingest_parts(
-        self, parts: Any, *, total_size: int, part_size: int
-    ) -> dict[str, Any]:
+    def ingest_parts(self, parts: Any, *, total_size: int, part_size: int) -> dict[str, Any]:
         collected = []
         for part in parts:
             self.parts.append(len(part))
@@ -96,9 +94,7 @@ def test_packaged_baseline_has_explicit_latency_throughput_and_memory_budgets() 
     assert budgets["sequential_read_min_mib_s"] > 0
     assert budgets["parallel_read_min_mib_s"] > 0
     assert budgets["retained_cache_max_bytes"] == 16 * 1024 * 1024
-    assert evaluate_sample(
-        IrohPerformanceSample(1, 1, 100, 100, 1024, 1024, 2), baseline
-    ) == []
+    assert evaluate_sample(IrohPerformanceSample(1, 1, 100, 100, 1024, 1024, 2), baseline) == []
     assert "retained_cache_bytes" in evaluate_sample(
         IrohPerformanceSample(1, 1, 100, 100, 32 * 1024 * 1024), baseline
     )

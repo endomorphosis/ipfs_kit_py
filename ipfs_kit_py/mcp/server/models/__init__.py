@@ -8,5 +8,5 @@ This package contains models for the MCP server:
 from .mcp_metadata_manager import MCPMetadataManager
 
 __all__ = [
-    'MCPMetadataManager',
+    "MCPMetadataManager",
 ]

@@ -1,4 +1,5 @@
 """Test the daemon status for IPFS cluster daemons."""
+
 import requests
 import json
 
@@ -11,7 +12,7 @@ try:
     response = requests.post(
         f"{BASE_URL}/api/v0/ipfs/daemon/status",
         json={"daemon_type": "ipfs_cluster_service"},
-        headers={"Content-Type": "application/json"}
+        headers={"Content-Type": "application/json"},
     )
     print(f"Status code: {response.status_code}")
     if response.status_code == 200:
@@ -29,7 +30,7 @@ try:
     response = requests.post(
         f"{BASE_URL}/api/v0/ipfs/daemon/status",
         json={"daemon_type": "ipfs_cluster_follow"},
-        headers={"Content-Type": "application/json"}
+        headers={"Content-Type": "application/json"},
     )
     print(f"Status code: {response.status_code}")
     if response.status_code == 200:

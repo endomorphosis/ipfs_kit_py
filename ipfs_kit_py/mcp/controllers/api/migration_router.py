@@ -9,11 +9,7 @@ import logging
 from fastapi import APIRouter, Body, Depends, Query, Path
 from fastapi.responses import JSONResponse
 from typing import Optional, List, Dict, Any
-from ...models.migration import (
-    MigrationRequest,
-    MigrationResponse,
-    MigrationStatus
-)
+from ...models.migration import MigrationRequest, MigrationResponse, MigrationStatus
 
 # Configure logger
 logger = logging.getLogger(__name__)

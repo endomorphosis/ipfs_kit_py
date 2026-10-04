@@ -16,8 +16,7 @@ from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -33,6 +32,7 @@ TEST_FILE = os.path.join(TEST_DIR, "test_file.txt")
 TEST_CONTENT = "This is a test file created by test_mcp_tools.py"
 TEST_IPFS_CID = "QmTestCid"
 
+
 def health_check():
     """Check the health of the MCP server."""
     try:
@@ -47,6 +47,7 @@ def health_check():
     except Exception as e:
         logger.error(f"Health check error: {e}")
         return None
+
 
 def get_available_tools():
     """Get available tools from the server."""
@@ -68,16 +69,14 @@ def get_available_tools():
         logger.error(f"Initialize request error: {e}")
         return []
 
+
 def call_tool(tool_name, args=None):
     """Call a tool on the MCP server."""
     if args is None:
         args = {}
 
     try:
-        data = {
-            "name": tool_name,
-            "args": args
-        }
+        data = {"name": tool_name, "args": args}
 
         response = requests.post(MCP_TOOLS_ENDPOINT, json=data)
 
@@ -100,6 +99,7 @@ def call_tool(tool_name, args=None):
         logger.error(error)
         return False, {"error": error}
 
+
 def test_list_files():
     """Test the list_files tool."""
     logger.info("Testing list_files tool...")
@@ -113,6 +113,7 @@ def test_list_files():
         logger.error(f"list_files failed: {result.get('error')}")
         return False
 
+
 def test_write_file():
     """Test the write_file tool."""
     logger.info("Testing write_file tool...")
@@ -120,10 +121,7 @@ def test_write_file():
     # Ensure the test directory exists
     os.makedirs(TEST_DIR, exist_ok=True)
 
-    success, result = call_tool("write_file", {
-        "path": TEST_FILE,
-        "content": TEST_CONTENT
-    })
+    success, result = call_tool("write_file", {"path": TEST_FILE, "content": TEST_CONTENT})
 
     if success:
         logger.info(f"write_file succeeded: {result}")
@@ -132,13 +130,12 @@ def test_write_file():
         logger.error(f"write_file failed: {result.get('error')}")
         return False
 
+
 def test_read_file():
     """Test the read_file tool."""
     logger.info("Testing read_file tool...")
 
-    success, result = call_tool("read_file", {
-        "path": TEST_FILE
-    })
+    success, result = call_tool("read_file", {"path": TEST_FILE})
 
     if success:
         content = result.get("content", "")
@@ -152,15 +149,14 @@ def test_read_file():
         logger.error(f"read_file failed: {result.get('error')}")
         return False
 
+
 def test_ipfs_add():
     """Test the ipfs_add tool."""
     logger.info("Testing ipfs_add tool...")
 
-    success, result = call_tool("ipfs_add", {
-        "content": "Hello IPFS from test script",
-        "filename": "test.txt",
-        "pin": True
-    })
+    success, result = call_tool(
+        "ipfs_add", {"content": "Hello IPFS from test script", "filename": "test.txt", "pin": True}
+    )
 
     if success:
         logger.info(f"ipfs_add succeeded: {result}")
@@ -169,13 +165,12 @@ def test_ipfs_add():
         logger.error(f"ipfs_add failed: {result.get('error')}")
         return False, None
 
+
 def test_ipfs_cat(cid):
     """Test the ipfs_cat tool."""
     logger.info(f"Testing ipfs_cat tool with CID {cid}...")
 
-    success, result = call_tool("ipfs_cat", {
-        "cid": cid
-    })
+    success, result = call_tool("ipfs_cat", {"cid": cid})
 
     if success:
         logger.info(f"ipfs_cat succeeded: {result}")
@@ -184,14 +179,12 @@ def test_ipfs_cat(cid):
         logger.error(f"ipfs_cat failed: {result.get('error')}")
         return False
 
+
 def test_ipfs_pin(cid):
     """Test the ipfs_pin tool."""
     logger.info(f"Testing ipfs_pin tool with CID {cid}...")
 
-    success, result = call_tool("ipfs_pin", {
-        "cid": cid,
-        "recursive": True
-    })
+    success, result = call_tool("ipfs_pin", {"cid": cid, "recursive": True})
 
     if success:
         logger.info(f"ipfs_pin succeeded: {result}")
@@ -199,6 +192,7 @@ def test_ipfs_pin(cid):
     else:
         logger.error(f"ipfs_pin failed: {result.get('error')}")
         return False
+
 
 def run_tests():
     """Run all tests."""
@@ -260,6 +254,7 @@ def run_tests():
         logger.info("All tests passed!")
     else:
         logger.error(f"{list(results.values()).count(False)} tests failed")
+
 
 if __name__ == "__main__":
     run_tests()

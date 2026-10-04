@@ -77,6 +77,7 @@ registry = ModelRegistry(ipfs_client=kit)
 
 # Store a model (with automatic framework detection)
 from sklearn.ensemble import RandomForestClassifier
+
 model = RandomForestClassifier()
 model.fit(X_train, y_train)
 
@@ -88,17 +89,14 @@ model_info = registry.store_model(
         "accuracy": 0.95,
         "f1_score": 0.94,
         "description": "Random forest for classification task",
-        "dataset_cid": "QmDatasetCID"
-    }
+        "dataset_cid": "QmDatasetCID",
+    },
 )
 
 print(f"Model stored with CID: {model_info['cid']}")
 
 # Retrieve a model by name and version
-loaded_model, metadata = registry.load_model(
-    name="random_forest_classifier",
-    version="1.0.0"
-)
+loaded_model, metadata = registry.load_model(name="random_forest_classifier", version="1.0.0")
 
 # List available models
 available_models = registry.list_models()
@@ -152,6 +150,7 @@ dataset_manager = DatasetManager(ipfs_client=kit)
 
 # Store a dataset (various formats supported)
 import pandas as pd
+
 df = pd.read_csv("large_dataset.csv")
 
 dataset_info = dataset_manager.store_dataset(
@@ -163,17 +162,14 @@ dataset_info = dataset_manager.store_dataset(
         "description": "Customer transaction data",
         "rows": len(df),
         "columns": list(df.columns),
-        "source": "internal_database"
-    }
+        "source": "internal_database",
+    },
 )
 
 print(f"Dataset stored with CID: {dataset_info['cid']}")
 
 # Load a dataset
-dataset, metadata = dataset_manager.load_dataset(
-    name="customer_data",
-    version="1.0.0"
-)
+dataset, metadata = dataset_manager.load_dataset(name="customer_data", version="1.0.0")
 
 # Create train/test split and store versions
 train_df, test_df = train_test_split(df, test_size=0.2)
@@ -182,14 +178,14 @@ train_info = dataset_manager.store_dataset(
     dataset=train_df,
     name="customer_data_train",
     version="1.0.0",
-    metadata={"split": "train", "parent_dataset": dataset_info['cid']}
+    metadata={"split": "train", "parent_dataset": dataset_info["cid"]},
 )
 
 test_info = dataset_manager.store_dataset(
     dataset=test_df,
     name="customer_data_test",
     version="1.0.0",
-    metadata={"split": "test", "parent_dataset": dataset_info['cid']}
+    metadata={"split": "test", "parent_dataset": dataset_info["cid"]},
 )
 
 # List available datasets
@@ -228,10 +224,7 @@ dataset = ipfs_loader.load_dataset(cid="QmDatasetCID")
 
 # Convert to PyTorch DataLoader
 pytorch_dataloader = ipfs_loader.to_pytorch(
-    dataset=dataset,
-    batch_size=32,
-    shuffle=True,
-    num_workers=4
+    dataset=dataset, batch_size=32, shuffle=True, num_workers=4
 )
 
 # Use in training loop
@@ -253,11 +246,7 @@ ipfs_loader = IPFSDataLoader(ipfs_client=kit)
 dataset = ipfs_loader.load_dataset(cid="QmDatasetCID")
 
 # Convert to TensorFlow Dataset
-tf_dataset = ipfs_loader.to_tensorflow(
-    dataset=dataset,
-    batch_size=32,
-    shuffle=True
-)
+tf_dataset = ipfs_loader.to_tensorflow(dataset=dataset, batch_size=32, shuffle=True)
 
 # Use in model.fit()
 model.fit(tf_dataset, epochs=10)
@@ -272,10 +261,7 @@ from ipfs_kit_py.ai_ml_integration import ModelRegistry
 registry = ModelRegistry(ipfs_client=kit)
 
 # Load a Hugging Face model from IPFS
-model, metadata = registry.load_model(
-    name="bert_classifier",
-    version="1.0.0"
-)
+model, metadata = registry.load_model(name="bert_classifier", version="1.0.0")
 
 # Use the model
 outputs = model(input_ids, attention_mask=attention_mask)
@@ -311,8 +297,7 @@ documents = langchain_integration.load_documents(cid="QmDocumentsCID")
 
 # Create vector store from documents
 vector_store = langchain_integration.create_vector_store(
-    documents=documents,
-    embedding_model="text-embedding-ada-002"
+    documents=documents, embedding_model="text-embedding-ada-002"
 )
 
 # Create retriever
@@ -322,24 +307,13 @@ retriever = vector_store.as_retriever()
 from langchain.chains import RetrievalQA
 from langchain.llms import OpenAI
 
-chain = RetrievalQA.from_chain_type(
-    llm=OpenAI(),
-    chain_type="stuff",
-    retriever=retriever
-)
+chain = RetrievalQA.from_chain_type(llm=OpenAI(), chain_type="stuff", retriever=retriever)
 
 # Store chain in IPFS
-chain_info = langchain_integration.store_chain(
-    chain=chain,
-    name="qa_chain",
-    version="1.0.0"
-)
+chain_info = langchain_integration.store_chain(chain=chain, name="qa_chain", version="1.0.0")
 
 # Load chain from IPFS
-loaded_chain = langchain_integration.load_chain(
-    name="qa_chain",
-    version="1.0.0"
-)
+loaded_chain = langchain_integration.load_chain(name="qa_chain", version="1.0.0")
 
 # Use the chain
 response = loaded_chain.run("What is IPFS?")
@@ -387,17 +361,10 @@ documents = llama_integration.load_documents(cid="QmDocumentsCID")
 index = llama_integration.create_index(documents=documents)
 
 # Store index in IPFS
-index_info = llama_integration.store_index(
-    index=index,
-    name="knowledge_index",
-    version="1.0.0"
-)
+index_info = llama_integration.store_index(index=index, name="knowledge_index", version="1.0.0")
 
 # Load index from IPFS
-loaded_index = llama_integration.load_index(
-    name="knowledge_index",
-    version="1.0.0"
-)
+loaded_index = llama_integration.load_index(name="knowledge_index", version="1.0.0")
 
 # Create query engine
 query_engine = loaded_index.as_query_engine()
@@ -430,12 +397,7 @@ from ipfs_kit_py.ai_ml_integration import IPFSDataLoader
 kit = ipfs_kit()
 
 # Create data loader
-data_loader = IPFSDataLoader(
-    ipfs_client=kit,
-    batch_size=32,
-    shuffle=True,
-    prefetch=2
-)
+data_loader = IPFSDataLoader(ipfs_client=kit, batch_size=32, shuffle=True, prefetch=2)
 
 # Load dataset
 data_loader.load_dataset(cid="QmDatasetCID")
@@ -476,22 +438,15 @@ kit = ipfs_kit(role="master")
 cluster_manager = kit.get_cluster_manager()
 
 # Create distributed training manager
-training_manager = DistributedTraining(
-    ipfs_client=kit,
-    cluster_manager=cluster_manager
-)
+training_manager = DistributedTraining(ipfs_client=kit, cluster_manager=cluster_manager)
 
 # Define training task
 task = {
     "model_type": "pytorch",
     "model_architecture": "resnet50",
     "dataset_cid": "QmDatasetCID",
-    "hyperparameters": {
-        "learning_rate": 0.001,
-        "batch_size": 32,
-        "epochs": 10
-    },
-    "optimizer": "adam"
+    "hyperparameters": {"learning_rate": 0.001, "batch_size": 32, "epochs": 10},
+    "optimizer": "adam",
 }
 
 # Submit training job
@@ -503,9 +458,9 @@ print(f"Job status: {status['status']}")
 print(f"Progress: {status['progress']}%")
 
 # Retrieve trained model when complete
-if status['status'] == 'completed':
+if status["status"] == "completed":
     registry = ModelRegistry(ipfs_client=kit)
-    model, metadata = registry.load_model(cid=status['result_cid'])
+    model, metadata = registry.load_model(cid=status["result_cid"])
 ```
 
 ## AI Safety and Compliance with IPFS
@@ -533,7 +488,7 @@ audit_trail = {
     "code_version_cid": "QmCodeCID",
     "hyperparameters": {...},
     "training_environment": {...},
-    "performance_metrics": {...}
+    "performance_metrics": {...},
 }
 
 # Store audit trail in IPFS
@@ -546,11 +501,8 @@ model_info = registry.store_model(
     version="1.0.0",
     metadata={
         "audit_trail_cid": audit_cid,
-        "compliance": {
-            "regulatory_frameworks": ["HIPAA", "GDPR"],
-            "certifications": ["ISO_27001"]
-        }
-    }
+        "compliance": {"regulatory_frameworks": ["HIPAA", "GDPR"], "certifications": ["ISO_27001"]},
+    },
 )
 ```
 
@@ -562,32 +514,20 @@ Track the entire lineage of AI models and data with content addressing:
 # Create provenance record
 provenance = {
     "model_cid": model_info["cid"],
-    "derived_from": [
-        {
-            "model_cid": "QmParentModelCID",
-            "relationship": "fine-tuned"
-        }
-    ],
+    "derived_from": [{"model_cid": "QmParentModelCID", "relationship": "fine-tuned"}],
     "training_data": {
         "source_datasets": [
-            {
-                "cid": "QmDataset1CID",
-                "license": "CC-BY-4.0",
-                "attribution": "Dataset Owner"
-            }
+            {"cid": "QmDataset1CID", "license": "CC-BY-4.0", "attribution": "Dataset Owner"}
         ],
         "preprocessing_steps": [
             {
                 "operation": "normalization",
                 "parameters": {...},
-                "code_cid": "QmPreprocessingCodeCID"
+                "code_cid": "QmPreprocessingCodeCID",
             }
-        ]
+        ],
     },
-    "verification": {
-        "signature": "...",
-        "public_key": "..."
-    }
+    "verification": {"signature": "...", "public_key": "..."},
 }
 
 # Store provenance in IPFS
@@ -609,15 +549,15 @@ monitoring_id = rai_framework.register_model(
         "fairness_metrics": ["demographic_parity", "equal_opportunity"],
         "demographic_variables": ["age", "gender", "ethnicity"],
         "performance_metrics": ["accuracy", "f1_score"],
-        "alerting_thresholds": {...}
-    }
+        "alerting_thresholds": {...},
+    },
 )
 
 # Generate model card with verified provenance
 model_card = rai_framework.generate_model_card(
     model_cid=model_info["cid"],
     provenance_cid=provenance_cid,
-    template="model_cards/responsible_ai.md"
+    template="model_cards/responsible_ai.md",
 )
 ```
 
@@ -631,17 +571,14 @@ compliance_docs = {
     "impact_assessment": {
         "document_cid": "QmImpactAssessmentCID",
         "timestamp": "2023-07-15T14:30:00Z",
-        "reviewer": "Compliance Team"
+        "reviewer": "Compliance Team",
     },
     "ethical_review": {
         "document_cid": "QmEthicalReviewCID",
         "timestamp": "2023-07-20T09:15:00Z",
-        "committee_members": ["Dr. Smith", "Prof. Jones"]
+        "committee_members": ["Dr. Smith", "Prof. Jones"],
     },
-    "data_protection": {
-        "document_cid": "QmDPIACID",
-        "timestamp": "2023-07-10T11:45:00Z"
-    }
+    "data_protection": {"document_cid": "QmDPIACID", "timestamp": "2023-07-10T11:45:00Z"},
 }
 
 compliance_cid = kit.ipfs_add_json(compliance_docs)
@@ -650,9 +587,7 @@ compliance_cid = kit.ipfs_add_json(compliance_docs)
 registry.update_model_metadata(
     name="clinical_decision_model",
     version="1.0.0",
-    metadata_update={
-        "compliance_documentation_cid": compliance_cid
-    }
+    metadata_update={"compliance_documentation_cid": compliance_cid},
 )
 ```
 
@@ -672,13 +607,9 @@ fine_tuning_manager = FineTuningManager(ipfs_client=kit)
 dataset_info = fine_tuning_manager.prepare_dataset(
     source_files=["conversations.jsonl", "instructions.jsonl"],
     format="jsonl",
-    preprocessing={
-        "deduplicate": True,
-        "quality_filter": "high",
-        "tokenize": True
-    },
+    preprocessing={"deduplicate": True, "quality_filter": "high", "tokenize": True},
     shard_size=100_000,  # Number of examples per shard
-    validation_split=0.1
+    validation_split=0.1,
 )
 
 print(f"Dataset CID: {dataset_info['dataset_cid']}")
@@ -693,19 +624,15 @@ print(f"Total examples: {dataset_info['stats']['total_examples']}")
 job_config = {
     "base_model": "llama-7b",
     "base_model_cid": "QmBaseModelCID",  # Optional: use existing model from IPFS
-    "dataset_cid": dataset_info['dataset_cid'],
+    "dataset_cid": dataset_info["dataset_cid"],
     "hyperparameters": {
         "learning_rate": 2e-5,
         "batch_size": 8,
         "epochs": 3,
         "lora_rank": 8,
-        "lora_alpha": 16
+        "lora_alpha": 16,
     },
-    "resources": {
-        "min_gpus": 2,
-        "gpu_type": "A100",
-        "distributed": True
-    }
+    "resources": {"min_gpus": 2, "gpu_type": "A100", "distributed": True},
 }
 
 # Submit fine-tuning job
@@ -722,19 +649,13 @@ print(f"Progress: {status['progress']}%")
 ```python
 # Configure checkpointing
 checkpoint_config = {
-    "frequency": {
-        "steps": 100,
-        "time_minutes": 30
-    },
+    "frequency": {"steps": 100, "time_minutes": 30},
     "keep_last_n": 3,
-    "storage_redundancy": 2  # Store on multiple nodes
+    "storage_redundancy": 2,  # Store on multiple nodes
 }
 
 # Enable checkpointing for job
-fine_tuning_manager.enable_checkpointing(
-    job_id=job_id,
-    config=checkpoint_config
-)
+fine_tuning_manager.enable_checkpointing(job_id=job_id, config=checkpoint_config)
 
 # List checkpoints
 checkpoints = fine_tuning_manager.list_checkpoints(job_id)
@@ -743,8 +664,7 @@ for checkpoint in checkpoints:
 
 # Resume from checkpoint
 resume_job_id = fine_tuning_manager.resume_job(
-    checkpoint_cid=checkpoints[-1]['cid'],
-    job_config=job_config
+    checkpoint_cid=checkpoints[-1]["cid"], job_config=job_config
 )
 ```
 
@@ -757,26 +677,22 @@ lora_config = {
     "lora_alpha": 16,
     "target_modules": ["q_proj", "v_proj"],
     "lora_dropout": 0.05,
-    "bias": "none"
+    "bias": "none",
 }
 
 # Create LoRA-specific job
 job_id = fine_tuning_manager.create_job(
-    {
-        **job_config,
-        "method": "lora",
-        "lora_config": lora_config
-    }
+    {**job_config, "method": "lora", "lora_config": lora_config}
 )
 
 # Merge LoRA weights with base model when complete
-if fine_tuning_manager.get_job_status(job_id)['status'] == 'completed':
+if fine_tuning_manager.get_job_status(job_id)["status"] == "completed":
     merged_model_cid = fine_tuning_manager.merge_adapter(
-        base_model_cid=job_config['base_model_cid'],
-        adapter_cid=fine_tuning_manager.get_job_status(job_id)['result_cid'],
-        save_name="llama-7b-finetuned"
+        base_model_cid=job_config["base_model_cid"],
+        adapter_cid=fine_tuning_manager.get_job_status(job_id)["result_cid"],
+        save_name="llama-7b-finetuned",
     )
-    
+
     print(f"Merged model CID: {merged_model_cid}")
 ```
 
@@ -798,14 +714,12 @@ dataset_benchmark = benchmarking.benchmark_dataset_loading(
     batch_sizes=[16, 32, 64, 128],
     prefetch_factors=[1, 2, 4, 8],
     iterations=10,
-    frameworks=["pytorch", "tensorflow"]
+    frameworks=["pytorch", "tensorflow"],
 )
 
 # Generate report
 report_cid = benchmarking.generate_report(
-    benchmark_results=dataset_benchmark,
-    report_name="dataset_loading_benchmark",
-    include_plots=True
+    benchmark_results=dataset_benchmark, report_name="dataset_loading_benchmark", include_plots=True
 )
 
 print(f"Benchmark report: ipfs://{report_cid}")
@@ -845,8 +759,7 @@ viz.generate_html_report(report_path)
 
 # Export to various formats
 exported_files = viz.export_visualizations(
-    export_dir="./visualization_exports",
-    formats=["png", "svg", "html", "json"]
+    export_dir="./visualization_exports", formats=["png", "svg", "html", "json"]
 )
 ```
 
@@ -862,17 +775,14 @@ inference_benchmark = benchmarking.benchmark_inference(
     input_shapes={"input_ids": [384], "attention_mask": [384]},
     optimization_levels=["default", "onnx", "tensorrt"],
     device="gpu",
-    iterations=100
+    iterations=100,
 )
 
 # Find optimal configuration
 optimal_config = benchmarking.find_optimal_configuration(
     benchmark_results=inference_benchmark,
     optimization_metric="throughput",  # or "latency"
-    constraints={
-        "max_latency_ms": 100,
-        "min_throughput": 10
-    }
+    constraints={"max_latency_ms": 100, "min_throughput": 10},
 )
 
 print(f"Optimal configuration: {optimal_config}")
@@ -883,23 +793,20 @@ print(f"Optimal configuration: {optimal_config}")
 ```python
 # Measure distributed training scaling efficiency
 scaling_benchmark = benchmarking.benchmark_distributed_training(
-    model_config={
-        "type": "resnet50",
-        "dataset_cid": "QmImageNetCID"
-    },
+    model_config={"type": "resnet50", "dataset_cid": "QmImageNetCID"},
     node_counts=[1, 2, 4, 8],
     batch_sizes=[32, 64],
     frameworks=["pytorch_ddp", "tensorflow_mirrored"],
     metrics=["throughput", "time_to_accuracy"],
     target_accuracy=0.75,
-    max_epochs=10
+    max_epochs=10,
 )
 
 # Generate scaling report
 scaling_report_cid = benchmarking.generate_report(
     benchmark_results=scaling_benchmark,
     report_name="distributed_training_scaling",
-    include_plots=True
+    include_plots=True,
 )
 ```
 
@@ -912,17 +819,16 @@ hardware_benchmark = benchmarking.benchmark_hardware(
     hardware_configs=[
         {"type": "cpu", "description": "Intel Xeon"},
         {"type": "gpu", "description": "NVIDIA T4"},
-        {"type": "gpu", "description": "NVIDIA A100"}
+        {"type": "gpu", "description": "NVIDIA A100"},
     ],
     benchmark_type="inference",
     batch_sizes=[1, 8, 32],
-    precision=["fp32", "fp16", "int8"]
+    precision=["fp32", "fp16", "int8"],
 )
 
 # Export results to comparison table
 comparison_table = benchmarking.export_comparison_table(
-    benchmark_results=hardware_benchmark,
-    format="markdown"
+    benchmark_results=hardware_benchmark, format="markdown"
 )
 
 print(comparison_table)
@@ -944,10 +850,7 @@ mm_manager = MultimodalContentManager(ipfs_client=kit)
 dataset_info = mm_manager.store_multimodal_dataset(
     dataset_path="multimedia_dataset/",
     modalities=["image", "text", "audio"],
-    metadata={
-        "description": "Multimodal dataset for generative AI",
-        "license": "CC-BY-4.0"
-    }
+    metadata={"description": "Multimodal dataset for generative AI", "license": "CC-BY-4.0"},
 )
 
 print(f"Dataset CID: {dataset_info['cid']}")
@@ -964,16 +867,11 @@ sd_integration = StableDiffusionIntegration(ipfs_client=kit)
 
 # Store and load Stable Diffusion model
 model_info = sd_integration.store_model(
-    model_path="stable-diffusion-xl-base-1.0",
-    name="sdxl-base",
-    version="1.0"
+    model_path="stable-diffusion-xl-base-1.0", name="sdxl-base", version="1.0"
 )
 
 # Load model (using cached version if available)
-model = sd_integration.load_model(
-    name="sdxl-base",
-    version="1.0"
-)
+model = sd_integration.load_model(name="sdxl-base", version="1.0")
 
 # Generate image and store in IPFS
 image_cid = sd_integration.generate_image(
@@ -984,8 +882,8 @@ image_cid = sd_integration.generate_image(
         "prompt": "A beautiful landscape with mountains and a lake, photorealistic",
         "negative_prompt": "blurry, distorted",
         "guidance_scale": 7.5,
-        "steps": 50
-    }
+        "steps": 50,
+    },
 )
 
 print(f"Generated image: ipfs://{image_cid}")
@@ -1003,37 +901,33 @@ mm_cot = MultimodalCoT(ipfs_client=kit)
 reasoning_chain_cid = mm_cot.create_reasoning_chain(
     input_cid="QmInputImageCID",
     steps=[
-        {
-            "type": "image_analysis",
-            "model": "clip",
-            "output": "description"
-        },
+        {"type": "image_analysis", "model": "clip", "output": "description"},
         {
             "type": "llm_reasoning",
             "prompt_template": "Analyze this image: {description}. Identify key objects and their relationships.",
             "model": "gpt-4",
-            "output": "analysis"
+            "output": "analysis",
         },
         {
             "type": "image_generation",
             "prompt_template": "Create a variation of the original image with these changes: {analysis}",
             "model": "stable-diffusion-xl",
-            "output": "generated_image"
+            "output": "generated_image",
         },
         {
             "type": "multimodal_comparison",
             "inputs": ["input_image", "generated_image"],
             "model": "clip",
-            "output": "similarity_score"
-        }
-    ]
+            "output": "similarity_score",
+        },
+    ],
 )
 
 # Execute reasoning chain
 result = mm_cot.execute_reasoning_chain(reasoning_chain_cid)
 
 # Get all artifacts with provenance
-artifacts = mm_cot.get_chain_artifacts(result['execution_cid'])
+artifacts = mm_cot.get_chain_artifacts(result["execution_cid"])
 for step, artifact in artifacts.items():
     print(f"Step: {step}")
     print(f"Artifact CID: {artifact['cid']}")
@@ -1059,8 +953,8 @@ job_id = video_pipeline.create_frame_generation_job(
         0: "A spaceship approaching an alien planet, visible from space, cinematic quality",
         30: "A spaceship entering the atmosphere of an alien planet, cinematic quality",
         60: "A spaceship descending through clouds on an alien planet, cinematic quality",
-        90: "A spaceship landing on the surface of an alien planet, cinematic quality"
-    }
+        90: "A spaceship landing on the surface of an alien planet, cinematic quality",
+    },
 )
 
 # Monitor job status
@@ -1069,10 +963,10 @@ print(f"Job status: {status['status']}")
 print(f"Progress: {status['progress']}%")
 
 # Retrieve result when complete
-if status['status'] == 'completed':
-    video_cid = status['result_cid']
+if status["status"] == "completed":
+    video_cid = status["result_cid"]
     print(f"Generated video: ipfs://{video_cid}")
-    
+
     # Store with metadata
     video_pipeline.store_video_metadata(
         video_cid=video_cid,
@@ -1080,8 +974,8 @@ if status['status'] == 'completed':
             "title": "Alien Planet Landing",
             "prompt": "A spaceship landing on an alien planet",
             "generation_parameters": {...},
-            "license": "CC-BY-4.0"
-        }
+            "license": "CC-BY-4.0",
+        },
     )
 ```
 
@@ -1103,22 +997,11 @@ endpoint_info = deployment.deploy_model(
     deployment_config={
         "name": "image-classification-api",
         "version": "1.0.0",
-        "resources": {
-            "cpu": 4,
-            "memory": "8Gi",
-            "gpu": 1
-        },
-        "scaling": {
-            "min_replicas": 2,
-            "max_replicas": 10,
-            "target_cpu_utilization": 80
-        },
+        "resources": {"cpu": 4, "memory": "8Gi", "gpu": 1},
+        "scaling": {"min_replicas": 2, "max_replicas": 10, "target_cpu_utilization": 80},
         "framework": "pytorch",
-        "optimization": {
-            "quantization": "int8",
-            "optimization_level": "performance"
-        }
-    }
+        "optimization": {"quantization": "int8", "optimization_level": "performance"},
+    },
 )
 
 print(f"Endpoint URL: {endpoint_info['endpoint_url']}")
@@ -1135,15 +1018,12 @@ optimized_model_cid = deployment.optimize_model(
         "target_format": "onnx",
         "optimizations": ["quantization", "pruning", "graph_fusion"],
         "target_hardware": "nvidia_t4",
-        "precision": "fp16"
-    }
+        "precision": "fp16",
+    },
 )
 
 # Deploy optimized model
-endpoint_info = deployment.deploy_model(
-    model_cid=optimized_model_cid,
-    deployment_config={...}
-)
+endpoint_info = deployment.deploy_model(model_cid=optimized_model_cid, deployment_config={...})
 ```
 
 ### A/B Testing and Canary Deployments
@@ -1153,19 +1033,11 @@ endpoint_info = deployment.deploy_model(
 ab_test_id = deployment.create_ab_test(
     name="image-classification-ab-test",
     variants=[
-        {
-            "model_cid": "QmModelV1CID",
-            "weight": 80,
-            "deployment_config": {...}
-        },
-        {
-            "model_cid": "QmModelV2CID",
-            "weight": 20,
-            "deployment_config": {...}
-        }
+        {"model_cid": "QmModelV1CID", "weight": 80, "deployment_config": {...}},
+        {"model_cid": "QmModelV2CID", "weight": 20, "deployment_config": {...}},
     ],
     metrics=["latency", "accuracy", "error_rate"],
-    duration_hours=48
+    duration_hours=48,
 )
 
 # Monitor A/B test results
@@ -1181,11 +1053,8 @@ canary_id = deployment.create_canary_deployment(
         "interval_minutes": 30,
         "max_weight": 100,
         "automatic": True,
-        "rollback_thresholds": {
-            "error_rate": 0.05,
-            "p95_latency_ms": 200
-        }
-    }
+        "rollback_thresholds": {"error_rate": 0.05, "p95_latency_ms": 200},
+    },
 )
 ```
 
@@ -1199,7 +1068,7 @@ monitoring = ModelMonitoring(ipfs_client=kit)
 
 # Set up monitoring for deployed model
 monitoring_id = monitoring.setup_monitoring(
-    deployment_id=endpoint_info['deployment_id'],
+    deployment_id=endpoint_info["deployment_id"],
     monitoring_config={
         "metrics": [
             "requests_per_second",
@@ -1209,25 +1078,19 @@ monitoring_id = monitoring.setup_monitoring(
             "error_rate",
             "cpu_utilization",
             "gpu_utilization",
-            "memory_usage"
+            "memory_usage",
         ],
         "data_drift_detection": {
             "features": ["feature1", "feature2"],
             "drift_threshold": 0.1,
-            "reference_dataset_cid": "QmReferenceDataCID"
+            "reference_dataset_cid": "QmReferenceDataCID",
         },
-        "concept_drift_detection": {
-            "metrics": ["accuracy", "f1_score"],
-            "drift_threshold": 0.05
-        },
+        "concept_drift_detection": {"metrics": ["accuracy", "f1_score"], "drift_threshold": 0.05},
         "alerting": {
             "channels": ["slack", "email"],
-            "thresholds": {
-                "error_rate": 0.02,
-                "latency_p95_ms": 150
-            }
-        }
-    }
+            "thresholds": {"error_rate": 0.02, "latency_p95_ms": 150},
+        },
+    },
 )
 
 # Get monitoring dashboard
@@ -1255,19 +1118,13 @@ fl_job_id = fl.create_job(
         "min_clients": 5,
         "client_sample_rate": 0.8,
         "aggregation_method": "fedavg",
-        "client_optimization": {
-            "optimizer": "sgd",
-            "learning_rate": 0.01,
-            "local_epochs": 2
-        }
-    }
+        "client_optimization": {"optimizer": "sgd", "learning_rate": 0.01, "local_epochs": 2},
+    },
 )
 
 # Participate as client (run on edge nodes)
 fl.participate_as_client(
-    fl_job_id=fl_job_id,
-    client_data_path="/path/to/local/data",
-    client_id="client-123"
+    fl_job_id=fl_job_id, client_data_path="/path/to/local/data", client_id="client-123"
 )
 ```
 
@@ -1284,14 +1141,14 @@ dp_job_id = pp_ai.create_differential_privacy_job(
     dataset_cid="QmDatasetCID",
     privacy_budget_epsilon=1.0,
     noise_mechanism="gaussian",
-    clipping_threshold=1.0
+    clipping_threshold=1.0,
 )
 
 # Create secure aggregation job
 secure_agg_job = pp_ai.create_secure_aggregation_job(
     participants=["node1", "node2", "node3"],
     threshold=2,  # Minimum participants needed
-    aggregation_function="average"
+    aggregation_function="average",
 )
 ```
 
@@ -1307,24 +1164,14 @@ compliance = ComplianceTools(ipfs_client=kit)
 lineage_id = compliance.track_data_lineage(
     dataset_cid="QmDatasetCID",
     transformations=[
-        {
-            "type": "anonymization",
-            "parameters": {...},
-            "output_cid": "QmAnonymizedDataCID"
-        },
-        {
-            "type": "filtering",
-            "parameters": {...},
-            "output_cid": "QmFilteredDataCID"
-        }
-    ]
+        {"type": "anonymization", "parameters": {...}, "output_cid": "QmAnonymizedDataCID"},
+        {"type": "filtering", "parameters": {...}, "output_cid": "QmFilteredDataCID"},
+    ],
 )
 
 # Generate compliance report
 report_cid = compliance.generate_compliance_report(
-    model_cid="QmModelCID",
-    compliance_framework="gdpr",
-    report_template="templates/gdpr_report.md"
+    model_cid="QmModelCID", compliance_framework="gdpr", report_template="templates/gdpr_report.md"
 )
 ```
 
@@ -1389,8 +1236,8 @@ baseline_info = registry.store_model(
         "authors": ["Team Alpha"],
         "accuracy": 0.78,
         "dataset_cid": "QmDatasetCID",
-        "publication_doi": "10.1234/journal.5678"
-    }
+        "publication_doi": "10.1234/journal.5678",
+    },
 )
 
 # Team collaborations across sites
@@ -1398,7 +1245,7 @@ baseline_info = registry.store_model(
 for team in ["beta", "gamma", "delta"]:
     # Teams improve on the model independently
     improved_model = load_and_improve_model(baseline_info["cid"])
-    
+
     # Register their version
     team_version = registry.store_model(
         model=improved_model,
@@ -1408,17 +1255,19 @@ for team in ["beta", "gamma", "delta"]:
             "description": f"Improved by Team {team}",
             "parent_model_cid": baseline_info["cid"],
             "improvements": ["feature X", "algorithm Y"],
-            "accuracy": 0.82
-        }
+            "accuracy": 0.82,
+        },
     )
-    
+
 # Final ensemble model combining best aspects
 ensemble_info = registry.store_model(
-    model=create_ensemble([
-        "climate_prediction_model:1.1.0-beta",
-        "climate_prediction_model:1.1.0-gamma",
-        "climate_prediction_model:1.1.0-delta"
-    ]),
+    model=create_ensemble(
+        [
+            "climate_prediction_model:1.1.0-beta",
+            "climate_prediction_model:1.1.0-gamma",
+            "climate_prediction_model:1.1.0-delta",
+        ]
+    ),
     name="climate_prediction_model",
     version="2.0.0",
     metadata={
@@ -1426,10 +1275,10 @@ ensemble_info = registry.store_model(
         "parent_models": [
             registry.get_model_cid("climate_prediction_model", "1.1.0-beta"),
             registry.get_model_cid("climate_prediction_model", "1.1.0-gamma"),
-            registry.get_model_cid("climate_prediction_model", "1.1.0-delta")
+            registry.get_model_cid("climate_prediction_model", "1.1.0-delta"),
         ],
-        "accuracy": 0.87
-    }
+        "accuracy": 0.87,
+    },
 )
 ```
 
@@ -1457,7 +1306,7 @@ from ipfs_kit_py.ai_ml_integration import (
     DatasetManager,
     ModelRegistry,
     ComplianceTools,
-    ModelDeployment
+    ModelDeployment,
 )
 
 # Initialize components
@@ -1477,8 +1326,8 @@ dataset_info = dataset_manager.store_dataset(
         "description": "Anonymized lung CT scans",
         "anonymization_method": "full_deidentification",
         "approval_code": "IRB-2023-456",
-        "image_count": 10000
-    }
+        "image_count": 10000,
+    },
 )
 
 # Create data lineage record
@@ -1487,16 +1336,10 @@ lineage_id = compliance.track_data_lineage(
     transformations=[
         {
             "type": "anonymization",
-            "parameters": {
-                "method": "full_deidentification",
-                "algorithm": "hm_algo_v2"
-            },
-            "verification": {
-                "verified_by": "Chief Privacy Officer",
-                "date": "2023-05-15"
-            }
+            "parameters": {"method": "full_deidentification", "algorithm": "hm_algo_v2"},
+            "verification": {"verified_by": "Chief Privacy Officer", "date": "2023-05-15"},
         }
-    ]
+    ],
 )
 
 # Train and register model with full audit trail
@@ -1508,21 +1351,14 @@ model_info = registry.store_model(
         "description": "Lung nodule detection model",
         "training_dataset_cid": dataset_info["cid"],
         "data_lineage_id": lineage_id,
-        "performance": {
-            "sensitivity": 0.94,
-            "specificity": 0.92,
-            "auc": 0.96
-        },
-        "verification": {
-            "verified_by": "Medical AI Review Board",
-            "date": "2023-06-20"
-        },
+        "performance": {"sensitivity": 0.94, "specificity": 0.92, "auc": 0.96},
+        "verification": {"verified_by": "Medical AI Review Board", "date": "2023-06-20"},
         "regulatory": {
             "compliance_framework": "HIPAA",
             "risk_assessment_cid": "QmRiskAssessmentCID",
-            "approval_documentation_cid": "QmApprovalDocCID"
-        }
-    }
+            "approval_documentation_cid": "QmApprovalDocCID",
+        },
+    },
 )
 
 # Generate compliance documentation
@@ -1533,8 +1369,8 @@ docs_cid = compliance.generate_compliance_documentation(
     documentation_parameters={
         "device_class": "II",
         "predicate_device": "DeviceXYZ",
-        "intended_use": "Assist radiologists in identifying potential lung nodules"
-    }
+        "intended_use": "Assist radiologists in identifying potential lung nodules",
+    },
 )
 
 # Staged deployment with monitoring
@@ -1547,24 +1383,17 @@ deployment_id = deployment.deploy_model(
             "stages": [
                 {"name": "validation", "user_percentage": 5, "duration_days": 7},
                 {"name": "limited", "user_percentage": 25, "duration_days": 14},
-                {"name": "full", "user_percentage": 100}
+                {"name": "full", "user_percentage": 100},
             ],
             "automatic_progression": False,
-            "approval_required": True
+            "approval_required": True,
         },
         "monitoring": {
             "metrics": ["accuracy", "sensitivity", "specificity"],
-            "alert_thresholds": {
-                "accuracy_drop": 0.05,
-                "error_rate": 0.02
-            },
-            "logging": {
-                "level": "comprehensive",
-                "retention_days": 365,
-                "phi_filtering": True
-            }
-        }
-    }
+            "alert_thresholds": {"accuracy_drop": 0.05, "error_rate": 0.02},
+            "logging": {"level": "comprehensive", "retention_days": 365, "phi_filtering": True},
+        },
+    },
 )
 ```
 
@@ -1588,11 +1417,7 @@ An environmental organization used IPFS Kit to deploy ML models to remote sensor
 #### Solution
 ```python
 from ipfs_kit_py import ipfs_kit
-from ipfs_kit_py.ai_ml_integration import (
-    ModelRegistry,
-    ModelDeployment,
-    FederatedLearning
-)
+from ipfs_kit_py.ai_ml_integration import ModelRegistry, ModelDeployment, FederatedLearning
 
 # Central coordination node
 coordinator_kit = ipfs_kit(role="master")
@@ -1611,8 +1436,8 @@ edge_model_info = registry.store_model(
         "parameters": 250000,
         "model_size_kb": 980,
         "accuracy": 0.89,
-        "quantization": "int8"
-    }
+        "quantization": "int8",
+    },
 )
 
 # Deploy to edge devices
@@ -1622,19 +1447,15 @@ deployment_config = {
     "device_constraints": {
         "min_memory_mb": 512,
         "min_storage_mb": 1024,
-        "architecture": ["arm", "arm64"]
+        "architecture": ["arm", "arm64"],
     },
-    "updates": {
-        "frequency": "weekly", 
-        "bandwidth_optimized": True,
-        "delta_updates": True
-    }
+    "updates": {"frequency": "weekly", "bandwidth_optimized": True, "delta_updates": True},
 }
 
 deployment_id = deployment.deploy_to_edge(
     model_cid=edge_model_info["cid"],
     deployment_config=deployment_config,
-    edge_nodes=["sensor001", "sensor002", "sensor003", "sensor004", "sensor005"]
+    edge_nodes=["sensor001", "sensor002", "sensor003", "sensor004", "sensor005"],
 )
 
 # Set up federated learning to improve model with edge data
@@ -1643,21 +1464,14 @@ fl_job_id = federated.create_job(
     job_config={
         "rounds": 5,
         "aggregation_method": "fedavg",
-        "client_optimization": {
-            "optimizer": "sgd",
-            "learning_rate": 0.01,
-            "local_epochs": 1
-        },
+        "client_optimization": {"optimizer": "sgd", "learning_rate": 0.01, "local_epochs": 1},
         "scheduler": {
             "type": "connectivity_aware",
             "min_battery_percentage": 50,
-            "require_wifi": True
+            "require_wifi": True,
         },
-        "privacy": {
-            "mechanism": "differential_privacy",
-            "noise_scale": 0.1
-        }
-    }
+        "privacy": {"mechanism": "differential_privacy", "noise_scale": 0.1},
+    },
 )
 
 # After federated learning completes
@@ -1670,15 +1484,15 @@ improved_model_info = registry.store_model(
         "base_model_cid": edge_model_info["cid"],
         "federated_learning_job": fl_job_id,
         "participating_devices": 87,
-        "accuracy": 0.93
-    }
+        "accuracy": 0.93,
+    },
 )
 
 # Deploy improved model with delta updates
 deployment.update_edge_deployment(
     deployment_id=deployment_id,
     new_model_cid=improved_model_info["cid"],
-    update_method="delta"  # Only send model differences
+    update_method="delta",  # Only send model differences
 )
 ```
 
@@ -1706,7 +1520,7 @@ from ipfs_kit_py.ai_ml_integration import (
     ModelRegistry,
     FineTuningManager,
     MultimodalContentManager,
-    StableDiffusionIntegration
+    StableDiffusionIntegration,
 )
 
 # Studio infrastructure setup
@@ -1725,8 +1539,8 @@ base_model_info = registry.store_model(
         "type": "diffusion",
         "description": "Base Stable Diffusion XL model",
         "parameters": "2.6B",
-        "license": "CreativeML Open RAIL-M"
-    }
+        "license": "CreativeML Open RAIL-M",
+    },
 )
 
 # Create custom fine-tuned model for client project
@@ -1737,22 +1551,20 @@ client_dataset_info = content_manager.store_multimodal_dataset(
         "client": "Client X",
         "project": "Summer Campaign",
         "style": "Cinematic Landscape",
-        "usage_rights": "Commercial"
-    }
+        "usage_rights": "Commercial",
+    },
 )
 
 # Fine-tune for client style
-fine_tuning_job = fine_tuning.create_job({
-    "base_model_cid": base_model_info["cid"],
-    "dataset_cid": client_dataset_info["cid"],
-    "method": "lora",
-    "hyperparameters": {
-        "learning_rate": 1e-4,
-        "epochs": 2,
-        "lora_rank": 16
-    },
-    "project": "client_x_summer"
-})
+fine_tuning_job = fine_tuning.create_job(
+    {
+        "base_model_cid": base_model_info["cid"],
+        "dataset_cid": client_dataset_info["cid"],
+        "method": "lora",
+        "hyperparameters": {"learning_rate": 1e-4, "epochs": 2, "lora_rank": 16},
+        "project": "client_x_summer",
+    }
+)
 
 # Store the fine-tuned model
 client_model_info = registry.store_model(
@@ -1766,24 +1578,22 @@ client_model_info = registry.store_model(
         "client": "Client X",
         "project": "Summer Campaign",
         "usage_rights": "Commercial-Client-X-Only",
-        "expiration_date": "2023-12-31"
-    }
+        "expiration_date": "2023-12-31",
+    },
 )
 
 # Generate content with provenance tracking
 for concept in ["beach", "mountain", "desert"]:
     for i in range(5):
-        prompt = f"Cinematic {concept} landscape for summer vacation, golden hour, 8k, highly detailed"
-        
+        prompt = (
+            f"Cinematic {concept} landscape for summer vacation, golden hour, 8k, highly detailed"
+        )
+
         image_cid = sd_integration.generate_image(
             prompt=prompt,
             model_name="client-x-summer-style",
             model_version="1.0.0",
-            parameters={
-                "steps": 50,
-                "guidance_scale": 7.5,
-                "seed": 1000 + i
-            },
+            parameters={"steps": 50, "guidance_scale": 7.5, "seed": 1000 + i},
             metadata={
                 "client": "Client X",
                 "project": "Summer Campaign",
@@ -1792,10 +1602,10 @@ for concept in ["beach", "mountain", "desert"]:
                 "iteration": i,
                 "model_cid": client_model_info["cid"],
                 "license": "Commercial-Client-X-Only",
-                "creator": "AI Studio Team"
-            }
+                "creator": "AI Studio Team",
+            },
         )
-        
+
         # Register the content with provenance
         content_manager.register_content(
             content_cid=image_cid,
@@ -1804,13 +1614,9 @@ for concept in ["beach", "mountain", "desert"]:
                 "derived_from": [client_model_info["cid"]],
                 "creation_method": "stable-diffusion",
                 "prompt": prompt,
-                "parameters": {
-                    "steps": 50,
-                    "guidance_scale": 7.5,
-                    "seed": 1000 + i
-                }
+                "parameters": {"steps": 50, "guidance_scale": 7.5, "seed": 1000 + i},
             },
-            project="client_x_summer"
+            project="client_x_summer",
         )
 ```
 
@@ -1838,7 +1644,7 @@ from ipfs_kit_py.ai_ml_integration import (
     ModelRegistry,
     DatasetManager,
     DistributedTraining,
-    BenchmarkingTools
+    BenchmarkingTools,
 )
 
 # Cluster setup
@@ -1857,8 +1663,8 @@ public_dataset = dataset_manager.store_dataset(
     metadata={
         "description": "ImageNet subset for computer vision research",
         "access": "public",
-        "license": "research-only"
-    }
+        "license": "research-only",
+    },
 )
 
 restricted_dataset = dataset_manager.store_dataset(
@@ -1870,79 +1676,65 @@ restricted_dataset = dataset_manager.store_dataset(
         "description": "Anonymized medical imaging dataset",
         "access": "restricted",
         "authorized_groups": ["medical-ai-lab", "radiology-dept"],
-        "ethics_approval": "IRB-2023-789"
+        "ethics_approval": "IRB-2023-789",
     },
     access_control={
         "type": "group-based",
         "authorized_groups": ["medical-ai-lab", "radiology-dept"],
-        "encryption": "aes-256"
-    }
+        "encryption": "aes-256",
+    },
 )
 
 # Set up fair resource allocation for distributed training
 allocation_policy = {
-    "default_allocation": {
-        "max_gpus": 2,
-        "max_runtime_hours": 12,
-        "priority": "normal"
-    },
+    "default_allocation": {"max_gpus": 2, "max_runtime_hours": 12, "priority": "normal"},
     "group_allocations": {
-        "nlp-lab": {
-            "max_gpus": 4,
-            "max_runtime_hours": 24,
-            "priority": "high"
-        },
+        "nlp-lab": {"max_gpus": 4, "max_runtime_hours": 24, "priority": "high"},
         "medical-ai-lab": {
             "max_gpus": 8,
             "max_runtime_hours": 48,
             "priority": "highest",
-            "reserved_gpu_hours_per_week": 100
-        }
+            "reserved_gpu_hours_per_week": 100,
+        },
     },
     "scheduling_policy": "fair-share",
-    "preemption": {
-        "enabled": True,
-        "checkpoint_before_preempt": True
-    }
+    "preemption": {"enabled": True, "checkpoint_before_preempt": True},
 }
 
 training.configure_resource_allocation(allocation_policy)
 
 # Submit research job with reproducibility tracking
-job_id = training.submit_job({
-    "name": "transformer-scaling-experiment",
-    "model_config": {
-        "architecture": "transformer",
-        "hidden_size": 1024,
-        "num_layers": 24,
-        "num_heads": 16
-    },
-    "dataset_cid": public_dataset["cid"],
-    "hyperparameters": {
-        "learning_rate": 5e-5,
-        "batch_size": 32,
-        "epochs": 10,
-        "optimizer": "adam"
-    },
-    "resource_request": {
-        "gpus": 4,
-        "gpu_type": "a100",
-        "cpu_cores": 16,
-        "memory_gb": 64
-    },
-    "reproducibility": {
-        "seed": 42,
-        "deterministic": True,
-        "environment_capture": True,
-        "code_snapshot": True
-    },
-    "group": "nlp-lab",
-    "publication_metadata": {
-        "project": "scaling-laws-research",
-        "authors": ["Researcher A", "Researcher B"],
-        "expected_publication": "NeurIPS 2023"
+job_id = training.submit_job(
+    {
+        "name": "transformer-scaling-experiment",
+        "model_config": {
+            "architecture": "transformer",
+            "hidden_size": 1024,
+            "num_layers": 24,
+            "num_heads": 16,
+        },
+        "dataset_cid": public_dataset["cid"],
+        "hyperparameters": {
+            "learning_rate": 5e-5,
+            "batch_size": 32,
+            "epochs": 10,
+            "optimizer": "adam",
+        },
+        "resource_request": {"gpus": 4, "gpu_type": "a100", "cpu_cores": 16, "memory_gb": 64},
+        "reproducibility": {
+            "seed": 42,
+            "deterministic": True,
+            "environment_capture": True,
+            "code_snapshot": True,
+        },
+        "group": "nlp-lab",
+        "publication_metadata": {
+            "project": "scaling-laws-research",
+            "authors": ["Researcher A", "Researcher B"],
+            "expected_publication": "NeurIPS 2023",
+        },
     }
-})
+)
 
 # After job completion, generate reproducibility artifacts
 model_info = registry.store_model(
@@ -1957,7 +1749,7 @@ model_info = registry.store_model(
             "config_cid": training.get_job_config_cid(job_id),
             "dataset_cid": public_dataset["cid"],
             "seed": 42,
-            "deterministic": True
+            "deterministic": True,
         },
         "performance": training.get_job_metrics(job_id),
         "publication": {
@@ -1965,9 +1757,9 @@ model_info = registry.store_model(
             "authors": ["Researcher A", "Researcher B"],
             "conference": "NeurIPS 2023",
             "paper_url": "https://example.org/paper",
-            "bibtex": "@inproceedings{...}"
-        }
-    }
+            "bibtex": "@inproceedings{...}",
+        },
+    },
 )
 
 # Generate comprehensive benchmarks for publication
@@ -1978,8 +1770,8 @@ benchmark_results = benchmarking.run_comprehensive_benchmark(
     hardware_configs=[
         {"type": "gpu", "description": "NVIDIA A100"},
         {"type": "gpu", "description": "NVIDIA T4"},
-        {"type": "cpu", "description": "Intel Xeon"}
-    ]
+        {"type": "cpu", "description": "Intel Xeon"},
+    ],
 )
 
 # Generate reproducibility report for the paper appendix
@@ -1987,7 +1779,7 @@ report_cid = benchmarking.generate_report(
     benchmark_results=benchmark_results,
     report_name="transformer-scaling-reproducibility",
     template="templates/academic_reproducibility.md",
-    include_plots=True
+    include_plots=True,
 )
 ```
 
@@ -2018,10 +1810,7 @@ model_info = foundation.register_model(
     version="1.0.0",
     model_type="multimodal",
     capabilities=["text-to-image", "image-to-text", "audio-to-text", "text-to-audio"],
-    provider_config={
-        "source": "huggingface",
-        "model_id": "example/multimodal-foundation-xl"
-    }
+    provider_config={"source": "huggingface", "model_id": "example/multimodal-foundation-xl"},
 )
 
 # Create a content processing pipeline
@@ -2032,25 +1821,25 @@ pipeline_id = foundation.create_pipeline(
             "name": "image-analysis",
             "operation": "image-to-text",
             "model": model_info["cid"],
-            "parameters": {"detail_level": "high"}
+            "parameters": {"detail_level": "high"},
         },
         {
             "name": "audio-transcription",
             "operation": "audio-to-text",
             "model": model_info["cid"],
-            "parameters": {"language": "auto-detect"}
+            "parameters": {"language": "auto-detect"},
         },
         {
             "name": "content-aggregation",
             "operation": "text-fusion",
-            "parameters": {"strategy": "comprehensive"}
+            "parameters": {"strategy": "comprehensive"},
         },
         {
             "name": "knowledge-extraction",
             "operation": "entity-extraction",
-            "parameters": {"ontology": "dbpedia"}
-        }
-    ]
+            "parameters": {"ontology": "dbpedia"},
+        },
+    ],
 )
 
 # Process multimodal content
@@ -2059,9 +1848,9 @@ result = foundation.process_content(
     content={
         "image": "ipfs://QmImageCID",
         "audio": "ipfs://QmAudioCID",
-        "text": "Associated text content..."
+        "text": "Associated text content...",
     },
-    output_format="structured"
+    output_format="structured",
 )
 ```
 
@@ -2082,10 +1871,10 @@ benchmark_id = evaluation.create_benchmark(
     metrics=["demographic_parity", "equal_opportunity", "disparate_impact"],
     datasets=[
         {"cid": "QmDataset1CID", "name": "benchmark-subset-1"},
-        {"cid": "QmDataset2CID", "name": "benchmark-subset-2"}
+        {"cid": "QmDataset2CID", "name": "benchmark-subset-2"},
     ],
     verification_method="peer_review",
-    minimum_peer_reviews=3
+    minimum_peer_reviews=3,
 )
 
 # Submit a model for evaluation
@@ -2096,18 +1885,15 @@ submission_id = evaluation.submit_model(
         "model_name": "fairness-aware-classifier",
         "version": "1.0.0",
         "institution": "Example University",
-        "contact": "researcher@example.edu"
-    }
+        "contact": "researcher@example.edu",
+    },
 )
 
 # Generate leaderboard
 leaderboard = evaluation.generate_leaderboard(
     benchmark_id=benchmark_id,
     ranking_metric="aggregate_fairness_score",
-    filters={
-        "minimum_submissions": 5,
-        "verified_only": True
-    }
+    filters={"minimum_submissions": 5, "verified_only": True},
 )
 ```
 
@@ -2131,8 +1917,8 @@ circuit_cid = quantum.store_quantum_circuit(
         "circuit_depth": 12,
         "algorithm_class": "variational_classifier",
         "optimization_method": "spsa",
-        "simulation_backend": "statevector"
-    }
+        "simulation_backend": "statevector",
+    },
 )
 
 # Configure quantum execution environment
@@ -2140,11 +1926,7 @@ environment_id = quantum.configure_execution_environment(
     name="quantum-execution-env",
     provider="ibmq",
     backend_preferences=["ibmq_montreal", "ibmq_toronto", "simulator_statevector"],
-    execution_parameters={
-        "shots": 1024,
-        "optimization_level": 3,
-        "error_mitigation": True
-    }
+    execution_parameters={"shots": 1024, "optimization_level": 3, "error_mitigation": True},
 )
 
 # Submit quantum training job
@@ -2154,8 +1936,8 @@ job_id = quantum.submit_training_job(
     environment_id=environment_id,
     hybrid_classical_config={
         "preprocessor_model_cid": "QmClassicalPreprocessorCID",
-        "postprocessor_model_cid": "QmClassicalPostprocessorCID"
-    }
+        "postprocessor_model_cid": "QmClassicalPostprocessorCID",
+    },
 )
 ```
 
@@ -2179,8 +1961,8 @@ snn_model_cid = neuro.store_snn_model(
         "neurons": 10000,
         "neuron_type": "leaky_integrate_and_fire",
         "connectivity": "sparse",
-        "learning_rule": "stdp"
-    }
+        "learning_rule": "stdp",
+    },
 )
 
 # Configure neuromorphic execution environment
@@ -2188,11 +1970,7 @@ environment_id = neuro.configure_execution_environment(
     name="neuromorphic-env",
     hardware_target="loihi2",
     mapping_strategy="energy_optimized",
-    constraints={
-        "max_cores": 128,
-        "max_neurons_per_core": 1024,
-        "max_synapses_per_core": 65536
-    }
+    constraints={"max_cores": 128, "max_neurons_per_core": 1024, "max_synapses_per_core": 65536},
 )
 
 # Deploy the model to neuromorphic hardware
@@ -2200,15 +1978,9 @@ deployment_id = neuro.deploy_model(
     model_cid=snn_model_cid,
     environment_id=environment_id,
     deployment_config={
-        "spike_encoding": {
-            "method": "rate_coding",
-            "parameters": {"time_window_ms": 100}
-        },
-        "power_management": {
-            "strategy": "adaptive",
-            "target_power_mw": 500
-        }
-    }
+        "spike_encoding": {"method": "rate_coding", "parameters": {"time_window_ms": 100}},
+        "power_management": {"strategy": "adaptive", "target_power_mw": 500},
+    },
 )
 ```
 
@@ -2231,8 +2003,8 @@ governance_record = governance.register_model(
         "governance_token": "0xdef...789",
         "voting_threshold": 0.6,
         "minimum_token_stake": 1000,
-        "audit_requirements": ["security", "bias", "explainability"]
-    }
+        "audit_requirements": ["security", "bias", "explainability"],
+    },
 )
 
 # Create a parameter change proposal
@@ -2244,10 +2016,10 @@ proposal_id = governance.create_proposal(
         "parameters.bias_mitigation.threshold": {
             "current": 0.15,
             "proposed": 0.10,
-            "justification": "Improved fairness across demographics with minimal performance impact"
+            "justification": "Improved fairness across demographics with minimal performance impact",
         }
     },
-    evidence_cids=["QmEvidenceCID1", "QmEvidenceCID2"]
+    evidence_cids=["QmEvidenceCID1", "QmEvidenceCID2"],
 )
 
 # Submit vote on governance proposal
@@ -2255,7 +2027,7 @@ vote_tx = governance.submit_vote(
     proposal_id=proposal_id,
     vote="approve",
     voting_power=5000,  # Based on governance tokens held
-    rationale="Evidence shows improved fairness metrics without degrading performance"
+    rationale="Evidence shows improved fairness metrics without degrading performance",
 )
 
 # Execute approved proposal
@@ -2280,8 +2052,8 @@ analysis_id = alignment.create_interpretability_analysis(
         "methods": ["integrated_gradients", "concept_activation_vectors", "adversarial_examples"],
         "target_layers": ["transformer.h.11", "transformer.h.23"],
         "dataset_cid": "QmProbeDatasetCID",
-        "visualizations": ["neuron_activations", "feature_attributions"]
-    }
+        "visualizations": ["neuron_activations", "feature_attributions"],
+    },
 )
 
 # Generate alignment analysis report
@@ -2291,8 +2063,8 @@ report_cid = alignment.generate_alignment_report(
         "evaluation_suites": ["truthfulness", "bias", "toxicity", "value_alignment"],
         "behavioral_tests": ["adversarial_inputs", "edge_cases", "counterfactuals"],
         "human_feedback_integration": True,
-        "interpretability_analysis_id": analysis_id
-    }
+        "interpretability_analysis_id": analysis_id,
+    },
 )
 
 # Create adversarial robustness test suite
@@ -2302,8 +2074,8 @@ robustness_id = alignment.create_robustness_testsuite(
         "attack_types": ["prompt_injection", "jailbreaking", "misalignment_elicitation"],
         "generation_methods": ["automated", "human_red_team", "evolutionary"],
         "evaluation_metrics": ["success_rate", "severity", "recovery_ability"],
-        "containment_verification": True
-    }
+        "containment_verification": True,
+    },
 )
 ```
 
@@ -2320,18 +2092,12 @@ ppai = PrivacyPreservingAI(ipfs_client=kit)
 # Set up fully homomorphic encryption for model inference
 fhe_config = ppai.configure_homomorphic_encryption(
     scheme="CKKS",
-    parameters={
-        "poly_modulus_degree": 8192,
-        "security_level": 128,
-        "precision": "high"
-    }
+    parameters={"poly_modulus_degree": 8192, "security_level": 128, "precision": "high"},
 )
 
 # Create encrypted model for private inference
 encrypted_model_cid = ppai.create_encrypted_model(
-    model_cid="QmModelCID",
-    encryption_config=fhe_config,
-    supported_operations=["inference_only"]
+    model_cid="QmModelCID", encryption_config=fhe_config, supported_operations=["inference_only"]
 )
 
 # Set up secure multi-party computation environment
@@ -2339,10 +2105,7 @@ mpc_environment_id = ppai.configure_mpc_environment(
     protocol="ABY3",
     participants=["org1", "org2", "org3"],
     threshold=2,  # Minimum participants required
-    communication_config={
-        "secure_channels": True,
-        "bandwidth_optimization": "batch_communication"
-    }
+    communication_config={"secure_channels": True, "bandwidth_optimization": "batch_communication"},
 )
 
 # Run private training using secure MPC
@@ -2351,14 +2114,14 @@ mpc_job_id = ppai.create_mpc_training_job(
     dataset_references=[
         {"participant": "org1", "dataset_reference": "dataset_1"},
         {"participant": "org2", "dataset_reference": "dataset_2"},
-        {"participant": "org3", "dataset_reference": "dataset_3"}
+        {"participant": "org3", "dataset_reference": "dataset_3"},
     ],
     mpc_environment_id=mpc_environment_id,
     training_config={
         "algorithm": "logistic_regression",
         "max_iterations": 100,
-        "convergence_threshold": 0.001
-    }
+        "convergence_threshold": 0.001,
+    },
 )
 ```
 

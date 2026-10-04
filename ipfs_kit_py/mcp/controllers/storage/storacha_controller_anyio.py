@@ -29,15 +29,11 @@ from ipfs_kit_py.mcp.controllers.storage.storacha_controller import (
     StorachaDeleteResponse,
     IPFSStorachaResponse,
     StorachaIPFSResponse,
-    StorachaStatusResponse
+    StorachaStatusResponse,
 )
 
 # Import error handling
-from ipfs_kit_py.mcp.mcp_error_handling import (
-    StorageError,
-    ValidationError,
-    handle_exception
-)
+from ipfs_kit_py.mcp.mcp_error_handling import StorageError, ValidationError, handle_exception
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -50,6 +46,7 @@ class StorachaControllerAnyIO:
     This class wraps the synchronous Storacha model with async operations
     for use with async web frameworks like FastAPI.
     """
+
     def __init__(self, storacha_model):
         """
         Initialize the async Storacha controller.
@@ -208,20 +205,19 @@ class StorachaControllerAnyIO:
         try:
             # Run the synchronous model function in a thread pool
             result = await self._run_in_threadpool(
-                self.storacha_model.create_space,
-                name=request.name
+                self.storacha_model.create_space, name=request.name
             )
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
                 error_detail = {
                     "error": result.get("error", "Failed to create space"),
-                    "error_type": result.get("error_type", "SpaceCreationError")
+                    "error_type": result.get("error_type", "SpaceCreationError"),
                 }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail=f"Space creation failed: {error_detail.get('error')}" # Added context
-                ) # Removed extra parenthesis
+                    detail=f"Space creation failed: {error_detail.get('error')}",  # Added context
+                )  # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -244,20 +240,18 @@ class StorachaControllerAnyIO:
         """
         try:
             # Run the synchronous model function in a thread pool
-            result = await self._run_in_threadpool(
-                self.storacha_model.list_spaces
-            )
+            result = await self._run_in_threadpool(self.storacha_model.list_spaces)
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
                 error_detail = {
                     "error": result.get("error", "Failed to list spaces"),
-                    "error_type": result.get("error_type", "ListSpacesError")
+                    "error_type": result.get("error_type", "ListSpacesError"),
                 }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail=f"Listing spaces failed: {error_detail.get('error')}" # Added context
-                ) # Removed extra parenthesis
+                    detail=f"Listing spaces failed: {error_detail.get('error')}",  # Added context
+                )  # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -284,20 +278,19 @@ class StorachaControllerAnyIO:
         try:
             # Run the synchronous model function in a thread pool
             result = await self._run_in_threadpool(
-                self.storacha_model.set_current_space,
-                space_did=request.space_did
+                self.storacha_model.set_current_space, space_did=request.space_did
             )
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
                 error_detail = {
                     "error": result.get("error", "Failed to set space"),
-                    "error_type": result.get("error_type", "SetSpaceError")
+                    "error_type": result.get("error_type", "SetSpaceError"),
                 }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail=f"Setting space failed: {error_detail.get('error')}" # Added context
-                ) # Removed extra parenthesis
+                    detail=f"Setting space failed: {error_detail.get('error')}",  # Added context
+                )  # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -308,7 +301,9 @@ class StorachaControllerAnyIO:
 
         except Exception as e:
             # Handle unexpected errors
-            error_response, status_code = handle_exception(e, "Failed to set current Storacha space")
+            error_response, status_code = handle_exception(
+                e, "Failed to set current Storacha space"
+            )
             raise HTTPException(status_code=status_code, detail=error_response)
 
     async def handle_upload_request(self, request: StorachaUploadRequest):
@@ -327,19 +322,19 @@ class StorachaControllerAnyIO:
                 self.storacha_model.upload_file,
                 file_path=request.file_path,
                 space_did=request.space_did,
-                metadata=request.metadata
+                metadata=request.metadata,
             )
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
                 error_detail = {
                     "error": result.get("error", "Failed to upload file"),
-                    "error_type": result.get("error_type", "UploadError")
+                    "error_type": result.get("error_type", "UploadError"),
                 }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail=f"File upload failed: {error_detail.get('error')}" # Added context
-                ) # Removed extra parenthesis
+                    detail=f"File upload failed: {error_detail.get('error')}",  # Added context
+                )  # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -354,10 +349,10 @@ class StorachaControllerAnyIO:
             raise HTTPException(status_code=status_code, detail=error_response)
 
     async def handle_form_upload_request(
-        self, 
+        self,
         file: UploadFile = File(...),
         space_did: Optional[str] = Form(None),
-        metadata_json: Optional[str] = Form(None)
+        metadata_json: Optional[str] = Form(None),
     ):
         """
         Handle direct file upload via multipart form.
@@ -373,7 +368,7 @@ class StorachaControllerAnyIO:
         import tempfile
         import os
         import json
-        
+
         try:
             # Parse metadata if provided
             metadata = None
@@ -382,49 +377,49 @@ class StorachaControllerAnyIO:
                     metadata = json.loads(metadata_json)
                 except json.JSONDecodeError:
                     raise ValidationError("Invalid metadata JSON format")
-            
+
             # Create a temporary file to store the upload
             with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{file.filename}") as temp_file:
                 temp_path = temp_file.name
-                
+
                 try:
                     # Write uploaded file to temporary file
                     contents = await file.read()
                     temp_file.write(contents)
                     temp_file.flush()
-                    
+
                     # Upload using the model (in a thread pool)
                     result = await self._run_in_threadpool(
                         self.storacha_model.upload_file,
                         file_path=temp_path,
                         space_did=space_did,
-                        metadata=metadata
+                        metadata=metadata,
                     )
-                    
+
                     # If operation failed, raise HTTP exception
                     if not result.get("success", False):
                         error_detail = {
                             "error": result.get("error", "Failed to upload file"),
-                            "error_type": result.get("error_type", "UploadError")
+                            "error_type": result.get("error_type", "UploadError"),
                         }
                         raise HTTPException(
                             status_code=result.get("status_code", 500),
-                            detail=f"Form file upload failed: {error_detail.get('error')}" # Added context
-                        ) # Removed extra parenthesis
-                    
+                            detail=f"Form file upload failed: {error_detail.get('error')}",  # Added context
+                        )  # Removed extra parenthesis
+
                     # Generate operation ID if not present
                     if "operation_id" not in result:
                         result["operation_id"] = f"upload_form_{uuid.uuid4()}"
-                    
+
                     return result
-                    
+
                 finally:
                     # Clean up temporary file
                     try:
                         os.unlink(temp_path)
                     except Exception as e:
                         logger.warning(f"Failed to delete temporary file {temp_path}: {e}")
-            
+
         except Exception as e:
             # Handle unexpected errors
             error_response, status_code = handle_exception(e, "Failed to upload file to Storacha")
@@ -444,20 +439,20 @@ class StorachaControllerAnyIO:
             # Run the synchronous model function in a thread pool
             result = await self._run_in_threadpool(
                 self.storacha_model.upload_car,
-                car_path=request.car_path, 
-                space_did=request.space_did
+                car_path=request.car_path,
+                space_did=request.space_did,
             )
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
                 error_detail = {
                     "error": result.get("error", "Failed to upload CAR file"),
-                    "error_type": result.get("error_type", "UploadCarError")
+                    "error_type": result.get("error_type", "UploadCarError"),
                 }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail=f"CAR file upload failed: {error_detail.get('error')}" # Added context
-                ) # Removed extra parenthesis
+                    detail=f"CAR file upload failed: {error_detail.get('error')}",  # Added context
+                )  # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -468,14 +463,16 @@ class StorachaControllerAnyIO:
 
         except Exception as e:
             # Handle unexpected errors
-            error_response, status_code = handle_exception(e, "Failed to upload CAR file to Storacha")
+            error_response, status_code = handle_exception(
+                e, "Failed to upload CAR file to Storacha"
+            )
             raise HTTPException(status_code=status_code, detail=error_response)
 
     async def handle_list_uploads_request(
-        self, 
+        self,
         space_did: Optional[str] = None,
         limit: int = Query(100, ge=1, le=1000),
-        offset: int = Query(0, ge=0)
+        offset: int = Query(0, ge=0),
     ):
         """
         Handle list uploads request in Storacha.
@@ -491,22 +488,19 @@ class StorachaControllerAnyIO:
         try:
             # Run the synchronous model function in a thread pool
             result = await self._run_in_threadpool(
-                self.storacha_model.list_uploads,
-                space_did=space_did,
-                limit=limit,
-                offset=offset
+                self.storacha_model.list_uploads, space_did=space_did, limit=limit, offset=offset
             )
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
                 error_detail = {
                     "error": result.get("error", "Failed to list uploads"),
-                    "error_type": result.get("error_type", "ListUploadsError")
+                    "error_type": result.get("error_type", "ListUploadsError"),
                 }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail=f"Listing uploads failed: {error_detail.get('error')}" # Added context
-                ) # Removed extra parenthesis
+                    detail=f"Listing uploads failed: {error_detail.get('error')}",  # Added context
+                )  # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -533,21 +527,19 @@ class StorachaControllerAnyIO:
         try:
             # Run the synchronous model function in a thread pool
             result = await self._run_in_threadpool(
-                self.storacha_model.delete_upload,
-                cid=request.cid, 
-                space_did=request.space_did
+                self.storacha_model.delete_upload, cid=request.cid, space_did=request.space_did
             )
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
                 error_detail = {
                     "error": result.get("error", "Failed to delete upload"),
-                    "error_type": result.get("error_type", "DeleteUploadError")
+                    "error_type": result.get("error_type", "DeleteUploadError"),
                 }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail=f"Deleting upload failed: {error_detail.get('error')}" # Added context
-                ) # Removed extra parenthesis
+                    detail=f"Deleting upload failed: {error_detail.get('error')}",  # Added context
+                )  # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -558,7 +550,9 @@ class StorachaControllerAnyIO:
 
         except Exception as e:
             # Handle unexpected errors
-            error_response, status_code = handle_exception(e, "Failed to delete upload from Storacha")
+            error_response, status_code = handle_exception(
+                e, "Failed to delete upload from Storacha"
+            )
             raise HTTPException(status_code=status_code, detail=error_response)
 
     async def handle_ipfs_to_storacha_request(self, request: IPFSStorachaRequest):
@@ -575,22 +569,22 @@ class StorachaControllerAnyIO:
             # Run the synchronous model function in a thread pool
             result = await self._run_in_threadpool(
                 self.storacha_model.ipfs_to_storacha,
-                cid=request.cid, 
-                space_did=request.space_did, 
+                cid=request.cid,
+                space_did=request.space_did,
                 pin=request.pin,
-                metadata=request.metadata
+                metadata=request.metadata,
             )
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
                 error_detail = {
                     "error": result.get("error", "Failed to transfer from IPFS to Storacha"),
-                    "error_type": result.get("error_type", "IPFSToStorachaError")
+                    "error_type": result.get("error_type", "IPFSToStorachaError"),
                 }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail=f"IPFS to Storacha transfer failed: {error_detail.get('error')}" # Added context
-                ) # Removed extra parenthesis
+                    detail=f"IPFS to Storacha transfer failed: {error_detail.get('error')}",  # Added context
+                )  # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -601,7 +595,9 @@ class StorachaControllerAnyIO:
 
         except Exception as e:
             # Handle unexpected errors
-            error_response, status_code = handle_exception(e, "Failed to transfer from IPFS to Storacha")
+            error_response, status_code = handle_exception(
+                e, "Failed to transfer from IPFS to Storacha"
+            )
             raise HTTPException(status_code=status_code, detail=error_response)
 
     async def handle_storacha_to_ipfs_request(self, request: StorachaIPFSRequest):
@@ -618,21 +614,21 @@ class StorachaControllerAnyIO:
             # Run the synchronous model function in a thread pool
             result = await self._run_in_threadpool(
                 self.storacha_model.storacha_to_ipfs,
-                cid=request.cid, 
-                space_did=request.space_did, 
-                pin=request.pin
+                cid=request.cid,
+                space_did=request.space_did,
+                pin=request.pin,
             )
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
                 error_detail = {
                     "error": result.get("error", "Failed to transfer from Storacha to IPFS"),
-                    "error_type": result.get("error_type", "StorachaToIPFSError")
+                    "error_type": result.get("error_type", "StorachaToIPFSError"),
                 }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail=f"Storacha to IPFS transfer failed: {error_detail.get('error')}" # Added context
-                ) # Removed extra parenthesis
+                    detail=f"Storacha to IPFS transfer failed: {error_detail.get('error')}",  # Added context
+                )  # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -643,7 +639,9 @@ class StorachaControllerAnyIO:
 
         except Exception as e:
             # Handle unexpected errors
-            error_response, status_code = handle_exception(e, "Failed to transfer from Storacha to IPFS")
+            error_response, status_code = handle_exception(
+                e, "Failed to transfer from Storacha to IPFS"
+            )
             raise HTTPException(status_code=status_code, detail=error_response)
 
     async def handle_status_request(self):
@@ -656,8 +654,10 @@ class StorachaControllerAnyIO:
         try:
             # Run the synchronous model functions in a thread pool
             is_available = await self._run_in_threadpool(self.storacha_model.is_available)
-            connection_status = await self._run_in_threadpool(self.storacha_model.get_connection_status)
-            
+            connection_status = await self._run_in_threadpool(
+                self.storacha_model.get_connection_status
+            )
+
             # Create response
             return {
                 "success": True,
@@ -668,7 +668,7 @@ class StorachaControllerAnyIO:
                 "connection_status": connection_status,
                 "timestamp": time.time(),
             }
-            
+
         except Exception as e:
             # Handle unexpected errors
             error_response, status_code = handle_exception(e, "Failed to get Storacha status")

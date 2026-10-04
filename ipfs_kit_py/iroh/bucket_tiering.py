@@ -127,7 +127,11 @@ class BackendBinding:
             raise BackendConfigError("binding.enabled must be a boolean")
         _uint(self.quota_bytes, "binding.quota_bytes", allow_none=True)
         _uint(self.minimum_free_bytes, "binding.minimum_free_bytes")
-        if not isinstance(self.prefix, str) or self.prefix.startswith("/") or ".." in self.prefix.split("/"):
+        if (
+            not isinstance(self.prefix, str)
+            or self.prefix.startswith("/")
+            or ".." in self.prefix.split("/")
+        ):
             raise BackendConfigError("binding.prefix must be a safe relative POSIX path")
 
     @property
@@ -142,7 +146,16 @@ class BackendBinding:
         item = ensure_json_compatible(value, "binding")
         _only(
             item,
-            {"backend", "role", "tier", "priority", "enabled", "quota_bytes", "minimum_free_bytes", "prefix"},
+            {
+                "backend",
+                "role",
+                "tier",
+                "priority",
+                "enabled",
+                "quota_bytes",
+                "minimum_free_bytes",
+                "prefix",
+            },
             "binding",
         )
         if "backend" not in item or "role" not in item:
@@ -153,9 +166,14 @@ class BackendBinding:
         except (TypeError, ValueError) as exc:
             raise BackendConfigError("binding role or tier is invalid") from exc
         return cls(
-            item["backend"], role, tier, item.get("priority", 100),
-            item.get("enabled", True), item.get("quota_bytes"),
-            item.get("minimum_free_bytes", 0), item.get("prefix", ""),
+            item["backend"],
+            role,
+            tier,
+            item.get("priority", 100),
+            item.get("enabled", True),
+            item.get("quota_bytes"),
+            item.get("minimum_free_bytes", 0),
+            item.get("prefix", ""),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -192,7 +210,9 @@ class TierPolicy:
     schema_version: int = TIER_POLICY_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
-        if self.schema_version != TIER_POLICY_SCHEMA_VERSION or isinstance(self.schema_version, bool):
+        if self.schema_version != TIER_POLICY_SCHEMA_VERSION or isinstance(
+            self.schema_version, bool
+        ):
             raise BackendConfigError("tier policy schema_version must be 1")
         _positive_uint(self.replication_factor, "tier_policy.replication_factor")
         roles: list[BindingRole] = []
@@ -202,7 +222,9 @@ class TierPolicy:
         except (TypeError, ValueError) as exc:
             raise BackendConfigError("tier_policy.read_order contains an invalid role") from exc
         if len(roles) != len(set(roles)) or set(roles) != set(BindingRole):
-            raise BackendConfigError("tier_policy.read_order must contain every binding role exactly once")
+            raise BackendConfigError(
+                "tier_policy.read_order must contain every binding role exactly once"
+            )
         object.__setattr__(self, "read_order", tuple(roles))
         if not isinstance(self.cache_on_read, bool):
             raise BackendConfigError("tier_policy.cache_on_read must be a boolean")
@@ -216,7 +238,14 @@ class TierPolicy:
         item = ensure_json_compatible(value or {}, "tier_policy")
         _only(
             item,
-            {"schema_version", "replication_factor", "read_order", "cache_on_read", "cache_ttl_seconds", "archive_after_seconds"},
+            {
+                "schema_version",
+                "replication_factor",
+                "read_order",
+                "cache_on_read",
+                "cache_ttl_seconds",
+                "archive_after_seconds",
+            },
             "tier_policy",
         )
         return cls(
@@ -251,7 +280,9 @@ class BucketPolicy:
 
     def __post_init__(self) -> None:
         _bucket_name(self.bucket)
-        if self.schema_version != BUCKET_POLICY_SCHEMA_VERSION or isinstance(self.schema_version, bool):
+        if self.schema_version != BUCKET_POLICY_SCHEMA_VERSION or isinstance(
+            self.schema_version, bool
+        ):
             raise BackendConfigError("bucket policy schema_version must be 1")
         bindings = tuple(
             item if isinstance(item, BackendBinding) else BackendBinding.from_dict(item)
@@ -270,12 +301,18 @@ class BucketPolicy:
             raise BackendConfigError("a backend may be bound to a bucket only once")
         durable = sum(item.role in {BindingRole.PRIMARY, BindingRole.REPLICA} for item in enabled)
         if self.tier_policy.replication_factor > durable:
-            raise BackendConfigError("replication_factor exceeds enabled primary and replica bindings")
+            raise BackendConfigError(
+                "replication_factor exceeds enabled primary and replica bindings"
+            )
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "BucketPolicy":
         item = ensure_json_compatible(value, "bucket_policy")
-        _only(item, {"schema_version", "bucket", "bindings", "tier_policy", "quota_bytes"}, "bucket policy")
+        _only(
+            item,
+            {"schema_version", "bucket", "bindings", "tier_policy", "quota_bytes"},
+            "bucket policy",
+        )
         required = {"schema_version", "bucket", "bindings", "tier_policy"}
         if not required.issubset(item):
             raise BackendConfigError("bucket policy is missing required settings")
@@ -332,10 +369,23 @@ def migrate_bucket_policy(value: Mapping[str, Any]) -> dict[str, Any]:
         raise BackendConfigError(f"unsupported bucket policy schema_version: {version!r}")
 
     allowed = {
-        "schema_version", "name", "bucket", "backend", "primary_backend",
-        "replication_targets", "replicas", "cache_backend", "archive_backend",
-        "bindings", "quota", "quota_bytes", "max_size", "tier_policy",
-        "replication_factor", "cache_policy", "retention_days",
+        "schema_version",
+        "name",
+        "bucket",
+        "backend",
+        "primary_backend",
+        "replication_targets",
+        "replicas",
+        "cache_backend",
+        "archive_backend",
+        "bindings",
+        "quota",
+        "quota_bytes",
+        "max_size",
+        "tier_policy",
+        "replication_factor",
+        "cache_policy",
+        "retention_days",
     }
     _only(source, allowed, "legacy bucket policy")
     bucket = source.get("bucket", source.get("name"))
@@ -375,7 +425,9 @@ def migrate_bucket_policy(value: Mapping[str, Any]) -> dict[str, Any]:
             bindings.append({"backend": source[backend_field], "role": role})
 
     normalized_bindings = [BackendBinding.from_dict(item).to_dict() for item in bindings]
-    durable_count = sum(item["role"] in {"primary", "replica"} and item["enabled"] for item in normalized_bindings)
+    durable_count = sum(
+        item["role"] in {"primary", "replica"} and item["enabled"] for item in normalized_bindings
+    )
     tier_source = dict(source.get("tier_policy") or {})
     tier_source.setdefault("schema_version", 1)
     tier_source.setdefault("replication_factor", source.get("replication_factor", durable_count))
@@ -528,11 +580,15 @@ class ReconciliationReceipt:
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "ReconciliationReceipt":
         if not isinstance(value, Mapping):
-            raise IrohIntegrityError("reconciliation receipt must be an object", operation="bucket.receipt")
+            raise IrohIntegrityError(
+                "reconciliation receipt must be an object", operation="bucket.receipt"
+            )
         raw = ensure_json_compatible(value, "receipt")
         digest = raw.pop("receipt_digest", None)
         if not isinstance(digest, str) or digest != blake3(_canonical_json(raw)).hexdigest():
-            raise IrohIntegrityError("reconciliation receipt digest is invalid", operation="bucket.receipt")
+            raise IrohIntegrityError(
+                "reconciliation receipt digest is invalid", operation="bucket.receipt"
+            )
         try:
             if raw["schema_version"] != 1 or raw["kind"] != RECONCILIATION_RECEIPT_KIND:
                 raise ValueError("unsupported receipt version")
@@ -540,17 +596,31 @@ class ReconciliationReceipt:
             if raw["action_count"] != len(actions):
                 raise ValueError("action count mismatch")
             receipt = cls(
-                raw["receipt_id"], raw["bucket"], raw["operation"], raw["status"],
-                raw["policy_digest"], raw["started_at"], raw["completed_at"],
-                raw["dry_run"], actions, raw["logical_bytes_before"],
-                raw["logical_bytes_after"], raw["quota_bytes"],
-                raw["duplicate_objects"], raw["duplicate_bytes"], raw["kind"],
+                raw["receipt_id"],
+                raw["bucket"],
+                raw["operation"],
+                raw["status"],
+                raw["policy_digest"],
+                raw["started_at"],
+                raw["completed_at"],
+                raw["dry_run"],
+                actions,
+                raw["logical_bytes_before"],
+                raw["logical_bytes_after"],
+                raw["quota_bytes"],
+                raw["duplicate_objects"],
+                raw["duplicate_bytes"],
+                raw["kind"],
                 raw["schema_version"],
             )
         except (KeyError, TypeError, ValueError) as exc:
-            raise IrohIntegrityError("reconciliation receipt is malformed", operation="bucket.receipt") from exc
+            raise IrohIntegrityError(
+                "reconciliation receipt is malformed", operation="bucket.receipt"
+            ) from exc
         if receipt.to_dict() != value:
-            raise IrohIntegrityError("reconciliation receipt fields are inconsistent", operation="bucket.receipt")
+            raise IrohIntegrityError(
+                "reconciliation receipt fields are inconsistent", operation="bucket.receipt"
+            )
         return receipt
 
     def write(self, destination: str | os.PathLike[str]) -> Path:
@@ -599,12 +669,16 @@ def verify_reconciliation_receipt(value: Any) -> ReconciliationReceipt:
         try:
             value = value.decode("utf-8")
         except UnicodeError as exc:
-            raise IrohIntegrityError("reconciliation receipt is not UTF-8", operation="bucket.receipt") from exc
+            raise IrohIntegrityError(
+                "reconciliation receipt is not UTF-8", operation="bucket.receipt"
+            ) from exc
     if isinstance(value, str):
         try:
             value = json.loads(value)
         except json.JSONDecodeError as exc:
-            raise IrohIntegrityError("reconciliation receipt is invalid JSON", operation="bucket.receipt") from exc
+            raise IrohIntegrityError(
+                "reconciliation receipt is invalid JSON", operation="bucket.receipt"
+            ) from exc
     return ReconciliationReceipt.from_dict(value)
 
 
@@ -617,7 +691,9 @@ class IrohBucketTieringManager:
         state_path: str | os.PathLike[str] | None = None,
         *,
         db_path: str | os.PathLike[str] | None = None,
-        capacity_provider: Callable[[str], Mapping[str, Any]] | Mapping[str, Mapping[str, Any]] | None = None,
+        capacity_provider: Callable[[str], Mapping[str, Any]]
+        | Mapping[str, Mapping[str, Any]]
+        | None = None,
         placement_handler: Callable[[Mapping[str, Any], Mapping[str, Any]], Any] | None = None,
         clock: Callable[[], float] = time.time,
     ) -> None:
@@ -719,7 +795,11 @@ class IrohBucketTieringManager:
             policy = bucket
         elif isinstance(bucket, Mapping):
             raw = dict(bucket)
-            policy = BucketPolicy.from_dict(raw) if raw.get("schema_version") == 1 else BucketPolicy.from_dict(migrate_bucket_policy(raw))
+            policy = (
+                BucketPolicy.from_dict(raw)
+                if raw.get("schema_version") == 1
+                else BucketPolicy.from_dict(migrate_bucket_policy(raw))
+            )
         else:
             generated: list[BackendBinding | Mapping[str, Any]] = list(bindings or ())
             selected_primary = primary_backend or primary
@@ -727,21 +807,40 @@ class IrohBucketTieringManager:
                 if not selected_primary:
                     raise BackendConfigError("create_bucket requires a primary backend or bindings")
                 generated.append({"backend": selected_primary, "role": "primary"})
-                generated.extend({"backend": item, "role": "replica"} for item in (*replicas, *replication_targets))
+                generated.extend(
+                    {"backend": item, "role": "replica"}
+                    for item in (*replicas, *replication_targets)
+                )
                 if cache:
                     generated.append({"backend": cache, "role": "cache"})
                 if archive:
                     generated.append({"backend": archive, "role": "archive"})
-            normalized = tuple(item if isinstance(item, BackendBinding) else BackendBinding.from_dict(item) for item in generated)
-            durable = sum(item.enabled and item.role in {BindingRole.PRIMARY, BindingRole.REPLICA} for item in normalized)
-            selected_tier = tier_policy if isinstance(tier_policy, TierPolicy) else TierPolicy.from_dict(tier_policy)
+            normalized = tuple(
+                item if isinstance(item, BackendBinding) else BackendBinding.from_dict(item)
+                for item in generated
+            )
+            durable = sum(
+                item.enabled and item.role in {BindingRole.PRIMARY, BindingRole.REPLICA}
+                for item in normalized
+            )
+            selected_tier = (
+                tier_policy
+                if isinstance(tier_policy, TierPolicy)
+                else TierPolicy.from_dict(tier_policy)
+            )
             if tier_policy is None:
                 selected_tier = replace(selected_tier, replication_factor=durable)
             policy = BucketPolicy(bucket, normalized, selected_tier, quota_bytes)
         self._validate_backends(policy)
         with self._lock:
-            if self._db.execute("SELECT 1 FROM bucket_policies WHERE bucket=?", (policy.bucket,)).fetchone():
-                raise IrohConflictError("bucket already exists", operation="bucket.create", metadata={"bucket": policy.bucket})
+            if self._db.execute(
+                "SELECT 1 FROM bucket_policies WHERE bucket=?", (policy.bucket,)
+            ).fetchone():
+                raise IrohConflictError(
+                    "bucket already exists",
+                    operation="bucket.create",
+                    metadata={"bucket": policy.bucket},
+                )
             self._persist_policy(policy)
         return policy
 
@@ -752,30 +851,52 @@ class IrohBucketTieringManager:
             """INSERT INTO bucket_policies VALUES(?,?,?,?)
                ON CONFLICT(bucket) DO UPDATE SET policy_json=excluded.policy_json,
                policy_digest=excluded.policy_digest,updated_at=excluded.updated_at""",
-            (policy.bucket, _canonical_json(policy.to_dict()).decode(), policy.policy_digest, self.clock()),
+            (
+                policy.bucket,
+                _canonical_json(policy.to_dict()).decode(),
+                policy.policy_digest,
+                self.clock(),
+            ),
         )
 
     def get_policy(self, bucket: str) -> BucketPolicy:
         _bucket_name(bucket)
         with self._lock:
-            row = self._db.execute("SELECT policy_json FROM bucket_policies WHERE bucket=?", (bucket,)).fetchone()
+            row = self._db.execute(
+                "SELECT policy_json FROM bucket_policies WHERE bucket=?", (bucket,)
+            ).fetchone()
         if row is None:
             raise KeyError(bucket)
         raw = json.loads(row[0])
-        return BucketPolicy.from_dict(raw) if raw.get("schema_version") == 1 else BucketPolicy.from_dict(migrate_bucket_policy(raw))
+        return (
+            BucketPolicy.from_dict(raw)
+            if raw.get("schema_version") == 1
+            else BucketPolicy.from_dict(migrate_bucket_policy(raw))
+        )
 
     def list_buckets(self) -> tuple[str, ...]:
         with self._lock:
-            return tuple(row[0] for row in self._db.execute("SELECT bucket FROM bucket_policies ORDER BY bucket").fetchall())
+            return tuple(
+                row[0]
+                for row in self._db.execute(
+                    "SELECT bucket FROM bucket_policies ORDER BY bucket"
+                ).fetchall()
+            )
 
-    def update_policy(self, bucket: str, value: BucketPolicy | Mapping[str, Any]) -> ReconciliationReceipt:
+    def update_policy(
+        self, bucket: str, value: BucketPolicy | Mapping[str, Any]
+    ) -> ReconciliationReceipt:
         old = self.get_policy(bucket)
         if isinstance(value, BucketPolicy):
             policy = value
         else:
             raw = dict(value)
             raw.setdefault("bucket", bucket)
-            policy = BucketPolicy.from_dict(raw) if raw.get("schema_version") == 1 else BucketPolicy.from_dict(migrate_bucket_policy(raw))
+            policy = (
+                BucketPolicy.from_dict(raw)
+                if raw.get("schema_version") == 1
+                else BucketPolicy.from_dict(migrate_bucket_policy(raw))
+            )
         if policy.bucket != bucket:
             raise BackendConfigError("updated policy bucket does not match the existing bucket")
         self._validate_backends(policy)
@@ -805,7 +926,9 @@ class IrohBucketTieringManager:
     def logical_usage(self, bucket: str) -> int:
         self.get_policy(bucket)
         with self._lock:
-            row = self._db.execute("SELECT COALESCE(SUM(size),0) FROM bucket_content WHERE bucket=?", (bucket,)).fetchone()
+            row = self._db.execute(
+                "SELECT COALESCE(SUM(size),0) FROM bucket_content WHERE bucket=?", (bucket,)
+            ).fetchone()
         return int(row[0])
 
     def _binding_usage(self, backend: str) -> int:
@@ -821,10 +944,12 @@ class IrohBucketTieringManager:
 
     def _backend_has_content(self, backend: str, iroh_hash: str) -> bool:
         with self._lock:
-            return bool(self._db.execute(
-                "SELECT 1 FROM bucket_placements WHERE backend=? AND iroh_hash=? AND status='placed' LIMIT 1",
-                (backend, iroh_hash),
-            ).fetchone())
+            return bool(
+                self._db.execute(
+                    "SELECT 1 FROM bucket_placements WHERE backend=? AND iroh_hash=? AND status='placed' LIMIT 1",
+                    (backend, iroh_hash),
+                ).fetchone()
+            )
 
     def _raw_capacity(self, backend: str) -> Mapping[str, Any]:
         provider = self.capacity_provider
@@ -836,8 +961,14 @@ class IrohBucketTieringManager:
             result = self.backend_manager.get_backend_health(backend)
         return result if isinstance(result, Mapping) else {}
 
-    def capacity_report(self, bucket: str | None = None, backend: str | None = None) -> dict[str, Any]:
-        policies = [self.get_policy(bucket)] if bucket else [self.get_policy(item) for item in self.list_buckets()]
+    def capacity_report(
+        self, bucket: str | None = None, backend: str | None = None
+    ) -> dict[str, Any]:
+        policies = (
+            [self.get_policy(bucket)]
+            if bucket
+            else [self.get_policy(item) for item in self.list_buckets()]
+        )
         selected: dict[str, BackendBinding] = {}
         for policy in policies:
             for binding in policy.bindings:
@@ -852,9 +983,21 @@ class IrohBucketTieringManager:
             if not isinstance(storage, Mapping):
                 storage = {}
             used = storage.get("used_bytes", raw.get("used_bytes", 0))
-            capacity = storage.get("capacity_bytes", storage.get("limit_bytes", raw.get("capacity_bytes")))
-            used = int(used) if isinstance(used, (int, float)) and not isinstance(used, bool) and used >= 0 else 0
-            capacity = int(capacity) if isinstance(capacity, (int, float)) and not isinstance(capacity, bool) and capacity >= 0 else None
+            capacity = storage.get(
+                "capacity_bytes", storage.get("limit_bytes", raw.get("capacity_bytes"))
+            )
+            used = (
+                int(used)
+                if isinstance(used, (int, float)) and not isinstance(used, bool) and used >= 0
+                else 0
+            )
+            capacity = (
+                int(capacity)
+                if isinstance(capacity, (int, float))
+                and not isinstance(capacity, bool)
+                and capacity >= 0
+                else None
+            )
             placement = self._binding_usage(name)
             available_candidates: list[int] = []
             if capacity is not None:
@@ -866,14 +1009,24 @@ class IrohBucketTieringManager:
                 config = self.backend_manager.get_backend_config(name, redact=True)
             except TypeError:
                 config = self.backend_manager.get_backend_config(name)
-            reports.append(CapacityReport(
-                name, str(config.get("type", "unknown")), used, capacity, placement,
-                binding.quota_bytes, binding.minimum_free_bytes, available,
-                raw.get("healthy") if isinstance(raw.get("healthy"), bool) else None,
-            ))
+            reports.append(
+                CapacityReport(
+                    name,
+                    str(config.get("type", "unknown")),
+                    used,
+                    capacity,
+                    placement,
+                    binding.quota_bytes,
+                    binding.minimum_free_bytes,
+                    available,
+                    raw.get("healthy") if isinstance(raw.get("healthy"), bool) else None,
+                )
+            )
         return {
             "bucket": bucket,
-            "logical_usage_bytes": self.logical_usage(bucket) if bucket else sum(self.logical_usage(item) for item in self.list_buckets()),
+            "logical_usage_bytes": self.logical_usage(bucket)
+            if bucket
+            else sum(self.logical_usage(item) for item in self.list_buckets()),
             "backends": [item.to_dict() for item in reports],
         }
 
@@ -882,50 +1035,83 @@ class IrohBucketTieringManager:
 
     @staticmethod
     def _desired_bindings(policy: BucketPolicy) -> tuple[BackendBinding, ...]:
-        enabled = sorted((item for item in policy.bindings if item.enabled), key=lambda item: (item.priority, item.backend))
+        enabled = sorted(
+            (item for item in policy.bindings if item.enabled),
+            key=lambda item: (item.priority, item.backend),
+        )
         primary = [item for item in enabled if item.role is BindingRole.PRIMARY]
         replicas = [item for item in enabled if item.role is BindingRole.REPLICA]
         durable = primary + replicas[: max(0, policy.tier_policy.replication_factor - 1)]
-        ancillary = [item for item in enabled if item.role in {BindingRole.CACHE, BindingRole.ARCHIVE}]
+        ancillary = [
+            item for item in enabled if item.role in {BindingRole.CACHE, BindingRole.ARCHIVE}
+        ]
         return tuple(durable + ancillary)
 
-    def select_placement(self, bucket: str, size: int, *, iroh_hash: str | None = None) -> tuple[BackendBinding, ...]:
+    def select_placement(
+        self, bucket: str, size: int, *, iroh_hash: str | None = None
+    ) -> tuple[BackendBinding, ...]:
         policy = self.get_policy(bucket)
         size = _uint(size, "size")  # type: ignore[assignment]
         duplicate = False
         if iroh_hash is not None:
             _content_hash(iroh_hash)
             with self._lock:
-                row = self._db.execute("SELECT size FROM bucket_content WHERE bucket=? AND iroh_hash=?", (bucket, iroh_hash)).fetchone()
+                row = self._db.execute(
+                    "SELECT size FROM bucket_content WHERE bucket=? AND iroh_hash=?",
+                    (bucket, iroh_hash),
+                ).fetchone()
             if row is not None:
                 if int(row[0]) != size:
-                    raise IrohIntegrityError("an existing Iroh hash has a different size", operation="bucket.place")
+                    raise IrohIntegrityError(
+                        "an existing Iroh hash has a different size", operation="bucket.place"
+                    )
                 duplicate = True
         usage = self.logical_usage(bucket)
-        if policy.quota_bytes is not None and usage + (0 if duplicate else size) > policy.quota_bytes:
+        if (
+            policy.quota_bytes is not None
+            and usage + (0 if duplicate else size) > policy.quota_bytes
+        ):
             raise IrohConflictError(
-                "virtual bucket quota would be exceeded", operation="bucket.place",
-                metadata={"bucket": bucket, "usage_bytes": usage, "quota_bytes": policy.quota_bytes, "additional_bytes": 0 if duplicate else size},
+                "virtual bucket quota would be exceeded",
+                operation="bucket.place",
+                metadata={
+                    "bucket": bucket,
+                    "usage_bytes": usage,
+                    "quota_bytes": policy.quota_bytes,
+                    "additional_bytes": 0 if duplicate else size,
+                },
             )
         selected = self._desired_bindings(policy)
         reports = {item["backend"]: item for item in self.capacity_report(bucket)["backends"]}
         for binding in selected:
             with self._lock:
-                exists = bool(iroh_hash and self._db.execute(
-                    "SELECT 1 FROM bucket_placements WHERE bucket=? AND iroh_hash=? AND backend=? AND status='placed'",
-                    (bucket, iroh_hash, binding.backend),
-                ).fetchone())
+                exists = bool(
+                    iroh_hash
+                    and self._db.execute(
+                        "SELECT 1 FROM bucket_placements WHERE bucket=? AND iroh_hash=? AND backend=? AND status='placed'",
+                        (bucket, iroh_hash, binding.backend),
+                    ).fetchone()
+                )
             available = reports.get(binding.backend, {}).get("available_bytes")
             if reports.get(binding.backend, {}).get("healthy") is False:
                 raise IrohConflictError(
-                    "backend is unhealthy", operation="bucket.place",
+                    "backend is unhealthy",
+                    operation="bucket.place",
                     metadata={"bucket": bucket, "backend": binding.backend},
                 )
-            backend_duplicate = bool(iroh_hash and self._backend_has_content(binding.backend, iroh_hash))
+            backend_duplicate = bool(
+                iroh_hash and self._backend_has_content(binding.backend, iroh_hash)
+            )
             if not exists and not backend_duplicate and available is not None and size > available:
                 raise IrohConflictError(
-                    "backend capacity would be exceeded", operation="bucket.place",
-                    metadata={"bucket": bucket, "backend": binding.backend, "available_bytes": available, "additional_bytes": size},
+                    "backend capacity would be exceeded",
+                    operation="bucket.place",
+                    metadata={
+                        "bucket": bucket,
+                        "backend": binding.backend,
+                        "available_bytes": available,
+                        "additional_bytes": size,
+                    },
                 )
         return selected
 
@@ -958,8 +1144,14 @@ class IrohBucketTieringManager:
         supplied = contents is not None
         if contents is None:
             with self._lock:
-                rows = self._db.execute("SELECT iroh_hash,size,metadata_json FROM bucket_content WHERE bucket=? ORDER BY iroh_hash", (bucket,)).fetchall()
-            desired = [{"iroh_hash": row[0], "size": int(row[1]), "metadata": json.loads(row[2])} for row in rows]
+                rows = self._db.execute(
+                    "SELECT iroh_hash,size,metadata_json FROM bucket_content WHERE bucket=? ORDER BY iroh_hash",
+                    (bucket,),
+                ).fetchall()
+            desired = [
+                {"iroh_hash": row[0], "size": int(row[1]), "metadata": json.loads(row[2])}
+                for row in rows
+            ]
         else:
             desired = [self._normalize_content(item) for item in contents]
         unique: dict[str, dict[str, Any]] = {}
@@ -970,7 +1162,9 @@ class IrohBucketTieringManager:
             existing = unique.get(item["iroh_hash"])
             if existing is not None:
                 if existing["size"] != item["size"]:
-                    raise IrohIntegrityError("duplicate Iroh hash has inconsistent sizes", operation="bucket.reconcile")
+                    raise IrohIntegrityError(
+                        "duplicate Iroh hash has inconsistent sizes", operation="bucket.reconcile"
+                    )
                 if item["iroh_hash"] not in deduplicated_hashes:
                     deduplicated_hashes.add(item["iroh_hash"])
                     duplicate_objects += 1
@@ -987,7 +1181,10 @@ class IrohBucketTieringManager:
 
         for digest, item in sorted(unique.items()):
             with self._lock:
-                row = self._db.execute("SELECT size FROM bucket_content WHERE bucket=? AND iroh_hash=?", (bucket, digest)).fetchone()
+                row = self._db.execute(
+                    "SELECT size FROM bucket_content WHERE bucket=? AND iroh_hash=?",
+                    (bucket, digest),
+                ).fetchone()
                 placed_rows = self._db.execute(
                     "SELECT backend,role,tier,size FROM bucket_placements WHERE bucket=? AND iroh_hash=? AND status='placed'",
                     (bucket, digest),
@@ -996,7 +1193,9 @@ class IrohBucketTieringManager:
             existing_content = row is not None
             if existing_content:
                 if int(row[0]) != item["size"]:
-                    raise IrohIntegrityError("an existing Iroh hash has a different size", operation="bucket.reconcile")
+                    raise IrohIntegrityError(
+                        "an existing Iroh hash has a different size", operation="bucket.reconcile"
+                    )
                 if digest not in deduplicated_hashes:
                     deduplicated_hashes.add(digest)
                     duplicate_objects += 1
@@ -1004,12 +1203,34 @@ class IrohBucketTieringManager:
             additional = 0 if existing_content else item["size"]
             if policy.quota_bytes is not None and projected + additional > policy.quota_bytes:
                 rejected = True
-                actions.append(ReconciliationAction("reject", digest, item["size"], None, None, None, "rejected", "bucket_quota_exceeded"))
+                actions.append(
+                    ReconciliationAction(
+                        "reject",
+                        digest,
+                        item["size"],
+                        None,
+                        None,
+                        None,
+                        "rejected",
+                        "bucket_quota_exceeded",
+                    )
+                )
                 continue
             object_rejected = False
             for binding in desired_bindings:
                 if binding.backend in placed:
-                    actions.append(ReconciliationAction("noop", digest, item["size"], binding.backend, binding.role.value, binding.storage_tier.value, "unchanged", "already_placed"))
+                    actions.append(
+                        ReconciliationAction(
+                            "noop",
+                            digest,
+                            item["size"],
+                            binding.backend,
+                            binding.role.value,
+                            binding.storage_tier.value,
+                            "unchanged",
+                            "already_placed",
+                        )
+                    )
                     continue
                 backend_duplicate = self._backend_has_content(binding.backend, digest)
                 if backend_duplicate:
@@ -1017,31 +1238,73 @@ class IrohBucketTieringManager:
                         deduplicated_hashes.add(digest)
                         duplicate_objects += 1
                         duplicate_bytes += item["size"]
-                    actions.append(ReconciliationAction(
-                        "place", digest, item["size"], binding.backend, binding.role.value,
-                        binding.storage_tier.value, "planned" if dry_run else "placed",
-                        "content_already_on_backend",
-                    ))
+                    actions.append(
+                        ReconciliationAction(
+                            "place",
+                            digest,
+                            item["size"],
+                            binding.backend,
+                            binding.role.value,
+                            binding.storage_tier.value,
+                            "planned" if dry_run else "placed",
+                            "content_already_on_backend",
+                        )
+                    )
                     continue
                 if capacity.get(binding.backend, {}).get("healthy") is False:
                     object_rejected = True
                     rejected = True
-                    actions.append(ReconciliationAction("reject", digest, item["size"], binding.backend, binding.role.value, binding.storage_tier.value, "rejected", "backend_unhealthy"))
+                    actions.append(
+                        ReconciliationAction(
+                            "reject",
+                            digest,
+                            item["size"],
+                            binding.backend,
+                            binding.role.value,
+                            binding.storage_tier.value,
+                            "rejected",
+                            "backend_unhealthy",
+                        )
+                    )
                     continue
                 available = capacity.get(binding.backend, {}).get("available_bytes")
                 reserved = capacity_reserved.get(binding.backend, 0)
                 if available is not None and item["size"] > max(0, available - reserved):
                     object_rejected = True
                     rejected = True
-                    actions.append(ReconciliationAction("reject", digest, item["size"], binding.backend, binding.role.value, binding.storage_tier.value, "rejected", "backend_capacity_exceeded"))
+                    actions.append(
+                        ReconciliationAction(
+                            "reject",
+                            digest,
+                            item["size"],
+                            binding.backend,
+                            binding.role.value,
+                            binding.storage_tier.value,
+                            "rejected",
+                            "backend_capacity_exceeded",
+                        )
+                    )
                     continue
                 status = "planned" if dry_run else "placed"
-                action = ReconciliationAction("place", digest, item["size"], binding.backend, binding.role.value, binding.storage_tier.value, status, "policy_requires_placement")
+                action = ReconciliationAction(
+                    "place",
+                    digest,
+                    item["size"],
+                    binding.backend,
+                    binding.role.value,
+                    binding.storage_tier.value,
+                    status,
+                    "policy_requires_placement",
+                )
                 if not dry_run and self.placement_handler is not None:
                     try:
                         outcome = self.placement_handler(action.to_dict(), copy.deepcopy(item))
-                        if outcome is False or (isinstance(outcome, Mapping) and outcome.get("success") is False):
-                            action = replace(action, status="failed", reason="placement_handler_failed")
+                        if outcome is False or (
+                            isinstance(outcome, Mapping) and outcome.get("success") is False
+                        ):
+                            action = replace(
+                                action, status="failed", reason="placement_handler_failed"
+                            )
                             rejected = True
                             object_rejected = True
                     except Exception:
@@ -1056,18 +1319,32 @@ class IrohBucketTieringManager:
                 if stale_backend in desired_backend_names:
                     continue
                 stale_action = ReconciliationAction(
-                    "remove", digest, int(stale[3]), stale_backend, stale[1], stale[2],
-                    "planned" if dry_run else "removed", "binding_no_longer_in_policy",
+                    "remove",
+                    digest,
+                    int(stale[3]),
+                    stale_backend,
+                    stale[1],
+                    stale[2],
+                    "planned" if dry_run else "removed",
+                    "binding_no_longer_in_policy",
                 )
                 if not dry_run and self.placement_handler is not None:
                     try:
-                        outcome = self.placement_handler(stale_action.to_dict(), copy.deepcopy(item))
-                        if outcome is False or (isinstance(outcome, Mapping) and outcome.get("success") is False):
-                            stale_action = replace(stale_action, status="failed", reason="placement_handler_failed")
+                        outcome = self.placement_handler(
+                            stale_action.to_dict(), copy.deepcopy(item)
+                        )
+                        if outcome is False or (
+                            isinstance(outcome, Mapping) and outcome.get("success") is False
+                        ):
+                            stale_action = replace(
+                                stale_action, status="failed", reason="placement_handler_failed"
+                            )
                             rejected = True
                             object_rejected = True
                     except Exception:
-                        stale_action = replace(stale_action, status="failed", reason="placement_handler_error")
+                        stale_action = replace(
+                            stale_action, status="failed", reason="placement_handler_error"
+                        )
                         rejected = True
                         object_rejected = True
                 actions.append(stale_action)
@@ -1083,34 +1360,85 @@ class IrohBucketTieringManager:
                 ).fetchall()
             for digest, backend_name, role, tier, size in extras:
                 if digest not in desired_hashes:
-                    actions.append(ReconciliationAction("remove", digest, int(size), backend_name, role, tier, "planned" if dry_run else "removed", "content_not_desired"))
+                    actions.append(
+                        ReconciliationAction(
+                            "remove",
+                            digest,
+                            int(size),
+                            backend_name,
+                            role,
+                            tier,
+                            "planned" if dry_run else "removed",
+                            "content_not_desired",
+                        )
+                    )
 
         if not dry_run:
             with self._lock:
                 self._db.execute("BEGIN TRANSACTION")
                 try:
                     for item in unique.values():
-                        if any(action.iroh_hash == item["iroh_hash"] and action.action == "reject" for action in actions):
+                        if any(
+                            action.iroh_hash == item["iroh_hash"] and action.action == "reject"
+                            for action in actions
+                        ):
                             continue
                         self._db.execute(
                             "INSERT INTO bucket_content VALUES(?,?,?,?,?) ON CONFLICT(bucket,iroh_hash) DO NOTHING",
-                            (bucket, item["iroh_hash"], item["size"], _canonical_json(item["metadata"]).decode(), self.clock()),
+                            (
+                                bucket,
+                                item["iroh_hash"],
+                                item["size"],
+                                _canonical_json(item["metadata"]).decode(),
+                                self.clock(),
+                            ),
                         )
                     for action in actions:
-                        if action.backend and action.action == "place" and action.status == "placed":
+                        if (
+                            action.backend
+                            and action.action == "place"
+                            and action.status == "placed"
+                        ):
                             self._db.execute(
                                 """INSERT INTO bucket_placements VALUES(?,?,?,?,?,?,?,?)
                                    ON CONFLICT(bucket,iroh_hash,backend) DO UPDATE SET role=excluded.role,
                                    tier=excluded.tier,size=excluded.size,status=excluded.status,updated_at=excluded.updated_at""",
-                                (bucket, action.iroh_hash, action.backend, action.role, action.tier, action.size, "placed", self.clock()),
+                                (
+                                    bucket,
+                                    action.iroh_hash,
+                                    action.backend,
+                                    action.role,
+                                    action.tier,
+                                    action.size,
+                                    "placed",
+                                    self.clock(),
+                                ),
                             )
-                        elif action.backend and action.action == "remove" and action.status == "removed":
-                            self._db.execute("DELETE FROM bucket_placements WHERE bucket=? AND iroh_hash=? AND backend=?", (bucket, action.iroh_hash, action.backend))
+                        elif (
+                            action.backend
+                            and action.action == "remove"
+                            and action.status == "removed"
+                        ):
+                            self._db.execute(
+                                "DELETE FROM bucket_placements WHERE bucket=? AND iroh_hash=? AND backend=?",
+                                (bucket, action.iroh_hash, action.backend),
+                            )
                     if prune and supplied:
-                        for digest in set(row[0] for row in self._db.execute("SELECT iroh_hash FROM bucket_content WHERE bucket=?", (bucket,)).fetchall()) - set(unique):
-                            remaining = self._db.execute("SELECT 1 FROM bucket_placements WHERE bucket=? AND iroh_hash=?", (bucket, digest)).fetchone()
+                        for digest in set(
+                            row[0]
+                            for row in self._db.execute(
+                                "SELECT iroh_hash FROM bucket_content WHERE bucket=?", (bucket,)
+                            ).fetchall()
+                        ) - set(unique):
+                            remaining = self._db.execute(
+                                "SELECT 1 FROM bucket_placements WHERE bucket=? AND iroh_hash=?",
+                                (bucket, digest),
+                            ).fetchone()
                             if not remaining:
-                                self._db.execute("DELETE FROM bucket_content WHERE bucket=? AND iroh_hash=?", (bucket, digest))
+                                self._db.execute(
+                                    "DELETE FROM bucket_content WHERE bucket=? AND iroh_hash=?",
+                                    (bucket, digest),
+                                )
                     self._db.execute("COMMIT")
                 except Exception:
                     self._db.execute("ROLLBACK")
@@ -1118,11 +1446,26 @@ class IrohBucketTieringManager:
 
         after = projected if dry_run else self.logical_usage(bucket)
         failed = any(item.status == "failed" for item in actions)
-        status = "dry-run" if dry_run and not rejected else ("partial" if failed else ("rejected" if rejected else "converged"))
+        status = (
+            "dry-run"
+            if dry_run and not rejected
+            else ("partial" if failed else ("rejected" if rejected else "converged"))
+        )
         receipt = ReconciliationReceipt(
-            uuid.uuid4().hex, bucket, operation, status, policy.policy_digest,
-            _rfc3339(started_epoch), _rfc3339(self.clock()), dry_run, tuple(actions),
-            before, after, policy.quota_bytes, duplicate_objects, duplicate_bytes,
+            uuid.uuid4().hex,
+            bucket,
+            operation,
+            status,
+            policy.policy_digest,
+            _rfc3339(started_epoch),
+            _rfc3339(self.clock()),
+            dry_run,
+            tuple(actions),
+            before,
+            after,
+            policy.quota_bytes,
+            duplicate_objects,
+            duplicate_bytes,
         )
         self._persist_receipt(receipt)
         self.last_receipt = receipt
@@ -1132,7 +1475,14 @@ class IrohBucketTieringManager:
         with self._lock:
             self._db.execute(
                 "INSERT INTO bucket_receipts VALUES(?,?,?,?,?,?)",
-                (receipt.receipt_id, receipt.bucket, receipt.operation, receipt.status, receipt.to_json(), self.clock()),
+                (
+                    receipt.receipt_id,
+                    receipt.bucket,
+                    receipt.operation,
+                    receipt.status,
+                    receipt.to_json(),
+                    self.clock(),
+                ),
             )
 
     def place_content(
@@ -1145,11 +1495,19 @@ class IrohBucketTieringManager:
         dry_run: bool = False,
         raise_on_rejection: bool = True,
     ) -> ReconciliationReceipt:
-        receipt = self.reconcile(bucket, [{"iroh_hash": iroh_hash, "size": size, "metadata": dict(metadata or {})}], dry_run=dry_run)
+        receipt = self.reconcile(
+            bucket,
+            [{"iroh_hash": iroh_hash, "size": size, "metadata": dict(metadata or {})}],
+            dry_run=dry_run,
+        )
         if raise_on_rejection and receipt.status in {"rejected", "partial"}:
-            reason = next((item.reason for item in receipt.actions if item.status in {"rejected", "failed"}), "placement_rejected")
+            reason = next(
+                (item.reason for item in receipt.actions if item.status in {"rejected", "failed"}),
+                "placement_rejected",
+            )
             raise IrohConflictError(
-                "bucket placement was rejected", operation="bucket.place",
+                "bucket placement was rejected",
+                operation="bucket.place",
                 metadata={"bucket": bucket, "reason": reason, "receipt_id": receipt.receipt_id},
             )
         return receipt
@@ -1166,7 +1524,9 @@ class IrohBucketTieringManager:
 
     def get_receipt(self, receipt_id: str) -> ReconciliationReceipt:
         with self._lock:
-            row = self._db.execute("SELECT receipt_json FROM bucket_receipts WHERE receipt_id=?", (receipt_id,)).fetchone()
+            row = self._db.execute(
+                "SELECT receipt_json FROM bucket_receipts WHERE receipt_id=?", (receipt_id,)
+            ).fetchone()
         if row is None:
             raise KeyError(receipt_id)
         return verify_reconciliation_receipt(row[0])
@@ -1174,10 +1534,15 @@ class IrohBucketTieringManager:
     def list_receipts(self, bucket: str | None = None) -> tuple[ReconciliationReceipt, ...]:
         with self._lock:
             if bucket is None:
-                rows = self._db.execute("SELECT receipt_json FROM bucket_receipts ORDER BY created_at,receipt_id").fetchall()
+                rows = self._db.execute(
+                    "SELECT receipt_json FROM bucket_receipts ORDER BY created_at,receipt_id"
+                ).fetchall()
             else:
                 _bucket_name(bucket)
-                rows = self._db.execute("SELECT receipt_json FROM bucket_receipts WHERE bucket=? ORDER BY created_at,receipt_id", (bucket,)).fetchall()
+                rows = self._db.execute(
+                    "SELECT receipt_json FROM bucket_receipts WHERE bucket=? ORDER BY created_at,receipt_id",
+                    (bucket,),
+                ).fetchall()
         return tuple(verify_reconciliation_receipt(row[0]) for row in rows)
 
 
@@ -1189,21 +1554,44 @@ BucketReconciliationReceipt = ReconciliationReceipt
 
 
 def _canonical_json(value: Any) -> bytes:
-    return json.dumps(value, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return json.dumps(
+        value, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
 
 
 def _rfc3339(value: float) -> str:
-    return datetime.fromtimestamp(value, timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+    return (
+        datetime.fromtimestamp(value, timezone.utc)
+        .isoformat(timespec="microseconds")
+        .replace("+00:00", "Z")
+    )
 
 
 __all__ = [
-    "BUCKET_POLICY_SCHEMA_VERSION", "TIER_POLICY_SCHEMA_VERSION",
-    "RECONCILIATION_RECEIPT_SCHEMA_VERSION", "RECONCILIATION_RECEIPT_KIND",
-    "BindingRole", "StorageTier", "BackendBinding", "BucketBinding", "TierPolicy",
-    "BucketPolicy", "CapacityReport", "ReconciliationAction", "ReconciliationReceipt",
-    "BucketReconciliationReceipt", "IrohBucketTieringManager", "BucketTieringManager",
-    "VirtualBucketTieringManager", "IrohBucketManager", "BucketTieringReconciler",
-    "validate_tier_policy", "validate_bucket_policy",
-    "migrate_bucket_policy", "bucket_policy_schema", "tier_policy_schema",
-    "reconciliation_receipt_schema", "verify_reconciliation_receipt",
+    "BUCKET_POLICY_SCHEMA_VERSION",
+    "TIER_POLICY_SCHEMA_VERSION",
+    "RECONCILIATION_RECEIPT_SCHEMA_VERSION",
+    "RECONCILIATION_RECEIPT_KIND",
+    "BindingRole",
+    "StorageTier",
+    "BackendBinding",
+    "BucketBinding",
+    "TierPolicy",
+    "BucketPolicy",
+    "CapacityReport",
+    "ReconciliationAction",
+    "ReconciliationReceipt",
+    "BucketReconciliationReceipt",
+    "IrohBucketTieringManager",
+    "BucketTieringManager",
+    "VirtualBucketTieringManager",
+    "IrohBucketManager",
+    "BucketTieringReconciler",
+    "validate_tier_policy",
+    "validate_bucket_policy",
+    "migrate_bucket_policy",
+    "bucket_policy_schema",
+    "tier_policy_schema",
+    "reconciliation_receipt_schema",
+    "verify_reconciliation_receipt",
 ]

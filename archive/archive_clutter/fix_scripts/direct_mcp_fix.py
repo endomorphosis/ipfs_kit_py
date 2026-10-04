@@ -2,7 +2,7 @@
 """
 Direct MCP Import Fix
 
-This script creates a simplified version of the MCP server that directly uses 
+This script creates a simplified version of the MCP server that directly uses
 components from the available modules without relying on problematic imports.
 """
 
@@ -16,39 +16,40 @@ from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("direct-mcp-fix")
+
 
 def fix_import_issue():
     """Fix the import issue by creating a direct module or symlink."""
     try:
         cwd = os.getcwd()
-        
+
         # Get the MCP SDK directory
         mcp_sdk_path = os.path.join(cwd, "docs/mcp-python-sdk/src")
-        
+
         if not os.path.isdir(mcp_sdk_path):
             logger.error(f"MCP SDK path not found: {mcp_sdk_path}")
             return False
-        
+
         # Create a minimal MCP server using available components
         create_minimal_server()
-        
+
         # Create a startup script for the minimal server
         create_minimal_script()
-        
+
         return True
     except Exception as e:
         logger.error(f"Error fixing import issue: {e}")
         logger.error(traceback.format_exc())
         return False
 
+
 def create_minimal_server():
     """Create a minimal MCP server that doesn't rely on the problematic import."""
     minimal_server_path = os.path.join(os.getcwd(), "minimal_mcp_server.py")
-    
+
     content = '''#!/usr/bin/env python3
 """
 Minimal MCP Server
@@ -347,20 +348,21 @@ if __name__ == "__main__":
         logger.error(traceback.format_exc())
         sys.exit(1)
 '''
-    
+
     with open(minimal_server_path, "w") as f:
         f.write(content)
-    
+
     os.chmod(minimal_server_path, 0o755)  # Make executable
-    
+
     logger.info(f"Created minimal MCP server at {minimal_server_path}")
     return True
+
 
 def create_minimal_script():
     """Create a startup script for the minimal server."""
     script_path = os.path.join(os.getcwd(), "start_minimal_mcp_server.sh")
-    
-    content = '''#!/bin/bash
+
+    content = """#!/bin/bash
 # Start the minimal MCP server
 
 # Kill any running instances
@@ -374,15 +376,16 @@ python3 minimal_mcp_server.py --debug --port 3000
 
 # Exit with the same status as the server
 exit $?
-'''
-    
+"""
+
     with open(script_path, "w") as f:
         f.write(content)
-    
+
     os.chmod(script_path, 0o755)  # Make executable
-    
+
     logger.info(f"Created minimal server startup script at {script_path}")
     return True
+
 
 if __name__ == "__main__":
     if fix_import_issue():

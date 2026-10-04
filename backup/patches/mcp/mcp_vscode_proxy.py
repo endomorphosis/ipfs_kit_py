@@ -21,16 +21,16 @@ import os
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename='mcp_vscode_proxy.log',
-    filemode='w'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    filename="mcp_vscode_proxy.log",
+    filemode="w",
 )
-logger = logging.getLogger('mcp_proxy')
+logger = logging.getLogger("mcp_proxy")
 
 # Add console handler for immediate feedback
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 console.setFormatter(formatter)
 logger.addHandler(console)
 
@@ -39,6 +39,7 @@ PROXY_PORT = 9996
 MCP_SERVER_URL = "http://localhost:9994"
 MCP_SSE_ENDPOINT = "/api/v0/sse"
 MCP_INIT_ENDPOINT = "/api/v0/initialize"
+
 
 class MCPProxyHandler(http.server.BaseHTTPRequestHandler):
     """Handler for the MCP proxy server."""
@@ -50,9 +51,9 @@ class MCPProxyHandler(http.server.BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         """Handle OPTIONS requests (CORS)."""
         self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
     def do_GET(self):
@@ -74,7 +75,7 @@ class MCPProxyHandler(http.server.BaseHTTPRequestHandler):
             except Exception as e:
                 logger.error(f"Error proxying SSE request: {e}")
                 self.send_response(500)
-                self.send_header('Content-Type', 'application/json')
+                self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode())
         else:
@@ -93,7 +94,7 @@ class MCPProxyHandler(http.server.BaseHTTPRequestHandler):
             except Exception as e:
                 logger.error(f"Error proxying GET request: {e}")
                 self.send_response(500)
-                self.send_header('Content-Type', 'application/json')
+                self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode())
 
@@ -101,21 +102,23 @@ class MCPProxyHandler(http.server.BaseHTTPRequestHandler):
         """Handle POST requests."""
         # Intercept initialization requests to SSE endpoint and redirect them
         if self.path == MCP_SSE_ENDPOINT:
-            content_length = int(self.headers.get('Content-Length', 0))
+            content_length = int(self.headers.get("Content-Length", 0))
             if content_length > 0:
-                post_data = self.rfile.read(content_length).decode('utf-8')
+                post_data = self.rfile.read(content_length).decode("utf-8")
                 try:
                     request_json = json.loads(post_data)
                     # Check if this is an initialize request
                     if "method" in request_json and request_json["method"] == "initialize":
-                        logger.info("Intercepted initialize request to SSE endpoint, redirecting...")
+                        logger.info(
+                            "Intercepted initialize request to SSE endpoint, redirecting..."
+                        )
 
                         # Forward to the initialization endpoint
                         req = urllib.request.Request(
                             url=MCP_SERVER_URL + MCP_INIT_ENDPOINT,
                             data=post_data.encode(),
-                            headers={'Content-Type': 'application/json'},
-                            method='POST'
+                            headers={"Content-Type": "application/json"},
+                            method="POST",
                         )
 
                         try:
@@ -132,7 +135,7 @@ class MCPProxyHandler(http.server.BaseHTTPRequestHandler):
                             logger.error(f"Error forwarding initialize request: {e}")
                             # If initialization endpoint fails, return a compatible response
                             self.send_response(200)
-                            self.send_header('Content-Type', 'application/json')
+                            self.send_header("Content-Type", "application/json")
                             self.end_headers()
 
                             fallback_response = {
@@ -140,23 +143,20 @@ class MCPProxyHandler(http.server.BaseHTTPRequestHandler):
                                 "id": request_json.get("id", 1),
                                 "result": {
                                     "capabilities": {
-                                        "textDocumentSync": {
-                                            "openClose": True,
-                                            "change": 1
-                                        },
+                                        "textDocumentSync": {"openClose": True, "change": 1},
                                         "completionProvider": {
                                             "resolveProvider": False,
-                                            "triggerCharacters": ["/"]
+                                            "triggerCharacters": ["/"],
                                         },
                                         "hoverProvider": True,
                                         "definitionProvider": True,
-                                        "referencesProvider": True
+                                        "referencesProvider": True,
                                     },
                                     "serverInfo": {
                                         "name": "MCP IPFS Tools Server",
-                                        "version": "0.3.0"
-                                    }
-                                }
+                                        "version": "0.3.0",
+                                    },
+                                },
                             }
 
                             self.wfile.write(json.dumps(fallback_response).encode())
@@ -167,14 +167,14 @@ class MCPProxyHandler(http.server.BaseHTTPRequestHandler):
         # Forward other POST requests directly
         try:
             logger.info(f"Proxying POST request to {MCP_SERVER_URL + self.path}")
-            content_length = int(self.headers.get('Content-Length', 0))
-            post_data = self.rfile.read(content_length) if content_length > 0 else b''
+            content_length = int(self.headers.get("Content-Length", 0))
+            post_data = self.rfile.read(content_length) if content_length > 0 else b""
 
             req = urllib.request.Request(
                 url=MCP_SERVER_URL + self.path,
                 data=post_data,
-                headers={'Content-Type': self.headers.get('Content-Type', 'application/json')},
-                method='POST'
+                headers={"Content-Type": self.headers.get("Content-Type", "application/json")},
+                method="POST",
             )
 
             response = urllib.request.urlopen(req)
@@ -189,9 +189,10 @@ class MCPProxyHandler(http.server.BaseHTTPRequestHandler):
         except Exception as e:
             logger.error(f"Error proxying POST request: {e}")
             self.send_response(500)
-            self.send_header('Content-Type', 'application/json')
+            self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode())
+
 
 def main():
     """Run the proxy server."""
@@ -217,6 +218,7 @@ def main():
         server.shutdown()
         server.server_close()
         sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

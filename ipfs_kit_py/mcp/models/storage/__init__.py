@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 
 class BaseStorageModel:
     """Base model for storage backend operations."""
-    def __init__(self, kit_instance = None, cache_manager = None, credential_manager = None):
+
+    def __init__(self, kit_instance=None, cache_manager=None, credential_manager=None):
         """Initialize storage model with dependencies.
 
         Args:
