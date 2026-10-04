@@ -1,3 +1,0 @@
-# docs/implementation
-
-Implementation documentation

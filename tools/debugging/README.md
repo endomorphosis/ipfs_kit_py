@@ -1,3 +1,0 @@
-# tools/debugging
-
-Debugging tools

@@ -1,3 +1,0 @@
-# docs/summaries
-
-Summary documents
