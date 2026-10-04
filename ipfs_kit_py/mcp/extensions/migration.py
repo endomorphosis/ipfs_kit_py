@@ -87,27 +87,27 @@ policies = {}
 def get_backend_module(backend_name: str):
     """Get the backend module by name."""
     try:
-        if backend_name == "huggingface": # Removed comma
-            from .huggingface import huggingface_operations # Relative import
+        if backend_name == "huggingface":  # Removed comma
+            from .huggingface import huggingface_operations  # Relative import
 
             return huggingface_operations
-        elif backend_name == "s3": # Removed comma
-            from .s3 import s3_operations # Relative import
+        elif backend_name == "s3":  # Removed comma
+            from .s3 import s3_operations  # Relative import
 
             return s3_operations
-        elif backend_name == "filecoin": # Removed comma
-            from .filecoin import filecoin_operations # Relative import
+        elif backend_name == "filecoin":  # Removed comma
+            from .filecoin import filecoin_operations  # Relative import
 
             return filecoin_operations
-        elif backend_name == "storacha": # Removed comma
-            from .storacha import storacha_operations # Relative import
+        elif backend_name == "storacha":  # Removed comma
+            from .storacha import storacha_operations  # Relative import
 
             return storacha_operations
-        elif backend_name == "lassie": # Removed comma
-            from .lassie import lassie_operations # Relative import
+        elif backend_name == "lassie":  # Removed comma
+            from .lassie import lassie_operations  # Relative import
 
             return lassie_operations
-        elif backend_name == "ipfs": # Removed comma
+        elif backend_name == "ipfs":  # Removed comma
             # Use the native IPFS functions from the enhanced MCP server
             # We'll need to implement this in the context where this module is used
             return None
@@ -152,15 +152,15 @@ async def estimate_migration_cost(
                 cost_estimate["transfer_cost"] = transfer_cost
 
                 # Calculate target storage cost
-                if target_backend == "s3": # Removed comma
+                if target_backend == "s3":  # Removed comma
                     # S3 pricing model (simplified)
                     target_cost = size_bytes / (1024 * 1024 * 1024) * 0.023  # $0.023 per GB
                     cost_estimate["target_cost"] = target_cost
-                elif target_backend == "filecoin": # Removed comma
+                elif target_backend == "filecoin":  # Removed comma
                     # Filecoin pricing model (simplified)
                     target_cost = size_bytes / (1024 * 1024 * 1024) * 0.005  # $0.005 per GB
                     cost_estimate["target_cost"] = target_cost
-                elif target_backend == "storacha": # Removed comma
+                elif target_backend == "storacha":  # Removed comma
                     # Storacha pricing model (simplified)
                     target_cost = size_bytes / (1024 * 1024 * 1024) * 0.015  # $0.015 per GB
                     cost_estimate["target_cost"] = target_cost
@@ -187,7 +187,7 @@ async def perform_migration(
     target_backend: str,
     cid: str,
     metadata_sync: bool,
-    remove_source: bool
+    remove_source: bool,
 ):
     """
     Perform the actual migration between backends.
@@ -214,8 +214,10 @@ async def perform_migration(
         # Get content
         content = None
         if hasattr(source_module, "get_content"):
-            content = await source_module.get_content(cid) # This await is correct as perform_migration is async
-        elif source_backend == "ipfs": # Removed comma
+            content = await source_module.get_content(
+                cid
+            )  # This await is correct as perform_migration is async
+        elif source_backend == "ipfs":  # Removed comma
             # Use IPFS cat functionality
             from subprocess import PIPE, run
 
@@ -240,8 +242,10 @@ async def perform_migration(
         # Upload content
         target_result = None
         if hasattr(target_module, "store_content"):
-            target_result = await target_module.store_content(content, cid=cid) # This await is correct
-        elif target_backend == "ipfs": # Removed comma
+            target_result = await target_module.store_content(
+                content, cid=cid
+            )  # This await is correct
+        elif target_backend == "ipfs":  # Removed comma
             # Use IPFS add functionality
             import os
             import tempfile
@@ -275,11 +279,13 @@ async def perform_migration(
             # Get metadata from source
             metadata = None
             if hasattr(source_module, "get_metadata"):
-                metadata = await source_module.get_metadata(cid) # This await is correct
+                metadata = await source_module.get_metadata(cid)  # This await is correct
 
             # Store metadata in target if available
             if metadata and hasattr(target_module, "set_metadata"):
-                await target_module.set_metadata(target_result["cid"], metadata) # This await is correct
+                await target_module.set_metadata(
+                    target_result["cid"], metadata
+                )  # This await is correct
 
         # Update progress
         migrations[migration_id]["progress"] = 90.0
@@ -288,8 +294,8 @@ async def perform_migration(
         # 4. Remove from source if requested
         if remove_source:
             if hasattr(source_module, "remove_content"):
-                await source_module.remove_content(cid) # This await is correct
-            elif source_backend == "ipfs": # Removed comma
+                await source_module.remove_content(cid)  # This await is correct
+            elif source_backend == "ipfs":  # Removed comma
                 # Use IPFS pin rm functionality
                 from subprocess import run
 

@@ -21,6 +21,7 @@ from typing import Dict, Any, List, Optional, Union
 # Import the advanced Filecoin implementation
 try:
     from advanced_filecoin import AdvancedFilecoinStorage
+
     ADVANCED_FILECOIN_AVAILABLE = True
 except ImportError:
     ADVANCED_FILECOIN_AVAILABLE = False
@@ -82,7 +83,7 @@ class FilecoinMCPIntegration:
             return {
                 "success": False,
                 "error": "Advanced Filecoin integration not available",
-                "error_type": "integration_unavailable"
+                "error_type": "integration_unavailable",
             }
 
         # Network Analytics & Metrics endpoints
@@ -109,7 +110,7 @@ class FilecoinMCPIntegration:
         return {
             "success": False,
             "error": f"Unknown endpoint: {path}",
-            "error_type": "invalid_endpoint"
+            "error_type": "invalid_endpoint",
         }
 
     def _handle_network_endpoints(self, path: str, method: str, params: dict) -> Dict[str, Any]:
@@ -141,7 +142,11 @@ class FilecoinMCPIntegration:
                 return {"success": False, "error": "Method not implemented", "mock": self.mock_mode}
 
         # Unknown network endpoint
-        return {"success": False, "error": f"Unknown network endpoint: {path}", "mock": self.mock_mode}
+        return {
+            "success": False,
+            "error": f"Unknown network endpoint: {path}",
+            "mock": self.mock_mode,
+        }
 
     def _handle_miner_endpoints(self, path: str, method: str, params: dict) -> Dict[str, Any]:
         """Handle Miner Selection & Management endpoints."""
@@ -166,7 +171,11 @@ class FilecoinMCPIntegration:
         # Detailed miner analysis
         elif path == "/miners/analyze" and method == "GET":
             if "miner" not in params:
-                return {"success": False, "error": "Missing required parameter: miner", "mock": self.mock_mode}
+                return {
+                    "success": False,
+                    "error": "Missing required parameter: miner",
+                    "mock": self.mock_mode,
+                }
 
             miner_address = params["miner"]
             if self.mock_mode:
@@ -176,11 +185,19 @@ class FilecoinMCPIntegration:
         # Compare miners
         elif path == "/miners/compare" and method == "POST":
             if "miners" not in params:
-                return {"success": False, "error": "Missing required parameter: miners", "mock": self.mock_mode}
+                return {
+                    "success": False,
+                    "error": "Missing required parameter: miners",
+                    "mock": self.mock_mode,
+                }
 
             miners = params["miners"]
             if not isinstance(miners, list):
-                return {"success": False, "error": "Miners parameter must be a list", "mock": self.mock_mode}
+                return {
+                    "success": False,
+                    "error": "Miners parameter must be a list",
+                    "mock": self.mock_mode,
+                }
 
             if self.mock_mode:
                 return self._mock_miner_comparison(miners)
@@ -192,7 +209,11 @@ class FilecoinMCPIntegration:
                 return {"success": False, "error": "Method not implemented", "mock": self.mock_mode}
 
         # Unknown miner endpoint
-        return {"success": False, "error": f"Unknown miner endpoint: {path}", "mock": self.mock_mode}
+        return {
+            "success": False,
+            "error": f"Unknown miner endpoint: {path}",
+            "mock": self.mock_mode,
+        }
 
     def _handle_storage_endpoints(self, path: str, method: str, params: dict) -> Dict[str, Any]:
         """Handle Storage Operations endpoints."""
@@ -202,7 +223,11 @@ class FilecoinMCPIntegration:
         # Estimate storage cost
         if path == "/storage/estimate" and method == "GET":
             if "size_bytes" not in params:
-                return {"success": False, "error": "Missing required parameter: size_bytes", "mock": self.mock_mode}
+                return {
+                    "success": False,
+                    "error": "Missing required parameter: size_bytes",
+                    "mock": self.mock_mode,
+                }
 
             size_bytes = int(params["size_bytes"])
             duration_days = int(params.get("duration_days", 180))
@@ -210,12 +235,18 @@ class FilecoinMCPIntegration:
 
             if self.mock_mode:
                 return self._mock_storage_estimate(size_bytes, duration_days, verified_deal)
-            return self.filecoin_client.estimate_storage_cost(size_bytes, duration_days, verified_deal)
+            return self.filecoin_client.estimate_storage_cost(
+                size_bytes, duration_days, verified_deal
+            )
 
         # Create redundant storage
         elif path == "/storage/redundant" and method == "POST":
             if "cid" not in params:
-                return {"success": False, "error": "Missing required parameter: cid", "mock": self.mock_mode}
+                return {
+                    "success": False,
+                    "error": "Missing required parameter: cid",
+                    "mock": self.mock_mode,
+                }
 
             cid = params["cid"]
             miner_count = int(params.get("miner_count", 3))
@@ -224,12 +255,18 @@ class FilecoinMCPIntegration:
 
             if self.mock_mode:
                 return self._mock_redundant_storage(cid, miner_count, verified_deal, deal_duration)
-            return self.filecoin_client.create_redundant_storage(cid, miner_count, verified_deal, deal_duration)
+            return self.filecoin_client.create_redundant_storage(
+                cid, miner_count, verified_deal, deal_duration
+            )
 
         # Import from IPFS
         elif path == "/storage/from_ipfs" and method == "POST":
             if "cid" not in params:
-                return {"success": False, "error": "Missing required parameter: cid", "mock": self.mock_mode}
+                return {
+                    "success": False,
+                    "error": "Missing required parameter: cid",
+                    "mock": self.mock_mode,
+                }
 
             cid = params["cid"]
             miner = params.get("miner")
@@ -241,7 +278,11 @@ class FilecoinMCPIntegration:
             return self.filecoin_client.from_ipfs(cid, miner, deal_duration)
 
         # Unknown storage endpoint
-        return {"success": False, "error": f"Unknown storage endpoint: {path}", "mock": self.mock_mode}
+        return {
+            "success": False,
+            "error": f"Unknown storage endpoint: {path}",
+            "mock": self.mock_mode,
+        }
 
     def _handle_health_endpoints(self, path: str, method: str, params: dict) -> Dict[str, Any]:
         """Handle Content Health & Reliability endpoints."""
@@ -251,7 +292,11 @@ class FilecoinMCPIntegration:
         # Check content health
         if path == "/health/check" and method == "GET":
             if "cid" not in params:
-                return {"success": False, "error": "Missing required parameter: cid", "mock": self.mock_mode}
+                return {
+                    "success": False,
+                    "error": "Missing required parameter: cid",
+                    "mock": self.mock_mode,
+                }
 
             cid = params["cid"]
             if self.mock_mode:
@@ -261,7 +306,11 @@ class FilecoinMCPIntegration:
         # Monitor deal status
         elif path == "/health/monitor_deal" and method == "POST":
             if "deal_id" not in params:
-                return {"success": False, "error": "Missing required parameter: deal_id", "mock": self.mock_mode}
+                return {
+                    "success": False,
+                    "error": "Missing required parameter: deal_id",
+                    "mock": self.mock_mode,
+                }
 
             deal_id = params["deal_id"]
             callback_url = params.get("callback_url")
@@ -273,7 +322,11 @@ class FilecoinMCPIntegration:
         # Check deal status
         elif path == "/health/deal_status" and method == "GET":
             if "deal_id" not in params:
-                return {"success": False, "error": "Missing required parameter: deal_id", "mock": self.mock_mode}
+                return {
+                    "success": False,
+                    "error": "Missing required parameter: deal_id",
+                    "mock": self.mock_mode,
+                }
 
             deal_id = params["deal_id"]
             if self.mock_mode:
@@ -281,7 +334,11 @@ class FilecoinMCPIntegration:
             return self.filecoin_client.check_deal_status(deal_id)
 
         # Unknown health endpoint
-        return {"success": False, "error": f"Unknown health endpoint: {path}", "mock": self.mock_mode}
+        return {
+            "success": False,
+            "error": f"Unknown health endpoint: {path}",
+            "mock": self.mock_mode,
+        }
 
     def _handle_chain_endpoints(self, path: str, method: str, params: dict) -> Dict[str, Any]:
         """Handle Blockchain Integration endpoints."""
@@ -314,7 +371,11 @@ class FilecoinMCPIntegration:
         # Track transaction
         elif path == "/chain/transaction" and method == "GET":
             if "cid" not in params:
-                return {"success": False, "error": "Missing required parameter: cid", "mock": self.mock_mode}
+                return {
+                    "success": False,
+                    "error": "Missing required parameter: cid",
+                    "mock": self.mock_mode,
+                }
 
             cid = params["cid"]
             if self.mock_mode:
@@ -327,14 +388,18 @@ class FilecoinMCPIntegration:
                 return {"success": False, "error": "Method not implemented", "mock": self.mock_mode}
 
         # Unknown chain endpoint
-        return {"success": False, "error": f"Unknown chain endpoint: {path}", "mock": self.mock_mode}
+        return {
+            "success": False,
+            "error": f"Unknown chain endpoint: {path}",
+            "mock": self.mock_mode,
+        }
 
     def _client_unavailable_response(self) -> Dict[str, Any]:
         """Generate response for when the Filecoin client is unavailable."""
         return {
             "success": False,
             "error": "Advanced Filecoin client unavailable",
-            "error_type": "client_unavailable"
+            "error_type": "client_unavailable",
         }
 
     # Mock implementations for when the real client is not available
@@ -359,8 +424,8 @@ class FilecoinMCPIntegration:
                 "last_updated": current_time,
                 "network_storage_cost_per_year_per_GiB": 0.00000576,
                 "base_fee": "100000000",
-                "base_fee_change_log": 0.01
-            }
+                "base_fee_change_log": 0.01,
+            },
         }
 
     def _mock_gas_metrics(self) -> Dict[str, Any]:
@@ -376,14 +441,14 @@ class FilecoinMCPIntegration:
                 "gas_premium_estimate": {
                     "low": str(int(base_fee * 0.5)),
                     "medium": str(int(base_fee * 1.0)),
-                    "high": str(int(base_fee * 1.5))
+                    "high": str(int(base_fee * 1.5)),
                 },
                 "gas_fee_cap_estimate": {
                     "low": str(int(base_fee * 2)),
                     "medium": str(int(base_fee * 3)),
-                    "high": str(int(base_fee * 4))
-                }
-            }
+                    "high": str(int(base_fee * 4)),
+                },
+            },
         }
 
     def _mock_deal_stats(self) -> Dict[str, Any]:
@@ -399,8 +464,8 @@ class FilecoinMCPIntegration:
                 "total_data_size_GiB": 15483284,
                 "average_deal_size_GiB": 106.18,
                 "daily_new_deals": 487,
-                "daily_data_onboarding_GiB": 51712
-            }
+                "daily_data_onboarding_GiB": 51712,
+            },
         }
 
     def _mock_recommended_miners(self, filter_criteria: Dict[str, Any]) -> Dict[str, Any]:
@@ -410,11 +475,41 @@ class FilecoinMCPIntegration:
 
         # Define base list
         all_miners = [
-            {"address": "f01606", "name": "ServeTheFuture", "location": "France", "reputation": 95, "price_per_GiB_per_epoch": 0.0000000001},
-            {"address": "f0135078", "name": "FilSwan", "location": "China", "reputation": 92, "price_per_GiB_per_epoch": 0.0000000002},
-            {"address": "f022352", "name": "DekPool", "location": "Germany", "reputation": 90, "price_per_GiB_per_epoch": 0.00000000015},
-            {"address": "f01247", "name": "ScaleSphere", "location": "Singapore", "reputation": 88, "price_per_GiB_per_epoch": 0.00000000018},
-            {"address": "f02576", "name": "IPFSMain", "location": "USA", "reputation": 89, "price_per_GiB_per_epoch": 0.0000000002}
+            {
+                "address": "f01606",
+                "name": "ServeTheFuture",
+                "location": "France",
+                "reputation": 95,
+                "price_per_GiB_per_epoch": 0.0000000001,
+            },
+            {
+                "address": "f0135078",
+                "name": "FilSwan",
+                "location": "China",
+                "reputation": 92,
+                "price_per_GiB_per_epoch": 0.0000000002,
+            },
+            {
+                "address": "f022352",
+                "name": "DekPool",
+                "location": "Germany",
+                "reputation": 90,
+                "price_per_GiB_per_epoch": 0.00000000015,
+            },
+            {
+                "address": "f01247",
+                "name": "ScaleSphere",
+                "location": "Singapore",
+                "reputation": 88,
+                "price_per_GiB_per_epoch": 0.00000000018,
+            },
+            {
+                "address": "f02576",
+                "name": "IPFSMain",
+                "location": "USA",
+                "reputation": 89,
+                "price_per_GiB_per_epoch": 0.0000000002,
+            },
         ]
 
         # Apply filters
@@ -433,7 +528,7 @@ class FilecoinMCPIntegration:
             "mock": True,
             "miners": filtered_miners,
             "count": len(filtered_miners),
-            "filters_applied": filter_criteria
+            "filters_applied": filter_criteria,
         }
 
     def _mock_miner_analysis(self, miner_address: str) -> Dict[str, Any]:
@@ -448,7 +543,7 @@ class FilecoinMCPIntegration:
                 "name": f"Miner {miner_address}",
                 "location": random.choice(["USA", "Europe", "Asia", "Unknown"]),
                 "reputation": random.randint(70, 99),
-                "price_per_GiB_per_epoch": random.uniform(0.0000000001, 0.0000000003)
+                "price_per_GiB_per_epoch": random.uniform(0.0000000001, 0.0000000003),
             },
             "storage_power": f"{random.randint(1, 1000)} TiB",
             "raw_power": random.randint(1, 10000) * sector_size,
@@ -462,7 +557,7 @@ class FilecoinMCPIntegration:
             "peer_id": f"12D3KooW{uuid.uuid4().hex[:15]}",
             "multiaddresses": [
                 f"/ip4/172.65.0.{random.randint(1, 255)}/tcp/1234",
-                f"/ip4/192.168.1.{random.randint(1, 255)}/tcp/1234"
+                f"/ip4/192.168.1.{random.randint(1, 255)}/tcp/1234",
             ],
             "performance_score": random.randint(85, 100),
             "average_block_rewards_24h": random.uniform(0.1, 5.0),
@@ -470,17 +565,13 @@ class FilecoinMCPIntegration:
             "deal_pricing": {
                 "published_verified": 0.0000000001,
                 "published_regular": 0.0000000002,
-                "calculated_cost_per_year": 0.000006
+                "calculated_cost_per_year": 0.000006,
             },
             "recent_deals": [],
-            "active_deals_count": random.randint(100, 1000)
+            "active_deals_count": random.randint(100, 1000),
         }
 
-        return {
-            "success": True,
-            "mock": True,
-            "analysis": analysis
-        }
+        return {"success": True, "mock": True, "analysis": analysis}
 
     def _mock_miner_comparison(self, miners: List[str]) -> Dict[str, Any]:
         """Generate mock miner comparison."""
@@ -490,8 +581,14 @@ class FilecoinMCPIntegration:
             if analysis.get("success", False):
                 comparison.append(analysis["analysis"])
 
-        metrics = ["raw_power", "quality_power", "active_sectors", "faulty_sectors",
-                  "deal_success_rate", "performance_score"]
+        metrics = [
+            "raw_power",
+            "quality_power",
+            "active_sectors",
+            "faulty_sectors",
+            "deal_success_rate",
+            "performance_score",
+        ]
 
         # Get best miner for each metric
         best_miners = {}
@@ -505,14 +602,11 @@ class FilecoinMCPIntegration:
 
             best_miners[metric] = best["miner_info"]["address"]
 
-        return {
-            "success": True,
-            "mock": True,
-            "comparison": comparison,
-            "best_miners": best_miners
-        }
+        return {"success": True, "mock": True, "comparison": comparison, "best_miners": best_miners}
 
-    def _mock_storage_estimate(self, size_bytes: int, duration_days: int, verified_deal: bool) -> Dict[str, Any]:
+    def _mock_storage_estimate(
+        self, size_bytes: int, duration_days: int, verified_deal: bool
+    ) -> Dict[str, Any]:
         """Generate mock storage cost estimate."""
         size_gib = size_bytes / (1024**3)
         duration_epochs = int((duration_days * 24 * 60 * 60) / 30)  # 30 second epochs
@@ -542,14 +636,16 @@ class FilecoinMCPIntegration:
                 "price_range_fil": {
                     "min": round(storage_cost_fil * 0.8, 8),
                     "max": round(storage_cost_fil * 1.2, 8),
-                    "avg": round(storage_cost_fil, 8)
+                    "avg": round(storage_cost_fil, 8),
                 },
                 "usd_per_fil": 3.50,
-                "total_cost_usd": round(total_cost_fil * 3.50, 2)
-            }
+                "total_cost_usd": round(total_cost_fil * 3.50, 2),
+            },
         }
 
-    def _mock_redundant_storage(self, cid: str, miner_count: int, verified_deal: bool, deal_duration: int) -> Dict[str, Any]:
+    def _mock_redundant_storage(
+        self, cid: str, miner_count: int, verified_deal: bool, deal_duration: int
+    ) -> Dict[str, Any]:
         """Generate mock redundant storage response."""
         import random
         import uuid
@@ -559,7 +655,7 @@ class FilecoinMCPIntegration:
             {"address": "f0135078", "name": "FilSwan", "location": "China", "reputation": 92},
             {"address": "f022352", "name": "DekPool", "location": "Germany", "reputation": 90},
             {"address": "f01247", "name": "ScaleSphere", "location": "Singapore", "reputation": 88},
-            {"address": "f02576", "name": "IPFSMain", "location": "USA", "reputation": 89}
+            {"address": "f02576", "name": "IPFSMain", "location": "USA", "reputation": 89},
         ]
 
         if miner_count > len(miners):
@@ -571,15 +667,17 @@ class FilecoinMCPIntegration:
         for miner in selected_miners:
             deal_id = str(random.randint(100000, 999999))
 
-            deals.append({
-                "success": True,
-                "deal_id": deal_id,
-                "miner": miner["address"],
-                "miner_info": miner,
-                "cid": cid,
-                "start_epoch": int(time.time() / 30),
-                "duration": deal_duration
-            })
+            deals.append(
+                {
+                    "success": True,
+                    "deal_id": deal_id,
+                    "miner": miner["address"],
+                    "miner_info": miner,
+                    "cid": cid,
+                    "start_epoch": int(time.time() / 30),
+                    "duration": deal_duration,
+                }
+            )
 
         return {
             "success": True,
@@ -590,10 +688,12 @@ class FilecoinMCPIntegration:
             "failed_count": 0,
             "requested_count": miner_count,
             "redundancy_factor": len(deals),
-            "cid": cid
+            "cid": cid,
         }
 
-    def _mock_from_ipfs(self, cid: str, miner: Optional[str], deal_duration: int, verified_deal: bool) -> Dict[str, Any]:
+    def _mock_from_ipfs(
+        self, cid: str, miner: Optional[str], deal_duration: int, verified_deal: bool
+    ) -> Dict[str, Any]:
         """Generate mock from_ipfs response."""
         import random
 
@@ -613,7 +713,7 @@ class FilecoinMCPIntegration:
             "duration": deal_duration,
             "verified_deal": verified_deal,
             "deal_state": "proposed",
-            "message": f"Deal {deal_id} proposed to miner {miner}"
+            "message": f"Deal {deal_id} proposed to miner {miner}",
         }
 
     def _mock_content_health(self, cid: str) -> Dict[str, Any]:
@@ -627,33 +727,39 @@ class FilecoinMCPIntegration:
         active_count = random.randint(1, 3)
         active_deals = []
         for i in range(active_count):
-            active_deals.append({
-                "deal_id": str(random.randint(100000, 999999)),
-                "status": "active",
-                "miner": random.choice(miners)
-            })
+            active_deals.append(
+                {
+                    "deal_id": str(random.randint(100000, 999999)),
+                    "status": "active",
+                    "miner": random.choice(miners),
+                }
+            )
 
         # Generate random expired deals
         expired_count = random.randint(0, 2)
         expired_deals = []
         for i in range(expired_count):
-            expired_deals.append({
-                "deal_id": str(random.randint(100000, 999999)),
-                "status": "expired",
-                "miner": random.choice(miners),
-                "created_at": time.time() - random.randint(86400*180, 86400*365),
-                "expired_at": time.time() - random.randint(0, 86400*30)
-            })
+            expired_deals.append(
+                {
+                    "deal_id": str(random.randint(100000, 999999)),
+                    "status": "expired",
+                    "miner": random.choice(miners),
+                    "created_at": time.time() - random.randint(86400 * 180, 86400 * 365),
+                    "expired_at": time.time() - random.randint(0, 86400 * 30),
+                }
+            )
 
         # Generate random failing deals
         failing_count = random.randint(0, 1)
         failing_deals = []
         for i in range(failing_count):
-            failing_deals.append({
-                "deal_id": str(random.randint(100000, 999999)),
-                "error": "Failed to activate deal",
-                "miner": random.choice(miners)
-            })
+            failing_deals.append(
+                {
+                    "deal_id": str(random.randint(100000, 999999)),
+                    "error": "Failed to activate deal",
+                    "miner": random.choice(miners),
+                }
+            )
 
         total_deals = active_count + expired_count + failing_count
         health_score = (active_count / total_deals) * 100 if total_deals > 0 else 0
@@ -676,8 +782,8 @@ class FilecoinMCPIntegration:
                 "redundancy_level": active_count,
                 "health_score": round(health_score, 2),
                 "health_status": health_status,
-                "last_checked": time.time()
-            }
+                "last_checked": time.time(),
+            },
         }
 
     def _mock_monitor_deal(self, deal_id: str, callback_url: Optional[str]) -> Dict[str, Any]:
@@ -693,7 +799,7 @@ class FilecoinMCPIntegration:
             "message": f"Started monitoring deal {deal_id}",
             "deal_id": deal_id,
             "callback_url": callback_url,
-            "current_status": deal_state
+            "current_status": deal_state,
         }
 
     def _mock_deal_status(self, deal_id: str) -> Dict[str, Any]:
@@ -712,7 +818,7 @@ class FilecoinMCPIntegration:
             "deal_id": deal_id,
             "status": deal_state,
             "miner": miner,
-            "message": f"Deal {deal_id} is currently in {deal_state} state with miner {miner}"
+            "message": f"Deal {deal_id} is currently in {deal_state} state with miner {miner}",
         }
 
         if deal_state == "error":
@@ -735,7 +841,9 @@ class FilecoinMCPIntegration:
         if height is None:
             height = 2500000 + int(current_time / epoch_time) % 1000
 
-        block_timestamp = int(current_time - ((2500000 + int(current_time / epoch_time) % 1000 - height) * epoch_time))
+        block_timestamp = int(
+            current_time - ((2500000 + int(current_time / epoch_time) % 1000 - height) * epoch_time)
+        )
 
         if cid:
             block_cid = cid
@@ -754,14 +862,10 @@ class FilecoinMCPIntegration:
             "ParentWeight": str(random.randint(1000000000000, 9000000000000)),
             "BlockSize": random.randint(5000, 20000),
             "ParentStateRoot": f"bafy2bzace{uuid.uuid4().hex[:32]}",
-            "ParentMessageReceipts": f"bafy2bzace{uuid.uuid4().hex[:32]}"
+            "ParentMessageReceipts": f"bafy2bzace{uuid.uuid4().hex[:32]}",
         }
 
-        return {
-            "success": True,
-            "mock": True,
-            "block": mock_block
-        }
+        return {"success": True, "mock": True, "block": mock_block}
 
     def _mock_chain_head(self) -> Dict[str, Any]:
         """Generate mock chain head information."""
@@ -775,21 +879,18 @@ class FilecoinMCPIntegration:
 
         blocks = []
         for i in range(random.randint(2, 5)):
-            blocks.append({
-                "Height": height,
-                "Timestamp": int(current_time),
-                "Cid": f"bafy2bzace{uuid.uuid4().hex[:16]}{uuid.uuid4().hex[:16]}",
-                "Miner": f"f0{random.randint(1000, 100000)}",
-                "ParentWeight": str(random.randint(1000000000000, 9000000000000)),
-                "ParentBaseFee": str(random.randint(90000000, 110000000))
-            })
+            blocks.append(
+                {
+                    "Height": height,
+                    "Timestamp": int(current_time),
+                    "Cid": f"bafy2bzace{uuid.uuid4().hex[:16]}{uuid.uuid4().hex[:16]}",
+                    "Miner": f"f0{random.randint(1000, 100000)}",
+                    "ParentWeight": str(random.randint(1000000000000, 9000000000000)),
+                    "ParentBaseFee": str(random.randint(90000000, 110000000)),
+                }
+            )
 
-        return {
-            "success": True,
-            "mock": True,
-            "Height": height,
-            "Blocks": blocks
-        }
+        return {"success": True, "mock": True, "Height": height, "Blocks": blocks}
 
     def _mock_transaction(self, cid: str) -> Dict[str, Any]:
         """Generate mock transaction tracking."""
@@ -814,5 +915,5 @@ class FilecoinMCPIntegration:
             "state": state,
             "block_height": 2500000 + random.randint(1, 1000),
             "confirmed": state == "confirmed",
-            "receipt": receipt
+            "receipt": receipt,
         }

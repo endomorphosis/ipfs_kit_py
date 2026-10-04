@@ -33,17 +33,10 @@ The IPFS backend had a critical issue where it failed to initialize due to a mis
 from ipfs_kit_py.mcp.storage_manager.backends.ipfs_backend import IPFSBackend
 
 # Configure connection parameters
-resources = {
-    "ipfs_host": "127.0.0.1", 
-    "ipfs_port": 5001,
-    "ipfs_timeout": 30
-}
+resources = {"ipfs_host": "127.0.0.1", "ipfs_port": 5001, "ipfs_timeout": 30}
 
 # Optional metadata
-metadata = {
-    "backend_name": "my_ipfs_backend",
-    "performance_metrics_file": "/path/to/metrics.json"
-}
+metadata = {"backend_name": "my_ipfs_backend", "performance_metrics_file": "/path/to/metrics.json"}
 
 # Initialize the backend
 ipfs_backend = IPFSBackend(resources, metadata)

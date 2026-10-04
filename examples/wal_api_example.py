@@ -26,12 +26,13 @@ from pprint import pprint
 # Define API endpoint
 DEFAULT_API_URL = "http://localhost:8000"
 
+
 def setup_api_server():
     """Setup API server for demonstration."""
     try:
         # Try to import and run the server
         from ipfs_kit_py import api
-        
+
         # TODO: Implement server setup if needed
         print("Please start the API server manually with:")
         print("  uvicorn ipfs_kit_py.api:app --reload --port 8000")
@@ -41,8 +42,9 @@ def setup_api_server():
         print("Failed to import ipfs_kit_py.api")
         print("Please start the API server manually.")
         return False
-    
+
     return True
+
 
 def list_operations(api_url, status=None, operation_type=None, backend=None, limit=10):
     """List WAL operations with optional filtering."""
@@ -55,7 +57,7 @@ def list_operations(api_url, status=None, operation_type=None, backend=None, lim
         params["backend"] = backend
     if limit:
         params["limit"] = limit
-    
+
     response = requests.get(f"{api_url}/api/v0/wal/operations", params=params)
     if response.status_code == 200:
         result = response.json()
@@ -67,6 +69,7 @@ def list_operations(api_url, status=None, operation_type=None, backend=None, lim
     else:
         print(f"Error: {response.status_code} - {response.text}")
         return []
+
 
 def get_operation_details(api_url, operation_id):
     """Get details of a specific WAL operation."""
@@ -92,17 +95,21 @@ def get_operation_details(api_url, operation_id):
         print(f"Error: {response.status_code} - {response.text}")
         return None
 
+
 def retry_operation(api_url, operation_id):
     """Retry a failed WAL operation."""
     response = requests.post(f"{api_url}/api/v0/wal/operations/{operation_id}/retry")
     if response.status_code == 200:
         result = response.json()
         print("\n=== Operation Retry ===")
-        print(f"Operation {result.get('operation_id')} status changed to {result.get('new_status')}")
+        print(
+            f"Operation {result.get('operation_id')} status changed to {result.get('new_status')}"
+        )
         return True
     else:
         print(f"Error: {response.status_code} - {response.text}")
         return False
+
 
 def get_wal_metrics(api_url):
     """Get WAL metrics and backend status."""
@@ -114,15 +121,16 @@ def get_wal_metrics(api_url):
         print(f"Pending operations: {result.get('pending_operations')}")
         print(f"Completed operations: {result.get('completed_operations')}")
         print(f"Failed operations: {result.get('failed_operations')}")
-        
+
         print("\nBackend Status:")
-        for backend, status in result.get('backend_status', {}).items():
+        for backend, status in result.get("backend_status", {}).items():
             status_text = "Available" if status else "Unavailable"
             print(f"- {backend}: {status_text}")
         return result
     else:
         print(f"Error: {response.status_code} - {response.text}")
         return None
+
 
 def get_wal_config(api_url):
     """Get current WAL configuration."""
@@ -138,12 +146,13 @@ def get_wal_config(api_url):
         print(f"Archive Completed: {config.get('archive_completed')}")
         print(f"Process Interval: {config.get('process_interval')} seconds")
         print(f"Health Monitoring: {config.get('enable_health_monitoring')}")
-        if config.get('enable_health_monitoring'):
+        if config.get("enable_health_monitoring"):
             print(f"Health Check Interval: {config.get('health_check_interval')} seconds")
         return config
     else:
         print(f"Error: {response.status_code} - {response.text}")
         return None
+
 
 def update_wal_config(api_url, config_updates):
     """Update WAL configuration."""
@@ -156,7 +165,7 @@ def update_wal_config(api_url, config_updates):
         print(f"Retry Delay: {config.get('retry_delay')} seconds")
         print(f"Archive Completed: {config.get('archive_completed')}")
         print(f"Process Interval: {config.get('process_interval')} seconds")
-        
+
         # Check for warning about settings that couldn't be updated
         if "warning" in result:
             print(f"\nWarning: {result['warning']}")
@@ -164,6 +173,7 @@ def update_wal_config(api_url, config_updates):
     else:
         print(f"Error: {response.status_code} - {response.text}")
         return None
+
 
 def delete_operation(api_url, operation_id):
     """Delete a WAL operation."""
@@ -177,14 +187,15 @@ def delete_operation(api_url, operation_id):
         print(f"Error: {response.status_code} - {response.text}")
         return False
 
+
 def main():
     """Main function demonstrating WAL API usage."""
     parser = argparse.ArgumentParser(description="WAL API Example")
     parser.add_argument("--api-url", default=DEFAULT_API_URL, help="API endpoint URL")
     args = parser.parse_args()
-    
+
     api_url = args.api_url.rstrip("/")
-    
+
     # Check if server is running
     try:
         response = requests.get(f"{api_url}/health")
@@ -194,15 +205,15 @@ def main():
     except requests.exceptions.ConnectionError:
         print(f"Cannot connect to API server at {api_url}")
         setup_api_server()
-    
+
     # Simulate some operations to create WAL entries
     print("\nCreating sample operations through the WAL...")
-    
+
     # Content addition - should succeed
     add_response = requests.post(
         f"{api_url}/api/v0/add",
         files={"file": ("test.txt", b"Hello WAL API Example!")},
-        data={"pin": "true"}
+        data={"pin": "true"},
     )
     if add_response.status_code == 200:
         print("Added content to IPFS successfully")
@@ -212,55 +223,56 @@ def main():
     else:
         print(f"Error adding content: {add_response.status_code} - {add_response.text}")
         content_cid = "QmTestCID"  # Fallback CID for demo
-    
+
     # List all operations
     operations = list_operations(api_url)
-    
+
     # Get metrics
     get_wal_metrics(api_url)
-    
+
     # Get configuration
     config = get_wal_config(api_url)
-    
+
     # If we have operations, show details of the first one
     if operations:
         operation_id = operations[0]["operation_id"]
         operation = get_operation_details(api_url, operation_id)
-        
+
         # For demonstration, let's retry an operation
         if operation and operation.get("status") == "failed":
             retry_operation(api_url, operation_id)
             # Check the updated status
             time.sleep(1)  # Give it a second to update
             get_operation_details(api_url, operation_id)
-    
+
     # Update configuration
     if config:
         print("\nUpdating WAL configuration...")
         new_config = {
             "max_retries": 10,  # Increase max retries
-            "retry_delay": 30   # Reduce retry delay
+            "retry_delay": 30,  # Reduce retry delay
         }
         update_wal_config(api_url, new_config)
-    
+
     # Filter operations by status
     print("\nListing pending operations...")
     pending_ops = list_operations(api_url, status="pending")
-    
+
     print("\nListing completed operations...")
     completed_ops = list_operations(api_url, status="completed")
-    
+
     # Delete an operation if available
     if operations:
         operation_id = operations[-1]["operation_id"]
         print(f"\nDeleting operation {operation_id}...")
         delete_operation(api_url, operation_id)
-        
+
         # Verify deletion
         print("\nListing operations after deletion...")
         list_operations(api_url)
-    
+
     print("\nWAL API example complete.")
+
 
 if __name__ == "__main__":
     main()

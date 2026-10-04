@@ -87,9 +87,8 @@ def _warn_missing_lotus_packages() -> None:
             missing_packages.append(package)
 
     if missing_packages:
-        install_hint = (
-            "sudo apt-get update && sudo apt-get install -y "
-            + " ".join(required_packages)
+        install_hint = "sudo apt-get update && sudo apt-get install -y " + " ".join(
+            required_packages
         )
         print(
             "WARNING: Lotus prerequisites missing: "
@@ -158,13 +157,13 @@ except Exception:
     pass
 
 setup(
-    name='ipfs_kit_py',
-    version='0.3.0',
-    description='Python toolkit for IPFS with high-level API, cluster management, tiered storage, and AI/ML integration',
-    author='Benjamin Barber',
-    author_email='starworks5@gmail.com',
-    url='https://github.com/endomorphosis/ipfs_kit_py/',
-    python_requires='>=3.12',
+    name="ipfs_kit_py",
+    version="0.3.0",
+    description="Python toolkit for IPFS with high-level API, cluster management, tiered storage, and AI/ML integration",
+    author="Benjamin Barber",
+    author_email="starworks5@gmail.com",
+    url="https://github.com/endomorphosis/ipfs_kit_py/",
+    python_requires=">=3.12",
     packages=find_packages(include=["ipfs_kit_py*", "external*"]),
     include_package_data=True,
     install_requires=install_requires,
