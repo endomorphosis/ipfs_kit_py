@@ -1,1 +1,0 @@
-Hello IPFS MCP World - Test Content!
