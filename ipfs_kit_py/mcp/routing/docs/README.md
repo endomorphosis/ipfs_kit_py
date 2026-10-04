@@ -60,20 +60,20 @@ from ipfs_kit_py.mcp.routing.integration import initialize_mcp_routing, select_b
 routing = initialize_mcp_routing()
 
 # Register available backends
-routing.register_backend('IPFS', {'type': 'ipfs'})
-routing.register_backend('S3', {'type': 's3'})
-routing.register_backend('FILECOIN', {'type': 'filecoin'})
+routing.register_backend("IPFS", {"type": "ipfs"})
+routing.register_backend("S3", {"type": "s3"})
+routing.register_backend("FILECOIN", {"type": "filecoin"})
 
 # Select a backend for storing a file
 result = routing.select_backend(
-    operation_type='write',
-    content_type='image',
+    operation_type="write",
+    content_type="image",
     content_size=5 * 1024 * 1024,  # 5 MB
-    region='us-east'
+    region="us-east",
 )
 
 # Use the selected backend
-selected_backend = result['backend']
+selected_backend = result["backend"]
 print(f"Selected backend: {selected_backend}")
 print(f"Reason: {result['reason']}")
 ```
@@ -84,29 +84,20 @@ You can customize the routing system by passing a configuration dictionary to `i
 
 ```python
 config = {
-    'default_backend': 'IPFS',
-    'strategy_weights': {
-        'content': 0.3,
-        'cost': 0.3,
-        'geo': 0.2,
-        'performance': 0.2
-    },
-    'backend_costs': {
-        'IPFS': {
-            'storage_cost': 0.02,    # $ per GB per month
-            'retrieval_cost': 0.01,  # $ per GB
-            'operation_cost': 0.0001  # $ per operation
+    "default_backend": "IPFS",
+    "strategy_weights": {"content": 0.3, "cost": 0.3, "geo": 0.2, "performance": 0.2},
+    "backend_costs": {
+        "IPFS": {
+            "storage_cost": 0.02,  # $ per GB per month
+            "retrieval_cost": 0.01,  # $ per GB
+            "operation_cost": 0.0001,  # $ per operation
         },
-        'S3': {
-            'storage_cost': 0.023,
-            'retrieval_cost': 0.09,
-            'operation_cost': 0.0005
-        }
+        "S3": {"storage_cost": 0.023, "retrieval_cost": 0.09, "operation_cost": 0.0005},
     },
-    'geographic_regions': {
-        'us-east': {'name': 'US East', 'coordinates': (37.7749, -122.4194)},
-        'eu-west': {'name': 'EU West', 'coordinates': (53.3498, -6.2603)}
-    }
+    "geographic_regions": {
+        "us-east": {"name": "US East", "coordinates": (37.7749, -122.4194)},
+        "eu-west": {"name": "EU West", "coordinates": (53.3498, -6.2603)},
+    },
 }
 
 routing = initialize_mcp_routing(config)
@@ -131,9 +122,9 @@ You can use a specific routing strategy instead of the composite strategy:
 ```python
 # Use only cost-based routing
 result = routing.select_backend(
-    operation_type='write',
+    operation_type="write",
     content_size=1 * 1024 * 1024 * 1024,  # 1 GB
-    strategy='cost_based'
+    strategy="cost_based",
 )
 ```
 
@@ -147,11 +138,11 @@ Record performance metrics to improve future routing decisions:
 # Record performance for a completed operation
 start_time = time.time() - 0.1  # Operation took 100ms
 routing.record_operation_performance(
-    backend='IPFS',
-    operation_type='read',
+    backend="IPFS",
+    operation_type="read",
     start_time=start_time,
     bytes_received=10 * 1024 * 1024,  # 10 MB
-    success=True
+    success=True,
 )
 ```
 
@@ -161,11 +152,11 @@ Retrieve collected metrics for a backend:
 
 ```python
 # Get all metrics for a backend
-metrics = routing.get_backend_metrics('IPFS')
+metrics = routing.get_backend_metrics("IPFS")
 
 # Access specific metric types
-latency = metrics.get('latency', {}).get('latency_ms')
-throughput = metrics.get('bandwidth', {}).get('throughput_mbps')
+latency = metrics.get("latency", {}).get("latency_ms")
+throughput = metrics.get("bandwidth", {}).get("throughput_mbps")
 ```
 
 ### Viewing Routing History
@@ -225,43 +216,45 @@ The Optimized Data Routing system integrates with the MCP server through the `MC
 ```python
 from ipfs_kit_py.mcp.routing.integration import initialize_mcp_routing
 
+
 # Initialize routing in server startup
 def initialize_server():
     routing = initialize_mcp_routing()
     server.routing = routing
-    
+
     # Register available backends
     for backend in server.get_available_backends():
         routing.register_backend(backend, server.get_backend_info(backend))
+
 
 # Use routing in request handler
 def handle_upload(request):
     # Select backend
     result = server.routing.select_backend(
-        operation_type='write',
+        operation_type="write",
         content_type=request.content_type,
         content_size=len(request.data),
-        region=request.headers.get('X-User-Region')
+        region=request.headers.get("X-User-Region"),
     )
-    
+
     # Use selected backend
-    backend = result['backend']
-    
+    backend = result["backend"]
+
     # Track start time
     start_time = time.time()
-    
+
     # Perform upload
     response = server.upload_to_backend(backend, request.data)
-    
+
     # Record performance
     server.routing.record_operation_performance(
         backend=backend,
-        operation_type='write',
+        operation_type="write",
         start_time=start_time,
         bytes_sent=len(request.data),
-        success=response.success
+        success=response.success,
     )
-    
+
     return response
 ```
 
@@ -271,11 +264,10 @@ def handle_upload(request):
 
 ```python
 # Register a new backend
-routing.register_backend('NEW_BACKEND', {
-    'type': 'custom',
-    'regions': ['us-east', 'eu-west'],
-    'features': ['example-feature']
-})
+routing.register_backend(
+    "NEW_BACKEND",
+    {"type": "custom", "regions": ["us-east", "eu-west"], "features": ["example-feature"]},
+)
 ```
 
 ### Adding a Custom Routing Strategy
@@ -283,17 +275,19 @@ routing.register_backend('NEW_BACKEND', {
 ```python
 from ipfs_kit_py.mcp.routing.router import RoutingStrategy, RoutingDecision
 
+
 class CustomStrategy(RoutingStrategy):
     def select_backend(self, context, available_backends, metrics):
         # Custom logic to select a backend
         backend = available_backends[0]  # Example: select first available
-        
+
         return RoutingDecision(
             backend=backend,
             score=1.0,
             reason="Selected by custom strategy",
-            metrics=metrics.get(backend, RouteMetrics())
+            metrics=metrics.get(backend, RouteMetrics()),
         )
+
 
 # Add the strategy to the router
 router.add_strategy("custom", CustomStrategy())
@@ -335,8 +329,9 @@ The routing system uses Python's standard logging module. To enable detailed log
 
 ```python
 import logging
+
 logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger('ipfs_kit_py.mcp.routing')
+logger = logging.getLogger("ipfs_kit_py.mcp.routing")
 logger.setLevel(logging.DEBUG)
 ```
 

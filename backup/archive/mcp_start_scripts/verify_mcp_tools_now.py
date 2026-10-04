@@ -3,6 +3,7 @@
 Verify MCP tools functionality.
 This script tests key MCP endpoints to ensure they're working properly.
 """
+
 import sys
 import json
 import requests
@@ -10,6 +11,7 @@ import time
 
 BASE_URL = "http://localhost:9994"
 API_URL = f"{BASE_URL}/api/v0"
+
 
 def test_endpoint(url, method="GET", data=None, expected_status=200, description=""):
     """Test an endpoint and return if it's working."""
@@ -40,6 +42,7 @@ def test_endpoint(url, method="GET", data=None, expected_status=200, description
         print(f"  ❌ Error: {str(e)}")
         return False
 
+
 def test_sse_endpoint(url):
     """Test SSE endpoint."""
     print(f"Testing SSE endpoint: {url}")
@@ -51,8 +54,8 @@ def test_sse_endpoint(url):
             return False
 
         # Check headers for SSE content type
-        content_type = response.headers.get('Content-Type', '')
-        if 'text/event-stream' not in content_type:
+        content_type = response.headers.get("Content-Type", "")
+        if "text/event-stream" not in content_type:
             print(f"  ❌ Not an SSE stream. Content-Type: {content_type}")
             response.close()
             return False
@@ -67,9 +70,9 @@ def test_sse_endpoint(url):
             line_count += 1
             if line:
                 print(f"  Received: {line}")
-                if 'event: connected' in line:
+                if "event: connected" in line:
                     found_connected = True
-                elif line.startswith('data:'):
+                elif line.startswith("data:"):
                     found_data = True
 
             if found_connected and found_data:
@@ -84,6 +87,7 @@ def test_sse_endpoint(url):
     except Exception as e:
         print(f"  ❌ Error: {str(e)}")
         return False
+
 
 def run_tests():
     """Run all MCP tools tests."""
@@ -100,8 +104,9 @@ def run_tests():
     results["ipfs_version"] = test_endpoint(f"{API_URL}/ipfs/version", description="IPFS Version")
 
     # Test Storage endpoints
-    results["storage_manager"] = test_endpoint(f"{API_URL}/storage_manager/list_backends",
-                                               description="Storage backends")
+    results["storage_manager"] = test_endpoint(
+        f"{API_URL}/storage_manager/list_backends", description="Storage backends"
+    )
 
     # Print summary
     print("\n=== Summary ===")
@@ -118,6 +123,7 @@ def run_tests():
     else:
         print("\nSome MCP tools are not working correctly.")
         return 1
+
 
 if __name__ == "__main__":
     result = run_tests()

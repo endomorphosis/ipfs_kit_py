@@ -23,8 +23,14 @@ from ipfs_kit_py.iroh.release import (  # noqa: E402 - checkout path bootstrap
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--target-stage", choices=("disabled", "experimental", "canary", "supported"), default="disabled")
-    parser.add_argument("--output", type=Path, help="write a CI summary without changing packaged evidence")
+    parser.add_argument(
+        "--target-stage",
+        choices=("disabled", "experimental", "canary", "supported"),
+        default="disabled",
+    )
+    parser.add_argument(
+        "--output", type=Path, help="write a CI summary without changing packaged evidence"
+    )
     args = parser.parse_args()
 
     report = load_release_readiness()
@@ -40,7 +46,7 @@ def main() -> int:
         "blockers": blockers,
         "receipt_ids": [item["id"] for item in receipts["receipts"]],
         "unresolved_critical": receipts["security_findings"]["unresolved_critical"],
-        "unresolved_high": receipts["security_findings"]["unresolved_high"]
+        "unresolved_high": receipts["security_findings"]["unresolved_high"],
     }
     rendered = json.dumps(summary, indent=2, sort_keys=True) + "\n"
     if args.output:

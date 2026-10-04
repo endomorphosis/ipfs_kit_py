@@ -49,6 +49,7 @@ MCP_PROTOCOL_ID = "/ipfs-kit-py/mcp-discovery/1.0.0"
 # Define MCP server roles
 class MCPServerRole:
     """MCP server roles for the discovery protocol."""
+
     MASTER = "master"  # Coordinates across servers, handles high-level operations
     WORKER = "worker"  # Processes specific tasks, handles computational work
     HYBRID = "hybrid"  # Both master and worker capabilities
@@ -58,6 +59,7 @@ class MCPServerRole:
 # Define message types for server-to-server communication
 class MCPMessageType:
     """Message types for MCP server communication."""
+
     ANNOUNCE = "announce"  # Server announcing its presence
     CAPABILITIES = "capabilities"  # Server capabilities advertisement
     HEALTH = "health"  # Health check request/response
@@ -69,6 +71,7 @@ class MCPMessageType:
 
 class MCPServerCapabilities:
     """Standard capability flags for MCP servers."""
+
     # Handling capabilities
     IPFS_DAEMON = "ipfs_daemon"  # Has IPFS daemon running
     IPFS_CLUSTER = "ipfs_cluster"  # Has IPFS cluster functionality
@@ -92,6 +95,7 @@ class MCPServerCapabilities:
 
 class MCPFeatureSet:
     """Represents a set of features that an MCP server supports."""
+
     def __init__(self, features: List[str], version: str = MCP_PROTOCOL_VERSION):
         self.features = set(features)
         self.version = version
@@ -134,7 +138,9 @@ class MCPFeatureSet:
 
 class MCPServerInfo:
     """Information about an MCP server for discovery and coordination."""
-    def __init__(self,
+
+    def __init__(
+        self,
         server_id: str,
         role: str,
         feature_set: MCPFeatureSet,
@@ -142,7 +148,8 @@ class MCPServerInfo:
         websocket_endpoint: Optional[str] = None,
         libp2p_peer_id: Optional[str] = None,
         libp2p_addresses: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None):
+        metadata: Optional[Dict[str, Any]] = None,
+    ):
         """
         Initialize MCP server information.
 
@@ -216,16 +223,19 @@ class MCPDiscoveryModel:
     and collaborate on handling requests. It works with both direct libp2p peer
     discovery and WebSocket-based discovery for environments with NAT/firewalls.
     """
-    def __init__(self,
+
+    def __init__(
+        self,
         server_id: Optional[str] = None,
         role: str = MCPServerRole.MASTER,
         features: Optional[List[str]] = None,
-        libp2p_model = None,
-        ipfs_model = None,
-        cache_manager = None,
-        credential_manager = None,
-        resources = None,
-        metadata = None):
+        libp2p_model=None,
+        ipfs_model=None,
+        cache_manager=None,
+        credential_manager=None,
+        resources=None,
+        metadata=None,
+    ):
         """
         Initialize the MCP discovery model.
 
@@ -342,7 +352,8 @@ class MCPDiscoveryModel:
             # Check for IPFS Cluster
             try:
                 if hasattr(self.ipfs_model, "ipfs_cluster_service") or hasattr(
-                    self.ipfs_model, "ipfs_cluster_follow"):
+                    self.ipfs_model, "ipfs_cluster_follow"
+                ):
                     features.append(MCPServerCapabilities.IPFS_CLUSTER)
             except (AttributeError, Exception):
                 pass
@@ -394,7 +405,7 @@ class MCPDiscoveryModel:
                 "version": MCP_PROTOCOL_VERSION,
                 "uptime": 0,  # Will be updated when needed
                 "resources": self.resources,
-            }
+            },
         )
 
     def update_server_info(self, **kwargs) -> Dict[str, Any]:
@@ -489,10 +500,11 @@ class MCPDiscoveryModel:
 
         return result
 
-    def discover_servers(self,
+    def discover_servers(
+        self,
         methods: Optional[List[str]] = None,
         compatible_only: bool = True,
-        feature_requirements: Optional[List[str]] = None
+        feature_requirements: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Discover MCP servers in the network.
@@ -695,7 +707,9 @@ class MCPDiscoveryModel:
         result["error"] = f"Server not found: {server_id}"
         return result
 
-    def get_compatible_servers(self, feature_requirements: Optional[List[str]] = None) -> Dict[str, Any]:
+    def get_compatible_servers(
+        self, feature_requirements: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
         """
         Get all servers with compatible feature sets.
 
@@ -1009,7 +1023,7 @@ class MCPDiscoveryModel:
         task_type: str,
         task_data: Any,
         required_features: Optional[List[str]] = None,
-        preferred_server_id: Optional[str] = None
+        preferred_server_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Dispatch a task to a compatible server.
