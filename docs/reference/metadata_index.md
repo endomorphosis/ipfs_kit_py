@@ -24,9 +24,7 @@ The Metadata Index is fully integrated with IPFS Kit and can be easily enabled t
 from ipfs_kit_py.ipfs_kit import ipfs_kit
 
 # Initialize with metadata index enabled
-kit = ipfs_kit(
-    metadata={"enable_metadata_index": True}
-)
+kit = ipfs_kit(metadata={"enable_metadata_index": True})
 
 # Get the metadata index
 index = kit.get_metadata_index()
@@ -86,27 +84,27 @@ record = {
             "pinned": True,
             "local": True,
             "pin_types": ["recursive"],
-            "gateway_urls": ["https://ipfs.io/ipfs/QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx"]
+            "gateway_urls": ["https://ipfs.io/ipfs/QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx"],
         },
         # IPFS Cluster storage
         "ipfs_cluster": {
             "pinned": True,
             "replication_factor": 3,
             "allocation_nodes": ["QmNode1", "QmNode2", "QmNode3"],
-            "pin_status": "pinned"
+            "pin_status": "pinned",
         },
         # Available on these libp2p peers
         "libp2p": {
             "peers": ["QmPeer1", "QmPeer2"],
             "protocols": ["/ipfs/bitswap/1.2.0"],
-            "multiaddrs": ["/ip4/192.168.1.1/tcp/4001/p2p/QmPeer1"]
+            "multiaddrs": ["/ip4/192.168.1.1/tcp/4001/p2p/QmPeer1"],
         },
         # Storacha/Web3.Storage
         "storacha": {
             "car_cid": "QmCarFile",
             "upload_id": "upload-123",
             "space_did": "did:key:123",
-            "stored_timestamp": "2023-06-15T14:22:31Z"
+            "stored_timestamp": "2023-06-15T14:22:31Z",
         },
         # S3 storage (multiple buckets/regions)
         "s3": [
@@ -115,14 +113,14 @@ record = {
                 "region": "us-east-1",
                 "bucket": "mybucket",
                 "key": "example.txt",
-                "storage_class": "STANDARD"
+                "storage_class": "STANDARD",
             },
             {
                 "provider": "minio",
                 "region": "us-east-1",
                 "bucket": "backup",
-                "key": "archived/example.txt"
-            }
+                "key": "archived/example.txt",
+            },
         ],
         # Filecoin storage
         "filecoin": {
@@ -130,7 +128,7 @@ record = {
             "providers": ["f01234", "f05678"],
             "replication_factor": 2,
             "deal_expiration": "2024-06-15T14:22:31Z",
-            "verified_deal": True
+            "verified_deal": True,
         },
         # HuggingFace Hub
         "huggingface_hub": {
@@ -138,9 +136,9 @@ record = {
             "repo_type": "model",
             "file_path": "example.txt",
             "revision": "main",
-            "commit_hash": "1234abcd"
-        }
-    }
+            "commit_hash": "1234abcd",
+        },
+    },
 }
 ```
 
@@ -152,9 +150,7 @@ record = {
 from ipfs_kit_py.ipfs_kit import ipfs_kit
 
 # Initialize with metadata index enabled
-kit = ipfs_kit(
-    metadata={"enable_metadata_index": True}
-)
+kit = ipfs_kit(metadata={"enable_metadata_index": True})
 index = kit.get_metadata_index()
 
 # Add a record
@@ -163,10 +159,7 @@ record = {
     "size_bytes": 1024,
     "mime_type": "text/plain",
     "filename": "example.txt",
-    "metadata": {
-        "title": "Example Document",
-        "description": "This is a test document"
-    }
+    "metadata": {"title": "Example Document", "description": "This is a test document"},
 }
 result = index.add_record(record)
 print(f"Added record: {result['success']}")
@@ -176,32 +169,28 @@ print(f"Added record: {result['success']}")
 
 ```python
 # Simple query with conditions
-results = index.query([
-    ("mime_type", "==", "text/plain"),
-    ("size_bytes", "<", 10000)
-])
+results = index.query([("mime_type", "==", "text/plain"), ("size_bytes", "<", 10000)])
 
 # Convert to pandas DataFrame for analysis
 import pandas as pd
+
 df = results.to_pandas()
 print(df.head())
 
 # Find records with specific tags
-tagged_results = index.query([
-    ("tags", "contains", "important")
-])
+tagged_results = index.query([("tags", "contains", "important")])
 
 # Find records by creation date
-recent_results = index.query([
-    ("created_at", ">", "2023-06-01T00:00:00Z")
-])
+recent_results = index.query([("created_at", ">", "2023-06-01T00:00:00Z")])
 
 # Combine multiple conditions
-complex_results = index.query([
-    ("mime_type", "==", "application/pdf"),
-    ("size_bytes", ">", 1024 * 1024),  # Larger than 1MB
-    ("pinned", "==", True)
-])
+complex_results = index.query(
+    [
+        ("mime_type", "==", "application/pdf"),
+        ("size_bytes", ">", 1024 * 1024),  # Larger than 1MB
+        ("pinned", "==", True),
+    ]
+)
 ```
 
 ### Finding Content Locations
@@ -215,10 +204,12 @@ if locations["success"]:
     for location in locations["locations"]:
         if location["type"] == "ipfs" and location["local"]:
             print(f"Content available locally with pinned status: {location['pinned']}")
-            
+
     # Get the fastest retrieval path
     fastest = locations["fastest_retrieval_path"]
-    print(f"Fastest retrieval: {fastest['type']} with estimated latency {fastest['latency_estimate_ms']}ms")
+    print(
+        f"Fastest retrieval: {fastest['type']} with estimated latency {fastest['latency_estimate_ms']}ms"
+    )
 ```
 
 ### Synchronizing with Peers
@@ -231,9 +222,7 @@ result = kit.sync_metadata_index()
 print(f"Synchronized with {result.get('peers_synced', 0)} peers")
 
 # Synchronize with specific peers
-result = kit.sync_metadata_index(
-    peer_ids=["QmPeerID1", "QmPeerID2"]
-)
+result = kit.sync_metadata_index(peer_ids=["QmPeerID1", "QmPeerID2"])
 ```
 
 ### Publishing the Index
@@ -255,16 +244,15 @@ The metadata index supports text search across fields:
 
 ```python
 # Search for documents containing specific text
-search_results = index.text_search("machine learning", fields=["metadata.title", "metadata.description"])
+search_results = index.text_search(
+    "machine learning", fields=["metadata.title", "metadata.description"]
+)
 
 # Combine text search with other conditions
 combined_results = index.text_search(
     "neural network",
     fields=["metadata.title", "metadata.description"],
-    filters=[
-        ("mime_type", "==", "application/pdf"),
-        ("created_at", ">", "2023-01-01T00:00:00Z")
-    ]
+    filters=[("mime_type", "==", "application/pdf"), ("created_at", ">", "2023-01-01T00:00:00Z")],
 )
 ```
 
@@ -367,9 +355,9 @@ from ipfs_kit_py.ipfs_kit import ipfs_kit
 kit = ipfs_kit(
     metadata={
         "enable_metadata_index": True,
-        "quorum_size": 3,               # Minimum replication factor
+        "quorum_size": 3,  # Minimum replication factor
         "target_replication_factor": 4,  # Target number of copies
-        "max_replication_factor": 5      # Maximum number of copies
+        "max_replication_factor": 5,  # Maximum number of copies
     }
 )
 ```
