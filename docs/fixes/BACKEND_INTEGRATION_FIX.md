@@ -16,7 +16,9 @@ The user (@hallucinate-llc) correctly identified that the previous fix was incom
 Added `_transform_config_for_backend()` method that transforms user input to backend-specific formats:
 
 ```python
-def _transform_config_for_backend(self, service_type: str, config: Dict[str, Any]) -> Dict[str, Any]:
+def _transform_config_for_backend(
+    self, service_type: str, config: Dict[str, Any]
+) -> Dict[str, Any]:
     if service_type == "s3":
         return {
             "s3cfg": {
@@ -24,14 +26,14 @@ def _transform_config_for_backend(self, service_type: str, config: Dict[str, Any
                 "secretKey": config.get("secret_key", ""),
                 "endpoint": config.get("endpoint", ...),
                 "bucket": config.get("bucket", ""),
-                "region": config.get("region", "us-east-1")
+                "region": config.get("region", "us-east-1"),
             }
         }
     elif service_type == "github":
         return {
             "github_token": config.get("api_token", ""),
             "repository": config.get("repository", ""),
-            "username": config.get("username", "")
+            "username": config.get("username", ""),
         }
     # ... etc for other backends
 ```
@@ -117,11 +119,11 @@ Updated `config_keys` to match form field names and added `config_hints`:
 6. **Backend module can be initialized**
    ```python
    from ipfs_kit_py.s3_kit import s3_kit
-   
+
    # Load saved config
-   with open('~/.ipfs_kit/backend_configs/s3.json') as f:
+   with open("~/.ipfs_kit/backend_configs/s3.json") as f:
        config = json.load(f)
-   
+
    # Initialize s3_kit with saved config
    s3 = s3_kit(resources, meta=config)  # Uses config["s3cfg"]
    ```

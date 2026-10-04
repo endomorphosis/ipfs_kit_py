@@ -74,6 +74,7 @@ async def main():
     task2 = async_io.create_task(another_function())
     await async_io.gather(task1, task2)
 
+
 # anyio
 async def main():
     async with anyio.create_task_group() as tg:
@@ -155,6 +156,7 @@ For testing async code with anyio, use the built-in testing utilities:
 import anyio
 import pytest
 
+
 @pytest.mark.anyio
 async def test_async_function():
     # This test will run on all available backends
@@ -221,22 +223,19 @@ async def stream_content():
     try:
         # Use async-io wait_for for timeout
         result = await async_io.wait_for(
-            api.stream_media_async(path=path, chunk_size=chunk_size),
-            timeout=timeout
+            api.stream_media_async(path=path, chunk_size=chunk_size), timeout=timeout
         )
         return result
     except async_io.TimeoutError:
         raise HTTPException(status_code=504, detail="Timeout streaming content")
+
 
 # After (with anyio)
 async def stream_content():
     try:
         # Use anyio.move_on_after context manager
         with anyio.move_on_after(timeout):
-            async for chunk in api.stream_media_async(
-                path=path,
-                chunk_size=chunk_size
-            ):
+            async for chunk in api.stream_media_async(path=path, chunk_size=chunk_size):
                 yield chunk
     except Exception as e:
         logger.error(f"Error during content streaming: {str(e)}")
@@ -249,23 +248,22 @@ async def stream_content():
 # Before (async-io-based)
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("api:app", host="0.0.0.0", port=8000)
-    
+
 # After (anyio-based)
 if __name__ == "__main__":
+
     async def run_server():
         config = uvicorn.Config(
-            "api_anyio:app", 
-            host=host, 
-            port=port,
-            log_level=log_level,
-            reload=False
+            "api_anyio:app", host=host, port=port, log_level=log_level, reload=False
         )
         server = uvicorn.Server(config)
         await server.serve()
-        
+
     # Run with anyio to support multiple backends
     import anyio
+
     backend = os.environ.get("IPFS_KIT_ASYNC_BACKEND", "async-io")
     anyio.run(run_server, backend=backend)
 ```
@@ -279,12 +277,10 @@ async def test_async_function():
     # Test implementation
     ...
 
+
 # Use anyio.run for test execution
 if __name__ == "__main__":
-    anyio.run(
-        pytest.main,
-        ["-v", __file__]
-    )
+    anyio.run(pytest.main, ["-v", __file__])
 ```
 
 The migrated API server (`api_anyio.py`) preserves all the functionality of the original server while gaining the benefits of anyio - backend agnosticism, improved cancellation handling, and more intuitive concurrency patterns.

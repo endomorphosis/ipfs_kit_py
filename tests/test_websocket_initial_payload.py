@@ -18,6 +18,10 @@ def test_websocket_initial_payload_sequence():
     # Required metric-ish keys
     assert "ts" in second
     # Ensure counts present in status
-    counts = (data.get("data") or {}).get("data", {}).get("counts") or (data.get("data") or {}).get("counts") or {}
+    counts = (
+        (data.get("data") or {}).get("data", {}).get("counts")
+        or (data.get("data") or {}).get("counts")
+        or {}
+    )
     for ck in ("services_active", "backends", "buckets", "pins", "requests"):
         assert ck in counts

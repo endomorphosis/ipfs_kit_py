@@ -2,6 +2,7 @@
 """
 Run MCP server with all fixes applied.
 """
+
 import sys
 import logging
 import uvicorn
@@ -10,39 +11,42 @@ from fastapi import FastAPI
 from ipfs_kit_py.mcp.server_anyio import MCPServer
 
 # Configure logging
-logging.basicConfig(level=logging.INFO,
-                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("run_fixed_mcp_server")
 
 # Create FastAPI app
 app = FastAPI(
     title="Fixed MCP Server",
     description="Model-Controller-Persistence Server for IPFS Kit",
-    version="1.0.0"
+    version="1.0.0",
 )
+
 
 # Root endpoint
 @app.get("/")
 def read_root():
     """Root endpoint for the server."""
     import time
+
     return {
         "name": "IPFS Kit MCP Server",
         "version": "1.0.0",
         "description": "Fixed API server for IPFS Kit operations",
         "timestamp": time.time(),
-        "endpoints": ["/", "/health", "/docs", "/api/v0/mcp/"]
+        "endpoints": ["/", "/health", "/docs", "/api/v0/mcp/"],
     }
+
 
 # Health check endpoint
 @app.get("/health")
 def health_check():
     """Health check endpoint."""
     import time
-    return {
-        "status": "ok",
-        "timestamp": time.time()
-    }
+
+    return {"status": "ok", "timestamp": time.time()}
+
 
 # Create MCP server with debug mode
 mcp_server = MCPServer(debug_mode=True)

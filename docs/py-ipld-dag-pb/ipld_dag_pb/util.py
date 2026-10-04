@@ -148,7 +148,5 @@ def create_node(data: Optional[BytesLike], links: list[PBLink] = []) -> PBNode:
     return prepare({"data": data, "links": links})
 
 
-def create_link(
-    hash: CID, name: Optional[str] = None, size: Optional[int] = None
-) -> PBLink:
+def create_link(hash: CID, name: Optional[str] = None, size: Optional[int] = None) -> PBLink:
     return as_link({"hash": hash, "name": name, "t_size": size})

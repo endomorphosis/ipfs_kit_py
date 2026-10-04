@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 class RoutingDashboardExtension:
     """
     Extension for the MCP monitoring dashboard to visualize routing metrics.
-    
+
     This extension adds routing-specific visualizations to the existing dashboard:
     - Backend selection patterns
     - Content type distribution
@@ -40,39 +40,35 @@ class RoutingDashboardExtension:
     - Geographic visualization
     - Cost analysis
     """
-    
-    def __init__(
-        self,
-        dashboard: MonitoringDashboard,
-        options: Optional[Dict[str, Any]] = None
-    ):
+
+    def __init__(self, dashboard: MonitoringDashboard, options: Optional[Dict[str, Any]] = None):
         """
         Initialize the routing dashboard extension.
-        
+
         Args:
             dashboard: MonitoringDashboard instance to extend
             options: Optional configuration options
         """
         self.dashboard = dashboard
         self.options = options or {}
-        
+
         # Create templates and static files
         self._create_routing_templates()
         self._create_routing_static_files()
-        
+
         # Add routing data to dashboard
         self._register_data_provider()
-        
+
         # Add routing routes to dashboard
         self._register_routes()
-        
+
         logger.info("Routing dashboard extension initialized")
-    
+
     def _create_routing_templates(self):
         """Create routing-specific templates."""
         # Get templates directory from dashboard
         templates_dir = self.dashboard.templates.directory
-        
+
         # Create routing template
         routing_template = """{% extends "base.html" %}
 
@@ -321,26 +317,26 @@ class RoutingDashboardExtension:
 </script>
 {% endblock %}
 """
-        
+
         # Write routing template to file
         with open(os.path.join(templates_dir, "routing.html"), "w") as f:
             f.write(routing_template)
-        
+
         logger.info(f"Created routing templates in {templates_dir}")
-    
+
     def _create_routing_static_files(self):
         """Create routing-specific static files."""
         # Get static directory from dashboard
         static_dir = self.dashboard.static_dir
-        
+
         # Create CSS directory if it doesn't exist
         css_dir = os.path.join(static_dir, "css")
         os.makedirs(css_dir, exist_ok=True)
-        
+
         # Create JS directory if it doesn't exist
         js_dir = os.path.join(static_dir, "js")
         os.makedirs(js_dir, exist_ok=True)
-        
+
         # Create routing CSS
         routing_css = """/* Routing Dashboard Styles */
 
@@ -647,7 +643,7 @@ input:checked + .slider:before {
     }
 }
 """
-        
+
         # Create routing JavaScript
         routing_js = """// Routing Dashboard JavaScript
 
@@ -1273,47 +1269,47 @@ function setupRoutingSimulator(simulateUrl) {
     }
 }
 """
-        
+
         # Write CSS and JS files
         with open(os.path.join(css_dir, "routing.css"), "w") as f:
             f.write(routing_css)
-        
+
         with open(os.path.join(js_dir, "routing.js"), "w") as f:
             f.write(routing_js)
-        
+
         logger.info(f"Created routing static files in {static_dir}")
-    
+
     def _register_data_provider(self):
         """Register a data provider to inject routing data into dashboard data."""
         # Get the existing _get_dashboard_data method
         original_get_dashboard_data = self.dashboard._get_dashboard_data
-        
+
         # Create a new method that extends the original
         async def extended_get_dashboard_data():
             # Get original data
             data = await original_get_dashboard_data()
-            
+
             # Add routing data
             routing_data = await self._get_routing_data()
             data["routing"] = routing_data
-            
+
             return data
-        
+
         # Replace the original method
         self.dashboard._get_dashboard_data = extended_get_dashboard_data
-        
+
         logger.info("Registered routing data provider with dashboard")
-    
+
     async def _get_routing_data(self) -> Dict[str, Any]:
         """
         Get routing system data for the dashboard.
-        
+
         Returns:
             Dictionary with routing data
         """
         # Get routing manager
         routing_manager = get_routing_manager()
-        
+
         # Basic data structure
         data = {
             "timestamp": time.time(),
@@ -1322,44 +1318,44 @@ function setupRoutingSimulator(simulateUrl) {
             "decisions_analyzed": len(routing_manager.adaptive_optimizer.decision_history),
             "improvement_rate": 0.0,  # Will be calculated if possible
         }
-        
+
         # Calculate improvement rate if there's enough data
         if len(routing_manager.adaptive_optimizer.decision_history) > 10:
             # Get the first 10 and last 10 decisions
             first_10 = routing_manager.adaptive_optimizer.decision_history[:10]
             last_10 = routing_manager.adaptive_optimizer.decision_history[-10:]
-            
+
             # Calculate success rates
             first_success_rate = sum(1 for _, success in first_10 if success) / len(first_10)
             last_success_rate = sum(1 for _, success in last_10 if success) / len(last_10)
-            
+
             # Calculate improvement
             if first_success_rate > 0:
                 improvement = ((last_success_rate - first_success_rate) / first_success_rate) * 100
                 data["improvement_rate"] = max(0, improvement)  # Don't show negative improvement
-        
+
         # Add backend distribution data
         try:
             # Get insights from router
             insights = await routing_manager.get_routing_insights()
-            
+
             # Add backend distribution
             if "load_distribution" in insights:
                 data["backend_distribution"] = insights["load_distribution"]
-            
+
             # Add content distribution
             if "optimal_backends_by_content" in insights:
                 content_distribution = {}
                 for content_type, backends in insights["optimal_backends_by_content"].items():
                     content_distribution[content_type] = len(backends)
                 data["content_distribution"] = content_distribution
-            
+
             # Add optimization factor weights
             if "optimization_weights" in insights:
                 data["factor_weights"] = insights["optimization_weights"]
         except Exception as e:
             logger.error(f"Error getting routing insights: {e}")
-        
+
         # Add optimization scores and details
         data["optimization_scores"] = {
             "network_quality": 0.85,
@@ -1367,7 +1363,7 @@ function setupRoutingSimulator(simulateUrl) {
             "cost_efficiency": 0.91,
             "geographic": 0.68,
         }
-        
+
         data["optimization_details"] = {
             "network_quality": {
                 "latency_ms": 120,
@@ -1387,20 +1383,24 @@ function setupRoutingSimulator(simulateUrl) {
                 "proximity": 45,
             },
         }
-        
+
         return data
-    
+
     def _register_routes(self):
         """Register routing routes with the dashboard."""
         # Get app from dashboard
         app = self.dashboard.app
-        
+
         # Add routing page route
-        @app.get(f"{self.dashboard.path_prefix}/routing", response_class="HTMLResponse", name="dashboard_routing")
+        @app.get(
+            f"{self.dashboard.path_prefix}/routing",
+            response_class="HTMLResponse",
+            name="dashboard_routing",
+        )
         async def dashboard_routing(request):
             """Routing dashboard page."""
             return self.dashboard.templates.TemplateResponse("routing.html", {"request": request})
-        
+
         # Add routing API routes
         @app.post("/api/v0/routing/config/strategy")
         async def update_routing_strategy(request):
@@ -1408,44 +1408,44 @@ function setupRoutingSimulator(simulateUrl) {
             # Parse request
             data = await request.json()
             strategy = data.get("strategy")
-            
+
             if not strategy:
                 return {"success": False, "error": "Missing strategy parameter"}
-            
+
             try:
                 # Get routing manager
                 routing_manager = get_routing_manager()
-                
+
                 # Update strategy
                 routing_manager.default_strategy = strategy
-                
+
                 return {"success": True}
             except Exception as e:
                 logger.error(f"Error updating routing strategy: {e}")
                 return {"success": False, "error": str(e)}
-        
+
         @app.post("/api/v0/routing/config/learning")
         async def update_learning_status(request):
             """Update learning status."""
             # Parse request
             data = await request.json()
             enabled = data.get("enabled")
-            
+
             if enabled is None:
                 return {"success": False, "error": "Missing enabled parameter"}
-            
+
             try:
                 # Get routing manager
                 routing_manager = get_routing_manager()
-                
+
                 # Update learning status
                 routing_manager.adaptive_optimizer.learning_enabled = enabled
-                
+
                 return {"success": True}
             except Exception as e:
                 logger.error(f"Error updating learning status: {e}")
                 return {"success": False, "error": str(e)}
-        
+
         @app.post("/api/v0/routing/simulate")
         async def simulate_routing(request):
             """Simulate routing for given parameters."""
@@ -1454,11 +1454,11 @@ function setupRoutingSimulator(simulateUrl) {
             content_info = data.get("content_info", {})
             priority = data.get("priority")
             region = data.get("region")
-            
+
             try:
                 # Get routing manager
                 routing_manager = get_routing_manager()
-                
+
                 # Set up client location
                 client_location = None
                 if region:
@@ -1472,47 +1472,50 @@ function setupRoutingSimulator(simulateUrl) {
                         "asia-south": {"lat": 19.1, "lon": 72.9},
                     }
                     client_location = region_coords.get(region)
-                
+
                 # Use dummy content for simulation
                 content_size = content_info.get("size_bytes", 1024 * 1024)  # Default to 1MB
                 content = b"0" * min(1024, content_size)  # Use at most 1KB for simulation
-                
+
                 # Run optimization
                 result = routing_manager.adaptive_optimizer.optimize_route(
                     content=content,
                     metadata=content_info,
                     priority=priority,
-                    client_location=client_location
+                    client_location=client_location,
                 )
-                
+
                 # Convert result to JSON-serializable format
                 response = {
                     "backend_id": result.backend_id,
                     "overall_score": result.overall_score,
-                    "factor_scores": {factor.value: score for factor, score in result.factor_scores.items()},
-                    "alternatives": [{"backend_id": bid, "score": score} for bid, score in result.alternatives],
+                    "factor_scores": {
+                        factor.value: score for factor, score in result.factor_scores.items()
+                    },
+                    "alternatives": [
+                        {"backend_id": bid, "score": score} for bid, score in result.alternatives
+                    ],
                     "execution_time_ms": result.execution_time_ms,
                 }
-                
+
                 return response
             except Exception as e:
                 logger.error(f"Error simulating routing: {e}")
                 return {"error": str(e)}
-        
+
         logger.info("Registered routing routes with dashboard")
 
 
 def extend_monitoring_dashboard(
-    dashboard: Optional[MonitoringDashboard] = None,
-    options: Optional[Dict[str, Any]] = None
+    dashboard: Optional[MonitoringDashboard] = None, options: Optional[Dict[str, Any]] = None
 ) -> Optional[RoutingDashboardExtension]:
     """
     Extend the MCP monitoring dashboard with routing visualizations.
-    
+
     Args:
         dashboard: MonitoringDashboard instance to extend
         options: Optional configuration options
-        
+
     Returns:
         RoutingDashboardExtension instance or None if extension failed
     """
@@ -1520,10 +1523,10 @@ def extend_monitoring_dashboard(
         if dashboard is None:
             logger.warning("No dashboard provided, cannot create routing extension")
             return None
-        
+
         # Create extension
         extension = RoutingDashboardExtension(dashboard, options)
-        
+
         logger.info("Created routing dashboard extension")
         return extension
     except Exception as e:

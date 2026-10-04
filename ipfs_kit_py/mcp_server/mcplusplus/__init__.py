@@ -4,6 +4,7 @@ Provides optional packet validation against the canonical Mcp-Plus-Plus spec and
 optional P2P/workflow features imported from ipfs_accelerate_py. All imports are
 guarded so the server runs as a plain MCP server when extras are absent.
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, Optional
@@ -14,6 +15,7 @@ mcplusplus_version = "unknown"
 
 try:  # canonical accelerate mcplusplus module (P2P, CID/UCAN, workflows)
     import ipfs_accelerate_py.mcplusplus_module as _mpp  # type: ignore
+
     HAVE_MCPLUSPLUS = True
     mcplusplus_version = getattr(_mpp, "__version__", "unknown")
 except Exception:  # pragma: no cover
@@ -21,6 +23,7 @@ except Exception:  # pragma: no cover
 
 try:  # python validator from the spec submodule
     from validators import validate_envelope  # type: ignore
+
     HAVE_VALIDATOR = True
 except Exception:  # pragma: no cover
     validate_envelope = None  # type: ignore
