@@ -6,8 +6,11 @@ Fix the server indentation in direct_mcp_server.py
 import re
 import logging
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def fix_server_indentation():
     """Fix the server indentation and scoping in direct_mcp_server.py"""
@@ -26,7 +29,7 @@ def fix_server_indentation():
         if "server = FastMCP(" in line:
             server_start_index = i
             # Check if it's indented
-            if line.startswith('    '):
+            if line.startswith("    "):
                 server_indented = True
 
             # Find where the server definition ends (looking for closing parenthesis)
@@ -59,7 +62,7 @@ def fix_server_indentation():
         # Remove the indentation from server creation lines
         fixed_lines = []
         for line in server_lines:
-            if line.startswith('    '):
+            if line.startswith("    "):
                 fixed_lines.append(line[4:])  # Remove 4 spaces
             else:
                 fixed_lines.append(line)
@@ -87,6 +90,7 @@ def fix_server_indentation():
 
     logger.info("✅ Successfully fixed server indentation and register_tools placement")
     return True
+
 
 if __name__ == "__main__":
     fix_server_indentation()

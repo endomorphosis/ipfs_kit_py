@@ -22,7 +22,7 @@ api = IPFSSimpleAPI(
     role="master",
     resources={"max_memory": "2GB", "max_storage": "100GB"},
     cache={"memory_size": "500MB", "disk_size": "5GB"},
-    timeouts={"api": 60, "gateway": 120}
+    timeouts={"api": 60, "gateway": 120},
 )
 ```
 
@@ -177,14 +177,14 @@ run_server()
 
 # Start with custom settings
 run_server(
-    host="0.0.0.0",             # Listen on all interfaces
-    port=8000,                  # Port to listen on
-    reload=True,                # Enable auto-reload for development
-    workers=4,                  # Number of worker processes
+    host="0.0.0.0",  # Listen on all interfaces
+    port=8000,  # Port to listen on
+    reload=True,  # Enable auto-reload for development
+    workers=4,  # Number of worker processes
     config_path="config.yaml",  # Load configuration from file
-    log_level="info",           # Logging level
-    auth_enabled=True,          # Enable authentication
-    cors_origins=["*"]          # CORS allowed origins
+    log_level="info",  # Logging level
+    auth_enabled=True,  # Enable authentication
+    cors_origins=["*"],  # CORS allowed origins
 )
 ```
 
@@ -313,9 +313,7 @@ import requests
 # Add content
 with open("example.txt", "rb") as f:
     response = requests.post(
-        "http://localhost:8000/api/v0/add",
-        files={"file": f},
-        data={"pin": "true"}
+        "http://localhost:8000/api/v0/add", files={"file": f}, data={"pin": "true"}
     )
 result = response.json()
 cid = result["cid"]

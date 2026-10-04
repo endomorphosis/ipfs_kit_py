@@ -80,15 +80,11 @@ def test_schemas_are_valid_draft_2020_12(
     _validator(fixture_schema)
 
 
-def test_release_record_validates(
-    release: dict[str, Any], release_schema: dict[str, Any]
-) -> None:
+def test_release_record_validates(release: dict[str, Any], release_schema: dict[str, Any]) -> None:
     _validator(release_schema).validate(release)
 
 
-def test_human_decision_identifies_the_machine_record_and_bundle(
-    release: dict[str, Any]
-) -> None:
+def test_human_decision_identifies_the_machine_record_and_bundle(release: dict[str, Any]) -> None:
     decision = DECISION_PATH.read_text(encoding="utf-8")
     assert f"Decision: {release['decision_id']}" in decision
     assert f"Release bundle: `{release['release_bundle']['id']}`" in decision
@@ -98,7 +94,7 @@ def test_human_decision_identifies_the_machine_record_and_bundle(
 
 
 def test_pinned_bundle_and_version_output_are_cross_field_consistent(
-    release: dict[str, Any]
+    release: dict[str, Any],
 ) -> None:
     components = {item["crate"]: item["version"] for item in release["components"]}
     assert components == EXPECTED_COMPONENTS
@@ -204,7 +200,7 @@ def test_release_schema_rejects_drift_and_unknown_fields(
 
 
 def test_fixture_schema_rejects_unrecorded_or_malformed_results(
-    fixture_schema: dict[str, Any]
+    fixture_schema: dict[str, Any],
 ) -> None:
     validator = _validator(fixture_schema)
     fixture = _read_json(FIXTURE_DIR / "linux_x86_64_gnu.json")

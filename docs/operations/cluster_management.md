@@ -17,9 +17,9 @@ kit_master = ipfs_kit(
         "enable_cluster_management": True,
         # Add specific cluster config if needed
         "cluster_config": {
-            "consensus_protocol": "raft", # Example
-            "state_sync_interval": 60
-        }
+            "consensus_protocol": "raft",  # Example
+            "state_sync_interval": 60,
+        },
     }
 )
 
@@ -29,7 +29,7 @@ kit_worker = ipfs_kit(
         "role": "worker",
         "cluster_name": "advanced-cluster",
         "enable_cluster_management": True,
-        "master_addresses": ["/ip4/10.0.0.1/tcp/9096/p2p/QmMasterID"] # Example
+        "master_addresses": ["/ip4/10.0.0.1/tcp/9096/p2p/QmMasterID"],  # Example
     }
 )
 
@@ -99,6 +99,7 @@ if submit_result.get("success"):
 
     # Check status later
     import time
+
     time.sleep(10)
     status_result = kit.get_task_status(task_id)
     print(f"Task {task_id} status: {status_result.get('status')}")

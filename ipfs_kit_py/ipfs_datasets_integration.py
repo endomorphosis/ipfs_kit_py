@@ -14,7 +14,7 @@ Key Features:
 
 Usage:
     from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
-    
+
     manager = get_ipfs_datasets_manager(enable=True)
     if manager.is_available():
         # Use distributed dataset features
@@ -70,6 +70,7 @@ IPFS_DATASETS_AVAILABLE = False
 IPFSDatasetManager = None
 _ipfs_datasets_py = None
 
+
 def _should_skip_datasets_import() -> bool:
     if os.environ.get("IPFS_KIT_FAST_INIT") == "1":
         return True
@@ -95,6 +96,7 @@ def _should_skip_datasets_import() -> bool:
     if any(flag in argv for flag in ("-h", "--help")):
         return True
     return False
+
 
 def _ensure_ipfs_datasets_loaded() -> None:
     global IPFS_DATASETS_AVAILABLE, IPFSDatasetManager, _ipfs_datasets_py
@@ -131,18 +133,19 @@ _ensure_ipfs_datasets_loaded()
 class DatasetIPFSBackend:
     """
     Adapter class that bridges ipfs_kit_py's DatasetManager with ipfs_datasets_py.
-    
+
     This class provides a unified interface for distributed dataset operations,
     handling IPFS storage, retrieval, and metadata management. When ipfs_datasets_py
     is not available, it provides mock implementations to ensure the system continues
     to function in a degraded mode.
     """
-    
-    def __init__(self, ipfs_client=None, base_path: str = "~/.ipfs_datasets", 
-                 enable_distributed: bool = True):
+
+    def __init__(
+        self, ipfs_client=None, base_path: str = "~/.ipfs_datasets", enable_distributed: bool = True
+    ):
         """
         Initialize the IPFS dataset backend.
-        
+
         Args:
             ipfs_client: Optional IPFS client instance from ipfs_kit
             base_path: Base directory for local dataset storage
@@ -153,52 +156,53 @@ class DatasetIPFSBackend:
         self.base_path = Path(os.path.expanduser(base_path))
         self.enable_distributed = enable_distributed and IPFS_DATASETS_AVAILABLE
         self.backend = None
-        
+
         # Initialize backend if available
         if self.enable_distributed and IPFSDatasetManager:
             try:
                 self.backend = IPFSDatasetManager(
-                    ipfs_client=ipfs_client,
-                    base_path=str(self.base_path)
+                    ipfs_client=ipfs_client, base_path=str(self.base_path)
                 )
                 logger.info(f"Initialized IPFS dataset backend at {self.base_path}")
             except Exception as e:
                 logger.warning(f"Failed to initialize IPFS dataset backend: {e}")
                 self.backend = None
                 self.enable_distributed = False
-        
+
         # Ensure base path exists for local fallback
         self.base_path.mkdir(parents=True, exist_ok=True)
-    
+
     @staticmethod
     def _is_cid(identifier: str) -> bool:
         """
         Check if the identifier looks like an IPFS CID.
-        
+
         Supports common CID formats:
         - CIDv0: Starts with 'Qm'
         - CIDv1: Starts with 'b' (base32), 'z' (base58btc), 'f' (base32), 'u' (base64url)
-        
+
         Args:
             identifier: String to check
-        
+
         Returns:
             True if identifier appears to be a CID
         """
-        return identifier.startswith(('Qm', 'b', 'z', 'f', 'u'))
-    
+        return identifier.startswith(("Qm", "b", "z", "f", "u"))
+
     def is_available(self) -> bool:
         """Check if distributed operations are available."""
         return self.enable_distributed and self.backend is not None
-    
-    def store_dataset(self, dataset_path: Union[str, Path], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+
+    def store_dataset(
+        self, dataset_path: Union[str, Path], metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """
         Store a dataset in IPFS and return metadata including CID.
-        
+
         Args:
             dataset_path: Path to the dataset file or directory
             metadata: Optional metadata to attach to the dataset
-        
+
         Returns:
             Dictionary containing:
                 - success: bool indicating if operation succeeded
@@ -209,62 +213,58 @@ class DatasetIPFSBackend:
         """
         try:
             dataset_path = Path(dataset_path)
-            
+
             if not dataset_path.exists():
                 return {
                     "success": False,
-                    "error": f"Dataset file or directory does not exist: {dataset_path}"
+                    "error": f"Dataset file or directory does not exist: {dataset_path}",
                 }
-            
+
             # Add event log metadata
             if metadata is None:
                 metadata = {}
-            
+
             metadata["stored_at"] = datetime.datetime.now().isoformat()
             metadata["original_path"] = str(dataset_path)
-            
+
             # Try distributed storage if available
             if self.is_available():
                 try:
-                    result = self.backend.store(
-                        path=str(dataset_path),
-                        metadata=metadata
-                    )
+                    result = self.backend.store(path=str(dataset_path), metadata=metadata)
                     logger.info(f"Stored dataset in IPFS with CID: {result.get('cid')}")
                     return {
                         "success": True,
                         "cid": result.get("cid"),
                         "local_path": str(dataset_path),
                         "metadata": metadata,
-                        "distributed": True
+                        "distributed": True,
                     }
                 except Exception as e:
                     logger.warning(f"Distributed storage failed, falling back to local: {e}")
-            
+
             # Fallback to local storage
             logger.info(f"Using local storage for dataset at {dataset_path}")
             return {
                 "success": True,
                 "local_path": str(dataset_path),
                 "metadata": metadata,
-                "distributed": False
+                "distributed": False,
             }
-            
+
         except Exception as e:
             logger.error(f"Error storing dataset: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
-    
-    def load_dataset(self, identifier: str, target_path: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
+            return {"success": False, "error": str(e)}
+
+    def load_dataset(
+        self, identifier: str, target_path: Optional[Union[str, Path]] = None
+    ) -> Dict[str, Any]:
         """
         Load a dataset from IPFS using its CID or from local storage using a path.
-        
+
         Args:
             identifier: CID for IPFS retrieval or path for local retrieval
             target_path: Optional target path for downloaded content
-        
+
         Returns:
             Dictionary containing:
                 - success: bool indicating if operation succeeded
@@ -275,77 +275,67 @@ class DatasetIPFSBackend:
         try:
             # Check if identifier looks like a CID
             is_cid = self._is_cid(identifier)
-            
+
             if is_cid and self.is_available():
                 try:
                     result = self.backend.load(
-                        cid=identifier,
-                        target_path=str(target_path) if target_path else None
+                        cid=identifier, target_path=str(target_path) if target_path else None
                     )
                     logger.info(f"Loaded dataset from IPFS CID: {identifier}")
                     return {
                         "success": True,
                         "path": result.get("path"),
                         "metadata": result.get("metadata", {}),
-                        "distributed": True
+                        "distributed": True,
                     }
                 except Exception as e:
                     logger.warning(f"Failed to load from IPFS: {e}")
-                    return {
-                        "success": False,
-                        "error": f"Failed to load from IPFS: {str(e)}"
-                    }
+                    return {"success": False, "error": f"Failed to load from IPFS: {str(e)}"}
             else:
                 # Local path
                 dataset_path = Path(identifier)
                 if not dataset_path.exists():
-                    return {
-                        "success": False,
-                        "error": f"Local dataset not found: {identifier}"
-                    }
-                
+                    return {"success": False, "error": f"Local dataset not found: {identifier}"}
+
                 logger.info(f"Loading dataset from local path: {dataset_path}")
                 return {
                     "success": True,
                     "path": str(dataset_path),
                     "metadata": {},
-                    "distributed": False
+                    "distributed": False,
                 }
-                
+
         except Exception as e:
             logger.error(f"Error loading dataset: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
-    
-    def version_dataset(self, dataset_id: str, version: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+            return {"success": False, "error": str(e)}
+
+    def version_dataset(
+        self, dataset_id: str, version: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """
         Create a new version of a dataset with provenance tracking.
-        
+
         Args:
             dataset_id: Identifier for the dataset
             version: Version string (e.g., "1.0.0")
             metadata: Optional metadata including provenance info
-        
+
         Returns:
             Dictionary with version information and CID if distributed
         """
         try:
             if metadata is None:
                 metadata = {}
-            
+
             # Add provenance metadata
             metadata["version"] = version
             metadata["versioned_at"] = datetime.datetime.now().isoformat()
             metadata["dataset_id"] = dataset_id
-            
+
             if self.is_available():
                 try:
                     result = self.backend.version(
-                        dataset_id=dataset_id,
-                        version=version,
-                        metadata=metadata
+                        dataset_id=dataset_id, version=version, metadata=metadata
                     )
                     logger.info(f"Created dataset version {version} with CID: {result.get('cid')}")
                     return {
@@ -353,95 +343,70 @@ class DatasetIPFSBackend:
                         "version": version,
                         "cid": result.get("cid"),
                         "metadata": metadata,
-                        "distributed": True
+                        "distributed": True,
                     }
                 except Exception as e:
                     logger.warning(f"Distributed versioning failed: {e}")
-            
+
             # Fallback: just return metadata
             logger.info(f"Created local dataset version {version}")
-            return {
-                "success": True,
-                "version": version,
-                "metadata": metadata,
-                "distributed": False
-            }
-            
+            return {"success": True, "version": version, "metadata": metadata, "distributed": False}
+
         except Exception as e:
             logger.error(f"Error versioning dataset: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
-    
+            return {"success": False, "error": str(e)}
+
     def get_metadata(self, identifier: str) -> Dict[str, Any]:
         """
         Retrieve metadata for a dataset by CID or local path.
-        
+
         Args:
             identifier: CID or local path of the dataset
-        
+
         Returns:
             Dictionary containing metadata or error
         """
         try:
             is_cid = self._is_cid(identifier)
-            
+
             if is_cid and self.is_available():
                 try:
                     result = self.backend.get_metadata(cid=identifier)
-                    return {
-                        "success": True,
-                        "metadata": result,
-                        "distributed": True
-                    }
+                    return {"success": True, "metadata": result, "distributed": True}
                 except Exception as e:
                     logger.warning(f"Failed to get metadata from IPFS: {e}")
-            
+
             # Try local metadata file
-            metadata_path = Path(identifier).with_suffix('.metadata.json')
+            metadata_path = Path(identifier).with_suffix(".metadata.json")
             if metadata_path.exists():
-                with open(metadata_path, 'r') as f:
+                with open(metadata_path, "r") as f:
                     metadata = json.load(f)
-                return {
-                    "success": True,
-                    "metadata": metadata,
-                    "distributed": False
-                }
-            
-            return {
-                "success": False,
-                "error": "Metadata not found"
-            }
-            
+                return {"success": True, "metadata": metadata, "distributed": False}
+
+            return {"success": False, "error": "Metadata not found"}
+
         except Exception as e:
             logger.error(f"Error retrieving metadata: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
 
 
 class IPFSDatasetsManager:
     """
     High-level manager for IPFS datasets integration.
-    
+
     This class provides a simplified interface for working with distributed datasets,
     handling both IPFS operations and local fallbacks automatically.
     """
-    
+
     def __init__(self, ipfs_client=None, enable: bool = True):
         """
         Initialize the IPFS datasets manager.
-        
+
         Args:
             ipfs_client: Optional IPFS client instance
             enable: Enable distributed operations (requires ipfs_datasets_py)
         """
-        self.backend = DatasetIPFSBackend(
-            ipfs_client=ipfs_client,
-            enable_distributed=enable
-        )
+        self.backend = DatasetIPFSBackend(ipfs_client=ipfs_client, enable_distributed=enable)
         self.event_log = []
         self.provenance_log = []
         self.metadata_index_path = self.backend.base_path / "metadata_index.json"
@@ -469,21 +434,31 @@ class IPFSDatasetsManager:
         }
         self._accelerate_module: Optional[Any] = None
         self._accelerate_checked = False
-        self._accelerate_timeout_sec = float(os.environ.get("IPFS_KIT_ACCELERATE_TIMEOUT_SEC", "1.5"))
+        self._accelerate_timeout_sec = float(
+            os.environ.get("IPFS_KIT_ACCELERATE_TIMEOUT_SEC", "1.5")
+        )
         self._accelerate_embedding_cache: Dict[str, Any] = {}
         self._accelerate_models_cache: Optional[Any] = None
-        self._accelerate_embedding_cache_max = int(os.environ.get("IPFS_KIT_ACCELERATE_EMBED_CACHE_MAX", "256"))
-        self._async_enrich = os.environ.get("IPFS_KIT_ACCELERATE_ASYNC_ENRICH", "0").strip().lower() in {
+        self._accelerate_embedding_cache_max = int(
+            os.environ.get("IPFS_KIT_ACCELERATE_EMBED_CACHE_MAX", "256")
+        )
+        self._async_enrich = os.environ.get(
+            "IPFS_KIT_ACCELERATE_ASYNC_ENRICH", "0"
+        ).strip().lower() in {
             "1",
             "true",
             "yes",
             "on",
         }
         configured_backend = os.environ.get("IPFS_KIT_ASYNC_BACKEND", "asyncio").strip().lower()
-        self._async_backend = configured_backend if configured_backend in {"asyncio", "trio"} else "asyncio"
+        self._async_backend = (
+            configured_backend if configured_backend in {"asyncio", "trio"} else "asyncio"
+        )
         self._enrich_queue_max = int(os.environ.get("IPFS_KIT_ACCELERATE_QUEUE_MAX", "512"))
         self._enrich_retry_budget = int(os.environ.get("IPFS_KIT_ACCELERATE_RETRY_BUDGET", "2"))
-        self._enrich_queue: "queue.Queue[Tuple[str, int]]" = queue.Queue(maxsize=self._enrich_queue_max)
+        self._enrich_queue: "queue.Queue[Tuple[str, int]]" = queue.Queue(
+            maxsize=self._enrich_queue_max
+        )
         self._queue_store_lock = threading.RLock()
         self._queue_store_backend = "duckdb" if duckdb is not None else "memory"
         self._queue_store_path = self.backend.base_path / "accelerate_enrichment_queue.duckdb"
@@ -498,13 +473,17 @@ class IPFSDatasetsManager:
         self._queue_store_car_bridge_checked = False
         self._queue_store_pending_table = "accelerate_enrichment_pending"
         self._queue_store_dead_table = "accelerate_enrichment_dead_letter"
-        self._queue_store_export_parquet = os.environ.get("IPFS_KIT_ACCELERATE_QUEUE_EXPORT_PARQUET", "0").strip().lower() in {
+        self._queue_store_export_parquet = os.environ.get(
+            "IPFS_KIT_ACCELERATE_QUEUE_EXPORT_PARQUET", "0"
+        ).strip().lower() in {
             "1",
             "true",
             "yes",
             "on",
         }
-        self._queue_store_export_car = os.environ.get("IPFS_KIT_ACCELERATE_QUEUE_EXPORT_CAR", "0").strip().lower() in {
+        self._queue_store_export_car = os.environ.get(
+            "IPFS_KIT_ACCELERATE_QUEUE_EXPORT_CAR", "0"
+        ).strip().lower() in {
             "1",
             "true",
             "yes",
@@ -517,7 +496,9 @@ class IPFSDatasetsManager:
         self._circuit_failures = 0
         self._circuit_open_until = 0.0
         self._circuit_threshold = int(os.environ.get("IPFS_KIT_ACCELERATE_CIRCUIT_THRESHOLD", "5"))
-        self._circuit_cooldown_sec = float(os.environ.get("IPFS_KIT_ACCELERATE_CIRCUIT_COOLDOWN_SEC", "30"))
+        self._circuit_cooldown_sec = float(
+            os.environ.get("IPFS_KIT_ACCELERATE_CIRCUIT_COOLDOWN_SEC", "30")
+        )
         if self._async_enrich:
             self._init_queue_store()
             self._hydrate_queue_from_store()
@@ -533,7 +514,7 @@ class IPFSDatasetsManager:
 
     def _queue_store_item_id_from_task_id(self, task_id: str) -> str:
         if task_id.startswith(self._queue_store_task_prefix):
-            return task_id[len(self._queue_store_task_prefix):]
+            return task_id[len(self._queue_store_task_prefix) :]
         return task_id
 
     def _queue_store_get_attempt(self, payload_json: Any) -> int:
@@ -555,7 +536,9 @@ class IPFSDatasetsManager:
         if self._queue_store_task_queue is not None:
             return
         try:
-            module = importlib.import_module("ipfs_datasets_py.ml.accelerate_integration.task_queue")
+            module = importlib.import_module(
+                "ipfs_datasets_py.ml.accelerate_integration.task_queue"
+            )
             task_queue_cls = getattr(module, "TaskQueue", None)
             if task_queue_cls is None:
                 return
@@ -573,7 +556,9 @@ class IPFSDatasetsManager:
             from .parquet_car_bridge import ParquetCARBridge
 
             self._queue_store_car_dir.mkdir(parents=True, exist_ok=True)
-            self._queue_store_car_bridge = ParquetCARBridge(storage_path=str(self._queue_store_car_dir))
+            self._queue_store_car_bridge = ParquetCARBridge(
+                storage_path=str(self._queue_store_car_dir)
+            )
         except Exception as exc:
             logger.debug("ParquetCARBridge unavailable for queue CAR export: %s", exc)
             self._queue_store_car_bridge = None
@@ -642,7 +627,10 @@ class IPFSDatasetsManager:
             task_id = self._queue_store_task_id(item_id)
             try:
                 existing = self._queue_store_task_queue.get(task_id)
-                if isinstance(existing, dict) and str(existing.get("status")) in {"queued", "running"}:
+                if isinstance(existing, dict) and str(existing.get("status")) in {
+                    "queued",
+                    "running",
+                }:
                     return
                 if isinstance(existing, dict):
                     self._queue_store_task_queue.complete(
@@ -690,7 +678,10 @@ class IPFSDatasetsManager:
             task_id = self._queue_store_task_id(item_id)
             try:
                 existing = self._queue_store_task_queue.get(task_id)
-                if isinstance(existing, dict) and str(existing.get("status")) in {"queued", "running"}:
+                if isinstance(existing, dict) and str(existing.get("status")) in {
+                    "queued",
+                    "running",
+                }:
                     self._queue_store_task_queue.complete(
                         task_id=task_id,
                         status="completed",
@@ -811,7 +802,9 @@ class IPFSDatasetsManager:
 
         cutoff_epoch = time.time() - lease_timeout
         reclaimed = 0
-        stale_predicate = "COALESCE(TRY_CAST(updated_at AS DOUBLE), EPOCH(TRY_CAST(updated_at AS TIMESTAMP))) < ?"
+        stale_predicate = (
+            "COALESCE(TRY_CAST(updated_at AS DOUBLE), EPOCH(TRY_CAST(updated_at AS TIMESTAMP))) < ?"
+        )
         with self._queue_store_lock:
             conn = duckdb.connect(str(self._queue_store_path))
             try:
@@ -823,7 +816,7 @@ class IPFSDatasetsManager:
                       AND status = 'running'
                                             AND {stale_predicate}
                     """,
-                                        [self._queue_store_task_type, cutoff_epoch],
+                    [self._queue_store_task_type, cutoff_epoch],
                 ).fetchone()
                 reclaimed = int(row[0]) if row else 0
                 if reclaimed > 0:
@@ -836,7 +829,7 @@ class IPFSDatasetsManager:
                           AND status = 'running'
                                                     AND {stale_predicate}
                         """,
-                                                [self._queue_store_task_type, cutoff_epoch],
+                        [self._queue_store_task_type, cutoff_epoch],
                     )
             finally:
                 conn.close()
@@ -891,8 +884,12 @@ class IPFSDatasetsManager:
             return
         with self._queue_store_lock:
             self._queue_store_parquet_dir.mkdir(parents=True, exist_ok=True)
-            pending_path_obj = self._queue_store_parquet_dir / "accelerate_enrichment_pending.parquet"
-            dead_path_obj = self._queue_store_parquet_dir / "accelerate_enrichment_dead_letter.parquet"
+            pending_path_obj = (
+                self._queue_store_parquet_dir / "accelerate_enrichment_pending.parquet"
+            )
+            dead_path_obj = (
+                self._queue_store_parquet_dir / "accelerate_enrichment_dead_letter.parquet"
+            )
             pending_path = str(pending_path_obj).replace("'", "''")
             dead_path = str(dead_path_obj).replace("'", "''")
             conn = duckdb.connect(str(self._queue_store_path))
@@ -955,7 +952,9 @@ class IPFSDatasetsManager:
                 anyio.run(self._queue_worker_main, backend=self._async_backend)
             except Exception as exc:
                 self._metrics["accelerate_queue_failures"] += 1
-                logger.warning("Async enrichment worker exited with backend %s: %s", self._async_backend, exc)
+                logger.warning(
+                    "Async enrichment worker exited with backend %s: %s", self._async_backend, exc
+                )
 
         self._queue_worker = threading.Thread(target=_worker, daemon=True)
         self._queue_worker.start()
@@ -982,7 +981,9 @@ class IPFSDatasetsManager:
                     except queue.Full:
                         self._metrics["accelerate_queue_dropped"] += 1
                 else:
-                    self._queue_store_move_to_dead_letter(item_id, attempt, "retry_budget_exhausted")
+                    self._queue_store_move_to_dead_letter(
+                        item_id, attempt, "retry_budget_exhausted"
+                    )
                     self._metrics["accelerate_queue_dead_letter"] += 1
             finally:
                 self._enrich_queue.task_done()
@@ -997,7 +998,9 @@ class IPFSDatasetsManager:
             self._metrics["accelerate_queue_dropped"] += 1
             return {"queued": False, "reason": "queue_full"}
 
-    def stop_async_enrichment(self, *, drain: bool = True, timeout_sec: float = 2.0) -> Dict[str, Any]:
+    def stop_async_enrichment(
+        self, *, drain: bool = True, timeout_sec: float = 2.0
+    ) -> Dict[str, Any]:
         worker = self._queue_worker
         if worker is None:
             return {
@@ -1100,7 +1103,9 @@ class IPFSDatasetsManager:
         normalized.setdefault("cid", None)
         normalized.setdefault("source_operation_id", None)
         normalized.setdefault("source_cid", None)
-        normalized.setdefault("updated_at", datetime.datetime.now(datetime.timezone.utc).isoformat())
+        normalized.setdefault(
+            "updated_at", datetime.datetime.now(datetime.timezone.utc).isoformat()
+        )
         normalized.setdefault("metadata", {})
 
         lineage = normalized.get("lineage")
@@ -1134,7 +1139,7 @@ class IPFSDatasetsManager:
             os.fsync(f.fileno())
 
         os.replace(tmp_path, self.metadata_index_path)
-    
+
     def is_available(self) -> bool:
         """Check if distributed dataset operations are available."""
         return self.backend.is_available()
@@ -1166,7 +1171,9 @@ class IPFSDatasetsManager:
             except Exception:
                 pass
 
-    def _index_key(self, *, path: Optional[Union[str, Path]] = None, cid: Optional[str] = None) -> str:
+    def _index_key(
+        self, *, path: Optional[Union[str, Path]] = None, cid: Optional[str] = None
+    ) -> str:
         if cid:
             return f"cid:{cid}"
         if path is None:
@@ -1210,10 +1217,18 @@ class IPFSDatasetsManager:
                     parsed = json.load(f)
                 if isinstance(parsed, list) and parsed and isinstance(parsed[0], dict):
                     fields = sorted(list(parsed[0].keys()))
-                    return {"fields": fields, "source": "json_array_object", "sample_file": str(data_file)}
+                    return {
+                        "fields": fields,
+                        "source": "json_array_object",
+                        "sample_file": str(data_file),
+                    }
                 if isinstance(parsed, dict):
                     fields = sorted(list(parsed.keys()))
-                    return {"fields": fields, "source": "json_object", "sample_file": str(data_file)}
+                    return {
+                        "fields": fields,
+                        "source": "json_object",
+                        "sample_file": str(data_file),
+                    }
 
             if suffix == ".jsonl":
                 with open(data_file, "r", encoding="utf-8") as f:
@@ -1266,7 +1281,9 @@ class IPFSDatasetsManager:
         try:
             stat = dataset_path.stat()
             provenance["size_bytes"] = stat.st_size
-            provenance["mtime"] = datetime.datetime.fromtimestamp(stat.st_mtime, tz=datetime.timezone.utc).isoformat()
+            provenance["mtime"] = datetime.datetime.fromtimestamp(
+                stat.st_mtime, tz=datetime.timezone.utc
+            ).isoformat()
         except Exception:
             pass
 
@@ -1323,8 +1340,15 @@ class IPFSDatasetsManager:
             "search_models",
         ]
 
-        if hasattr(accelerate, "discover_embedding_models") and callable(accelerate.discover_embedding_models):
-            return "discover_embedding_models", accelerate.discover_embedding_models, tuple(), fallback_order
+        if hasattr(accelerate, "discover_embedding_models") and callable(
+            accelerate.discover_embedding_models
+        ):
+            return (
+                "discover_embedding_models",
+                accelerate.discover_embedding_models,
+                tuple(),
+                fallback_order,
+            )
 
         if hasattr(accelerate, "search_models") and callable(accelerate.search_models):
             return "search_models", accelerate.search_models, ("embedding",), fallback_order
@@ -1373,8 +1397,10 @@ class IPFSDatasetsManager:
             enrichment: Dict[str, Any] = {}
             started = time.perf_counter()
 
-            discovery_mode, discovery_resolver, discovery_args, discovery_fallback_order = self._resolve_accelerate_discovery_adapter(
-                accelerate=accelerate,
+            discovery_mode, discovery_resolver, discovery_args, discovery_fallback_order = (
+                self._resolve_accelerate_discovery_adapter(
+                    accelerate=accelerate,
+                )
             )
 
             if discovery_resolver is not None:
@@ -1398,8 +1424,10 @@ class IPFSDatasetsManager:
                 enrichment["discovery_mode"] = discovery_mode
 
             embed_text = entry.get("dataset_summary") or entry.get("path")
-            embedding_mode, embedding_resolver, _, embedding_fallback_order = self._resolve_embedding_adapter(
-                accelerate=accelerate,
+            embedding_mode, embedding_resolver, _, embedding_fallback_order = (
+                self._resolve_embedding_adapter(
+                    accelerate=accelerate,
+                )
             )
             if embedding_resolver is not None and embed_text:
                 cache_key = hashlib.sha256(str(embed_text).encode("utf-8")).hexdigest()
@@ -1410,7 +1438,9 @@ class IPFSDatasetsManager:
                 else:
                     batch_vector = None
                     if embedding_mode == "create_embeddings":
-                        timed_out, vectors = self._call_with_timeout(embedding_resolver, [str(embed_text)])
+                        timed_out, vectors = self._call_with_timeout(
+                            embedding_resolver, [str(embed_text)]
+                        )
                         if timed_out:
                             return {
                                 "attempted": True,
@@ -1429,7 +1459,9 @@ class IPFSDatasetsManager:
                         vector = batch_vector
                     else:
                         if embedding_mode == "create_embedding":
-                            timed_out, vector = self._call_with_timeout(embedding_resolver, str(embed_text))
+                            timed_out, vector = self._call_with_timeout(
+                                embedding_resolver, str(embed_text)
+                            )
                         else:
                             fallback_single = getattr(accelerate, "create_embedding", None)
                             if not callable(fallback_single):
@@ -1440,7 +1472,9 @@ class IPFSDatasetsManager:
                                     "adapter": "accelerate_enrichment_v1",
                                     "fallback_order": embedding_fallback_order,
                                 }
-                            timed_out, vector = self._call_with_timeout(fallback_single, str(embed_text))
+                            timed_out, vector = self._call_with_timeout(
+                                fallback_single, str(embed_text)
+                            )
                         if timed_out:
                             return {
                                 "attempted": True,
@@ -1451,7 +1485,10 @@ class IPFSDatasetsManager:
                                 "timeout_seconds": self._accelerate_timeout_sec,
                                 "fallback_order": embedding_fallback_order,
                             }
-                    if len(self._accelerate_embedding_cache) >= self._accelerate_embedding_cache_max:
+                    if (
+                        len(self._accelerate_embedding_cache)
+                        >= self._accelerate_embedding_cache_max
+                    ):
                         # Pop first inserted item to keep cache bounded.
                         oldest_key = next(iter(self._accelerate_embedding_cache.keys()))
                         self._accelerate_embedding_cache.pop(oldest_key, None)
@@ -1588,14 +1625,22 @@ class IPFSDatasetsManager:
                 queue_status = self._enqueue_enrichment(entry["id"])
                 entry["accelerate_status"] = {
                     "attempted": False,
-                    "reason": "queued" if queue_status.get("queued") else queue_status.get("reason", "queue_error"),
+                    "reason": "queued"
+                    if queue_status.get("queued")
+                    else queue_status.get("reason", "queue_error"),
                 }
             return {"success": True, "entry": entry}
         except Exception as e:
             self._metrics["index_errors"] += 1
             return {"success": False, "error": str(e)}
 
-    def update_metadata_index(self, *, path: Optional[Union[str, Path]] = None, operation: str = "update", metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def update_metadata_index(
+        self,
+        *,
+        path: Optional[Union[str, Path]] = None,
+        operation: str = "update",
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
         """Compatibility alias used by existing wrappers."""
         return self.refresh_metadata_index(path=path, operation=operation, metadata=metadata)
 
@@ -1608,10 +1653,14 @@ class IPFSDatasetsManager:
         if operation in {"remove", "delete", "rmdir", "unmount"}:
             tombstone = bool(payload.get("tombstone", False))
             if tombstone:
-                return self.refresh_metadata_index(path=path, cid=cid, operation=f"tombstone:{operation}", metadata=payload)
+                return self.refresh_metadata_index(
+                    path=path, cid=cid, operation=f"tombstone:{operation}", metadata=payload
+                )
             return self.remove_from_metadata_index(path=path, cid=cid)
 
-        return self.refresh_metadata_index(path=path, cid=cid, operation=operation, metadata=payload)
+        return self.refresh_metadata_index(
+            path=path, cid=cid, operation=operation, metadata=payload
+        )
 
     def remove_from_metadata_index(
         self,
@@ -1628,7 +1677,9 @@ class IPFSDatasetsManager:
             removed = disk_index.pop(key, None)
             tombstone_entry = None
             if tombstone:
-                removed_operation_id = removed.get("operation_id") if isinstance(removed, dict) else None
+                removed_operation_id = (
+                    removed.get("operation_id") if isinstance(removed, dict) else None
+                )
                 removed_cid = removed.get("cid") if isinstance(removed, dict) else cid
                 tombstone_entry = self._build_index_entry(
                     path=path,
@@ -1653,7 +1704,9 @@ class IPFSDatasetsManager:
             "tombstone": tombstone,
             "tombstone_entry": tombstone_entry,
             "removed_entry": removed,
-            "removed_operation_id": removed.get("operation_id") if isinstance(removed, dict) else None,
+            "removed_operation_id": removed.get("operation_id")
+            if isinstance(removed, dict)
+            else None,
         }
 
     def list_metadata_index(self) -> Dict[str, Any]:
@@ -1693,19 +1746,23 @@ class IPFSDatasetsManager:
                 "export_car": self._queue_store_export_car,
             },
         }
-    
-    def store(self, path: Union[str, Path], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+
+    def store(
+        self, path: Union[str, Path], metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Store a dataset with event logging."""
         result = self.backend.store_dataset(path, metadata)
-        
+
         # Log the event
-        self.event_log.append({
-            "operation": "store",
-            "path": str(path),
-            "timestamp": datetime.datetime.now().isoformat(),
-            "success": result.get("success", False),
-            "cid": result.get("cid")
-        })
+        self.event_log.append(
+            {
+                "operation": "store",
+                "path": str(path),
+                "timestamp": datetime.datetime.now().isoformat(),
+                "success": result.get("success", False),
+                "cid": result.get("cid"),
+            }
+        )
 
         if result.get("success"):
             self.refresh_metadata_index(
@@ -1714,20 +1771,24 @@ class IPFSDatasetsManager:
                 operation="store",
                 metadata=result.get("metadata") if isinstance(result.get("metadata"), dict) else {},
             )
-        
+
         return result
-    
-    def load(self, identifier: str, target_path: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
+
+    def load(
+        self, identifier: str, target_path: Optional[Union[str, Path]] = None
+    ) -> Dict[str, Any]:
         """Load a dataset with event logging."""
         result = self.backend.load_dataset(identifier, target_path)
-        
+
         # Log the event
-        self.event_log.append({
-            "operation": "load",
-            "identifier": identifier,
-            "timestamp": datetime.datetime.now().isoformat(),
-            "success": result.get("success", False)
-        })
+        self.event_log.append(
+            {
+                "operation": "load",
+                "identifier": identifier,
+                "timestamp": datetime.datetime.now().isoformat(),
+                "success": result.get("success", False),
+            }
+        )
 
         if result.get("success"):
             # Refresh index for the resolved local path when available, otherwise identifier.
@@ -1737,42 +1798,48 @@ class IPFSDatasetsManager:
                 operation="load",
                 metadata=result.get("metadata") if isinstance(result.get("metadata"), dict) else {},
             )
-        
+
         return result
-    
-    def version(self, dataset_id: str, version: str, 
-                parent_version: Optional[str] = None,
-                transformations: Optional[List[str]] = None) -> Dict[str, Any]:
+
+    def version(
+        self,
+        dataset_id: str,
+        version: str,
+        parent_version: Optional[str] = None,
+        transformations: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
         """
         Create a versioned dataset with provenance tracking.
-        
+
         Args:
             dataset_id: Dataset identifier
             version: New version string
             parent_version: Optional parent version for lineage tracking
             transformations: Optional list of transformations applied
-        
+
         Returns:
             Result dictionary with version info
         """
         metadata = {
             "provenance": {
                 "parent_version": parent_version,
-                "transformations": transformations or []
+                "transformations": transformations or [],
             }
         }
-        
+
         result = self.backend.version_dataset(dataset_id, version, metadata)
-        
+
         # Log provenance
-        self.provenance_log.append({
-            "dataset_id": dataset_id,
-            "version": version,
-            "parent_version": parent_version,
-            "transformations": transformations or [],
-            "timestamp": datetime.datetime.now().isoformat(),
-            "cid": result.get("cid")
-        })
+        self.provenance_log.append(
+            {
+                "dataset_id": dataset_id,
+                "version": version,
+                "parent_version": parent_version,
+                "transformations": transformations or [],
+                "timestamp": datetime.datetime.now().isoformat(),
+                "cid": result.get("cid"),
+            }
+        )
 
         if result.get("success"):
             self.refresh_metadata_index(
@@ -1781,35 +1848,41 @@ class IPFSDatasetsManager:
                 operation="version",
                 metadata=metadata,
             )
-        
+
         return result
 
     def remove(self, identifier: str) -> Dict[str, Any]:
         """Remove dataset metadata index entry by CID or path."""
-        result = self.remove_from_metadata_index(path=identifier, cid=identifier if self.backend._is_cid(identifier) else None)
-        self.event_log.append({
-            "operation": "remove",
-            "identifier": identifier,
-            "timestamp": datetime.datetime.now().isoformat(),
-            "success": result.get("success", False),
-        })
+        result = self.remove_from_metadata_index(
+            path=identifier, cid=identifier if self.backend._is_cid(identifier) else None
+        )
+        self.event_log.append(
+            {
+                "operation": "remove",
+                "identifier": identifier,
+                "timestamp": datetime.datetime.now().isoformat(),
+                "success": result.get("success", False),
+            }
+        )
         return result
 
     def list(self) -> Dict[str, Any]:
         """List datasets from metadata index."""
         result = self.list_metadata_index()
-        self.event_log.append({
-            "operation": "list",
-            "timestamp": datetime.datetime.now().isoformat(),
-            "success": result.get("success", False),
-            "count": result.get("count", 0),
-        })
+        self.event_log.append(
+            {
+                "operation": "list",
+                "timestamp": datetime.datetime.now().isoformat(),
+                "success": result.get("success", False),
+                "count": result.get("count", 0),
+            }
+        )
         return result
-    
+
     def get_event_log(self) -> List[Dict[str, Any]]:
         """Get the event log for all dataset operations."""
         return self.event_log.copy()
-    
+
     def get_provenance_log(self) -> List[Dict[str, Any]]:
         """Get the provenance log showing dataset lineage."""
         return self.provenance_log.copy()
@@ -1822,11 +1895,11 @@ _manager_instance: Optional[IPFSDatasetsManager] = None
 def get_ipfs_datasets_manager(ipfs_client=None, enable: bool = True) -> IPFSDatasetsManager:
     """
     Get or create the singleton IPFS datasets manager instance.
-    
+
     Args:
         ipfs_client: Optional IPFS client instance
         enable: Enable distributed operations
-    
+
     Returns:
         IPFSDatasetsManager instance
     """

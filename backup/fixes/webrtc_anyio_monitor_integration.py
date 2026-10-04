@@ -22,8 +22,7 @@ from typing import Dict, Any, Optional, Callable
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -31,6 +30,7 @@ logger = logging.getLogger(__name__)
 try:
     import anyio
     import sniffio
+
     HAS_ANYIO = True
 except ImportError:
     HAS_ANYIO = False
@@ -43,12 +43,18 @@ if fixes_dir not in sys.path:
 
 # Try to import our modules
 try:
-    from webrtc_anyio_fix import AnyIOEventLoopHandler, patch_ipfs_model_methods, patch_webrtc_controller_methods
+    from webrtc_anyio_fix import (
+        AnyIOEventLoopHandler,
+        patch_ipfs_model_methods,
+        patch_webrtc_controller_methods,
+    )
     from webrtc_monitor import WebRTCMonitor, AsyncTaskTracker, apply_webrtc_monitoring
+
     HAS_LOCAL_MODULES = True
 except ImportError as e:
     HAS_LOCAL_MODULES = False
     logger.warning(f"Could not import local modules: {e}")
+
 
 class AnyIOMonitoredEventLoopHandler:
     """
@@ -68,8 +74,9 @@ class AnyIOMonitoredEventLoopHandler:
         self.monitor = monitor or WebRTCMonitor()
         self.task_tracker = AsyncTaskTracker(self.monitor)
 
-    async def run_monitored_coroutine(self, coro, connection_id: str,
-                                     operation_name: str = None, fallback_result=None):
+    async def run_monitored_coroutine(
+        self, coro, connection_id: str, operation_name: str = None, fallback_result=None
+    ):
         """
         Run a coroutine with monitoring in an async context.
 
@@ -87,16 +94,12 @@ class AnyIOMonitoredEventLoopHandler:
         operation_name = operation_name or coro.__name__
 
         # Track the operation
-        self.monitor.add_operation(operation_id, operation_name, {
-            "connection_id": connection_id
-        })
+        self.monitor.add_operation(operation_id, operation_name, {"connection_id": connection_id})
 
         try:
             # Run the coroutine with task tracking
             result = await self.task_tracker.track_task(
-                connection_id,
-                coro,
-                task_name=operation_name
+                connection_id, coro, task_name=operation_name
             )
 
             # Update operation status
@@ -112,17 +115,17 @@ class AnyIOMonitoredEventLoopHandler:
 
         except Exception as e:
             # Update operation status
-            self.monitor.update_operation(operation_id, "failed", {
-                "error": str(e),
-                "error_type": type(e).__name__
-            })
+            self.monitor.update_operation(
+                operation_id, "failed", {"error": str(e), "error_type": type(e).__name__}
+            )
 
             if fallback_result is not None:
                 return fallback_result
             raise
 
-    def run_monitored_coroutine_sync(self, coro, connection_id: str,
-                                    operation_name: str = None, fallback_result=None):
+    def run_monitored_coroutine_sync(
+        self, coro, connection_id: str, operation_name: str = None, fallback_result=None
+    ):
         """
         Run a coroutine with monitoring in any context (sync or async).
 
@@ -169,7 +172,7 @@ class AnyIOMonitoredEventLoopHandler:
                 fallback_result = {
                     "success": True,
                     "simulated": True,
-                    "note": "Operation scheduled in background with monitoring"
+                    "note": "Operation scheduled in background with monitoring",
                 }
 
             # Create a unique task ID
@@ -188,7 +191,11 @@ class AnyIOMonitoredEventLoopHandler:
                     logger.debug(f"Background task completed: {task_id}")
 
                     # If this is a close operation and succeeded, untrack the connection
-                    if "close" in operation_name.lower() and isinstance(result, dict) and result.get("success", False):
+                    if (
+                        "close" in operation_name.lower()
+                        and isinstance(result, dict)
+                        and result.get("success", False)
+                    ):
                         self.monitor.untrack_connection(connection_id)
 
                 except Exception as e:
@@ -199,6 +206,7 @@ class AnyIOMonitoredEventLoopHandler:
 
             # Start the background task with AnyIO
             import anyio
+
             anyio.run(_monitored_background_task())
 
             return fallback_result
@@ -210,9 +218,9 @@ class AnyIOMonitoredEventLoopHandler:
             operation_id = f"{operation_name}_{int(time.time() * 1000)}"
 
             # Track the operation
-            self.monitor.add_operation(operation_id, operation_name, {
-                "connection_id": connection_id
-            })
+            self.monitor.add_operation(
+                operation_id, operation_name, {"connection_id": connection_id}
+            )
 
             try:
                 # Use AnyIO to run the coroutine to completion
@@ -231,16 +239,17 @@ class AnyIOMonitoredEventLoopHandler:
 
             except Exception as e:
                 # Update operation status
-                self.monitor.update_operation(operation_id, "failed", {
-                    "error": str(e),
-                    "error_type": type(e).__name__
-                })
+                self.monitor.update_operation(
+                    operation_id, "failed", {"error": str(e), "error_type": type(e).__name__}
+                )
 
                 if fallback_result is not None:
                     return fallback_result
                 raise
 
+
 # Monitored and AnyIO-enhanced patched methods for the IPFS model
+
 
 def enhanced_stop_webrtc_streaming(self, server_id: str) -> Dict[str, Any]:
     """
@@ -256,7 +265,7 @@ def enhanced_stop_webrtc_streaming(self, server_id: str) -> Dict[str, Any]:
     start_time = time.time()
 
     # Get or create monitor
-    monitor = getattr(self, 'webrtc_monitor', None)
+    monitor = getattr(self, "webrtc_monitor", None)
     if monitor is None:
         monitor = WebRTCMonitor()
         self.webrtc_monitor = monitor
@@ -270,11 +279,11 @@ def enhanced_stop_webrtc_streaming(self, server_id: str) -> Dict[str, Any]:
         "operation_id": operation_id,
         "operation": "stop_webrtc_streaming",
         "server_id": server_id,
-        "start_time": start_time
+        "start_time": start_time,
     }
 
     # Check WebRTC availability
-    if not hasattr(self, 'webrtc_manager') or self.webrtc_manager is None:
+    if not hasattr(self, "webrtc_manager") or self.webrtc_manager is None:
         result["error"] = "WebRTC manager not available"
         result["error_type"] = "dependency_error"
         result["duration_ms"] = (time.time() - start_time) * 1000
@@ -290,7 +299,7 @@ def enhanced_stop_webrtc_streaming(self, server_id: str) -> Dict[str, Any]:
         fallback_result = {
             "connections_closed": connection_count,
             "simulated": True,
-            "note": "Operation scheduled in background with monitoring"
+            "note": "Operation scheduled in background with monitoring",
         }
 
         # Use integrated handler to run the coroutine safely
@@ -298,7 +307,7 @@ def enhanced_stop_webrtc_streaming(self, server_id: str) -> Dict[str, Any]:
             self.webrtc_manager.close_all_connections(),
             connection_id=server_id,
             operation_name="stop_webrtc_streaming",
-            fallback_result=fallback_result
+            fallback_result=fallback_result,
         )
 
         # Update the result with success
@@ -320,6 +329,7 @@ def enhanced_stop_webrtc_streaming(self, server_id: str) -> Dict[str, Any]:
 
         return result
 
+
 async def enhanced_async_stop_webrtc_streaming(self, server_id: str) -> Dict[str, Any]:
     """
     Enhanced async version of stop_webrtc_streaming with monitoring.
@@ -334,7 +344,7 @@ async def enhanced_async_stop_webrtc_streaming(self, server_id: str) -> Dict[str
     start_time = time.time()
 
     # Get or create monitor
-    monitor = getattr(self, 'webrtc_monitor', None)
+    monitor = getattr(self, "webrtc_monitor", None)
     if monitor is None:
         monitor = WebRTCMonitor()
         self.webrtc_monitor = monitor
@@ -348,11 +358,11 @@ async def enhanced_async_stop_webrtc_streaming(self, server_id: str) -> Dict[str
         "operation_id": operation_id,
         "operation": "stop_webrtc_streaming",
         "server_id": server_id,
-        "start_time": start_time
+        "start_time": start_time,
     }
 
     # Check WebRTC availability
-    if not hasattr(self, 'webrtc_manager') or self.webrtc_manager is None:
+    if not hasattr(self, "webrtc_manager") or self.webrtc_manager is None:
         result["error"] = "WebRTC manager not available"
         result["error_type"] = "dependency_error"
         result["duration_ms"] = (time.time() - start_time) * 1000
@@ -364,7 +374,7 @@ async def enhanced_async_stop_webrtc_streaming(self, server_id: str) -> Dict[str
         stop_result = await handler.run_monitored_coroutine(
             self.webrtc_manager.close_all_connections(),
             connection_id=server_id,
-            operation_name="stop_webrtc_streaming"
+            operation_name="stop_webrtc_streaming",
         )
 
         # Update the result with success
@@ -385,6 +395,7 @@ async def enhanced_async_stop_webrtc_streaming(self, server_id: str) -> Dict[str
 
         return result
 
+
 def enhanced_close_webrtc_connection(self, connection_id: str) -> Dict[str, Any]:
     """
     Enhanced version of close_webrtc_connection with AnyIO event loop handling and monitoring.
@@ -399,7 +410,7 @@ def enhanced_close_webrtc_connection(self, connection_id: str) -> Dict[str, Any]
     start_time = time.time()
 
     # Get or create monitor
-    monitor = getattr(self, 'webrtc_monitor', None)
+    monitor = getattr(self, "webrtc_monitor", None)
     if monitor is None:
         monitor = WebRTCMonitor()
         self.webrtc_monitor = monitor
@@ -413,11 +424,11 @@ def enhanced_close_webrtc_connection(self, connection_id: str) -> Dict[str, Any]
         "operation_id": operation_id,
         "operation": "close_webrtc_connection",
         "connection_id": connection_id,
-        "start_time": start_time
+        "start_time": start_time,
     }
 
     # Check WebRTC availability
-    if not hasattr(self, 'webrtc_manager') or self.webrtc_manager is None:
+    if not hasattr(self, "webrtc_manager") or self.webrtc_manager is None:
         result["error"] = "WebRTC manager not available"
         result["error_type"] = "dependency_error"
         result["duration_ms"] = (time.time() - start_time) * 1000
@@ -432,7 +443,7 @@ def enhanced_close_webrtc_connection(self, connection_id: str) -> Dict[str, Any]
         fallback_result = {
             "success": True,
             "simulated": True,
-            "note": "Operation scheduled in background with monitoring"
+            "note": "Operation scheduled in background with monitoring",
         }
 
         # Use integrated handler to run the coroutine safely
@@ -440,7 +451,7 @@ def enhanced_close_webrtc_connection(self, connection_id: str) -> Dict[str, Any]
             self.webrtc_manager.close_connection(connection_id),
             connection_id=connection_id,
             operation_name="close_webrtc_connection",
-            fallback_result=fallback_result
+            fallback_result=fallback_result,
         )
 
         if not close_result.get("success", False) and not close_result.get("simulated", False):
@@ -466,6 +477,7 @@ def enhanced_close_webrtc_connection(self, connection_id: str) -> Dict[str, Any]
 
         return result
 
+
 async def enhanced_async_close_webrtc_connection(self, connection_id: str) -> Dict[str, Any]:
     """
     Enhanced async version of close_webrtc_connection with monitoring.
@@ -480,7 +492,7 @@ async def enhanced_async_close_webrtc_connection(self, connection_id: str) -> Di
     start_time = time.time()
 
     # Get or create monitor
-    monitor = getattr(self, 'webrtc_monitor', None)
+    monitor = getattr(self, "webrtc_monitor", None)
     if monitor is None:
         monitor = WebRTCMonitor()
         self.webrtc_monitor = monitor
@@ -494,11 +506,11 @@ async def enhanced_async_close_webrtc_connection(self, connection_id: str) -> Di
         "operation_id": operation_id,
         "operation": "close_webrtc_connection",
         "connection_id": connection_id,
-        "start_time": start_time
+        "start_time": start_time,
     }
 
     # Check WebRTC availability
-    if not hasattr(self, 'webrtc_manager') or self.webrtc_manager is None:
+    if not hasattr(self, "webrtc_manager") or self.webrtc_manager is None:
         result["error"] = "WebRTC manager not available"
         result["error_type"] = "dependency_error"
         result["duration_ms"] = (time.time() - start_time) * 1000
@@ -510,7 +522,7 @@ async def enhanced_async_close_webrtc_connection(self, connection_id: str) -> Di
         close_result = await handler.run_monitored_coroutine(
             self.webrtc_manager.close_connection(connection_id),
             connection_id=connection_id,
-            operation_name="close_webrtc_connection"
+            operation_name="close_webrtc_connection",
         )
 
         if not close_result.get("success", False):
@@ -535,6 +547,7 @@ async def enhanced_async_close_webrtc_connection(self, connection_id: str) -> Di
 
         return result
 
+
 def enhanced_close_all_webrtc_connections(self) -> Dict[str, Any]:
     """
     Enhanced version of close_all_webrtc_connections with AnyIO event loop handling and monitoring.
@@ -546,7 +559,7 @@ def enhanced_close_all_webrtc_connections(self) -> Dict[str, Any]:
     start_time = time.time()
 
     # Get or create monitor
-    monitor = getattr(self, 'webrtc_monitor', None)
+    monitor = getattr(self, "webrtc_monitor", None)
     if monitor is None:
         monitor = WebRTCMonitor()
         self.webrtc_monitor = monitor
@@ -559,11 +572,11 @@ def enhanced_close_all_webrtc_connections(self) -> Dict[str, Any]:
         "success": False,
         "operation_id": operation_id,
         "operation": "close_all_webrtc_connections",
-        "start_time": start_time
+        "start_time": start_time,
     }
 
     # Check WebRTC availability
-    if not hasattr(self, 'webrtc_manager') or self.webrtc_manager is None:
+    if not hasattr(self, "webrtc_manager") or self.webrtc_manager is None:
         result["error"] = "WebRTC manager not available"
         result["error_type"] = "dependency_error"
         result["duration_ms"] = (time.time() - start_time) * 1000
@@ -584,7 +597,7 @@ def enhanced_close_all_webrtc_connections(self) -> Dict[str, Any]:
         fallback_result = {
             "connections_closed": connection_count,
             "simulated": True,
-            "note": "Operation scheduled in background with monitoring"
+            "note": "Operation scheduled in background with monitoring",
         }
 
         # Use integrated handler to run the coroutine safely
@@ -592,7 +605,7 @@ def enhanced_close_all_webrtc_connections(self) -> Dict[str, Any]:
             self.webrtc_manager.close_all_connections(),
             connection_id=shared_connection_id,
             operation_name="close_all_webrtc_connections",
-            fallback_result=fallback_result
+            fallback_result=fallback_result,
         )
 
         # Update the result with success
@@ -613,6 +626,7 @@ def enhanced_close_all_webrtc_connections(self) -> Dict[str, Any]:
 
         return result
 
+
 async def enhanced_async_close_all_webrtc_connections(self) -> Dict[str, Any]:
     """
     Enhanced async version of close_all_webrtc_connections with monitoring.
@@ -624,7 +638,7 @@ async def enhanced_async_close_all_webrtc_connections(self) -> Dict[str, Any]:
     start_time = time.time()
 
     # Get or create monitor
-    monitor = getattr(self, 'webrtc_monitor', None)
+    monitor = getattr(self, "webrtc_monitor", None)
     if monitor is None:
         monitor = WebRTCMonitor()
         self.webrtc_monitor = monitor
@@ -637,11 +651,11 @@ async def enhanced_async_close_all_webrtc_connections(self) -> Dict[str, Any]:
         "success": False,
         "operation_id": operation_id,
         "operation": "close_all_webrtc_connections",
-        "start_time": start_time
+        "start_time": start_time,
     }
 
     # Check WebRTC availability
-    if not hasattr(self, 'webrtc_manager') or self.webrtc_manager is None:
+    if not hasattr(self, "webrtc_manager") or self.webrtc_manager is None:
         result["error"] = "WebRTC manager not available"
         result["error_type"] = "dependency_error"
         result["duration_ms"] = (time.time() - start_time) * 1000
@@ -662,7 +676,7 @@ async def enhanced_async_close_all_webrtc_connections(self) -> Dict[str, Any]:
         close_result = await handler.run_monitored_coroutine(
             self.webrtc_manager.close_all_connections(),
             connection_id=shared_connection_id,
-            operation_name="close_all_webrtc_connections"
+            operation_name="close_all_webrtc_connections",
         )
 
         # Update the result with success
@@ -681,6 +695,7 @@ async def enhanced_async_close_all_webrtc_connections(self) -> Dict[str, Any]:
         result["duration_ms"] = (time.time() - start_time) * 1000
 
         return result
+
 
 def apply_enhanced_fixes(mcp_server=None, log_dir=None, debug_mode=False):
     """
@@ -713,8 +728,8 @@ def apply_enhanced_fixes(mcp_server=None, log_dir=None, debug_mode=False):
     ipfs_model = None
 
     if mcp_server:
-        if hasattr(mcp_server, 'models') and 'ipfs' in mcp_server.models:
-            ipfs_model = mcp_server.models['ipfs']
+        if hasattr(mcp_server, "models") and "ipfs" in mcp_server.models:
+            ipfs_model = mcp_server.models["ipfs"]
         else:
             logger.error("MCP server does not have IPFS model")
             return None
@@ -722,6 +737,7 @@ def apply_enhanced_fixes(mcp_server=None, log_dir=None, debug_mode=False):
         # Try to import and patch the module directly
         try:
             from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
+
             # We'll patch the class, not an instance
             logger.info("Patching IPFSModel class directly")
         except ImportError:
@@ -743,20 +759,32 @@ def apply_enhanced_fixes(mcp_server=None, log_dir=None, debug_mode=False):
         ipfs_model.webrtc_monitor = monitor
 
         # Replace with enhanced implementations
-        ipfs_model.stop_webrtc_streaming = lambda server_id: enhanced_stop_webrtc_streaming(ipfs_model, server_id)
-        ipfs_model.close_webrtc_connection = lambda connection_id: enhanced_close_webrtc_connection(ipfs_model, connection_id)
-        ipfs_model.close_all_webrtc_connections = lambda: enhanced_close_all_webrtc_connections(ipfs_model)
+        ipfs_model.stop_webrtc_streaming = lambda server_id: enhanced_stop_webrtc_streaming(
+            ipfs_model, server_id
+        )
+        ipfs_model.close_webrtc_connection = lambda connection_id: enhanced_close_webrtc_connection(
+            ipfs_model, connection_id
+        )
+        ipfs_model.close_all_webrtc_connections = lambda: enhanced_close_all_webrtc_connections(
+            ipfs_model
+        )
 
         # Add async methods for use with FastAPI
-        ipfs_model.async_stop_webrtc_streaming = lambda server_id: enhanced_async_stop_webrtc_streaming(ipfs_model, server_id)
-        ipfs_model.async_close_webrtc_connection = lambda connection_id: enhanced_async_close_webrtc_connection(ipfs_model, connection_id)
-        ipfs_model.async_close_all_webrtc_connections = lambda: enhanced_async_close_all_webrtc_connections(ipfs_model)
+        ipfs_model.async_stop_webrtc_streaming = lambda server_id: (
+            enhanced_async_stop_webrtc_streaming(ipfs_model, server_id)
+        )
+        ipfs_model.async_close_webrtc_connection = lambda connection_id: (
+            enhanced_async_close_webrtc_connection(ipfs_model, connection_id)
+        )
+        ipfs_model.async_close_all_webrtc_connections = lambda: (
+            enhanced_async_close_all_webrtc_connections(ipfs_model)
+        )
 
         logger.info("IPFS model WebRTC methods enhanced with AnyIO fixes and monitoring")
 
         # If we have a server, also patch the controller
-        if mcp_server and hasattr(mcp_server, 'controllers') and 'webrtc' in mcp_server.controllers:
-            controller = mcp_server.controllers['webrtc']
+        if mcp_server and hasattr(mcp_server, "controllers") and "webrtc" in mcp_server.controllers:
+            controller = mcp_server.controllers["webrtc"]
             patch_webrtc_controller_methods(controller)
             logger.info("WebRTC controller methods patched to use enhanced async implementations")
     else:
@@ -783,6 +811,7 @@ def apply_enhanced_fixes(mcp_server=None, log_dir=None, debug_mode=False):
         # We can't patch the controller without an instance
 
     return monitor
+
 
 if __name__ == "__main__":
     # Example usage
