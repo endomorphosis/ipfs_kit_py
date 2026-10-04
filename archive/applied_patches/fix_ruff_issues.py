@@ -8,20 +8,21 @@ import re
 import sys
 from pathlib import Path
 
+
 def fix_unused_imports(file_path, content):
     """Remove unused imports identified by F401."""
     # Pattern to match lines marked with F401
     lines = content.split("\n")
     new_lines = []
     skip_next = False
-    
+
     for i, line in enumerate(lines):
         if skip_next:
             skip_next = False
             continue
-            
+
         # Skip lines that are marked as unused imports
-        if i < len(lines) - 1 and "F401" in lines[i+1] and not line.strip().startswith("#"):
+        if i < len(lines) - 1 and "F401" in lines[i + 1] and not line.strip().startswith("#"):
             # Check if this is part of a multi-line import with parentheses
             if "(" in line and ")" not in line:
                 in_multiline = True
@@ -36,14 +37,16 @@ def fix_unused_imports(file_path, content):
             else:
                 # Skip this line
                 continue
-        
+
         new_lines.append(line)
-    
+
     return "\n".join(new_lines)
+
 
 def fix_bare_except(file_path, content):
     """Replace bare except statements with 'except Exception:'."""
-    return re.sub(r'except\s*:', 'except Exception:', content)
+    return re.sub(r"except\s*:", "except Exception:", content)
+
 
 def fix_undefined_names(file_path, content):
     """Add imports for common undefined names."""
@@ -55,7 +58,7 @@ def fix_undefined_names(file_path, content):
         "aiofiles": "import aiofiles",
         "time": "import time",
     }
-    
+
     lines = content.split("\n")
     for name, import_stmt in fixes.items():
         if f"F821 Undefined name `{name}`" in content and import_stmt not in content:
@@ -71,10 +74,11 @@ def fix_undefined_names(file_path, content):
                     if line.strip():  # If not an empty line
                         break
                     import_pos = i
-                    
+
             lines.insert(import_pos, import_stmt)
-    
+
     return "\n".join(lines)
+
 
 def fix_ambiguous_names(file_path, content):
     """Replace ambiguous variable names like 'l' with more descriptive names."""
@@ -82,37 +86,40 @@ def fix_ambiguous_names(file_path, content):
         return content.replace("l: bool = Query(", "long_format: bool = Query(")
     return content
 
+
 def process_file(file_path):
     """Process a single Python file to fix issues."""
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
-            
+
         # Apply fixes
         content = fix_unused_imports(file_path, content)
         content = fix_bare_except(file_path, content)
         content = fix_undefined_names(file_path, content)
         content = fix_ambiguous_names(file_path, content)
-        
+
         # Write the fixed content back
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
-            
+
         print(f"Fixed {file_path}")
     except Exception as e:
         print(f"Error processing {file_path}: {e}")
+
 
 def main(directory):
     """Process all Python files in a directory recursively."""
     for root, _, files in os.walk(directory):
         for file in files:
-            if file.endswith('.py'):
+            if file.endswith(".py"):
                 process_file(Path(root) / file)
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         target_dir = sys.argv[1]
     else:
         target_dir = "ipfs_kit_py/mcp"
-    
+
     main(target_dir)

@@ -17,11 +17,9 @@ import subprocess
 from pathlib import Path
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
 
 def patch_ipfs_model():
     """Directly patch the IPFSModelAnyIO class with an add_content method."""
@@ -29,7 +27,7 @@ def patch_ipfs_model():
     from ipfs_kit_py.mcp.models.ipfs_model_anyio import IPFSModelAnyIO
 
     # Check if the method already exists
-    if hasattr(IPFSModelAnyIO, 'add_content'):
+    if hasattr(IPFSModelAnyIO, "add_content"):
         logger.info("IPFSModelAnyIO already has add_content method")
         return True
 
@@ -42,8 +40,8 @@ def patch_ipfs_model():
         logger.info("Using patched add_content method")
 
         # Handle args/kwargs
-        if content is None and 'content' in kwargs:
-            content = kwargs.pop('content')
+        if content is None and "content" in kwargs:
+            content = kwargs.pop("content")
 
         if content is None:
             raise ValueError("Content must be provided")
@@ -51,35 +49,35 @@ def patch_ipfs_model():
         # Add string content to IPFS
         if isinstance(content, str):
             # Try to find a suitable string method
-            if hasattr(self, 'add_str'):
+            if hasattr(self, "add_str"):
                 return await self.add_str(content, **kwargs)
-            elif hasattr(self, 'add_string'):
+            elif hasattr(self, "add_string"):
                 return await self.add_string(content, **kwargs)
-            elif hasattr(self.ipfs, 'add_str'):
+            elif hasattr(self.ipfs, "add_str"):
                 return await self.ipfs.add_str(content, **kwargs)
-            elif hasattr(self.ipfs, 'add_string'):
+            elif hasattr(self.ipfs, "add_string"):
                 return await self.ipfs.add_string(content, **kwargs)
             else:
                 # Fallback: convert to bytes and use add_bytes
-                content_bytes = content.encode('utf-8')
-                if hasattr(self, 'add_bytes'):
+                content_bytes = content.encode("utf-8")
+                if hasattr(self, "add_bytes"):
                     return await self.add_bytes(content_bytes, **kwargs)
-                elif hasattr(self.ipfs, 'add_bytes'):
+                elif hasattr(self.ipfs, "add_bytes"):
                     return await self.ipfs.add_bytes(content_bytes, **kwargs)
                 else:
                     # Last resort: use command directly
-                    result = await self.ipfs.command('add', stdin=content)
+                    result = await self.ipfs.command("add", stdin=content)
                     return result
 
         # Add bytes content to IPFS
         elif isinstance(content, bytes):
-            if hasattr(self, 'add_bytes'):
+            if hasattr(self, "add_bytes"):
                 return await self.add_bytes(content, **kwargs)
-            elif hasattr(self.ipfs, 'add_bytes'):
+            elif hasattr(self.ipfs, "add_bytes"):
                 return await self.ipfs.add_bytes(content, **kwargs)
             else:
                 # Last resort: use command directly
-                result = await self.ipfs.command('add', stdin=content)
+                result = await self.ipfs.command("add", stdin=content)
                 return result
 
         # Unknown content type
@@ -91,20 +89,19 @@ def patch_ipfs_model():
     logger.info("Successfully patched IPFSModelAnyIO.add_content")
     return True
 
+
 def check_ipfs_daemon():
     """Check if the IPFS daemon is running and responsive."""
     try:
         # Check if we can get the node ID
         result = subprocess.run(
-            ["ipfs", "id", "--format=<id>"],
-            capture_output=True,
-            text=True,
-            check=False
+            ["ipfs", "id", "--format=<id>"], capture_output=True, text=True, check=False
         )
         return result.returncode == 0 and result.stdout.strip()
     except Exception as e:
         logger.error(f"Error checking IPFS daemon: {e}")
         return False
+
 
 def get_free_port(start=8080, max_attempts=100):
     """Find a free port starting from the given port."""
@@ -121,6 +118,7 @@ def get_free_port(start=8080, max_attempts=100):
     # Fallback to a random port
     return 0
 
+
 def start_mcp_server():
     """Start a new MCP server with IPFS daemon integration."""
     # Apply our patch first
@@ -132,11 +130,7 @@ def start_mcp_server():
     port = get_free_port(8080)
 
     # Find an MCP server script to use
-    script_candidates = [
-        "run_mcp_server_anyio.py",
-        "run_mcp_server_fixed.py",
-        "run_mcp_server.py"
-    ]
+    script_candidates = ["run_mcp_server_anyio.py", "run_mcp_server_fixed.py", "run_mcp_server.py"]
 
     server_script = None
     for script in script_candidates:
@@ -178,7 +172,7 @@ if hasattr(server_module, "main"):
 else:
     print("Could not find main function in server script")
     sys.exit(1)
-        """
+        """,
     ]
 
     # Start the server and detach it
@@ -188,7 +182,7 @@ else:
                 cmd,
                 stdout=log_file,
                 stderr=log_file,
-                start_new_session=True  # Detach from parent process
+                start_new_session=True,  # Detach from parent process
             )
 
         # Give it time to start
@@ -202,7 +196,7 @@ else:
                     ["curl", "-s", f"http://localhost:{port}/api/v0/mcp/health"],
                     capture_output=True,
                     text=True,
-                    check=False
+                    check=False,
                 )
 
                 if health_check.returncode == 0 and "success" in health_check.stdout:
@@ -220,6 +214,7 @@ else:
         logger.error(f"Error starting MCP server: {e}")
         return False
 
+
 def test_ipfs_api(port):
     """Test the IPFS API via the MCP server."""
     try:
@@ -228,11 +223,15 @@ def test_ipfs_api(port):
 
         # Try to add the content via the API
         add_command = [
-            "curl", "-s",
-            "-X", "POST",
-            "-H", "Content-Type: application/json",
-            "-d", json.dumps({"content": test_content}),
-            f"http://localhost:{port}/api/v0/mcp/ipfs/add/json"
+            "curl",
+            "-s",
+            "-X",
+            "POST",
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            json.dumps({"content": test_content}),
+            f"http://localhost:{port}/api/v0/mcp/ipfs/add/json",
         ]
 
         logger.info(f"Testing IPFS API with content: {test_content}")
@@ -248,14 +247,19 @@ def test_ipfs_api(port):
 
                     # Now try to retrieve the content
                     cat_command = [
-                        "curl", "-s",
-                        f"http://localhost:{port}/api/v0/mcp/ipfs/cat/{cid}"
+                        "curl",
+                        "-s",
+                        f"http://localhost:{port}/api/v0/mcp/ipfs/cat/{cid}",
                     ]
 
-                    cat_result = subprocess.run(cat_command, capture_output=True, text=True, check=False)
+                    cat_result = subprocess.run(
+                        cat_command, capture_output=True, text=True, check=False
+                    )
 
                     if cat_result.returncode == 0 and cat_result.stdout.strip() == test_content:
-                        logger.info(f"Successfully retrieved content from IPFS: {cat_result.stdout.strip()}")
+                        logger.info(
+                            f"Successfully retrieved content from IPFS: {cat_result.stdout.strip()}"
+                        )
                         return {"success": True, "cid": cid, "content": cat_result.stdout.strip()}
                     else:
                         logger.error(f"Failed to retrieve content: {cat_result.stdout}")
@@ -272,6 +276,7 @@ def test_ipfs_api(port):
     except Exception as e:
         logger.error(f"Error testing IPFS API: {e}")
         return False
+
 
 def main():
     """Main function to fix and test the MCP server with IPFS daemon integration."""
@@ -328,6 +333,7 @@ def main():
     print(f"Retrieved content from IPFS: {test_result['content']}")
     print("\nTo stop this server: kill", server_info["pid"])
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

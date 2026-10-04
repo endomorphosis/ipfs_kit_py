@@ -37,31 +37,19 @@ engine = GraphRAGSearchEngine()
 
 # Index content
 await engine.index_content(
-    cid="QmTest123",
-    path="/docs/readme.md",
-    content="Documentation about IPFS"
+    cid="QmTest123", path="/docs/readme.md", content="Documentation about IPFS"
 )
 
 # Add relationships
 await engine.add_relationship(
-    source_cid="QmTest123",
-    target_cid="QmTest456",
-    relationship_type="references"
+    source_cid="QmTest123", target_cid="QmTest456", relationship_type="references"
 )
 
 # Vector search
-results = await engine.search(
-    query="IPFS documentation",
-    search_type="vector",
-    limit=10
-)
+results = await engine.search(query="IPFS documentation", search_type="vector", limit=10)
 
 # Graph search
-results = await engine.search(
-    query="related documents",
-    search_type="graph",
-    max_depth=2
-)
+results = await engine.search(query="related documents", search_type="graph", max_depth=2)
 
 # SPARQL query
 sparql_query = """
@@ -152,26 +140,22 @@ aws --endpoint-url=http://localhost:9000 s3 ls s3://my-bucket/
 import boto3
 
 s3 = boto3.client(
-    's3',
-    endpoint_url='http://localhost:9000',
-    aws_access_key_id='ipfs-kit',
-    aws_secret_access_key='not-needed'
+    "s3",
+    endpoint_url="http://localhost:9000",
+    aws_access_key_id="ipfs-kit",
+    aws_secret_access_key="not-needed",
 )
 
 # List buckets
 response = s3.list_buckets()
-print(response['Buckets'])
+print(response["Buckets"])
 
 # Upload object
-s3.put_object(
-    Bucket='my-bucket',
-    Key='file.txt',
-    Body=b'Hello, IPFS!'
-)
+s3.put_object(Bucket="my-bucket", Key="file.txt", Body=b"Hello, IPFS!")
 
 # Download object
-obj = s3.get_object(Bucket='my-bucket', Key='file.txt')
-content = obj['Body'].read()
+obj = s3.get_object(Bucket="my-bucket", Key="file.txt")
+content = obj["Body"].read()
 ```
 
 ### Dependencies
@@ -208,16 +192,11 @@ bridge = WasmIPFSBridge(ipfs_api=ipfs_api, runtime="wasmtime")
 module = await bridge.load_wasm_module("QmWasmModuleCID")
 
 # Execute WASM function
-result = await bridge.execute_wasm_function(
-    module,
-    "process_data",
-    args=[42, 100]
-)
+result = await bridge.execute_wasm_function(module, "process_data", args=[42, 100])
 
 # Store new WASM module
 cid = await bridge.store_wasm_module(
-    wasm_bytes,
-    metadata={"name": "data_processor", "version": "1.0.0"}
+    wasm_bytes, metadata={"name": "data_processor", "version": "1.0.0"}
 )
 ```
 
@@ -230,9 +209,7 @@ registry = WasmModuleRegistry(ipfs_api=ipfs_api)
 
 # Register module
 await registry.register_module(
-    name="image_processor",
-    cid="QmImageProcessorWASM",
-    metadata={"version": "2.1.0"}
+    name="image_processor", cid="QmImageProcessorWASM", metadata={"version": "2.1.0"}
 )
 
 # Get module
@@ -249,10 +226,7 @@ modules = registry.list_modules()
 from ipfs_kit_py.wasm_support import WasmJSBindings
 
 # Generate JavaScript bindings
-js_code = WasmJSBindings.generate_js_bindings(
-    "DataProcessor",
-    ["encode", "decode", "hash"]
-)
+js_code = WasmJSBindings.generate_js_bindings("DataProcessor", ["encode", "decode", "hash"])
 
 # Save to file for browser use
 with open("data_processor.js", "w") as f:
@@ -416,11 +390,7 @@ collector = AnalyticsCollector(window_size=1000)
 
 # Record operations
 collector.record_operation(
-    operation_type="add",
-    duration=0.5,
-    bytes_transferred=1024,
-    success=True,
-    peer_id="peer123"
+    operation_type="add", duration=0.5, bytes_transferred=1024, success=True, peer_id="peer123"
 )
 
 # Get metrics
@@ -457,10 +427,12 @@ await dashboard.start_monitoring()
 ```python
 import asyncio
 
+
 # Start monitoring in background
 async def monitor():
     dashboard = AnalyticsDashboard(ipfs_api=ipfs_api)
     await dashboard.start_monitoring()
+
 
 # Run monitoring
 asyncio.create_task(monitor())
@@ -502,21 +474,21 @@ cluster.add_region(
     name="us-west-1",
     location="Oregon, USA",
     latency_zone="us-west",
-    endpoints=["http://node1:5001", "http://node2:5001"]
+    endpoints=["http://node1:5001", "http://node2:5001"],
 )
 
 cluster.add_region(
     name="eu-central-1",
     location="Frankfurt, Germany",
     latency_zone="eu-central",
-    endpoints=["http://node3:5001", "http://node4:5001"]
+    endpoints=["http://node3:5001", "http://node4:5001"],
 )
 
 cluster.add_region(
     name="ap-southeast-1",
     location="Singapore",
     latency_zone="ap-southeast",
-    endpoints=["http://node5:5001", "http://node6:5001"]
+    endpoints=["http://node5:5001", "http://node6:5001"],
 )
 ```
 
@@ -553,17 +525,17 @@ region = await cluster.get_closest_region(client_location="us-east")
 result = await cluster.replicate_to_regions(
     cid="QmTestContent",
     target_regions=["us-west-1", "eu-central-1", "ap-southeast-1"],
-    min_replicas=2
+    min_replicas=2,
 )
 
 print(f"Replication success: {result['success']}")
-for region, status in result['regions'].items():
+for region, status in result["regions"].items():
     print(f"  {region}: {status['success']}")
 
 # Auto-select regions for replication
 result = await cluster.replicate_to_regions(
     cid="QmTestContent",
-    min_replicas=3  # Will auto-select 3 regions
+    min_replicas=3,  # Will auto-select 3 regions
 )
 ```
 

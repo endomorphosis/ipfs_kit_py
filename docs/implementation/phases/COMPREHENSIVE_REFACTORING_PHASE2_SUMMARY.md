@@ -116,7 +116,7 @@ result = audit_track_backend(
     backend_id="s3-prod",
     operation="update",
     user_id="admin",
-    details={"region": "us-west-2", "config_change": "enable_encryption"}
+    details={"region": "us-west-2", "config_change": "enable_encryption"},
 )
 ```
 
@@ -136,7 +136,7 @@ result = audit_track_vfs(
     operation="write",
     path="/data/important.txt",
     user_id="user123",
-    details={"size_bytes": 2048, "mime_type": "text/plain"}
+    details={"size_bytes": 2048, "mime_type": "text/plain"},
 )
 ```
 

@@ -11,16 +11,9 @@ import time
 import logging
 import importlib.util
 from typing import Dict, Any, Optional
-from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
-    Request,
-    Form,
-    Query)
+from fastapi import APIRouter, Depends, HTTPException, Request, Form, Query
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.security.api_key import APIKeyHeader, APIKeyQuery
-
 
 
 # Configure logging
@@ -228,6 +221,7 @@ def require_permission(permission: str):
     Returns:
         Dependency function
     """
+
     async def check_permission(user: Dict[str, Any] = Depends(require_auth)):
         if not AUTH_MANAGER_AVAILABLE or auth_manager is None:
             raise HTTPException(status_code=501, detail="Authentication system not available")

@@ -92,10 +92,7 @@ class RPCRequest:
             raise IrohProtocolError("request id must be a non-empty string")
         if not isinstance(self.method, str) or not _METHOD_RE.fullmatch(self.method):
             raise IrohProtocolError("invalid RPC method identifier")
-        if (
-            isinstance(self.protocol_version, bool)
-            or self.protocol_version != PROTOCOL_VERSION
-        ):
+        if isinstance(self.protocol_version, bool) or self.protocol_version != PROTOCOL_VERSION:
             raise IrohUnsupportedVersionError("unsupported request protocol version")
         _object(self.params, "request params")
         _validate_json(self.params, "params")
@@ -141,9 +138,7 @@ class RPCResponse:
         return self.error is None
 
     @classmethod
-    def from_dict(
-        cls, value: Any, *, expected_id: str | None = None
-    ) -> "RPCResponse":
+    def from_dict(cls, value: Any, *, expected_id: str | None = None) -> "RPCResponse":
         obj = _object(value, "RPC response")
         allowed = {"jsonrpc", "protocol_version", "id", "result", "error"}
         if any(key not in allowed for key in obj):
@@ -157,9 +152,7 @@ class RPCResponse:
             or not isinstance(protocol, int)
             or protocol != PROTOCOL_VERSION
         ):
-            raise IrohUnsupportedVersionError(
-                "sidecar RPC protocol version is unsupported"
-            )
+            raise IrohUnsupportedVersionError("sidecar RPC protocol version is unsupported")
 
         request_id = obj.get("id")
         if not isinstance(request_id, str) or not request_id:
@@ -170,9 +163,7 @@ class RPCResponse:
         has_result = "result" in obj
         has_error = "error" in obj and obj.get("error") is not None
         if has_result == has_error:
-            raise IrohProtocolError(
-                "RPC response must contain exactly one of result or error"
-            )
+            raise IrohProtocolError("RPC response must contain exactly one of result or error")
 
         if has_result:
             result = obj["result"]
@@ -230,9 +221,7 @@ class RuntimeVersion:
         for target, names in aliases.items():
             present = [obj[name] for name in names if name in obj]
             if len(present) != 1:
-                raise IrohProtocolError(
-                    f"version result has invalid {target} field"
-                )
+                raise IrohProtocolError(f"version result has invalid {target} field")
             parsed[target] = present[0]
 
         protocol = parsed["protocol"]
@@ -243,9 +232,7 @@ class RuntimeVersion:
             for name in aliases
             if name != "protocol"
         ):
-            raise IrohProtocolError(
-                "version result contains an invalid component version"
-            )
+            raise IrohProtocolError("version result contains an invalid component version")
         bundle = obj.get("release_bundle")
         if bundle is not None and (not isinstance(bundle, str) or not bundle):
             raise IrohProtocolError("version result has an invalid release bundle")
@@ -287,14 +274,11 @@ class RuntimeCapabilities:
             or not isinstance(protocol, int)
             or protocol != PROTOCOL_VERSION
         ):
-            raise IrohUnsupportedVersionError(
-                "capability protocol version is unsupported"
-            )
+            raise IrohUnsupportedVersionError("capability protocol version is unsupported")
         if not isinstance(methods, Sequence) or isinstance(methods, (str, bytes)):
             raise IrohProtocolError("capability methods must be an array")
         if any(
-            not isinstance(method, str) or not _METHOD_RE.fullmatch(method)
-            for method in methods
+            not isinstance(method, str) or not _METHOD_RE.fullmatch(method) for method in methods
         ):
             raise IrohProtocolError("capability result contains an invalid method")
         if len(methods) != len(set(methods)):

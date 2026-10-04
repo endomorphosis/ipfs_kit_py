@@ -42,7 +42,12 @@ def test_lotus_daemon_status_triggers_auto_install(monkeypatch, tmp_path):
     # Stub run_command for `lotus net id`.
     def fake_run_command(cmd, **kwargs):
         # Return a minimal JSON response lotus_daemon expects.
-        return {"success": True, "returncode": 0, "stdout": json.dumps({"ID": "peer", "Addresses": []}), "stderr": ""}
+        return {
+            "success": True,
+            "returncode": 0,
+            "stdout": json.dumps({"ID": "peer", "Addresses": []}),
+            "stderr": "",
+        }
 
     monkeypatch.setattr(daemon, "run_command", fake_run_command)
 

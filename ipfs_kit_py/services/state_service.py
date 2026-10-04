@@ -7,6 +7,7 @@ state from the IPFS Kit data directory (default: ~/.ipfs_kit). Avoids heavy
 imports and focuses on file-based state and simple system introspection so it
 can be safely used by both the CLI and the MCP server tools.
 """
+
 from __future__ import annotations
 
 import json
@@ -68,7 +69,7 @@ class StateService:
     def get_system_status(self) -> Dict[str, Any]:
         uptime = datetime.now() - (self.start_time or datetime.now())
         mem = psutil.virtual_memory()
-        
+
         # Get disk usage for the data directory's filesystem
         try:
             disk = psutil.disk_usage(self.data_dir)
@@ -76,11 +77,11 @@ class StateService:
         except Exception:
             # Fallback to root filesystem
             try:
-                disk = psutil.disk_usage('/')
+                disk = psutil.disk_usage("/")
                 disk_percent = (disk.used / disk.total) * 100
             except Exception:
                 disk_percent = None
-        
+
         status = {
             "timestamp": datetime.now().isoformat(),
             "uptime": str(uptime),
@@ -128,17 +129,17 @@ class StateService:
             # Import the enhanced service detector
             import sys
             from pathlib import Path
-            
+
             # Add the parent directory to path so we can import the detector
             parent_dir = Path(__file__).parent.parent.parent
             if str(parent_dir) not in sys.path:
                 sys.path.insert(0, str(parent_dir))
-            
+
             from enhanced_service_detector import EnhancedServiceDetector
-            
+
             detector = EnhancedServiceDetector(self.data_dir)
             services = detector.detect_all_services()
-            
+
             # Convert ServiceInfo objects to dictionaries
             service_list = []
             for service in services:
@@ -148,7 +149,7 @@ class StateService:
                     "status": service.status,
                     "description": service.description,
                 }
-                
+
                 # Add optional fields if available
                 if service.pid:
                     service_dict["pid"] = service.pid
@@ -162,25 +163,46 @@ class StateService:
                     service_dict["manager_class"] = service.manager_class
                 if service.command_line:
                     service_dict["command_line"] = service.command_line
-                    
+
                 # Get available control actions
                 actions = detector.get_service_control_actions(service)
                 service_dict["available_actions"] = actions
-                
+
                 service_list.append(service_dict)
-            
+
             return service_list
-            
+
         except Exception as e:
             # Fallback to basic services if enhanced detection fails
             import logging
+
             logger = logging.getLogger(__name__)
-            logger.warning(f"Enhanced service detection failed: {e}, falling back to basic services")
-            
+            logger.warning(
+                f"Enhanced service detection failed: {e}, falling back to basic services"
+            )
+
             return [
-                {"name": "IPFS Node", "type": "ipfs", "status": "stopped", "description": "IPFS node connection", "available_actions": ["start", "status", "configure"]},
-                {"name": "Bucket Manager", "type": "bucket", "status": "stopped", "description": "Bucket VFS manager", "available_actions": ["enable", "status", "configure"]},
-                {"name": "Unified Interface", "type": "interface", "status": "stopped", "description": "Unified bucket interface", "available_actions": ["enable", "status", "configure"]},
+                {
+                    "name": "IPFS Node",
+                    "type": "ipfs",
+                    "status": "stopped",
+                    "description": "IPFS node connection",
+                    "available_actions": ["start", "status", "configure"],
+                },
+                {
+                    "name": "Bucket Manager",
+                    "type": "bucket",
+                    "status": "stopped",
+                    "description": "Bucket VFS manager",
+                    "available_actions": ["enable", "status", "configure"],
+                },
+                {
+                    "name": "Unified Interface",
+                    "type": "interface",
+                    "status": "stopped",
+                    "description": "Unified bucket interface",
+                    "available_actions": ["enable", "status", "configure"],
+                },
             ]
 
     def control_service(self, service: str, action: str) -> Dict[str, Any]:
@@ -189,23 +211,23 @@ class StateService:
             # Import the enhanced service detector for more detailed control
             import sys
             from pathlib import Path
-            
+
             parent_dir = Path(__file__).parent.parent.parent
             if str(parent_dir) not in sys.path:
                 sys.path.insert(0, str(parent_dir))
-            
+
             from enhanced_service_detector import EnhancedServiceDetector
-            
+
             detector = EnhancedServiceDetector(self.data_dir)
             services = detector.detect_all_services()
-            
+
             # Find the service
             target_service = None
             for svc in services:
                 if svc.name == service:
                     target_service = svc
                     break
-            
+
             if not target_service:
                 return {
                     "service": service,
@@ -213,42 +235,43 @@ class StateService:
                     "status": "error",
                     "message": f"Service '{service}' not found",
                 }
-            
+
             # Get available actions for this service
             available_actions = detector.get_service_control_actions(target_service)
-            
+
             if action not in available_actions:
                 return {
                     "service": service,
                     "action": action,
                     "status": "error",
                     "message": f"Action '{action}' not available for service '{service}'. Available: {', '.join(available_actions)}",
-                    "available_actions": available_actions
+                    "available_actions": available_actions,
                 }
-            
+
             # Perform the action based on service type
             result = self._perform_service_action(target_service, action)
-            
+
             return {
                 "service": service,
                 "action": action,
                 "status": "success" if result.get("success", False) else "error",
                 "message": result.get("message", f"Service '{service}' {action} command executed"),
-                "details": result
+                "details": result,
             }
-            
+
         except Exception as e:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(f"Error controlling service {service}: {e}")
-            
+
             return {
                 "service": service,
                 "action": action,
                 "status": "error",
                 "message": f"Failed to {action} service '{service}': {str(e)}",
             }
-    
+
     def _perform_service_action(self, service, action: str) -> Dict[str, Any]:
         """Perform the actual service action."""
         try:
@@ -258,19 +281,23 @@ class StateService:
                 return self._control_module_service(service, action)
             else:
                 return {"success": False, "message": f"Unknown service type: {service.type}"}
-                
+
         except Exception as e:
             return {"success": False, "message": f"Action failed: {str(e)}"}
-    
+
     def _control_daemon_service(self, service, action: str) -> Dict[str, Any]:
         """Control daemon services like IPFS, Lotus, etc."""
         if action == "status":
-            return {"success": True, "message": f"Status: {service.status}", "current_status": service.status}
-        
+            return {
+                "success": True,
+                "message": f"Status: {service.status}",
+                "current_status": service.status,
+            }
+
         elif action == "start":
             if service.status == "running":
                 return {"success": True, "message": f"{service.name} is already running"}
-                
+
             # Attempt to start the daemon
             if "ipfs" in service.name.lower():
                 return self._start_ipfs_daemon()
@@ -281,151 +308,166 @@ class StateService:
             elif "lotus" in service.name.lower():
                 return self._start_lotus_daemon()
             else:
-                return {"success": False, "message": f"Start action not implemented for {service.name}"}
-        
+                return {
+                    "success": False,
+                    "message": f"Start action not implemented for {service.name}",
+                }
+
         elif action == "stop":
             if service.status != "running":
                 return {"success": True, "message": f"{service.name} is not running"}
-                
+
             return self._stop_daemon_by_pid(service.pid, service.name)
-        
+
         elif action == "restart":
             # Stop then start
             stop_result = self._control_daemon_service(service, "stop")
             if stop_result.get("success", False):
                 import time
+
                 time.sleep(2)  # Wait a moment between stop and start
                 return self._control_daemon_service(service, "start")
             else:
                 return stop_result
-        
+
         elif action == "configure":
-            return {"success": True, "message": f"Configuration interface for {service.name} (placeholder)"}
-        
+            return {
+                "success": True,
+                "message": f"Configuration interface for {service.name} (placeholder)",
+            }
+
         else:
             return {"success": False, "message": f"Unknown action: {action}"}
-    
+
     def _control_module_service(self, service, action: str) -> Dict[str, Any]:
         """Control module-based services."""
         if action == "status":
-            return {"success": True, "message": f"Status: {service.status}", "current_status": service.status}
-        
+            return {
+                "success": True,
+                "message": f"Status: {service.status}",
+                "current_status": service.status,
+            }
+
         elif action == "enable":
             return {"success": True, "message": f"Enabled {service.name} (placeholder)"}
-        
+
         elif action == "disable":
             return {"success": True, "message": f"Disabled {service.name} (placeholder)"}
-        
+
         elif action == "configure":
-            return {"success": True, "message": f"Configuration interface for {service.name} (placeholder)"}
-        
+            return {
+                "success": True,
+                "message": f"Configuration interface for {service.name} (placeholder)",
+            }
+
         elif action == "install":
-            return {"success": True, "message": f"Installation interface for {service.name} (placeholder)"}
-        
+            return {
+                "success": True,
+                "message": f"Installation interface for {service.name} (placeholder)",
+            }
+
         else:
             return {"success": False, "message": f"Unknown action: {action}"}
-    
+
     def _start_ipfs_daemon(self) -> Dict[str, Any]:
         """Start IPFS daemon."""
         try:
             import subprocess
-            
+
             # Try to start IPFS daemon
             result = subprocess.run(
-                ["ipfs", "daemon", "--enable-gc"],
-                capture_output=True,
-                text=True,
-                timeout=10
+                ["ipfs", "daemon", "--enable-gc"], capture_output=True, text=True, timeout=10
             )
-            
+
             if result.returncode == 0:
                 return {"success": True, "message": "IPFS daemon started successfully"}
             else:
-                return {"success": False, "message": f"Failed to start IPFS daemon: {result.stderr}"}
-                
+                return {
+                    "success": False,
+                    "message": f"Failed to start IPFS daemon: {result.stderr}",
+                }
+
         except subprocess.TimeoutExpired:
             # Daemon might be starting in background, consider it successful
             return {"success": True, "message": "IPFS daemon starting in background"}
         except Exception as e:
             return {"success": False, "message": f"Error starting IPFS daemon: {str(e)}"}
-    
+
     def _start_cluster_service(self) -> Dict[str, Any]:
         """Start IPFS Cluster Service."""
         try:
             import subprocess
-            
+
             result = subprocess.run(
-                ["ipfs-cluster-service", "daemon"],
-                capture_output=True,
-                text=True,
-                timeout=10
+                ["ipfs-cluster-service", "daemon"], capture_output=True, text=True, timeout=10
             )
-            
+
             if result.returncode == 0:
                 return {"success": True, "message": "IPFS Cluster Service started successfully"}
             else:
-                return {"success": False, "message": f"Failed to start IPFS Cluster Service: {result.stderr}"}
-                
+                return {
+                    "success": False,
+                    "message": f"Failed to start IPFS Cluster Service: {result.stderr}",
+                }
+
         except subprocess.TimeoutExpired:
             return {"success": True, "message": "IPFS Cluster Service starting in background"}
         except Exception as e:
             return {"success": False, "message": f"Error starting IPFS Cluster Service: {str(e)}"}
-    
+
     def _start_cluster_follow(self) -> Dict[str, Any]:
         """Start IPFS Cluster Follow."""
         try:
             import subprocess
-            
+
             result = subprocess.run(
-                ["ipfs-cluster-follow", "run"],
-                capture_output=True,
-                text=True,
-                timeout=10
+                ["ipfs-cluster-follow", "run"], capture_output=True, text=True, timeout=10
             )
-            
+
             if result.returncode == 0:
                 return {"success": True, "message": "IPFS Cluster Follow started successfully"}
             else:
-                return {"success": False, "message": f"Failed to start IPFS Cluster Follow: {result.stderr}"}
-                
+                return {
+                    "success": False,
+                    "message": f"Failed to start IPFS Cluster Follow: {result.stderr}",
+                }
+
         except subprocess.TimeoutExpired:
             return {"success": True, "message": "IPFS Cluster Follow starting in background"}
         except Exception as e:
             return {"success": False, "message": f"Error starting IPFS Cluster Follow: {str(e)}"}
-    
+
     def _start_lotus_daemon(self) -> Dict[str, Any]:
         """Start Lotus daemon."""
         try:
             import subprocess
-            
-            result = subprocess.run(
-                ["lotus", "daemon"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            
+
+            result = subprocess.run(["lotus", "daemon"], capture_output=True, text=True, timeout=10)
+
             if result.returncode == 0:
                 return {"success": True, "message": "Lotus daemon started successfully"}
             else:
-                return {"success": False, "message": f"Failed to start Lotus daemon: {result.stderr}"}
-                
+                return {
+                    "success": False,
+                    "message": f"Failed to start Lotus daemon: {result.stderr}",
+                }
+
         except subprocess.TimeoutExpired:
             return {"success": True, "message": "Lotus daemon starting in background"}
         except Exception as e:
             return {"success": False, "message": f"Error starting Lotus daemon: {str(e)}"}
-    
+
     def _stop_daemon_by_pid(self, pid: Optional[int], service_name: str) -> Dict[str, Any]:
         """Stop a daemon by PID."""
         if not pid:
             return {"success": False, "message": f"No PID available for {service_name}"}
-        
+
         try:
             import psutil
-            
+
             proc = psutil.Process(pid)
             proc.terminate()
-            
+
             # Wait for process to terminate gracefully
             try:
                 proc.wait(timeout=5)
@@ -435,7 +477,7 @@ class StateService:
                 proc.kill()
                 proc.wait(timeout=2)
                 return {"success": True, "message": f"{service_name} force-stopped successfully"}
-                
+
         except psutil.NoSuchProcess:
             return {"success": True, "message": f"{service_name} was not running"}
         except psutil.AccessDenied:
@@ -450,12 +492,14 @@ class StateService:
             for config_file in sorted(self.backends_dir.glob("*.yaml")):
                 try:
                     config = yaml.safe_load(config_file.read_text()) or {}
-                    backends.append({
-                        "name": config_file.stem,
-                        "type": config.get("type", "unknown"),
-                        "status": "configured",
-                        "config_file": str(config_file),
-                    })
+                    backends.append(
+                        {
+                            "name": config_file.stem,
+                            "type": config.get("type", "unknown"),
+                            "status": "configured",
+                            "config_file": str(config_file),
+                        }
+                    )
                 except Exception:
                     continue
         return backends
