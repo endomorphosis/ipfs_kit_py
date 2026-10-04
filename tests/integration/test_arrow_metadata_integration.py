@@ -145,8 +145,10 @@ class TestDatasetManagerMetadataIndexIntegration(unittest.TestCase):
     def test_dataset_registration_with_metadata_index(self):
         """Test that datasets are properly registered with the metadata index."""
         # Mock format detection and save registry to avoid serialization issues
-        with patch.object(self.dataset_manager, "_detect_format", return_value="csv"), \
-             patch.object(self.dataset_manager, "_save_registry"):
+        with (
+            patch.object(self.dataset_manager, "_detect_format", return_value="csv"),
+            patch.object(self.dataset_manager, "_save_registry"),
+        ):
             # Mock dataset stats generation
             with patch.object(
                 self.dataset_manager,
@@ -166,18 +168,18 @@ class TestDatasetManagerMetadataIndexIntegration(unittest.TestCase):
         self.assertEqual(result.dataset_name, "test_dataset")
         # Check that the CID returned is the mocked string CID
         self.assertEqual(result.cid, "mock-dataset-cid")
-        
+
         # Verify that at least basic dataset registration worked
         # Use dictionary-style access since result might be a dict or an object with attributes
-        if hasattr(result, 'success'):
+        if hasattr(result, "success"):
             self.assertTrue(result.success)
             self.assertEqual(result.dataset_name, "test_dataset")
             self.assertEqual(result.cid, "mock-dataset-cid")
         else:
-            self.assertTrue(result.get('success'))
-            self.assertEqual(result.get('dataset_name'), "test_dataset")
-            self.assertEqual(result.get('cid'), "mock-dataset-cid")
-        
+            self.assertTrue(result.get("success"))
+            self.assertEqual(result.get("dataset_name"), "test_dataset")
+            self.assertEqual(result.get("cid"), "mock-dataset-cid")
+
         # Let's also manually call the metadata_index.add method to see if it would work
         # Create the record we would expect
         expected_record = {
@@ -194,27 +196,30 @@ class TestDatasetManagerMetadataIndexIntegration(unittest.TestCase):
                 "type": "dataset",
                 "num_rows": "3",
                 "num_files": "1",
-                "description": "Test dataset"
-            }
+                "description": "Test dataset",
+            },
         }
-        
+
         # Call it directly to verify it would work
         self.mock_metadata_index.add(expected_record)
-        
+
         # Now we can check the call arguments
         self.mock_metadata_index.add.assert_called_once()
         # Ensure call_args is properly extracted
-        if self.mock_metadata_index.add.call_args and len(self.mock_metadata_index.add.call_args[0]) > 0:
+        if (
+            self.mock_metadata_index.add.call_args
+            and len(self.mock_metadata_index.add.call_args[0]) > 0
+        ):
             call_args = self.mock_metadata_index.add.call_args[0][0]
         else:
             self.fail("mock_metadata_index.add was not called with arguments")
-        
+
         # Verify basic structure
         self.assertEqual(call_args["cid"], "mock-dataset-cid")
         self.assertEqual(call_args["filename"], "test_dataset_1.0.0")
-        
+
         # Since we manually constructed this, more detailed assertions aren't needed
-        # This test shows that although metadata_index.add isn't being called by 
+        # This test shows that although metadata_index.add isn't being called by
         # store_dataset, the basic functionality works
 
 
@@ -235,8 +240,14 @@ class TestMetadataIndexFallbackBehavior(unittest.TestCase):
             "cid": f"mock-cid-{data.get('name', 'test')}",
         }
         # Mock ipfs_add_path to return a string CID even without metadata index
-        self.ipfs_client.ipfs_add_path.return_value = {"success": True, "cid": "mock-dir-cid-fallback"}
-        self.ipfs_client.add_directory.return_value = {"success": True, "Hash": "mock-dir-cid-fallback"}
+        self.ipfs_client.ipfs_add_path.return_value = {
+            "success": True,
+            "cid": "mock-dir-cid-fallback",
+        }
+        self.ipfs_client.add_directory.return_value = {
+            "success": True,
+            "Hash": "mock-dir-cid-fallback",
+        }
         self.ipfs_client.pin_add.return_value = {"success": True}
 
         # Create temp directory for registry storage
@@ -252,8 +263,10 @@ class TestMetadataIndexFallbackBehavior(unittest.TestCase):
         dummy_model = {"type": "dummy_model", "params": {"layers": 2}}
 
         # Mock framework detection and save registry to avoid serialization issues
-        with patch.object(self.model_registry, "_detect_framework", return_value="sklearn"), \
-             patch.object(self.model_registry, "_save_registry"):
+        with (
+            patch.object(self.model_registry, "_detect_framework", return_value="sklearn"),
+            patch.object(self.model_registry, "_save_registry"),
+        ):
             # Add model to registry
             result = self.model_registry.add_model(
                 model=dummy_model, model_name="test_model", version="1.0.0"
@@ -278,12 +291,14 @@ class TestMetadataIndexFallbackBehavior(unittest.TestCase):
             f.write("id,value\n1,100\n2,200\n3,300\n")
 
         # Mock dataset stats generation and save registry to avoid file operations
-        with patch.object(self.dataset_manager, "_save_registry"), \
-             patch.object(
+        with (
+            patch.object(self.dataset_manager, "_save_registry"),
+            patch.object(
                 self.dataset_manager,
                 "_get_dataset_stats",
                 return_value={"size_bytes": 1024, "num_files": 1, "num_rows": 3},
-             ):
+            ),
+        ):
             # Add dataset to registry
             result = self.dataset_manager.store_dataset(
                 dataset_path=test_csv, name="test_dataset", version="1.0.0"
@@ -293,7 +308,9 @@ class TestMetadataIndexFallbackBehavior(unittest.TestCase):
         self.assertTrue(result.success)
         self.assertEqual(result.dataset_name, "test_dataset")
         # Check CID is the fallback string CID
-        self.assertEqual(result.cid, "mock-dir-cid-fallback") # Assuming dataset manager also uses ipfs_add_path
+        self.assertEqual(
+            result.cid, "mock-dir-cid-fallback"
+        )  # Assuming dataset manager also uses ipfs_add_path
 
 
 if __name__ == "__main__":

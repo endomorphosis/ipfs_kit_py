@@ -5,9 +5,10 @@ import time
 
 logger = logging.getLogger(__name__)
 
-IPFS_KIT_PATH = Path.home() / '.ipfs_kit'
-PARQUET_PATH = IPFS_KIT_PATH / 'parquet_data'
+IPFS_KIT_PATH = Path.home() / ".ipfs_kit"
+PARQUET_PATH = IPFS_KIT_PATH / "parquet_data"
 PARQUET_PATH.mkdir(parents=True, exist_ok=True)
+
 
 class ParquetManager:
     def __init__(self):
@@ -17,14 +18,16 @@ class ParquetManager:
         datasets = []
         for f in PARQUET_PATH.glob("*.json"):
             try:
-                with open(f, 'r') as df:
+                with open(f, "r") as df:
                     data = json.load(df)
-                    datasets.append({
-                        "name": f.stem,
-                        "size": f.stat().st_size,
-                        "created_at": f.stat().st_ctime,
-                        "num_records": len(data.get("data", []))
-                    })
+                    datasets.append(
+                        {
+                            "name": f.stem,
+                            "size": f.stat().st_size,
+                            "created_at": f.stat().st_ctime,
+                            "num_records": len(data.get("data", [])),
+                        }
+                    )
             except Exception as e:
                 logger.warning(f"Could not read parquet metadata from {f}: {e}")
         return {"datasets": datasets}
@@ -35,7 +38,7 @@ class ParquetManager:
         cid = f"mock_cid_{int(time.time())}"
         file_path = PARQUET_PATH / f"{cid}.json"
         try:
-            with open(file_path, 'w') as f:
+            with open(file_path, "w") as f:
                 json.dump(data, f, indent=2)
             return {"success": True, "cid": cid, "message": "Data stored (mock)"}
         except Exception as e:
@@ -46,11 +49,11 @@ class ParquetManager:
         file_path = PARQUET_PATH / f"{cid}.json"
         if not file_path.exists():
             return {"success": False, "error": "Data not found"}
-        
+
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path, "r") as f:
                 data = json.load(f)
-            
+
             # Apply column filtering if specified
             if columns and "data" in data and data["data"]:
                 filtered_data = []

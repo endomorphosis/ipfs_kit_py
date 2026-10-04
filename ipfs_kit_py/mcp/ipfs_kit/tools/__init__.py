@@ -11,4 +11,4 @@ try:
 except ImportError:
     pass
 
-__all__ = ['ipfs_core_tools', 'ipfs_core_tools_part2', 'unified_ipfs_tools', 'pin_management_tools']
+__all__ = ["ipfs_core_tools", "ipfs_core_tools_part2", "unified_ipfs_tools", "pin_management_tools"]

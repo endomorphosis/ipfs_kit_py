@@ -18,10 +18,10 @@ import atexit
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 def stop_server(pid):
     """Stop the server process."""
@@ -31,6 +31,7 @@ def stop_server(pid):
             logger.info(f"Stopped server with PID {pid}")
         except Exception as e:
             logger.error(f"Error stopping server: {e}")
+
 
 def main():
     """Run the MCP server."""
@@ -52,7 +53,7 @@ def main():
     # Check if port is available
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(('localhost', args.port))
+        s.bind(("localhost", args.port))
         s.close()
     except socket.error:
         logger.error(f"Port {args.port} is already in use")
@@ -62,9 +63,11 @@ def main():
 
     # Start the server
     cmd = [
-        "python", "enhanced_mcp_server_fixed.py",
-        "--port", str(args.port),
-        "--debug" if args.debug else "--no-debug"
+        "python",
+        "enhanced_mcp_server_fixed.py",
+        "--port",
+        str(args.port),
+        "--debug" if args.debug else "--no-debug",
     ]
 
     try:
@@ -78,7 +81,7 @@ def main():
         logger.info(f"Server started with PID {server_pid}")
 
         # Save PID to file
-        with open('/tmp/mcp_server.pid', 'w') as f:
+        with open("/tmp/mcp_server.pid", "w") as f:
             f.write(str(server_pid))
 
         # Wait for server to start
@@ -88,6 +91,7 @@ def main():
         # Check if server is responding
         try:
             import requests
+
             response = requests.get(f"http://localhost:{args.port}/")
             if response.status_code == 200:
                 logger.info("Server is running and responding!")
@@ -115,7 +119,7 @@ def main():
         logger.info("Interrupted by user, stopping server...")
         # Use a safer approach that doesn't rely on locals()
         try:
-            if 'server_process' in locals() and server_process is not None:
+            if "server_process" in locals() and server_process is not None:
                 stop_server(server_process.pid)
         except:
             pass
@@ -123,11 +127,12 @@ def main():
         logger.error(f"Error running server: {e}")
         # Use a safer approach that doesn't rely on locals()
         try:
-            if 'server_process' in locals() and server_process is not None:
+            if "server_process" in locals() and server_process is not None:
                 stop_server(server_process.pid)
         except:
             pass
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

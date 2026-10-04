@@ -31,16 +31,16 @@ failed = 0
 for test in problematic_tests:
     print(f"\n\nRunning test: {test}")
     print("=" * 80)
-    
+
     # Run the test in isolation
     cmd = [sys.executable, "-m", "pytest", test, "-v"]
     result = subprocess.run(cmd, capture_output=True, text=True)
-    
+
     # Print test output
     print(result.stdout)
     if result.stderr:
         print("STDERR:", result.stderr)
-    
+
     # Track test result
     if result.returncode == 0:
         print(f"✅ PASSED: {test}")

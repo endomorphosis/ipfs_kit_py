@@ -24,22 +24,27 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from ipfs_connection_pool import get_connection_pool # type: ignore
+from ipfs_connection_pool import get_connection_pool  # type: ignore
 
 # Set up logging
 logger = logging.getLogger("ipfs_ipns_operations")
 
+
 class KeyType(Enum):
     """Types of keys supported for IPNS operations."""
-    RSA = "rsa"      # RSA keys (default in IPFS)
+
+    RSA = "rsa"  # RSA keys (default in IPFS)
     ED25519 = "ed25519"  # ED25519 keys (faster)
     SECP256K1 = "secp256k1"  # SECP256K1 keys (compatible with Ethereum)
 
+
 class KeyProtectionLevel(Enum):
     """Protection levels for IPNS keys."""
+
     STANDARD = "standard"  # Standard key storage
     PROTECTED = "protected"  # Enhanced protection (password required for use)
     HARDWARE = "hardware"  # Hardware-backed (if supported)
+
 
 class IPNSRecord:
     """Represents an IPNS record with metadata."""
@@ -122,6 +127,7 @@ class IPNSRecord:
             expiration=data.get("expiration"),
         )
 
+
 class KeyManager:
     """
     Manages cryptographic keys used for IPNS record signing and verification.
@@ -193,9 +199,8 @@ class KeyManager:
 
             # Update success rate using exponential moving average
             alpha = 0.1  # Weight for new observations
-            metrics["success_rate"] = (
-                (1 - alpha) * metrics["success_rate"] +
-                alpha * (1.0 if success else 0.0)
+            metrics["success_rate"] = (1 - alpha) * metrics["success_rate"] + alpha * (
+                1.0 if success else 0.0
             )
 
     def list_keys(self, force_refresh: bool = False) -> Dict[str, Any]:
@@ -221,9 +226,11 @@ class KeyManager:
         current_time = time.time()
 
         # Check if we can use cached data
-        if (not force_refresh and
-            self._key_cache and
-            (current_time - self._cache_timestamp) < self._cache_ttl):
+        if (
+            not force_refresh
+            and self._key_cache
+            and (current_time - self._cache_timestamp) < self._cache_ttl
+        ):
             logger.debug("Serving list_keys from cache.")
             return {
                 "success": True,
@@ -256,7 +263,9 @@ class KeyManager:
                     "from_cache": False,
                 }
             else:
-                logger.error(f"Failed to list keys from daemon: {response.status_code} - {response.text}")
+                logger.error(
+                    f"Failed to list keys from daemon: {response.status_code} - {response.text}"
+                )
                 return {
                     "success": False,
                     "error": f"Failed to list keys: {response.status_code}",
@@ -320,7 +329,7 @@ class KeyManager:
         key_type: Union[KeyType, str] = KeyType.ED25519,
         size: int = 2048,
         protection: Union[KeyProtectionLevel, str] = KeyProtectionLevel.STANDARD,
-        password: Optional[str] = None, # Currently unused, for future protection implementation
+        password: Optional[str] = None,  # Currently unused, for future protection implementation
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
@@ -386,14 +395,16 @@ class KeyManager:
                     "Type": key_type,
                     "Size": size if key_type.lower() == "rsa" else None,
                     "Created": datetime.now().isoformat(),
-                    "Protection": protection, # Store intended protection level
+                    "Protection": protection,  # Store intended protection level
                 }
 
                 self._key_cache[name] = key_info
 
                 # Handle protected keys if needed (Placeholder for future implementation)
                 if protection != "standard" and password:
-                    logger.warning(f"Password provided for key '{name}', but password protection logic is not fully implemented in this client.")
+                    logger.warning(
+                        f"Password provided for key '{name}', but password protection logic is not fully implemented in this client."
+                    )
                     # Future: Implement encryption/decryption logic here or rely on daemon features if available.
                     pass
 
@@ -403,7 +414,9 @@ class KeyManager:
                     "duration": duration,
                 }
             else:
-                logger.error(f"Failed to create key '{name}': {response.status_code} - {response.text}")
+                logger.error(
+                    f"Failed to create key '{name}': {response.status_code} - {response.text}"
+                )
                 return {
                     "success": False,
                     "error": f"Failed to create key: {response.status_code}",
@@ -426,9 +439,9 @@ class KeyManager:
         self,
         name: str,
         private_key: Union[str, bytes],
-        format_type: str = "pem", # 'pem' is expected by the API via file upload
+        format_type: str = "pem",  # 'pem' is expected by the API via file upload
         protection: Union[KeyProtectionLevel, str] = KeyProtectionLevel.STANDARD,
-        password: Optional[str] = None, # Currently unused
+        password: Optional[str] = None,  # Currently unused
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
@@ -458,15 +471,16 @@ class KeyManager:
 
         # Ensure the private key is bytes
         if isinstance(private_key, str):
-            private_key = private_key.encode('utf-8')
+            private_key = private_key.encode("utf-8")
 
-        key_path = None # Initialize key_path
+        key_path = None  # Initialize key_path
         logger.info(f"Attempting to import key '{name}'...")
         try:
             # Create a temporary file for the key
             import tempfile
+
             # Use delete=False to manage deletion manually in finally block
-            with tempfile.NamedTemporaryFile(mode='wb', delete=False) as key_file:
+            with tempfile.NamedTemporaryFile(mode="wb", delete=False) as key_file:
                 key_path = key_file.name
                 key_file.write(private_key)
                 logger.debug(f"Wrote private key to temporary file: {key_path}")
@@ -474,13 +488,13 @@ class KeyManager:
             # Create the request parameters
             params = {
                 "arg": name,
-                "ipns-base": options.get("ipns_base", "base36"), # Default base36
+                "ipns-base": options.get("ipns_base", "base36"),  # Default base36
                 # Note: 'format' param might be needed depending on daemon version, but often inferred
             }
 
             # Use multipart/form-data to upload the key file
-            with open(key_path, 'rb') as f:
-                files = {'key': (os.path.basename(key_path), f)} # Provide filename
+            with open(key_path, "rb") as f:
+                files = {"key": (os.path.basename(key_path), f)}  # Provide filename
                 logger.debug(f"Calling key/import API for key '{name}' with file {key_path}")
                 response = self.connection_pool.post("key/import", params=params, files=files)
 
@@ -499,7 +513,7 @@ class KeyManager:
                 key_info = {
                     "Name": name,
                     "Id": key_id,
-                    "Type": "imported", # Type might not be easily determinable post-import
+                    "Type": "imported",  # Type might not be easily determinable post-import
                     "Created": datetime.now().isoformat(),
                     "Protection": protection,
                 }
@@ -507,7 +521,9 @@ class KeyManager:
 
                 # Handle protected keys if needed (Placeholder)
                 if protection != "standard" and password:
-                    logger.warning(f"Password provided for imported key '{name}', but protection logic is not fully implemented.")
+                    logger.warning(
+                        f"Password provided for imported key '{name}', but protection logic is not fully implemented."
+                    )
                     pass
 
                 return {
@@ -516,7 +532,9 @@ class KeyManager:
                     "duration": duration,
                 }
             else:
-                logger.error(f"Failed to import key '{name}': {response.status_code} - {response.text}")
+                logger.error(
+                    f"Failed to import key '{name}': {response.status_code} - {response.text}"
+                )
                 return {
                     "success": False,
                     "error": f"Failed to import key: {response.status_code}",
@@ -542,12 +560,11 @@ class KeyManager:
                 except Exception as unlink_e:
                     logger.error(f"Failed to clean up temporary key file {key_path}: {unlink_e}")
 
-
     def export_key(
         self,
         name: str,
-        output_format: str = "pem", # API usually exports PEM by default
-        password: Optional[str] = None, # For potential future decryption
+        output_format: str = "pem",  # API usually exports PEM by default
+        password: Optional[str] = None,  # For potential future decryption
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
@@ -600,11 +617,13 @@ class KeyManager:
 
             if success:
                 if options.get("output_file"):
-                    logger.info(f"Successfully exported key '{name}' to file: {options['output_file']}")
+                    logger.info(
+                        f"Successfully exported key '{name}' to file: {options['output_file']}"
+                    )
                     return {
                         "success": True,
                         "key_name": name,
-                        "output_file": options['output_file'],
+                        "output_file": options["output_file"],
                         "duration": duration,
                     }
                 else:
@@ -614,12 +633,14 @@ class KeyManager:
                     return {
                         "success": True,
                         "key_name": name,
-                        "key_data": key_data, # Contains the private key! Handle with care.
-                        "format": output_format, # Informational
+                        "key_data": key_data,  # Contains the private key! Handle with care.
+                        "format": output_format,  # Informational
                         "duration": duration,
                     }
             else:
-                logger.error(f"Failed to export key '{name}': {response.status_code} - {response.text}")
+                logger.error(
+                    f"Failed to export key '{name}': {response.status_code} - {response.text}"
+                )
                 return {
                     "success": False,
                     "error": f"Failed to export key: {response.status_code}",
@@ -692,22 +713,25 @@ class KeyManager:
             if success:
                 response_json = response.json()
                 new_id = response_json.get("Id")
-                logger.info(f"Successfully renamed key '{old_name}' to '{new_name}' (ID: {new_id}).")
+                logger.info(
+                    f"Successfully renamed key '{old_name}' to '{new_name}' (ID: {new_id})."
+                )
 
                 # Update cache
                 key_info = None
                 if old_name in self._key_cache:
                     key_info = self._key_cache.pop(old_name)
-                elif force and new_name in self._key_cache: # If overwriting, old info might not be cached
-                     key_info = self._key_cache.get(new_name) # Get existing info to update ID
+                elif (
+                    force and new_name in self._key_cache
+                ):  # If overwriting, old info might not be cached
+                    key_info = self._key_cache.get(new_name)  # Get existing info to update ID
 
                 if key_info:
                     key_info["Name"] = new_name
-                    key_info["Id"] = new_id # Update ID based on response
+                    key_info["Id"] = new_id  # Update ID based on response
                     self._key_cache[new_name] = key_info
-                else: # If neither old nor new was cached, refresh might be needed later
-                    self.list_keys(force_refresh=True) # Refresh cache proactively
-
+                else:  # If neither old nor new was cached, refresh might be needed later
+                    self.list_keys(force_refresh=True)  # Refresh cache proactively
 
                 return {
                     "success": True,
@@ -720,7 +744,9 @@ class KeyManager:
                     "duration": duration,
                 }
             else:
-                logger.error(f"Failed to rename key '{old_name}': {response.status_code} - {response.text}")
+                logger.error(
+                    f"Failed to rename key '{old_name}': {response.status_code} - {response.text}"
+                )
                 return {
                     "success": False,
                     "error": f"Failed to rename key: {response.status_code}",
@@ -731,7 +757,9 @@ class KeyManager:
         except Exception as e:
             duration = time.time() - start_time
             self._update_metrics("rename_key", duration, False)
-            logger.error(f"Exception during rename_key('{old_name}', '{new_name}'): {e}", exc_info=True)
+            logger.error(
+                f"Exception during rename_key('{old_name}', '{new_name}'): {e}", exc_info=True
+            )
             return {
                 "success": False,
                 "error": f"Error renaming key: {str(e)}",
@@ -789,11 +817,13 @@ class KeyManager:
 
                 return {
                     "success": True,
-                    "keys_removed": removed_keys, # API returns list of removed keys
+                    "keys_removed": removed_keys,  # API returns list of removed keys
                     "duration": duration,
                 }
             else:
-                logger.error(f"Failed to remove key '{name}': {response.status_code} - {response.text}")
+                logger.error(
+                    f"Failed to remove key '{name}': {response.status_code} - {response.text}"
+                )
                 return {
                     "success": False,
                     "error": f"Failed to remove key: {response.status_code}",
@@ -845,8 +875,8 @@ class KeyManager:
         """
         options = options or {}
         start_time = time.time()
-        old_name_preserved: Optional[str] = None # Explicitly initialize and type hint
-        old_id: Optional[str] = None # Initialize old_id
+        old_name_preserved: Optional[str] = None  # Explicitly initialize and type hint
+        old_id: Optional[str] = None  # Initialize old_id
 
         logger.info(f"Attempting to rotate key '{name}' (preserve_old={preserve_old})...")
 
@@ -858,33 +888,39 @@ class KeyManager:
             # Proceed to create key directly
             old_id = None
             # Ensure defaults are assigned if new_key_type/size are None initially
-            old_type: Union[KeyType, str] = new_key_type if new_key_type is not None else KeyType.ED25519
+            old_type: Union[KeyType, str] = (
+                new_key_type if new_key_type is not None else KeyType.ED25519
+            )
             old_size: int = size if size is not None else 2048
-            preserve_old = False # Cannot preserve if it doesn't exist
+            preserve_old = False  # Cannot preserve if it doesn't exist
         else:
             old_key = key_result["key"]
             old_id = old_key.get("Id")
-            old_type = old_key.get("Type", "ed25519") # Default if type unknown
-            old_size = old_key.get("Size", 2048) # Default if size unknown
+            old_type = old_key.get("Type", "ed25519")  # Default if type unknown
+            old_size = old_key.get("Size", 2048)  # Default if size unknown
 
         # Determine new key parameters
         # Determine final new key parameters, ensuring they are not None
         final_new_key_type: str
         if new_key_type:
-             final_new_key_type = new_key_type.value if isinstance(new_key_type, KeyType) else new_key_type
+            final_new_key_type = (
+                new_key_type.value if isinstance(new_key_type, KeyType) else new_key_type
+            )
         else:
-             final_new_key_type = old_type.value if isinstance(old_type, KeyType) else old_type
+            final_new_key_type = old_type.value if isinstance(old_type, KeyType) else old_type
 
         final_size: int = size if size is not None else old_size
 
         try:
             # Step 1: Handle the old key (rename or remove) if it existed
-            if old_id: # Only if the key actually existed
+            if old_id:  # Only if the key actually existed
                 if preserve_old:
                     timestamp = int(time.time())
                     old_name_preserved = f"{name}-{timestamp}"
                     logger.debug(f"Renaming old key '{name}' to '{old_name_preserved}'")
-                    rename_result = self.rename_key(name, old_name_preserved, force=True) # Force overwrite if somehow exists
+                    rename_result = self.rename_key(
+                        name, old_name_preserved, force=True
+                    )  # Force overwrite if somehow exists
                     if not rename_result["success"]:
                         duration = time.time() - start_time
                         self._update_metrics("rotate_key", duration, False)
@@ -899,17 +935,19 @@ class KeyManager:
                     remove_result = self.remove_key(name)
                     if not remove_result["success"]:
                         # Log warning but proceed, maybe key was already gone
-                        logger.warning(f"Failed to remove old key '{name}' during rotation (maybe already gone?): {remove_result.get('error')}")
+                        logger.warning(
+                            f"Failed to remove old key '{name}' during rotation (maybe already gone?): {remove_result.get('error')}"
+                        )
                         # Allow proceeding to create the new key anyway
 
             # Step 2: Create the new key with the original name
             logger.debug(f"Creating new key '{name}' of type {final_new_key_type}...")
             create_result = self.create_key(
                 name=name,
-                key_type=final_new_key_type, # Use guaranteed string
-                size=final_size,             # Use guaranteed int
+                key_type=final_new_key_type,  # Use guaranteed string
+                size=final_size,  # Use guaranteed int
                 # Inherit protection level? For now, default to standard.
-                protection=KeyProtectionLevel.STANDARD, # Assuming standard for rotation simplicity
+                protection=KeyProtectionLevel.STANDARD,  # Assuming standard for rotation simplicity
             )
 
             if not create_result["success"]:
@@ -930,7 +968,9 @@ class KeyManager:
             # Update metrics
             duration = time.time() - start_time
             self._update_metrics("rotate_key", duration, True)
-            logger.info(f"Successfully rotated key '{name}'. New ID: {new_id}. Old key preserved as: {old_name_preserved if preserve_old else 'Removed'}")
+            logger.info(
+                f"Successfully rotated key '{name}'. New ID: {new_id}. Old key preserved as: {old_name_preserved if preserve_old else 'Removed'}"
+            )
 
             return {
                 "success": True,
@@ -967,6 +1007,7 @@ class KeyManager:
             "metrics": self.performance_metrics,
         }
 
+
 class IPNSOperations:
     """
     Provides methods for interacting with the InterPlanetary Name System (IPNS).
@@ -990,7 +1031,9 @@ class IPNSOperations:
     Includes performance tracking and caching mechanisms.
     """
 
-    def __init__(self, connection_pool=None, key_manager=None, config: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self, connection_pool=None, key_manager=None, config: Optional[Dict[str, Any]] = None
+    ):
         """
         Initialize IPNS operations.
 
@@ -1041,9 +1084,8 @@ class IPNSOperations:
 
             # Update success rate using exponential moving average
             alpha = 0.1  # Weight for new observations
-            metrics["success_rate"] = (
-                (1 - alpha) * metrics["success_rate"] +
-                alpha * (1.0 if success else 0.0)
+            metrics["success_rate"] = (1 - alpha) * metrics["success_rate"] + alpha * (
+                1.0 if success else 0.0
             )
 
     def publish(
@@ -1135,7 +1177,7 @@ class IPNSOperations:
             duration = time.time() - start_time
             self._update_metrics("publish", duration, False)
             logger.error(f"Publish failed: Key '{key_name}' not found.")
-            return key_result # Return the error from get_key
+            return key_result  # Return the error from get_key
 
         # Create the request parameters
         params = {
@@ -1159,7 +1201,9 @@ class IPNSOperations:
             # Use default if not provided, format it for logging/record
             effective_ttl_str = f"{self.default_ttl}s"
 
-        logger.info(f"Publishing IPNS name for key '{key_name}' -> '{cid}' (lifetime: {effective_lifetime_str}, ttl: {effective_ttl_str})")
+        logger.info(
+            f"Publishing IPNS name for key '{key_name}' -> '{cid}' (lifetime: {effective_lifetime_str}, ttl: {effective_ttl_str})"
+        )
         try:
             # Call the IPFS API
             response = self.connection_pool.post("name/publish", params=params)
@@ -1172,8 +1216,8 @@ class IPNSOperations:
 
             if success:
                 response_json = response.json()
-                name = response_json.get("Name") # This is the PeerID (hash of public key)
-                value = response_json.get("Value") # This is the /ipfs/CID path
+                name = response_json.get("Name")  # This is the PeerID (hash of public key)
+                value = response_json.get("Value")  # This is the /ipfs/CID path
 
                 logger.info(f"Successfully published IPNS record: {name} -> {value}")
 
@@ -1200,7 +1244,9 @@ class IPNSOperations:
                     "duration": duration,
                 }
             else:
-                logger.error(f"Failed to publish IPNS name for key '{key_name}': {response.status_code} - {response.text}")
+                logger.error(
+                    f"Failed to publish IPNS name for key '{key_name}': {response.status_code} - {response.text}"
+                )
                 return {
                     "success": False,
                     "error": f"Failed to publish name: {response.status_code}",
@@ -1270,7 +1316,7 @@ class IPNSOperations:
                 result = {
                     "success": True,
                     "name": name,
-                    "value": path, # The resolved IPFS path (e.g., /ipfs/CID)
+                    "value": path,  # The resolved IPFS path (e.g., /ipfs/CID)
                     "duration": duration,
                 }
 
@@ -1285,7 +1331,9 @@ class IPNSOperations:
 
                 return result
             else:
-                logger.error(f"Failed to resolve IPNS name '{name}': {response.status_code} - {response.text}")
+                logger.error(
+                    f"Failed to resolve IPNS name '{name}': {response.status_code} - {response.text}"
+                )
                 return {
                     "success": False,
                     "error": f"Failed to resolve name: {response.status_code}",
@@ -1337,7 +1385,9 @@ class IPNSOperations:
         effective_key_name = key_name or "self"
         effective_name = name
 
-        logger.info(f"Attempting to republish IPNS record (key: '{effective_key_name}', name: {name or 'derived'})")
+        logger.info(
+            f"Attempting to republish IPNS record (key: '{effective_key_name}', name: {name or 'derived'})"
+        )
 
         # If name is not provided, derive it from the key
         if effective_name is None:
@@ -1346,13 +1396,17 @@ class IPNSOperations:
             if not key_result["success"]:
                 duration = time.time() - start_time
                 self._update_metrics("republish", duration, False)
-                logger.error(f"Republish failed: Cannot find key '{effective_key_name}' to derive name.")
-                return key_result # Return error from get_key
+                logger.error(
+                    f"Republish failed: Cannot find key '{effective_key_name}' to derive name."
+                )
+                return key_result  # Return error from get_key
             effective_name = key_result["key"].get("Id")
             if not effective_name:
                 duration = time.time() - start_time
                 self._update_metrics("republish", duration, False)
-                logger.error(f"Republish failed: Could not get PeerID (name) from key '{effective_key_name}'.")
+                logger.error(
+                    f"Republish failed: Could not get PeerID (name) from key '{effective_key_name}'."
+                )
                 return {
                     "success": False,
                     "error": f"Could not determine IPNS name (PeerID) for key: {effective_key_name}",
@@ -1366,7 +1420,9 @@ class IPNSOperations:
         if not resolve_result["success"]:
             duration = time.time() - start_time
             self._update_metrics("republish", duration, False)
-            logger.error(f"Republish failed: Cannot resolve current value for name '{effective_name}'.")
+            logger.error(
+                f"Republish failed: Cannot resolve current value for name '{effective_name}'."
+            )
             return {
                 "success": False,
                 "error": f"Failed to resolve name '{effective_name}' for republishing: {resolve_result.get('error', 'Unknown resolve error')}",
@@ -1377,20 +1433,26 @@ class IPNSOperations:
         # Get the current value (CID path)
         current_value_path = resolve_result["value"]
         if not current_value_path or not current_value_path.startswith("/ipfs/"):
-             duration = time.time() - start_time
-             self._update_metrics("republish", duration, False)
-             logger.error(f"Republish failed: Resolved value for '{effective_name}' is not a valid IPFS path ('{current_value_path}').")
-             return {
-                 "success": False,
-                 "error": f"Resolved value for name '{effective_name}' is not a valid IPFS path: {current_value_path}",
-                 "duration": duration,
-             }
+            duration = time.time() - start_time
+            self._update_metrics("republish", duration, False)
+            logger.error(
+                f"Republish failed: Resolved value for '{effective_name}' is not a valid IPFS path ('{current_value_path}')."
+            )
+            return {
+                "success": False,
+                "error": f"Resolved value for name '{effective_name}' is not a valid IPFS path: {current_value_path}",
+                "duration": duration,
+            }
         current_cid = current_value_path[6:]  # Extract CID part
 
         # Republish with the resolved CID
-        logger.debug(f"Republishing name '{effective_name}' with CID '{current_cid}' using key '{effective_key_name}'.")
+        logger.debug(
+            f"Republishing name '{effective_name}' with CID '{current_cid}' using key '{effective_key_name}'."
+        )
         # Ensure lifetime and ttl passed to publish are strings or None, not potentially other types from options
-        publish_lifetime = options.get("lifetime") if isinstance(options.get("lifetime"), str) else None
+        publish_lifetime = (
+            options.get("lifetime") if isinstance(options.get("lifetime"), str) else None
+        )
         publish_ttl = options.get("ttl") if isinstance(options.get("ttl"), str) else None
 
         publish_result = self.publish(
@@ -1398,7 +1460,7 @@ class IPNSOperations:
             key_name=effective_key_name,
             lifetime=publish_lifetime,
             ttl=publish_ttl,
-            resolve=options.get("resolve", True), # Pass through options
+            resolve=options.get("resolve", True),  # Pass through options
         )
 
         # Update metrics based on the final publish result
@@ -1410,14 +1472,16 @@ class IPNSOperations:
             return {
                 "success": True,
                 "name": effective_name,
-                "value": current_value_path, # Return the full path
+                "value": current_value_path,  # Return the full path
                 "key_name": effective_key_name,
                 "republished": True,
-                "publish_details": publish_result, # Include details from the publish call
+                "publish_details": publish_result,  # Include details from the publish call
                 "duration": duration,
             }
         else:
-            logger.error(f"Republish failed during the final publish step for name '{effective_name}'.")
+            logger.error(
+                f"Republish failed during the final publish step for name '{effective_name}'."
+            )
             return {
                 "success": False,
                 "error": f"Failed to republish name '{effective_name}': {publish_result.get('error', 'Unknown publish error')}",
@@ -1457,12 +1521,14 @@ class IPNSOperations:
 
         try:
             # First get all our keys
-            keys_result = self.key_manager.list_keys(force_refresh=True) # Refresh to be sure
+            keys_result = self.key_manager.list_keys(force_refresh=True)  # Refresh to be sure
             if not keys_result["success"]:
                 duration = time.time() - start_time
                 self._update_metrics("records", duration, False)
-                logger.error(f"Failed to list keys while getting records: {keys_result.get('error')}")
-                return keys_result # Return the error from list_keys
+                logger.error(
+                    f"Failed to list keys while getting records: {keys_result.get('error')}"
+                )
+                return keys_result  # Return the error from list_keys
 
             keys = keys_result.get("keys", [])
             logger.debug(f"Found {len(keys)} keys to check.")
@@ -1470,17 +1536,21 @@ class IPNSOperations:
             # For each key, try to resolve its name (which is its ID)
             for key in keys:
                 key_name = key.get("Name")
-                key_id = key.get("Id") # The PeerID is the IPNS name
+                key_id = key.get("Id")  # The PeerID is the IPNS name
 
                 if key_id:
-                    logger.debug(f"Attempting to resolve IPNS name for key '{key_name}' (ID: {key_id})...")
+                    logger.debug(
+                        f"Attempting to resolve IPNS name for key '{key_name}' (ID: {key_id})..."
+                    )
                     try:
                         # Try to resolve the name to see if it's published
                         # Use nocache to get potentially updated value, but might be slower
                         resolve_result = self.resolve(key_id, nocache=True)
 
                         if resolve_result.get("success"):
-                            logger.debug(f"Successfully resolved {key_id} -> {resolve_result.get('value')}")
+                            logger.debug(
+                                f"Successfully resolved {key_id} -> {resolve_result.get('value')}"
+                            )
                             # Create a record entry
                             record = {
                                 "name": key_id,
@@ -1496,12 +1566,16 @@ class IPNSOperations:
 
                             records.append(record)
                         else:
-                             logger.debug(f"Could not resolve IPNS name for key '{key_name}' (ID: {key_id}). Maybe not published or expired.")
+                            logger.debug(
+                                f"Could not resolve IPNS name for key '{key_name}' (ID: {key_id}). Maybe not published or expired."
+                            )
 
                     except Exception as resolve_e:
                         # Ignore errors for individual keys, log them
-                        logger.warning(f"Error resolving IPNS name for key '{key_name}' (ID: {key_id}): {resolve_e}")
-                        pass # Continue to the next key
+                        logger.warning(
+                            f"Error resolving IPNS name for key '{key_name}' (ID: {key_id}): {resolve_e}"
+                        )
+                        pass  # Continue to the next key
 
             # Update metrics (success is true if the overall process didn't fail)
             duration = time.time() - start_time
@@ -1552,7 +1626,7 @@ class IPNSOperations:
             "m": 60,
             "h": 3600,
             "d": 86400,
-            "w": 604800, # Week
+            "w": 604800,  # Week
         }
 
         number_str = ""
@@ -1561,14 +1635,16 @@ class IPNSOperations:
         for i, char in enumerate(reversed(duration_str)):
             if char.isalpha():
                 unit = char
-                number_str = duration_str[:-i-1]
+                number_str = duration_str[: -i - 1]
                 break
-        else: # No unit found, might be just a number
-             try:
-                 return int(duration_str)
-             except ValueError:
-                 logger.warning(f"Could not parse duration string '{duration_str}', falling back to default TTL.")
-                 return self.default_ttl # Fallback
+        else:  # No unit found, might be just a number
+            try:
+                return int(duration_str)
+            except ValueError:
+                logger.warning(
+                    f"Could not parse duration string '{duration_str}', falling back to default TTL."
+                )
+                return self.default_ttl  # Fallback
 
         if unit in unit_multipliers:
             try:
@@ -1576,11 +1652,15 @@ class IPNSOperations:
                 number = float(number_str)
                 return int(number * unit_multipliers[unit])
             except ValueError:
-                logger.warning(f"Could not parse number part '{number_str}' in duration '{duration_str}', falling back to default TTL.")
-                return self.default_ttl # Fallback
+                logger.warning(
+                    f"Could not parse number part '{number_str}' in duration '{duration_str}', falling back to default TTL."
+                )
+                return self.default_ttl  # Fallback
         else:
-             logger.warning(f"Unknown unit '{unit}' in duration '{duration_str}', falling back to default TTL.")
-             return self.default_ttl # Fallback
+            logger.warning(
+                f"Unknown unit '{unit}' in duration '{duration_str}', falling back to default TTL."
+            )
+            return self.default_ttl  # Fallback
 
     def get_metrics(self) -> Dict[str, Any]:
         """
@@ -1601,8 +1681,10 @@ class IPNSOperations:
             "key_metrics": key_metrics,
         }
 
+
 # Global instance
 _instance = None
+
 
 def get_instance(connection_pool=None, key_manager=None, config=None) -> IPNSOperations:
     """Get or create a singleton instance of the IPNS operations."""

@@ -86,11 +86,13 @@ Complete systematic test stabilization for industry-leading quality through 5 ph
 ```python
 # Before (asyncio)
 import asyncio
+
 await asyncio.sleep(duration)
 asyncio.run(main())
 
 # After (anyio)
 import anyio
+
 await anyio.sleep(duration)
 anyio.run(main)
 ```

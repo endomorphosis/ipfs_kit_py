@@ -1,6 +1,7 @@
 from ipfs_kit_py import storacha_kit
 from ipfs_kit_py import s3_kit
 
+
 class ipfs_to_storacha:
     def __init__(self, resources, metadata):
         self.metadata = metadata
