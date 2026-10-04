@@ -7,19 +7,20 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class DashboardTemplateManager:
     """Manages dashboard HTML templates."""
-    
+
     def __init__(self, templates_dir: Path):
         self.templates_dir = templates_dir
         self.templates_dir.mkdir(exist_ok=True)
-        
+
     def create_dashboard_template(self) -> str:
         """Create the main dashboard template with comprehensive features."""
-        
+
         template_path = self.templates_dir / "dashboard.html"
-        
-        template_content = r'''
+
+        template_content = r"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2678,20 +2679,20 @@ class DashboardTemplateManager:
     </script>
 </body>
 </html>
-        '''.strip()
-        
+        """.strip()
+
         with open(template_path, "w") as f:
             f.write(template_content)
-            
+
         logger.info(f"✓ Dashboard template created at {template_path}")
         return str(template_path)
 
     def create_error_template(self, error_details: dict) -> str:
         """Create a detailed error page template."""
-        
+
         template_path = self.templates_dir / "error.html"
-        
-        template_content = f'''
+
+        template_content = f"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2715,9 +2716,9 @@ class DashboardTemplateManager:
     </div>
 </body>
 </html>
-        '''.strip()
-        
+        """.strip()
+
         with open(template_path, "w") as f:
             f.write(template_content)
-            
+
         return str(template_path)

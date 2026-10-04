@@ -91,7 +91,8 @@ def create_metrics_router(api_prefix: str) -> APIRouter:
             "success": True,
             "status": "available",
             "system_info": system_info,
-            "prometheus_enabled": PROMETHEUS_AVAILABLE and monitoring_system.config["prometheus_enabled"],
+            "prometheus_enabled": PROMETHEUS_AVAILABLE
+            and monitoring_system.config["prometheus_enabled"],
             "prometheus_port": (
                 monitoring_system.config["prometheus_port"]
                 if PROMETHEUS_AVAILABLE and monitoring_system.config["prometheus_enabled"]

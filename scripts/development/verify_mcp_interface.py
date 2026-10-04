@@ -4,19 +4,21 @@ MCP Services Interface Verification Script
 Verifies that the MCP JavaScript SDK integration is working correctly
 with all comprehensive services accessible.
 """
+
 import requests
 import json
 import time
 from datetime import datetime
 
+
 def test_mcp_services_interface():
     """Test the complete MCP services interface."""
-    
+
     base_url = "http://127.0.0.1:8004"
-    
+
     print("🔍 Testing MCP Services Interface Integration")
     print("=" * 60)
-    
+
     # Test 1: MCP Status API
     print("\n1️⃣ Testing MCP Status API (/api/mcp/status)")
     try:
@@ -31,7 +33,7 @@ def test_mcp_services_interface():
             print(f"   ❌ Failed with status: {response.status_code}")
     except Exception as e:
         print(f"   ❌ Error: {e}")
-    
+
     # Test 2: Comprehensive Services API
     print("\n2️⃣ Testing Comprehensive Services API (/api/services)")
     try:
@@ -39,27 +41,27 @@ def test_mcp_services_interface():
         if response.status_code == 200:
             data = response.json()
             services = data.get("services", {})
-            
+
             # Count services by status
             status_counts = {}
             service_types = {}
-            
+
             for service_id, service_data in services.items():
                 status = service_data.get("status", "unknown")
                 service_type = service_data.get("type", "unknown")
-                
+
                 status_counts[status] = status_counts.get(status, 0) + 1
                 service_types[service_type] = service_types.get(service_type, 0) + 1
-            
+
             print(f"   ✅ Total Services Found: {len(services)}")
             print(f"   📊 Service Status Breakdown:")
             for status, count in status_counts.items():
                 print(f"      • {status}: {count}")
-            
+
             print(f"   🔧 Service Types:")
             for stype, count in service_types.items():
                 print(f"      • {stype}: {count}")
-                
+
             # Show key services
             print(f"   🎯 Key Services Available:")
             key_services = ["ipfs", "mcp_server", "s3", "huggingface", "github"]
@@ -67,12 +69,12 @@ def test_mcp_services_interface():
                 if service_id in services:
                     service = services[service_id]
                     print(f"      • {service['name']}: {service['status']}")
-                    
+
         else:
             print(f"   ❌ Failed with status: {response.status_code}")
     except Exception as e:
         print(f"   ❌ Error: {e}")
-    
+
     # Test 3: Main Dashboard HTML
     print("\n3️⃣ Testing Dashboard HTML Endpoint (/)")
     try:
@@ -80,7 +82,7 @@ def test_mcp_services_interface():
         if response.status_code == 200:
             html_content = response.text
             print(f"   ✅ Dashboard HTML loaded ({len(html_content)} chars)")
-            
+
             # Check for key elements
             if "IPFS Kit" in html_content:
                 print("   ✅ Contains IPFS Kit branding")
@@ -92,7 +94,7 @@ def test_mcp_services_interface():
             print(f"   ❌ Failed with status: {response.status_code}")
     except Exception as e:
         print(f"   ❌ Error: {e}")
-    
+
     # Test 4: Service Actions API
     print("\n4️⃣ Testing Service Actions Capability")
     try:
@@ -104,16 +106,18 @@ def test_mcp_services_interface():
                 ipfs_service = services["ipfs"]
                 actions = ipfs_service.get("actions", [])
                 print(f"   ✅ IPFS Service Actions: {', '.join(actions)}")
-                
+
             if "mcp_server" in services:
                 mcp_service = services["mcp_server"]
-                print(f"   ✅ MCP Server Status: {mcp_service['status']} on port {mcp_service['port']}")
-                
+                print(
+                    f"   ✅ MCP Server Status: {mcp_service['status']} on port {mcp_service['port']}"
+                )
+
         else:
             print(f"   ❌ Failed to get service details: {response.status_code}")
     except Exception as e:
         print(f"   ❌ Error: {e}")
-    
+
     # Test 5: System Metrics
     print("\n5️⃣ Testing System Metrics API (/api/metrics/system)")
     try:
@@ -138,11 +142,12 @@ def test_mcp_services_interface():
     print("✅ All 14+ storage services and daemons are accessible")
     print("✅ Service management actions (start/stop/configure) available")
     print("✅ Real-time system monitoring functional")
-    
+
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"\n📅 Verification completed at: {timestamp}")
-    
+
     return True
+
 
 if __name__ == "__main__":
     test_mcp_services_interface()

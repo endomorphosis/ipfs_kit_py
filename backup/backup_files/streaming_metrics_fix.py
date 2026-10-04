@@ -12,11 +12,11 @@ API_FILE = "ipfs_kit_py/high_level_api.py"
 OUTPUT_FILE = "ipfs_kit_py/high_level_api_fixed.py"
 
 # Read the file
-with open(API_FILE, 'r') as f:
+with open(API_FILE, "r") as f:
     content = f.read()
 
 # Find the __init__ method
-init_match = re.search(r'def __init__\s*\(self.*?\).*?(?=\n\s*def)', content, re.DOTALL)
+init_match = re.search(r"def __init__\s*\(self.*?\).*?(?=\n\s*def)", content, re.DOTALL)
 
 if init_match:
     init_method = init_match.group(0)
@@ -27,22 +27,20 @@ if init_match:
     if insert_pos > 0:
         # Create the updated init method with metrics initialization
         updated_init = (
-            init_method[:insert_pos] +
-            "\n        # Initialize metrics tracking\n"
+            init_method[:insert_pos] + "\n        # Initialize metrics tracking\n"
             "        self.enable_metrics = kwargs.get('enable_metrics', True)\n"
             "        if self.enable_metrics:\n"
             "            from ipfs_kit_py.performance_metrics import PerformanceMetrics\n"
             "            self.metrics = PerformanceMetrics()\n"
             "        else:\n"
-            "            self.metrics = None\n\n" +
-            init_method[insert_pos:]
+            "            self.metrics = None\n\n" + init_method[insert_pos:]
         )
 
         # Update the content
         content = content.replace(init_method, updated_init)
 
         # Add the track_streaming_operation method after the cat method
-        cat_match = re.search(r'def cat\s*\(.*?\).*?(?=\n\s*def)', content, re.DOTALL)
+        cat_match = re.search(r"def cat\s*\(.*?\).*?(?=\n\s*def)", content, re.DOTALL)
         if cat_match:
             cat_method = cat_match.group(0)
             cat_end = content.find(cat_method) + len(cat_method)
@@ -71,7 +69,7 @@ if init_match:
             content = content[:cat_end] + track_method + content[cat_end:]
 
             # Write the updated content to a new file
-            with open(OUTPUT_FILE, 'w') as f:
+            with open(OUTPUT_FILE, "w") as f:
                 f.write(content)
 
             print(f"Updated high_level_api.py with metrics initialization and tracking method")

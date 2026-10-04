@@ -28,7 +28,16 @@ import mimetypes
 import os
 
 # Web framework imports
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, File, UploadFile, Form
+from fastapi import (
+    FastAPI,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+    HTTPException,
+    File,
+    UploadFile,
+    Form,
+)
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -38,12 +47,17 @@ import uvicorn
 # Light initialization imports with fallbacks
 try:
     from ipfs_kit_py.unified_bucket_interface import UnifiedBucketInterface, BackendType
-    from ipfs_kit_py.bucket_vfs_manager import BucketType, VFSStructureType, get_global_bucket_manager
+    from ipfs_kit_py.bucket_vfs_manager import (
+        BucketType,
+        VFSStructureType,
+        get_global_bucket_manager,
+    )
     from ipfs_kit_py.enhanced_bucket_index import EnhancedBucketIndex
     from ipfs_kit_py.error import create_result_dict
+
     IPFS_KIT_AVAILABLE = True
 except ImportError:
-    print('⚠️ IPFS Kit components not available - using fallback mode')
+    print("⚠️ IPFS Kit components not available - using fallback mode")
     IPFS_KIT_AVAILABLE = False
 
 # MCP server components with fallbacks
@@ -56,34 +70,36 @@ try:
     from ipfs_kit_py.mcp.server.controllers.mcp_daemon_controller import MCPDaemonController
     from ipfs_kit_py.mcp.server.controllers.mcp_storage_controller import MCPStorageController
     from ipfs_kit_py.mcp.server.controllers.mcp_vfs_controller import MCPVFSController
+
     MCP_SERVER_AVAILABLE = True
 except ImportError:
-    print('⚠️ MCP Server components not available - using fallback mode')
+    print("⚠️ MCP Server components not available - using fallback mode")
     MCP_SERVER_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
 
 class UnifiedDashboard:
     """
     Unified Comprehensive Dashboard with all features integrated.
     """
-    
+
     def __init__(self, config: Dict[str, Any] = None):
         """Initialize the unified comprehensive dashboard."""
         self.config = config or {}
-        self.host = self.config.get('host', '127.0.0.1')
-        self.port = self.config.get('port', 8080)
-        self.debug = self.config.get('debug', False)
-        self.data_dir = Path(self.config.get('data_dir', '~/.ipfs_kit')).expanduser()
-        
+        self.host = self.config.get("host", "127.0.0.1")
+        self.port = self.config.get("port", 8080)
+        self.debug = self.config.get("debug", False)
+        self.data_dir = Path(self.config.get("data_dir", "~/.ipfs_kit")).expanduser()
+
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        
+
         self.app = FastAPI(
             title="IPFS Kit - Unified Comprehensive Dashboard",
             description="Complete management interface with all features",
-            version="3.0.0"
+            version="3.0.0",
         )
-        
+
         self.app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
@@ -91,12 +107,12 @@ class UnifiedDashboard:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-        
+
         self.initialize_components()
         self.setup_all_endpoints()
-        
+
         logger.info("Unified Comprehensive Dashboard initialized")
-        
+
     def initialize_components(self):
         """Initialize all components with light initialization fallbacks."""
         logger.info("Initializing components...")
@@ -111,7 +127,7 @@ class UnifiedDashboard:
         self.setup_pin_management_endpoints()
         self.setup_log_management_endpoints()
         self.setup_websocket_endpoints()
-        
+
     def setup_core_endpoints(self):
         @self.app.get("/", response_class=HTMLResponse)
         async def root():
@@ -277,7 +293,7 @@ class UnifiedDashboard:
         async def get_system_analytics():
             return {
                 "cpu_usage": psutil.cpu_percent(),
-                "memory_usage": psutil.virtual_memory().percent
+                "memory_usage": psutil.virtual_memory().percent,
             }
 
     def setup_pin_management_endpoints(self):
@@ -330,6 +346,7 @@ class UnifiedDashboard:
         """Run the dashboard server."""
         uvicorn.run(self.app, host=self.host, port=self.port)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     dashboard = UnifiedDashboard()
     dashboard.run()

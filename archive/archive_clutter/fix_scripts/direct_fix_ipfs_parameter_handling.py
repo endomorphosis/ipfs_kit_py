@@ -10,28 +10,31 @@ import logging
 import traceback
 import inspect
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("direct-fix")
+
 
 def fix_ipfs_tool_adapters():
     """Directly modify the ipfs_tool_adapters.py file to improve parameter handling."""
     filepath = "/home/barberb/ipfs_kit_py/ipfs_tool_adapters.py"
-    
+
     try:
-        with open(filepath, 'r') as f:
+        with open(filepath, "r") as f:
             lines = f.readlines()
-        
+
         # Find the handle_ipfs_add function
         handle_ipfs_add_line = -1
         for i, line in enumerate(lines):
             if line.strip().startswith("async def handle_ipfs_add(ctx):"):
                 handle_ipfs_add_line = i
                 break
-        
+
         if handle_ipfs_add_line == -1:
             logger.error("Could not find handle_ipfs_add function")
             return False
-        
+
         # Add additional debug logging to the handle_ipfs_add function
         for i in range(handle_ipfs_add_line, len(lines)):
             if "if not content:" in lines[i]:
@@ -39,38 +42,54 @@ def fix_ipfs_tool_adapters():
                 debug_line = '    logger.debug(f"IPFS_ADD HANDLER: Content extraction result: {content is not None}, type: {type(content).__name__ if content else None}")\n'
                 lines.insert(i, debug_line)
                 break
-        
+
         # Enhance the content parameter extraction
         for i in range(handle_ipfs_add_line, len(lines)):
             if "content = arguments.get('content'" in lines[i]:
                 # Replace with more comprehensive extraction
-                lines[i] = '            # Try multiple parameter names for content\n'
-                lines.insert(i+1, '            content = None\n')
-                lines.insert(i+2, '            for param_name in [\'content\', \'data\', \'text\', \'value\', \'file_content\']:\n')
-                lines.insert(i+3, '                if param_name in arguments and arguments[param_name]:\n')
-                lines.insert(i+4, '                    content = arguments[param_name]\n')
-                lines.insert(i+5, '                    logger.debug(f"Found content in {param_name}")\n')
-                lines.insert(i+6, '                    break\n')
+                lines[i] = "            # Try multiple parameter names for content\n"
+                lines.insert(i + 1, "            content = None\n")
+                lines.insert(
+                    i + 2,
+                    "            for param_name in ['content', 'data', 'text', 'value', 'file_content']:\n",
+                )
+                lines.insert(
+                    i + 3, "                if param_name in arguments and arguments[param_name]:\n"
+                )
+                lines.insert(i + 4, "                    content = arguments[param_name]\n")
+                lines.insert(
+                    i + 5, '                    logger.debug(f"Found content in {param_name}")\n'
+                )
+                lines.insert(i + 6, "                    break\n")
                 break
-        
+
         # Add similar fallback logic for direct ctx access
         for i in range(handle_ipfs_add_line, len(lines)):
             if "if hasattr(ctx, 'content'):" in lines[i]:
                 # Replace with more comprehensive extraction
-                lines[i] = '            # Try multiple attribute names for content\n'
-                lines.insert(i+1, '            content = None\n')
-                lines.insert(i+2, '            for attr_name in [\'content\', \'data\', \'text\', \'value\', \'file_content\']:\n')
-                lines.insert(i+3, '                if hasattr(ctx, attr_name) and getattr(ctx, attr_name) is not None:\n')
-                lines.insert(i+4, '                    content = getattr(ctx, attr_name)\n')
-                lines.insert(i+5, '                    logger.debug(f"Found content in attribute {attr_name}")\n')
-                lines.insert(i+6, '                    break\n')
+                lines[i] = "            # Try multiple attribute names for content\n"
+                lines.insert(i + 1, "            content = None\n")
+                lines.insert(
+                    i + 2,
+                    "            for attr_name in ['content', 'data', 'text', 'value', 'file_content']:\n",
+                )
+                lines.insert(
+                    i + 3,
+                    "                if hasattr(ctx, attr_name) and getattr(ctx, attr_name) is not None:\n",
+                )
+                lines.insert(i + 4, "                    content = getattr(ctx, attr_name)\n")
+                lines.insert(
+                    i + 5,
+                    '                    logger.debug(f"Found content in attribute {attr_name}")\n',
+                )
+                lines.insert(i + 6, "                    break\n")
                 break
-        
+
         # Update the handler for mock_add_content
         for i in range(handle_ipfs_add_line, len(lines)):
             if "add_content.__name__ == 'not_implemented':" in lines[i]:
                 # Enhance the mock implementation to better handle different content types
-                mock_impl = '''            # Provide a mock implementation for testing
+                mock_impl = """            # Provide a mock implementation for testing
             logger.warning("Using mock implementation for add_content")
             import hashlib
             # Handle different content types
@@ -86,16 +105,16 @@ def fix_ipfs_tool_adapters():
             cid = f"QmTest{content_hash[:36]}"  # Mock CID
             logger.info(f"Created mock CID: {cid}")
             return {"cid": cid, "size": len(str(content))}
-'''
+"""
                 # Find the end of the block
                 end_block = i + 1
-                while end_block < len(lines) and lines[end_block].startswith('            '):
+                while end_block < len(lines) and lines[end_block].startswith("            "):
                     end_block += 1
-                
+
                 # Replace the block
-                lines[i+1:end_block] = mock_impl.split('\n')
+                lines[i + 1 : end_block] = mock_impl.split("\n")
                 break
-        
+
         # Add comprehensive TOOL_HANDLERS dictionary at the end of the file
         tool_handlers = '''
 # Dictionary mapping tool names to handler functions
@@ -124,54 +143,55 @@ def get_tool_handler(tool_name):
     """Get a handler function for a tool by name."""
     return TOOL_HANDLERS.get(tool_name)
 '''
-        
+
         # Check if TOOL_HANDLERS is already defined
         tool_handlers_defined = False
         for line in lines:
             if line.strip().startswith("TOOL_HANDLERS = {"):
                 tool_handlers_defined = True
                 break
-        
+
         # Add the tool handlers if not already defined
         if not tool_handlers_defined:
             lines.append(tool_handlers)
-        
+
         # Write the modified file
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             f.writelines(lines)
-        
+
         logger.info("Successfully modified ipfs_tool_adapters.py")
         return True
-        
+
     except Exception as e:
         logger.error(f"Error modifying ipfs_tool_adapters.py: {e}")
         logger.error(traceback.format_exc())
         return False
 
+
 def fix_final_mcp_server():
     """Add debug logging to the final_mcp_server.py file."""
     filepath = "/home/barberb/ipfs_kit_py/final_mcp_server.py"
-    
+
     try:
-        with open(filepath, 'r') as f:
+        with open(filepath, "r") as f:
             lines = f.readlines()
-        
+
         # Find the execute_tool method
         execute_tool_line = -1
         for i, line in enumerate(lines):
             if line.strip().startswith("async def execute_tool(self,"):
                 execute_tool_line = i
                 break
-        
+
         if execute_tool_line == -1:
             logger.error("Could not find execute_tool method")
             return False
-        
+
         # Add logging for IPFS tool calls
         for i in range(execute_tool_line, len(lines)):
             if "arguments = arguments or {};" in lines[i]:
                 # Add logging after this line
-                debug_logging = '''        # Enhanced diagnostic logging for IPFS tools
+                debug_logging = """        # Enhanced diagnostic logging for IPFS tools
         if tool_name.startswith('ipfs_'):
             logger.info(f"IPFS tool call: {tool_name}")
             if arguments:
@@ -188,10 +208,10 @@ def fix_final_mcp_server():
                         logger.info(f"Argument {k}: type={value_type}, value={value_preview}")
             else:
                 logger.warning(f"No arguments provided for {tool_name}")
-'''
-                lines.insert(i+1, debug_logging)
+"""
+                lines.insert(i + 1, debug_logging)
                 break
-        
+
         # Add special handling for IPFS tools
         for i in range(execute_tool_line, len(lines)):
             if "# Special handling for IPFS tools" in lines[i]:
@@ -199,7 +219,7 @@ def fix_final_mcp_server():
                 break
             elif "except Exception as e:" in lines[i] and i > execute_tool_line:
                 # Add special handling for IPFS tools
-                special_handling = '''            # Special handling for IPFS tools to improve diagnostics
+                special_handling = """            # Special handling for IPFS tools to improve diagnostics
             if tool_name.startswith('ipfs_'):
                 logger.warning(f"IPFS tool error for {tool_name}. Attempting fallback implementation...")
                 try:
@@ -228,36 +248,37 @@ def fix_final_mcp_server():
                                 return result
                 except Exception as inner_e:
                     logger.error(f"Fallback also failed: {inner_e}")
-'''
-                lines.insert(i+1, special_handling)
+"""
+                lines.insert(i + 1, special_handling)
                 break
-        
+
         # Write the modified file
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             f.writelines(lines)
-        
+
         logger.info("Successfully modified final_mcp_server.py")
         return True
-        
+
     except Exception as e:
         logger.error(f"Error modifying final_mcp_server.py: {e}")
         logger.error(traceback.format_exc())
         return False
 
+
 if __name__ == "__main__":
     logger.info("Applying direct fixes for IPFS parameter handling...")
-    
+
     # Fix the ipfs_tool_adapters.py file
     if fix_ipfs_tool_adapters():
         logger.info("Successfully fixed ipfs_tool_adapters.py")
     else:
         logger.error("Failed to fix ipfs_tool_adapters.py")
-    
+
     # Fix the final_mcp_server.py file
     if fix_final_mcp_server():
         logger.info("Successfully fixed final_mcp_server.py")
     else:
         logger.error("Failed to fix final_mcp_server.py")
-    
+
     logger.info("All fixes have been applied.")
     logger.info("Please restart the MCP server and run tests to validate the fixes.")

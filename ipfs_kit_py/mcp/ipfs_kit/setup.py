@@ -16,12 +16,13 @@ try:
 except ImportError:
     # Add handling for when the script is run in a way that modules are not found
     # This can happen in certain testing or execution contexts
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
     from ipfs_kit_py.ipfs_cluster_service import ipfs_cluster_service
     from ipfs_kit_py.ipfs_cluster_follow import ipfs_cluster_follow
 
 
 logger = logging.getLogger(__name__)
+
 
 class SetupManager:
     """Manages the setup of IPFS Kit binaries and configurations."""
@@ -36,13 +37,13 @@ class SetupManager:
         self.install_ipfs()
         self.install_lassie()
         self.configure_ipfs()
-        
+
         # Only start cluster services if not disabled
         if "ipfs_cluster" not in self.disabled_components:
             self.start_ipfs_cluster_service()
         else:
             logger.info("Skipping IPFS Cluster service - disabled for this role")
-            
+
         if "ipfs_cluster_follow" not in self.disabled_components:
             self.start_ipfs_cluster_follow()
         else:
@@ -122,7 +123,7 @@ class SetupManager:
             # Initialize first, in case it's not.
             cluster_follow.ipfs_follow_init(
                 cluster_name="ipfs_kit_cluster",
-                bootstrap_peer="/ip4/127.0.0.1/tcp/9096/p2p/12D3KooWSipNgSzxfHJLBUVBwxih8yYzFzJ6e5WrrUVPbNRBgXXu"
+                bootstrap_peer="/ip4/127.0.0.1/tcp/9096/p2p/12D3KooWSipNgSzxfHJLBUVBwxih8yYzFzJ6e5WrrUVPbNRBgXXu",
             )
             result = cluster_follow.ipfs_follow_start(cluster_name="ipfs_kit_cluster")
             if result.get("success"):
@@ -135,6 +136,7 @@ class SetupManager:
     def _is_binary_installed(self, binary_name):
         """Check if a binary is installed and in the PATH."""
         return shutil.which(binary_name) is not None
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

@@ -19,11 +19,15 @@ logger = logging.getLogger(__name__)
 # Check if huggingface_hub is available
 try:
     from huggingface_hub import HfApi, hf_hub_download, upload_file
+
     HUGGINGFACE_AVAILABLE = True
     logger.info("HuggingFace Hub SDK is available")
 except ImportError:
     HUGGINGFACE_AVAILABLE = False
-    logger.warning("HuggingFace Hub SDK is not available. Install with: pip install huggingface_hub")
+    logger.warning(
+        "HuggingFace Hub SDK is not available. Install with: pip install huggingface_hub"
+    )
+
 
 class HuggingFaceStorage:
     """
@@ -87,7 +91,7 @@ class HuggingFaceStorage:
             "available": HUGGINGFACE_AVAILABLE and (self.api is not None or self.mock_mode),
             "simulation": self.simulation_mode,
             "mock": self.mock_mode,
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
 
         if self.simulation_mode:
@@ -98,7 +102,9 @@ class HuggingFaceStorage:
                 status_info["error"] = "HuggingFace API token not provided"
         elif self.mock_mode:
             status_info["message"] = "Running in mock mode"
-            status_info["warning"] = "Using local mock implementation (functional but not connected to HuggingFace)"
+            status_info["warning"] = (
+                "Using local mock implementation (functional but not connected to HuggingFace)"
+            )
             # No need to try to connect to the API in mock mode
         else:
             # Only test API connection if we have a token and not in mock mode
@@ -148,10 +154,7 @@ class HuggingFaceStorage:
             except Exception:
                 # Repository doesn't exist, create it
                 self.api.create_repo(
-                    repo_id=self.repo_name,
-                    private=True,
-                    repo_type="dataset",
-                    exist_ok=True
+                    repo_id=self.repo_name, private=True, repo_type="dataset", exist_ok=True
                 )
                 logger.info(f"Created repository {repo_name}")
                 return True
@@ -174,7 +177,7 @@ class HuggingFaceStorage:
             return {
                 "success": False,
                 "simulation": True,
-                "error": "HuggingFace backend is in simulation mode"
+                "error": "HuggingFace backend is in simulation mode",
             }
 
         # If in mock mode, simulate the operation with local storage
@@ -190,21 +193,19 @@ class HuggingFaceStorage:
                     return {
                         "success": False,
                         "mock": True,
-                        "error": f"File not found in mock storage: {file_path}"
+                        "error": f"File not found in mock storage: {file_path}",
                     }
 
                 # Add the file to IPFS
                 result = subprocess.run(
-                    ["ipfs", "add", "-q", mock_file_path],
-                    capture_output=True,
-                    text=True
+                    ["ipfs", "add", "-q", mock_file_path], capture_output=True, text=True
                 )
 
                 if result.returncode != 0:
                     return {
                         "success": False,
                         "mock": True,
-                        "error": f"Failed to add to IPFS: {result.stderr}"
+                        "error": f"Failed to add to IPFS: {result.stderr}",
                     }
 
                 new_cid = result.stdout.strip()
@@ -214,7 +215,7 @@ class HuggingFaceStorage:
                     return {
                         "success": False,
                         "mock": True,
-                        "error": f"CID mismatch: expected {cid}, got {new_cid}"
+                        "error": f"CID mismatch: expected {cid}, got {new_cid}",
                     }
 
                 return {
@@ -222,31 +223,21 @@ class HuggingFaceStorage:
                     "mock": True,
                     "message": "Added content from mock HuggingFace storage to IPFS",
                     "cid": new_cid,
-                    "source": f"mock_huggingface:{file_path}"
+                    "source": f"mock_huggingface:{file_path}",
                 }
 
             except Exception as e:
                 logger.error(f"Error in mock to_ipfs: {e}")
-                return {
-                    "success": False,
-                    "mock": True,
-                    "error": str(e)
-                }
+                return {"success": False, "mock": True, "error": str(e)}
 
         try:
             # Download from HuggingFace
             repo_name = self._get_repository_name()
-            local_path = hf_hub_download(
-                repo_id=repo_name,
-                filename=file_path,
-                token=self.token
-            )
+            local_path = hf_hub_download(repo_id=repo_name, filename=file_path, token=self.token)
 
             # Upload to IPFS
             result = subprocess.run(
-                ["ipfs", "add", "-q", local_path],
-                capture_output=True,
-                text=True
+                ["ipfs", "add", "-q", local_path], capture_output=True, text=True
             )
 
             if result.returncode == 0:
@@ -256,26 +247,20 @@ class HuggingFaceStorage:
                 if cid and cid != new_cid:
                     return {
                         "success": False,
-                        "error": f"CID mismatch: expected {cid}, got {new_cid}"
+                        "error": f"CID mismatch: expected {cid}, got {new_cid}",
                     }
 
                 return {
                     "success": True,
                     "cid": new_cid,
-                    "source": f"huggingface:{repo_name}/{file_path}"
+                    "source": f"huggingface:{repo_name}/{file_path}",
                 }
             else:
-                return {
-                    "success": False,
-                    "error": f"Failed to add to IPFS: {result.stderr}"
-                }
+                return {"success": False, "error": f"Failed to add to IPFS: {result.stderr}"}
 
         except Exception as e:
             logger.error(f"Error transferring from HuggingFace to IPFS: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
 
     def from_ipfs(self, cid: str, path: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -292,7 +277,7 @@ class HuggingFaceStorage:
             return {
                 "success": False,
                 "simulation": True,
-                "error": "HuggingFace backend is in simulation mode"
+                "error": "HuggingFace backend is in simulation mode",
             }
 
         # If in mock mode, simulate the operation with local storage
@@ -303,16 +288,13 @@ class HuggingFaceStorage:
                 os.makedirs(mock_dir, exist_ok=True)
 
                 # Get content from IPFS
-                result = subprocess.run(
-                    ["ipfs", "cat", cid],
-                    capture_output=True
-                )
+                result = subprocess.run(["ipfs", "cat", cid], capture_output=True)
 
                 if result.returncode != 0:
                     return {
                         "success": False,
                         "mock": True,
-                        "error": f"Failed to get content from IPFS: {result.stderr.decode('utf-8')}"
+                        "error": f"Failed to get content from IPFS: {result.stderr.decode('utf-8')}",
                     }
 
                 # Determine storage path
@@ -333,24 +315,17 @@ class HuggingFaceStorage:
                     "url": f"file://{full_path}",
                     "cid": cid,
                     "path": file_path,
-                    "mock_path": full_path
+                    "mock_path": full_path,
                 }
 
             except Exception as e:
                 logger.error(f"Error in mock from_ipfs: {e}")
-                return {
-                    "success": False,
-                    "mock": True,
-                    "error": str(e)
-                }
+                return {"success": False, "mock": True, "error": str(e)}
 
         # Real implementation for when we have proper credentials
         # Ensure repository exists
         if not self._ensure_repository_exists():
-            return {
-                "success": False,
-                "error": "Failed to ensure repository exists"
-            }
+            return {"success": False, "error": "Failed to ensure repository exists"}
 
         try:
             # Create a temporary file to store the IPFS content
@@ -358,15 +333,12 @@ class HuggingFaceStorage:
                 temp_path = temp_file.name
 
             # Get content from IPFS
-            result = subprocess.run(
-                ["ipfs", "cat", cid],
-                capture_output=True
-            )
+            result = subprocess.run(["ipfs", "cat", cid], capture_output=True)
 
             if result.returncode != 0:
                 return {
                     "success": False,
-                    "error": f"Failed to get content from IPFS: {result.stderr.decode('utf-8')}"
+                    "error": f"Failed to get content from IPFS: {result.stderr.decode('utf-8')}",
                 }
 
             # Write content to temporary file
@@ -382,7 +354,7 @@ class HuggingFaceStorage:
                 path_or_fileobj=temp_path,
                 path_in_repo=file_path,
                 repo_id=repo_name,
-                token=self.token
+                token=self.token,
             )
 
             # Clean up temporary file
@@ -393,15 +365,12 @@ class HuggingFaceStorage:
                 "url": response.url,
                 "cid": cid,
                 "path": file_path,
-                "repository": repo_name
+                "repository": repo_name,
             }
 
         except Exception as e:
             logger.error(f"Error transferring from IPFS to HuggingFace: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
 
     def list_files(self) -> Dict[str, Any]:
         """
@@ -414,23 +383,15 @@ class HuggingFaceStorage:
             return {
                 "success": False,
                 "simulation": True,
-                "error": "HuggingFace backend is in simulation mode"
+                "error": "HuggingFace backend is in simulation mode",
             }
 
         try:
             repo_name = self._get_repository_name()
             files = self.api.list_repo_files(repo_id=repo_name)
 
-            return {
-                "success": True,
-                "files": files,
-                "count": len(files),
-                "repository": repo_name
-            }
+            return {"success": True, "files": files, "count": len(files), "repository": repo_name}
 
         except Exception as e:
             logger.error(f"Error listing files from HuggingFace: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}

@@ -538,6 +538,7 @@ class s3_kit:
             return results
         else:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.warning("s3_config is incomplete; skipping S3 configuration.")
             return {}
