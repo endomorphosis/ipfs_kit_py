@@ -9,11 +9,8 @@ import logging
 import re
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
 
 def fix_cors_middleware():
     filename = "direct_mcp_server_with_tools.py"
@@ -24,7 +21,7 @@ def fix_cors_middleware():
         return False
 
     # Read the current content
-    with open(filename, "r") as f:
+    with open(filename, 'r') as f:
         lines = f.readlines()
 
     # Find the CORS middleware section
@@ -39,7 +36,7 @@ def fix_cors_middleware():
             # Add closing parenthesis before this comment line
             prev_line_index = i - 1
             lines[prev_line_index] = lines[prev_line_index].rstrip() + "\n)\n"
-            logger.info(f"Added closing parenthesis at line {prev_line_index + 1}")
+            logger.info(f"Added closing parenthesis at line {prev_line_index+1}")
             fixed = True
             break
 
@@ -48,12 +45,11 @@ def fix_cors_middleware():
         return False
 
     # Write the fixed content back to the file
-    with open(filename, "w") as f:
+    with open(filename, 'w') as f:
         f.writelines(lines)
 
     logger.info("✅ Successfully fixed CORS middleware closing parenthesis")
     return True
-
 
 if __name__ == "__main__":
     logger.info("Starting to fix CORS middleware closing parenthesis...")

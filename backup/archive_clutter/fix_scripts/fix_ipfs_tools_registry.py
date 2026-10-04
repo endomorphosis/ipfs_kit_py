@@ -8,11 +8,8 @@ import logging
 from typing import List, Dict, Any
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
 
 def fix_registry():
     """Fix the IPFS tools registry file"""
@@ -20,7 +17,7 @@ def fix_registry():
 
     try:
         # Read the current registry
-        with open(registry_path, "r") as f:
+        with open(registry_path, 'r') as f:
             content = f.read()
 
         # Extract all tool entries from the file - look for all dictionary entries
@@ -72,7 +69,7 @@ def get_ipfs_tools():
     return IPFS_TOOLS'''.format("\n".join(valid_tools))
 
         # Write the fixed registry
-        with open(registry_path, "w") as f:
+        with open(registry_path, 'w') as f:
             f.write(new_content)
 
         logger.info(f"✅ Fixed IPFS tools registry with {len(valid_tools)} valid tools")
@@ -80,7 +77,6 @@ def get_ipfs_tools():
     except Exception as e:
         logger.error(f"❌ Error fixing registry: {e}")
         return False
-
 
 if __name__ == "__main__":
     fix_registry()

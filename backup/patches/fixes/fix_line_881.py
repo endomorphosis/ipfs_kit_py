@@ -8,11 +8,8 @@ import sys
 import logging
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
 
 def fix_line_881():
     """Directly replace line 881 with the corrected version"""
@@ -47,7 +44,6 @@ def fix_line_881():
         logger.error(f"Error fixing line 881: {e}")
         return False
 
-
 def main():
     """Main function"""
     logger.info("Starting to fix line 881 in direct_mcp_server_with_tools.py...")
@@ -60,7 +56,6 @@ def main():
     logger.info("\n✅ Successfully fixed line 881 in direct_mcp_server_with_tools.py")
     logger.info("You can now run the server with './restart_mcp_with_tools.sh'")
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

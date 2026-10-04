@@ -7,11 +7,9 @@ import tempfile
 
 # Adjust import based on actual file structure
 from ipfs_kit_py.mcp.models.storage.filecoin_model import FilecoinModel
-
 # Mock base class methods if necessary, or mock dependencies directly
 # from ipfs_kit_py.mcp.models.storage.base_storage_model import BaseStorageModel
-from ipfs_kit_py.lotus_kit import lotus_kit  # To spec the mock
-
+from ipfs_kit_py.lotus_kit import lotus_kit # To spec the mock
 
 # Mock IPFS Model for cross-service tests
 # Using AsyncMock for async methods as the real model likely uses them
@@ -25,7 +23,7 @@ class MockIPFSModel:
 
     async def add_content(self, content):
         if content == b"filecoin_content":
-            # Simulate adding content and returning a CID
+             # Simulate adding content and returning a CID
             return {"success": True, "cid": "new_ipfs_cid", "size_bytes": len(content)}
         else:
             return {"success": False, "error": "IPFS Add Error", "error_type": "IPFSAddError"}
@@ -49,19 +47,8 @@ class TestFilecoinModel:
         kit.wallet_balance.return_value = {"success": True, "result": "1000"}
         kit.create_wallet.return_value = {"success": True, "result": "new_mock_wallet"}
         # Simulate successful import returning a Root CID
-        kit.client_import.return_value = {
-            "success": True,
-            "result": {
-                "Root": {"/": "imported_cid"},
-                "ImportID": 1,
-                "Size": 100,
-                "Status": "Complete",
-            },
-        }
-        kit.client_list_imports.return_value = {
-            "success": True,
-            "result": [{"Root": {"/": "imported_cid"}}],
-        }
+        kit.client_import.return_value = {"success": True, "result": {"Root": {"/": "imported_cid"}, "ImportID": 1, "Size": 100, "Status": "Complete"}}
+        kit.client_list_imports.return_value = {"success": True, "result": [{"Root": {"/": "imported_cid"}}]}
         kit.client_find_data.return_value = {"success": True, "result": [{"Miner": "f01000"}]}
         kit.client_list_deals.return_value = {"success": True, "result": [{"DealID": 1}]}
         kit.client_deal_info.return_value = {"success": True, "result": {"State": 0}}
@@ -77,9 +64,7 @@ class TestFilecoinModel:
     def mock_ipfs_model(self):
         """Mock the IPFS model instance using AsyncMock."""
         # Use AsyncMock for async methods
-        mock = AsyncMock(
-            spec=MockIPFSModel
-        )  # Spec against our simple mock class or a real one if available
+        mock = AsyncMock(spec=MockIPFSModel) # Spec against our simple mock class or a real one if available
         mock.get_content = AsyncMock(side_effect=MockIPFSModel().get_content)
         mock.add_content = AsyncMock(side_effect=MockIPFSModel().add_content)
         mock.pin_content = AsyncMock(side_effect=MockIPFSModel().pin_content)
@@ -102,10 +87,10 @@ class TestFilecoinModel:
             lotus_kit_instance=mock_lotus_kit,
             ipfs_model=mock_ipfs_model,
             cache_manager=mock_cache_manager,
-            credential_manager=mock_credential_manager,
+            credential_manager=mock_credential_manager
         )
         # Mock the internal _get_file_size helper to avoid actual file system access in most tests
-        model._get_file_size = MagicMock(return_value=1234)  # Default mock size
+        model._get_file_size = MagicMock(return_value=1234) # Default mock size
         return model
 
     # --- Test Basic Operations ---
@@ -120,13 +105,10 @@ class TestFilecoinModel:
 
     def test_check_connection_failure(self, model, mock_lotus_kit):
         """Test failed connection check."""
-        mock_lotus_kit.check_connection.return_value = {
-            "success": False,
-            "error": "Connection Refused",
-        }
+        mock_lotus_kit.check_connection.return_value = {"success": False, "error": "Connection Refused"}
         result = model.check_connection()
         assert result["success"] is False
-        assert result.get("connected") is None  # Should not be present on failure
+        assert result.get("connected") is None # Should not be present on failure
         assert result["error"] == "Connection Refused"
         mock_lotus_kit.check_connection.assert_called_once()
 
@@ -158,11 +140,11 @@ class TestFilecoinModel:
 
     # --- Test File/Deal Operations ---
 
-    @patch("os.path.exists", return_value=True)  # Mock file existence check
+    @patch("os.path.exists", return_value=True) # Mock file existence check
     def test_import_file_success(self, mock_exists, model, mock_lotus_kit):
         """Test importing a file successfully."""
         file_path = "/fake/path/to/file.txt"
-        model._get_file_size = MagicMock(return_value=100)  # Set specific size for this test
+        model._get_file_size = MagicMock(return_value=100) # Set specific size for this test
         result = model.import_file(file_path)
         assert result["success"] is True
         assert result["root"] == "imported_cid"
@@ -172,7 +154,7 @@ class TestFilecoinModel:
         mock_exists.assert_called_once_with(file_path)
         model._get_file_size.assert_called_once_with(file_path)
 
-    @patch("os.path.exists", return_value=False)  # Mock file non-existence
+    @patch("os.path.exists", return_value=False) # Mock file non-existence
     def test_import_file_not_found(self, mock_exists, model):
         """Test importing a file that does not exist."""
         file_path = "/fake/path/to/nonexistent.txt"
@@ -222,20 +204,15 @@ class TestFilecoinModel:
         miner = "f01000"
         price = "100"
         duration = 518400
-        wallet = "mock_wallet1"  # Explicitly provide wallet
+        wallet = "mock_wallet1" # Explicitly provide wallet
         result = model.start_deal(data_cid, miner, price, duration, wallet=wallet)
         assert result["success"] is True
         assert result["deal_cid"] == "deal_cid"
         assert result["data_cid"] == data_cid
         assert result["miner"] == miner
         mock_lotus_kit.client_start_deal.assert_called_once_with(
-            data_cid=data_cid,
-            miner=miner,
-            price=price,
-            duration=duration,
-            wallet=wallet,
-            verified=False,
-            fast_retrieval=True,
+            data_cid=data_cid, miner=miner, price=price, duration=duration,
+            wallet=wallet, verified=False, fast_retrieval=True
         )
 
     def test_start_deal_default_wallet(self, model, mock_lotus_kit):
@@ -248,22 +225,15 @@ class TestFilecoinModel:
         result = model.start_deal(data_cid, miner, price, duration)
         assert result["success"] is True
         assert result["deal_cid"] == "deal_cid"
-        mock_lotus_kit.list_wallets.assert_called_once()  # Should be called to get default
+        mock_lotus_kit.list_wallets.assert_called_once() # Should be called to get default
         mock_lotus_kit.client_start_deal.assert_called_once_with(
-            data_cid=data_cid,
-            miner=miner,
-            price=price,
-            duration=duration,
-            wallet="mock_wallet1",  # The default fetched wallet
-            verified=False,
-            fast_retrieval=True,
+            data_cid=data_cid, miner=miner, price=price, duration=duration,
+            wallet="mock_wallet1", # The default fetched wallet
+            verified=False, fast_retrieval=True
         )
 
-    @patch("os.makedirs")  # Mock directory creation
-    @patch(
-        "ipfs_kit_py.mcp.models.storage.filecoin_model.FilecoinModel._get_file_size",
-        return_value=500,
-    )  # Mock file size check after retrieval
+    @patch("os.makedirs") # Mock directory creation
+    @patch("ipfs_kit_py.mcp.models.storage.filecoin_model.FilecoinModel._get_file_size", return_value=500) # Mock file size check after retrieval
     def test_retrieve_data_success(self, mock_get_size, mock_makedirs, model, mock_lotus_kit):
         """Test retrieving data successfully."""
         data_cid = "retrieve_cid"
@@ -300,11 +270,9 @@ class TestFilecoinModel:
 
     @pytest.mark.anyio
     @patch("os.path.exists", return_value=True)
-    @patch("os.unlink")  # Mock file deletion
-    @patch("tempfile.NamedTemporaryFile")  # Mock temporary file creation
-    async def test_ipfs_to_filecoin_success(
-        self, mock_tempfile, mock_unlink, mock_exists, model, mock_lotus_kit, mock_ipfs_model
-    ):
+    @patch("os.unlink") # Mock file deletion
+    @patch("tempfile.NamedTemporaryFile") # Mock temporary file creation
+    async def test_ipfs_to_filecoin_success(self, mock_tempfile, mock_unlink, mock_exists, model, mock_lotus_kit, mock_ipfs_model):
         """Test transferring content from IPFS to Filecoin successfully."""
         # Setup mock temporary file
         mock_file_handle = MagicMock()
@@ -314,9 +282,7 @@ class TestFilecoinModel:
         mock_tempfile.return_value = mock_file_handle
 
         # Mock import_file call within the method
-        model.import_file = MagicMock(
-            return_value={"success": True, "root": "imported_cid", "size_bytes": 12}
-        )
+        model.import_file = MagicMock(return_value={"success": True, "root": "imported_cid", "size_bytes": 12})
         # Mock start_deal call within the method
         model.start_deal = MagicMock(return_value={"success": True, "deal_cid": "deal_cid"})
 
@@ -331,36 +297,26 @@ class TestFilecoinModel:
         assert result["ipfs_cid"] == ipfs_cid
         assert result["filecoin_cid"] == "imported_cid"
         assert result["deal_cid"] == "deal_cid"
-        assert result["size_bytes"] == 12  # From mocked import_file
+        assert result["size_bytes"] == 12 # From mocked import_file
 
         # Check mocks
         mock_ipfs_model.get_content.assert_awaited_once_with(ipfs_cid)
-        mock_tempfile.assert_called_once()  # Temp file created
+        mock_tempfile.assert_called_once() # Temp file created
         mock_file_handle.__enter__.return_value.write.assert_called_once_with(b"ipfs_content")
-        mock_unlink.assert_called_once_with("/tmp/fake_temp_file")  # Temp file deleted
+        mock_unlink.assert_called_once_with("/tmp/fake_temp_file") # Temp file deleted
         model.import_file.assert_called_once_with("/tmp/fake_temp_file")
         model.start_deal.assert_called_once_with(
-            data_cid="imported_cid",
-            miner=miner,
-            price=price,
-            duration=duration,
-            wallet=None,
-            verified=False,
-            fast_retrieval=True,
-            pin=True,  # Default pin=True
+            data_cid="imported_cid", miner=miner, price=price, duration=duration,
+            wallet=None, verified=False, fast_retrieval=True, pin=True # Default pin=True
         )
         # Pinning happens in IPFS model, check if it was called
-        mock_ipfs_model.pin_content.assert_not_called()  # Pinning happens *after* successful IPFS add in the other direction
+        mock_ipfs_model.pin_content.assert_not_called() # Pinning happens *after* successful IPFS add in the other direction
 
     @pytest.mark.anyio
     @patch("os.unlink")
     @patch("tempfile.NamedTemporaryFile")
-    @patch(
-        "builtins.open", new_callable=mock_open, read_data=b"filecoin_content"
-    )  # Mock reading the temp file, use imported mock_open
-    async def test_filecoin_to_ipfs_success(
-        self, mock_open_func, mock_tempfile, mock_unlink, model, mock_lotus_kit, mock_ipfs_model
-    ):  # Renamed mock_open fixture param
+    @patch("builtins.open", new_callable=mock_open, read_data=b"filecoin_content") # Mock reading the temp file, use imported mock_open
+    async def test_filecoin_to_ipfs_success(self, mock_open_func, mock_tempfile, mock_unlink, model, mock_lotus_kit, mock_ipfs_model): # Renamed mock_open fixture param
         """Test transferring content from Filecoin to IPFS successfully."""
         # Setup mock temporary file
         mock_file_handle = MagicMock()
@@ -368,9 +324,7 @@ class TestFilecoinModel:
         mock_tempfile.return_value = mock_file_handle
 
         # Mock retrieve_data call within the method
-        model.retrieve_data = MagicMock(
-            return_value={"success": True, "size_bytes": 16}
-        )  # Simulate retrieval success
+        model.retrieve_data = MagicMock(return_value={"success": True, "size_bytes": 16}) # Simulate retrieval success
         # Mock _get_file_size called after retrieval
         model._get_file_size = MagicMock(return_value=16)
 
@@ -386,24 +340,16 @@ class TestFilecoinModel:
         # Check mocks
         model.retrieve_data.assert_called_once_with(data_cid, "/tmp/fake_temp_file_fc")
         mock_tempfile.assert_called_once()
-        mock_open_func.assert_called_once_with(
-            "/tmp/fake_temp_file_fc", "rb"
-        )  # Check file was opened for reading
+        mock_open_func.assert_called_once_with("/tmp/fake_temp_file_fc", "rb") # Check file was opened for reading
         mock_unlink.assert_called_once_with("/tmp/fake_temp_file_fc")
         mock_ipfs_model.add_content.assert_awaited_once_with(b"filecoin_content")
-        mock_ipfs_model.pin_content.assert_awaited_once_with(
-            "new_ipfs_cid"
-        )  # Pinning should happen
+        mock_ipfs_model.pin_content.assert_awaited_once_with("new_ipfs_cid") # Pinning should happen
 
     # --- Test Error Handling ---
 
     def test_operation_failure_propagates(self, model, mock_lotus_kit):
         """Test that errors from lotus_kit are propagated correctly."""
-        mock_lotus_kit.list_wallets.return_value = {
-            "success": False,
-            "error": "Lotus Daemon Down",
-            "error_type": "ConnectionError",
-        }
+        mock_lotus_kit.list_wallets.return_value = {"success": False, "error": "Lotus Daemon Down", "error_type": "ConnectionError"}
         result = model.list_wallets()
         assert result["success"] is False
         assert result["error"] == "Lotus Daemon Down"
@@ -412,10 +358,10 @@ class TestFilecoinModel:
     def test_missing_dependency(self, mock_ipfs_model, mock_cache_manager, mock_credential_manager):
         """Test model initialization and operation with missing lotus_kit."""
         model_no_kit = FilecoinModel(
-            lotus_kit_instance=None,  # Explicitly None
+            lotus_kit_instance=None, # Explicitly None
             ipfs_model=mock_ipfs_model,
             cache_manager=mock_cache_manager,
-            credential_manager=mock_credential_manager,
+            credential_manager=mock_credential_manager
         )
         result = model_no_kit.list_wallets()
         assert result["success"] is False
@@ -426,9 +372,7 @@ class TestFilecoinModel:
     async def test_ipfs_to_filecoin_ipfs_failure(self, model, mock_ipfs_model):
         """Test ipfs_to_filecoin when IPFS retrieval fails."""
         # Mock IPFS get_content to fail
-        mock_ipfs_model.get_content = AsyncMock(
-            return_value={"success": False, "error": "IPFS Not Found"}
-        )
+        mock_ipfs_model.get_content = AsyncMock(return_value={"success": False, "error": "IPFS Not Found"})
 
         result = await model.ipfs_to_filecoin("invalid_ipfs_cid", "f01000", "100", 518400)
         assert result["success"] is False
@@ -442,9 +386,7 @@ class TestFilecoinModel:
     @patch("os.path.exists", return_value=True)
     @patch("os.unlink")
     @patch("tempfile.NamedTemporaryFile")
-    async def test_ipfs_to_filecoin_import_failure(
-        self, mock_tempfile, mock_unlink, mock_exists, model, mock_ipfs_model
-    ):
+    async def test_ipfs_to_filecoin_import_failure(self, mock_tempfile, mock_unlink, mock_exists, model, mock_ipfs_model):
         """Test ipfs_to_filecoin when Lotus import fails."""
         # Setup mock temporary file
         mock_file_handle = MagicMock()
@@ -452,9 +394,7 @@ class TestFilecoinModel:
         mock_tempfile.return_value = mock_file_handle
 
         # Mock IPFS success
-        mock_ipfs_model.get_content = AsyncMock(
-            return_value={"success": True, "data": b"ipfs_content"}
-        )
+        mock_ipfs_model.get_content = AsyncMock(return_value={"success": True, "data": b"ipfs_content"})
         # Mock import_file failure
         model.import_file = MagicMock(return_value={"success": False, "error": "Import Failed"})
         # Mock start_deal should not be called
@@ -466,5 +406,5 @@ class TestFilecoinModel:
         assert "Failed to import content to Lotus" in result["error"]
         assert result["error_type"] == "LotusImportError"
         model.import_file.assert_called_once()
-        model.start_deal.assert_not_called()  # Deal should not be started
-        mock_unlink.assert_called_once()  # Temp file should still be cleaned up
+        model.start_deal.assert_not_called() # Deal should not be started
+        mock_unlink.assert_called_once() # Temp file should still be cleaned up

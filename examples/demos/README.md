@@ -1,0 +1,3 @@
+# examples/demos
+
+Demonstration scripts

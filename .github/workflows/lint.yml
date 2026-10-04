@@ -1,0 +1,66 @@
+name: Lint and Type Check
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint on ${{ matrix.arch }}
+    runs-on: ${{ matrix.arch == 'arm64' && fromJSON('["self-hosted", "arm64", "dgx"]') || 'ubuntu-22.04' }}
+    continue-on-error: ${{ matrix.arch == 'arm64' }}  # ARM64 jobs are optional
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64]  # Only AMD64 by default - linting doesn't need multi-arch
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python (AMD64)
+      if: matrix.arch == 'amd64'
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Set up Python (ARM64)
+      if: matrix.arch == 'arm64'
+      run: |
+        if command -v python3.11 >/dev/null 2>&1; then
+          python3.11 -m venv venv
+        else
+          python3 -m venv venv
+        fi
+        source venv/bin/activate
+        echo "venv/bin" >> $GITHUB_PATH
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install black ruff mypy pylint isort
+        pip install -e ".[dev]"
+    
+    - name: Check formatting with Black
+      run: |
+        black --check ipfs_kit_py tests examples
+    
+    - name: Check imports with isort
+      run: |
+        isort --check ipfs_kit_py tests examples
+    
+    - name: Lint with Ruff
+      run: |
+        pip install ruff
+        ruff check ipfs_kit_py tests examples
+    
+    - name: Type check with MyPy
+      run: |
+        mypy ipfs_kit_py
+    
+    - name: Check for duplicated code
+      run: |
+        pylint --disable=all --enable=duplicate-code ipfs_kit_py

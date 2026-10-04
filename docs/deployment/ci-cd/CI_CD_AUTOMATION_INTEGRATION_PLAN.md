@@ -673,30 +673,30 @@ on:
 **Error Pattern Examples**:
 ```python
 ERROR_PATTERNS = {
-    "missing_dependency": {
-        "pattern": r"ModuleNotFoundError|ImportError: No module named",
-        "confidence": 90,
-        "fix_type": "add_dependency",
-        "template": "Add {module} to requirements.txt",
+    'missing_dependency': {
+        'pattern': r'ModuleNotFoundError|ImportError: No module named',
+        'confidence': 90,
+        'fix_type': 'add_dependency',
+        'template': 'Add {module} to requirements.txt'
     },
-    "syntax_error": {
-        "pattern": r"SyntaxError|IndentationError",
-        "confidence": 85,
-        "fix_type": "fix_syntax",
-        "template": "Fix syntax error in {file} at line {line}",
+    'syntax_error': {
+        'pattern': r'SyntaxError|IndentationError',
+        'confidence': 85,
+        'fix_type': 'fix_syntax',
+        'template': 'Fix syntax error in {file} at line {line}'
     },
-    "timeout": {
-        "pattern": r"timeout|timed out|SIGTERM",
-        "confidence": 75,
-        "fix_type": "increase_timeout",
-        "template": "Increase timeout in workflow from {old} to {new}",
+    'timeout': {
+        'pattern': r'timeout|timed out|SIGTERM',
+        'confidence': 75,
+        'fix_type': 'increase_timeout',
+        'template': 'Increase timeout in workflow from {old} to {new}'
     },
-    "docker_build_fail": {
-        "pattern": r"docker build.*failed|ERROR: failed to solve",
-        "confidence": 80,
-        "fix_type": "fix_dockerfile",
-        "template": "Fix Dockerfile configuration",
-    },
+    'docker_build_fail': {
+        'pattern': r'docker build.*failed|ERROR: failed to solve',
+        'confidence': 80,
+        'fix_type': 'fix_dockerfile',
+        'template': 'Fix Dockerfile configuration'
+    }
 }
 ```
 

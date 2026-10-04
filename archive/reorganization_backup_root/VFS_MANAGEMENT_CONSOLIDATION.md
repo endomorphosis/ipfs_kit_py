@@ -50,7 +50,6 @@ Successfully moved all VFS management functionality from the MCP layer to the ce
 ```python
 def get_vfs_manager(self):
     from .vfs_manager import get_global_vfs_manager
-
     self._vfs_manager = get_global_vfs_manager()
 ```
 
@@ -125,7 +124,7 @@ from ipfs_kit_py.vfs_manager import get_vfs_manager_sync, execute_vfs_operation_
 vfs = get_vfs_manager_sync()
 
 # Execute operations synchronously
-result = execute_vfs_operation_sync("ls", path="/bucket/data")
+result = execute_vfs_operation_sync('ls', path='/bucket/data')
 stats = get_vfs_statistics_sync()
 ```
 
@@ -138,7 +137,7 @@ vfs = get_global_vfs_manager()
 await vfs.initialize()
 
 # Execute operations asynchronously
-result = await vfs.execute_vfs_operation("ls", path="/bucket/data")
+result = await vfs.execute_vfs_operation('ls', path='/bucket/data')
 stats = await vfs.get_vfs_statistics()
 ```
 

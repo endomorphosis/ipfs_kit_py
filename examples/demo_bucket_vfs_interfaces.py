@@ -55,10 +55,13 @@ def demo_cli_interface() -> list[str]:
         "python -m ipfs_kit_py.cli bucket list --detailed",
         (
             "python -m ipfs_kit_py.cli bucket add-file wearables-events "
-            'display/latest.json \'{"state":"STARTED"}\''
+            "display/latest.json '{\"state\":\"STARTED\"}'"
         ),
         "python -m ipfs_kit_py.cli bucket export wearables-events --include-indexes",
-        ("python -m ipfs_kit_py.cli bucket query 'SELECT bucket_name, file_path FROM files'"),
+        (
+            "python -m ipfs_kit_py.cli bucket query "
+            "'SELECT bucket_name, file_path FROM files'"
+        ),
     ]
 
 

@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../../ipfs_kit_py/resources/iroh-backend-config.schema.json",
+  "schema_version": 1,
+  "name": "team_archive",
+  "type": "iroh",
+  "enabled": true,
+  "namespace": {
+    "id": "a4d26868017c0ccffe2efe50944ef42125f9b8692f2a8f46f5f7d6c483ad127a",
+    "access": "read-write"
+  },
+  "service": {
+    "instance": "primary",
+    "managed": true,
+    "rpc_endpoint": "unix:///home/example/.ipfs_kit/iroh/primary/rpc.sock"
+  },
+  "credentials": {
+    "node_key_ref": "secretref:enhanced-secrets:iroh-primary-node-key",
+    "write_capability_ref": "secretref:enhanced-secrets:team-archive-write-capability"
+  },
+  "timeouts": {
+    "connect_seconds": 10,
+    "operation_seconds": 300,
+    "shutdown_seconds": 15
+  },
+  "sync": {
+    "enabled": true,
+    "on_open": false,
+    "read_consistency": "local",
+    "conflict_policy": "fail"
+  }
+}

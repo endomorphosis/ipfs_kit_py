@@ -1,0 +1,27 @@
+{
+  "schema": "mcp++/profile-h/ipfs-kit-fixtures@1.0",
+  "operations": [
+    {
+      "name": "storage/add",
+      "httpMethod": "POST",
+      "httpRoute": "/mcp/tools/storage/add",
+      "params": {"namespace": "tenant-a", "size_mib": 2, "retention_seconds": 86400},
+      "expectedUnit": "mebibyte"
+    },
+    {
+      "name": "storage/pin",
+      "httpMethod": "POST",
+      "httpRoute": "/mcp/tools/storage/pin",
+      "params": {"namespace": "tenant-a", "cid": "bafkreigh2akiscaildcw453bqad37x3q2bvcwf4f5n4p5g5z7v5z3m4yya", "units": 1, "retention_seconds": 86400},
+      "expectedUnit": "gigabyte-day"
+    },
+    {
+      "name": "storage/retrieve",
+      "httpMethod": "POST",
+      "httpRoute": "/mcp/tools/storage/retrieve",
+      "params": {"namespace": "tenant-a", "cid": "bafkreigh2akiscaildcw453bqad37x3q2bvcwf4f5n4p5g5z7v5z3m4yya", "size_mib": 4},
+      "expectedUnit": "mebibyte"
+    }
+  ]
+}
+

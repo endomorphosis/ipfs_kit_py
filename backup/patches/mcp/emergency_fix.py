@@ -13,7 +13,6 @@ import importlib
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 def main():
     """Apply emergency fixes to make the MCP server runnable."""
     logger.info("Applying emergency fixes for MCP server...")
@@ -73,9 +72,7 @@ class IPFSSimpleAPI:
 
         # Also replace the fallback absolute import
         original_fallback = "from ipfs_kit_py.high_level_api import IPFSSimpleAPI"
-        replacement_fallback = (
-            "from ipfs_kit_py.simulated_api import IPFSSimpleAPI  # Emergency fix"
-        )
+        replacement_fallback = "from ipfs_kit_py.simulated_api import IPFSSimpleAPI  # Emergency fix"
 
         # Make both replacements
         api_content = api_content.replace(original_import, replacement)
@@ -92,7 +89,6 @@ class IPFSSimpleAPI:
     except Exception as e:
         logger.error(f"Error applying emergency fix: {e}")
         return False
-
 
 if __name__ == "__main__":
     success = main()

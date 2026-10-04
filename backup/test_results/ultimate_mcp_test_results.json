@@ -1,0 +1,174 @@
+{
+  "start_time": "2025-06-25T15:14:50.611889",
+  "tests": {
+    "server_startup": {
+      "status": "PASS",
+      "message": "Server started on port 9999",
+      "details": null,
+      "timestamp": "2025-06-25T15:14:53.758695"
+    },
+    "endpoint_health": {
+      "status": "PASS",
+      "message": "Health check endpoint responding (200)",
+      "details": null,
+      "timestamp": "2025-06-25T15:14:53.777931"
+    },
+    "endpoint_info": {
+      "status": "PASS",
+      "message": "Server info endpoint responding (200)",
+      "details": null,
+      "timestamp": "2025-06-25T15:14:53.796235"
+    },
+    "endpoint_tools": {
+      "status": "PASS",
+      "message": "Tools listing endpoint responding (200)",
+      "details": null,
+      "timestamp": "2025-06-25T15:14:53.812983"
+    },
+    "endpoint_stats": {
+      "status": "PASS",
+      "message": "Statistics endpoint responding (200)",
+      "details": null,
+      "timestamp": "2025-06-25T15:14:53.829820"
+    },
+    "endpoint_docs": {
+      "status": "PASS",
+      "message": "API documentation responding (200)",
+      "details": null,
+      "timestamp": "2025-06-25T15:14:53.846081"
+    },
+    "ipfs_add": {
+      "status": "PASS",
+      "message": "Add successful, CID: Qmdbd9f35f50ff652c6bdfe1bdc3011da15ca301d57610",
+      "details": {
+        "success": true,
+        "cid": "Qmdbd9f35f50ff652c6bdfe1bdc3011da15ca301d57610",
+        "size": 57,
+        "timestamp": "2025-06-25T15:14:53.862090"
+      },
+      "timestamp": "2025-06-25T15:14:53.865185"
+    },
+    "ipfs_cat": {
+      "status": "PASS",
+      "message": "Cat successful for CID: Qmdbd9f35f50ff652c6bdfe1bdc3011da15ca301d57610",
+      "details": {
+        "success": true,
+        "content": "Hello, Ultimate IPFS Test! This is comprehensive testing.",
+        "cid": "Qmdbd9f35f50ff652c6bdfe1bdc3011da15ca301d57610",
+        "size": 57,
+        "timestamp": "2025-06-25T15:14:53.876804"
+      },
+      "timestamp": "2025-06-25T15:14:53.879025"
+    },
+    "ipfs_pin_add": {
+      "status": "PASS",
+      "message": "Pin add successful for CID: Qmdbd9f35f50ff652c6bdfe1bdc3011da15ca301d57610",
+      "details": null,
+      "timestamp": "2025-06-25T15:14:53.897049"
+    },
+    "ipfs_pin_rm": {
+      "status": "PASS",
+      "message": "Unpin successful for CID: Qmdbd9f35f50ff652c6bdfe1bdc3011da15ca301d57610",
+      "details": null,
+      "timestamp": "2025-06-25T15:14:53.913897"
+    },
+    "ipfs_version": {
+      "status": "PASS",
+      "message": "Version endpoint successful",
+      "details": {
+        "Version": "0.20.0-mock",
+        "Commit": "mock-commit-final",
+        "Repo": "15",
+        "System": "amd64/linux",
+        "Golang": "go1.19.1",
+        "Server": "ipfs_kit_py-2.1.0"
+      },
+      "timestamp": "2025-06-25T15:14:53.930954"
+    },
+    "jsonrpc_invalid_method": {
+      "status": "FAIL",
+      "message": "Unexpected response: {'detail': 'Not Found'}",
+      "details": null,
+      "timestamp": "2025-06-25T15:14:53.948570"
+    },
+    "jsonrpc_malformed_request": {
+      "status": "FAIL",
+      "message": "Unexpected response: {'detail': 'Not Found'}",
+      "details": null,
+      "timestamp": "2025-06-25T15:14:53.967514"
+    },
+    "jsonrpc_tools_list": {
+      "status": "PASS",
+      "message": "Request successful: tools_list",
+      "details": null,
+      "timestamp": "2025-06-25T15:14:53.984648"
+    },
+    "error_404_endpoint": {
+      "status": "PASS",
+      "message": "Correctly handled 404: 404",
+      "details": null,
+      "timestamp": "2025-06-25T15:14:54.002293"
+    },
+    "error_invalid_cid": {
+      "status": "FAIL",
+      "message": "Unexpected status for 500: 200",
+      "details": null,
+      "timestamp": "2025-06-25T15:14:54.019342"
+    },
+    "error_empty_content": {
+      "status": "FAIL",
+      "message": "Unexpected status for POST with empty content: 200",
+      "details": null,
+      "timestamp": "2025-06-25T15:14:54.038675"
+    },
+    "performance_load": {
+      "status": "PASS",
+      "message": "Performance: 20/20 requests, 58.36 RPS",
+      "details": null,
+      "timestamp": "2025-06-25T15:14:54.381743"
+    },
+    "security_cors": {
+      "status": "FAIL",
+      "message": "CORS headers missing",
+      "details": null,
+      "timestamp": "2025-06-25T15:14:54.400142"
+    },
+    "security_content_type": {
+      "status": "PASS",
+      "message": "Content-Type header present",
+      "details": null,
+      "timestamp": "2025-06-25T15:14:54.400271"
+    },
+    "server_shutdown": {
+      "status": "PASS",
+      "message": "Server stopped successfully",
+      "details": null,
+      "timestamp": "2025-06-25T15:14:54.759116"
+    }
+  },
+  "summary": {
+    "passed": 16,
+    "failed": 5,
+    "errors": [
+      "jsonrpc_invalid_method: Unexpected response: {'detail': 'Not Found'}",
+      "jsonrpc_malformed_request: Unexpected response: {'detail': 'Not Found'}",
+      "error_invalid_cid: Unexpected status for 500: 200",
+      "error_empty_content: Unexpected status for POST with empty content: 200",
+      "security_cors: CORS headers missing"
+    ]
+  },
+  "performance": {
+    "total_requests": 20,
+    "successful_requests": 20,
+    "duration": 0.3427083492279053,
+    "requests_per_second": 58.358659907348084
+  },
+  "security": {
+    "cors_origin": false,
+    "cors_methods": false,
+    "cors_headers": false,
+    "content_type": true
+  },
+  "end_time": "2025-06-25T15:14:54.759133",
+  "total_tests": 21
+}

@@ -1,33 +1,28 @@
-# \!/usr/bin/env python3
+#\!/usr/bin/env python3
 
 """Script to add a standardized error response formatter to MCP server."""
 
 import re
 
-
 def add_error_formatter():
     """Add a standardized error response formatter to the MCP server."""
     file_path = "ipfs_kit_py/mcp/server.py"
-
-    with open(file_path, "r") as f:
+    
+    with open(file_path, 'r') as f:
         content = f.read()
-
+    
     # Find the _log_operation method
-    log_op_pattern = re.compile(
-        r"def _log_operation.*?self\.operation_log\.append\(operation\)", re.DOTALL
-    )
+    log_op_pattern = re.compile(r'def _log_operation.*?self\.operation_log\.append\(operation\)', re.DOTALL)
     match = log_op_pattern.search(content)
-
+    
     if not match:
         print("Could not find _log_operation method")
         return False
-
+    
     log_op_code = match.group(0)
-
+    
     # New code with error formatter
-    new_code = (
-        log_op_code
-        + '''
+    new_code = log_op_code + '''
     
     def format_error_response(self, error: Exception, operation_id: str = None) -> Dict[str, Any]:
         """
@@ -74,17 +69,15 @@ def add_error_formatter():
         })
         
         return response'''
-    )
-
+    
     # Replace the code
     updated_content = content.replace(log_op_code, new_code)
-
-    with open(file_path, "w") as f:
+    
+    with open(file_path, 'w') as f:
         f.write(updated_content)
-
+    
     print("Successfully added format_error_response method to MCP server")
     return True
-
 
 if __name__ == "__main__":
     add_error_formatter()

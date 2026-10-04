@@ -19,28 +19,28 @@ logger = logging.getLogger(__name__)
 try:
     from ..libp2p import HAS_LIBP2P
     from ..libp2p_peer import IPFSLibp2pPeer
-
+    
     # Import from libp2p.high_level_api_integration for the implementation
     # We'll create an anyio-compatible version of the extend_high_level_api_class function
-
+    
     # Use anyio for backend-agnostic async operations
     import anyio
-
+    
     # Add libp2p methods to IPFSSimpleAPI
     # We'll define a method to apply the integration that can be called from outside
     if HAS_LIBP2P:
         logger.info("Adding libp2p methods to IPFSSimpleAPI (AnyIO version)")
-
+        
         def inject_libp2p_into_high_level_api(api_class):
             """
             Inject libp2p functionality into the IPFSSimpleAPI class.
-
+            
             This function is used for dependency injection, allowing the integration
             to be applied after both modules are fully loaded.
-
+            
             Args:
                 api_class: The IPFSSimpleAPI class to extend
-
+                
             Returns:
                 The extended api_class
             """
@@ -50,26 +50,24 @@ try:
             except Exception as e:
                 logger.error(f"Failed to inject libp2p into high-level API: {e}")
                 return api_class
-
+        
         # Export the function
         __all__ = ["inject_libp2p_into_high_level_api"]
     else:
         logger.warning("libp2p is not available, high-level API integration disabled")
-
         # Export the function as empty stub
         def inject_libp2p_into_high_level_api(api_class):
             """Stub implementation when libp2p is not available."""
             return api_class
-
+        
         __all__ = ["inject_libp2p_into_high_level_api"]
 except ImportError as e:
     logger.error(f"Error importing libp2p components: {e}")
-
     # Provide a stub function
     def inject_libp2p_into_high_level_api(api_class):
         """Stub implementation when imports fail."""
         return api_class
-
+    
     __all__ = ["inject_libp2p_into_high_level_api"]
 
 
@@ -89,9 +87,7 @@ def extend_high_level_api_class_anyio(high_level_api_cls):
         return high_level_api_cls
 
     # Check if the class is already extended
-    if hasattr(high_level_api_cls, "discover_peers") and hasattr(
-        high_level_api_cls, "connect_to_peer"
-    ):
+    if hasattr(high_level_api_cls, "discover_peers") and hasattr(high_level_api_cls, "connect_to_peer"):
         return high_level_api_cls
 
     def discover_peers(self, discovery_method="all", max_peers=20, timeout=30, topic=None):
@@ -115,7 +111,7 @@ def extend_high_level_api_class_anyio(high_level_api_cls):
             "success": False,
             "peers": [],
             "timestamp": time.time(),
-            "operation": "discover_peers",
+            "operation": "discover_peers"
         }
 
         try:
@@ -136,7 +132,6 @@ def extend_high_level_api_class_anyio(high_level_api_cls):
 
                     # Initialize components
                     from ..libp2p.p2p_integration import register_libp2p_with_ipfs_kit
-
                     if hasattr(self, "kit"):
                         # If we have an IPFSKit instance, register with it
                         register_libp2p_with_ipfs_kit(self.kit, self.libp2p_peer)
@@ -183,17 +178,18 @@ def extend_high_level_api_class_anyio(high_level_api_cls):
                         # Create discovery component if it doesn't exist
                         if not hasattr(self, "dht_discovery"):
                             self.dht_discovery = EnhancedDHTDiscovery(
-                                self.libp2p_peer, role=getattr(self, "role", "leecher")
+                                self.libp2p_peer,
+                                role=getattr(self, "role", "leecher")
                             )
 
                         # Find random peers in the DHT
                         import uuid
-
                         random_key = f"random-{uuid.uuid4()}"
 
                         async def find_dht_peers():
                             return await self.dht_discovery._find_random_peers_async(
-                                random_key, max(max_peers - len(discovered_peers), 5)
+                                random_key,
+                                max(max_peers - len(discovered_peers), 5)
                             )
 
                         # Use anyio
@@ -212,26 +208,20 @@ def extend_high_level_api_class_anyio(high_level_api_cls):
                         try:
                             if hasattr(self.libp2p_peer, "pubsub"):
                                 # Get peers subscribed to the topic
-                                ps_peers = self.libp2p_peer.pubsub.get_peers_subscribed(
-                                    discovery_topic
-                                )
+                                ps_peers = self.libp2p_peer.pubsub.get_peers_subscribed(discovery_topic)
 
                                 for peer_id in ps_peers:
                                     peer_info = {
                                         "id": str(peer_id),
                                         "addresses": [],
-                                        "source": "pubsub",
+                                        "source": "pubsub"
                                     }
 
                                     # Try to get multiaddresses
                                     try:
-                                        peer = self.libp2p_peer.host.get_peerstore().get_peer(
-                                            peer_id
-                                        )
+                                        peer = self.libp2p_peer.host.get_peerstore().get_peer(peer_id)
                                         if peer:
-                                            peer_info["addresses"] = [
-                                                str(addr) for addr in peer.addrs
-                                            ]
+                                            peer_info["addresses"] = [str(addr) for addr in peer.addrs]
                                     except Exception:
                                         pass
 
@@ -239,16 +229,13 @@ def extend_high_level_api_class_anyio(high_level_api_cls):
 
                                 # Also publish to the topic to announce ourselves
                                 import json
-
                                 self.libp2p_peer.pubsub.publish(
                                     discovery_topic,
-                                    json.dumps(
-                                        {
-                                            "announce": True,
-                                            "peer_id": self.libp2p_peer.get_peer_id(),
-                                            "timestamp": time.time(),
-                                        }
-                                    ).encode(),
+                                    json.dumps({
+                                        "announce": True,
+                                        "peer_id": self.libp2p_peer.get_peer_id(),
+                                        "timestamp": time.time()
+                                    }).encode()
                                 )
                         except Exception as e:
                             logger.warning(f"PubSub peer discovery error: {e}")
@@ -279,7 +266,11 @@ def extend_high_level_api_class_anyio(high_level_api_cls):
                     for peer_id in connections:
                         str_id = str(peer_id)
                         if str_id not in discovered_peers:
-                            peer_info = {"id": str_id, "addresses": [], "source": "connected"}
+                            peer_info = {
+                                "id": str_id,
+                                "addresses": [],
+                                "source": "connected"
+                            }
 
                             # Try to get peer information from peerstore
                             try:
@@ -323,7 +314,7 @@ def extend_high_level_api_class_anyio(high_level_api_cls):
             "success": False,
             "operation": "connect_to_peer",
             "timestamp": time.time(),
-            "address": peer_address,
+            "address": peer_address
         }
 
         try:
@@ -376,7 +367,7 @@ def extend_high_level_api_class_anyio(high_level_api_cls):
             "success": False,
             "peers": [],
             "operation": "get_connected_peers",
-            "timestamp": time.time(),
+            "timestamp": time.time()
         }
 
         try:
@@ -393,7 +384,10 @@ def extend_high_level_api_class_anyio(high_level_api_cls):
                 connections = self.libp2p_peer.host.get_network().connections
 
                 for peer_id in connections:
-                    peer_info = {"id": str(peer_id), "addresses": []}
+                    peer_info = {
+                        "id": str(peer_id),
+                        "addresses": []
+                    }
 
                     # Try to get peer information from peerstore
                     try:
@@ -440,7 +434,7 @@ def extend_high_level_api_class_anyio(high_level_api_cls):
             "operation": "request_content_from_peer",
             "timestamp": time.time(),
             "peer_id": peer_id,
-            "cid": cid,
+            "cid": cid
         }
 
         try:
@@ -488,7 +482,11 @@ def extend_high_level_api_class_anyio(high_level_api_cls):
             Dictionary with peer ID information
         """
         logger = getattr(self, "logger", logging.getLogger(__name__))
-        result = {"success": False, "operation": "get_libp2p_peer_id", "timestamp": time.time()}
+        result = {
+            "success": False,
+            "operation": "get_libp2p_peer_id",
+            "timestamp": time.time()
+        }
 
         try:
             # Check if we have a libp2p peer
@@ -556,9 +554,7 @@ def apply_high_level_api_integration(api_class=None):
 
         # Extend the class
         extend_high_level_api_class_anyio(api_class)
-        logger.info(
-            f"Successfully applied libp2p integration to {api_class.__name__} (AnyIO version)"
-        )
+        logger.info(f"Successfully applied libp2p integration to {api_class.__name__} (AnyIO version)")
         return True
 
     except Exception as e:

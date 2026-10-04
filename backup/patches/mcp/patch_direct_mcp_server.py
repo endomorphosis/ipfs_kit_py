@@ -17,14 +17,14 @@ from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
 # Paths
 DIRECT_MCP_SERVER = "direct_mcp_server.py"
 BACKUP_EXT = ".backup"
-
 
 def backup_file(filepath):
     """Create a backup of a file before modifying it"""
@@ -38,7 +38,6 @@ def backup_file(filepath):
     # Create backup
     shutil.copy2(filepath, backup_path)
     logger.info(f"Backup created: {backup_path}")
-
 
 def restore_from_backup(filepath):
     """Restore a file from its backup"""
@@ -54,7 +53,6 @@ def restore_from_backup(filepath):
     logger.info(f"Restored from backup: {filepath}")
     return True
 
-
 def check_dependency(module_name):
     """Check if a module is installed"""
     try:
@@ -62,7 +60,6 @@ def check_dependency(module_name):
         return spec is not None
     except ImportError:
         return False
-
 
 def patch_imports(content):
     """Add necessary imports to the MCP server"""
@@ -72,7 +69,7 @@ def patch_imports(content):
         return content
 
     # Add imports after the last import line
-    import_pattern = r"(^import.*$|^from.*$)"
+    import_pattern = r'(^import.*$|^from.*$)'
     matches = list(re.finditer(import_pattern, content, re.MULTILINE))
 
     if not matches:
@@ -82,18 +79,17 @@ def patch_imports(content):
     last_import = matches[-1]
     last_import_pos = last_import.end()
 
-    new_imports = "\n\n# IPFS and filesystem integration\ntry:\n"
-    new_imports += "    import ipfs_mcp_tools\n"
-    new_imports += "    import fs_journal_tools\n"
-    new_imports += "    import multi_backend_fs_integration\n"
-    new_imports += "    HAS_IPFS_TOOLS = True\n"
-    new_imports += "except ImportError as e:\n"
+    new_imports = '\n\n# IPFS and filesystem integration\ntry:\n'
+    new_imports += '    import ipfs_mcp_tools\n'
+    new_imports += '    import fs_journal_tools\n'
+    new_imports += '    import multi_backend_fs_integration\n'
+    new_imports += '    HAS_IPFS_TOOLS = True\n'
+    new_imports += 'except ImportError as e:\n'
     new_imports += '    logger.warning(f"Could not import IPFS tools: {e}")\n'
-    new_imports += "    HAS_IPFS_TOOLS = False\n"
+    new_imports += '    HAS_IPFS_TOOLS = False\n'
 
     patched_content = content[:last_import_pos] + new_imports + content[last_import_pos:]
     return patched_content
-
 
 def patch_register_tools(content):
     """Patch the server to register IPFS and filesystem tools"""
@@ -103,7 +99,7 @@ def patch_register_tools(content):
         return content
 
     # Find server initialization
-    server_init_pattern = r"def\s+start_server\s*\([^)]*\)\s*:"
+    server_init_pattern = r'def\s+start_server\s*\([^)]*\)\s*:'
     matches = list(re.finditer(server_init_pattern, content, re.MULTILINE))
 
     if not matches:
@@ -113,10 +109,8 @@ def patch_register_tools(content):
     server_init = matches[0]
 
     # Find the server creation line
-    server_creation_pattern = r"(\s+)(server\s*=\s*[^#\n]+)"
-    creation_matches = list(
-        re.finditer(server_creation_pattern, content[server_init.end() :], re.MULTILINE)
-    )
+    server_creation_pattern = r'(\s+)(server\s*=\s*[^#\n]+)'
+    creation_matches = list(re.finditer(server_creation_pattern, content[server_init.end():], re.MULTILINE))
 
     if not creation_matches:
         logger.error("Could not find server creation line")
@@ -129,25 +123,20 @@ def patch_register_tools(content):
     server_creation_pos = server_init.end() + creation_matches[0].end()
 
     # Create registration code
-    registration_code = f"\n{indent}# Register IPFS and filesystem tools\n"
-    registration_code += f"{indent}if HAS_IPFS_TOOLS:\n"
+    registration_code = f'\n{indent}# Register IPFS and filesystem tools\n'
+    registration_code += f'{indent}if HAS_IPFS_TOOLS:\n'
     registration_code += f'{indent}    logger.info("Registering IPFS and filesystem tools...")\n'
-    registration_code += f"{indent}    try:\n"
-    registration_code += f"{indent}        # Register tools\n"
-    registration_code += f"{indent}        ipfs_mcp_tools.register_tools(server)\n"
-    registration_code += f"{indent}        fs_journal_tools.register_tools(server)\n"
-    registration_code += f"{indent}        multi_backend_fs_integration.register_tools(server)\n"
-    registration_code += (
-        f'{indent}        logger.info("✅ IPFS and filesystem tools registered successfully")\n'
-    )
-    registration_code += f"{indent}    except Exception as e:\n"
+    registration_code += f'{indent}    try:\n'
+    registration_code += f'{indent}        # Register tools\n'
+    registration_code += f'{indent}        ipfs_mcp_tools.register_tools(server)\n'
+    registration_code += f'{indent}        fs_journal_tools.register_tools(server)\n'
+    registration_code += f'{indent}        multi_backend_fs_integration.register_tools(server)\n'
+    registration_code += f'{indent}        logger.info("✅ IPFS and filesystem tools registered successfully")\n'
+    registration_code += f'{indent}    except Exception as e:\n'
     registration_code += f'{indent}        logger.error(f"Error registering IPFS tools: {{e}}")\n'
 
-    patched_content = (
-        content[:server_creation_pos] + registration_code + content[server_creation_pos:]
-    )
+    patched_content = content[:server_creation_pos] + registration_code + content[server_creation_pos:]
     return patched_content
-
 
 def patch_shutdown(content):
     """Patch the server to cleanly shut down IPFS connections"""
@@ -157,7 +146,7 @@ def patch_shutdown(content):
         return content
 
     # Find server shutdown method
-    shutdown_pattern = r"def\s+stop_server\s*\([^)]*\)\s*:"
+    shutdown_pattern = r'def\s+stop_server\s*\([^)]*\)\s*:'
     matches = list(re.finditer(shutdown_pattern, content, re.MULTILINE))
 
     if not matches:
@@ -172,10 +161,8 @@ def patch_shutdown(content):
     shutdown_match = matches[0]
 
     # Find a good place to insert shutdown code
-    server_stop_pattern = r"(\s+)(server\.stop\(\))"
-    stop_matches = list(
-        re.finditer(server_stop_pattern, content[shutdown_match.end() :], re.MULTILINE)
-    )
+    server_stop_pattern = r'(\s+)(server\.stop\(\))'
+    stop_matches = list(re.finditer(server_stop_pattern, content[shutdown_match.end():], re.MULTILINE))
 
     insertion_pos = None
     indent = "    "
@@ -186,13 +173,13 @@ def patch_shutdown(content):
         indent = stop_matches[0].group(1)
     else:
         # Insert at the end of the function body
-        func_body_pattern = r"def\s+stop_server[^:]*:(.+?)(?=\n\S|\Z)"
-        body_match = re.search(func_body_pattern, content[shutdown_match.start() :], re.DOTALL)
+        func_body_pattern = r'def\s+stop_server[^:]*:(.+?)(?=\n\S|\Z)'
+        body_match = re.search(func_body_pattern, content[shutdown_match.start():], re.DOTALL)
 
         if body_match:
             insertion_pos = shutdown_match.start() + body_match.end()
             # Extract indentation from the function body
-            indent_match = re.search(r"(\s+)\S", body_match.group(1))
+            indent_match = re.search(r'(\s+)\S', body_match.group(1))
             if indent_match:
                 indent = indent_match.group(1)
         else:
@@ -204,20 +191,17 @@ def patch_shutdown(content):
         return content
 
     # Create shutdown code
-    shutdown_code = f"\n{indent}# Clean up IPFS connections\n"
+    shutdown_code = f'\n{indent}# Clean up IPFS connections\n'
     shutdown_code += f'{indent}if "HAS_IPFS_TOOLS" in globals() and HAS_IPFS_TOOLS:\n'
     shutdown_code += f'{indent}    logger.info("Shutting down IPFS connections...")\n'
-    shutdown_code += f"{indent}    try:\n"
-    shutdown_code += f"{indent}        # Any cleanup needed for IPFS connections\n"
-    shutdown_code += f"{indent}        pass\n"
-    shutdown_code += f"{indent}    except Exception as e:\n"
-    shutdown_code += (
-        f'{indent}        logger.error(f"Error shutting down IPFS connections: {{e}}")\n'
-    )
+    shutdown_code += f'{indent}    try:\n'
+    shutdown_code += f'{indent}        # Any cleanup needed for IPFS connections\n'
+    shutdown_code += f'{indent}        pass\n'
+    shutdown_code += f'{indent}    except Exception as e:\n'
+    shutdown_code += f'{indent}        logger.error(f"Error shutting down IPFS connections: {{e}}")\n'
 
     patched_content = content[:insertion_pos] + shutdown_code + content[insertion_pos:]
     return patched_content
-
 
 def patch_server():
     """Patch the MCP server to integrate IPFS and filesystem tools"""
@@ -230,7 +214,7 @@ def patch_server():
     backup_file(DIRECT_MCP_SERVER)
 
     # Read file
-    with open(DIRECT_MCP_SERVER, "r") as f:
+    with open(DIRECT_MCP_SERVER, 'r') as f:
         content = f.read()
 
     # Apply patches
@@ -239,12 +223,11 @@ def patch_server():
     patched_content = patch_shutdown(patched_content)
 
     # Write patched file
-    with open(DIRECT_MCP_SERVER, "w") as f:
+    with open(DIRECT_MCP_SERVER, 'w') as f:
         f.write(patched_content)
 
     logger.info(f"Successfully patched {DIRECT_MCP_SERVER}")
     return True
-
 
 def create_startup_script():
     """Create a script to start the MCP server with IPFS tools"""
@@ -267,7 +250,7 @@ echo "Starting MCP server with IPFS tools..."
 python3 direct_mcp_server.py
 """
 
-    with open(script_path, "w") as f:
+    with open(script_path, 'w') as f:
         f.write(script_content)
 
     # Make executable
@@ -296,7 +279,7 @@ fi
 echo "Done."
 """
 
-    with open(stop_script_path, "w") as f:
+    with open(stop_script_path, 'w') as f:
         f.write(stop_script_content)
 
     # Make executable
@@ -304,7 +287,6 @@ echo "Done."
     logger.info(f"Created stop script: {stop_script_path}")
 
     return True
-
 
 def create_verification_script():
     """Create a script to verify the environment and dependencies"""
@@ -435,7 +417,7 @@ if __name__ == "__main__":
     sys.exit(0 if main() else 1)
 """
 
-    with open(script_path, "w") as f:
+    with open(script_path, 'w') as f:
         f.write(script_content)
 
     # Make executable
@@ -443,7 +425,6 @@ if __name__ == "__main__":
     logger.info(f"Created verification script: {script_path}")
 
     return True
-
 
 def main():
     """Main function"""
@@ -478,7 +459,6 @@ def main():
     logger.info("  ./stop_ipfs_mcp.sh")
 
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

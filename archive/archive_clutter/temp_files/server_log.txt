@@ -1,0 +1,289 @@
+2025-05-23 18:32:59,375 - ipfs_kit_py.tools.protobuf_compat - INFO - Detected protobuf version: 6.30.2
+2025-05-23 18:32:59,376 - ipfs_kit_py.libp2p - WARNING - Error applying protobuf compatibility patch: name 'HAS_OLD_MESSAGE_FACTORY' is not defined
+2025-05-23 18:32:59,954 - final-mcp - ERROR - Error applying protobuf compatibility patch: module 'multihash' has no attribute 'FuncReg'
+2025-05-23 18:32:59,955 - final-mcp - INFO - Added mock FuncReg to multihash module
+2025-05-23 18:32:59,955 - final-mcp - INFO - MCP Server sys.path at start: ['/home/barberb/ipfs_kit_py', '/usr/lib/python312.zip', '/usr/lib/python3.12', '/usr/lib/python3.12/lib-dynload', '/home/barberb/.local/lib/python3.12/site-packages', '/home/barberb/ipfs_accelerate_py', '/usr/local/lib/python3.12/dist-packages', '/usr/lib/python3/dist-packages', '/home/barberb/.local/lib/python3.12/site-packages/setuptools/_vendor', '/home/barberb/applied_patches']
+2025-05-23 18:32:59,955 - final-mcp - INFO - MCP Server: Successfully imported 'transformers' module. Version: 4.46.0
+2025-05-23 18:33:01,084 - final-mcp - INFO - Starting server on 0.0.0.0:9998, debug=False, PID: 1765010
+INFO:     Started server process [1765010]
+INFO:     Waiting for application startup.
+2025-05-23 18:33:01,141 - final-mcp - INFO - MCP Server startup_event triggered in lifespan.
+2025-05-23 18:33:01,147 - ipfs_kit_py.tools.protobuf_compat - INFO - Detected protobuf version: 6.30.2
+2025-05-23 18:33:01,148 - ipfs_kit_py.libp2p - WARNING - Error applying protobuf compatibility patch: name 'HAS_OLD_MESSAGE_FACTORY' is not defined
+2025-05-23 18:33:01,480 - ipfs_kit_py.libp2p - INFO - Optional dependencies missing: google-protobuf, eth-hash, eth-keys
+2025-05-23 18:33:01,480 - ipfs_kit_py.libp2p - INFO - Some advanced functionality may be limited
+2025-05-23 18:33:01,480 - ipfs_kit_py.libp2p - INFO - libp2p dependencies are available
+2025-05-23 18:33:01,482 - ipfs_kit_py.libp2p - INFO - Successfully patched INetStream with read_until method
+2025-05-23 18:33:01,487 - ipfs_kit_py.libp2p_peer - WARNING - libp2p.tools.pubsub module not available: No module named 'libp2p.tools.pubsub'. PubSub functionality will be limited.
+2025-05-23 18:33:01,494 - ipfs_kit_py.libp2p.tools - WARNING - Could not import libp2p constants
+2025-05-23 18:33:01,508 - ipfs_kit_py.libp2p_peer - WARNING - libp2p.kademlia module not available: No module named 'libp2p.kademlia'. DHT functionality will be limited.
+2025-05-23 18:33:01,512 - ipfs_kit_py.libp2p.kademlia.network - WARNING - Provider class not found in kademlia network module
+2025-05-23 18:33:01,514 - ipfs_kit_py.libp2p_peer - WARNING - libp2p.network.stream modules not available: No module named 'libp2p.network.stream.net_stream_interface'. Streaming functionality will be limited.
+2025-05-23 18:33:01,543 - ipfs_kit_py.libp2p_peer - WARNING - libp2p.tools.constants module not available: cannot import name 'ALPHA_VALUE' from 'libp2p.tools.constants' (/home/barberb/.local/lib/python3.12/site-packages/libp2p/tools/constants.py). Using default ALPHA_VALUE=3.
+2025-05-23 18:33:01,544 - ipfs_kit_py.libp2p_peer - WARNING - libp2p.typing module not available: No module named 'libp2p.typing'. Using fallback TProtocol type.
+2025-05-23 18:33:01,552 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied GossipSub protocol extensions to IPFSLibp2pPeer class
+2025-05-23 18:33:01,563 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied enhanced protocol negotiation to IPFSLibp2pPeer class
+2025-05-23 18:33:01,568 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied recursive routing extensions to IPFSLibp2pPeer class
+2025-05-23 18:33:01,569 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied Kademlia DHT extensions to IPFSLibp2pPeer class
+2025-05-23 18:33:01,571 - ipfs_kit_py.high_level_api.libp2p_integration - INFO - Adding libp2p methods to IPFSSimpleAPI
+2025-05-23 18:33:01,571 - ipfs_kit_py.high_level_api - INFO - LibP2P integration module imported
+2025-05-23 18:33:01,575 - ipfs_kit_py.high_level_api - INFO - Successfully imported WebRTCBenchmarkIntegrationAnyIO
+2025-05-23 18:33:02,116 - ipfs_kit_py.lotus_kit - INFO - Lotus binary available: True
+2025-05-23 18:33:02,117 - ipfs_kit_py.lotus_kit - INFO - Lotus binary path: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-05-23 18:33:02,139 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied GossipSub protocol extensions to IPFSLibp2pPeer class
+2025-05-23 18:33:02,140 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied enhanced protocol negotiation to IPFSLibp2pPeer class
+2025-05-23 18:33:02,140 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied recursive routing extensions to IPFSLibp2pPeer class
+2025-05-23 18:33:02,141 - ipfs_kit_py.libp2p.protocol_integration - INFO - Successfully applied Kademlia DHT extensions to IPFSLibp2pPeer class
+2025-05-23 18:33:02,562 - faiss.loader - INFO - Loading faiss with AVX2 support.
+2025-05-23 18:33:02,630 - faiss.loader - INFO - Successfully loaded faiss with AVX2 support.
+2025-05-23 18:33:02,640 - faiss - INFO - Failed to load GPU Faiss: name 'GpuIndexIVFFlat' is not defined. Will not load constructor refs for GPU indexes.
+2025-05-23 18:33:07,625 - ipfs_kit_py.high_level_api - INFO - FSSpec is available
+2025-05-23 18:33:07,625 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem imported successfully (relative import)
+2025-05-23 18:33:07,811 - ipfs_kit_py.webrtc_streaming - INFO - PyAV not found, media handling features will be unavailable
+2025-05-23 18:33:07,812 - ipfs_kit_py.webrtc_streaming - INFO - aiortc not found, WebRTC features will be unavailable
+2025-05-23 18:33:07,820 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC dependencies status: NUMPY=True, CV2=True, AV=False, AIORTC=False
+2025-05-23 18:33:07,820 - ipfs_kit_py.webrtc_streaming - INFO - WebRTC availability: False
+2025-05-23 18:33:07,821 - ipfs_kit_py.high_level_api - INFO - WebRTC capabilities: available=False
+2025-05-23 18:33:07,821 - ipfs_kit_py.high_level_api - INFO - WebRTC streaming is unavailable - install dependencies with: pip install ipfs_kit_py[webrtc]
+2025-05-23 18:33:07,822 - ipfs_kit_py.high_level_api - INFO - WebRTC benchmark helpers: anyio_support=True
+2025-05-23 18:33:07,830 - ipfs_kit_py.high_level_api - INFO - Loaded configuration from /home/barberb/.ipfs_kit/config.json
+2025-05-23 18:33:07,831 - ipfs_kit_py.ipfs.ipfs_py - INFO - Initializing connection to IPFS node at 127.0.0.1:5001
+2025-05-23 18:33:08,066 - ipfs_kit_py.storacha_kit - INFO - Found working Storacha endpoint: https://up.storacha.network/bridge (Status code: 404)
+2025-05-23 18:33:08,449 - ipfs_kit_py.storacha_kit - INFO - Found working Storacha endpoint: https://api.web3.storage (Status code: 404)
+2025-05-23 18:33:08,481 - ipfs_kit_py.storacha_kit - WARNING - DNS resolution failed for api.storacha.network: [Errno -2] Name or service not known
+2025-05-23 18:33:08,481 - ipfs_kit_py.storacha_kit - WARNING - DNS resolution failed for api.storacha.network, skipping endpoint
+2025-05-23 18:33:08,821 - ipfs_kit_py.storacha_kit - INFO - Found working Storacha endpoint: https://up.web3.storage/bridge (Status code: 404)
+2025-05-23 18:33:10,867 - ipfs_kit_py.storacha_kit - INFO - Storacha kit initialized with API endpoint: https://up.storacha.network/bridge
+2025-05-23 18:33:11,112 - ipfs_kit_py.huggingface_kit - INFO - Using existing HuggingFace Hub authentication as endomorphosis
+2025-05-23 18:33:11,113 - ipfs_kit_py.ipfs_kit - INFO - Initialized Lotus Kit for Filecoin integration
+2025-05-23 18:33:11,114 - ipfs_kit_py.ipfs_kit - INFO - Starting required daemons for role: leecher
+2025-05-23 18:33:11,114 - ipfs_kit_py.ipfs_kit - WARNING - daemon_start method not found on ipfs object, attempting alternate checks
+2025-05-23 18:33:11,114 - ipfs_kit_py.ipfs_kit - INFO - IPFS daemon started successfully: already_running
+2025-05-23 18:33:11,273 - ipfs_kit_py.lotus_daemon - INFO - Using LOTUS_BINARY_PATH from lotus_kit: /home/barberb/ipfs_kit_py/ipfs_kit_py/../bin/lotus
+2025-05-23 18:33:11,879 - ipfs_kit_py.lotus_daemon - INFO - Lotus daemon is running with PID None
+2025-05-23 18:33:11,880 - ipfs_kit_py.ipfs_kit - INFO - All required daemons are running
+2025-05-23 18:33:11,880 - ipfs_kit_py.high_level_api - INFO - LibP2P integration applied to IPFSSimpleAPI
+2025-05-23 18:33:11,884 - ipfs_kit_py.ipfs_fsspec - INFO - Initialized mock IPFS filesystem with role: leecher
+2025-05-23 18:33:11,884 - ipfs_kit_py.high_level_api - INFO - IPFSFileSystem initialized successfully
+2025-05-23 18:33:11,885 - ipfs_kit_py.high_level_api - INFO - IPFSSimpleAPI initialized with role: leecher
+2025-05-23 18:33:11,885 - ipfs_kit_py.high_level_api - INFO - Successfully imported IPFSSimpleAPI from high_level_api.py
+2025-05-23 18:33:12,046 - ipfs_kit_py.lassie_kit - INFO - Lassie binary available: False
+2025-05-23 18:33:12,320 - ipfs_kit_py.api - INFO - LibP2P functionality integrated into High-Level API.
+2025-05-23 18:33:12,373 - ipfs_kit_py.api - INFO - WebRTC API available at /api/v0/webrtc
+2025-05-23 18:33:12,374 - ipfs_kit_py.api - WARNING - Failed to import graphql_router despite GRAPHQL_AVAILABLE=True.
+2025-05-23 18:33:12,406 - ipfs_kit_py.api - INFO - WAL API available at /api/v0/wal
+2025-05-23 18:33:12,435 - ipfs_kit_py.api - INFO - Storage Backends API available at /api/v0/storage
+2025-05-23 18:33:12,467 - ipfs_kit_py.api - INFO - Observability API available at /api/v0/observability
+2025-05-23 18:33:12,534 - ipfs_kit_py.mcp.ipfs_extensions - INFO - Successfully imported IPFSModel
+2025-05-23 18:33:12,534 - ipfs_kit_py.mcp.models.ipfs_model - INFO - IPFS Model initialized
+2025-05-23 18:33:12,534 - ipfs_kit_py.mcp.ipfs_extensions - INFO - Initialized IPFSModel
+2025-05-23 18:33:12,534 - ipfs_kit_py.mcp.controllers.ipfs_controller - INFO - Successfully imported IPFS extensions
+2025-05-23 18:33:12,650 - ipfs_kit_py.mcp.extensions - ERROR - Error importing extension huggingface: No module named 'huggingface_storage'
+2025-05-23 18:33:12,651 - ipfs_kit_py.mcp.extensions - ERROR - Error importing extension s3: No module named 'enhanced_s3_storage'
+2025-05-23 18:33:12,656 - filecoin_storage - INFO - Boost available: False
+2025-05-23 18:33:12,656 - filecoin_storage - INFO - Estuary client available: False
+2025-05-23 18:33:12,656 - ipfs_kit_py.mcp.extensions.filecoin - WARNING - FilecoinStorage module not found
+2025-05-23 18:33:12,657 - ipfs_kit_py.mcp.extensions.filecoin - WARNING - Advanced Filecoin features not available. Some functionality will be limited.
+2025-05-23 18:33:12,657 - ipfs_kit_py.mcp.extensions - INFO - Successfully imported extension: filecoin as ipfs_kit_py.mcp.extensions.filecoin
+2025-05-23 18:33:12,658 - ipfs_kit_py.mcp.extensions - ERROR - Error importing extension storacha: No module named 'storacha_storage'
+2025-05-23 18:33:12,659 - ipfs_kit_py.mcp.extensions - ERROR - Error importing extension lassie: No module named 'lassie_storage'
+2025-05-23 18:33:12,666 - ipfs_kit_py.mcp.extensions - INFO - Successfully imported extension: migration as ipfs_kit_py.mcp.extensions.migration
+2025-05-23 18:33:12,667 - ipfs_kit_py.mcp.extensions.metrics - ERROR - Error importing Monitoring system: No module named 'mcp_monitoring'
+2025-05-23 18:33:12,668 - ipfs_kit_py.mcp.extensions - INFO - Successfully imported extension: metrics as ipfs_kit_py.mcp.extensions.metrics
+2025-05-23 18:33:12,669 - ipfs_kit_py.mcp.extensions.auth - ERROR - Error importing Auth Manager: No module named 'mcp_auth'
+2025-05-23 18:33:12,669 - ipfs_kit_py.mcp.extensions.auth - INFO - OAuth dependencies available
+2025-05-23 18:33:12,670 - ipfs_kit_py.mcp.extensions - INFO - Successfully imported extension: auth as ipfs_kit_py.mcp.extensions.auth
+2025-05-23 18:33:12,673 - ipfs_kit_py.mcp.extensions - INFO - Successfully imported extension: routing as ipfs_kit_py.mcp.extensions.routing
+2025-05-23 18:33:13,914 - ipfs_kit_py.mcp.extensions - ERROR - Error importing extension search: Failed to import transformers.integrations.integration_utils because of the following error (look up to see its traceback):
+Failed to import transformers.modeling_utils because of the following error (look up to see its traceback):
+operator torchvision::nms does not exist
+2025-05-23 18:33:13,917 - ipfs_kit_py.mcp.extensions.websocket - ERROR - Error importing WebSocket module: No module named 'mcp_websocket'
+2025-05-23 18:33:13,918 - ipfs_kit_py.mcp.extensions - INFO - Successfully imported extension: websocket as ipfs_kit_py.mcp.extensions.websocket
+2025-05-23 18:33:13,931 - ipfs_kit_py.mcp.extensions.udm - INFO - Loaded 0 content entries from /home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/extensions/udm_data/content_registry.json
+2025-05-23 18:33:13,931 - ipfs_kit_py.mcp.extensions.udm - INFO - Loaded 0 metadata entries from /home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/extensions/udm_data/metadata_registry.json
+2025-05-23 18:33:13,931 - ipfs_kit_py.mcp.extensions.udm - INFO - Loaded content map from /home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/extensions/udm_data/content_map.json
+2025-05-23 18:33:13,932 - ipfs_kit_py.mcp.extensions.udm - INFO - Unified data management system initialized
+2025-05-23 18:33:13,932 - ipfs_kit_py.mcp.extensions - INFO - Successfully imported extension: udm as ipfs_kit_py.mcp.extensions.udm
+2025-05-23 18:33:13,933 - ipfs_kit_py.mcp.extensions - INFO - Successfully imported extension: webrtc as ipfs_kit_py.mcp.extensions.webrtc
+2025-05-23 18:33:14,033 - unified-ipfs-tools - INFO - ✅ Successfully imported IPFS extensions
+2025-05-23 18:33:14,033 - unified-ipfs-tools - INFO - ✅ Successfully imported IPFS Model
+2025-05-23 18:33:14,034 - unified-ipfs-tools - WARNING - ⚠️ Could not import IPFS-FS Bridge: No module named 'ipfs_kit_py.fs_journal'
+2025-05-23 18:33:14,035 - unified-ipfs-tools - INFO - ✅ Found 52 tools in registry
+2025-05-23 18:33:14,035 - final-mcp - INFO - ✅ IPFS tools module available (unified_ipfs_tools)
+2025-05-23 18:33:14,036 - final-mcp - INFO - ✅ Virtual filesystem module available (mcp_vfs_config)
+2025-05-23 18:33:14,037 - final-mcp - INFO - ✅ Filesystem journal module available (fs_journal_tools)
+2025-05-23 18:33:14,037 - final-mcp - INFO - ✅ IPFS-FS bridge module available (ipfs_mcp_fs_integration)
+2025-05-23 18:33:14,039 - final-mcp - INFO - ✅ Multi-backend filesystem module available (multi_backend_fs_integration)
+2025-05-23 18:33:14,039 - final-mcp - INFO - JSON-RPC methods are registered using @jsonrpc_method decorator.
+2025-05-23 18:33:14,039 - final-mcp - INFO - START: Registering all available tools with MCP server...
+2025-05-23 18:33:14,039 - final-mcp - INFO - STARTING IPFS tools registration process...
+2025-05-23 18:33:14,039 - final-mcp - INFO - Attempting to import fixed_direct_ipfs_tools...
+2025-05-23 18:33:14,040 - fixed-direct-ipfs-tools - INFO - Found fixed IPFS model at: /home/barberb/ipfs_kit_py/fixed_ipfs_model.py
+2025-05-23 18:33:14,041 - ipfs_kit_py.ipfs.ipfs_py - INFO - Initializing connection to IPFS node at 127.0.0.1:5001
+2025-05-23 18:33:14,041 - ipfs-model-fix - INFO - ✅ Successfully initialized IPFS client from standard path
+2025-05-23 18:33:14,044 - final-mcp - ERROR - Error in direct_ipfs_tools: 'IPFSModel' object has no attribute 'files_ls'
+Traceback (most recent call last):
+  File "/home/barberb/ipfs_kit_py/final_mcp_server.py", line 362, in register_ipfs_tools
+    import fixed_direct_ipfs_tools
+  File "/home/barberb/ipfs_kit_py/ipfs_kit_py/libp2p/hooks.py", line 32, in patched_import
+    module = original_import(name, globals, locals, fromlist, level)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/fixed_direct_ipfs_tools.py", line 54, in <module>
+    files_ls = ipfs_model.files_ls
+               ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'IPFSModel' object has no attribute 'files_ls'
+
+2025-05-23 18:33:14,045 - final-mcp - INFO - Falling back to unified_ipfs_tools...
+2025-05-23 18:33:14,045 - final-mcp - INFO - Attempting to import unified_ipfs_tools...
+2025-05-23 18:33:14,045 - final-mcp - INFO - Successfully imported unified_ipfs_tools
+2025-05-23 18:33:14,045 - final-mcp - INFO - Registering IPFS tools via unified_ipfs_tools...
+2025-05-23 18:33:14,045 - unified-ipfs-tools - INFO - Registering all IPFS tools with MCP server...
+2025-05-23 18:33:14,045 - unified-ipfs-tools - INFO - Current TOOL_STATUS: {'ipfs_extensions_available': True, 'ipfs_model_available': True, 'ipfs_fs_bridge_available': False}
+2025-05-23 18:33:14,045 - unified-ipfs-tools - INFO - Number of tools to register: 52
+2025-05-23 18:33:14,046 - ipfs_kit_py.mcp.models.ipfs_model - INFO - IPFS Model initialized
+2025-05-23 18:33:14,046 - unified-ipfs-tools - INFO - ✅ Initialized IPFS Model
+2025-05-23 18:33:14,047 - unified-ipfs-tools - INFO - ✅ Using enhanced parameter adapter for IPFS tools
+2025-05-23 18:33:14,049 - ipfs-tool-adapters - INFO - ✅ Loaded IPFS tool implementations
+2025-05-23 18:33:14,049 - unified-ipfs-tools - INFO - ✅ Using direct tool handlers for better compatibility
+2025-05-23 18:33:14,049 - unified-ipfs-tools - INFO - ✅ Registered tool with direct handler: ipfs_add
+2025-05-23 18:33:14,049 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: ipfs_add_file
+2025-05-23 18:33:14,050 - unified-ipfs-tools - INFO - ✅ Registered tool with direct handler: ipfs_cat
+2025-05-23 18:33:14,050 - unified-ipfs-tools - INFO - ✅ Registered tool with direct handler: ipfs_pin_add
+2025-05-23 18:33:14,050 - unified-ipfs-tools - INFO - ✅ Registered tool with direct handler: ipfs_pin_ls
+2025-05-23 18:33:14,050 - unified-ipfs-tools - INFO - ✅ Registered tool with direct handler: ipfs_pin_rm
+2025-05-23 18:33:14,050 - unified-ipfs-tools - INFO - ✅ Registered tool with direct handler: ipfs_files_ls
+2025-05-23 18:33:14,050 - unified-ipfs-tools - INFO - ✅ Registered tool with direct handler: ipfs_files_mkdir
+2025-05-23 18:33:14,050 - unified-ipfs-tools - INFO - ✅ Registered tool with direct handler: ipfs_files_write
+2025-05-23 18:33:14,050 - unified-ipfs-tools - INFO - ✅ Registered tool with direct handler: ipfs_files_read
+2025-05-23 18:33:14,050 - unified-ipfs-tools - INFO - ✅ Registered tool with direct handler: ipfs_files_rm
+2025-05-23 18:33:14,050 - unified-ipfs-tools - INFO - ✅ Registered tool with adapter: ipfs_files_stat
+2025-05-23 18:33:14,051 - unified-ipfs-tools - INFO - ✅ Registered tool with direct handler: ipfs_files_cp
+2025-05-23 18:33:14,051 - unified-ipfs-tools - INFO - ✅ Registered tool with direct handler: ipfs_files_mv
+2025-05-23 18:33:14,051 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: ipfs_name_publish
+2025-05-23 18:33:14,051 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: ipfs_name_resolve
+2025-05-23 18:33:14,051 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: ipfs_dag_put
+2025-05-23 18:33:14,051 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: ipfs_dag_get
+2025-05-23 18:33:14,051 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: fs_journal_get_history
+2025-05-23 18:33:14,051 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: fs_journal_sync
+2025-05-23 18:33:14,051 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: ipfs_fs_bridge_status
+2025-05-23 18:33:14,051 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: ipfs_fs_bridge_sync
+2025-05-23 18:33:14,051 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: s3_store_file
+2025-05-23 18:33:14,051 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: s3_retrieve_file
+2025-05-23 18:33:14,051 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: filecoin_store_file
+2025-05-23 18:33:14,052 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: filecoin_retrieve_deal
+2025-05-23 18:33:14,052 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: huggingface_model_load
+2025-05-23 18:33:14,052 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: huggingface_model_inference
+2025-05-23 18:33:14,052 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: webrtc_peer_connect
+2025-05-23 18:33:14,052 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: webrtc_send_data
+2025-05-23 18:33:14,052 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: credential_store
+2025-05-23 18:33:14,052 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: credential_retrieve
+2025-05-23 18:33:14,052 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: ipfs_pubsub_publish
+2025-05-23 18:33:14,052 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: ipfs_pubsub_subscribe
+2025-05-23 18:33:14,052 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: ipfs_dht_findpeer
+2025-05-23 18:33:14,052 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: ipfs_dht_findprovs
+2025-05-23 18:33:14,052 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: ipfs_cluster_pin
+2025-05-23 18:33:14,052 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: ipfs_cluster_status
+2025-05-23 18:33:14,053 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: ipfs_cluster_peers
+2025-05-23 18:33:14,053 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: lassie_fetch
+2025-05-23 18:33:14,053 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: lassie_fetch_with_providers
+2025-05-23 18:33:14,053 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: ai_model_register
+2025-05-23 18:33:14,053 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: ai_dataset_register
+2025-05-23 18:33:14,053 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: search_content
+2025-05-23 18:33:14,053 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: storacha_store
+2025-05-23 18:33:14,053 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: storacha_retrieve
+2025-05-23 18:33:14,053 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: multi_backend_add_backend
+2025-05-23 18:33:14,053 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: multi_backend_list_backends
+2025-05-23 18:33:14,053 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: streaming_create_stream
+2025-05-23 18:33:14,053 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: streaming_publish
+2025-05-23 18:33:14,053 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: monitoring_get_metrics
+2025-05-23 18:33:14,054 - unified-ipfs-tools - INFO - ✅ Registered tool with generic handler: monitoring_create_alert
+2025-05-23 18:33:14,054 - unified-ipfs-tools - INFO - ✅ Successfully registered 52/52 IPFS tools
+2025-05-23 18:33:14,054 - final-mcp - INFO - ✅ Added 52 IPFS tools using unified_ipfs_tools
+2025-05-23 18:33:14,054 - final-mcp - INFO - IPFS tools registered successfully
+2025-05-23 18:33:14,054 - final-mcp - INFO - Checking VFS availability before registration
+2025-05-23 18:33:14,054 - final-mcp - INFO - VFS is available, attempting to register VFS tools
+2025-05-23 18:33:14,054 - final-mcp - INFO - Registering VFS tools via mcp_vfs_config...
+2025-05-23 18:33:14,054 - vfs-tools - INFO - Starting VFS tool registration
+2025-05-23 18:33:14,054 - vfs-tools - INFO - Registered basic VFS tools
+2025-05-23 18:33:14,054 - final-mcp - INFO - VFS tools registration result: True
+2025-05-23 18:33:14,054 - final-mcp - INFO - VFS tools registration successful
+2025-05-23 18:33:14,054 - final-mcp - INFO - Registering FS Journal tools via fs_journal_tools...
+2025-05-23 18:33:14,055 - fs_journal_tools - INFO - Registering filesystem journal tools...
+2025-05-23 18:33:14,056 - final-mcp - WARNING - Tool fs_journal_get_history already registered, overwriting
+2025-05-23 18:33:14,056 - final-mcp - WARNING - Tool fs_journal_sync already registered, overwriting
+2025-05-23 18:33:14,056 - fs_journal_tools - INFO - ✅ Filesystem journal tools registered successfully
+2025-05-23 18:33:14,056 - final-mcp - INFO - FS Journal tools registered successfully
+2025-05-23 18:33:14,056 - final-mcp - INFO - Registering IPFS-FS Bridge tools via ipfs_mcp_fs_integration...
+2025-05-23 18:33:14,056 - final-mcp - WARNING - No suitable registration function in ipfs_mcp_fs_integration.
+2025-05-23 18:33:14,056 - final-mcp - INFO - Registering Multi-Backend FS tools via multi_backend_fs_integration...
+2025-05-23 18:33:14,056 - multi_backend_fs_integration - INFO - Registering multi-backend filesystem integration tools...
+2025-05-23 18:33:14,057 - multi_backend_fs_integration - INFO - ✅ Using enhanced parameter adapter for multi-backend tools
+2025-05-23 18:33:14,057 - multi_backend_fs_integration - INFO - ✅ Multi-backend filesystem integration tools registered successfully
+2025-05-23 18:33:14,057 - final-mcp - INFO - Multi-backend FS tools registered successfully
+2025-05-23 18:33:14,057 - final-mcp - INFO - END: Successfully registered tool categories: ipfs_tools, vfs_tools, fs_journal_tools, multi_backend_tools
+2025-05-23 18:33:14,057 - final-mcp - INFO - Registered tool categories: {'multi_backend_tools', 'fs_journal_tools', 'ipfs_tools', 'vfs_tools'}
+2025-05-23 18:33:14,057 - final-mcp - INFO - Tool registration process finished.
+2025-05-23 18:33:14,057 - final-mcp - INFO - MCP Server initialization sequence complete.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:9998 (Press CTRL+C to quit)
+TransformersIntegration is instantiated successfully
+TransformersIntegration is instantiated successfully
+INFO:     127.0.0.1:34222 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59544 - "GET /tools HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/home/barberb/.local/lib/python3.12/site-packages/uvicorn/protocols/http/httptools_impl.py", line 409, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/.local/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/.local/lib/python3.12/site-packages/fastapi/applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "/home/barberb/.local/lib/python3.12/site-packages/starlette/applications.py", line 112, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/barberb/.local/lib/python3.12/site-packages/starlette/middleware/errors.py", line 187, in __call__
+    raise exc
+  File "/home/barberb/.local/lib/python3.12/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/barberb/.local/lib/python3.12/site-packages/starlette/middleware/cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "/home/barberb/.local/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/barberb/.local/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/barberb/.local/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/barberb/.local/lib/python3.12/site-packages/starlette/routing.py", line 714, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/barberb/.local/lib/python3.12/site-packages/starlette/routing.py", line 734, in app
+    await route.handle(scope, receive, send)
+  File "/home/barberb/.local/lib/python3.12/site-packages/starlette/routing.py", line 288, in handle
+    await self.app(scope, receive, send)
+  File "/home/barberb/.local/lib/python3.12/site-packages/starlette/routing.py", line 76, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/barberb/.local/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/barberb/.local/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/barberb/.local/lib/python3.12/site-packages/starlette/routing.py", line 73, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/barberb/.local/lib/python3.12/site-packages/fastapi/routing.py", line 301, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/.local/lib/python3.12/site-packages/fastapi/routing.py", line 212, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/barberb/ipfs_kit_py/final_mcp_server.py", line 798, in list_tools_endpoint
+    return [{"name": n, "description": t["description"], "parameters": t["parameters"]} for n, t in server.tools.items()]
+                                       ~^^^^^^^^^^^^^^^
+TypeError: 'function' object is not subscriptable
+INFO:     127.0.0.1:45106 - "POST /jsonrpc HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44974 - "GET /health HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1765010]
+2025-05-23 18:36:13,568 - final-mcp - INFO - Received SIGTERM, shutting down
+2025-05-23 18:36:13,573 - final-mcp - INFO - Server shutdown complete.

@@ -21,9 +21,7 @@ except Exception:  # pragma: no cover
 
 class DaemonConfigManager:  # noqa: D101
     def __init__(self, ipfs_kit_instance: Optional[object] = None):
-        self._real = (
-            _RealDaemonConfigManager(ipfs_kit_instance) if _RealDaemonConfigManager else None
-        )
+        self._real = _RealDaemonConfigManager(ipfs_kit_instance) if _RealDaemonConfigManager else None
 
     def check_and_configure_all_daemons(self) -> Dict[str, Any]:
         """Lightweight, side-effect-free result used by smoke tests."""

@@ -7,8 +7,8 @@ import os
 import sys
 
 # Define the path to the server_bridge.py file
-mcp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ipfs_kit_py", "mcp")
-server_bridge_path = os.path.join(mcp_dir, "server_bridge.py")
+mcp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ipfs_kit_py', 'mcp')
+server_bridge_path = os.path.join(mcp_dir, 'server_bridge.py')
 
 # Check if the file exists
 if not os.path.exists(server_bridge_path):
@@ -16,7 +16,7 @@ if not os.path.exists(server_bridge_path):
     sys.exit(1)
 
 # Read the current content of the file
-with open(server_bridge_path, "r") as f:
+with open(server_bridge_path, 'r') as f:
     content = f.read()
 
 # Find the problematic code
@@ -50,7 +50,7 @@ if problematic_code in content:
     new_content = content.replace(problematic_code, fixed_code)
 
     # Write the fixed content back to the file
-    with open(server_bridge_path, "w") as f:
+    with open(server_bridge_path, 'w') as f:
         f.write(new_content)
 
     print(f"✅ Successfully fixed the register_with_app method in {server_bridge_path}")

@@ -1,0 +1,64 @@
+{
+  "$schema": "../../../../ipfs_kit_py/resources/iroh-manifest.schema.json",
+  "schema_version": 1,
+  "namespace_id": "a4d26868017c0ccffe2efe50944ef42125f9b8692f2a8f46f5f7d6c483ad127a",
+  "revision": 7,
+  "parent_revision": {
+    "revision": 6,
+    "manifest_hash": "8ec2089e9b8c881c8b9ca69b7dfad6757da721e47c0cb650f1329a7ee263d0b5"
+  },
+  "created_at": "2026-07-12T20:15:30Z",
+  "writer_id": "5ca1ab1e4bb3b5f08abccf101ca0ff26fe9f5579a03b2d6c664e35b7b8c37231",
+  "permissions": {
+    "owner": "5ca1ab1e4bb3b5f08abccf101ca0ff26fe9f5579a03b2d6c664e35b7b8c37231",
+    "public_read": false,
+    "readers": [
+      "310c2f78f5c9b815ef4b6ed5d677d0ba489ba2f308d66b788d495c5e86a6c1d8"
+    ],
+    "writers": [
+      "5ca1ab1e4bb3b5f08abccf101ca0ff26fe9f5579a03b2d6c664e35b7b8c37231"
+    ]
+  },
+  "entries": [
+    {
+      "path": "",
+      "kind": "directory",
+      "tombstone": false,
+      "mode": 493,
+      "mtime": "2026-07-12T20:15:30Z",
+      "metadata": {}
+    },
+    {
+      "path": "reports",
+      "kind": "directory",
+      "tombstone": false,
+      "mode": 493,
+      "mtime": "2026-07-12T20:15:30Z",
+      "metadata": {
+        "user.department": "operations"
+      }
+    },
+    {
+      "path": "reports/old.txt",
+      "kind": "file",
+      "tombstone": true,
+      "mode": 420,
+      "mtime": "2026-07-11T18:01:00Z",
+      "metadata": {},
+      "deleted_at": "2026-07-12T20:15:30Z"
+    },
+    {
+      "path": "reports/summary.txt",
+      "kind": "file",
+      "tombstone": false,
+      "blob_hash": "6b810c93f52f325176a6ac52c1420ca94390b0bd0e16f1e98a66f514ebf60a3a",
+      "size": 23,
+      "mode": 420,
+      "mtime": "2026-07-12T20:14:59Z",
+      "metadata": {
+        "content_type": "text/plain",
+        "user.reviewed": true
+      }
+    }
+  ]
+}

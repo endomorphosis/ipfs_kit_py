@@ -124,14 +124,14 @@ Successfully creates all required configuration files:
 service_config = await dashboard.create_cluster_config(
     service_type="service",
     cluster_name="production-cluster",
-    api_listen_multiaddress="/ip4/127.0.0.1/tcp/9094",
+    api_listen_multiaddress="/ip4/127.0.0.1/tcp/9094"
 )
 
 follow_config = await dashboard.create_cluster_config(
-    service_type="follow",
+    service_type="follow", 
     cluster_name="production-follow",
     api_listen_multiaddress="/ip4/127.0.0.1/tcp/9097",
-    trusted_peers=["/ip4/127.0.0.1/tcp/9096/p2p/QmServicePeer"],
+    trusted_peers=["/ip4/127.0.0.1/tcp/9096/p2p/QmServicePeer"]
 )
 
 # Get configurations
@@ -162,7 +162,7 @@ curl -X PUT http://localhost:8000/cluster/config/service \
 ```python
 # Available MCP tools for configuration management:
 # - create_service_config
-# - create_follow_config
+# - create_follow_config  
 # - get_service_config
 # - get_follow_config
 # - update_service_config

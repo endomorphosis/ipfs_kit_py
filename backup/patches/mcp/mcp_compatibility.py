@@ -28,20 +28,19 @@ def add_compatibility_methods(obj: Any = None) -> None:
         try:
             # Try to import ipfs_kit module and add compatibility methods to it
             from ipfs_kit_py import ipfs_kit
-
             logger.info("No object provided, applying compatibility methods to ipfs_kit module")
 
             # Add the tracking of instances if it doesn't exist
-            if not hasattr(ipfs_kit, "_instances"):
-                setattr(ipfs_kit, "_instances", [])
+            if not hasattr(ipfs_kit, '_instances'):
+                setattr(ipfs_kit, '_instances', [])
 
             # Apply compatibility methods similar to scripts/mcp/utils/mcp_compatibility.py
             # (simplified version - just enough to avoid failing tests)
-            if not hasattr(ipfs_kit, "auto_start_daemons"):
-                setattr(ipfs_kit, "auto_start_daemons", True)
+            if not hasattr(ipfs_kit, 'auto_start_daemons'):
+                setattr(ipfs_kit, 'auto_start_daemons', True)
 
-            if not hasattr(ipfs_kit, "daemon_restart_history"):
-                setattr(ipfs_kit, "daemon_restart_history", [])
+            if not hasattr(ipfs_kit, 'daemon_restart_history'):
+                setattr(ipfs_kit, 'daemon_restart_history', [])
 
             logger.info("Added basic compatibility attributes to ipfs_kit module")
             return
@@ -105,7 +104,7 @@ def patch_mcp_server(server_class: Any = None) -> None:
             for module_path in [
                 "ipfs_kit_py.mcp.server",
                 "ipfs_kit_py.mcp_server.server_bridge",
-                "mcp_server.server_bridge",
+                "mcp_server.server_bridge"
             ]:
                 try:
                     module = importlib.import_module(module_path)
@@ -161,7 +160,6 @@ def patch_mcp_server(server_class: Any = None) -> None:
 
     # Add backward compatibility class methods if needed
     if not hasattr(server_class, "create_default_server"):
-
         @classmethod
         def create_default_server(cls, **kwargs):
             """Create a default MCP server with sensible defaults."""
@@ -207,7 +205,7 @@ class MCPCompatibilityLayer:
                 setattr(
                     type(self.mcp_server),
                     old_name,
-                    property(lambda self, provider=value_provider: provider()),
+                    property(lambda self, provider=value_provider: provider())
                 )
 
     def __getattr__(self, name: str) -> Any:

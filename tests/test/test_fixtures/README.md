@@ -90,7 +90,6 @@ When using these fixtures in tests, follow these practices:
    ```python
    try:
        from test.test_fixtures.arrow_cluster_test_fixtures import ArrowMockHelper
-
        FIXTURES_AVAILABLE = True
    except ImportError:
        FIXTURES_AVAILABLE = False
@@ -110,7 +109,7 @@ When using these fixtures in tests, follow these practices:
        NodeFixture.create_master_node("master1"),
        NodeFixture.create_worker_node("worker1"),
        NodeFixture.create_worker_node("worker2"),
-       NodeFixture.create_worker_node("worker3", online=False),  # One offline worker
+       NodeFixture.create_worker_node("worker3", online=False)  # One offline worker
    ]
    ```
 

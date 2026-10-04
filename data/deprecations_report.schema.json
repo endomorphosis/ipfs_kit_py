@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IPFS-Kit Deprecations Report",
+  "type": "object",
+  "required": [
+    "report_version",
+    "generated_at",
+    "deprecated",
+    "summary",
+    "policy",
+    "raw"
+  ],
+  "properties": {
+    "report_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "deprecated": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["endpoint", "remove_in", "hits"],
+        "properties": {
+          "endpoint": { "type": "string" },
+          "remove_in": { "type": ["string", "null"] },
+          "hits": { "type": ["integer", "null"], "minimum": 0 },
+          "note": { "type": ["string", "null"] },
+          "migration": { "type": ["object", "null"] }
+        },
+        "additionalProperties": true
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["count", "max_hits"],
+      "properties": {
+        "count": { "type": "integer", "minimum": 0 },
+        "max_hits": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "policy": {
+      "type": "object",
+      "required": ["hits_enforcement", "migration_enforcement"],
+      "properties": {
+        "hits_enforcement": {
+          "type": "object",
+          "required": ["status", "violations"],
+          "properties": {
+            "status": { "type": "string", "enum": ["pass", "violation", "skipped"] },
+            "threshold": { "type": ["integer", "null"] },
+            "checked": { "type": "integer", "minimum": 0 },
+            "violations": { "type": "array" }
+          },
+          "additionalProperties": true
+        },
+        "migration_enforcement": {
+          "type": "object",
+          "required": ["status", "violations"],
+          "properties": {
+            "status": { "type": "string", "enum": ["pass", "violation", "skipped"] },
+            "checked": { "type": "integer", "minimum": 0 },
+            "violations": { "type": "array" }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "raw": {
+      "type": "object"
+    },
+    "deprecations": {
+      "type": "array"
+    }
+  },
+  "additionalProperties": true
+}

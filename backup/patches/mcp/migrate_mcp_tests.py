@@ -23,7 +23,8 @@ import re
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("mcp_test_migration")
 
@@ -35,12 +36,10 @@ MCP_DIR = PROJECT_ROOT / "ipfs_kit_py" / "mcp"
 TEST_DIR = PROJECT_ROOT / "test"
 MCP_TEST_DIR = TEST_DIR / "mcp"
 
-
 def ensure_directory(directory):
     """Ensure the directory exists."""
     os.makedirs(directory, exist_ok=True)
     logger.info(f"Ensured directory exists: {directory}")
-
 
 def find_mcp_tests():
     """Find all MCP-related test files in the project."""
@@ -73,7 +72,6 @@ def find_mcp_tests():
     logger.info(f"Found {len(mcp_tests)} MCP-related test files")
     return mcp_tests
 
-
 def categorize_test(file_path):
     """
     Categorize a test file based on its name and content.
@@ -84,13 +82,13 @@ def categorize_test(file_path):
     filename = os.path.basename(file_path)
 
     # Check filename patterns
-    if re.search(r"controller", filename, re.IGNORECASE):
+    if re.search(r'controller', filename, re.IGNORECASE):
         return "controller", MCP_TEST_DIR / "controller"
-    elif re.search(r"model", filename, re.IGNORECASE):
+    elif re.search(r'model', filename, re.IGNORECASE):
         return "model", MCP_TEST_DIR / "model"
-    elif re.search(r"server", filename, re.IGNORECASE):
+    elif re.search(r'server', filename, re.IGNORECASE):
         return "server", MCP_TEST_DIR / "server"
-    elif re.search(r"libp2p.*integration|integration.*libp2p", filename, re.IGNORECASE):
+    elif re.search(r'libp2p.*integration|integration.*libp2p', filename, re.IGNORECASE):
         return "libp2p", MCP_TEST_DIR / "libp2p"
 
     # If not determined by filename, check content
@@ -111,7 +109,6 @@ def categorize_test(file_path):
 
     # Default category
     return "general", MCP_TEST_DIR
-
 
 def migrate_tests(mcp_tests):
     """Migrate MCP tests to the appropriate directories."""
@@ -168,7 +165,6 @@ def migrate_tests(mcp_tests):
 
     return migrated, skipped
 
-
 def create_test_init_files():
     """Create __init__.py files in test directories if needed."""
     logger.info("Creating __init__.py files in test directories...")
@@ -179,7 +175,7 @@ def create_test_init_files():
         MCP_TEST_DIR / "model",
         MCP_TEST_DIR / "server",
         MCP_TEST_DIR / "libp2p",
-        MCP_TEST_DIR / "network_tests",
+        MCP_TEST_DIR / "network_tests"
     ]
 
     for directory in test_dirs:
@@ -188,7 +184,6 @@ def create_test_init_files():
             with open(init_file, "w") as f:
                 f.write(f'"""\nMCP {directory.name} tests.\n"""\n')
             logger.info(f"Created {init_file}")
-
 
 def main():
     """Main function to migrate all MCP tests."""
@@ -205,19 +200,15 @@ def main():
         create_test_init_files()
 
         # Report results
-        logger.info(
-            f"Migration complete. {len(migrated)} files migrated, {len(skipped)} files skipped."
-        )
+        logger.info(f"Migration complete. {len(migrated)} files migrated, {len(skipped)} files skipped.")
 
         return True
 
     except Exception as e:
         logger.error(f"Error migrating MCP tests: {e}")
         import traceback
-
         logger.error(traceback.format_exc())
         return False
-
 
 if __name__ == "__main__":
     success = main()

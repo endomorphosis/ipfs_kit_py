@@ -20,7 +20,6 @@ import aiofiles
 # Configure logging
 logger = logging.getLogger(__name__)
 
-
 # WebSocket connection manager for handling multiple connections
 class ConnectionManager:
     """
@@ -251,7 +250,7 @@ class ConnectionManager:
             "active_channels": len(self.subscriptions),
             "messages_sent": self.message_count,
             "uptime": uptime,
-            "msg_per_second": self.message_count / uptime if uptime > 0 else 0,
+            "msg_per_second": self.message_count / uptime if uptime > 0 else 0
         }
 
     def get_channels(self) -> Dict[str, int]:
@@ -261,50 +260,44 @@ class ConnectionManager:
         Returns:
             Dictionary of channel names to subscriber counts
         """
-        return {channel: len(subscribers) for channel, subscribers in self.subscriptions.items()}
-
+        return {
+            channel: len(subscribers)
+            for channel, subscribers in self.subscriptions.items()
+        }
 
 # Event models
 class EventData(BaseModel):
     """Base model for event data."""
-
     timestamp: float = None
     event_id: str = None
 
     def __init__(self, **data):
         """Initialize with default timestamp and event ID if not provided."""
-        if "timestamp" not in data:
-            data["timestamp"] = time.time()
-        if "event_id" not in data:
-            data["event_id"] = str(uuid.uuid4())
+        if 'timestamp' not in data:
+            data['timestamp'] = time.time()
+        if 'event_id' not in data:
+            data['event_id'] = str(uuid.uuid4())
         super().__init__(**data)
-
 
 class IPFSEvent(EventData):
     """IPFS-related event."""
-
     event_type: str
     cid: Optional[str] = None
     details: Optional[Dict[str, Any]] = None
 
-
 class StorageEvent(EventData):
     """Storage backend event."""
-
     backend: str
     operation: str
     cid: Optional[str] = None
     details: Optional[Dict[str, Any]] = None
 
-
 class WebSocketEvent(EventData):
     """WebSocket-related event."""
-
     type: str
     connection_id: str
     channel: Optional[str] = None
     data: Optional[Any] = None
-
 
 # WebSocket service class
 class WebSocketService:
@@ -319,9 +312,7 @@ class WebSocketService:
         self.manager = ConnectionManager()
         self.event_handlers: Dict[str, List[Callable[[Any], Awaitable[None]]]] = {}
 
-    def register_event_handler(
-        self, event_type: str, handler: Callable[[Any], Awaitable[None]]
-    ) -> None:
+    def register_event_handler(self, event_type: str, handler: Callable[[Any], Awaitable[None]]) -> None:
         """
         Register a handler for a specific event type.
 
@@ -350,9 +341,7 @@ class WebSocketService:
                 except Exception as e:
                     logger.error(f"Error in event handler for {event_type}: {e}")
 
-    async def broadcast_ipfs_event(
-        self, event_type: str, cid: Optional[str] = None, details: Optional[Dict[str, Any]] = None
-    ) -> None:
+    async def broadcast_ipfs_event(self, event_type: str, cid: Optional[str] = None, details: Optional[Dict[str, Any]] = None) -> None:
         """
         Broadcast an IPFS-related event.
 
@@ -361,7 +350,11 @@ class WebSocketService:
             cid: Optional content identifier
             details: Optional event details
         """
-        event = IPFSEvent(event_type=event_type, cid=cid, details=details)
+        event = IPFSEvent(
+            event_type=event_type,
+            cid=cid,
+            details=details
+        )
 
         # Broadcast to the specific event channel
         await self.manager.broadcast(event.dict(), f"ipfs:{event_type}")
@@ -372,13 +365,7 @@ class WebSocketService:
         # Call event handlers
         await self.handle_event(f"ipfs:{event_type}", event)
 
-    async def broadcast_storage_event(
-        self,
-        backend: str,
-        operation: str,
-        cid: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
-    ) -> None:
+    async def broadcast_storage_event(self, backend: str, operation: str, cid: Optional[str] = None, details: Optional[Dict[str, Any]] = None) -> None:
         """
         Broadcast a storage backend event.
 
@@ -388,7 +375,12 @@ class WebSocketService:
             cid: Optional content identifier
             details: Optional event details
         """
-        event = StorageEvent(backend=backend, operation=operation, cid=cid, details=details)
+        event = StorageEvent(
+            backend=backend,
+            operation=operation,
+            cid=cid,
+            details=details
+        )
 
         # Broadcast to the specific backend channel
         await self.manager.broadcast(event.dict(), f"storage:{backend}")
@@ -399,13 +391,7 @@ class WebSocketService:
         # Call event handlers
         await self.handle_event(f"storage:{backend}:{operation}", event)
 
-    async def broadcast_websocket_event(
-        self,
-        event_type: str,
-        connection_id: str,
-        channel: Optional[str] = None,
-        data: Optional[Any] = None,
-    ) -> None:
+    async def broadcast_websocket_event(self, event_type: str, connection_id: str, channel: Optional[str] = None, data: Optional[Any] = None) -> None:
         """
         Broadcast a WebSocket-related event.
 
@@ -416,7 +402,10 @@ class WebSocketService:
             data: Optional event data
         """
         event = WebSocketEvent(
-            type=event_type, connection_id=connection_id, channel=channel, data=data
+            type=event_type,
+            connection_id=connection_id,
+            channel=channel,
+            data=data
         )
 
         # Broadcast to admin channel only
@@ -436,10 +425,11 @@ class WebSocketService:
 
         try:
             # Send welcome message
-            await self.manager.send_personal(
-                connection_id,
-                {"type": "welcome", "connection_id": connection_id, "timestamp": time.time()},
-            )
+            await self.manager.send_personal(connection_id, {
+                "type": "welcome",
+                "connection_id": connection_id,
+                "timestamp": time.time()
+            })
 
             # Notify admins
             await self.broadcast_websocket_event("connect", connection_id)
@@ -462,89 +452,71 @@ class WebSocketService:
                             if command == "subscribe" and "channel" in data:
                                 channel = data["channel"]
                                 self.manager.subscribe(connection_id, channel)
-                                await self.manager.send_personal(
-                                    connection_id,
-                                    {
-                                        "type": "subscribed",
-                                        "channel": channel,
-                                        "timestamp": time.time(),
-                                    },
-                                )
-                                await self.broadcast_websocket_event(
-                                    "subscribe", connection_id, channel=channel
-                                )
+                                await self.manager.send_personal(connection_id, {
+                                    "type": "subscribed",
+                                    "channel": channel,
+                                    "timestamp": time.time()
+                                })
+                                await self.broadcast_websocket_event("subscribe", connection_id, channel=channel)
 
                             # Unsubscribe command
                             elif command == "unsubscribe" and "channel" in data:
                                 channel = data["channel"]
                                 self.manager.unsubscribe(connection_id, channel)
-                                await self.manager.send_personal(
-                                    connection_id,
-                                    {
-                                        "type": "unsubscribed",
-                                        "channel": channel,
-                                        "timestamp": time.time(),
-                                    },
-                                )
-                                await self.broadcast_websocket_event(
-                                    "unsubscribe", connection_id, channel=channel
-                                )
+                                await self.manager.send_personal(connection_id, {
+                                    "type": "unsubscribed",
+                                    "channel": channel,
+                                    "timestamp": time.time()
+                                })
+                                await self.broadcast_websocket_event("unsubscribe", connection_id, channel=channel)
 
                             # Unsubscribe all command
                             elif command == "unsubscribe_all":
                                 channels = self.manager.unsubscribe_all(connection_id)
-                                await self.manager.send_personal(
-                                    connection_id,
-                                    {
-                                        "type": "unsubscribed_all",
-                                        "channels": channels,
-                                        "timestamp": time.time(),
-                                    },
-                                )
-                                await self.broadcast_websocket_event(
-                                    "unsubscribe_all", connection_id
-                                )
+                                await self.manager.send_personal(connection_id, {
+                                    "type": "unsubscribed_all",
+                                    "channels": channels,
+                                    "timestamp": time.time()
+                                })
+                                await self.broadcast_websocket_event("unsubscribe_all", connection_id)
 
                             # Echo command
                             elif command == "echo" and "data" in data:
                                 echo_data = data["data"]
-                                await self.manager.send_personal(
-                                    connection_id,
-                                    {"type": "echo", "data": echo_data, "timestamp": time.time()},
-                                )
+                                await self.manager.send_personal(connection_id, {
+                                    "type": "echo",
+                                    "data": echo_data,
+                                    "timestamp": time.time()
+                                })
 
                             # Ping command
                             elif command == "ping":
-                                await self.manager.send_personal(
-                                    connection_id, {"type": "pong", "timestamp": time.time()}
-                                )
+                                await self.manager.send_personal(connection_id, {
+                                    "type": "pong",
+                                    "timestamp": time.time()
+                                })
 
                             # Unknown command
                             else:
-                                await self.manager.send_personal(
-                                    connection_id,
-                                    {
-                                        "type": "error",
-                                        "error": "Unknown command",
-                                        "command": command,
-                                        "timestamp": time.time(),
-                                    },
-                                )
-                        else:
-                            await self.manager.send_personal(
-                                connection_id,
-                                {
+                                await self.manager.send_personal(connection_id, {
                                     "type": "error",
-                                    "error": "Invalid message format",
-                                    "timestamp": time.time(),
-                                },
-                            )
+                                    "error": "Unknown command",
+                                    "command": command,
+                                    "timestamp": time.time()
+                                })
+                        else:
+                            await self.manager.send_personal(connection_id, {
+                                "type": "error",
+                                "error": "Invalid message format",
+                                "timestamp": time.time()
+                            })
 
                     except json.JSONDecodeError:
-                        await self.manager.send_personal(
-                            connection_id,
-                            {"type": "error", "error": "Invalid JSON", "timestamp": time.time()},
-                        )
+                        await self.manager.send_personal(connection_id, {
+                            "type": "error",
+                            "error": "Invalid JSON",
+                            "timestamp": time.time()
+                        })
 
                 except WebSocketDisconnect:
                     break
@@ -557,10 +529,8 @@ class WebSocketService:
             self.manager.disconnect(connection_id)
             await self.broadcast_websocket_event("disconnect", connection_id)
 
-
 # Global WebSocket service instance
 websocket_service = WebSocketService()
-
 
 # Create FastAPI router for WebSocket endpoints
 def create_websocket_router(api_prefix: str) -> APIRouter:
@@ -592,20 +562,15 @@ def create_websocket_router(api_prefix: str) -> APIRouter:
             websocket_service.manager.subscribe(connection_id, channel)
 
             # Send welcome message
-            await websocket_service.manager.send_personal(
-                connection_id,
-                {
-                    "type": "welcome",
-                    "connection_id": connection_id,
-                    "channel": channel,
-                    "timestamp": time.time(),
-                },
-            )
+            await websocket_service.manager.send_personal(connection_id, {
+                "type": "welcome",
+                "connection_id": connection_id,
+                "channel": channel,
+                "timestamp": time.time()
+            })
 
             # Notify admins
-            await websocket_service.broadcast_websocket_event(
-                "connect", connection_id, channel=channel
-            )
+            await websocket_service.broadcast_websocket_event("connect", connection_id, channel=channel)
 
             # Handle messages
             while True:
@@ -624,58 +589,51 @@ def create_websocket_router(api_prefix: str) -> APIRouter:
                             # Echo command
                             if command == "echo" and "data" in data:
                                 echo_data = data["data"]
-                                await websocket_service.manager.send_personal(
-                                    connection_id,
-                                    {"type": "echo", "data": echo_data, "timestamp": time.time()},
-                                )
+                                await websocket_service.manager.send_personal(connection_id, {
+                                    "type": "echo",
+                                    "data": echo_data,
+                                    "timestamp": time.time()
+                                })
 
                             # Ping command
                             elif command == "ping":
-                                await websocket_service.manager.send_personal(
-                                    connection_id, {"type": "pong", "timestamp": time.time()}
-                                )
+                                await websocket_service.manager.send_personal(connection_id, {
+                                    "type": "pong",
+                                    "timestamp": time.time()
+                                })
 
                             # Unknown command
                             else:
-                                await websocket_service.manager.send_personal(
-                                    connection_id,
-                                    {
-                                        "type": "error",
-                                        "error": "Unknown command",
-                                        "command": command,
-                                        "timestamp": time.time(),
-                                    },
-                                )
-                        else:
-                            await websocket_service.manager.send_personal(
-                                connection_id,
-                                {
+                                await websocket_service.manager.send_personal(connection_id, {
                                     "type": "error",
-                                    "error": "Invalid message format",
-                                    "timestamp": time.time(),
-                                },
-                            )
+                                    "error": "Unknown command",
+                                    "command": command,
+                                    "timestamp": time.time()
+                                })
+                        else:
+                            await websocket_service.manager.send_personal(connection_id, {
+                                "type": "error",
+                                "error": "Invalid message format",
+                                "timestamp": time.time()
+                            })
 
                     except json.JSONDecodeError:
-                        await websocket_service.manager.send_personal(
-                            connection_id,
-                            {"type": "error", "error": "Invalid JSON", "timestamp": time.time()},
-                        )
+                        await websocket_service.manager.send_personal(connection_id, {
+                            "type": "error",
+                            "error": "Invalid JSON",
+                            "timestamp": time.time()
+                        })
 
                 except WebSocketDisconnect:
                     break
 
         except Exception as e:
-            logger.error(
-                f"Error handling WebSocket connection {connection_id} on channel {channel}: {e}"
-            )
+            logger.error(f"Error handling WebSocket connection {connection_id} on channel {channel}: {e}")
 
         finally:
             # Clean up
             websocket_service.manager.disconnect(connection_id)
-            await websocket_service.broadcast_websocket_event(
-                "disconnect", connection_id, channel=channel
-            )
+            await websocket_service.broadcast_websocket_event("disconnect", connection_id, channel=channel)
 
     # REST endpoints
     rest_router = APIRouter(prefix=f"{api_prefix}/realtime")
@@ -687,12 +645,14 @@ def create_websocket_router(api_prefix: str) -> APIRouter:
             "success": True,
             "status": "available",
             "stats": websocket_service.manager.get_stats(),
-            "channels": websocket_service.manager.get_channels(),
+            "channels": websocket_service.manager.get_channels()
         }
 
     @rest_router.post("/broadcast")
     async def broadcast_message(
-        channel: str, message: Dict[str, Any], admin_key: Optional[str] = Header(None)
+        channel: str,
+        message: Dict[str, Any],
+        admin_key: Optional[str] = Header(None)
     ):
         """
         Broadcast a message to a channel.
@@ -705,7 +665,8 @@ def create_websocket_router(api_prefix: str) -> APIRouter:
         # TODO: Implement proper authentication
         if admin_key != "test_admin_key":
             return JSONResponse(
-                status_code=403, content={"success": False, "error": "Unauthorized"}
+                status_code=403,
+                content={"success": False, "error": "Unauthorized"}
             )
 
         recipients = await websocket_service.manager.broadcast(message, channel)
@@ -715,7 +676,7 @@ def create_websocket_router(api_prefix: str) -> APIRouter:
             "channel": channel,
             "recipients": recipients,
             "message_id": str(uuid.uuid4()),
-            "timestamp": time.time(),
+            "timestamp": time.time()
         }
 
     @rest_router.post("/ipfs/event")
@@ -723,7 +684,7 @@ def create_websocket_router(api_prefix: str) -> APIRouter:
         event_type: str,
         cid: Optional[str] = None,
         details: Optional[Dict[str, Any]] = None,
-        admin_key: Optional[str] = Header(None),
+        admin_key: Optional[str] = Header(None)
     ):
         """
         Trigger an IPFS event.
@@ -737,12 +698,18 @@ def create_websocket_router(api_prefix: str) -> APIRouter:
         # TODO: Implement proper authentication
         if admin_key != "test_admin_key":
             return JSONResponse(
-                status_code=403, content={"success": False, "error": "Unauthorized"}
+                status_code=403,
+                content={"success": False, "error": "Unauthorized"}
             )
 
         await websocket_service.broadcast_ipfs_event(event_type, cid, details)
 
-        return {"success": True, "event_type": event_type, "cid": cid, "timestamp": time.time()}
+        return {
+            "success": True,
+            "event_type": event_type,
+            "cid": cid,
+            "timestamp": time.time()
+        }
 
     @rest_router.post("/storage/event")
     async def trigger_storage_event(
@@ -750,7 +717,7 @@ def create_websocket_router(api_prefix: str) -> APIRouter:
         operation: str,
         cid: Optional[str] = None,
         details: Optional[Dict[str, Any]] = None,
-        admin_key: Optional[str] = Header(None),
+        admin_key: Optional[str] = Header(None)
     ):
         """
         Trigger a storage event.
@@ -765,7 +732,8 @@ def create_websocket_router(api_prefix: str) -> APIRouter:
         # TODO: Implement proper authentication
         if admin_key != "test_admin_key":
             return JSONResponse(
-                status_code=403, content={"success": False, "error": "Unauthorized"}
+                status_code=403,
+                content={"success": False, "error": "Unauthorized"}
             )
 
         await websocket_service.broadcast_storage_event(backend, operation, cid, details)
@@ -775,11 +743,10 @@ def create_websocket_router(api_prefix: str) -> APIRouter:
             "backend": backend,
             "operation": operation,
             "cid": cid,
-            "timestamp": time.time(),
+            "timestamp": time.time()
         }
 
     return router, rest_router
-
 
 # Function to get the WebSocket service instance
 def get_websocket_service() -> WebSocketService:

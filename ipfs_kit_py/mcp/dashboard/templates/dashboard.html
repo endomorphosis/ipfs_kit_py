@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPFS Kit - Unified Dashboard</title>
+    
+    <!-- Fallback System - CDN -> Local -> Base CSS -->
+    <script src="/static/js/fallback-system.js"></script>
+    
+    <!-- Local Tailwind CSS (fallback ready) -->
+    <link href="/static/css/tailwind.css" rel="stylesheet">
+    
+    <!-- FontAwesome Emoji Icons as Fallback -->
+    <style>
+        /* FontAwesome Icon Fallbacks */
+        .fa-rocket::before, .fas.fa-rocket::before { content: "🚀"; }
+        .fa-tachometer-alt::before, .fas.fa-tachometer-alt::before { content: "📊"; }
+        .fa-cogs::before, .fas.fa-cogs::before { content: "⚙️"; }
+        .fa-server::before, .fas.fa-server::before { content: "🖥️"; }
+        .fa-folder::before, .fas.fa-folder::before { content: "📁"; }
+        .fa-chart-line::before, .fas.fa-chart-line::before { content: "📈"; }
+        .fa-cog::before, .fas.fa-cog::before { content: "⚙️"; }
+        .fa-broadcast-tower::before, .fas.fa-broadcast-tower::before { content: "📡"; }
+        .fa-thumbtack::before, .fas.fa-thumbtack::before { content: "📌"; }
+        .fa-network-wired::before, .fas.fa-network-wired::before { content: "🌐"; }
+        .fa-file-alt::before, .fas.fa-file-alt::before { content: "📄"; }
+        .fa-chart-bar::before, .fas.fa-chart-bar::before { content: "📊"; }
+        .fa-heartbeat::before, .fas.fa-heartbeat::before { content: "💓"; }
+        .fa-bars::before, .fas.fa-bars::before { content: "☰"; }
+        .fa-times::before, .fas.fa-times::before { content: "✕"; }
+        .fa-plus::before, .fas.fa-plus::before { content: "➕"; }
+        .fa-edit::before, .fas.fa-edit::before { content: "✏️"; }
+        .fa-trash::before, .fas.fa-trash::before { content: "🗑️"; }
+        .fa-download::before, .fas.fa-download::before { content: "⬇️"; }
+        .fa-upload::before, .fas.fa-upload::before { content: "⬆️"; }
+        .fa-sync::before, .fas.fa-sync::before { content: "🔄"; }
+        .fa-play::before, .fas.fa-play::before { content: "▶️"; }
+        .fa-pause::before, .fas.fa-pause::before { content: "⏸️"; }
+        .fa-stop::before, .fas.fa-stop::before { content: "⏹️"; }
+        .fa-check::before, .fas.fa-check::before { content: "✓"; }
+        .fa-minus::before, .fas.fa-minus::before { content: "➖"; }
+    </style>
+    
+    <!-- Tailwind Configuration for fallback system -->
+    <script>
+        // Tailwind config fallback
+        window.tailwind = window.tailwind || {
+            config: function(configObj) {
+                console.log('Tailwind config loaded via fallback:', configObj);
+                window.tailwindConfig = configObj;
+            }
+        };
+        
+        // Initialize Tailwind config
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        fontFamily: {
+                            'inter': ['Inter', 'system-ui', 'sans-serif'],
+                        }
+                    }
+                }
+            };
+        }
+    </script>
+    
+    <!-- Dashboard-specific CSS -->
+    <link href="{{ url_for('static', path='/css/dashboard.css') }}" rel="stylesheet" onerror="console.warn('Dashboard CSS not found, using fallback')")
+</head>
+<body>
+    <!-- Mobile Menu Button -->
+    <div class="lg:hidden fixed top-6 left-6 z-50">
+        <button id="mobile-menu-btn" class="btn-primary text-white p-4 rounded-xl shadow-lg">
+            <i class="fas fa-bars text-lg"></i>
+        </button>
+    </div>
+    
+    <!-- Mobile Overlay -->
+    <div id="mobile-overlay" class="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30 hidden opacity-0 transition-opacity duration-300"></div>
+    
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar fixed left-0 top-0 h-full text-white z-40">
+        <div class="p-8">
+            <div class="flex items-center mb-10">
+                <div class="p-2 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 mr-4">
+                    <i class="fas fa-rocket text-2xl text-white"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold">IPFS Kit</h2>
+                    <p class="text-xs text-blue-200 opacity-80">v4.0.0</p>
+                </div>
+            </div>
+            
+            <nav class="space-y-2">
+                <a href="#" onclick="showTab('overview')" class="nav-link active flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-tachometer-alt mr-4 text-lg"></i> 
+                    <span class="font-medium">Overview</span>
+                </a>
+                <a href="#" onclick="showTab('services')" class="nav-link flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-cogs mr-4 text-lg"></i> 
+                    <span class="font-medium">Services</span>
+                </a>
+                <a href="#" onclick="showTab('backends')" class="nav-link flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-server mr-4 text-lg"></i> 
+                    <span class="font-medium">Backends</span>
+                </a>
+                <a href="#" onclick="showTab('buckets')" class="nav-link flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-folder mr-4 text-lg"></i> 
+                    <span class="font-medium">Buckets</span>
+                </a>
+                <a href="#" onclick="showTab('metrics')" class="nav-link flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-chart-line mr-4 text-lg"></i> 
+                    <span class="font-medium">Metrics</span>
+                </a>
+                <a href="#" onclick="showTab('config')" class="nav-link flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-cog mr-4 text-lg"></i> 
+                    <span class="font-medium">Configuration</span>
+                </a>
+                <a href="#" onclick="showTab('mcp')" class="nav-link flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-broadcast-tower mr-4 text-lg"></i> 
+                    <span class="font-medium">MCP Server</span>
+                </a>
+                <a href="#" onclick="showTab('pins')" class="nav-link flex items-center px-4 py-4 rounded-xl slide-in">
+                    <i class="fas fa-thumbtack mr-4 text-lg"></i> 
+                    <span class="font-medium">Pins</span>
+                </a>
+            </nav>
+        </div>
+        
+        <!-- System Status Panel -->
+        <div class="p-8 border-t border-white/20 mt-auto">
+            <h3 class="text-sm font-semibold mb-6 text-white/90 flex items-center">
+                <i class="fas fa-heartbeat mr-2 text-red-400"></i>
+                System Status
+            </h3>
+            <div class="space-y-4">
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-white/80">MCP Server</span>
+                    <div class="flex items-center">
+                        <div class="status-dot running mr-2"></div>
+                        <span id="sidebar-mcp-status" class="text-green-400 font-medium">Running</span>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-white/80">IPFS Daemon</span>
+                    <div class="flex items-center">
+                        <div id="sidebar-ipfs-dot" class="status-dot mr-2"></div>
+                        <span id="sidebar-ipfs-status" class="text-white/60">-</span>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-white/80">Backends</span>
+                    <span id="sidebar-backends-count" class="text-blue-300 font-medium">-</span>
+                </div>
+            </div>
+            
+            <!-- Mini Performance Indicators -->
+            <div class="mt-6 space-y-3">
+                <div class="text-xs text-white/60 mb-2">Quick Stats</div>
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-white/70">CPU</span>
+                        <div class="flex items-center">
+                            <div class="w-16 h-1 bg-white/20 rounded-full mr-2">
+                                <div id="sidebar-cpu-bar" class="h-full bg-green-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <span id="sidebar-cpu-percent" class="text-white/80 w-8 text-right">0%</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-white/70">RAM</span>
+                        <div class="flex items-center">
+                            <div class="w-16 h-1 bg-white/20 rounded-full mr-2">
+                                <div id="sidebar-memory-bar" class="h-full bg-blue-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <span id="sidebar-memory-percent" class="text-white/80 w-8 text-right">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="lg:ml-[280px] min-h-screen">
+        <!-- Header -->
+        <header class="gradient-bg text-white px-8 py-12 shadow-2xl relative overflow-hidden">
+            <!-- Background Pattern -->
+            <div class="absolute inset-0 opacity-10">
+                <div class="absolute inset-0" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 1px); background-size: 20px 20px;"></div>
+            </div>
+            
+            <div class="relative z-10">
+                <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center">
+                    <div class="mb-6 lg:mb-0">
+                        <h1 class="text-4xl lg:text-5xl font-extrabold mb-3 bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+                            IPFS Kit Dashboard
+                        </h1>
+                        <p class="text-blue-100 text-lg font-medium">Unified MCP Server & Control Interface</p>
+                        <div class="flex items-center mt-3 text-sm text-blue-200">
+                            <i class="fas fa-server mr-2"></i>
+                            <span>Port {{ port }}</span>
+                            <span class="mx-3">•</span>
+                            <i class="fas fa-clock mr-2"></i>
+                            <span id="current-time">--:--:--</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                        <div class="flex items-center bg-white/20 backdrop-blur-sm px-4 py-3 rounded-xl text-sm font-medium">
+                            <div class="status-dot running mr-3"></div>
+                            <span>Real-time Updates</span>
+                        </div>
+                        <button onclick="refreshData()" class="btn-primary px-6 py-3 rounded-xl font-semibold flex items-center">
+                            <i class="fas fa-sync-alt mr-2"></i> 
+                            <span>Refresh Data</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Tab Content Container -->
+        <div class="p-8">
+            <!-- Overview Tab -->
+            <div id="overview-tab" class="tab-content active fade-in">
+                <!-- Main Metrics Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                    <div class="card metric-card p-8 rounded-2xl fade-in">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600">
+                                <i class="fas fa-broadcast-tower text-white text-xl"></i>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-gray-500 uppercase tracking-wide font-semibold">MCP Server</div>
+                            </div>
+                        </div>
+                        <div id="mcp-status" class="metric-value mb-2">Running</div>
+                        <p class="text-sm text-gray-600 flex items-center">
+                            <i class="fas fa-ethernet mr-2 text-blue-500"></i>
+                            Port {{ port }}
+                        </p>
+                    </div>
+                    
+                    <div class="card metric-card p-8 rounded-2xl fade-in">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-green-500 to-teal-600">
+                                <i class="fas fa-cogs text-white text-xl"></i>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Services</div>
+                            </div>
+                        </div>
+                        <div id="services-count" class="metric-value mb-2">0</div>
+                        <p class="text-sm text-gray-600 flex items-center">
+                            <div class="status-dot running mr-2"></div>
+                            Active Services
+                        </p>
+                    </div>
+                    
+                    <div class="card metric-card p-8 rounded-2xl fade-in">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-600">
+                                <i class="fas fa-server text-white text-xl"></i>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Backends</div>
+                            </div>
+                        </div>
+                        <div id="backends-count" class="metric-value mb-2">0</div>
+                        <p class="text-sm text-gray-600 flex items-center">
+                            <i class="fas fa-cloud mr-2 text-purple-500"></i>
+                            Storage Backends
+                        </p>
+                    </div>
+                    
+                    <div class="card metric-card p-8 rounded-2xl fade-in">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-orange-500 to-red-600">
+                                <i class="fas fa-folder text-white text-xl"></i>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Buckets</div>
+                            </div>
+                        </div>
+                        <div id="buckets-count" class="metric-value mb-2">0</div>
+                        <p class="text-sm text-gray-600 flex items-center">
+                            <i class="fas fa-database mr-2 text-orange-500"></i>
+                            Total Buckets
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- System Overview Grid -->
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                    <!-- System Performance -->
+                    <div class="xl:col-span-2">
+                        <div class="card p-8 rounded-2xl">
+                            <h3 class="text-2xl font-bold mb-6 flex items-center">
+                                <div class="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-600 mr-4">
+                                    <i class="fas fa-chart-bar text-white"></i>
+                                </div>
+                                System Performance
+                            </h3>
+                            <div id="system-performance" class="space-y-6">
+                                <!-- CPU Usage -->
+                                <div class="space-y-2">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-gray-700 font-medium flex items-center">
+                                            <i class="fas fa-microchip mr-3 text-blue-500"></i>
+                                            CPU Usage
+                                        </span>
+                                        <span id="cpu-percent" class="text-lg font-bold text-gray-800">0%</span>
+                                    </div>
+                                    <div class="progress-bar h-3">
+                                        <div id="cpu-bar" class="progress-fill bg-gradient-to-r from-blue-400 to-blue-600" style="width: 0%"></div>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-gray-500">
+                                        <span>0%</span>
+                                        <span>100%</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Memory Usage -->
+                                <div class="space-y-2">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-gray-700 font-medium flex items-center">
+                                            <i class="fas fa-memory mr-3 text-green-500"></i>
+                                            Memory Usage
+                                        </span>
+                                        <div class="text-right">
+                                            <span id="memory-percent" class="text-lg font-bold text-gray-800">0%</span>
+                                            <div class="text-xs text-gray-500">
+                                                <span id="memory-used">0 GB</span> / <span id="memory-total">0 GB</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="progress-bar h-3">
+                                        <div id="memory-bar" class="progress-fill bg-gradient-to-r from-green-400 to-green-600" style="width: 0%"></div>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-gray-500">
+                                        <span>0%</span>
+                                        <span>100%</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Disk Usage -->
+                                <div class="space-y-2">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-gray-700 font-medium flex items-center">
+                                            <i class="fas fa-hdd mr-3 text-purple-500"></i>
+                                            Disk Usage
+                                        </span>
+                                        <div class="text-right">
+                                            <span id="disk-percent" class="text-lg font-bold text-gray-800">0%</span>
+                                            <div class="text-xs text-gray-500">
+                                                <span id="disk-used">0 GB</span> / <span id="disk-total">0 GB</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="progress-bar h-3">
+                                        <div id="disk-bar" class="progress-fill bg-gradient-to-r from-purple-400 to-purple-600" style="width: 0%"></div>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-gray-500">
+                                        <span>0%</span>
+                                        <span>100%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Network Activity -->
+                    <div>
+                        <div class="card p-8 rounded-2xl">
+                            <h3 class="text-2xl font-bold mb-6 flex items-center">
+                                <div class="p-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 mr-4">
+                                    <i class="fas fa-network-wired text-white"></i>
+                                </div>
+                                Network Activity
+                            </h3>
+                            <div id="network-activity-content" class="space-y-6">
+                                <div class="text-center py-8">
+                                    <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full mb-4">
+                                        <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
+                                    </div>
+                                    <p class="text-gray-500 font-medium">Loading network data...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- IPFS Daemon Status -->
+                <div class="mt-8">
+                    <div class="card p-8 rounded-2xl">
+                        <h3 class="text-2xl font-bold mb-6 flex items-center">
+                            <div class="p-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 mr-4">
+                                <i class="fas fa-cube text-white"></i>
+                            </div>
+                            IPFS Daemon Status
+                        </h3>
+                        <div id="ipfs-daemon-status" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="text-center py-8">
+                                <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full mb-4">
+                                    <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
+                                </div>
+                                <p class="text-gray-500 font-medium">Checking daemon status...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Services Tab -->
+            <div id="services-tab" class="tab-content">
+                <div class="card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-green-500 to-teal-600 mr-4">
+                            <i class="fas fa-cogs text-white"></i>
+                        </div>
+                        Services Management
+                        <span id="services-total-badge" class="ml-4 text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-medium">0</span>
+                    </h3>
+                    
+                    <!-- Services Summary -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-green-600 text-sm font-medium">Running</p>
+                                    <p class="text-2xl font-bold text-green-800" id="services-running-count">0</p>
+                                </div>
+                                <div class="p-2 bg-green-500 rounded-lg">
+                                    <i class="fas fa-play text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gradient-to-r from-red-50 to-red-100 p-4 rounded-xl border border-red-200">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-red-600 text-sm font-medium">Stopped</p>
+                                    <p class="text-2xl font-bold text-red-800" id="services-stopped-count">0</p>
+                                </div>
+                                <div class="p-2 bg-red-500 rounded-lg">
+                                    <i class="fas fa-stop text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gradient-to-r from-yellow-50 to-yellow-100 p-4 rounded-xl border border-yellow-200">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-yellow-600 text-sm font-medium">Configured</p>
+                                    <p class="text-2xl font-bold text-yellow-800" id="services-configured-count">0</p>
+                                </div>
+                                <div class="p-2 bg-yellow-500 rounded-lg">
+                                    <i class="fas fa-cog text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gradient-to-r from-gray-50 to-gray-100 p-4 rounded-xl border border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-600 text-sm font-medium">Error</p>
+                                    <p class="text-2xl font-bold text-gray-800" id="services-error-count">0</p>
+                                </div>
+                                <div class="p-2 bg-gray-500 rounded-lg">
+                                    <i class="fas fa-exclamation-triangle text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Services List -->
+                    <div id="services-list" class="space-y-4">
+                        <div class="text-center py-12">
+                            <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full mb-4">
+                                <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
+                            </div>
+                            <p class="text-gray-500 font-medium">Loading services...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Service Configuration Modal -->
+                <div id="service-config-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+                    <div class="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-2xl font-bold text-gray-800" id="config-modal-title">Configure Service</h3>
+                            <button onclick="closeServiceConfigModal()" class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                        <div id="config-modal-content">
+                            <!-- Configuration form will be inserted here -->
+                        </div>
+                        <div class="flex justify-end space-x-4 mt-6">
+                            <button onclick="closeServiceConfigModal()" class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+                                Cancel
+                            </button>
+                            <button onclick="saveServiceConfig()" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                                Save Configuration
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Backends Tab -->
+            <div id="backends-tab" class="tab-content">
+                <div class="card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-600 mr-4">
+                            <i class="fas fa-server text-white"></i>
+                        </div>
+                        Storage Backends
+                    </h3>
+                    <div id="backends-list">
+                        <!-- Backends will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buckets Tab -->
+            <div id="buckets-tab" class="tab-content">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Bucket List Panel -->
+                    <div class="lg:col-span-1">
+                        <div class="card p-6 rounded-2xl">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-bold flex items-center">
+                                    <div class="p-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 mr-3">
+                                        <i class="fas fa-folder text-white text-sm"></i>
+                                    </div>
+                                    Buckets
+                                </h3>
+                                <button onclick="showCreateBucketModal()" class="btn-primary text-white px-3 py-1 rounded-lg text-sm hover:shadow-lg transition-shadow">
+                                    <i class="fas fa-plus mr-1"></i> New
+                                </button>
+                            </div>
+                            <div id="buckets-list" class="space-y-2">
+                                <!-- Buckets will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bucket Details & File Manager Panel -->
+                    <div class="lg:col-span-2">
+                        <div id="bucket-details-panel" class="card p-6 rounded-2xl hidden">
+                            <!-- Bucket Header -->
+                            <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                                <div>
+                                    <h3 id="selected-bucket-name" class="text-xl font-bold text-gray-900 dark:text-white">Select a bucket</h3>
+                                    <p id="selected-bucket-info" class="text-sm text-gray-500 dark:text-gray-400">Choose a bucket to view details and manage files</p>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button onclick="showBucketSettingsModal()" class="btn-secondary px-3 py-1 rounded-lg text-sm">
+                                        <i class="fas fa-cog mr-1"></i> Settings
+                                    </button>
+                                    <button onclick="refreshBucketFiles()" class="btn-secondary px-3 py-1 rounded-lg text-sm">
+                                        <i class="fas fa-sync mr-1"></i> Refresh
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- File Upload Area -->
+                            <div id="file-upload-area" class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 mb-6 text-center hover:border-blue-400 transition-colors" 
+                                 ondrop="handleFileDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                                <p class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Drop files here or click to browse</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Supports multiple files up to 500MB each</p>
+                                <input type="file" id="file-input" multiple class="hidden" onchange="handleFileSelect(event)">
+                                <button onclick="document.getElementById('file-input').click()" class="btn-primary text-white px-4 py-2 rounded-lg">
+                                    Browse Files
+                                </button>
+                            </div>
+
+                            <!-- File Browser -->
+                            <div>
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="font-semibold text-gray-900 dark:text-white">Files & Folders</h4>
+                                    <div class="flex items-center space-x-2">
+                                        <input type="text" id="file-search-3" placeholder="Search files..." 
+                                               class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                               oninput="filterFiles()">
+                                        <div class="flex border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
+                                            <button id="list-view-btn" onclick="setFileView('list')" class="px-2 py-1 bg-blue-500 text-white text-sm">
+                                                <i class="fas fa-list"></i>
+                                            </button>
+                                            <button id="grid-view-btn" onclick="setFileView('grid')" class="px-2 py-1 bg-gray-200 text-gray-700 text-sm">
+                                                <i class="fas fa-th"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- File List -->
+                                <div id="file-browser" class="border border-gray-200 dark:border-gray-700 rounded-lg">
+                                    <!-- Files will be loaded here -->
+                                    <div class="p-8 text-center text-gray-500 dark:text-gray-400">
+                                        <i class="fas fa-folder-open text-4xl mb-4"></i>
+                                        <p>Select a bucket to view files</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Default state when no bucket is selected -->
+                        <div id="no-bucket-selected" class="card p-8 rounded-2xl text-center">
+                            <i class="fas fa-folder-open text-6xl text-gray-400 mb-6"></i>
+                            <h3 class="text-xl font-bold text-gray-700 dark:text-gray-300 mb-2">No Bucket Selected</h3>
+                            <p class="text-gray-500 dark:text-gray-400 mb-6">Choose a bucket from the list to view and manage its files</p>
+                            <button onclick="showCreateBucketModal()" class="btn-primary text-white px-6 py-2 rounded-lg">
+                                <i class="fas fa-plus mr-2"></i> Create New Bucket
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Create Bucket Modal -->
+                <div id="create-bucket-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+                    <div class="card p-6 rounded-2xl max-w-md w-full mx-4">
+                        <h3 class="text-xl font-bold mb-4">Create New Bucket</h3>
+                        <form id="create-bucket-form" onsubmit="createBucket(event)">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium mb-2">Bucket Name</label>
+                                <input type="text" id="new-bucket-name" required 
+                                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                       placeholder="my-bucket">
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium mb-2">Backend Type</label>
+                                <select id="new-bucket-backend" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                                    <option value="s3">S3 Compatible</option>
+                                    <option value="ipfs">IPFS</option>
+                                    <option value="local">Local Storage</option>
+                                </select>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium mb-2">Description</label>
+                                <textarea id="new-bucket-description" rows="2" 
+                                          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                          placeholder="Optional description"></textarea>
+                            </div>
+                            <div class="flex space-x-3">
+                                <button type="submit" class="btn-primary text-white px-4 py-2 rounded-lg flex-1">Create Bucket</button>
+                                <button type="button" onclick="hideCreateBucketModal()" class="btn-secondary px-4 py-2 rounded-lg">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Bucket Settings Modal -->
+                <div id="bucket-settings-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+                    <div class="card p-6 rounded-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                        <h3 class="text-xl font-bold mb-6">Bucket Settings</h3>
+                        
+                        <!-- Tabs -->
+                        <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
+                            <nav class="-mb-px flex space-x-8">
+                                <button onclick="showSettingsTab('general')" class="settings-tab-btn active py-2 px-1 border-b-2 font-medium text-sm" data-tab="general">
+                                    General
+                                </button>
+                                <button onclick="showSettingsTab('quota')" class="settings-tab-btn py-2 px-1 border-b-2 font-medium text-sm" data-tab="quota">
+                                    Quota & Limits
+                                </button>
+                                <button onclick="showSettingsTab('cache')" class="settings-tab-btn py-2 px-1 border-b-2 font-medium text-sm" data-tab="cache">
+                                    Cache Settings
+                                </button>
+                                <button onclick="showSettingsTab('search')" class="settings-tab-btn py-2 px-1 border-b-2 font-medium text-sm" data-tab="search">
+                                    Search & Index
+                                </button>
+                            </nav>
+                        </div>
+
+                        <!-- General Settings -->
+                        <div id="settings-general" class="settings-tab-content">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Bucket Name</label>
+                                    <input type="text" id="settings-bucket-name" readonly 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Backend Type</label>
+                                    <input type="text" id="settings-bucket-backend" readonly 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white">
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium mb-2">Description</label>
+                                    <textarea id="settings-bucket-description" rows="2" 
+                                              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"></textarea>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="flex items-center">
+                                        <input type="checkbox" id="settings-public-access" class="mr-2">
+                                        <span class="text-sm">Allow public read access</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quota Settings -->
+                        <div id="settings-quota" class="settings-tab-content hidden">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Storage Quota (MB)</label>
+                                    <input type="number" id="settings-storage-quota" 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                           placeholder="1000">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Max Files</label>
+                                    <input type="number" id="settings-max-files" 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                           placeholder="10000">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Max File Size (MB)</label>
+                                    <input type="number" id="settings-max-file-size" 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                           placeholder="500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Retention Days</label>
+                                    <input type="number" id="settings-retention-days" 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                           placeholder="30">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cache Settings -->
+                        <div id="settings-cache" class="settings-tab-content hidden">
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium">Enable Caching</label>
+                                    <input type="checkbox" id="settings-enable-cache" class="toggle-checkbox">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Cache TTL (seconds)</label>
+                                    <input type="number" id="settings-cache-ttl" 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                           placeholder="3600">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Cache Size Limit (MB)</label>
+                                    <input type="number" id="settings-cache-size" 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                           placeholder="100">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Search & Index Settings -->
+                        <div id="settings-search" class="settings-tab-content hidden">
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium">Enable Vector Search</label>
+                                    <input type="checkbox" id="settings-enable-vector-search" class="toggle-checkbox">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Vector Index Type</label>
+                                    <select id="settings-vector-index-type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                                        <option value="hnsw">HNSW (Fast)</option>
+                                        <option value="flat">Flat (Exact)</option>
+                                        <option value="ivf">IVF (Balanced)</option>
+                                    </select>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium">Enable Knowledge Graph</label>
+                                    <input type="checkbox" id="settings-enable-knowledge-graph" class="toggle-checkbox">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Search Index Location</label>
+                                    <input type="text" id="settings-search-index-location" readonly 
+                                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white"
+                                           placeholder="Auto-generated">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex space-x-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                            <button onclick="saveBucketSettings()" class="btn-primary text-white px-6 py-2 rounded-lg flex-1">Save Settings</button>
+                            <button onclick="hideBucketSettingsModal()" class="btn-secondary px-6 py-2 rounded-lg">Cancel</button>
+                            <button onclick="deleteBucket()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metrics Tab -->
+            <div id="metrics-tab" class="tab-content">
+                <div class="card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-600 mr-4">
+                            <i class="fas fa-chart-line text-white"></i>
+                        </div>
+                        Real-time Metrics
+                    </h3>
+                    <div id="metrics-content">
+                        <!-- Detailed metrics will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Config Tab -->
+            <div id="config-tab" class="tab-content">
+                <div class="card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-gray-500 to-gray-700 mr-4">
+                            <i class="fas fa-cog text-white"></i>
+                        </div>
+                        Configuration
+                    </h3>
+                    <div id="config-content">
+                        <div class="text-center py-12">
+                            <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full mb-4">
+                                <i class="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
+                            </div>
+                            <p class="text-gray-500 font-medium">Loading configuration...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MCP Tab -->
+            <div id="mcp-tab" class="tab-content">
+                <div class="card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 mr-4">
+                            <i class="fas fa-broadcast-tower text-white"></i>
+                        </div>
+                        MCP Server Details
+                    </h3>
+                    <div id="mcp-content">
+                        <!-- MCP server details will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pins Tab -->
+            <div id="pins-tab" class="tab-content">
+                <div class="card p-8 rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center">
+                        <div class="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-600 mr-4">
+                            <i class="fas fa-thumbtack text-white"></i>
+                        </div>
+                        Manage Pins
+                    </h3>
+
+                    <!-- Add Pin Form -->
+                    <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8">
+                        <h4 class="text-lg font-semibold mb-4">Add New Pin</h4>
+                        <div class="flex items-center space-x-4">
+                            <input id="pin-cid-input" type="text" placeholder="Enter IPFS CID" class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            <input id="pin-name-input" type="text" placeholder="Optional Name" class="w-1/3 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            <button onclick="addPin()" class="btn-primary px-6 py-3 rounded-lg font-semibold flex items-center">
+                                <i class="fas fa-plus mr-2"></i>
+                                <span>Add Pin</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pin List -->
+                    <div>
+                        <h4 class="text-lg font-semibold mb-4">Pinned Items</h4>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white rounded-lg shadow overflow-hidden">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="p-4 text-left text-sm font-semibold text-gray-600">CID</th>
+                                        <th class="p-4 text-left text-sm font-semibold text-gray-600">Name</th>
+                                        <th class="p-4 text-right text-sm font-semibold text-gray-600">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pins-list" class="divide-y divide-gray-200">
+                                    <!-- Pins will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript imports -->
+    <script src="{{ url_for('static', path='/js/ipfs-kit-api.js') }}"></script>
+    <script src="{{ url_for('static', path='/js/dashboard-core.js') }}"></script>
+    <script src="{{ url_for('static', path='/js/data-loader.js') }}"></script>
+    <script src="{{ url_for('static', path='/js/config-manager.js') }}"></script>
+    <script src="{{ url_for('static', path='/js/pins-manager.js') }}"></script>
+    <script src="{{ url_for('static', path='/js/bucket-manager.js') }}"></script>
+</body>
+</html>

@@ -20,7 +20,10 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # Constants
@@ -28,50 +31,55 @@ IPFS_KIT_PATH = Path("./ipfs_kit_py")
 STORAGE_MODELS_PATH = IPFS_KIT_PATH / "mcp/models/storage"
 STORAGE_CONTROLLERS_PATH = IPFS_KIT_PATH / "mcp/controllers/storage"
 
-
 class StorageBackendFixer:
     """Fix storage backends in IPFS Kit."""
-
+    
     def __init__(self):
         """Initialize the fixer."""
-        self.backends = ["huggingface", "storacha", "filecoin", "lassie", "s3"]
-
+        self.backends = [
+            "huggingface",
+            "storacha", 
+            "filecoin",
+            "lassie",
+            "s3"
+        ]
+        
         self.models = {}
         self.controllers = {}
         self.issues = {}
         self.fixes = {}
-
+        
     def scan_storage_backends(self):
         """Scan storage backends for issues."""
         logger.info("Scanning storage backends for issues...")
-
+        
         # Scan model files
         logger.info("Scanning model implementations...")
         for backend in self.backends:
             model_path = STORAGE_MODELS_PATH / f"{backend}_model.py"
             model_anyio_path = STORAGE_MODELS_PATH / f"{backend}_model_anyio.py"
-
+            
             self.models[backend] = {
                 "sync": self._scan_file(model_path),
-                "async": self._scan_file(model_anyio_path),
+                "async": self._scan_file(model_anyio_path)
             }
-
+            
         # Scan controller files
         logger.info("Scanning controller implementations...")
         for backend in self.backends:
             controller_path = STORAGE_CONTROLLERS_PATH / f"{backend}_controller.py"
             controller_anyio_path = STORAGE_CONTROLLERS_PATH / f"{backend}_controller_anyio.py"
-
+            
             self.controllers[backend] = {
                 "sync": self._scan_file(controller_path),
-                "async": self._scan_file(controller_anyio_path),
+                "async": self._scan_file(controller_anyio_path)
             }
-
+            
         # Analyze issues
         self._analyze_issues()
-
+        
         return self.issues
-
+    
     def _scan_file(self, file_path: Path) -> Dict[str, Any]:
         """Scan a file for issues."""
         result = {
@@ -79,94 +87,94 @@ class StorageBackendFixer:
             "size": 0,
             "last_modified": None,
             "content": None,
-            "issues": [],
+            "issues": []
         }
-
+        
         if result["exists"]:
             result["size"] = file_path.stat().st_size
             result["last_modified"] = file_path.stat().st_mtime
-
+            
             # Read file content
             with open(file_path, "r") as f:
                 content = f.read()
                 result["content"] = content
-
+                
                 # Check for issues
                 if "NotImplementedError" in content:
                     result["issues"].append("Contains NotImplementedError")
-
+                    
                 if "pass  # TODO" in content:
                     result["issues"].append("Contains incomplete implementations (TODO)")
-
+                    
                 if "simulation = True" in content:
                     result["issues"].append("Uses simulation mode by default")
-
+                    
                 if "raise NotImplementedError" in content:
                     result["issues"].append("Has unimplemented methods")
-
+                    
         return result
-
+    
     def _analyze_issues(self):
         """Analyze issues across backends."""
         for backend in self.backends:
             self.issues[backend] = {
                 "model": {
                     "sync": self.models[backend]["sync"]["issues"],
-                    "async": self.models[backend]["async"]["issues"],
+                    "async": self.models[backend]["async"]["issues"]
                 },
                 "controller": {
                     "sync": self.controllers[backend]["sync"]["issues"],
-                    "async": self.controllers[backend]["async"]["issues"],
-                },
+                    "async": self.controllers[backend]["async"]["issues"]
+                }
             }
-
+    
     def fix_storage_backends(self):
         """Apply fixes to storage backends."""
         logger.info("Applying fixes to storage backends...")
-
+        
         # Fix each backend
         for backend in self.backends:
             logger.info(f"Fixing {backend} backend...")
             self.fixes[backend] = {
                 "model": {
                     "sync": self._fix_model(backend, "sync"),
-                    "async": self._fix_model(backend, "async"),
+                    "async": self._fix_model(backend, "async")
                 },
                 "controller": {
                     "sync": self._fix_controller(backend, "sync"),
-                    "async": self._fix_controller(backend, "async"),
-                },
+                    "async": self._fix_controller(backend, "async")
+                }
             }
-
+            
         # Fix storage manager integration
         self._fix_storage_manager()
-
+        
         return self.fixes
-
+    
     def _fix_model(self, backend: str, mode: str) -> Dict[str, Any]:
         """Fix a specific model implementation."""
         model_key = "sync" if mode == "sync" else "async"
         file_suffix = "" if mode == "sync" else "_anyio"
         model_file = STORAGE_MODELS_PATH / f"{backend}_model{file_suffix}.py"
-
+        
         if not model_file.exists():
             logger.warning(f"{model_file} does not exist, skipping...")
             return {"status": "skipped", "reason": "file does not exist"}
-
+        
         # Read the file
         with open(model_file, "r") as f:
             content = f.read()
-
+        
         # Apply fixes based on backend type
         updated_content = content
-
+        
         # Common fixes for all backends
         if "simulation = True" in updated_content:
             updated_content = updated_content.replace(
                 "simulation = True",
-                "simulation = False  # Changed to use real implementation by default",
+                "simulation = False  # Changed to use real implementation by default"
             )
-
+        
         # Backend-specific fixes
         if backend == "huggingface":
             updated_content = self._fix_huggingface_model(updated_content, mode)
@@ -178,46 +186,49 @@ class StorageBackendFixer:
             updated_content = self._fix_lassie_model(updated_content, mode)
         elif backend == "s3":
             updated_content = self._fix_s3_model(updated_content, mode)
-
+        
         # Write the updated file
         if updated_content != content:
             with open(model_file, "w") as f:
                 f.write(updated_content)
-
+            
             logger.info(f"Fixed {model_file}")
             return {"status": "fixed", "changes": True}
         else:
             logger.info(f"No changes needed for {model_file}")
             return {"status": "unchanged", "changes": False}
-
+    
     def _fix_controller(self, backend: str, mode: str) -> Dict[str, Any]:
         """Fix a specific controller implementation."""
         controller_key = "sync" if mode == "sync" else "async"
         file_suffix = "" if mode == "sync" else "_anyio"
         controller_file = STORAGE_CONTROLLERS_PATH / f"{backend}_controller{file_suffix}.py"
-
+        
         if not controller_file.exists():
             logger.warning(f"{controller_file} does not exist, skipping...")
             return {"status": "skipped", "reason": "file does not exist"}
-
+        
         # Read the file
         with open(controller_file, "r") as f:
             content = f.read()
-
+        
         # Apply fixes based on backend type
         updated_content = content
-
+        
         # Common fixes for all controllers
         if "def status(" in updated_content and "simulation=True" in updated_content:
-            updated_content = updated_content.replace("simulation=True", "simulation=False")
-
+            updated_content = updated_content.replace(
+                "simulation=True",
+                "simulation=False"
+            )
+        
         # Ensure we check if simulation is requested in endpoints
         if "simulation = kwargs.get('simulation', True)" in updated_content:
             updated_content = updated_content.replace(
                 "simulation = kwargs.get('simulation', True)",
-                "simulation = kwargs.get('simulation', False)  # Default to real implementation",
+                "simulation = kwargs.get('simulation', False)  # Default to real implementation"
             )
-
+        
         # Backend-specific controller fixes
         if backend == "huggingface":
             updated_content = self._fix_huggingface_controller(updated_content, mode)
@@ -229,72 +240,72 @@ class StorageBackendFixer:
             updated_content = self._fix_lassie_controller(updated_content, mode)
         elif backend == "s3":
             updated_content = self._fix_s3_controller(updated_content, mode)
-
+        
         # Write the updated file
         if updated_content != content:
             with open(controller_file, "w") as f:
                 f.write(updated_content)
-
+            
             logger.info(f"Fixed {controller_file}")
             return {"status": "fixed", "changes": True}
         else:
             logger.info(f"No changes needed for {controller_file}")
             return {"status": "unchanged", "changes": False}
-
+    
     def _fix_storage_manager(self) -> Dict[str, Any]:
         """Fix storage manager integration."""
         logger.info("Fixing storage manager integration...")
-
+        
         # Files to fix
         files = [
             IPFS_KIT_PATH / "mcp/models/storage_manager.py",
             IPFS_KIT_PATH / "mcp/models/storage_manager_anyio.py",
             IPFS_KIT_PATH / "mcp/controllers/storage_manager_controller.py",
-            IPFS_KIT_PATH / "mcp/controllers/storage_manager_controller_anyio.py",
+            IPFS_KIT_PATH / "mcp/controllers/storage_manager_controller_anyio.py"
         ]
-
+        
         results = {}
-
+        
         for file_path in files:
             if not file_path.exists():
                 logger.warning(f"{file_path} does not exist, skipping...")
                 results[file_path.name] = {"status": "skipped", "reason": "file does not exist"}
                 continue
-
+            
             # Read the file
             with open(file_path, "r") as f:
                 content = f.read()
-
+            
             # Apply fixes
             updated_content = content
-
+            
             # Ensure we initialize all backends by default
             if "def __init__" in updated_content and "self.backends = {}" in updated_content:
                 # Look for initialization pattern
                 init_pattern = "self.backends = {}"
-
+                
                 # Replacement with all backends initialized
                 replacement = """self.backends = {}
         
         # Initialize all available storage backends by default
         self._initialize_backends()"""
-
+                
                 updated_content = updated_content.replace(init_pattern, replacement)
-
+            
             # Make sure the _initialize_backends method correctly instantiates all backends
             if "_initialize_backends" in updated_content:
                 # Find the method
                 if "def _initialize_backends" in updated_content:
                     # Check if we need to add missing backends
                     backends_to_check = ["huggingface", "storacha", "filecoin", "lassie", "s3"]
-
+                    
                     for backend in backends_to_check:
                         if f"'{backend}'" not in updated_content:
                             # Backend is missing, add it
                             if "# Initialize and add all available backends" in updated_content:
                                 initialize_block = "# Initialize and add all available backends"
                                 backends_block_end = "            pass"
-
+                                
                                 # Find existing backends block
                                 start_idx = updated_content.find(initialize_block)
                                 if start_idx != -1:
@@ -316,30 +327,30 @@ class StorageBackendFixer:
                                     end_idx = updated_content.find(backends_block_end, start_idx)
                                     if end_idx != -1:
                                         updated_content = (
-                                            updated_content[:end_idx]
-                                            + backend_init
-                                            + updated_content[end_idx:]
+                                            updated_content[:end_idx] + 
+                                            backend_init + 
+                                            updated_content[end_idx:]
                                         )
-
+            
             # Write the updated file if changes were made
             if updated_content != content:
                 with open(file_path, "w") as f:
                     f.write(updated_content)
-
+                
                 logger.info(f"Fixed {file_path}")
                 results[file_path.name] = {"status": "fixed", "changes": True}
             else:
                 logger.info(f"No changes needed for {file_path}")
                 results[file_path.name] = {"status": "unchanged", "changes": False}
-
+        
         return results
-
+    
     # Backend-specific fix methods
-
+    
     def _fix_huggingface_model(self, content: str, mode: str) -> str:
         """Apply fixes to HuggingFace model."""
         updated_content = content
-
+        
         # Fix missing imports if needed
         if "import huggingface_hub" not in updated_content:
             # Add after other imports
@@ -348,7 +359,7 @@ class StorageBackendFixer:
 import huggingface_hub
 from huggingface_hub import HfApi, HfFolder"""
             updated_content = updated_content.replace(import_marker, import_addition)
-
+        
         # Fix from_ipfs method implementation
         if "def from_ipfs" in updated_content and "NotImplementedError" in updated_content:
             # Look for the problematic implementation
@@ -367,7 +378,7 @@ from huggingface_hub import HfApi, HfFolder"""
         \"\"\"
         # TODO: Implement real HuggingFace integration
         raise NotImplementedError("from_ipfs not implemented for HuggingFaceModel")"""
-
+                
                 # Full implementation
                 implementation = """    def from_ipfs(self, cid: str, repo_id: str, **kwargs) -> Dict[str, Any]:
         \"\"\"
@@ -444,7 +455,7 @@ from huggingface_hub import HfApi, HfFolder"""
             return self._handle_exception(e, result, "from_ipfs")
             
         return self._handle_operation_result(result, "from_ipfs", start_time)"""
-
+                
                 updated_content = updated_content.replace(method_pattern, implementation)
             elif mode == "async":
                 # Similar pattern for async version, adjust as needed
@@ -462,7 +473,7 @@ from huggingface_hub import HfApi, HfFolder"""
         \"\"\"
         # TODO: Implement real HuggingFace integration
         raise NotImplementedError("from_ipfs not implemented for HuggingFaceModelAnyIO")"""
-
+                
                 # Full async implementation
                 async_implementation = """    async def from_ipfs(self, cid: str, repo_id: str, **kwargs) -> Dict[str, Any]:
         \"\"\"
@@ -544,67 +555,65 @@ from huggingface_hub import HfApi, HfFolder"""
             return await self._handle_exception_async(e, result, "from_ipfs")
             
         return await self._handle_operation_result_async(result, "from_ipfs", start_time)"""
-
-                updated_content = updated_content.replace(
-                    async_method_pattern, async_implementation
-                )
-
+                
+                updated_content = updated_content.replace(async_method_pattern, async_implementation)
+        
         # Similar fixes for to_ipfs method
         # ... (not showing all implementations for brevity)
-
+        
         return updated_content
-
+    
     def _fix_storacha_model(self, content: str, mode: str) -> str:
         """Apply fixes to Storacha model."""
         # Similar pattern to huggingface fixes
         return content
-
+    
     def _fix_filecoin_model(self, content: str, mode: str) -> str:
         """Apply fixes to Filecoin model."""
         # Similar pattern to huggingface fixes
         return content
-
+    
     def _fix_lassie_model(self, content: str, mode: str) -> str:
         """Apply fixes to Lassie model."""
         # Similar pattern to huggingface fixes
         return content
-
+    
     def _fix_s3_model(self, content: str, mode: str) -> str:
         """Apply fixes to S3 model."""
         # Similar pattern to huggingface fixes
         return content
-
+    
     def _fix_huggingface_controller(self, content: str, mode: str) -> str:
         """Apply fixes to HuggingFace controller."""
         # Controller-specific fixes
         return content
-
+    
     def _fix_storacha_controller(self, content: str, mode: str) -> str:
         """Apply fixes to Storacha controller."""
         # Controller-specific fixes
         return content
-
+    
     def _fix_filecoin_controller(self, content: str, mode: str) -> str:
         """Apply fixes to Filecoin controller."""
         # Controller-specific fixes
         return content
-
+    
     def _fix_lassie_controller(self, content: str, mode: str) -> str:
         """Apply fixes to Lassie controller."""
         # Controller-specific fixes
         return content
-
+    
     def _fix_s3_controller(self, content: str, mode: str) -> str:
         """Apply fixes to S3 controller."""
         # Controller-specific fixes
         return content
-
+    
     def create_fixed_mcp_server(self):
         """Create a fixed MCP server that uses real storage backends."""
         logger.info("Creating fixed MCP server...")
-
+        
         server_file = IPFS_KIT_PATH / "run_mcp_server_real_storage.py"
-
+        
         # Create server file
         server_code = """#!/usr/bin/env python3
 \"\"\"
@@ -851,24 +860,24 @@ if __name__ == "__main__":
         log_level="info"
     )
 """
-
+        
         # Write server file
         with open(server_file, "w") as f:
             f.write(server_code)
-
+        
         # Make executable
         os.chmod(server_file, 0o755)
-
+        
         logger.info(f"Created fixed MCP server: {server_file}")
-
+        
         return server_file
-
+    
     def create_test_script(self):
         """Create a test script for comprehensive testing of storage backends."""
         logger.info("Creating comprehensive test script...")
-
+        
         test_file = IPFS_KIT_PATH / "test_storage_backends_comprehensive.py"
-
+        
         # Create test script
         test_code = """#!/usr/bin/env python3
 \"\"\"
@@ -1404,43 +1413,42 @@ if __name__ == "__main__":
     tester = StorageBackendTester(mcp_url=args.url, api_prefix=args.prefix)
     tester.run_test(size_kb=args.size)
 """
-
+        
         # Write test script
         with open(test_file, "w") as f:
             f.write(test_code)
-
+        
         # Make executable
         os.chmod(test_file, 0o755)
-
+        
         logger.info(f"Created comprehensive test script: {test_file}")
-
+        
         return test_file
-
 
 def main():
     """Main function to run storage backend fixer."""
     logging.info("Starting storage backend fixer...")
-
+    
     fixer = StorageBackendFixer()
-
+    
     # Step 1: Scan backends for issues
     issues = fixer.scan_storage_backends()
     logging.info(f"Found issues: {json.dumps(issues, indent=2)}")
-
+    
     # Step 2: Apply fixes
     fixes = fixer.fix_storage_backends()
     logging.info(f"Applied fixes: {json.dumps(fixes, indent=2)}")
-
+    
     # Step 3: Create fixed MCP server
     server_file = fixer.create_fixed_mcp_server()
     logging.info(f"Created MCP server: {server_file}")
-
+    
     # Step 4: Create test script
     test_file = fixer.create_test_script()
     logging.info(f"Created test script: {test_file}")
-
+    
     logging.info("Storage backend fixes completed!")
-
+    
     # Print next steps
     print("\n=== STORAGE BACKEND FIXES COMPLETED ===\n")
     print("Next steps:")
@@ -1448,7 +1456,6 @@ def main():
     print(f"2. Test the fixed storage backends: python {test_file}")
     print("\nNote: Some backends may require additional setup (credentials, etc.)")
     print("      See documentation for each backend for setup instructions.")
-
 
 if __name__ == "__main__":
     main()

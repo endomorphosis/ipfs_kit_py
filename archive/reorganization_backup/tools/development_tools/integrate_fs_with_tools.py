@@ -14,31 +14,27 @@ import importlib.util
 from typing import Dict, List, Any, Optional, Union
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
 
 def import_module_from_file(file_path, module_name=None):
     """Import a module from a file path"""
     if not os.path.exists(file_path):
         raise ImportError(f"File not found: {file_path}")
-
+        
     if module_name is None:
-        module_name = os.path.basename(file_path).split(".")[0]
-
+        module_name = os.path.basename(file_path).split('.')[0]
+    
     spec = importlib.util.spec_from_file_location(module_name, file_path)
     if spec is None:
         raise ImportError(f"Could not load spec for {file_path}")
-
+    
     if spec.loader is None:
         raise ImportError(f"Could not get loader for {file_path}")
-
+    
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
-
 
 def load_fs_integration():
     """Load the filesystem integration module"""
@@ -50,7 +46,6 @@ def load_fs_integration():
         logger.error(f"Failed to import FS integration module: {e}")
         return None
 
-
 def load_fs_journal_tools():
     """Load the filesystem journal tools module"""
     try:
@@ -60,7 +55,6 @@ def load_fs_journal_tools():
     except ImportError as e:
         logger.error(f"Failed to import FS journal tools module: {e}")
         return None
-
 
 def load_enhanced_tools():
     """Load the enhanced tools implementation module"""
@@ -72,13 +66,12 @@ def load_enhanced_tools():
         logger.error(f"Failed to import enhanced tools implementation module: {e}")
         return None
 
-
 def register_fs_handlers_with_tools(fs_integration, fs_journal, enhanced_tools):
     """Register filesystem event handlers with the enhanced tools"""
     if not all([fs_integration, fs_journal, enhanced_tools]):
         logger.error("Cannot register handlers: missing required modules")
         return False
-
+    
     try:
         # Create a mapping between filesystem operations and IPFS operations
         fs_to_ipfs_mapping = {
@@ -87,57 +80,53 @@ def register_fs_handlers_with_tools(fs_integration, fs_journal, enhanced_tools):
                 "ipfs_handler": "ipfs_files_write",
                 "transform": lambda path, content: {
                     "path": f"/ipfs_mfs{path}" if not path.startswith("/ipfs_mfs") else path,
-                    "content": content,
-                },
+                    "content": content
+                }
             },
             # When a file is read from the virtual filesystem
             "read": {
                 "ipfs_handler": "ipfs_files_read",
                 "transform": lambda path: {
                     "path": f"/ipfs_mfs{path}" if not path.startswith("/ipfs_mfs") else path
-                },
+                }
             },
             # When a directory is created in the virtual filesystem
             "mkdir": {
                 "ipfs_handler": "ipfs_files_mkdir",
                 "transform": lambda path: {
                     "path": f"/ipfs_mfs{path}" if not path.startswith("/ipfs_mfs") else path,
-                    "parents": True,
-                },
+                    "parents": True
+                }
             },
             # When a file or directory is removed from the virtual filesystem
             "remove": {
                 "ipfs_handler": "ipfs_files_rm",
                 "transform": lambda path, recursive=False: {
                     "path": f"/ipfs_mfs{path}" if not path.startswith("/ipfs_mfs") else path,
-                    "recursive": recursive,
-                },
+                    "recursive": recursive
+                }
             },
             # When a file or directory is copied in the virtual filesystem
             "copy": {
                 "ipfs_handler": "ipfs_files_cp",
                 "transform": lambda source, dest: {
-                    "source": f"/ipfs_mfs{source}"
-                    if not source.startswith("/ipfs_mfs")
-                    else source,
-                    "dest": f"/ipfs_mfs{dest}" if not dest.startswith("/ipfs_mfs") else dest,
-                },
+                    "source": f"/ipfs_mfs{source}" if not source.startswith("/ipfs_mfs") else source,
+                    "dest": f"/ipfs_mfs{dest}" if not dest.startswith("/ipfs_mfs") else dest
+                }
             },
             # When a file or directory is moved in the virtual filesystem
             "move": {
                 "ipfs_handler": "ipfs_files_mv",
                 "transform": lambda source, dest: {
-                    "source": f"/ipfs_mfs{source}"
-                    if not source.startswith("/ipfs_mfs")
-                    else source,
-                    "dest": f"/ipfs_mfs{dest}" if not dest.startswith("/ipfs_mfs") else dest,
-                },
-            },
+                    "source": f"/ipfs_mfs{source}" if not source.startswith("/ipfs_mfs") else source,
+                    "dest": f"/ipfs_mfs{dest}" if not dest.startswith("/ipfs_mfs") else dest
+                }
+            }
         }
-
+        
         # Register the handlers with the filesystem journal
-        if hasattr(fs_journal, "FSJournal") and hasattr(fs_journal, "FSOperationType"):
-            journal = getattr(fs_integration, "_fs_journal", None)
+        if hasattr(fs_journal, 'FSJournal') and hasattr(fs_journal, 'FSOperationType'):
+            journal = getattr(fs_integration, '_fs_journal', None)
             if journal:
                 for op_type, handler_info in fs_to_ipfs_mapping.items():
                     op_enum = None
@@ -145,10 +134,10 @@ def register_fs_handlers_with_tools(fs_integration, fs_journal, enhanced_tools):
                         if enum_val.name.lower() == op_type.lower():
                             op_enum = enum_val
                             break
-
+                    
                     if op_enum:
                         logger.info(f"Registering handler for {op_type} operations")
-                        # This is a simplified version - in a real implementation,
+                        # This is a simplified version - in a real implementation, 
                         # we would need to properly handle the async nature of these operations
                         # and ensure proper error handling and retries
                     else:
@@ -159,30 +148,27 @@ def register_fs_handlers_with_tools(fs_integration, fs_journal, enhanced_tools):
         else:
             logger.error("Required classes not found in fs_journal module")
             return False
-
+        
         logger.info("✅ Successfully registered filesystem handlers with IPFS tools")
         return True
-
+    
     except Exception as e:
         logger.error(f"Error registering filesystem handlers: {e}")
         return False
-
 
 def setup_multi_backend_integration():
     """Set up integration with multiple storage backends"""
     try:
         # Import the multi-backend integration module
-        multi_backend = import_module_from_file(
-            "multi_backend_fs_integration.py", "multi_backend_fs"
-        )
+        multi_backend = import_module_from_file("multi_backend_fs_integration.py", "multi_backend_fs")
         logger.info("Successfully imported multi-backend FS integration module")
-
+        
         # Initialize the multi-backend system
-        if hasattr(multi_backend, "init_multi_backend"):
+        if hasattr(multi_backend, 'init_multi_backend'):
             result = multi_backend.init_multi_backend()
-            if result.get("success", False):
+            if result.get('success', False):
                 logger.info("✅ Successfully initialized multi-backend filesystem")
-
+                
                 # Register default backends
                 backends = [
                     {"type": "ipfs", "name": "ipfs_default", "mount_point": "/ipfs"},
@@ -190,45 +176,38 @@ def setup_multi_backend_integration():
                     {"type": "s3", "name": "s3_default", "mount_point": "/s3"},
                     {"type": "storacha", "name": "storacha_default", "mount_point": "/storacha"},
                     {"type": "huggingface", "name": "hf_default", "mount_point": "/hf"},
-                    {"type": "ipfs_cluster", "name": "cluster_default", "mount_point": "/cluster"},
+                    {"type": "ipfs_cluster", "name": "cluster_default", "mount_point": "/cluster"}
                 ]
-
+                
                 for backend in backends:
-                    if hasattr(multi_backend, "register_backend"):
+                    if hasattr(multi_backend, 'register_backend'):
                         try:
                             result = multi_backend.register_backend(
                                 backend_type=backend["type"],
                                 name=backend["name"],
-                                mount_point=backend["mount_point"],
+                                mount_point=backend["mount_point"]
                             )
-                            if result.get("success", False):
-                                logger.info(
-                                    f"✅ Registered {backend['type']} backend at {backend['mount_point']}"
-                                )
+                            if result.get('success', False):
+                                logger.info(f"✅ Registered {backend['type']} backend at {backend['mount_point']}")
                             else:
-                                logger.warning(
-                                    f"Failed to register {backend['type']} backend: {result.get('error', 'Unknown error')}"
-                                )
+                                logger.warning(f"Failed to register {backend['type']} backend: {result.get('error', 'Unknown error')}")
                         except Exception as e:
                             logger.warning(f"Error registering {backend['type']} backend: {e}")
-
+                
                 return True
             else:
-                logger.error(
-                    f"Failed to initialize multi-backend filesystem: {result.get('error', 'Unknown error')}"
-                )
+                logger.error(f"Failed to initialize multi-backend filesystem: {result.get('error', 'Unknown error')}")
                 return False
         else:
             logger.error("init_multi_backend function not found in multi_backend module")
             return False
-
+    
     except ImportError as e:
         logger.warning(f"Multi-backend integration not available: {e}")
         return False
     except Exception as e:
         logger.error(f"Error setting up multi-backend integration: {e}")
         return False
-
 
 def register_tools_with_mcp():
     """Register the enhanced tools with the MCP server"""
@@ -237,20 +216,18 @@ def register_tools_with_mcp():
         if os.path.exists("direct_mcp_server.py"):
             direct_mcp = import_module_from_file("direct_mcp_server.py")
             logger.info("Successfully imported direct MCP server module")
-
+            
             # Check if the register_tools function exists
-            if hasattr(direct_mcp, "register_tools"):
+            if hasattr(direct_mcp, 'register_tools'):
                 # Import the tools registry
                 tools_registry = import_module_from_file("ipfs_tools_registry.py")
-                if hasattr(tools_registry, "get_ipfs_tools"):
+                if hasattr(tools_registry, 'get_ipfs_tools'):
                     tools = tools_registry.get_ipfs_tools()
-
+                    
                     # Register the tools with the MCP server
                     result = direct_mcp.register_tools(tools)
                     if result:
-                        logger.info(
-                            f"✅ Successfully registered {len(tools)} tools with the MCP server"
-                        )
+                        logger.info(f"✅ Successfully registered {len(tools)} tools with the MCP server")
                         return True
                     else:
                         logger.error("Failed to register tools with the MCP server")
@@ -264,18 +241,17 @@ def register_tools_with_mcp():
         else:
             logger.warning("direct_mcp_server.py not found, skipping MCP tool registration")
             return False
-
+    
     except Exception as e:
         logger.error(f"Error registering tools with MCP server: {e}")
         return False
 
-
 def create_restart_script():
     """Create a script to restart the MCP server with the new tools"""
     script_path = "restart_mcp_with_tools.sh"
-
+    
     try:
-        with open(script_path, "w") as f:
+        with open(script_path, 'w') as f:
             f.write("""#!/bin/bash
 # Restart MCP server with enhanced tools and filesystem integration
 
@@ -293,24 +269,23 @@ sleep 3
 echo "✅ MCP server is now running with enhanced tools and filesystem integration"
 echo "You can use the new tools through the JSON-RPC interface"
 """)
-
+        
         # Make the script executable
         os.chmod(script_path, 0o755)
-
+        
         logger.info(f"✅ Created restart script at {script_path}")
         return True
-
+    
     except Exception as e:
         logger.error(f"Error creating restart script: {e}")
         return False
 
-
 def create_verification_script():
     """Create a script to verify the integration is working correctly"""
     script_path = "verify_fs_tool_integration.py"
-
+    
     try:
-        with open(script_path, "w") as f:
+        with open(script_path, 'w') as f:
             f.write("""#!/usr/bin/env python3
 \"\"\"
 Verify FS Tool Integration
@@ -600,53 +575,48 @@ def main():
 if __name__ == "__main__":
     sys.exit(main())
 """)
-
+        
         logger.info(f"✅ Created verification script at {script_path}")
         return True
-
+    
     except Exception as e:
         logger.error(f"Error creating verification script: {e}")
         return False
 
-
 def main():
     """Main function to integrate FS with tools"""
     logger.info("Starting FS integration with tools...")
-
+    
     # Load required modules
     fs_integration = load_fs_integration()
     fs_journal = load_fs_journal_tools()
     enhanced_tools = load_enhanced_tools()
-
+    
     # Register filesystem handlers with tools
-    handlers_registered = register_fs_handlers_with_tools(
-        fs_integration, fs_journal, enhanced_tools
-    )
-
+    handlers_registered = register_fs_handlers_with_tools(fs_integration, fs_journal, enhanced_tools)
+    
     # Set up multi-backend integration
     multi_backend_setup = setup_multi_backend_integration()
-
+    
     # Register tools with MCP server
     tools_registered = register_tools_with_mcp()
-
+    
     # Create restart script
     restart_script_created = create_restart_script()
-
+    
     # Create verification script
     verification_script_created = create_verification_script()
-
+    
     # Check overall success
-    success = all(
-        [
-            fs_integration is not None,
-            fs_journal is not None,
-            enhanced_tools is not None,
-            handlers_registered,
-            restart_script_created,
-            verification_script_created,
-        ]
-    )
-
+    success = all([
+        fs_integration is not None,
+        fs_journal is not None,
+        enhanced_tools is not None,
+        handlers_registered,
+        restart_script_created,
+        verification_script_created
+    ])
+    
     if success:
         logger.info("\n✅ FS integration with tools completed successfully")
         logger.info("To use the integrated system:")
@@ -657,7 +627,6 @@ def main():
         logger.error("\n❌ FS integration with tools failed")
         logger.error("Please check the logs for details")
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

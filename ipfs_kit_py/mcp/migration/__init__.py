@@ -11,13 +11,13 @@ from .migration_controller import (
     MigrationPolicy,
     MigrationTask,
     MigrationStatus,
-    MigrationPriority,
+    MigrationPriority
 )
 
 __all__ = [
-    "MigrationController",
-    "MigrationPolicy",
-    "MigrationTask",
-    "MigrationStatus",
-    "MigrationPriority",
+    'MigrationController',
+    'MigrationPolicy',
+    'MigrationTask',
+    'MigrationStatus',
+    'MigrationPriority'
 ]

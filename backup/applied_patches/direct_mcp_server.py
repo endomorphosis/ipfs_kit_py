@@ -25,17 +25,13 @@ from typing import Dict, List, Any, Optional, Union
 # --- Early Setup: Logging and Path ---
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("direct-mcp")
 
 # Add a file handler for more persistent logging
 try:
-    file_handler = logging.FileHandler("direct_mcp_server.log")
-    file_handler.setFormatter(
-        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    )
+    file_handler = logging.FileHandler('direct_mcp_server.log')
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
     logger.addHandler(file_handler)
     logger.info("File logging initialized to direct_mcp_server.log")
 except Exception as e:
@@ -54,7 +50,7 @@ if os.path.isdir(sdk_path):
         logger.info(f"SDK path already in sys.path: {sdk_path}")
         sdk_added_to_path = True
 else:
-    logger.warning(f"MCP SDK path not found: {sdk_path}. MCP features might fail.")
+     logger.warning(f"MCP SDK path not found: {sdk_path}. MCP features might fail.")
 
 # --- Import Modules (AFTER adding SDK path) ---
 imports_succeeded = False
@@ -67,7 +63,6 @@ try:
     from starlette.middleware.cors import CORSMiddleware
     from starlette.requests import Request
     from mcp import types as mcp_types
-
     imports_succeeded = True
     logger.info("Successfully imported MCP and Starlette modules.")
 except ImportError as e:
@@ -82,7 +77,7 @@ DEPLOYMENT_CONFIG = {
     "active_version_file": "direct_mcp_server_active.txt",
     "blue_port": 8000,
     "green_port": 8001,
-    "test_suite": [],  # Removed non-existent test files
+    "test_suite": [], # Removed non-existent test files
     "max_deployment_time": 300,  # 5 minutes max for deployment process
     "health_check_interval": 5,  # Check health every 5 seconds during rollout
 }
@@ -113,9 +108,7 @@ except Exception as e:
     logger.warning(f"Error reading/writing active version file: {e}. Defaulting to BLUE.")
 
 # Write PID file for this instance
-current_pid_file = (
-    DEPLOYMENT_CONFIG["blue_pid_file"] if is_blue else DEPLOYMENT_CONFIG["green_pid_file"]
-)
+current_pid_file = DEPLOYMENT_CONFIG["blue_pid_file"] if is_blue else DEPLOYMENT_CONFIG["green_pid_file"]
 try:
     with open(current_pid_file, "w") as f:
         f.write(str(os.getpid()))
@@ -126,14 +119,13 @@ except Exception as e:
 # Create FastMCP server
 server = FastMCP(
     name=f"direct-mcp-server-{server_color}",
-    instructions="Server with blue/green deployment and live patching capabilities",
+    instructions="Server with blue/green deployment and live patching capabilities"
 )
 
 # Server initialization state
 server_initialized = False
 initialization_lock = anyio.Lock()
 initialization_event = anyio.Event()
-
 
 # --- Utility Functions ---
 def _cleanup_temp_files(*paths):
@@ -146,7 +138,6 @@ def _cleanup_temp_files(*paths):
             except OSError as e:
                 logger.error(f"Error removing temporary file {path}: {e}")
 
-
 async def delayed_shutdown(pid: int, delay: float):
     """Waits for a delay then sends SIGTERM."""
     await anyio.sleep(delay)
@@ -158,12 +149,9 @@ async def delayed_shutdown(pid: int, delay: float):
     except Exception as e:
         logger.error(f"Error sending SIGTERM to process {pid}: {e}")
 
-
 def get_other_instance_pid():
     """Get the PID of the other instance (blue if we're green, green if we're blue)."""
-    other_pid_file = (
-        DEPLOYMENT_CONFIG["green_pid_file"] if is_blue else DEPLOYMENT_CONFIG["blue_pid_file"]
-    )
+    other_pid_file = DEPLOYMENT_CONFIG["green_pid_file"] if is_blue else DEPLOYMENT_CONFIG["blue_pid_file"]
     try:
         if os.path.exists(other_pid_file):
             with open(other_pid_file, "r") as f:
@@ -171,7 +159,6 @@ def get_other_instance_pid():
     except Exception as e:
         logger.error(f"Error reading other instance PID file: {e}")
     return None
-
 
 def is_process_running(pid):
     """Check if a process with the given PID is running."""
@@ -183,7 +170,6 @@ def is_process_running(pid):
     except Exception:
         return False
 
-
 def run_syntax_check(file_path):
     """Run syntax check on the given Python file."""
     try:
@@ -194,7 +180,6 @@ def run_syntax_check(file_path):
     except Exception as e:
         return False, str(e)
 
-
 def run_pytest(test_paths=None):
     """Run pytest on specific test paths or all tests."""
     try:
@@ -202,11 +187,16 @@ def run_pytest(test_paths=None):
         if test_paths:
             cmd.extend(test_paths)
 
-        result = subprocess.run(cmd, cwd=os.getcwd(), capture_output=True, text=True, timeout=120)
+        result = subprocess.run(
+            cmd,
+            cwd=os.getcwd(),
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
         return result.returncode == 0, f"Output:\n{result.stdout}\n{result.stderr}"
     except Exception as e:
         return False, str(e)
-
 
 async def start_other_instance(port):
     """Start the other instance of the server."""
@@ -216,20 +206,23 @@ async def start_other_instance(port):
     env["PORT"] = str(port)
 
     try:
-        process = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(
+            cmd,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
         logger.info(f"Started other instance with PID {process.pid} on port {port}")
         return process.pid
     except Exception as e:
         logger.error(f"Failed to start other instance: {e}")
         return None
 
-
 async def perform_health_check(port):
     """Check if the server on the given port is healthy."""
     url = f"http://localhost:{port}/"
     try:
         import aiohttp
-
         async with aiohttp.ClientSession() as session:
             async with session.get(url, timeout=5) as response:
                 if response.status == 200:
@@ -238,7 +231,6 @@ async def perform_health_check(port):
                     return False, f"HTTP {response.status}"
     except Exception as e:
         return False, str(e)
-
 
 async def switch_active_version(new_color):
     """Switch the active version to the given color."""
@@ -250,7 +242,6 @@ async def switch_active_version(new_color):
     except Exception as e:
         logger.error(f"Failed to switch active version: {e}")
         return False
-
 
 async def perform_blue_green_deployment(modified_file=None):
     """
@@ -271,7 +262,7 @@ async def perform_blue_green_deployment(modified_file=None):
     deployment_status = {
         "status": "starting",
         "details": f"Starting deployment of {modified_file if modified_file else 'server'}",
-        "start_time": time.time(),
+        "start_time": time.time()
     }
 
     # Determine the target color and port
@@ -289,7 +280,7 @@ async def perform_blue_green_deployment(modified_file=None):
                 deployment_status = {
                     "status": "failed",
                     "details": f"Syntax check failed: {syntax_output}",
-                    "start_time": deployment_status["start_time"],
+                    "start_time": deployment_status["start_time"]
                 }
                 logger.error(f"Syntax check failed for {modified_file}: {syntax_output}")
                 deployment_in_progress = False
@@ -302,7 +293,7 @@ async def perform_blue_green_deployment(modified_file=None):
                     deployment_status = {
                         "status": "failed",
                         "details": f"Tests failed: {pytest_output[:500]}...",
-                        "start_time": deployment_status["start_time"],
+                        "start_time": deployment_status["start_time"]
                     }
                     logger.error(f"Tests failed for {modified_file}")
                     deployment_in_progress = False
@@ -315,7 +306,7 @@ async def perform_blue_green_deployment(modified_file=None):
             deployment_status = {
                 "status": "failed",
                 "details": "Failed to start new instance",
-                "start_time": deployment_status["start_time"],
+                "start_time": deployment_status["start_time"]
             }
             deployment_in_progress = False
             return {"success": False, "message": "Failed to start new instance"}
@@ -324,7 +315,7 @@ async def perform_blue_green_deployment(modified_file=None):
         deployment_status["status"] = "health_checks"
         max_attempts = 10
         for i in range(max_attempts):
-            logger.info(f"Performing health check {i + 1}/{max_attempts} on port {target_port}")
+            logger.info(f"Performing health check {i+1}/{max_attempts} on port {target_port}")
             health_ok, health_output = await perform_health_check(target_port)
             if health_ok:
                 break
@@ -332,7 +323,7 @@ async def perform_blue_green_deployment(modified_file=None):
                 deployment_status = {
                     "status": "failed",
                     "details": f"Health checks failed: {health_output}",
-                    "start_time": deployment_status["start_time"],
+                    "start_time": deployment_status["start_time"]
                 }
                 deployment_in_progress = False
                 return {"success": False, "message": f"Health checks failed: {health_output}"}
@@ -345,7 +336,7 @@ async def perform_blue_green_deployment(modified_file=None):
             deployment_status = {
                 "status": "failed",
                 "details": "Failed to switch active version",
-                "start_time": deployment_status["start_time"],
+                "start_time": deployment_status["start_time"]
             }
             deployment_in_progress = False
             return {"success": False, "message": "Failed to switch active version"}
@@ -359,12 +350,12 @@ async def perform_blue_green_deployment(modified_file=None):
             "status": "succeeded",
             "details": f"Deployment completed successfully. Switched from {server_color} to {target_color}.",
             "start_time": deployment_status["start_time"],
-            "end_time": time.time(),
+            "end_time": time.time()
         }
 
         return {
             "success": True,
-            "message": f"Deployment completed successfully. Switched from {server_color} to {target_color}.",
+            "message": f"Deployment completed successfully. Switched from {server_color} to {target_color}."
         }
 
     except Exception as e:
@@ -372,15 +363,13 @@ async def perform_blue_green_deployment(modified_file=None):
         deployment_status = {
             "status": "failed",
             "details": f"Deployment error: {str(e)}",
-            "start_time": deployment_status["start_time"],
+            "start_time": deployment_status["start_time"]
         }
         deployment_in_progress = False
         return {"success": False, "message": f"Deployment error: {str(e)}"}
 
-
 # --- MCP Tools (Define only if imports succeeded) ---
 if imports_succeeded:
-
     @server.tool(name="list_files", description="List files in a directory")
     async def list_files(ctx: Context, path: str = ".") -> str:
         """List files in the specified directory."""
@@ -402,9 +391,7 @@ if imports_succeeded:
             await ctx.error(error_msg)
             return f"Error: {error_msg}"
 
-    @server.tool(
-        name="deployment_status", description="Get the status of the current blue/green deployment"
-    )
+    @server.tool(name="deployment_status", description="Get the status of the current blue/green deployment")
     async def get_deployment_status(ctx: Context) -> str:
         """Get the status of the current deployment."""
         global deployment_status
@@ -515,17 +502,17 @@ if imports_succeeded:
                     try:
                         # Use the test_suite from DEPLOYMENT_CONFIG
                         test_files_to_run = DEPLOYMENT_CONFIG.get("test_suite")
-                        if not test_files_to_run:  # If list is empty or None
-                            logger.info("No specific test suite defined in config, assuming pass.")
-                            pytest_passed = True  # Assume pass if no tests specified
-                            pytest_output = "No specific tests configured to run."
+                        if not test_files_to_run: # If list is empty or None
+                             logger.info("No specific test suite defined in config, assuming pass.")
+                             pytest_passed = True # Assume pass if no tests specified
+                             pytest_output = "No specific tests configured to run."
                         else:
                             result = subprocess.run(
-                                [pytest_path] + test_files_to_run,  # Pass specific tests
+                                [pytest_path] + test_files_to_run, # Pass specific tests
                                 cwd=project_root,
                                 capture_output=True,
                                 text=True,
-                                timeout=120,
+                                timeout=120
                             )
                             pytest_output = f"Output:\n{result.stdout}\n{result.stderr}"
 
@@ -536,9 +523,7 @@ if imports_succeeded:
                             else:
                                 error_msg = f"Pytest check failed for '{path}' (exit code {result.returncode})."
                                 logger.warning(error_msg)
-                                await ctx.warning(
-                                    f"Pytest check failed for '{path}'. Changes NOT saved. See server logs for details."
-                                )
+                                await ctx.warning(f"Pytest check failed for '{path}'. Changes NOT saved. See server logs for details.")
                                 pytest_passed = False
                     except subprocess.TimeoutExpired:
                         error_msg = f"Pytest timed out for '{path}'"
@@ -558,9 +543,7 @@ if imports_succeeded:
                     _cleanup_temp_files(temp_file_for_test)
                     # Restore original from backup if it exists
                     if original_exists and os.path.exists(backup_path):
-                        logger.debug(
-                            f"Restoring original {absolute_path} from {backup_path} after test run."
-                        )
+                        logger.debug(f"Restoring original {absolute_path} from {backup_path} after test run.")
                         shutil.move(backup_path, absolute_path)
                     # Clean up backup file if it still exists
                     _cleanup_temp_files(backup_path)
@@ -577,9 +560,7 @@ if imports_succeeded:
                 # Move the validated temp file to the final destination
                 logger.info(f"Checks passed. Saving changes to {absolute_path}")
                 shutil.move(temp_path, absolute_path)
-                success_msg = (
-                    f"Successfully edited, checked (pytest passed), and saved file: {path}"
-                )
+                success_msg = f"Successfully edited, checked (pytest passed), and saved file: {path}"
                 logger.info(success_msg)
                 await ctx.info(success_msg)
 
@@ -597,9 +578,7 @@ if imports_succeeded:
                     server_files = ["direct_mcp_server.py", "enhanced_mcp_server.py"]
                     if any(server_file in absolute_path for server_file in server_files):
                         pid = os.getpid()
-                        logger.warning(
-                            f"Tests passed for '{path}' (server file). Triggering server restart (PID: {pid})..."
-                        )
+                        logger.warning(f"Tests passed for '{path}' (server file). Triggering server restart (PID: {pid})...")
                         await ctx.info("Server file updated. Triggering server restart...")
                         anyio.lowlevel.spawn_system_task(delayed_shutdown, pid, 1)
                         return success_msg + " Server restarting."
@@ -631,25 +610,13 @@ if imports_succeeded:
             _cleanup_temp_files(temp_path, backup_path)
             return f"Error: {error_msg}"
 
-    @server.tool(
-        name="patch_file",
-        description="Replaces a slice of lines in a file with blue/green deployment analysis.",
-    )
-    async def patch_file(
-        ctx: Context,
-        path: str,
-        start_line: int,
-        line_count_to_replace: int,
-        new_lines_content: str,
-        deploy: bool = False,
-    ) -> str:
+    @server.tool(name="patch_file", description="Replaces a slice of lines in a file with blue/green deployment analysis.")
+    async def patch_file(ctx: Context, path: str, start_line: int, line_count_to_replace: int, new_lines_content: str, deploy: bool = False) -> str:
         """
         Replaces a specific range of lines in a file with blue/green deployment analysis.
         If deploy=True, initiates a blue/green deployment process after successful validation.
         """
-        logger.info(
-            f"Received request to patch file: {path} from line {start_line} for {line_count_to_replace} lines with deploy={deploy}"
-        )
+        logger.info(f"Received request to patch file: {path} from line {start_line} for {line_count_to_replace} lines with deploy={deploy}")
         await ctx.info(f"Attempting to patch file: {path}")
 
         project_root = os.getcwd()
@@ -705,17 +672,13 @@ if imports_succeeded:
             end_index = min(end_index, len(original_lines))
 
             # Construct new content - Fix: Properly handle newlines with actual newline characters
-            new_lines_list = new_lines_content.splitlines(
-                True
-            )  # Keep line endings with splitlines(True)
-            if new_lines_list and not new_lines_list[-1].endswith("\n"):
+            new_lines_list = new_lines_content.splitlines(True)  # Keep line endings with splitlines(True)
+            if new_lines_list and not new_lines_list[-1].endswith('\n'):
                 # Ensure the last line has a newline if the original content did
-                if original_lines and original_lines[-1].endswith("\n"):
-                    new_lines_list[-1] = new_lines_list[-1] + "\n"
+                if original_lines and original_lines[-1].endswith('\n'):
+                    new_lines_list[-1] = new_lines_list[-1] + '\n'
 
-            patched_lines = (
-                original_lines[:start_index] + new_lines_list + original_lines[end_index:]
-            )
+            patched_lines = original_lines[:start_index] + new_lines_list + original_lines[end_index:]
             patched_content = "".join(patched_lines)
 
             # 1. Write patched content to temporary file
@@ -770,17 +733,17 @@ if imports_succeeded:
                     try:
                         # Use the test_suite from DEPLOYMENT_CONFIG
                         test_files_to_run = DEPLOYMENT_CONFIG.get("test_suite")
-                        if not test_files_to_run:  # If list is empty or None
-                            logger.info("No specific test suite defined in config, assuming pass.")
-                            pytest_passed = True  # Assume pass if no tests specified
-                            pytest_output = "No specific tests configured to run."
+                        if not test_files_to_run: # If list is empty or None
+                             logger.info("No specific test suite defined in config, assuming pass.")
+                             pytest_passed = True # Assume pass if no tests specified
+                             pytest_output = "No specific tests configured to run."
                         else:
                             result = subprocess.run(
-                                [pytest_path] + test_files_to_run,  # Pass specific tests
+                                [pytest_path] + test_files_to_run, # Pass specific tests
                                 cwd=project_root,
                                 capture_output=True,
                                 text=True,
-                                timeout=120,
+                                timeout=120
                             )
                             pytest_output = f"Output:\n{result.stdout}\n{result.stderr}"
 
@@ -791,9 +754,7 @@ if imports_succeeded:
                             else:
                                 error_msg = f"Pytest check failed for patched '{path}' (exit code {result.returncode})."
                                 logger.warning(error_msg)
-                                await ctx.warning(
-                                    f"Pytest check failed for '{path}'. Changes NOT saved."
-                                )
+                                await ctx.warning(f"Pytest check failed for '{path}'. Changes NOT saved.")
                                 pytest_passed = False
                     except subprocess.TimeoutExpired:
                         error_msg = f"Pytest timed out for '{path}'"
@@ -843,9 +804,7 @@ if imports_succeeded:
                     server_files = ["direct_mcp_server.py", "enhanced_mcp_server.py"]
                     if any(server_file in absolute_path for server_file in server_files):
                         pid = os.getpid()
-                        logger.warning(
-                            f"Tests passed for '{path}' (server file). Triggering server restart (PID: {pid})..."
-                        )
+                        logger.warning(f"Tests passed for '{path}' (server file). Triggering server restart (PID: {pid})...")
                         await ctx.info("Server file updated. Triggering server restart...")
                         anyio.lowlevel.spawn_system_task(delayed_shutdown, pid, 1)
                         return success_msg + " Server restarting."
@@ -871,10 +830,7 @@ if imports_succeeded:
             _cleanup_temp_files(temp_path, backup_path)
             return f"Error: {error_msg}"
 
-    @server.tool(
-        name="start_blue_green_deployment",
-        description="Starts a blue/green deployment process manually.",
-    )
+    @server.tool(name="start_blue_green_deployment", description="Starts a blue/green deployment process manually.")
     async def start_blue_green_deployment(ctx: Context) -> str:
         """Start a manual blue/green deployment process."""
         if deployment_in_progress:
@@ -957,7 +913,7 @@ if imports_succeeded:
             try:
                 with open(absolute_path, "rb") as f:
                     sample = f.read(1024)
-                if b"\\x00" in sample:
+                if b'\\x00' in sample:
                     error_msg = f"Error: File '{path}' appears to be a binary file and cannot be read as text."
                     logger.error(error_msg)
                     await ctx.error(error_msg)
@@ -966,9 +922,7 @@ if imports_succeeded:
                     # Try with a different encoding
                     with open(absolute_path, "r", encoding="latin-1") as f:
                         content = f.read()
-                    await ctx.warning(
-                        f"File '{path}' was read using latin-1 encoding due to encoding issues with utf-8"
-                    )
+                    await ctx.warning(f"File '{path}' was read using latin-1 encoding due to encoding issues with utf-8")
                     return content
             except Exception as e:
                 error_msg = f"Error reading file '{path}': {str(e)}"
@@ -982,13 +936,8 @@ if imports_succeeded:
             await ctx.error(error_msg)
             return f"Error: {error_msg}"
 
-    @server.tool(
-        name="read_file_slice",
-        description="Reads and returns a specific range of lines from a file",
-    )
-    async def read_file_slice(
-        ctx: Context, path: str, start_line: int = 1, num_lines: int = 50
-    ) -> str:
+    @server.tool(name="read_file_slice", description="Reads and returns a specific range of lines from a file")
+    async def read_file_slice(ctx: Context, path: str, start_line: int = 1, num_lines: int = 50) -> str:
         """
         Reads and returns a specific range of lines from a file.
 
@@ -1001,12 +950,8 @@ if imports_succeeded:
         Returns:
             The requested slice of the file as a string
         """
-        logger.info(
-            f"Received request to read file slice: {path}, lines {start_line} to {start_line + num_lines - 1}"
-        )
-        await ctx.info(
-            f"Reading lines {start_line} to {start_line + num_lines - 1} from file: {path}"
-        )
+        logger.info(f"Received request to read file slice: {path}, lines {start_line} to {start_line + num_lines - 1}")
+        await ctx.info(f"Reading lines {start_line} to {start_line + num_lines - 1} from file: {path}")
 
         # Validate parameters
         if start_line < 1:
@@ -1059,9 +1004,7 @@ if imports_succeeded:
 
             if not lines:
                 if start_line > 1:
-                    await ctx.warning(
-                        f"No lines returned. The file may be shorter than expected or start_line ({start_line}) is beyond EOF."
-                    )
+                    await ctx.warning(f"No lines returned. The file may be shorter than expected or start_line ({start_line}) is beyond EOF.")
                     return f"No lines found at line {start_line} or beyond."
                 else:
                     await ctx.info(f"File '{path}' appears to be empty.")
@@ -1070,9 +1013,7 @@ if imports_succeeded:
             content = "".join(lines)
 
             # Add context about file size
-            total_lines = sum(
-                1 for line in open(absolute_path, "r", encoding="utf-8", errors="replace")
-            )
+            total_lines = sum(1 for line in open(absolute_path, "r", encoding="utf-8", errors="replace"))
             if start_line + len(lines) - 1 < total_lines:
                 footer = f"\n[...Showing lines {start_line} to {start_line + len(lines) - 1} of {total_lines} total lines...]"
                 content += footer
@@ -1085,7 +1026,7 @@ if imports_succeeded:
             try:
                 with open(absolute_path, "rb") as f:
                     sample = f.read(1024)
-                if b"\\x00" in sample:
+                if b'\\x00' in sample:
                     error_msg = f"Error: File '{path}' appears to be a binary file and cannot be read as text."
                     logger.error(error_msg)
                     await ctx.error(error_msg)
@@ -1105,9 +1046,7 @@ if imports_succeeded:
                                     break
 
                     content = "".join(lines)
-                    await ctx.warning(
-                        f"File '{path}' was read using latin-1 encoding due to encoding issues with utf-8"
-                    )
+                    await ctx.warning(f"File '{path}' was read using latin-1 encoding due to encoding issues with utf-8")
                     return content
             except Exception as e:
                 error_msg = f"Error reading file '{path}': {str(e)}"
@@ -1121,10 +1060,7 @@ if imports_succeeded:
             await ctx.error(error_msg)
             return f"Error: {error_msg}"
 
-    @server.tool(
-        name="write_file",
-        description="Writes content to a new file only (fails if file already exists)",
-    )
+    @server.tool(name="write_file", description="Writes content to a new file only (fails if file already exists)")
     async def write_file(ctx: Context, path: str, content: str) -> str:
         """
         Writes content to a new file only. Will fail if the file already exists.
@@ -1153,9 +1089,7 @@ if imports_succeeded:
 
         # Check if file already exists
         if os.path.exists(absolute_path):
-            error_msg = (
-                f"Error: File '{path}' already exists. Use edit_file to modify existing files."
-            )
+            error_msg = f"Error: File '{path}' already exists. Use edit_file to modify existing files."
             logger.error(error_msg)
             await ctx.error(error_msg)
             return error_msg
@@ -1184,13 +1118,8 @@ if imports_succeeded:
             await ctx.info(success_msg)
 
             # For server files, warn about restart
-            if absolute_path.endswith(".py") and any(
-                server_file in absolute_path
-                for server_file in ["direct_mcp_server.py", "enhanced_mcp_server.py"]
-            ):
-                await ctx.warning(
-                    f"You've created a server file ({path}). Server may need to be restarted."
-                )
+            if absolute_path.endswith(".py") and any(server_file in absolute_path for server_file in ["direct_mcp_server.py", "enhanced_mcp_server.py"]):
+                await ctx.warning(f"You've created a server file ({path}). Server may need to be restarted.")
 
             return success_msg
 
@@ -1212,26 +1141,20 @@ if imports_succeeded:
 # --- Custom Raw SSE Implementation ---
 # Removed custom SSE implementation to rely on FastMCP default
 
-
 # --- Homepage ---
 async def homepage(request):
     """Simple homepage handler."""
-    return JSONResponse(
-        {
-            "message": f"Direct MCP Server ({server_color}) is running",
-            "version": "unknown"
-            if not imports_succeeded
-            else (server._mcp_server.version or "dev"),
-            "color": server_color,
-            "pid": os.getpid(),
-            "endpoints": {
-                "/": "This homepage",
-                "/mcp": "MCP SSE connection endpoint (handled by FastMCP)",
-            },
-            "deployment_status": deployment_status["status"] if deployment_status else "unknown",
-        }
-    )
-
+    return JSONResponse({
+        "message": f"Direct MCP Server ({server_color}) is running",
+        "version": "unknown" if not imports_succeeded else (server._mcp_server.version or "dev"),
+        "color": server_color,
+        "pid": os.getpid(),
+        "endpoints": {
+            "/": "This homepage",
+            "/mcp": "MCP SSE connection endpoint (handled by FastMCP)"
+        },
+        "deployment_status": deployment_status["status"] if deployment_status else "unknown"
+    })
 
 # --- Initialize server ---
 # Removed custom initialize_server function
@@ -1239,11 +1162,7 @@ async def homepage(request):
 # --- Main Entry ---
 if __name__ == "__main__":
     # Use port from environment if specified
-    port = int(
-        os.environ.get(
-            "PORT", DEPLOYMENT_CONFIG["blue_port"] if is_blue else DEPLOYMENT_CONFIG["green_port"]
-        )
-    )
+    port = int(os.environ.get("PORT", DEPLOYMENT_CONFIG["blue_port"] if is_blue else DEPLOYMENT_CONFIG["green_port"]))
     logger.info(f"Starting Direct MCP Server ({server_color}) on port {port}...")
 
     if not imports_succeeded:
@@ -1251,8 +1170,8 @@ if __name__ == "__main__":
         sys.exit(1)
 
     if not uvicorn:
-        logger.critical("Uvicorn import failed. Cannot start server.")
-        sys.exit(1)
+         logger.critical("Uvicorn import failed. Cannot start server.")
+         sys.exit(1)
 
     try:
         # Use FastMCP's built-in SSE implementation
@@ -1269,7 +1188,12 @@ if __name__ == "__main__":
         # Removed custom startup event
 
         # Run with uvicorn
-        uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+        uvicorn.run(
+            app,
+            host="0.0.0.0",
+            port=port,
+            log_level="info"
+        )
     except KeyboardInterrupt:
         logger.info(f"Server ({server_color}) shutting down")
     except Exception as e:

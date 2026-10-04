@@ -192,7 +192,11 @@ ipfs-kit p2p stats [--json]
 ### Submit Multiple Workflows
 
 ```python
-workflows = [("scrape.yml", 3.0), ("generate.yml", 1.0), ("process.yml", 2.0)]
+workflows = [
+    ("scrape.yml", 3.0),
+    ("generate.yml", 1.0),
+    ("process.yml", 2.0)
+]
 
 for file, priority in workflows:
     coord.submit_workflow(file, priority=priority)
@@ -207,13 +211,16 @@ import time
 
 while True:
     my_workflows = coord.get_my_workflows()
-
+    
     for wf in my_workflows:
         if wf.status == WorkflowStatus.ASSIGNED:
             # Execute workflow
             execute(wf)
-            coord.update_workflow_status(wf.workflow_id, WorkflowStatus.COMPLETED)
-
+            coord.update_workflow_status(
+                wf.workflow_id,
+                WorkflowStatus.COMPLETED
+            )
+    
     time.sleep(60)
 ```
 
@@ -222,9 +229,17 @@ while True:
 ```python
 try:
     result = execute_workflow(workflow)
-    coord.update_workflow_status(wf_id, WorkflowStatus.COMPLETED, result=result)
+    coord.update_workflow_status(
+        wf_id,
+        WorkflowStatus.COMPLETED,
+        result=result
+    )
 except Exception as e:
-    coord.update_workflow_status(wf_id, WorkflowStatus.FAILED, error=str(e))
+    coord.update_workflow_status(
+        wf_id,
+        WorkflowStatus.FAILED,
+        error=str(e)
+    )
 ```
 
 ## Data Locations
@@ -276,7 +291,6 @@ chmod 755 ~/.ipfs_kit/p2p_workflows/
 ```python
 # Verify tags
 from ipfs_kit_py import P2PWorkflowCoordinator
-
 coord = P2PWorkflowCoordinator(peer_id="test")
 metadata = coord.parse_workflow_file("workflow.yml")
 print(f"Is P2P: {coord.is_p2p_workflow(metadata)}")

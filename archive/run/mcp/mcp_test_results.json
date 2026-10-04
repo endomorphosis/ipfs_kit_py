@@ -1,0 +1,198 @@
+{
+  "success": false,
+  "total_tests": 13,
+  "successful_tests": 8,
+  "results": {
+    "health_check": {
+      "success": false,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    "ipfs_add": {
+      "success": true,
+      "response": {
+        "success": true,
+        "operation_id": "add_1744165078931",
+        "duration_ms": 0.5,
+        "cid": "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa",
+        "Hash": "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa",
+        "content_size_bytes": 16
+      }
+    },
+    "ipfs_cat": {
+      "success": true,
+      "content": "Simulated content for Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa"
+    },
+    "ipfs_pin": {
+      "success": true,
+      "response": {
+        "success": true,
+        "operation_id": "pin_1744165078935",
+        "duration_ms": 25.13885498046875,
+        "cid": "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa",
+        "pinned": true
+      }
+    },
+    "ipfs_list_pins": {
+      "success": true,
+      "response": {
+        "success": true,
+        "operation_id": "list_pins_1744165078962",
+        "duration_ms": 0.05745887756347656,
+        "pins": [
+          {
+            "cid": "Qmb3add3c260055b3cab85cbf3a9ef09c2590f4563b12b",
+            "type": "recursive",
+            "pinned": true
+          },
+          {
+            "cid": "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa",
+            "type": "recursive",
+            "pinned": true
+          }
+        ],
+        "count": 1
+      }
+    },
+    "ipfs_unpin": {
+      "success": true,
+      "response": {
+        "success": true,
+        "operation_id": "unpin_1744165078965",
+        "duration_ms": 0.5,
+        "cid": "Qm75ce48f5c8f7df4d7de4982ac23d18ae4cf3da62ecfa",
+        "pinned": false
+      }
+    },
+    "cli_version": {
+      "success": true,
+      "response": {
+        "ipfs_kit_py_version": "0.2.0",
+        "python_version": "3.12.3",
+        "platform": "Linux 6.8.0-11-generic",
+        "ipfs_daemon_version": "unknown"
+      }
+    },
+    "cli_execute": {
+      "success": false,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    "credential_management": {
+      "success": false,
+      "list_response": {
+        "detail": "Not Found"
+      },
+      "add_response": {
+        "detail": "Not Found"
+      },
+      "get_response": null,
+      "delete_response": null
+    },
+    "webrtc": {
+      "success": true,
+      "available": true,
+      "check_response": {
+        "success": true,
+        "operation_id": "check_webrtc_1744165078977",
+        "dependencies": {
+          "numpy": true,
+          "opencv": true,
+          "av": true,
+          "aiortc": true,
+          "websockets": true,
+          "notifications": true
+        },
+        "webrtc_available": true,
+        "installation_command": "pip install ipfs_kit_py[webrtc]"
+      },
+      "connections_response": {
+        "success": true,
+        "operation_id": "list_webrtc_1744165078979",
+        "connections": []
+      }
+    },
+    "fs_journal": {
+      "success": false,
+      "available": false,
+      "list_response": {
+        "detail": "Not Found"
+      },
+      "write_response": null,
+      "read_response": null,
+      "remove_response": null
+    },
+    "distributed": {
+      "success": false,
+      "available": false,
+      "peers_response": {
+        "detail": "Not Found"
+      },
+      "status_response": null
+    },
+    "daemon_management": {
+      "success": true,
+      "status_response": {
+        "success": true,
+        "daemon_status": {
+          "ipfs": {
+            "success": false,
+            "error": "ipfs_kit.check_daemon_status() takes 1 positional argument but 2 were given",
+            "error_type": "StatusCheckError"
+          },
+          "ipfs_cluster_service": {
+            "success": false,
+            "error": "ipfs_kit.check_daemon_status() takes 1 positional argument but 2 were given",
+            "error_type": "StatusCheckError"
+          },
+          "ipfs_cluster_follow": {
+            "success": false,
+            "error": "ipfs_kit.check_daemon_status() takes 1 positional argument but 2 were given",
+            "error_type": "StatusCheckError"
+          }
+        },
+        "daemon_monitor_running": false,
+        "auto_start_daemons": true,
+        "timestamp": 1744165078.9843223
+      }
+    }
+  },
+  "api_comparison": {
+    "api_endpoints": [],
+    "mcp_endpoints": [
+      "/api/v0/version",
+      "/api/v0/swarm/connect",
+      "/api/v0/name/resolve",
+      "/api/v0/key/list",
+      "/api/v0/ls",
+      "/api/v0/add",
+      "/api/v0/pin/add",
+      "/api/v0/cat",
+      "/api/v0/name/publish",
+      "/api/v0/key/gen",
+      "/api/v0/pin/ls",
+      "/api/v0/pin/rm",
+      "/api/v0/swarm/peers",
+      "/api/v0/name/list"
+    ],
+    "missing_in_mcp": [],
+    "additional_in_mcp": [
+      "/api/v0/version",
+      "/api/v0/swarm/connect",
+      "/api/v0/name/resolve",
+      "/api/v0/key/list",
+      "/api/v0/ls",
+      "/api/v0/add",
+      "/api/v0/pin/add",
+      "/api/v0/cat",
+      "/api/v0/name/publish",
+      "/api/v0/key/gen",
+      "/api/v0/pin/ls",
+      "/api/v0/pin/rm",
+      "/api/v0/swarm/peers",
+      "/api/v0/name/list"
+    ]
+  }
+}

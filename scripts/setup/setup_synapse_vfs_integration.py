@@ -31,17 +31,17 @@ logger = logging.getLogger(__name__)
 def setup_synapse_installation():
     """Install and configure Synapse SDK."""
     logger.info("Setting up Synapse SDK installation...")
-
+    
     try:
         from ipfs_kit_py.install_synapse_sdk import install_synapse_sdk
-
+        
         # Install with verbose output
-        installer = install_synapse_sdk(metadata={"verbose": True})
+        installer = install_synapse_sdk(metadata={'verbose': True})
         success = installer.install_synapse_sdk_dependencies()
-
+        
         if success:
             logger.info("✓ Synapse SDK installation completed successfully")
-
+            
             if installer.config_synapse_sdk():
                 logger.info("✓ Synapse SDK configuration completed")
             else:
@@ -49,24 +49,24 @@ def setup_synapse_installation():
         else:
             logger.warning("⚠ Synapse SDK installation incomplete; continuing in mock mode")
             return True
-
+            
     except Exception as e:
         logger.error(f"✗ Failed to install Synapse SDK: {e}")
         return False
-
+    
     return True
 
 
 def setup_synapse_configuration():
     """Configure Synapse SDK for virtual filesystem integration."""
     logger.info("Setting up Synapse SDK configuration...")
-
+    
     try:
         from ipfs_kit_py.config_synapse_sdk import config_synapse_sdk
-
+        
         # Create configuration manager
         config_manager = config_synapse_sdk()
-
+        
         # Setup default configuration
         if hasattr(config_manager, "setup_configuration"):
             success = config_manager.setup_configuration()
@@ -75,72 +75,76 @@ def setup_synapse_configuration():
         else:
             success = True
             logger.warning("⚠ No explicit Synapse configuration method found; skipping")
-
+        
         if success:
             logger.info("✓ Synapse SDK configuration completed successfully")
         else:
             logger.error("✗ Synapse SDK configuration failed")
             return False
-
+            
     except Exception as e:
         logger.error(f"✗ Failed to configure Synapse SDK: {e}")
         return False
-
+    
     return True
 
 
 def register_synapse_fsspec():
     """Register Synapse as a storage backend in FSSpec."""
     logger.info("Registering Synapse with FSSpec...")
-
+    
     try:
         try:
             import fsspec
         except ModuleNotFoundError:
             logger.warning("fsspec not installed; attempting to install...")
             result = subprocess.run(
-                [sys.executable, "-m", "pip", "install", "fsspec"], capture_output=True, text=True
+                [sys.executable, "-m", "pip", "install", "fsspec"],
+                capture_output=True,
+                text=True
             )
             if result.returncode != 0:
                 logger.error(f"Failed to install fsspec: {result.stderr}")
                 return False
             import importlib
-
             fsspec = importlib.import_module("fsspec")
 
         from ipfs_kit_py.enhanced_fsspec import IPFSFileSystem
-
+        
         # Register the protocols if not already registered
-        protocols = ["synapse"]
+        protocols = ['synapse']
         for protocol in protocols:
             if protocol not in fsspec.registry:
                 fsspec.register_implementation(protocol, IPFSFileSystem)
                 logger.info(f"✓ Registered '{protocol}' protocol with FSSpec")
             else:
                 logger.info(f"✓ Protocol '{protocol}' already registered")
-
+        
         # Test basic functionality
         try:
             fs = IPFSFileSystem(backend="synapse")
             logger.info("✓ Synapse FSSpec backend can be initialized")
         except Exception as e:
             logger.warning(f"⚠ Synapse FSSpec backend initialization failed: {e}")
-
+            
     except Exception as e:
         logger.error(f"✗ Failed to register Synapse with FSSpec: {e}")
         return False
-
+    
     return True
 
 
 def setup_virtual_filesystem_integration():
     """Integrate Synapse with the virtual filesystem."""
     logger.info("Setting up virtual filesystem integration...")
-
+    
     try:
         # Check if VFS components are available
-        vfs_components = ["ipfs_kit_py.mcp.fs.fs_journal", "ipfs_kit_py.mcp.fs.fs_ipfs_bridge"]
-
+        vfs_components = [
+            "ipfs_kit_py.mcp.fs.fs_journal",
+            "ipfs_kit_py.mcp.fs.fs_ipfs_bridge"
+        ]
+        
         available_components = []
         for component in vfs_components:
             try:
@@ -149,25 +153,23 @@ def setup_virtual_filesystem_integration():
                 logger.info(f"✓ VFS component available: {component}")
             except ImportError:
                 logger.warning(f"⚠ VFS component not available: {component}")
-
+        
         if available_components:
-            logger.info(
-                f"✓ Virtual filesystem integration ready ({len(available_components)} components)"
-            )
+            logger.info(f"✓ Virtual filesystem integration ready ({len(available_components)} components)")
         else:
             logger.warning("⚠ No VFS components available - basic integration only")
-
+            
     except Exception as e:
         logger.error(f"✗ Failed to setup virtual filesystem integration: {e}")
         return False
-
+    
     return True
 
 
 def setup_mcp_server_tools():
     """Setup MCP server tools for Synapse operations."""
     logger.info("Setting up MCP server tools...")
-
+    
     try:
         # Create MCP tools configuration for Synapse
         mcp_tools_config = {
@@ -176,71 +178,63 @@ def setup_mcp_server_tools():
                     "description": "Store data using Synapse SDK with PDP verification",
                     "parameters": {
                         "data": {"type": "string", "description": "Data to store (base64 encoded)"},
-                        "options": {"type": "object", "description": "Storage options"},
-                    },
+                        "options": {"type": "object", "description": "Storage options"}
+                    }
                 },
                 "synapse_retrieve_data": {
                     "description": "Retrieve data using Synapse SDK",
                     "parameters": {
                         "commp": {"type": "string", "description": "Content identifier (CommP)"},
-                        "options": {"type": "object", "description": "Retrieval options"},
-                    },
+                        "options": {"type": "object", "description": "Retrieval options"}
+                    }
                 },
                 "synapse_get_balance": {
                     "description": "Get USDFC token balance",
                     "parameters": {
-                        "token": {
-                            "type": "string",
-                            "description": "Token symbol",
-                            "default": "USDFC",
-                        }
-                    },
+                        "token": {"type": "string", "description": "Token symbol", "default": "USDFC"}
+                    }
                 },
                 "synapse_deposit_funds": {
                     "description": "Deposit funds to Synapse payment contract",
                     "parameters": {
                         "amount": {"type": "string", "description": "Amount to deposit"},
-                        "token": {
-                            "type": "string",
-                            "description": "Token symbol",
-                            "default": "USDFC",
-                        },
-                    },
+                        "token": {"type": "string", "description": "Token symbol", "default": "USDFC"}
+                    }
                 },
                 "synapse_get_storage_info": {
                     "description": "Get storage service information",
-                    "parameters": {},
+                    "parameters": {}
                 },
                 "synapse_get_provider_info": {
                     "description": "Get storage provider information",
                     "parameters": {
                         "provider_address": {"type": "string", "description": "Provider address"}
-                    },
-                },
+                    }
+                }
             }
         }
-
+        
         # Save configuration
         config_dir = os.path.join(project_root, "config")
         os.makedirs(config_dir, exist_ok=True)
-
+        
         config_file = os.path.join(config_dir, "synapse_mcp_tools.json")
-        with open(config_file, "w") as f:
+        with open(config_file, 'w') as f:
             json.dump(mcp_tools_config, f, indent=2)
-
+        
         logger.info(f"✓ MCP tools configuration saved to {config_file}")
-
+        
     except Exception as e:
         logger.error(f"✗ Failed to setup MCP server tools: {e}")
         return False
-
+    
     return True
 
 
 def create_integration_test_script():
     """Create a test script to verify the integration."""
     logger.info("Creating integration test script...")
-
+    
     test_script_content = '''#!/usr/bin/env python3
 """
 Test script for Synapse SDK virtual filesystem integration.
@@ -334,30 +328,28 @@ if __name__ == "__main__":
     success = anyio.run(test_synapse_integration)
     sys.exit(0 if success else 1)
 '''
-
+    
     try:
-        test_script_path = os.path.join(
-            project_root, "scripts", "setup", "test_synapse_integration.py"
-        )
-        with open(test_script_path, "w", encoding="utf-8") as f:
+        test_script_path = os.path.join(project_root, "scripts", "setup", "test_synapse_integration.py")
+        with open(test_script_path, 'w', encoding='utf-8') as f:
             f.write(test_script_content)
-
+        
         # Make executable
         os.chmod(test_script_path, 0o755)
-
+        
         logger.info(f"✓ Integration test script created: {test_script_path}")
-
+        
     except Exception as e:
         logger.error(f"✗ Failed to create integration test script: {e}")
         return False
-
+    
     return True
 
 
 def main():
     """Main setup function."""
     logger.info("Starting Synapse SDK virtual filesystem integration setup...")
-
+    
     steps = [
         ("Installing Synapse SDK", setup_synapse_installation),
         ("Configuring Synapse SDK", setup_synapse_configuration),
@@ -366,12 +358,12 @@ def main():
         ("Setting up MCP tools", setup_mcp_server_tools),
         ("Creating test script", create_integration_test_script),
     ]
-
+    
     completed_steps = 0
-
+    
     for step_name, step_function in steps:
         logger.info(f"\n📋 Step {completed_steps + 1}/{len(steps)}: {step_name}")
-
+        
         try:
             success = step_function()
             if success:
@@ -383,13 +375,13 @@ def main():
         except Exception as e:
             logger.error(f"❌ {step_name} failed with exception: {e}")
             break
-
+    
     # Summary
-    logger.info(f"\n{'=' * 50}")
+    logger.info(f"\n{'='*50}")
     logger.info("SYNAPSE SDK VFS INTEGRATION SETUP SUMMARY")
-    logger.info(f"{'=' * 50}")
+    logger.info(f"{'='*50}")
     logger.info(f"Completed steps: {completed_steps}/{len(steps)}")
-
+    
     if completed_steps == len(steps):
         logger.info("🎉 Synapse SDK virtual filesystem integration setup completed successfully!")
         logger.info("\nNext steps:")

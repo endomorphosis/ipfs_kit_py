@@ -20,19 +20,17 @@ from test_all_backends import test_huggingface
 CONFIG_DIR = os.path.expanduser("~/.ipfs_kit")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
 
-
 def create_config_dir():
     """Create the config directory if it doesn't exist."""
     if not os.path.exists(CONFIG_DIR):
         os.makedirs(CONFIG_DIR)
         print(f"Created configuration directory: {CONFIG_DIR}")
 
-
 def get_stored_credentials():
     """Get credentials from secure storage."""
     if os.path.exists(CONFIG_FILE):
         try:
-            with open(CONFIG_FILE, "r") as f:
+            with open(CONFIG_FILE, 'r') as f:
                 config = json.load(f)
                 return config.get("credentials", {})
         except json.JSONDecodeError:
@@ -41,7 +39,6 @@ def get_stored_credentials():
     else:
         print(f"No configuration file found at {CONFIG_FILE}")
         return {}
-
 
 # Get repository from command line if provided
 repo = None
@@ -69,7 +66,7 @@ elif "test_repo" in hf_creds:
     os.environ["HF_TEST_REPO"] = hf_creds["test_repo"]
 else:
     os.environ["HF_TEST_REPO"] = "endomorphosis/test-repo"
-
+    
 print(f"Using test repository: {os.environ['HF_TEST_REPO']}")
 print("You can specify a different repository by running:")
 print(f"  python {sys.argv[0]} your-username/your-repo-name")

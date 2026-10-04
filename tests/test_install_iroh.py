@@ -44,7 +44,9 @@ def _archive(
 def _published_release(archive: bytes) -> dict:
     release = load_release_manifest(RELEASE_PATH)
     release["sidecar"]["distribution_status"] = "published"
-    platform_entry = next(item for item in release["platforms"] if item["id"] == "linux_x86_64_gnu")
+    platform_entry = next(
+        item for item in release["platforms"] if item["id"] == "linux_x86_64_gnu"
+    )
     platform_entry.update(
         installable=True,
         url=(
@@ -83,10 +85,11 @@ def test_target_normalization_fixture() -> None:
     fixture = json.loads(TARGET_FIXTURE.read_text(encoding="utf-8"))
     assert fixture["schema_version"] == 1
     for case in fixture["normalization"]:
-        assert (
-            list(detect_platform(system=case["system"], machine=case["machine"], libc=case["libc"]))
-            == case["expected"]
-        )
+        assert list(
+            detect_platform(
+                system=case["system"], machine=case["machine"], libc=case["libc"]
+            )
+        ) == case["expected"]
 
 
 def test_unsupported_architectures_are_rejected() -> None:
@@ -127,10 +130,9 @@ def test_ipfs_kit_bin_dir_is_honored(monkeypatch: pytest.MonkeyPatch, tmp_path: 
         ),
     )
 
-    assert (
-        installer.install(system="Linux", machine="x86_64", libc="gnu").parent
-        == (tmp_path / "managed").resolve()
-    )
+    assert installer.install(
+        system="Linux", machine="x86_64", libc="gnu"
+    ).parent == (tmp_path / "managed").resolve()
 
 
 def test_truncated_download_fails_and_preserves_existing_binary(tmp_path: Path) -> None:
@@ -169,10 +171,14 @@ def test_failed_attestation_fails_before_extraction(tmp_path: Path) -> None:
 def test_archive_traversal_is_rejected(tmp_path: Path) -> None:
     archive = _archive(name="../ipfs-kit-iroh-sidecar")
     with pytest.raises(UnsafeArchiveError, match="unsafe archive member"):
-        _installer(tmp_path, archive).install(system="Linux", machine="x86_64", libc="glibc")
+        _installer(tmp_path, archive).install(
+            system="Linux", machine="x86_64", libc="glibc"
+        )
 
 
-def test_non_executable_result_fails(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_non_executable_result_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     archive = _archive()
     installer = _installer(tmp_path, archive)
     real_access = os.access

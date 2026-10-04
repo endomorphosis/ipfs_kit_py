@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-13",
+  "profile": "deterministic-memory-v1",
+  "units": {
+    "latency": "milliseconds",
+    "throughput": "MiB/second",
+    "memory": "bytes"
+  },
+  "workload": {
+    "payload_bytes": 8388608,
+    "range_bytes": 262144,
+    "iterations": 20,
+    "parallelism": 8,
+    "read_ahead_bytes": 1048576,
+    "range_cache_bytes": 16777216
+  },
+  "budgets": {
+    "metadata_p95_ms": 50.0,
+    "warm_range_p95_ms": 10.0,
+    "sequential_read_min_mib_s": 20.0,
+    "parallel_read_min_mib_s": 40.0,
+    "retained_cache_max_bytes": 16777216,
+    "transport_read_max_bytes": 1048576,
+    "active_operations_max": 8,
+    "staged_memory_max_bytes": 1048576
+  },
+  "regression_threshold_percent": 20.0,
+  "notes": [
+    "Budgets are a hardware-independent in-memory regression floor, not a claim about WAN peer throughput.",
+    "Sidecar and multi-node baselines must record topology separately and may tighten, but not silently relax, these resource bounds."
+  ]
+}

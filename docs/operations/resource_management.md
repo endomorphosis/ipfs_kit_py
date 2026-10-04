@@ -15,31 +15,30 @@ Resource management features can be configured through the main `ipfs-kit-py` co
 ```python
 # Example configuration snippet
 config = {
-    "resource_management": {
-        "enabled": True,
-        "monitor_interval_seconds": 15,
-        "cpu_threshold_high": 85.0,  # Percentage
-        "memory_threshold_high": 90.0,  # Percentage
-        "disk_threshold_high": 95.0,  # Percentage
-        "network_threshold_mbps": 1000,  # Megabits per second
-        "history_duration_minutes": 60,
-        "adaptive_thread_pool": {
-            "min_threads": 2,
-            "max_threads_factor": 1.5,  # Multiplier of CPU cores
-            "target_queue_latency_ms": 100,
-            "adjustment_interval_seconds": 30,
+    'resource_management': {
+        'enabled': True,
+        'monitor_interval_seconds': 15,
+        'cpu_threshold_high': 85.0, # Percentage
+        'memory_threshold_high': 90.0, # Percentage
+        'disk_threshold_high': 95.0, # Percentage
+        'network_threshold_mbps': 1000, # Megabits per second
+        'history_duration_minutes': 60,
+        'adaptive_thread_pool': {
+            'min_threads': 2,
+            'max_threads_factor': 1.5, # Multiplier of CPU cores
+            'target_queue_latency_ms': 100,
+            'adjustment_interval_seconds': 30
         },
-        "adaptive_cache": {
-            "target_memory_usage_factor": 0.7,  # Target 70% of available memory for cache
-            "min_cache_size_mb": 100,
-        },
+        'adaptive_cache': {
+            'target_memory_usage_factor': 0.7, # Target 70% of available memory for cache
+            'min_cache_size_mb': 100
+        }
         # ... other potential configurations
     }
     # ... other ipfs-kit-py config
 }
 
 from ipfs_kit_py.high_level_api import IPFSSimpleAPI
-
 kit = IPFSSimpleAPI(config=config)
 ```
 

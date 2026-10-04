@@ -99,26 +99,28 @@ All VFS/MFS operations now automatically index content for search:
 
 ```python
 # Index content with metadata
-result = await call_tool(
-    "search_index_content",
-    {
-        "cid": "bafybei...",
-        "path": "/docs/whitepaper.md",
-        "content": "IPFS is a distributed file system...",
-        "content_type": "markdown",
-        "metadata": {"type": "documentation", "topic": "ipfs", "author": "Protocol Labs"},
-    },
-)
+result = await call_tool("search_index_content", {
+    "cid": "bafybei...",
+    "path": "/docs/whitepaper.md",
+    "content": "IPFS is a distributed file system...",
+    "content_type": "markdown",
+    "metadata": {
+        "type": "documentation",
+        "topic": "ipfs",
+        "author": "Protocol Labs"
+    }
+})
 ```
 
 ### Multi-Method Search
 
 ```python
 # Hybrid search combining text and graph methods
-result = await call_tool(
-    "search_hybrid",
-    {"query": "distributed consensus algorithms", "search_types": ["text", "graph"], "limit": 5},
-)
+result = await call_tool("search_hybrid", {
+    "query": "distributed consensus algorithms",
+    "search_types": ["text", "graph"],
+    "limit": 5
+})
 
 # Results include individual method results plus combined ranking
 ```
@@ -127,24 +129,26 @@ result = await call_tool(
 
 ```python
 # Write to MFS - automatically indexed
-await call_tool(
-    "ipfs_files_write",
-    {
-        "path": "/research/new_paper.md",
-        "content": "# Blockchain Consensus\n\nThis paper discusses...",
-        "create": True,
-    },
-)
+await call_tool("ipfs_files_write", {
+    "path": "/research/new_paper.md",
+    "content": "# Blockchain Consensus\n\nThis paper discusses...",
+    "create": True
+})
 
 # Content is now searchable
-search_result = await call_tool("search_text", {"query": "blockchain consensus"})
+search_result = await call_tool("search_text", {
+    "query": "blockchain consensus"
+})
 ```
 
 ### Knowledge Graph Exploration
 
 ```python
 # Search through entity relationships
-result = await call_tool("search_graph", {"query": "IPFS", "max_depth": 3})
+result = await call_tool("search_graph", {
+    "query": "IPFS",
+    "max_depth": 3
+})
 
 # Returns connected concepts and their relationships
 ```
@@ -153,18 +157,15 @@ result = await call_tool("search_graph", {"query": "IPFS", "max_depth": 3})
 
 ```python
 # Query the RDF knowledge base
-result = await call_tool(
-    "search_sparql",
-    {
-        "query": """
+result = await call_tool("search_sparql", {
+    "query": """
         SELECT ?entity ?type ?description WHERE {
             ?entity rdf:type ?type .
             ?entity rdfs:label ?description .
             FILTER(regex(?description, "distributed", "i"))
         }
     """
-    },
-)
+})
 ```
 
 ## Configuration

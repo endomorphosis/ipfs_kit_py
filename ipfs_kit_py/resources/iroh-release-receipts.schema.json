@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/endomorphosis/ipfs_kit_py/schemas/iroh-release-receipts.schema.json",
+  "title": "IPFS Kit Iroh release evidence receipts",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "kind", "task_id", "release_bundle", "recorded_at", "receipts", "security_findings"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "kind": {"const": "ipfs-kit-iroh-release-receipts"},
+    "task_id": {"const": "IROH-027"},
+    "release_bundle": {"type": "string", "minLength": 1},
+    "recorded_at": {"type": "string", "format": "date-time"},
+    "receipts": {
+      "type": "array",
+      "minItems": 3,
+      "items": {"$ref": "#/$defs/receipt"},
+      "contains": {"properties": {"type": {"const": "test"}}, "required": ["type"]},
+      "allOf": [
+        {"contains": {"properties": {"type": {"const": "benchmark"}}, "required": ["type"]}},
+        {"contains": {"properties": {"type": {"const": "security"}}, "required": ["type"]}}
+      ]
+    },
+    "security_findings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unresolved_critical", "unresolved_high", "unresolved_medium", "unresolved_low", "review_owner", "reviewed_at"],
+      "properties": {
+        "unresolved_critical": {"const": 0},
+        "unresolved_high": {"const": 0},
+        "unresolved_medium": {"type": "integer", "minimum": 0},
+        "unresolved_low": {"type": "integer", "minimum": 0},
+        "review_owner": {"type": "string", "minLength": 1},
+        "reviewed_at": {"type": "string", "format": "date"}
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyStrings": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "status", "required_for", "evidence", "scope"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$"},
+        "type": {"enum": ["test", "benchmark", "security", "operations", "packaging", "interoperability"]},
+        "status": {"enum": ["passed", "not_run", "conditional"]},
+        "required_for": {"enum": ["disabled", "experimental", "canary", "supported"]},
+        "command": {"$ref": "#/$defs/nonEmptyStrings"},
+        "evidence": {"$ref": "#/$defs/nonEmptyStrings"},
+        "scope": {"type": "string", "minLength": 1},
+        "limitation": {"type": "string", "minLength": 1}
+      },
+      "if": {"properties": {"status": {"enum": ["not_run", "conditional"]}}, "required": ["status"]},
+      "then": {"required": ["limitation"]}
+    }
+  }
+}

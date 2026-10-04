@@ -1,0 +1,126 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ipfs-cluster
+  labels:
+    app: ipfs-mcp-cluster
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-config
+  namespace: ipfs-cluster
+data:
+  cluster-peers: "ipfs-mcp-master:9998,ipfs-mcp-worker1:9998,ipfs-mcp-worker2:9998"
+  log-level: "INFO"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cluster-secrets
+  namespace: ipfs-cluster
+type: Opaque
+data:
+  # Base64 encoded values - update these for production
+  cluster-secret: Y2x1c3Rlci1zZWNyZXQtdG9rZW4=  # cluster-secret-token
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipfs-mcp-master
+  namespace: ipfs-cluster
+  labels:
+    app: ipfs-mcp
+    role: master
+spec:
+  type: LoadBalancer
+  ports:
+    - name: mcp-api
+      port: 9998
+      targetPort: 9998
+      protocol: TCP
+    - name: ipfs-api
+      port: 5001
+      targetPort: 5001
+      protocol: TCP
+    - name: ipfs-gateway
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app: ipfs-mcp
+    role: master
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipfs-mcp-worker1
+  namespace: ipfs-cluster
+  labels:
+    app: ipfs-mcp
+    role: worker
+spec:
+  type: ClusterIP
+  ports:
+    - name: mcp-api
+      port: 9998
+      targetPort: 9998
+      protocol: TCP
+    - name: ipfs-api
+      port: 5001
+      targetPort: 5001
+      protocol: TCP
+    - name: ipfs-gateway
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app: ipfs-mcp
+    role: worker
+    instance: worker1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipfs-mcp-worker2
+  namespace: ipfs-cluster
+  labels:
+    app: ipfs-mcp
+    role: worker
+spec:
+  type: ClusterIP
+  ports:
+    - name: mcp-api
+      port: 9998
+      targetPort: 9998
+      protocol: TCP
+    - name: ipfs-api
+      port: 5001
+      targetPort: 5001
+      protocol: TCP
+    - name: ipfs-gateway
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app: ipfs-mcp
+    role: worker
+    instance: worker2
+---
+# Headless service for cluster discovery
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipfs-mcp-cluster
+  namespace: ipfs-cluster
+  labels:
+    app: ipfs-mcp
+spec:
+  clusterIP: None
+  ports:
+    - name: mcp-api
+      port: 9998
+      targetPort: 9998
+      protocol: TCP
+  selector:
+    app: ipfs-mcp

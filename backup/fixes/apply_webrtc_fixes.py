@@ -18,10 +18,10 @@ sys.path.append(str(parent_dir))
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
 
 def apply_fixes(mcp_server=None):
     """
@@ -38,7 +38,7 @@ def apply_fixes(mcp_server=None):
         # Import the fix module
         from fixes.webrtc_event_loop_fix import (
             patch_ipfs_model_methods,
-            patch_webrtc_controller_methods,
+            patch_webrtc_controller_methods
         )
 
         # If a server instance was provided, patch it directly
@@ -46,18 +46,17 @@ def apply_fixes(mcp_server=None):
             logger.info("Applying WebRTC event loop fixes to MCP server instance")
 
             # Patch the IPFS model
-            if hasattr(mcp_server, "models") and "ipfs" in mcp_server.models:
-                patch_ipfs_model_methods(mcp_server.models["ipfs"])
+            if hasattr(mcp_server, 'models') and 'ipfs' in mcp_server.models:
+                patch_ipfs_model_methods(mcp_server.models['ipfs'])
                 logger.info("Patched IPFS model in server instance")
             else:
                 logger.warning("Could not find IPFS model in server instance")
 
             # Patch the WebRTC controller if it exists
-            if hasattr(mcp_server, "controllers") and any(
-                isinstance(c, WebRTCController) for c in mcp_server.controllers.values()
-            ):
+            if (hasattr(mcp_server, 'controllers') and
+                any(isinstance(c, WebRTCController) for c in mcp_server.controllers.values())):
                 for name, controller in mcp_server.controllers.items():
-                    if hasattr(controller, "ipfs_model"):
+                    if hasattr(controller, 'ipfs_model'):
                         patch_webrtc_controller_methods(controller)
                         logger.info(f"Patched WebRTC controller {name} in server instance")
 
@@ -82,7 +81,7 @@ def apply_fixes(mcp_server=None):
                 patched_close_all_webrtc_connections,
                 async_stop_webrtc_streaming,
                 async_close_webrtc_connection,
-                async_close_all_webrtc_connections,
+                async_close_all_webrtc_connections
             )
 
             # Replace the methods in the class
@@ -93,9 +92,7 @@ def apply_fixes(mcp_server=None):
             # Add async methods
             ipfs_model.IPFSModel.async_stop_webrtc_streaming = async_stop_webrtc_streaming
             ipfs_model.IPFSModel.async_close_webrtc_connection = async_close_webrtc_connection
-            ipfs_model.IPFSModel.async_close_all_webrtc_connections = (
-                async_close_all_webrtc_connections
-            )
+            ipfs_model.IPFSModel.async_close_all_webrtc_connections = async_close_all_webrtc_connections
 
             logger.info("Successfully patched IPFS model module")
 
@@ -107,9 +104,7 @@ def apply_fixes(mcp_server=None):
                 # Store original methods for reference
                 original_controller_stop = webrtc_controller.WebRTCController.stop_streaming
                 original_controller_close = webrtc_controller.WebRTCController.close_connection
-                original_controller_close_all = (
-                    webrtc_controller.WebRTCController.close_all_connections
-                )
+                original_controller_close_all = webrtc_controller.WebRTCController.close_all_connections
 
                 # Create wrapper methods for the controller
                 async def new_stop_streaming(self, server_id: str):
@@ -136,7 +131,6 @@ def apply_fixes(mcp_server=None):
     except Exception as e:
         logger.error(f"Error applying WebRTC fixes: {e}")
         return False
-
 
 if __name__ == "__main__":
     # Apply fixes to modules for future MCP server instances

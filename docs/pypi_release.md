@@ -148,7 +148,6 @@ Version should be maintained in a single location, typically in `ipfs_kit_py/__i
 
 ```python
 """IPFS Kit Python package."""
-
 __version__ = "1.0.0"
 ```
 

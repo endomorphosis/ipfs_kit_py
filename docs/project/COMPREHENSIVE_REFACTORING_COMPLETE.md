@@ -479,14 +479,12 @@ ipfs-kit autoheal config --set <key>=<value>
 **From:**
 ```python
 from ipfs_kit_py.mcp.servers.enhanced_unified_mcp_server import create_server
-
 server = create_server()
 ```
 
 **To:**
 ```python
 from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
-
 server = create_mcp_server()
 ```
 

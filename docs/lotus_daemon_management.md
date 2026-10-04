@@ -43,20 +43,14 @@ The `lotus_kit` integration with `ipfs_kit` follows the same patterns used for I
 from ipfs_kit_py import ipfs_kit
 
 # Master role with auto-start for Lotus daemon
-kit = ipfs_kit(
-    role="master",
-    metadata={
-        "auto_start_lotus_daemon": True  # Default is True for master
-    },
-)
+kit = ipfs_kit(role="master", metadata={
+    "auto_start_lotus_daemon": True  # Default is True for master
+})
 
 # Worker role with auto-start enabled
-kit = ipfs_kit(
-    role="worker",
-    metadata={
-        "auto_start_lotus_daemon": True  # Default is False for worker
-    },
-)
+kit = ipfs_kit(role="worker", metadata={
+    "auto_start_lotus_daemon": True  # Default is False for worker
+})
 ```
 
 ### Manual Daemon Management
@@ -76,7 +70,7 @@ if not lotus_running:
     result = kit._ensure_daemon_running("lotus")
     print(f"Started lotus daemon: {result.get('success', False)}")
 
-# Stop daemon
+# Stop daemon 
 stop_result = kit.stop_daemons()  # Stops all daemons including Lotus
 print(f"Stopped daemons: {stop_result.get('success', False)}")
 ```
@@ -108,12 +102,17 @@ kit = ipfs_kit()
 
 # Install as a systemd service on Linux
 if platform.system() == "Linux":
-    result = kit.lotus_kit.install_service(user="filecoin", description="Lotus Daemon Service")
+    result = kit.lotus_kit.install_service(
+        user="filecoin",
+        description="Lotus Daemon Service"
+    )
     print(f"Installed systemd service: {result.get('success', False)}")
 
 # Install as a Windows service
 elif platform.system() == "Windows":
-    result = kit.lotus_kit.install_service(description="Lotus Daemon Service")
+    result = kit.lotus_kit.install_service(
+        description="Lotus Daemon Service"
+    )
     print(f"Installed Windows service: {result.get('success', False)}")
 ```
 
@@ -230,7 +229,9 @@ kit = ipfs_kit()
 
 # Install Lotus daemon as a launchd service
 result = kit.lotus_kit.install_launchd_service(
-    user=os.getenv("USER"), description="Lotus Filecoin Node", service_name="com.user.lotus-daemon"
+    user=os.getenv("USER"),
+    description="Lotus Filecoin Node",
+    service_name="com.user.lotus-daemon"
 )
 
 print(f"Installed launchd service: {result.get('success', False)}")

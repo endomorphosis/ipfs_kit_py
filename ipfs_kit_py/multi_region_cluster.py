@@ -28,7 +28,6 @@ class RegionStatus(Enum):
 @dataclass
 class Region:
     """Represents a geographic region."""
-
     name: str
     location: str
     latency_zone: str = ""  # e.g., "us-west", "eu-central", "ap-southeast"
@@ -66,46 +65,44 @@ class Region:
 class MultiRegionCluster:
     """
     Multi-region cluster manager.
-
+    
     Manages IPFS nodes across multiple geographic regions with
     intelligent routing, replication, and failover capabilities.
     """
-
+    
     def __init__(self, ipfs_api=None):
         """Initialize multi-region cluster manager."""
         self.ipfs_api = ipfs_api
-
+        
         # Region registry
         self.regions: Dict[str, Region] = {}
-
+        
         # Routing preferences
-        self.routing_strategy = (
-            "latency_optimized"  # latency_optimized, geo_distributed, cost_optimized
-        )
-
+        self.routing_strategy = "latency_optimized"  # latency_optimized, geo_distributed, cost_optimized
+        
         # Replication settings
         self.min_replicas_per_region = 1
         self.cross_region_replication = True
-
+        
         # Health check settings
         self.health_check_interval = 30  # seconds
         self.health_check_timeout = 5  # seconds
-
+        
         # Monitoring
         self.is_monitoring = False
 
         # Round-robin state
         self._rr_index = 0
-
+        
         logger.info("Multi-region cluster manager initialized")
-
+    
     def register_region(self, region: Region) -> bool:
         """
         Register a new region.
-
+        
         Args:
             region: Region to register
-
+            
         Returns:
             True if successful
         """
@@ -116,11 +113,9 @@ class MultiRegionCluster:
             logger.info(f"Registered region: {region.region_id} ({region.location})")
             return True
         except Exception as e:
-            logger.error(
-                f"Error registering region {getattr(region, 'region_id', getattr(region, 'name', '?'))}: {e}"
-            )
+            logger.error(f"Error registering region {getattr(region, 'region_id', getattr(region, 'name', '?'))}: {e}")
             return False
-
+    
     def add_region(self, *args, **kwargs) -> bool:
         """Add or update a region.
 
@@ -135,9 +130,7 @@ class MultiRegionCluster:
 
         if args:
             if len(args) != 4:
-                raise TypeError(
-                    "add_region expects 4 positional args (region_id, name, location, endpoints)"
-                )
+                raise TypeError("add_region expects 4 positional args (region_id, name, location, endpoints)")
 
             region_id = str(args[0])
             name = str(args[1])
@@ -267,9 +260,7 @@ class MultiRegionCluster:
         else:
             region.avg_latency = 0.0
 
-    async def check_region_health(
-        self, region_id: str, *, timeout: float | None = None
-    ) -> Dict[str, Any]:
+    async def check_region_health(self, region_id: str, *, timeout: float | None = None) -> Dict[str, Any]:
         region = self.regions.get(region_id)
         if region is None:
             return {"success": False, "error": f"Region {region_id} not found"}
@@ -288,11 +279,7 @@ class MultiRegionCluster:
             if remaining != math.inf and remaining < 0.2:
                 region.last_health_check = time.time()
                 region.status = "unhealthy"
-                return {
-                    "success": False,
-                    "region": region_id,
-                    "error": "health check deadline too short",
-                }
+                return {"success": False, "region": region_id, "error": "health check deadline too short"}
 
         async def _run_check() -> Dict[str, Any]:
             # Tests may attach a custom coroutine for health checks.
@@ -352,9 +339,7 @@ class MultiRegionCluster:
         val = getattr(region.status, "value", region.status)
         return str(val) == "healthy"
 
-    async def route_request(
-        self, *, strategy: str = "latency", client_location: str | None = None
-    ) -> Optional[Region]:
+    async def route_request(self, *, strategy: str = "latency", client_location: str | None = None) -> Optional[Region]:
         """Select a region for a request using a named strategy."""
 
         healthy_regions = [r for r in self.regions.values() if self._is_region_healthy(r)]
@@ -430,19 +415,10 @@ class MultiRegionCluster:
         if region_ids and not found_any_region:
             raise Exception("No valid target regions")
 
-        payload: Dict[str, Any] = {
-            "success": overall_success,
-            "cid": cid,
-            "regions": replicated,
-            "results": results,
-        }
+        payload: Dict[str, Any] = {"success": overall_success, "cid": cid, "regions": replicated, "results": results}
 
         if not overall_success:
-            failed_regions = [
-                region_id
-                for region_id, region_result in results.items()
-                if not region_result.get("success")
-            ]
+            failed_regions = [region_id for region_id, region_result in results.items() if not region_result.get("success")]
             if failed_regions:
                 payload["failed"] = failed_regions
                 payload["errors"] = {
@@ -456,9 +432,7 @@ class MultiRegionCluster:
         """Replicate content to all registered regions."""
         return await self.replicate_content(cid, list(self.regions.keys()))
 
-    async def handle_failover(
-        self, failed_region_id: str, cid: Optional[str] = None
-    ) -> Dict[str, Any]:
+    async def handle_failover(self, failed_region_id: str, cid: Optional[str] = None) -> Dict[str, Any]:
         """Phase-6 compatibility failover helper.
 
         Some callers pass a CID as a second positional argument; it is optional
@@ -468,14 +442,8 @@ class MultiRegionCluster:
         if failed_region is not None:
             failed_region.status = "unhealthy"
 
-        healthy = [
-            r
-            for r in self.regions.values()
-            if r.region_id != failed_region_id and self._is_region_healthy(r)
-        ]
-        healthy.sort(
-            key=lambda r: (int(getattr(r, "priority", 1) or 1), -int(getattr(r, "weight", 0) or 0))
-        )
+        healthy = [r for r in self.regions.values() if r.region_id != failed_region_id and self._is_region_healthy(r)]
+        healthy.sort(key=lambda r: (int(getattr(r, "priority", 1) or 1), -int(getattr(r, "weight", 0) or 0)))
         backup_regions = [r.region_id for r in healthy]
 
         return {
@@ -519,14 +487,14 @@ class MultiRegionCluster:
             region.latency_zone = latency_zone
 
         return True
-
+    
     async def health_check(self, region_name: Optional[str] = None) -> Dict[str, Any]:
         """
         Perform health check on regions.
-
+        
         Args:
             region_name: Specific region to check, or None for all regions
-
+            
         Returns:
             Health check results
         """
@@ -540,26 +508,26 @@ class MultiRegionCluster:
             regions_to_check = [region]
         else:
             regions_to_check = list(self.regions.values())
-
+        
         results = {}
-
+        
         for region in regions_to_check:
             if region is None:
                 continue
-
+            
             try:
                 start_time = time.time()
-
+                
                 # Check each endpoint in the region
                 healthy_endpoints = 0
                 total_latency = 0.0
-
+                
                 for endpoint in region.endpoints:
                     is_healthy, latency = await self._check_endpoint(endpoint)
                     if is_healthy:
                         healthy_endpoints += 1
                         total_latency += latency
-
+                
                 # Update region status
                 if healthy_endpoints == 0:
                     region.status = RegionStatus.UNAVAILABLE
@@ -567,86 +535,83 @@ class MultiRegionCluster:
                     region.status = RegionStatus.DEGRADED
                 else:
                     region.status = RegionStatus.HEALTHY
-
+                
                 # Update metrics
                 region.last_health_check = time.time()
                 if healthy_endpoints > 0:
                     region.average_latency = total_latency / healthy_endpoints
-
+                
                 status_val = getattr(region.status, "value", region.status)
                 results[region.region_id] = {
                     "status": str(status_val),
                     "healthy_endpoints": healthy_endpoints,
                     "total_endpoints": len(region.endpoints),
                     "average_latency": region.average_latency,
-                    "last_check": region.last_health_check,
+                    "last_check": region.last_health_check
                 }
-
+                
             except Exception as e:
                 logger.error(f"Error checking region {region.name}: {e}")
                 results[region.name] = {"error": str(e)}
-
+        
         return results
-
+    
     async def _check_endpoint(self, endpoint: str) -> tuple[bool, float]:
         """
         Check if an endpoint is healthy.
-
+        
         Args:
             endpoint: Endpoint URL
-
+            
         Returns:
             Tuple of (is_healthy, latency_ms)
         """
         try:
             start_time = time.time()
-
+            
             # Perform health check (e.g., ping IPFS API)
             # This is a simplified implementation
             await anyio.sleep(0.01)  # Simulate network check
-
+            
             latency = (time.time() - start_time) * 1000  # Convert to ms
-
+            
             return True, latency
         except Exception as e:
             logger.error(f"Endpoint check failed for {endpoint}: {e}")
             return False, 0.0
-
-    def select_region(
-        self, strategy: Optional[str] = None, exclude_regions: Optional[Set[str]] = None
-    ) -> Optional[Region]:
+    
+    def select_region(self, strategy: Optional[str] = None, 
+                     exclude_regions: Optional[Set[str]] = None) -> Optional[Region]:
         """
         Select optimal region based on strategy.
-
+        
         Args:
             strategy: Routing strategy to use
             exclude_regions: Set of region names to exclude
-
+            
         Returns:
             Selected region or None
         """
         strategy = strategy or self.routing_strategy
         exclude_regions = exclude_regions or set()
-
+        
         # Filter available regions
         available_regions = [
-            r
-            for r in self.regions.values()
+            r for r in self.regions.values()
             if r.region_id not in exclude_regions and self._is_region_healthy(r)
         ]
-
+        
         if not available_regions:
             # Try degraded regions if no healthy ones
             available_regions = [
-                r
-                for r in self.regions.values()
+                r for r in self.regions.values()
                 if r.region_id not in exclude_regions
                 and str(getattr(r.status, "value", r.status)) == "degraded"
             ]
-
+        
         if not available_regions:
             return None
-
+        
         # Apply selection strategy
         if strategy == "latency_optimized":
             selected = min(available_regions, key=lambda r: r.average_latency)
@@ -664,18 +629,17 @@ class MultiRegionCluster:
             return replace(selected, name=(selected.region_id or selected.name))
         except Exception:
             return selected
-
-    async def replicate_to_regions(
-        self, cid: str, target_regions: Optional[List[str]] = None, min_replicas: int = 2
-    ) -> Dict[str, Any]:
+    
+    async def replicate_to_regions(self, cid: str, target_regions: Optional[List[str]] = None,
+                                   min_replicas: int = 2) -> Dict[str, Any]:
         """
         Replicate content across regions.
-
+        
         Args:
             cid: Content identifier
             target_regions: List of target region names (None for auto-select)
             min_replicas: Minimum number of regional replicas
-
+            
         Returns:
             Replication results
         """
@@ -683,9 +647,13 @@ class MultiRegionCluster:
             # Select target regions if not specified
             if target_regions is None:
                 target_regions = self._select_replication_regions(min_replicas)
-
-            results = {"cid": cid, "regions": {}, "success": True}
-
+            
+            results = {
+                "cid": cid,
+                "regions": {},
+                "success": True
+            }
+            
             # Replicate to each region
             for region_name in target_regions:
                 region = self.regions.get(region_name)
@@ -694,52 +662,52 @@ class MultiRegionCluster:
                 if not region:
                     logger.warning(f"Region {region_name} not found")
                     continue
-
+                
                 try:
                     # Replicate to region
                     region_result = await self._replicate_to_region(cid, region)
                     results["regions"][region.region_id] = region_result
-
+                    
                     if not region_result.get("success"):
                         results["success"] = False
-
+                        
                 except Exception as e:
                     logger.error(f"Error replicating to region {region_name}: {e}")
                     results["regions"][region_name] = {"success": False, "error": str(e)}
                     results["success"] = False
-
+            
             return results
-
+            
         except Exception as e:
             logger.error(f"Error in replicate_to_regions: {e}")
             return {"success": False, "error": str(e)}
-
+    
     def _select_replication_regions(self, count: int) -> List[str]:
         """Select regions for replication based on strategy."""
         # Get healthy regions sorted by different zones
         regions_by_zone: Dict[str, List[Region]] = {}
-
+        
         for region in self.regions.values():
             if self._is_region_healthy(region):
                 if region.latency_zone not in regions_by_zone:
                     regions_by_zone[region.latency_zone] = []
                 regions_by_zone[region.latency_zone].append(region)
-
+        
         # Select regions from different zones for geographic distribution
         selected = []
         zones = list(regions_by_zone.keys())
-
+        
         for i in range(count):
             if not zones:
                 break
-
+            
             zone = zones[i % len(zones)]
             if regions_by_zone[zone]:
                 region = regions_by_zone[zone].pop(0)
                 selected.append(region.region_id)
-
+        
         return selected
-
+    
     async def _replicate_to_region(self, cid: str, region: Region) -> Dict[str, Any]:
         """Replicate content to a specific region."""
         try:
@@ -754,47 +722,41 @@ class MultiRegionCluster:
                     if hasattr(result, "__await__"):
                         await result
                 except Exception as e:
-                    return {
-                        "success": False,
-                        "error": str(e),
-                        "region": region.name,
-                        "cid": cid,
-                        "endpoints": region.endpoints,
-                    }
+                    return {"success": False, "error": str(e), "region": region.name, "cid": cid, "endpoints": region.endpoints}
             else:
                 # Simulate replication
                 await anyio.sleep(0.1)
-
+            
             return {
                 "success": True,
                 "region": region.name,
                 "cid": cid,
-                "endpoints": region.endpoints,
+                "endpoints": region.endpoints
             }
         except Exception as e:
             logger.error(f"Replication error: {e}")
             return {"success": False, "error": str(e)}
-
+    
     async def get_closest_region(self, client_location: Optional[str] = None) -> Optional[Region]:
         """
         Get the closest region to a client.
-
+        
         Args:
             client_location: Client location hint
-
+            
         Returns:
             Closest region
         """
         # Simplified implementation - would use GeoIP or similar
         return self.select_region(strategy="latency_optimized")
-
+    
     async def failover(self, failed_region: str) -> Dict[str, Any]:
         """
         Handle region failover.
-
+        
         Args:
             failed_region: Name of failed region
-
+            
         Returns:
             Failover results
         """
@@ -802,46 +764,46 @@ class MultiRegionCluster:
             region = self.regions.get(failed_region)
             if not region:
                 return {"success": False, "error": "Region not found"}
-
+            
             # Mark region as unavailable
             region.status = RegionStatus.UNAVAILABLE
-
+            
             # Select backup regions
             backup_regions = self._select_replication_regions(2)
             backup_regions = [r for r in backup_regions if r != failed_region]
-
+            
             logger.info(f"Failing over from {failed_region} to {backup_regions}")
-
+            
             return {
                 "success": True,
                 "failed_region": failed_region,
                 "backup_regions": backup_regions,
-                "action": "Traffic redirected to backup regions",
+                "action": "Traffic redirected to backup regions"
             }
-
+            
         except Exception as e:
             logger.error(f"Failover error: {e}")
             return {"success": False, "error": str(e)}
-
+    
     def get_cluster_stats(self) -> Dict[str, Any]:
         """Get multi-region cluster statistics."""
         total_nodes = sum(r.node_count for r in self.regions.values())
         total_capacity = sum(r.capacity for r in self.regions.values())
         total_used = sum(r.used for r in self.regions.values())
-
+        
         regions_by_status = {
             "healthy": 0,
             "degraded": 0,
             "unavailable": 0,
             "unhealthy": 0,
         }
-
+        
         for region in self.regions.values():
             status_val = getattr(region.status, "value", region.status)
             status_key = str(status_val)
             if status_key in regions_by_status:
                 regions_by_status[status_key] += 1
-
+        
         return {
             "total_regions": len(self.regions),
             "regions_by_status": regions_by_status,
@@ -855,17 +817,17 @@ class MultiRegionCluster:
                     "location": r.location,
                     "status": str(getattr(r.status, "value", r.status)),
                     "latency": r.average_latency,
-                    "nodes": r.node_count,
+                    "nodes": r.node_count
                 }
                 for name, r in self.regions.items()
-            },
+            }
         }
-
+    
     async def start_monitoring(self):
         """Start monitoring regions."""
         self.is_monitoring = True
         logger.info("Started multi-region monitoring")
-
+        
         while self.is_monitoring:
             try:
                 await self.health_check()
@@ -873,7 +835,7 @@ class MultiRegionCluster:
             except Exception as e:
                 logger.error(f"Error in monitoring loop: {e}")
                 await anyio.sleep(self.health_check_interval)
-
+    
     def stop_monitoring(self):
         """Stop monitoring regions."""
         self.is_monitoring = False

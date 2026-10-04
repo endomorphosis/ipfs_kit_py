@@ -2,7 +2,7 @@
 """
 Complete Modernized Comprehensive Dashboard Implementation
 
-This provides the full implementation that bridges old comprehensive features
+This provides the full implementation that bridges old comprehensive features 
 with new light initialization and bucket-based VFS architecture.
 """
 
@@ -17,15 +17,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Union
 
 import uvicorn
-from fastapi import (
-    FastAPI,
-    HTTPException,
-    Request,
-    WebSocket,
-    WebSocketDisconnect,
-    File,
-    UploadFile,
-)
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from pydantic import BaseModel
@@ -51,26 +43,14 @@ try:
     else:
         raise ImportError("IPFSSimpleAPI not found")
 except Exception:
-
     class IPFSSimpleAPI:  # type: ignore
         def __init__(self, **kwargs):
             self.available = False
-
-        def pin_ls(self):
-            return {}
-
-        def pin_add(self, *args):
-            return {"Pins": []}
-
-        def swarm_peers(self):
-            return {"Peers": []}
-
-        def id(self):
-            return {"ID": "mock_id"}
-
-        def repo_stat(self):
-            return {"RepoSize": 0, "NumObjects": 0}
-
+        def pin_ls(self): return {}
+        def pin_add(self, *args): return {"Pins": []}
+        def swarm_peers(self): return {"Peers": []}
+        def id(self): return {"ID": "mock_id"}
+        def repo_stat(self): return {"RepoSize": 0, "NumObjects": 0}
 
 # Bucket Manager
 BUCKET_MANAGER_AVAILABLE = False
@@ -90,17 +70,10 @@ try:
     else:
         raise ImportError("BucketManager not found")
 except Exception:
-
-    def get_global_bucket_manager(**kwargs):
-        return None  # type: ignore
-
+    def get_global_bucket_manager(**kwargs): return None  # type: ignore
     class BucketManager:  # type: ignore
-        def __init__(self, **kwargs):
-            pass
-
-        def list_buckets(self):
-            return []
-
+        def __init__(self, **kwargs): pass
+        def list_buckets(self): return []
 
 # Unified Bucket Interface
 try:
@@ -114,23 +87,14 @@ try:
             _ubi = None
     if _ubi and hasattr(_ubi, "UnifiedBucketInterface"):
         UnifiedBucketInterface = getattr(_ubi, "UnifiedBucketInterface")  # type: ignore
-        get_global_unified_bucket_interface = getattr(
-            _ubi, "get_global_unified_bucket_interface", lambda **kwargs: UnifiedBucketInterface()
-        )  # type: ignore
+        get_global_unified_bucket_interface = getattr(_ubi, "get_global_unified_bucket_interface", lambda **kwargs: UnifiedBucketInterface())  # type: ignore
     else:
         raise ImportError("UnifiedBucketInterface not found")
 except Exception:
-
     class UnifiedBucketInterface:  # type: ignore
-        def __init__(self, **kwargs):
-            pass
-
-        async def list_backend_buckets(self):
-            return {"success": True, "data": {"buckets": []}}
-
-    def get_global_unified_bucket_interface(**kwargs):
-        return UnifiedBucketInterface()  # type: ignore
-
+        def __init__(self, **kwargs): pass
+        async def list_backend_buckets(self): return {"success": True, "data": {"buckets": []}}
+    def get_global_unified_bucket_interface(**kwargs): return UnifiedBucketInterface()  # type: ignore
 
 # Enhanced Bucket Index
 try:
@@ -147,11 +111,8 @@ try:
     else:
         raise ImportError("EnhancedBucketIndex not found")
 except Exception:
-
     class EnhancedBucketIndex:  # type: ignore
-        def __init__(self, **kwargs):
-            pass
-
+        def __init__(self, **kwargs): pass
 
 # Pins metadata index
 try:
@@ -168,26 +129,19 @@ try:
     else:
         raise ImportError("EnhancedPinMetadataIndex not found")
 except Exception:
-
     class EnhancedPinMetadataIndex:  # type: ignore
-        def __init__(self, **kwargs):
-            pass
-
-        def get_all_pins(self):
-            return []
-
+        def __init__(self, **kwargs): pass
+        def get_all_pins(self): return []
 
 # System monitoring imports with fallbacks
 try:
     import psutil
-
     PSUTIL_AVAILABLE = True
 except ImportError:
     PSUTIL_AVAILABLE = False
 
 try:
     import yaml
-
     YAML_AVAILABLE = True
 except ImportError:
     YAML_AVAILABLE = False
@@ -199,44 +153,46 @@ logger = logging.getLogger(__name__)
 
 class MemoryLogHandler(logging.Handler):
     """Custom log handler that stores logs in memory for dashboard display."""
-
+    
     def __init__(self, max_logs=1000):
         super().__init__()
         self.max_logs = max_logs
         self.logs = deque(maxlen=max_logs)
-        self.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
-
+        self.setFormatter(logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        ))
+    
     def emit(self, record):
         """Store log record in memory."""
         try:
             log_entry = {
-                "timestamp": datetime.fromtimestamp(record.created).isoformat(),
-                "level": record.levelname,
-                "component": record.name,
-                "message": self.format(record),
-                "raw_message": record.getMessage(),
-                "module": record.module,
-                "function": record.funcName,
-                "line": record.lineno,
+                'timestamp': datetime.fromtimestamp(record.created).isoformat(),
+                'level': record.levelname,
+                'component': record.name,
+                'message': self.format(record),
+                'raw_message': record.getMessage(),
+                'module': record.module,
+                'function': record.funcName,
+                'line': record.lineno
             }
             self.logs.append(log_entry)
         except Exception:
             self.handleError(record)
-
-    def get_logs(self, component="all", level="all", limit=100):
+    
+    def get_logs(self, component='all', level='all', limit=100):
         """Get filtered logs from memory."""
         logs = list(self.logs)
-
+        
         # Filter by component
-        if component != "all":
-            logs = [log for log in logs if component.lower() in log["component"].lower()]
-
+        if component != 'all':
+            logs = [log for log in logs if component.lower() in log['component'].lower()]
+        
         # Filter by level
-        if level != "all":
-            level_priorities = {"DEBUG": 10, "INFO": 20, "WARNING": 30, "ERROR": 40, "CRITICAL": 50}
+        if level != 'all':
+            level_priorities = {'DEBUG': 10, 'INFO': 20, 'WARNING': 30, 'ERROR': 40, 'CRITICAL': 50}
             min_level = level_priorities.get(level.upper(), 0)
-            logs = [log for log in logs if level_priorities.get(log["level"], 0) >= min_level]
-
+            logs = [log for log in logs if level_priorities.get(log['level'], 0) >= min_level]
+        
         # Return last N logs
         return logs[-limit:] if logs else []
 
@@ -244,7 +200,7 @@ class MemoryLogHandler(logging.Handler):
 class ModernizedComprehensiveDashboard:
     """
     Modernized comprehensive dashboard that bridges old and new architectures.
-
+    
     Features:
     - Light initialization with fallback imports (new)
     - Bucket-based VFS integration (new)
@@ -254,32 +210,32 @@ class ModernizedComprehensiveDashboard:
     - WebSocket real-time updates (legacy)
     - Modern responsive UI (new)
     """
-
+    
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """Initialize the modernized comprehensive dashboard."""
         # Base configuration
         self.config = config or {
-            "host": "127.0.0.1",
-            "port": 8080,
-            "debug": False,
-            "data_dir": "~/.ipfs_kit",
-            "enable_websockets": True,
-            "enable_real_time_updates": True,
+            'host': '127.0.0.1',
+            'port': 8080,
+            'debug': False,
+            'data_dir': '~/.ipfs_kit',
+            'enable_websockets': True,
+            'enable_real_time_updates': True
         }
 
         # Basic settings
-        self.host = self.config.get("host", "127.0.0.1")
-        self.port = self.config.get("port", 8080)
-        self.debug = self.config.get("debug", False)
-        self.data_dir = Path(self.config.get("data_dir", "~/.ipfs_kit")).expanduser()
+        self.host = self.config.get('host', '127.0.0.1')
+        self.port = self.config.get('port', 8080)
+        self.debug = self.config.get('debug', False)
+        self.data_dir = Path(self.config.get('data_dir', '~/.ipfs_kit')).expanduser()
         # Optional MCP JSON-RPC endpoint URL (when provided by CLI)
-        self.mcp_rpc_url = self.config.get("mcp_rpc_url")
+        self.mcp_rpc_url = self.config.get('mcp_rpc_url')
 
         # Initialize FastAPI app
         self.app = FastAPI(
             title="IPFS Kit Modernized Comprehensive Dashboard",
             description="Modernized comprehensive dashboard with bucket VFS and legacy feature integration",
-            version="2.0.0",
+            version="2.0.0"
         )
 
         # Initialize components using light initialization
@@ -296,10 +252,10 @@ class ModernizedComprehensiveDashboard:
 
         # Component status tracking
         self.component_status = {
-            "ipfs": IPFS_AVAILABLE,
-            "bucket_manager": BUCKET_MANAGER_AVAILABLE,
-            "psutil": PSUTIL_AVAILABLE,
-            "yaml": YAML_AVAILABLE,
+            'ipfs': IPFS_AVAILABLE,
+            'bucket_manager': BUCKET_MANAGER_AVAILABLE,
+            'psutil': PSUTIL_AVAILABLE,
+            'yaml': YAML_AVAILABLE
         }
 
         # Setup the server
@@ -336,7 +292,6 @@ class ModernizedComprehensiveDashboard:
             logger.info("✅ IPFS API initialized")
         except Exception as e:
             logger.warning(f"⚠️ IPFS API initialization failed: {e}")
-
             # Ensure callers/tests always have a safe fallback object.
             class _FallbackIPFSAPI:  # noqa: D401
                 def pin_ls(self):
@@ -369,13 +324,9 @@ class ModernizedComprehensiveDashboard:
             logger.info("✅ Unified bucket interface initialized")
         except Exception as e:
             logger.warning(f"⚠️ Unified bucket interface initialization failed: {e}")
-
             class _FallbackUnifiedBucketInterface:  # noqa: D401
                 async def list_backend_buckets(self):
-                    return {
-                        "success": True,
-                        "data": {"buckets": [], "total_count": 0, "backend_filter": None},
-                    }
+                    return {"success": True, "data": {"buckets": [], "total_count": 0, "backend_filter": None}}
 
             self.unified_bucket_interface = _FallbackUnifiedBucketInterface()
 
@@ -383,7 +334,7 @@ class ModernizedComprehensiveDashboard:
             # Initialize enhanced bucket index
             self.enhanced_bucket_index = EnhancedBucketIndex(
                 index_dir=str(self.data_dir / "bucket_index"),
-                bucket_vfs_manager=self.bucket_manager,
+                bucket_vfs_manager=self.bucket_manager
             )
             logger.info("✅ Enhanced bucket index initialized")
         except Exception as e:
@@ -400,7 +351,7 @@ class ModernizedComprehensiveDashboard:
 
     def _setup_routes(self):
         """Setup all API routes for the comprehensive dashboard."""
-
+        
         # Main dashboard route
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard():
@@ -433,9 +384,7 @@ class ModernizedComprehensiveDashboard:
                     result = await self._mcp_jsonrpc("system.status", {})
                     return {"success": True, "data": result}
                 except Exception as e:
-                    logger.warning(
-                        f"MCP JSON-RPC status failed, falling back to legacy handler: {e}"
-                    )
+                    logger.warning(f"MCP JSON-RPC status failed, falling back to legacy handler: {e}")
                     # Fallback to legacy
                     return await self._get_mcp_status()
             return await self._get_mcp_status()
@@ -453,9 +402,7 @@ class ModernizedComprehensiveDashboard:
                     result = await self._mcp_jsonrpc("tools.list", {})
                     return {"success": True, "data": result}
                 except Exception as e:
-                    logger.warning(
-                        f"MCP JSON-RPC tools.list failed, falling back to legacy handler: {e}"
-                    )
+                    logger.warning(f"MCP JSON-RPC tools.list failed, falling back to legacy handler: {e}")
                     return await self._list_mcp_tools()
             return await self._list_mcp_tools()
 
@@ -468,9 +415,7 @@ class ModernizedComprehensiveDashboard:
                     result = await self._mcp_jsonrpc("tools.call", data)
                     return {"success": True, "data": result}
                 except Exception as e:
-                    logger.warning(
-                        f"MCP JSON-RPC tools.call failed, falling back to legacy handler: {e}"
-                    )
+                    logger.warning(f"MCP JSON-RPC tools.call failed, falling back to legacy handler: {e}")
                     return await self._call_mcp_tool(data)
             return await self._call_mcp_tool(data)
 
@@ -539,15 +484,14 @@ class ModernizedComprehensiveDashboard:
             return await self._get_logs(component, level, limit)
 
         # === WEBSOCKET ENDPOINT (Legacy) ===
-        if self.config.get("enable_websockets", True):
-
+        if self.config.get('enable_websockets', True):
             @self.app.websocket("/ws")
             async def websocket_endpoint(websocket: WebSocket):
                 """WebSocket endpoint for real-time updates."""
                 await self._handle_websocket_connection(websocket)
 
     # === IMPLEMENTATION METHODS ===
-
+    
     async def _get_system_status(self) -> Dict[str, Any]:
         """Get comprehensive system status."""
         try:
@@ -556,26 +500,21 @@ class ModernizedComprehensiveDashboard:
                 "uptime": str(datetime.now() - self.start_time),
                 "ipfs_api": "available" if self.ipfs_api else "unavailable",
                 "bucket_manager": "available" if self.bucket_manager else "unavailable",
-                "unified_bucket_interface": "available"
-                if self.unified_bucket_interface
-                else "unavailable",
+                "unified_bucket_interface": "available" if self.unified_bucket_interface else "unavailable",
                 "data_dir": str(self.data_dir),
                 "data_dir_exists": self.data_dir.exists(),
-                "component_status": self.component_status,
+                "component_status": self.component_status
             }
-
+            
             # Add system metrics if available
             if PSUTIL_AVAILABLE:
                 import psutil
-
-                status.update(
-                    {
-                        "cpu_percent": psutil.cpu_percent(),
-                        "memory_percent": psutil.virtual_memory().percent,
-                        "disk_usage": psutil.disk_usage("/").percent,
-                    }
-                )
-
+                status.update({
+                    "cpu_percent": psutil.cpu_percent(),
+                    "memory_percent": psutil.virtual_memory().percent,
+                    "disk_usage": psutil.disk_usage('/').percent
+                })
+            
             return {"success": True, "data": status}
         except Exception as e:
             logger.error(f"Error getting system status: {e}")
@@ -585,7 +524,7 @@ class ModernizedComprehensiveDashboard:
         """Get system health metrics."""
         try:
             health_checks = {}
-
+            
             # Check IPFS API health
             if self.ipfs_api:
                 try:
@@ -596,10 +535,10 @@ class ModernizedComprehensiveDashboard:
                     health_checks["ipfs_api"] = f"unhealthy: {e}"
             else:
                 health_checks["ipfs_api"] = "unavailable"
-
+            
             # Check data directory
             health_checks["data_dir"] = "accessible" if self.data_dir.exists() else "inaccessible"
-
+            
             # Check bucket interface
             if self.unified_bucket_interface:
                 try:
@@ -610,22 +549,16 @@ class ModernizedComprehensiveDashboard:
                     health_checks["bucket_interface"] = f"unhealthy: {e}"
             else:
                 health_checks["bucket_interface"] = "unavailable"
-
-            overall_health = (
-                "healthy"
-                if all(
-                    "healthy" in str(v) or "accessible" in str(v) for v in health_checks.values()
-                )
-                else "degraded"
-            )
-
+            
+            overall_health = "healthy" if all("healthy" in str(v) or "accessible" in str(v) for v in health_checks.values()) else "degraded"
+            
             return {
                 "success": True,
                 "data": {
                     "overall_health": overall_health,
                     "checks": health_checks,
-                    "timestamp": datetime.now().isoformat(),
-                },
+                    "timestamp": datetime.now().isoformat()
+                }
             }
         except Exception as e:
             logger.error(f"Error getting system health: {e}")
@@ -639,10 +572,10 @@ class ModernizedComprehensiveDashboard:
             backends_count = len(await self._get_backends_list())
             buckets_count = len(await self._get_buckets_list())
             pins_count = len(await self._get_pins_list())
-
+            
             uptime_seconds = (datetime.now() - self.start_time).total_seconds()
             uptime_str = f"{int(uptime_seconds // 3600):02d}:{int((uptime_seconds % 3600) // 60):02d}:{int(uptime_seconds % 60):02d}"
-
+            
             return {
                 "success": True,
                 "data": {
@@ -652,8 +585,8 @@ class ModernizedComprehensiveDashboard:
                     "pins": pins_count,
                     "uptime": uptime_str,
                     "status": "running",
-                    "timestamp": datetime.now().isoformat(),
-                },
+                    "timestamp": datetime.now().isoformat()
+                }
             }
         except Exception as e:
             logger.error(f"Error getting system overview: {e}")
@@ -666,88 +599,76 @@ class ModernizedComprehensiveDashboard:
                     "buckets": 0,
                     "pins": 0,
                     "uptime": "00:00:00",
-                    "status": "error",
-                },
+                    "status": "error"
+                }
             }
 
     async def _get_services_list(self) -> List[Dict[str, Any]]:
         """Get list of services for internal use."""
         services = []
-
+        
         # Add IPFS service
-        services.append(
-            {
-                "name": "IPFS Node",
-                "type": "ipfs",
-                "status": "running" if self.ipfs_api and IPFS_AVAILABLE else "stopped",
-                "description": "IPFS node connection",
-            }
-        )
-
+        services.append({
+            "name": "IPFS Node",
+            "type": "ipfs",
+            "status": "running" if self.ipfs_api and IPFS_AVAILABLE else "stopped",
+            "description": "IPFS node connection"
+        })
+        
         # Add bucket manager service
-        services.append(
-            {
-                "name": "Bucket Manager",
-                "type": "bucket",
-                "status": "running"
-                if self.bucket_manager and BUCKET_MANAGER_AVAILABLE
-                else "stopped",
-                "description": "Bucket VFS manager",
-            }
-        )
-
+        services.append({
+            "name": "Bucket Manager",
+            "type": "bucket",
+            "status": "running" if self.bucket_manager and BUCKET_MANAGER_AVAILABLE else "stopped",
+            "description": "Bucket VFS manager"
+        })
+        
         # Add unified interface service
-        services.append(
-            {
-                "name": "Unified Interface",
-                "type": "interface",
-                "status": "running" if self.unified_bucket_interface else "stopped",
-                "description": "Unified bucket interface",
-            }
-        )
-
+        services.append({
+            "name": "Unified Interface",
+            "type": "interface",
+            "status": "running" if self.unified_bucket_interface else "stopped",
+            "description": "Unified bucket interface"
+        })
+        
         return services
 
     async def _get_backends_list(self) -> List[Dict[str, Any]]:
         """Get list of backends for internal use."""
         backends = []
-
+        
         # Read from ~/.ipfs_kit/backend_configs/
         backend_configs_dir = self.data_dir / "backend_configs"
         if backend_configs_dir.exists() and YAML_AVAILABLE:
             for config_file in backend_configs_dir.glob("*.yaml"):
                 try:
-                    with open(config_file, "r") as f:
+                    with open(config_file, 'r') as f:
                         config = yaml.safe_load(f)
-
-                    backends.append(
-                        {
-                            "name": config_file.stem,
-                            "type": config.get("type", "unknown"),
-                            "status": "configured",
-                            "config_file": str(config_file),
-                        }
-                    )
+                    
+                    backends.append({
+                        "name": config_file.stem,
+                        "type": config.get("type", "unknown"),
+                        "status": "configured",
+                        "config_file": str(config_file)
+                    })
                 except Exception as e:
                     logger.warning(f"Error reading backend config {config_file}: {e}")
-
+        
         # Add default IPFS backend if none found
         if not backends:
-            backends.append(
-                {
-                    "name": "IPFS Local",
-                    "type": "ipfs",
-                    "status": "running" if self.ipfs_api and IPFS_AVAILABLE else "stopped",
-                    "url": "http://127.0.0.1:5001",
-                }
-            )
-
+            backends.append({
+                "name": "IPFS Local",
+                "type": "ipfs",
+                "status": "running" if self.ipfs_api and IPFS_AVAILABLE else "stopped",
+                "url": "http://127.0.0.1:5001"
+            })
+        
         return backends
 
     async def _get_buckets_list(self) -> List[Dict[str, Any]]:
         """Get list of buckets for internal use."""
         buckets = []
-
+        
         if self.unified_bucket_interface:
             try:
                 result = await self.unified_bucket_interface.list_backend_buckets()
@@ -755,69 +676,73 @@ class ModernizedComprehensiveDashboard:
                     buckets = result.get("data", {}).get("buckets", [])
             except Exception as e:
                 logger.warning(f"Error getting buckets from unified interface: {e}")
-
+        
         # Fallback to bucket manager
         if not buckets and self.bucket_manager:
             try:
                 bucket_names = self.bucket_manager.list_buckets()
                 for name in bucket_names:
-                    buckets.append({"name": name, "status": "active", "source": "bucket_manager"})
+                    buckets.append({
+                        "name": name,
+                        "status": "active",
+                        "source": "bucket_manager"
+                    })
             except Exception as e:
                 logger.warning(f"Error getting buckets from bucket manager: {e}")
-
+        
         return buckets
 
     async def _get_pins_list(self) -> List[Dict[str, Any]]:
         """Get list of pins for internal use."""
         pins = []
-
+        
         # Try enhanced pin metadata index first
         if self.pin_metadata_index:
             try:
                 pins_data = self.pin_metadata_index.get_all_pins()
                 for pin_data in pins_data:
-                    pins.append(
-                        {"cid": pin_data.get("cid"), "status": "pinned", "source": "metadata_index"}
-                    )
+                    pins.append({
+                        "cid": pin_data.get("cid"),
+                        "status": "pinned",
+                        "source": "metadata_index"
+                    })
             except Exception as e:
                 logger.warning(f"Error getting pins from metadata index: {e}")
-
+        
         # Fallback to IPFS API
         if not pins and self.ipfs_api:
             try:
                 ipfs_pins = self.ipfs_api.pin_ls()
                 for cid, pin_info in ipfs_pins.items():
-                    pins.append(
-                        {
-                            "cid": cid,
-                            "status": "pinned",
-                            "type": pin_info.get("type", "recursive"),
-                            "source": "ipfs_api",
-                        }
-                    )
+                    pins.append({
+                        "cid": cid,
+                        "status": "pinned",
+                        "type": pin_info.get("type", "recursive"),
+                        "source": "ipfs_api"
+                    })
             except Exception as e:
                 logger.warning(f"Error getting pins from IPFS API: {e}")
-
+        
         return pins
 
     async def _handle_websocket_connection(self, websocket: WebSocket):
         """Handle WebSocket connection for real-time updates."""
         await websocket.accept()
         self.websocket_connections.add(websocket)
-
+        
         try:
             while True:
                 # Send periodic updates
                 await anyio.sleep(5)
-
+                
                 update_data = {
                     "type": "system_update",
                     "timestamp": datetime.now().isoformat(),
-                    "data": await self._get_system_overview(),
+                    "data": await self._get_system_overview()
                 }
-
+                
                 await websocket.send_json(update_data)
-
+                
         except WebSocketDisconnect:
             pass
         finally:
@@ -1187,49 +1112,21 @@ class ModernizedComprehensiveDashboard:
     # === STUB IMPLEMENTATIONS FOR MISSING METHODS ===
     # These would be implemented based on the specific requirements
 
-    async def _get_mcp_status(self):
-        return {"success": True, "data": {"status": "running"}}
-
-    async def _restart_mcp_server(self):
-        return {"success": True, "message": "Restart requested"}
-
-    async def _list_mcp_tools(self):
-        return {"success": True, "data": {"tools": []}}
-
-    async def _call_mcp_tool(self, data):
-        return {"success": True, "result": "Tool called"}
-
-    async def _get_services(self):
-        return {"success": True, "data": await self._get_services_list()}
-
-    async def _control_service(self, data):
-        return {"success": True, "message": "Service controlled"}
-
-    async def _get_service_details(self, service_name):
-        return {"success": True, "data": {"name": service_name}}
-
-    async def _get_backends(self):
-        return {"success": True, "data": await self._get_backends_list()}
-
-    async def _get_backend_health(self):
-        return {"success": True, "data": {"health": "good"}}
-
-    async def _get_buckets(self):
-        return {"success": True, "data": await self._get_buckets_list()}
-
-    async def _create_bucket(self, data):
-        return {"success": True, "message": "Bucket created"}
-
-    async def _get_all_pins(self):
-        return {"success": True, "data": await self._get_pins_list()}
-
-    async def _add_pin(self, data):
-        return {"success": True, "message": "Pin added"}
-
-    async def _get_all_configs(self):
-        return {"success": True, "data": {"configs": {}}}
-
-    async def _get_logs(self, component, level, limit):
+    async def _get_mcp_status(self): return {"success": True, "data": {"status": "running"}}
+    async def _restart_mcp_server(self): return {"success": True, "message": "Restart requested"}
+    async def _list_mcp_tools(self): return {"success": True, "data": {"tools": []}}
+    async def _call_mcp_tool(self, data): return {"success": True, "result": "Tool called"}
+    async def _get_services(self): return {"success": True, "data": await self._get_services_list()}
+    async def _control_service(self, data): return {"success": True, "message": "Service controlled"}
+    async def _get_service_details(self, service_name): return {"success": True, "data": {"name": service_name}}
+    async def _get_backends(self): return {"success": True, "data": await self._get_backends_list()}
+    async def _get_backend_health(self): return {"success": True, "data": {"health": "good"}}
+    async def _get_buckets(self): return {"success": True, "data": await self._get_buckets_list()}
+    async def _create_bucket(self, data): return {"success": True, "message": "Bucket created"}
+    async def _get_all_pins(self): return {"success": True, "data": await self._get_pins_list()}
+    async def _add_pin(self, data): return {"success": True, "message": "Pin added"}
+    async def _get_all_configs(self): return {"success": True, "data": {"configs": {}}}
+    async def _get_logs(self, component, level, limit): 
         logs = self.memory_log_handler.get_logs(component, level, limit)
         return {"success": True, "data": {"logs": logs}}
 
@@ -1239,7 +1136,7 @@ class ModernizedComprehensiveDashboard:
             self.app,
             host=self.host,
             port=self.port,
-            log_level="info" if not self.debug else "debug",
+            log_level="info" if not self.debug else "debug"
         )
         server = uvicorn.Server(config)
         await server.serve()
@@ -1249,13 +1146,12 @@ class ModernizedComprehensiveDashboard:
         if not self.mcp_rpc_url:
             raise RuntimeError("MCP JSON-RPC URL is not configured")
         import httpx
-
         async with httpx.AsyncClient(timeout=10) as client:
             payload = {
                 "jsonrpc": "2.0",
                 "id": int(time.time() * 1000) % 1_000_000,
                 "method": method,
-                "params": params or {},
+                "params": params or {}
             }
             r = await client.post(self.mcp_rpc_url, json=payload)
             r.raise_for_status()
@@ -1268,12 +1164,16 @@ class ModernizedComprehensiveDashboard:
 # Main execution
 async def main():
     """Main entry point for the modernized comprehensive dashboard."""
-    dashboard = ModernizedComprehensiveDashboard({"host": "127.0.0.1", "port": 8080, "debug": True})
-
+    dashboard = ModernizedComprehensiveDashboard({
+        'host': '127.0.0.1',
+        'port': 8080,
+        'debug': True
+    })
+    
     print("🚀 Starting Modernized Comprehensive Dashboard...")
     print(f"📊 Dashboard available at: http://{dashboard.host}:{dashboard.port}")
     print("🔧 Features: Light initialization + Bucket VFS + Legacy comprehensive features")
-
+    
     await dashboard.run()
 
 

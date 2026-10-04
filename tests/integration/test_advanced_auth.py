@@ -15,7 +15,7 @@ import pytest
 from typing import Dict, Any, Optional, List
 
 # Add parent directory to path for importing
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
@@ -38,7 +38,7 @@ class TestAdvancedAuthentication:
             token_expire_minutes=60,
             refresh_token_expire_days=7,
             password_reset_expire_hours=24,
-            api_key_prefix="ipfk_test_",
+            api_key_prefix="ipfk_test_"
         )
 
         # Initialize authentication service
@@ -46,7 +46,10 @@ class TestAdvancedAuthentication:
 
         # Create audit logger for testing (with console logging disabled)
         self.audit_logger = AuditLogger(
-            log_file="test_audit.log", console_logging=False, file_logging=False, json_logging=True
+            log_file="test_audit.log",
+            console_logging=False,
+            file_logging=False,
+            json_logging=True
         )
 
         # Start audit logger
@@ -63,7 +66,7 @@ class TestAdvancedAuthentication:
             "username": "testuser",
             "email": "test@example.com",
             "password": "TestPassword123",
-            "full_name": "Test User",
+            "full_name": "Test User"
         }
 
         # Create test admin data
@@ -71,7 +74,7 @@ class TestAdvancedAuthentication:
             "username": "testadmin",
             "email": "admin@example.com",
             "password": "AdminPassword123",
-            "full_name": "Test Admin",
+            "full_name": "Test Admin"
         }
 
         yield
@@ -126,7 +129,8 @@ class TestAdvancedAuthentication:
 
         # Test authentication with correct password
         authenticated_user = await self.auth_service.authenticate_user(
-            username=self.test_user_data["username"], password=self.test_user_data["password"]
+            username=self.test_user_data["username"],
+            password=self.test_user_data["password"]
         )
 
         assert authenticated_user is not None
@@ -134,14 +138,16 @@ class TestAdvancedAuthentication:
 
         # Test authentication with wrong password
         authenticated_user = await self.auth_service.authenticate_user(
-            username=self.test_user_data["username"], password="WrongPassword123"
+            username=self.test_user_data["username"],
+            password="WrongPassword123"
         )
 
         assert authenticated_user is None
 
         # Test authentication with email
         authenticated_user = await self.auth_service.authenticate_user(
-            username=self.test_user_data["email"], password=self.test_user_data["password"]
+            username=self.test_user_data["email"],
+            password=self.test_user_data["password"]
         )
 
         assert authenticated_user is not None
@@ -154,7 +160,9 @@ class TestAdvancedAuthentication:
 
         # Create session for user
         session = await self.auth_service.create_session(
-            user=user, ip_address="127.0.0.1", user_agent="Test Client"
+            user=user,
+            ip_address="127.0.0.1",
+            user_agent="Test Client"
         )
 
         # Create access token
@@ -180,9 +188,7 @@ class TestAdvancedAuthentication:
         assert token_data.scope == "refresh"
 
         # Test refresh token to get new access token
-        success, new_access_token, error = await self.auth_service.refresh_access_token(
-            refresh_token
-        )
+        success, new_access_token, error = await self.auth_service.refresh_access_token(refresh_token)
         assert success
         assert new_access_token is not None
 
@@ -212,13 +218,13 @@ class TestAdvancedAuthentication:
             user_id=user.id,
             roles={"api"},
             direct_permissions={"storage:read", "storage:list"},
-            expires_at=time.time() + 86400,  # 1 day expiration
+            expires_at=time.time() + 86400  # 1 day expiration
         )
 
         # Create API key
         success, api_key_response, message = await self.auth_service.create_api_key(
             user_id=user.id,
-            request=self.auth_service.api_key_store._create_api_key_request(api_key_request),
+            request=self.auth_service.api_key_store._create_api_key_request(api_key_request)
         )
 
         assert success, f"Failed to create API key: {message}"
@@ -229,7 +235,8 @@ class TestAdvancedAuthentication:
 
         # Verify API key
         valid, api_key_obj, error = await self.auth_service.verify_api_key(
-            api_key=api_key_response.key, ip_address="127.0.0.1"
+            api_key=api_key_response.key,
+            ip_address="127.0.0.1"
         )
 
         assert valid
@@ -250,14 +257,16 @@ class TestAdvancedAuthentication:
 
         # Test API key revocation
         success, message = await self.auth_service.revoke_api_key(
-            key_id=api_key_obj.id, user_id=user.id
+            key_id=api_key_obj.id,
+            user_id=user.id
         )
 
         assert success, f"Failed to revoke API key: {message}"
 
         # Try to verify revoked API key
         valid, api_key_obj, error = await self.auth_service.verify_api_key(
-            api_key=api_key_response.key, ip_address="127.0.0.1"
+            api_key=api_key_response.key,
+            ip_address="127.0.0.1"
         )
 
         assert not valid
@@ -280,28 +289,40 @@ class TestAdvancedAuthentication:
 
         # Test permission checking
         has_permission = await self.auth_service.check_permission(
-            user_id=user.id, required_permission="storage:read"
+            user_id=user.id,
+            required_permission="storage:read"
         )
         assert has_permission
 
         has_permission = await self.auth_service.check_permission(
-            user_id=user.id, required_permission="storage:write"
+            user_id=user.id,
+            required_permission="storage:write"
         )
         assert not has_permission
 
         has_permission = await self.auth_service.check_permission(
-            user_id=admin.id, required_permission="storage:write"
+            user_id=admin.id,
+            required_permission="storage:write"
         )
         assert has_permission
 
         # Test role checking
-        has_role = await self.auth_service.check_role(user_id=user.id, required_role="user")
+        has_role = await self.auth_service.check_role(
+            user_id=user.id,
+            required_role="user"
+        )
         assert has_role
 
-        has_role = await self.auth_service.check_role(user_id=user.id, required_role="admin")
+        has_role = await self.auth_service.check_role(
+            user_id=user.id,
+            required_role="admin"
+        )
         assert not has_role
 
-        has_role = await self.auth_service.check_role(user_id=admin.id, required_role="admin")
+        has_role = await self.auth_service.check_role(
+            user_id=admin.id,
+            required_role="admin"
+        )
         assert has_role
 
     async def test_audit_logging(self):
@@ -312,7 +333,7 @@ class TestAdvancedAuthentication:
             user_id="test_user_123",
             username="testuser",
             ip_address="127.0.0.1",
-            user_agent="Test Browser",
+            user_agent="Test Browser"
         )
 
         await self.audit_logger.log_permission_check(
@@ -320,7 +341,7 @@ class TestAdvancedAuthentication:
             permission="storage:read",
             resource_type="file",
             resource_id="test_file_123",
-            granted=True,
+            granted=True
         )
 
         await self.audit_logger.log_backend_access(
@@ -329,7 +350,7 @@ class TestAdvancedAuthentication:
             user_id="test_user_123",
             username="testuser",
             ip_address="127.0.0.1",
-            action="store",
+            action="store"
         )
 
         # Wait for logs to be processed
@@ -355,25 +376,33 @@ class TestAdvancedAuthentication:
 
         # Check basic access to IPFS backend
         allowed, reason = await self.backend_auth.check_backend_access(
-            backend_id="ipfs", user=user, operation=Operation.RETRIEVE
+            backend_id="ipfs",
+            user=user,
+            operation=Operation.RETRIEVE
         )
         assert allowed, f"Expected access to be allowed, got: {reason}"
 
         # Check write access to IPFS backend
         allowed, reason = await self.backend_auth.check_backend_access(
-            backend_id="ipfs", user=user, operation=Operation.STORE
+            backend_id="ipfs",
+            user=user,
+            operation=Operation.STORE
         )
         assert allowed, f"Expected access to be allowed, got: {reason}"
 
         # Check access to Filecoin backend (admin only)
         allowed, reason = await self.backend_auth.check_backend_access(
-            backend_id="filecoin", user=user, operation=Operation.RETRIEVE
+            backend_id="filecoin",
+            user=user,
+            operation=Operation.RETRIEVE
         )
         assert not allowed, f"Expected access to be denied, got: {reason}"
 
         # Admin should have access to Filecoin backend
         allowed, reason = await self.backend_auth.check_backend_access(
-            backend_id="filecoin", user=admin, operation=Operation.RETRIEVE
+            backend_id="filecoin",
+            user=admin,
+            operation=Operation.RETRIEVE
         )
         assert allowed, f"Expected admin access to be allowed, got: {reason}"
 
@@ -382,13 +411,17 @@ class TestAdvancedAuthentication:
 
         # Check read access to S3 backend
         allowed, reason = await self.backend_auth.check_backend_access(
-            backend_id="s3", user=admin, operation=Operation.RETRIEVE
+            backend_id="s3",
+            user=admin,
+            operation=Operation.RETRIEVE
         )
         assert allowed, f"Expected read access to be allowed, got: {reason}"
 
         # Check write access to S3 backend (should be denied due to read-only)
         allowed, reason = await self.backend_auth.check_backend_access(
-            backend_id="s3", user=admin, operation=Operation.STORE
+            backend_id="s3",
+            user=admin,
+            operation=Operation.STORE
         )
         assert not allowed, f"Expected write access to be denied due to read-only, got: {reason}"
 

@@ -40,7 +40,6 @@ logger = logging.getLogger(__name__)
 # Try importing additional dependencies
 try:
     import requests
-
     REQUESTS_AVAILABLE = True
 except ImportError:
     REQUESTS_AVAILABLE = False
@@ -48,7 +47,6 @@ except ImportError:
 
 try:
     import pandas as pd
-
     PANDAS_AVAILABLE = True
 except ImportError:
     PANDAS_AVAILABLE = False
@@ -68,9 +66,8 @@ RECOMMENDED_MINERS = [
     {"address": "f0135078", "name": "FilSwan", "location": "China", "reputation": 92},
     {"address": "f022352", "name": "DekPool", "location": "Germany", "reputation": 90},
     {"address": "f01247", "name": "ScaleSphere", "location": "Singapore", "reputation": 88},
-    {"address": "f02576", "name": "IPFSMain", "location": "USA", "reputation": 89},
+    {"address": "f02576", "name": "IPFSMain", "location": "USA", "reputation": 89}
 ]
-
 
 class AdvancedFilecoinStorage(FilecoinStorage):
     """
@@ -126,7 +123,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                 "fil_plus_storage_GiB": 12500000,
                 "baseline_total": "8.25 EiB",
                 "verified_deals_count": 42500,
-                "last_updated": time.time(),
+                "last_updated": time.time()
             }
             with open(network_file, "w") as f:
                 json.dump(network_stats, f, indent=2)
@@ -139,17 +136,14 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             Dict with network statistics
         """
         # Check cache first
-        if (
-            "network_stats" in self.cache_expiry
-            and time.time() < self.cache_expiry["network_stats"]
-        ):
+        if "network_stats" in self.cache_expiry and time.time() < self.cache_expiry["network_stats"]:
             return self.network_stats_cache
 
         if self.simulation_mode:
             return {
                 "success": False,
                 "simulation": True,
-                "error": "Filecoin backend is in simulation mode",
+                "error": "Filecoin backend is in simulation mode"
             }
 
         if self.mock_mode or self.gateway_mode:
@@ -173,7 +167,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                         "fil_plus_storage_GiB": 12500000,
                         "baseline_total": "8.25 EiB",
                         "verified_deals_count": 42500,
-                        "last_updated": time.time(),
+                        "last_updated": time.time()
                     }
 
                 # Update with current chain height
@@ -206,7 +200,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                     "success": True,
                     "mock": self.mock_mode,
                     "gateway": self.gateway_mode,
-                    "data": stats,
+                    "data": stats
                 }
 
                 # Cache the result
@@ -221,7 +215,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                     "success": False,
                     "mock": self.mock_mode,
                     "gateway": self.gateway_mode,
-                    "error": str(e),
+                    "error": str(e)
                 }
 
         # For real node implementation
@@ -229,7 +223,10 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             # Get chain head first - most reliable indicator
             chain_head = self._make_api_request("Filecoin.ChainHead")
             if not chain_head:
-                return {"success": False, "error": "Failed to get chain head"}
+                return {
+                    "success": False,
+                    "error": "Failed to get chain head"
+                }
 
             chain_height = chain_head.get("Height", 0)
 
@@ -237,9 +234,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             network_stats = self._make_api_request("Filecoin.StateNetworkStats", [chain_height])
 
             # Try to get verified registry stats
-            verifreg_stats = self._make_api_request(
-                "Filecoin.StateVerifiedRegistryRootKey", [None, None]
-            )
+            verifreg_stats = self._make_api_request("Filecoin.StateVerifiedRegistryRootKey", [None, None])
 
             # Get all miners info
             miners_info = self._make_api_request("Filecoin.StateListMiners", [None])
@@ -252,7 +247,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             stats = {
                 "chain_height": chain_height,
                 "active_miners": miner_count,
-                "last_updated": time.time(),
+                "last_updated": time.time()
             }
 
             if network_stats:
@@ -265,7 +260,10 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                 stats.update(gas_metrics["data"])
 
             # Create final result
-            result = {"success": True, "data": stats}
+            result = {
+                "success": True,
+                "data": stats
+            }
 
             # Cache the result
             self.network_stats_cache = result
@@ -275,7 +273,10 @@ class AdvancedFilecoinStorage(FilecoinStorage):
 
         except Exception as e:
             logger.error(f"Error getting Filecoin network stats: {e}")
-            return {"success": False, "error": str(e)}
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     def get_gas_metrics(self) -> Dict[str, Any]:
         """
@@ -288,7 +289,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             return {
                 "success": False,
                 "simulation": True,
-                "error": "Filecoin backend is in simulation mode",
+                "error": "Filecoin backend is in simulation mode"
             }
 
         if self.mock_mode or self.gateway_mode:
@@ -304,14 +305,14 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                     "gas_premium_estimate": {
                         "low": str(int(base_fee * 0.5)),
                         "medium": str(int(base_fee * 1.0)),
-                        "high": str(int(base_fee * 1.5)),
+                        "high": str(int(base_fee * 1.5))
                     },
                     "gas_fee_cap_estimate": {
                         "low": str(int(base_fee * 2)),
                         "medium": str(int(base_fee * 3)),
-                        "high": str(int(base_fee * 4)),
-                    },
-                },
+                        "high": str(int(base_fee * 4))
+                    }
+                }
             }
 
         try:
@@ -322,7 +323,10 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             chain_head = self._make_api_request("Filecoin.ChainHead")
 
             if not chain_head:
-                return {"success": False, "error": "Failed to get chain head"}
+                return {
+                    "success": False,
+                    "error": "Failed to get chain head"
+                }
 
             # Extract base fee from chain head
             if "Blocks" in chain_head and len(chain_head["Blocks"]) > 0:
@@ -350,9 +354,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
 
                 if current_height > lookback:
                     past_height = current_height - lookback
-                    past_tipset = self._make_api_request(
-                        "Filecoin.ChainGetTipSetByHeight", [past_height, None]
-                    )
+                    past_tipset = self._make_api_request("Filecoin.ChainGetTipSetByHeight", [past_height, None])
 
                     if past_tipset and "Blocks" in past_tipset and len(past_tipset["Blocks"]) > 0:
                         past_base_fee = past_tipset["Blocks"][0].get("ParentBaseFee", base_fee)
@@ -375,19 +377,20 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                     "base_fee_change_log": fee_change_log,
                     "gas_premium_estimate": premium_estimates,
                     "gas_fee_cap_estimate": fee_cap_estimates,
-                    "mpool_config": mpool_config,
-                },
+                    "mpool_config": mpool_config
+                }
             }
 
             return result
 
         except Exception as e:
             logger.error(f"Error getting gas metrics: {e}")
-            return {"success": False, "error": str(e)}
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
-    def get_recommended_miners(
-        self, filter_criteria: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def get_recommended_miners(self, filter_criteria: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Get a list of recommended miners based on optional filter criteria.
 
@@ -401,7 +404,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             return {
                 "success": False,
                 "simulation": True,
-                "error": "Filecoin backend is in simulation mode",
+                "error": "Filecoin backend is in simulation mode"
             }
 
         filter_criteria = filter_criteria or {}
@@ -436,9 +439,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
 
                     # Add simulated price if not present
                     if "price_per_GiB_per_epoch" not in miner:
-                        miner["price_per_GiB_per_epoch"] = random.uniform(
-                            0.0000000001, 0.0000000003
-                        )
+                        miner["price_per_GiB_per_epoch"] = random.uniform(0.0000000001, 0.0000000003)
 
                     filtered_miners.append(miner)
 
@@ -451,8 +452,8 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                     "filters_applied": {
                         "min_reputation": min_reputation,
                         "region": region,
-                        "max_price": max_price,
-                    },
+                        "max_price": max_price
+                    }
                 }
 
             except Exception as e:
@@ -461,7 +462,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                     "success": False,
                     "mock": self.mock_mode,
                     "gateway": self.gateway_mode,
-                    "error": str(e),
+                    "error": str(e)
                 }
 
         # For real node implementation
@@ -479,9 +480,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                 # Try to get miner power from chain
                 miner_address = miner.get("address")
                 if miner_address:
-                    miner_power = self._make_api_request(
-                        "Filecoin.StateMinerPower", [miner_address, None]
-                    )
+                    miner_power = self._make_api_request("Filecoin.StateMinerPower", [miner_address, None])
                     if miner_power:
                         miner["power"] = miner_power
 
@@ -494,13 +493,16 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                 "filters_applied": {
                     "min_reputation": min_reputation,
                     "region": region,
-                    "max_price": max_price,
-                },
+                    "max_price": max_price
+                }
             }
 
         except Exception as e:
             logger.error(f"Error getting recommended miners: {e}")
-            return {"success": False, "error": str(e)}
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     def analyze_miner(self, miner_address: str) -> Dict[str, Any]:
         """
@@ -516,7 +518,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             return {
                 "success": False,
                 "simulation": True,
-                "error": "Filecoin backend is in simulation mode",
+                "error": "Filecoin backend is in simulation mode"
             }
 
         if self.mock_mode or self.gateway_mode:
@@ -542,7 +544,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                         "name": f"Miner {miner_address}",
                         "location": random.choice(["USA", "Europe", "Asia", "Unknown"]),
                         "reputation": random.randint(70, 99),
-                        "price_per_GiB_per_epoch": random.uniform(0.0000000001, 0.0000000003),
+                        "price_per_GiB_per_epoch": random.uniform(0.0000000001, 0.0000000003)
                     }
 
                 # Generate detailed mock analysis
@@ -561,35 +563,27 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                     "peer_id": f"12D3KooW{uuid.uuid4().hex[:15]}",
                     "multiaddresses": [
                         f"/ip4/172.65.0.{random.randint(1, 255)}/tcp/1234",
-                        f"/ip4/192.168.1.{random.randint(1, 255)}/tcp/1234",
+                        f"/ip4/192.168.1.{random.randint(1, 255)}/tcp/1234"
                     ],
                     "performance_score": random.randint(85, 100),
                     "average_block_rewards_24h": random.uniform(0.1, 5.0),
                     "last_seen_active": int(time.time() - random.randint(0, 86400)),
                     "deal_pricing": {
-                        "published_verified": round(
-                            miner_info.get("price_per_GiB_per_epoch", 0.0000000001), 16
-                        ),
-                        "published_regular": round(
-                            miner_info.get("price_per_GiB_per_epoch", 0.0000000002) * 2, 16
-                        ),
+                        "published_verified": round(miner_info.get("price_per_GiB_per_epoch", 0.0000000001), 16),
+                        "published_regular": round(miner_info.get("price_per_GiB_per_epoch", 0.0000000002) * 2, 16),
                         "calculated_cost_per_year": round(
                             miner_info.get("price_per_GiB_per_epoch", 0.0000000002) * 2880 * 365, 8
-                        ),
-                    },
+                        )
+                    }
                 }
 
                 # Add custom analysis data
-                storage_deals_file = os.path.join(
-                    mock_base, "miners", f"{miner_address}_deals.json"
-                )
+                storage_deals_file = os.path.join(mock_base, "miners", f"{miner_address}_deals.json")
                 if os.path.exists(storage_deals_file):
                     with open(storage_deals_file, "r") as f:
                         deals_data = json.load(f)
                     analysis["recent_deals"] = deals_data.get("recent_deals", [])
-                    analysis["active_deals_count"] = deals_data.get(
-                        "active_deals_count", random.randint(100, 1000)
-                    )
+                    analysis["active_deals_count"] = deals_data.get("active_deals_count", random.randint(100, 1000))
                 else:
                     analysis["recent_deals"] = []
                     analysis["active_deals_count"] = random.randint(100, 1000)
@@ -598,7 +592,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                     "success": True,
                     "mock": self.mock_mode,
                     "gateway": self.gateway_mode,
-                    "analysis": analysis,
+                    "analysis": analysis
                 }
 
             except Exception as e:
@@ -607,7 +601,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                     "success": False,
                     "mock": self.mock_mode,
                     "gateway": self.gateway_mode,
-                    "error": str(e),
+                    "error": str(e)
                 }
 
         # For real node implementation
@@ -619,19 +613,13 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             miner_info = self._make_api_request("Filecoin.StateMinerInfo", [miner_address, None])
 
             # Get sector stats
-            miner_sectors = self._make_api_request(
-                "Filecoin.StateMinerSectors", [miner_address, None, None, False]
-            )
+            miner_sectors = self._make_api_request("Filecoin.StateMinerSectors", [miner_address, None, None, False])
 
             # Get fault stats
-            miner_faults = self._make_api_request(
-                "Filecoin.StateMinerFaults", [miner_address, None]
-            )
+            miner_faults = self._make_api_request("Filecoin.StateMinerFaults", [miner_address, None])
 
             # Get recoveries
-            miner_recoveries = self._make_api_request(
-                "Filecoin.StateMinerRecoveries", [miner_address, None]
-            )
+            miner_recoveries = self._make_api_request("Filecoin.StateMinerRecoveries", [miner_address, None])
 
             # Combine all data
             analysis = {
@@ -640,7 +628,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                 "info": miner_info,
                 "sectors_count": len(miner_sectors) if miner_sectors else 0,
                 "faults_count": len(miner_faults) if miner_faults else 0,
-                "recoveries_count": len(miner_recoveries) if miner_recoveries else 0,
+                "recoveries_count": len(miner_recoveries) if miner_recoveries else 0
             }
 
             # Try to get peer ID info if available
@@ -670,19 +658,20 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                     power_percentage = (raw_power / network_power) * 100
                     analysis["network_power_percentage"] = round(power_percentage, 6)
 
-            return {"success": True, "analysis": analysis}
+            return {
+                "success": True,
+                "analysis": analysis
+            }
 
         except Exception as e:
             logger.error(f"Error analyzing miner: {e}")
-            return {"success": False, "error": str(e)}
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
-    def create_redundant_storage(
-        self,
-        cid: str,
-        miner_count: int = 3,
-        verified_deal: bool = False,
-        deal_duration: int = DEFAULT_DEAL_DURATION,
-    ) -> Dict[str, Any]:
+    def create_redundant_storage(self, cid: str, miner_count: int = 3,
+                               verified_deal: bool = False, deal_duration: int = DEFAULT_DEAL_DURATION) -> Dict[str, Any]:
         """
         Store IPFS content with multiple miners for redundancy.
 
@@ -699,20 +688,23 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             return {
                 "success": False,
                 "simulation": True,
-                "error": "Filecoin backend is in simulation mode",
+                "error": "Filecoin backend is in simulation mode"
             }
 
         # First get recommended miners
         miners_result = self.get_recommended_miners({"min_reputation": 90})
 
         if not miners_result.get("success", False):
-            return {"success": False, "error": "Failed to get recommended miners"}
+            return {
+                "success": False,
+                "error": "Failed to get recommended miners"
+            }
 
         recommended_miners = miners_result.get("miners", [])
         if len(recommended_miners) < miner_count:
             return {
                 "success": False,
-                "error": f"Not enough recommended miners: found {len(recommended_miners)}, needed {miner_count}",
+                "error": f"Not enough recommended miners: found {len(recommended_miners)}, needed {miner_count}"
             }
 
         # Choose a subset of recommended miners
@@ -725,7 +717,10 @@ class AdvancedFilecoinStorage(FilecoinStorage):
         for miner in selected_miners:
             miner_address = miner.get("address")
             if not miner_address:
-                failed_deals.append({"miner": miner, "error": "Missing miner address"})
+                failed_deals.append({
+                    "miner": miner,
+                    "error": "Missing miner address"
+                })
                 continue
 
             # Make storage deal
@@ -735,9 +730,10 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                 deal_result["miner_info"] = miner
                 deals.append(deal_result)
             else:
-                failed_deals.append(
-                    {"miner": miner, "error": deal_result.get("error", "Unknown error")}
-                )
+                failed_deals.append({
+                    "miner": miner,
+                    "error": deal_result.get("error", "Unknown error")
+                })
 
         # Return combined results
         return {
@@ -748,12 +744,10 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             "failed_count": len(failed_deals),
             "requested_count": miner_count,
             "redundancy_factor": len(deals),
-            "cid": cid,
+            "cid": cid
         }
 
-    def monitor_deal_status(
-        self, deal_id: str, callback_url: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def monitor_deal_status(self, deal_id: str, callback_url: Optional[str] = None) -> Dict[str, Any]:
         """
         Start monitoring a storage deal's status.
 
@@ -768,14 +762,17 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             return {
                 "success": False,
                 "simulation": True,
-                "error": "Filecoin backend is in simulation mode",
+                "error": "Filecoin backend is in simulation mode"
             }
 
         # Check if deal exists
         deal_status = self.check_deal_status(deal_id)
 
         if not deal_status.get("success", False):
-            return {"success": False, "error": f"Deal {deal_id} not found or invalid"}
+            return {
+                "success": False,
+                "error": f"Deal {deal_id} not found or invalid"
+            }
 
         # Register for monitoring
         with self.deal_cache_lock:
@@ -786,19 +783,13 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                 "monitoring_start": time.time(),
                 "update_interval": 3600,  # Update every hour by default
                 "last_updated": time.time(),
-                "update_count": 0,
+                "update_count": 0
             }
 
         # Start the monitoring thread if not already running
-        if (
-            not self.watch_active
-            or not self.deal_watch_thread
-            or not self.deal_watch_thread.is_alive()
-        ):
+        if not self.watch_active or not self.deal_watch_thread or not self.deal_watch_thread.is_alive():
             self.watch_active = True
-            self.deal_watch_thread = threading.Thread(
-                target=self._deal_monitoring_thread, daemon=True
-            )
+            self.deal_watch_thread = threading.Thread(target=self._deal_monitoring_thread, daemon=True)
             self.deal_watch_thread.start()
 
         return {
@@ -806,7 +797,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             "message": f"Started monitoring deal {deal_id}",
             "deal_id": deal_id,
             "callback_url": callback_url,
-            "current_status": deal_status.get("status", "unknown"),
+            "current_status": deal_status.get("status", "unknown")
         }
 
     def _deal_monitoring_thread(self):
@@ -821,9 +812,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                 current_time = time.time()
                 with self.deal_cache_lock:
                     for deal_id, info in self.deal_cache.items():
-                        if current_time - info.get("last_updated", 0) > info.get(
-                            "update_interval", 3600
-                        ):
+                        if current_time - info.get("last_updated", 0) > info.get("update_interval", 3600):
                             deals_to_update.append(deal_id)
 
                 # Update each deal
@@ -848,14 +837,12 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                                             json={
                                                 "deal_id": deal_id,
                                                 "status": status,
-                                                "timestamp": current_time,
+                                                "timestamp": current_time
                                             },
-                                            timeout=10,
+                                            timeout=10
                                         )
                                     except Exception as e:
-                                        logger.warning(
-                                            f"Error calling callback URL for deal {deal_id}: {e}"
-                                        )
+                                        logger.warning(f"Error calling callback URL for deal {deal_id}: {e}")
 
                     except Exception as e:
                         logger.warning(f"Error updating deal {deal_id}: {e}")
@@ -867,9 +854,8 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                 logger.error(f"Error in deal monitoring thread: {e}")
                 time.sleep(300)  # On error, wait 5 minutes before retrying
 
-    def estimate_storage_cost(
-        self, size_bytes: int, duration_days: int = 180, verified_deal: bool = False
-    ) -> Dict[str, Any]:
+    def estimate_storage_cost(self, size_bytes: int, duration_days: int = 180,
+                            verified_deal: bool = False) -> Dict[str, Any]:
         """
         Estimate cost to store data on Filecoin.
 
@@ -885,14 +871,17 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             return {
                 "success": False,
                 "simulation": True,
-                "error": "Filecoin backend is in simulation mode",
+                "error": "Filecoin backend is in simulation mode"
             }
 
         # Get network stats for baseline pricing
         network_stats = self.get_network_stats()
 
         if not network_stats.get("success", False):
-            return {"success": False, "error": "Failed to get network stats for pricing"}
+            return {
+                "success": False,
+                "error": "Failed to get network stats for pricing"
+            }
 
         stats_data = network_stats.get("data", {})
 
@@ -912,13 +901,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             price_multiplier = 1.0
 
         # Calculate storage price
-        storage_cost_attoFil = (
-            size_gib
-            * avg_price_per_gib_per_epoch
-            * duration_epochs
-            * price_multiplier
-            * FIL_PRECISION
-        )
+        storage_cost_attoFil = size_gib * avg_price_per_gib_per_epoch * duration_epochs * price_multiplier * FIL_PRECISION
         storage_cost_fil = storage_cost_attoFil / FIL_PRECISION
 
         # Estimate gas costs
@@ -929,9 +912,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
 
         # Get recommended miners for this deal
         miners_result = self.get_recommended_miners()
-        recommended_miners = (
-            miners_result.get("miners", []) if miners_result.get("success", False) else []
-        )
+        recommended_miners = miners_result.get("miners", []) if miners_result.get("success", False) else []
 
         # Calculate price range across miners
         pricing_range = {"min": float("inf"), "max": 0, "avg": 0}
@@ -941,28 +922,14 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                 price = miner.get("price_per_GiB_per_epoch", avg_price_per_gib_per_epoch)
                 prices.append(price)
 
-                miner_cost = (
-                    size_gib
-                    * price
-                    * duration_epochs
-                    * price_multiplier
-                    * FIL_PRECISION
-                    / FIL_PRECISION
-                )
+                miner_cost = size_gib * price * duration_epochs * price_multiplier * FIL_PRECISION / FIL_PRECISION
 
                 pricing_range["min"] = min(pricing_range["min"], miner_cost)
                 pricing_range["max"] = max(pricing_range["max"], miner_cost)
 
             if prices:
                 avg_price = sum(prices) / len(prices)
-                pricing_range["avg"] = (
-                    size_gib
-                    * avg_price
-                    * duration_epochs
-                    * price_multiplier
-                    * FIL_PRECISION
-                    / FIL_PRECISION
-                )
+                pricing_range["avg"] = size_gib * avg_price * duration_epochs * price_multiplier * FIL_PRECISION / FIL_PRECISION
 
         if pricing_range["min"] == float("inf"):
             pricing_range["min"] = storage_cost_fil
@@ -985,11 +952,11 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                 "price_range_fil": {
                     "min": round(pricing_range["min"], 8),
                     "max": round(pricing_range["max"], 8),
-                    "avg": round(pricing_range["avg"], 8),
+                    "avg": round(pricing_range["avg"], 8)
                 },
                 "usd_per_fil": 3.50,  # Example value, would be dynamically fetched in production
-                "total_cost_usd": round(total_cost_fil * 3.50, 2),
-            },
+                "total_cost_usd": round(total_cost_fil * 3.50, 2)
+            }
         }
 
     def _get_chain_height(self) -> Optional[int]:
@@ -1018,9 +985,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             logger.warning(f"Error getting chain height: {e}")
             return None
 
-    def explore_chain_block(
-        self, height: Optional[int] = None, cid: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def explore_chain_block(self, height: Optional[int] = None, cid: Optional[str] = None) -> Dict[str, Any]:
         """
         Get information about a specific Filecoin blockchain block.
 
@@ -1035,7 +1000,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             return {
                 "success": False,
                 "simulation": True,
-                "error": "Filecoin backend is in simulation mode",
+                "error": "Filecoin backend is in simulation mode"
             }
 
         if self.mock_mode or self.gateway_mode:
@@ -1050,11 +1015,7 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                     height = current_height
 
                 # Generate mock block data
-                block_timestamp = (
-                    int(time.time() - ((current_height - height) * EPOCH_DURATION_SECONDS))
-                    if height
-                    else int(time.time())
-                )
+                block_timestamp = int(time.time() - ((current_height - height) * EPOCH_DURATION_SECONDS)) if height else int(time.time())
 
                 if cid:
                     block_cid = cid
@@ -1073,14 +1034,14 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                     "ParentWeight": str(random.randint(1000000000000, 9000000000000)),
                     "BlockSize": random.randint(5000, 20000),
                     "ParentStateRoot": f"bafy2bzace{uuid.uuid4().hex[:32]}",
-                    "ParentMessageReceipts": f"bafy2bzace{uuid.uuid4().hex[:32]}",
+                    "ParentMessageReceipts": f"bafy2bzace{uuid.uuid4().hex[:32]}"
                 }
 
                 return {
                     "success": True,
                     "mock": self.mock_mode,
                     "gateway": self.gateway_mode,
-                    "block": mock_block,
+                    "block": mock_block
                 }
 
             except Exception as e:
@@ -1089,20 +1050,23 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                     "success": False,
                     "mock": self.mock_mode,
                     "gateway": self.gateway_mode,
-                    "error": str(e),
+                    "error": str(e)
                 }
 
         # For real node implementation
         try:
             if cid:
                 # Get block by CID
-                block = self._make_api_request("Filecoin.ChainGetBlock", [{"/": cid}])
+                block = self._make_api_request("Filecoin.ChainGetBlock", [{"/"  : cid}])
             elif height is not None:
                 # Get tipset by height
                 tipset = self._make_api_request("Filecoin.ChainGetTipSetByHeight", [height, None])
 
                 if not tipset or "Blocks" not in tipset or not tipset["Blocks"]:
-                    return {"success": False, "error": f"No blocks found at height {height}"}
+                    return {
+                        "success": False,
+                        "error": f"No blocks found at height {height}"
+                    }
 
                 # Get the first block in the tipset
                 block = tipset["Blocks"][0]
@@ -1111,19 +1075,31 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                 chain_head = self._make_api_request("Filecoin.ChainHead")
 
                 if not chain_head or "Blocks" not in chain_head or not chain_head["Blocks"]:
-                    return {"success": False, "error": "Failed to get chain head"}
+                    return {
+                        "success": False,
+                        "error": "Failed to get chain head"
+                    }
 
                 # Get the first block in the head tipset
                 block = chain_head["Blocks"][0]
 
             if not block:
-                return {"success": False, "error": "Failed to get block"}
+                return {
+                    "success": False,
+                    "error": "Failed to get block"
+                }
 
-            return {"success": True, "block": block}
+            return {
+                "success": True,
+                "block": block
+            }
 
         except Exception as e:
             logger.error(f"Error exploring chain block: {e}")
-            return {"success": False, "error": str(e)}
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     def get_content_health(self, cid: str) -> Dict[str, Any]:
         """
@@ -1139,14 +1115,17 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             return {
                 "success": False,
                 "simulation": True,
-                "error": "Filecoin backend is in simulation mode",
+                "error": "Filecoin backend is in simulation mode"
             }
 
         # Find all deals for this CID
         deals = self._find_deals_for_cid(cid)
 
         if not deals:
-            return {"success": False, "error": f"No deals found for CID {cid}"}
+            return {
+                "success": False,
+                "error": f"No deals found for CID {cid}"
+            }
 
         # Check status of each deal
         active_deals = []
@@ -1162,9 +1141,10 @@ class AdvancedFilecoinStorage(FilecoinStorage):
             status = self.check_deal_status(deal_id)
 
             if not status.get("success", False):
-                failing_deals.append(
-                    {"deal_id": deal_id, "error": status.get("error", "Unknown error")}
-                )
+                failing_deals.append({
+                    "deal_id": deal_id,
+                    "error": status.get("error", "Unknown error")
+                })
                 continue
 
             deal_status = status.get("status", "unknown")
@@ -1176,21 +1156,21 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                 expiry_time = created_at + duration_seconds
 
                 if current_time > expiry_time:
-                    expired_deals.append(
-                        {
-                            "deal_id": deal_id,
-                            "status": deal_status,
-                            "created_at": created_at,
-                            "expired_at": expiry_time,
-                            "miner": deal.get("miner"),
-                        }
-                    )
+                    expired_deals.append({
+                        "deal_id": deal_id,
+                        "status": deal_status,
+                        "created_at": created_at,
+                        "expired_at": expiry_time,
+                        "miner": deal.get("miner")
+                    })
                     continue
 
             # Deal is still active
-            active_deals.append(
-                {"deal_id": deal_id, "status": deal_status, "miner": deal.get("miner")}
-            )
+            active_deals.append({
+                "deal_id": deal_id,
+                "status": deal_status,
+                "miner": deal.get("miner")
+            })
 
         # Calculate health metrics
         total_deals = len(active_deals) + len(expired_deals) + len(failing_deals)
@@ -1219,8 +1199,8 @@ class AdvancedFilecoinStorage(FilecoinStorage):
                 "redundancy_level": redundancy_level,
                 "health_score": round(health_score, 2),
                 "health_status": health_status,
-                "last_checked": current_time,
-            },
+                "last_checked": current_time
+            }
         }
 
     def _find_deals_for_cid(self, cid: str) -> List[Dict[str, Any]]:

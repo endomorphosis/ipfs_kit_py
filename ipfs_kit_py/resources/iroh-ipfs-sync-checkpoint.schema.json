@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ipfs-kit.dev/schemas/iroh-ipfs-sync-checkpoint-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "checkpoint_id", "operation_id", "request_digest", "conflict_policy", "status", "created_at", "updated_at", "items"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"const": "ipfs-kit/iroh-ipfs-sync-checkpoint"},
+    "checkpoint_id": {"type": "string", "minLength": 1},
+    "operation_id": {"type": "string", "minLength": 1},
+    "request_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "conflict_policy": {"enum": ["fail", "source-wins", "destination-wins", "keep-both"]},
+    "status": {"enum": ["running", "success", "partial", "failed"]},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["request", "state", "attempts"],
+        "properties": {
+          "request": {"type": "object"},
+          "state": {"enum": ["pending", "running", "completed", "failed"]},
+          "attempts": {"type": "integer", "minimum": 0},
+          "result": {"type": ["object", "null"]},
+          "error": {"type": ["object", "null"]}
+        }
+      }
+    }
+  }
+}

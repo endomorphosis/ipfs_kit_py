@@ -2,4 +2,4 @@
 
 from .content_verifier import ContentVerifier
 
-__all__ = ["ContentVerifier"]
+__all__ = ['ContentVerifier']

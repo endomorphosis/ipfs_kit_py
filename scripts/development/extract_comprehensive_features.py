@@ -6,7 +6,7 @@ This script systematically extracts all features from the deprecated comprehensi
 and updates them for the modern light initialization + bucket VFS architecture.
 
 Phase 1: Extract all 90+ endpoints and features
-Phase 2: Update for modern architecture compatibility
+Phase 2: Update for modern architecture compatibility  
 Phase 3: Integrate into unified dashboard
 Phase 4: Create comprehensive test suite
 """
@@ -19,10 +19,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple, Any
 
-
 class FeatureExtractor:
     """Extracts and modernizes features from deprecated comprehensive dashboard."""
-
+    
     def __init__(self):
         self.deprecated_file = Path("deprecated_dashboards/comprehensive_mcp_dashboard.py")
         self.unified_file = Path("unified_comprehensive_dashboard.py")
@@ -31,94 +30,96 @@ class FeatureExtractor:
         self.imports = []
         self.classes = []
         self.methods = []
-
+        
     def analyze_deprecated_dashboard(self):
         """Analyze the deprecated dashboard to extract all features."""
         print("🔍 Analyzing deprecated comprehensive dashboard...")
-
+        
         if not self.deprecated_file.exists():
             print(f"❌ File not found: {self.deprecated_file}")
             return False
-
-        with open(self.deprecated_file, "r") as f:
+            
+        with open(self.deprecated_file, 'r') as f:
             content = f.read()
-
+            
         # Extract API endpoints
         self.extract_endpoints(content)
-
+        
         # Extract imports for updating
         self.extract_imports(content)
-
+        
         # Extract class definitions
         self.extract_classes(content)
-
+        
         # Extract method implementations
         self.extract_methods(content)
-
+        
         print(f"✅ Analysis complete:")
         print(f"   📡 Endpoints found: {len(self.endpoints)}")
         print(f"   📦 Imports found: {len(self.imports)}")
         print(f"   🏗️ Classes found: {len(self.classes)}")
         print(f"   ⚙️ Methods found: {len(self.methods)}")
-
+        
         return True
-
+        
     def extract_endpoints(self, content: str):
         """Extract all API endpoint definitions."""
         # Pattern to match FastAPI endpoint decorators
         endpoint_pattern = r'@self\.app\.(get|post|put|delete)\("([^"]+)"[^)]*\)'
-
+        
         matches = re.findall(endpoint_pattern, content)
         for method, path in matches:
-            self.endpoints.append(
-                {"method": method.upper(), "path": path, "category": self.categorize_endpoint(path)}
-            )
-
+            self.endpoints.append({
+                'method': method.upper(),
+                'path': path,
+                'category': self.categorize_endpoint(path)
+            })
+            
     def categorize_endpoint(self, path: str) -> str:
         """Categorize endpoint by functionality."""
-        if "/api/services" in path:
-            return "service_management"
-        elif "/api/backend" in path:
-            return "backend_management"
-        elif "/api/buckets" in path:
-            return "bucket_operations"
-        elif "/api/peers" in path:
-            return "peer_management"
-        elif "/api/analytics" in path or "/api/metrics" in path:
-            return "analytics_monitoring"
-        elif "/api/config" in path:
-            return "configuration_management"
-        elif "/api/pins" in path:
-            return "pin_management"
-        elif "/api/logs" in path:
-            return "log_management"
-        elif "/mcp/" in path:
-            return "mcp_protocol"
+        if '/api/services' in path:
+            return 'service_management'
+        elif '/api/backend' in path:
+            return 'backend_management'
+        elif '/api/buckets' in path:
+            return 'bucket_operations'
+        elif '/api/peers' in path:
+            return 'peer_management'
+        elif '/api/analytics' in path or '/api/metrics' in path:
+            return 'analytics_monitoring'
+        elif '/api/config' in path:
+            return 'configuration_management'
+        elif '/api/pins' in path:
+            return 'pin_management'
+        elif '/api/logs' in path:
+            return 'log_management'
+        elif '/mcp/' in path:
+            return 'mcp_protocol'
         else:
-            return "core_system"
-
+            return 'core_system'
+            
     def extract_imports(self, content: str):
         """Extract import statements for updating."""
         import_lines = []
-        for line in content.split("\n"):
-            if line.strip().startswith(("import ", "from ")):
+        for line in content.split('\n'):
+            if line.strip().startswith(('import ', 'from ')):
                 import_lines.append(line.strip())
         self.imports = import_lines
-
+        
     def extract_classes(self, content: str):
         """Extract class definitions."""
-        class_pattern = r"class\s+(\w+)[^:]*:"
+        class_pattern = r'class\s+(\w+)[^:]*:'
         matches = re.findall(class_pattern, content)
         self.classes = matches
-
+        
     def extract_methods(self, content: str):
         """Extract method implementations."""
         # This is a simplified extraction - in real implementation,
         # we'd need more sophisticated parsing
-        method_pattern = r"async def\s+(\w+)\([^)]*\):"
+        method_pattern = r'async def\s+(\w+)\([^)]*\):'
         matches = re.findall(method_pattern, content)
         self.methods = matches
-
+        
     def modernize_imports(self) -> List[str]:
         """Update imports for light initialization architecture."""
         modernized_imports = [
@@ -131,7 +132,7 @@ class FeatureExtractor:
             "",
             "Features:",
             "- 90+ API endpoints for complete functionality",
-            "- Light initialization with graceful fallbacks",
+            "- Light initialization with graceful fallbacks", 
             "- Modern bucket VFS operations",
             "- ~/.ipfs_kit/ state management",
             "- MCP JSON-RPC protocol 2024-11-05",
@@ -171,7 +172,7 @@ class FeatureExtractor:
             "# Light initialization imports with fallbacks",
             "try:",
             "    from ipfs_kit_py.unified_bucket_interface import UnifiedBucketInterface, BackendType",
-            "    from ipfs_kit_py.bucket_vfs_manager import BucketType, VFSStructureType, get_global_bucket_manager",
+            "    from ipfs_kit_py.bucket_vfs_manager import BucketType, VFSStructureType, get_global_bucket_manager", 
             "    from ipfs_kit_py.enhanced_bucket_index import EnhancedBucketIndex",
             "    from ipfs_kit_py.error import create_result_dict",
             "    IPFS_KIT_AVAILABLE = True",
@@ -195,13 +196,13 @@ class FeatureExtractor:
             "    MCP_SERVER_AVAILABLE = False",
             "",
             "logger = logging.getLogger(__name__)",
-            "",
+            ""
         ]
         return modernized_imports
-
+        
     def generate_enhanced_dashboard_class(self) -> str:
         """Generate the enhanced dashboard class with all features."""
-
+        
         class_template = '''
 class EnhancedComprehensiveDashboard:
     """
@@ -377,10 +378,10 @@ class EnhancedComprehensiveDashboard:
         logger.info("All API endpoints configured")
 '''
         return class_template
-
+        
     def create_comprehensive_test_suite(self) -> str:
         """Create comprehensive test suite for all features."""
-
+        
         test_template = '''
 #!/usr/bin/env python3
 """
@@ -524,86 +525,85 @@ if __name__ == "__main__":
     pytest.main([__file__, "-v"])
 '''
         return test_template
-
+        
     def extract_and_create_enhanced_dashboard(self):
         """Main extraction and creation process."""
         print("🚀 Starting comprehensive feature extraction...")
-
+        
         # Step 1: Analyze deprecated dashboard
         if not self.analyze_deprecated_dashboard():
             print("❌ Failed to analyze deprecated dashboard")
             return False
-
+            
         # Step 2: Generate enhanced dashboard
         print("📝 Generating enhanced comprehensive dashboard...")
-
+        
         enhanced_content = []
         enhanced_content.extend(self.modernize_imports())
         enhanced_content.append("")
         enhanced_content.append(self.generate_enhanced_dashboard_class())
-
+        
         # Step 3: Write enhanced dashboard
         enhanced_file = Path("enhanced_comprehensive_dashboard.py")
-        with open(enhanced_file, "w") as f:
-            f.write("\n".join(enhanced_content))
-
+        with open(enhanced_file, 'w') as f:
+            f.write('\n'.join(enhanced_content))
+            
         print(f"✅ Created enhanced dashboard: {enhanced_file}")
-
+        
         # Step 4: Create test suite
         print("🧪 Creating comprehensive test suite...")
         test_content = self.create_comprehensive_test_suite()
-
+        
         test_file = Path("test_enhanced_comprehensive_dashboard.py")
-        with open(test_file, "w") as f:
+        with open(test_file, 'w') as f:
             f.write(test_content)
-
+            
         print(f"✅ Created test suite: {test_file}")
-
+        
         # Step 5: Create feature summary
         self.create_feature_summary()
-
+        
         return True
-
+        
     def create_feature_summary(self):
         """Create summary of extracted features."""
         summary = {
-            "extraction_timestamp": str(datetime.now()),
-            "deprecated_dashboard_stats": {
-                "file_size": self.deprecated_file.stat().st_size
-                if self.deprecated_file.exists()
-                else 0,
-                "endpoints_found": len(self.endpoints),
-                "imports_found": len(self.imports),
-                "classes_found": len(self.classes),
-                "methods_found": len(self.methods),
+            'extraction_timestamp': str(datetime.now()),
+            'deprecated_dashboard_stats': {
+                'file_size': self.deprecated_file.stat().st_size if self.deprecated_file.exists() else 0,
+                'endpoints_found': len(self.endpoints),
+                'imports_found': len(self.imports),
+                'classes_found': len(self.classes),
+                'methods_found': len(self.methods)
             },
-            "endpoint_categories": {},
-            "endpoints_by_category": {},
+            'endpoint_categories': {},
+            'endpoints_by_category': {}
         }
-
+        
         # Categorize endpoints
         for endpoint in self.endpoints:
-            category = endpoint["category"]
-            if category not in summary["endpoint_categories"]:
-                summary["endpoint_categories"][category] = 0
-                summary["endpoints_by_category"][category] = []
-
-            summary["endpoint_categories"][category] += 1
-            summary["endpoints_by_category"][category].append(
-                {"method": endpoint["method"], "path": endpoint["path"]}
-            )
-
+            category = endpoint['category']
+            if category not in summary['endpoint_categories']:
+                summary['endpoint_categories'][category] = 0
+                summary['endpoints_by_category'][category] = []
+                
+            summary['endpoint_categories'][category] += 1
+            summary['endpoints_by_category'][category].append({
+                'method': endpoint['method'],
+                'path': endpoint['path']
+            })
+            
         # Write summary
         summary_file = Path("FEATURE_EXTRACTION_SUMMARY.json")
-        with open(summary_file, "w") as f:
+        with open(summary_file, 'w') as f:
             json.dump(summary, f, indent=2)
-
+            
         print(f"✅ Created feature summary: {summary_file}")
-
+        
         # Print extraction results
         print("\\n📊 EXTRACTION RESULTS:")
         print(f"   📡 Total endpoints: {len(self.endpoints)}")
-        for category, count in summary["endpoint_categories"].items():
+        for category, count in summary['endpoint_categories'].items():
             print(f"   📂 {category}: {count} endpoints")
 
 
@@ -614,9 +614,9 @@ def main():
     print("Extracting ALL features from deprecated comprehensive dashboard")
     print("and updating for modern light initialization + bucket VFS architecture")
     print()
-
+    
     extractor = FeatureExtractor()
-
+    
     if extractor.extract_and_create_enhanced_dashboard():
         print("\\n🎉 SUCCESS: Feature extraction complete!")
         print("\\n📋 Next Steps:")
@@ -628,7 +628,7 @@ def main():
     else:
         print("\\n❌ FAILED: Feature extraction incomplete")
         return 1
-
+        
     return 0
 
 

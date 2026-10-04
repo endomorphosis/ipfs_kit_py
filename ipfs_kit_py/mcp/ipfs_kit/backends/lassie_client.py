@@ -10,7 +10,6 @@ from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
-
 class LassieClient:
     """A client for interacting with the Lassie retrieval client."""
 
@@ -32,19 +31,23 @@ class LassieClient:
                     "status": "healthy",
                     "binary_available": True,
                     "version": result.stdout.decode().strip(),
-                    "binary_path": self.binary_path,
+                    "binary_path": self.binary_path
                 }
             else:
                 return {
                     "status": "unhealthy",
                     "binary_available": False,
-                    "error": result.stderr.decode().strip(),
+                    "error": result.stderr.decode().strip()
                 }
         except FileNotFoundError:
             return {
                 "status": "unhealthy",
                 "binary_available": False,
-                "error": f"Lassie binary not found at '{self.binary_path}'",
+                "error": f"Lassie binary not found at '{self.binary_path}'"
             }
         except Exception as e:
-            return {"status": "unhealthy", "binary_available": False, "error": str(e)}
+            return {
+                "status": "unhealthy",
+                "binary_available": False,
+                "error": str(e)
+            }

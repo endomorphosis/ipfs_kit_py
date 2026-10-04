@@ -5,7 +5,6 @@ Relies on removed BucketVFSManager and older parquet layout. Skipped to keep CI 
 """
 
 import pytest
-
 pytest.skip("Legacy VFS performance harness deprecated", allow_module_level=True)
 
 # Original content retained below (not executed):

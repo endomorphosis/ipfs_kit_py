@@ -1,0 +1,480 @@
+name: Copilot Agent Auto-Healing
+
+# This workflow automatically detects workflow failures, analyzes them,
+# creates detailed issues, and generates draft PRs with GitHub Copilot integration
+
+on:
+  workflow_run:
+    # NOTE: GitHub Actions does NOT support wildcards like ["*"] in workflow_run triggers.
+    # This list must be explicitly maintained. To update this list automatically, run:
+    # python3 .github/scripts/generate_workflow_list.py yaml
+    workflows:
+      - "AMD64 CI/CD Pipeline"
+      - "AMD64 Python Package"
+      - "AMD64 Release Pipeline"
+      - "ARM64 CI/CD Pipeline"
+      - "Auto-update script check"
+      - "Automated Documentation Maintenance"
+      - "Build and Publish Docker Image"
+      - "CI/CD Validation"
+      - "Cluster Services Tests"
+      - "Daemon Configuration Tests"
+      - "Daemon Configuration Tests (Clean)"
+      - "Daemon Tests and Health Checks"
+      - "Dependency Management"
+      - "Deploy"
+      - "Docker Architecture Tests"
+      - "Docker CI/CD"
+      - "Documentation"
+      - "Enhanced Docker Build and Test"
+      - "Enhanced MCP Server CI/CD"
+      - "Final MCP Server CI/CD"
+      - "Full CI/CD Pipeline with Enhanced Features"
+      - "GPU Testing Pipeline"
+      - "GitHub Pages"
+      - "IPFS-Kit Enhanced CI/CD Pipeline"
+      - "Lint and Type Check"
+      - "MCP Blue/Green CI/CD Pipeline"
+      - "Multi-Architecture Build"
+      - "Multi-Architecture CI/CD"
+      - "Multi-Architecture Test Parity"
+      - "Pre-Release Deprecation Check"
+      - "Publish Python Package"
+      - "Python Package"
+      - "Python package"
+      - "Release Management"
+      - "Run Enhanced Tests"
+      - "Run Tests"
+      - "Security Scanning"
+      - "Test Coverage"
+      - "WebRTC Performance Benchmarking"
+    types:
+      - completed
+  
+  workflow_dispatch:
+    inputs:
+      workflow_name:
+        description: 'Name of the failed workflow to analyze'
+        required: false
+        type: string
+      run_id:
+        description: 'Specific workflow run ID to analyze'
+        required: false
+        type: string
+      force_create_pr:
+        description: 'Force create PR even if confidence is low'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: read
+
+env:
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  autofix-with-copilot-agent:
+    runs-on: ubuntu-latest
+    # Only run if the triggering workflow failed
+    if: >
+      github.event_name == 'workflow_dispatch' || 
+      (github.event.workflow_run.conclusion == 'failure' && 
+       !contains(github.event.workflow_run.name, 'Auto-Healing') &&
+       !contains(github.event.workflow_run.name, 'Autofix'))
+    
+    steps:
+      - name: Debug workflow trigger information
+        run: |
+          echo "## 🔍 Workflow Trigger Debug Information" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Event Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Event Name**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Workflow Run Conclusion**: ${{ github.event.workflow_run.conclusion }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Workflow Run Name**: ${{ github.event.workflow_run.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Workflow Run ID**: ${{ github.event.workflow_run.id }}" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install PyYAML requests PyGithub
+      
+      - name: Initialize GitHub CLI caching with P2P support
+        run: |
+          # Enable GitHub CLI caching with P2P and IPFS to reduce API calls
+          source .github/scripts/gh_cache_wrapper.sh
+          export GH_CACHE_ENABLED=1
+          export GH_CACHE_IPFS=1
+          export GH_CACHE_P2P=1
+          export GH_CACHE_DEBUG=0
+          
+          echo "✅ GitHub CLI caching initialized (P2P + IPFS)" >> $GITHUB_STEP_SUMMARY
+          echo "   Cache Dir: $GH_CACHE_DIR" >> $GITHUB_STEP_SUMMARY
+          echo "   IPFS: Requested (may require ipfs_kit module)" >> $GITHUB_STEP_SUMMARY
+          echo "   P2P Cache Sharing: Requested (may require libp2p module)" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Get workflow run details
+        id: get_run_details
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Enable GitHub CLI caching
+          source .github/scripts/gh_cache_wrapper.sh
+          
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ -n "${{ github.event.inputs.run_id }}" ]; then
+              RUN_ID="${{ github.event.inputs.run_id }}"
+            else
+              WORKFLOW_NAME="${{ github.event.inputs.workflow_name }}"
+              RUN_ID=$(gh run list --workflow="$WORKFLOW_NAME" --status=failure --limit=1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
+            fi
+            WORKFLOW_NAME="${{ github.event.inputs.workflow_name }}"
+          else
+            RUN_ID="${{ github.event.workflow_run.id }}"
+            WORKFLOW_NAME="${{ github.event.workflow_run.name }}"
+          fi
+          
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "workflow_name=$WORKFLOW_NAME" >> $GITHUB_OUTPUT
+          
+          # Get more details (cached)
+          HEAD_BRANCH=$(gh run view $RUN_ID --json headBranch --jq '.headBranch' || echo "main")
+          HEAD_SHA=$(gh run view $RUN_ID --json headSha --jq '.headSha' || echo "")
+          
+          echo "head_branch=$HEAD_BRANCH" >> $GITHUB_OUTPUT
+          echo "head_sha=$HEAD_SHA" >> $GITHUB_OUTPUT
+          
+          echo "## Workflow Failure Detected" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Workflow**: $WORKFLOW_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "- **Run ID**: $RUN_ID" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: $HEAD_BRANCH" >> $GITHUB_STEP_SUMMARY
+          echo "- **SHA**: $HEAD_SHA" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Download workflow logs
+        id: download_logs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ steps.get_run_details.outputs.run_id }}
+        run: |
+          # Enable GitHub CLI caching
+          source .github/scripts/gh_cache_wrapper.sh
+          
+          mkdir -p /tmp/workflow-logs
+          
+          echo "📥 Downloading logs for run $RUN_ID..."
+          
+          # Download logs (not cached - this is a large binary operation)
+          if gh_nocache run download $RUN_ID --dir /tmp/workflow-logs 2>&1; then
+            echo "✅ Logs downloaded successfully"
+            ls -lh /tmp/workflow-logs/
+          else
+            echo "⚠️  Could not download logs via gh run download, trying alternative method..."
+            
+            # Alternative: get logs via API (not cached)
+            gh_nocache api \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${{ github.repository }}/actions/runs/$RUN_ID/logs" \
+              > /tmp/workflow-logs/combined.log.zip || true
+            
+            if [ -f /tmp/workflow-logs/combined.log.zip ]; then
+              cd /tmp/workflow-logs
+              unzip -q combined.log.zip || true
+              cd -
+            fi
+          fi
+          
+          # Find and convert log files
+          find /tmp/workflow-logs -name "*.txt" -exec sh -c 'mv "$1" "${1%.txt}.log"' _ {} \; 2>/dev/null || true
+          
+          LOG_COUNT=$(find /tmp/workflow-logs -name "*.log" | wc -l)
+          echo "Found $LOG_COUNT log files"
+          echo "log_count=$LOG_COUNT" >> $GITHUB_OUTPUT
+          
+          if [ "$LOG_COUNT" -eq 0 ]; then
+            echo "Creating placeholder log file..."
+            echo "No logs available for run $RUN_ID" > /tmp/workflow-logs/placeholder.log
+          fi
+      
+      - name: Analyze workflow failure
+        id: analyze
+        env:
+          RUN_ID: ${{ steps.get_run_details.outputs.run_id }}
+          WORKFLOW_NAME: ${{ steps.get_run_details.outputs.workflow_name }}
+        run: |
+          echo "🔍 Analyzing workflow failure..."
+          
+          python3 .github/scripts/analyze_workflow_failure.py \
+            --run-id "$RUN_ID" \
+            --workflow-name "$WORKFLOW_NAME" \
+            --logs-dir /tmp/workflow-logs \
+            --output /tmp/analysis.json
+          
+          # Extract key information
+          ERROR_TYPE=$(jq -r '.error_type' /tmp/analysis.json)
+          FIX_TYPE=$(jq -r '.fix_type' /tmp/analysis.json)
+          CONFIDENCE=$(jq -r '.fix_confidence' /tmp/analysis.json)
+          ROOT_CAUSE=$(jq -r '.root_cause' /tmp/analysis.json)
+          
+          echo "error_type=$ERROR_TYPE" >> $GITHUB_OUTPUT
+          echo "fix_type=$FIX_TYPE" >> $GITHUB_OUTPUT
+          echo "confidence=$CONFIDENCE" >> $GITHUB_OUTPUT
+          echo "root_cause=$ROOT_CAUSE" >> $GITHUB_OUTPUT
+          
+          echo "## Analysis Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Error Type**: $ERROR_TYPE" >> $GITHUB_STEP_SUMMARY
+          echo "- **Fix Type**: $FIX_TYPE" >> $GITHUB_STEP_SUMMARY
+          echo "- **Confidence**: ${CONFIDENCE}%" >> $GITHUB_STEP_SUMMARY
+          echo "- **Root Cause**: $ROOT_CAUSE" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Generate fix proposal
+        id: generate_fix
+        env:
+          WORKFLOW_NAME: ${{ steps.get_run_details.outputs.workflow_name }}
+        run: |
+          echo "🔧 Generating fix proposal..."
+          
+          python3 .github/scripts/generate_workflow_fix.py \
+            --analysis /tmp/analysis.json \
+            --workflow-name "$WORKFLOW_NAME" \
+            --output /tmp/fix-proposal.json
+          
+          # Extract proposal details
+          BRANCH_NAME=$(jq -r '.branch_name' /tmp/fix-proposal.json)
+          PR_TITLE=$(jq -r '.pr_title' /tmp/fix-proposal.json)
+          FIX_COUNT=$(jq -r '.fixes | length' /tmp/fix-proposal.json)
+          
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "pr_title=$PR_TITLE" >> $GITHUB_OUTPUT
+          echo "fix_count=$FIX_COUNT" >> $GITHUB_OUTPUT
+          
+          echo "## Fix Proposal" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: \`$BRANCH_NAME\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Title**: $PR_TITLE" >> $GITHUB_STEP_SUMMARY
+          echo "- **Fixes**: $FIX_COUNT proposed" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Check for duplicate processing
+        id: check_duplicate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ steps.get_run_details.outputs.run_id }}
+        run: |
+          # Enable GitHub CLI caching
+          source .github/scripts/gh_cache_wrapper.sh
+          
+          echo "🔍 Checking for duplicate processing..."
+          
+          # Check for existing PRs or issues for this run (cached - short TTL)
+          EXISTING_PRS=$(gh pr list --repo ${{ github.repository }} \
+            --search "Run ID: $RUN_ID in:body" --state all --json number --jq 'length' 2>/dev/null || echo "0")
+          
+          EXISTING_ISSUES=$(gh issue list --repo ${{ github.repository }} \
+            --search "Run ID: $RUN_ID in:body" --state all --json number --jq 'length' 2>/dev/null || echo "0")
+          
+          # Ensure values are numeric; default to 0 on any parsing/error condition
+          EXISTING_PRS=${EXISTING_PRS:-0}
+          if ! [[ "$EXISTING_PRS" =~ ^[0-9]+$ ]]; then
+            EXISTING_PRS=0
+          fi
+          
+          EXISTING_ISSUES=${EXISTING_ISSUES:-0}
+          if ! [[ "$EXISTING_ISSUES" =~ ^[0-9]+$ ]]; then
+            EXISTING_ISSUES=0
+          fi
+          
+          echo "Found $EXISTING_PRS existing PRs and $EXISTING_ISSUES existing issues"
+          
+          if [ "$EXISTING_PRS" -gt 0 ] || [ "$EXISTING_ISSUES" -gt 0 ]; then
+            echo "⚠️  Run $RUN_ID already has fix PR(s) or issue(s) - skipping duplicate processing"
+            echo "should_skip=true" >> $GITHUB_OUTPUT
+            
+            echo "## ⏭️ Skipping Duplicate Processing" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This workflow run already has existing fix PR(s) or issue(s)." >> $GITHUB_STEP_SUMMARY
+            echo "- **Run ID**: $RUN_ID" >> $GITHUB_STEP_SUMMARY
+            echo "- **Existing PRs**: $EXISTING_PRS" >> $GITHUB_STEP_SUMMARY
+            echo "- **Existing Issues**: $EXISTING_ISSUES" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "should_skip=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create issue with failure details
+        id: create_issue
+        if: steps.check_duplicate.outputs.should_skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ steps.get_run_details.outputs.run_id }}
+          WORKFLOW_NAME: ${{ steps.get_run_details.outputs.workflow_name }}
+          ERROR_TYPE: ${{ steps.analyze.outputs.error_type }}
+          ROOT_CAUSE: ${{ steps.analyze.outputs.root_cause }}
+          CONFIDENCE: ${{ steps.analyze.outputs.confidence }}
+        run: |
+          echo "📝 Creating issue with failure details..."
+          
+          # Read analysis and proposal
+          ANALYSIS_JSON=$(cat /tmp/analysis.json)
+          PROPOSAL_JSON=$(cat /tmp/fix-proposal.json)
+          
+          # Extract recommendations
+          RECOMMENDATIONS=$(echo "$ANALYSIS_JSON" | jq -r '.recommendations | join(", ")' || echo "None")
+          HEAD_BRANCH="${{ steps.get_run_details.outputs.head_branch }}"
+          HEAD_SHA="${{ steps.get_run_details.outputs.head_sha }}"
+          REPO="${{ github.repository }}"
+          
+          # Create issue body without markdown bold to avoid YAML parsing issues
+          echo "# Workflow Failure: ${WORKFLOW_NAME}" > /tmp/issue.md
+          echo "" >> /tmp/issue.md
+          echo "## Summary" >> /tmp/issue.md
+          echo "Workflow \"${WORKFLOW_NAME}\" failed with run ID: ${RUN_ID}" >> /tmp/issue.md
+          echo "" >> /tmp/issue.md
+          echo "## Failure Details" >> /tmp/issue.md
+          echo "- Error Type: ${ERROR_TYPE}" >> /tmp/issue.md
+          echo "- Root Cause: ${ROOT_CAUSE}" >> /tmp/issue.md
+          echo "- Fix Confidence: ${CONFIDENCE}%" >> /tmp/issue.md
+          echo "- Branch: ${HEAD_BRANCH}" >> /tmp/issue.md
+          echo "- SHA: ${HEAD_SHA}" >> /tmp/issue.md
+          echo "" >> /tmp/issue.md
+          echo "## Auto-Fix Analysis" >> /tmp/issue.md
+          echo "This failure has been automatically analyzed." >> /tmp/issue.md
+          echo "" >> /tmp/issue.md
+          echo "### Recommendations" >> /tmp/issue.md
+          echo "${RECOMMENDATIONS}" >> /tmp/issue.md
+          echo "" >> /tmp/issue.md
+          echo "## Links" >> /tmp/issue.md
+          echo "- Workflow Run: https://github.com/${REPO}/actions/runs/${RUN_ID}" >> /tmp/issue.md
+          echo "- Workflow File: .github/workflows/" >> /tmp/issue.md
+          echo "" >> /tmp/issue.md
+          echo "---" >> /tmp/issue.md
+          echo "" >> /tmp/issue.md
+          echo "This issue was automatically created by the auto-healing system." >> /tmp/issue.md
+          echo "A draft PR with proposed fixes will be created shortly." >> /tmp/issue.md
+          echo "" >> /tmp/issue.md
+          echo "Run ID: ${RUN_ID}" >> /tmp/issue.md
+          
+          # Create issue (write operation - not cached)
+          ISSUE_NUMBER=$(gh_nocache issue create \
+            --title "Fix: $WORKFLOW_NAME - $ERROR_TYPE" \
+            --body-file /tmp/issue.md \
+            --label "auto-healing,workflow-failure,automated" \
+            --json number --jq '.number')
+          
+          echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+          
+          echo "✅ Created issue #$ISSUE_NUMBER" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Determine if PR should be created
+        id: should_create_pr
+        env:
+          CONFIDENCE: ${{ steps.analyze.outputs.confidence }}
+          FORCE_CREATE: ${{ github.event.inputs.force_create_pr || 'false' }}
+        run: |
+          # Validate confidence is numeric
+          if ! [[ "$CONFIDENCE" =~ ^[0-9]+$ ]]; then
+            echo "⚠️  Invalid confidence value: $CONFIDENCE, defaulting to 0" >> $GITHUB_STEP_SUMMARY
+            CONFIDENCE=0
+          fi
+          
+          # Check if confidence is high enough
+          if [ "$CONFIDENCE" -ge 70 ] || [ "$FORCE_CREATE" = "true" ]; then
+            echo "should_create=true" >> $GITHUB_OUTPUT
+            echo "✅ Confidence ${CONFIDENCE}% is sufficient for PR creation" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "should_create=false" >> $GITHUB_OUTPUT
+            echo "⚠️  Confidence ${CONFIDENCE}% is too low for automatic PR creation" >> $GITHUB_STEP_SUMMARY
+            echo "An issue has been created for manual review." >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Create draft PR with fix
+        id: create_pr
+        if: steps.should_create_pr.outputs.should_create == 'true' && steps.check_duplicate.outputs.should_skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH_NAME: ${{ steps.generate_fix.outputs.branch_name }}
+          PR_TITLE: ${{ steps.generate_fix.outputs.pr_title }}
+          ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
+          RUN_ID: ${{ steps.get_run_details.outputs.run_id }}
+        run: |
+          # Enable GitHub CLI caching
+          source .github/scripts/gh_cache_wrapper.sh
+          
+          echo "🔀 Creating draft PR with fix..."
+          
+          # Create branch
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git checkout -b "$BRANCH_NAME"
+          
+          # Read proposal for PR body
+          PR_DESCRIPTION=$(jq -r '.pr_description' /tmp/fix-proposal.json)
+          
+          # Create PR body file
+          echo "Fixes #${ISSUE_NUMBER}" > /tmp/pr_body.md
+          echo "" >> /tmp/pr_body.md
+          echo "$PR_DESCRIPTION" >> /tmp/pr_body.md
+          echo "" >> /tmp/pr_body.md
+          echo "---" >> /tmp/pr_body.md
+          echo "" >> /tmp/pr_body.md
+          echo "@copilot Please analyze this workflow failure and implement the proposed fix as described above." >> /tmp/pr_body.md
+          echo "" >> /tmp/pr_body.md
+          echo "Run ID: $RUN_ID" >> /tmp/pr_body.md
+          
+          # Create a placeholder commit
+          echo "# Auto-fix for workflow failure" > .github/autofix-placeholder.md
+          echo "This file marks the auto-fix branch. The actual fixes will be implemented by GitHub Copilot." >> .github/autofix-placeholder.md
+          echo "Run ID: $RUN_ID" >> .github/autofix-placeholder.md
+          
+          git add .github/autofix-placeholder.md
+          git commit -m "chore: Initialize auto-fix branch for $PR_TITLE"
+          git push origin "$BRANCH_NAME"
+          
+          # Create draft PR (write operation - not cached)
+          PR_NUMBER=$(gh_nocache pr create \
+            --title "$PR_TITLE" \
+            --body-file /tmp/pr_body.md \
+            --draft \
+            --label "automated-fix,workflow-fix,copilot-ready" \
+            --json number --jq '.number')
+          
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          
+          # Add comment mentioning Copilot (write operation - not cached)
+          gh_nocache pr comment $PR_NUMBER --body "@copilot /fix - Please implement the automated workflow fix as described in the PR description."
+          
+          echo "## ✅ Draft PR Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **PR Number**: #$PR_NUMBER" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: \`$BRANCH_NAME\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: Draft (awaiting GitHub Copilot)" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Summary
+        if: always()
+        run: |
+          # Enable GitHub CLI caching
+          source .github/scripts/gh_cache_wrapper.sh
+          
+          echo "## 🎉 Auto-Healing Workflow Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The workflow failure has been analyzed and processed." >> $GITHUB_STEP_SUMMARY
+          echo "Check the issue and/or PR for details." >> $GITHUB_STEP_SUMMARY
+          
+          # Show cache statistics
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 GitHub CLI Cache Statistics" >> $GITHUB_STEP_SUMMARY
+          gh_cache_stats >> $GITHUB_STEP_SUMMARY 2>&1 || echo "Cache stats not available" >> $GITHUB_STEP_SUMMARY

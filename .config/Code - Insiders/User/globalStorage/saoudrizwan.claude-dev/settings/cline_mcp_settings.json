@@ -1,0 +1,46 @@
+{
+  "mcpServers": [
+    {
+      "name": "ipfs-kit-production",
+      "description": "IPFS Kit MCP Server with Real IPFS Integration and Enhanced Daemon Management",
+      "command": "python3",
+      "args": ["/home/barberb/ipfs_kit_py/mcp/enhanced_mcp_server_with_daemon_mgmt.py"],
+      "transportType": "stdio",
+      "enabled": true,
+      "env": {
+        "PATH": "/usr/local/bin:/usr/bin:/bin:/home/barberb/.local/bin",
+        "PYTHONPATH": "/home/barberb/ipfs_kit_py"
+      },
+      "tools": [
+        {
+          "name": "ipfs_add",
+          "description": "Add content to IPFS and return the CID (REAL OPERATION)"
+        },
+        {
+          "name": "ipfs_cat",
+          "description": "Retrieve and display content from IPFS (REAL OPERATION)"
+        },
+        {
+          "name": "ipfs_pin",
+          "description": "Pin content in IPFS to prevent garbage collection (REAL OPERATION)"
+        },
+        {
+          "name": "ipfs_list_pins",
+          "description": "List all pinned content in IPFS (REAL OPERATION)"
+        },
+        {
+          "name": "ipfs_version",
+          "description": "Get IPFS daemon version information (REAL OPERATION)"
+        },
+        {
+          "name": "ipfs_id",
+          "description": "Get IPFS node identity and network information (REAL OPERATION)"
+        },
+        {
+          "name": "system_health",
+          "description": "Get comprehensive system health status including IPFS daemon status"
+        }
+      ]
+    }
+  ]
+}

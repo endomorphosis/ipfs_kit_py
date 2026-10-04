@@ -35,13 +35,13 @@ sys.path.insert(0, parent_dir)
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler(os.path.join(script_dir, "mcp_debug_server.log")),
-    ],
+        logging.FileHandler(os.path.join(script_dir, 'mcp_debug_server.log'))
+    ]
 )
-logger = logging.getLogger("mcp_debug_server")
+logger = logging.getLogger('mcp_debug_server')
 
 # Global state
 debug_data = {
@@ -52,7 +52,7 @@ debug_data = {
         "prefetch_errors": 0,
         "batch_times": [],
         "queue_full_events": 0,
-        "worker_exceptions": 0,
+        "worker_exceptions": 0
     },
     "system": {
         "cpu_usage": 0,
@@ -61,18 +61,16 @@ debug_data = {
     "clients": [],
     "test_status": "idle",
     "start_time": None,
-    "last_update": time.time(),
+    "last_update": time.time()
 }
 
 # Lock for thread-safe updates
 state_lock = threading.Lock()
 
-
 def update_thread_info(thread_id, info):
     with state_lock:
         debug_data["threads"][thread_id] = info
         debug_data["last_update"] = time.time()
-
 
 def update_metrics(metrics_data):
     with state_lock:
@@ -84,12 +82,10 @@ def update_metrics(metrics_data):
                     debug_data["metrics"][key] = value
         debug_data["last_update"] = time.time()
 
-
 def update_system_info():
     """Update system information (CPU, memory usage)"""
     try:
         import psutil
-
         with state_lock:
             debug_data["system"]["cpu_usage"] = psutil.cpu_percent(interval=0.1)
             mem = psutil.virtual_memory()
@@ -100,14 +96,12 @@ def update_system_info():
     except Exception as e:
         logger.error(f"Error updating system info: {e}")
 
-
 def update_test_status(status):
     with state_lock:
         debug_data["test_status"] = status
         if status == "running":
             debug_data["start_time"] = time.time()
         debug_data["last_update"] = time.time()
-
 
 # HTML Template for the dashboard
 HTML_TEMPLATE = """
@@ -499,12 +493,11 @@ HTML_TEMPLATE = """
 </html>
 """
 
-
 class HTTPHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         logger.debug(f"GET request: {self.path}")
         parsed_path = urlparse(self.path)
-
+        
         # Serve the dashboard
         if parsed_path.path == "/debug/dashboard":
             self.send_response(200)
@@ -512,7 +505,7 @@ class HTTPHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(HTML_TEMPLATE.encode())
             return
-
+            
         # API endpoint to get current state
         elif parsed_path.path == "/debug/api/state":
             self.send_response(200)
@@ -521,7 +514,7 @@ class HTTPHandler(BaseHTTPRequestHandler):
             with state_lock:
                 self.wfile.write(json.dumps(debug_data).encode())
             return
-
+            
         # API endpoints for updating state
         else:
             self.send_response(404)
@@ -529,14 +522,14 @@ class HTTPHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b"Not found")
             return
-
+    
     def do_POST(self):
         logger.debug(f"POST request: {self.path}")
         parsed_path = urlparse(self.path)
-
-        content_length = int(self.headers.get("Content-Length", 0))
-        post_data = self.rfile.read(content_length).decode("utf-8")
-
+        
+        content_length = int(self.headers.get('Content-Length', 0))
+        post_data = self.rfile.read(content_length).decode('utf-8')
+        
         try:
             data = json.loads(post_data)
         except json.JSONDecodeError:
@@ -545,11 +538,11 @@ class HTTPHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b"Invalid JSON")
             return
-
+        
         # Update thread info
         if parsed_path.path == "/debug/api/thread":
-            if "thread_id" in data and "info" in data:
-                update_thread_info(data["thread_id"], data["info"])
+            if 'thread_id' in data and 'info' in data:
+                update_thread_info(data['thread_id'], data['info'])
                 self.send_response(200)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
@@ -560,11 +553,11 @@ class HTTPHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b"Missing required fields")
             return
-
+            
         # Update metrics
         elif parsed_path.path == "/debug/api/metrics":
-            if "metrics" in data:
-                update_metrics(data["metrics"])
+            if 'metrics' in data:
+                update_metrics(data['metrics'])
                 self.send_response(200)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
@@ -575,11 +568,11 @@ class HTTPHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b"Missing required fields")
             return
-
+            
         # Update test status
         elif parsed_path.path == "/debug/api/status":
-            if "status" in data:
-                update_test_status(data["status"])
+            if 'status' in data:
+                update_test_status(data['status'])
                 self.send_response(200)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
@@ -590,7 +583,7 @@ class HTTPHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b"Missing required fields")
             return
-
+            
         # Unknown endpoint
         else:
             self.send_response(404)
@@ -599,7 +592,6 @@ class HTTPHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"Not found")
             return
 
-
 # Simple WebSocket implementation for real-time updates
 class WebSocketHandler:
     def __init__(self, server):
@@ -607,29 +599,29 @@ class WebSocketHandler:
         self.clients = []
         self.broadcast_thread = threading.Thread(target=self.broadcast_loop, daemon=True)
         self.broadcast_thread.start()
-
+    
     def add_client(self, client_socket, client_address):
         self.clients.append((client_socket, client_address))
         logger.info(f"New WebSocket client connected: {client_address}")
         with state_lock:
             debug_data["clients"] = [str(addr) for _, addr in self.clients]
-
+    
     def remove_client(self, client_socket, client_address):
         self.clients.remove((client_socket, client_address))
         logger.info(f"WebSocket client disconnected: {client_address}")
         with state_lock:
             debug_data["clients"] = [str(addr) for _, addr in self.clients]
-
+    
     def broadcast_loop(self):
         while True:
             try:
                 # Update system info
                 update_system_info()
-
+                
                 # Broadcast current state to all clients
                 with state_lock:
                     data_json = json.dumps(debug_data)
-
+                
                 for client_socket, client_address in list(self.clients):
                     try:
                         client_socket.send(data_json.encode())
@@ -638,19 +630,18 @@ class WebSocketHandler:
                         self.remove_client(client_socket, client_address)
             except Exception as e:
                 logger.error(f"Error in broadcast loop: {e}")
-
+            
             time.sleep(1)  # Broadcast frequency
 
-
 class ThreadMonitoringServer:
-    def __init__(self, host="0.0.0.0", port=8765):
+    def __init__(self, host='0.0.0.0', port=8765):
         self.host = host
         self.port = port
         self.httpd = HTTPServer((host, port), HTTPHandler)
         self.websocket_handler = WebSocketHandler(self)
         logger.info(f"Server started at http://{host}:{port}")
         logger.info(f"Dashboard available at http://{host}:{port}/debug/dashboard")
-
+    
     def start(self):
         try:
             self.httpd.serve_forever()
@@ -658,27 +649,25 @@ class ThreadMonitoringServer:
             self.httpd.server_close()
             logger.info("Server stopped")
 
-
 def main():
     parser = argparse.ArgumentParser(description="MCP Debug Server")
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind the server to")
     parser.add_argument("--port", type=int, default=8765, help="Port to bind the server to")
     parser.add_argument("--open-browser", action="store_true", help="Open browser automatically")
-
+    
     args = parser.parse_args()
-
+    
     # Create and start the server
     server = ThreadMonitoringServer(host=args.host, port=args.port)
-
+    
     # Open browser if requested
     if args.open_browser:
         dashboard_url = f"http://localhost:{args.port}/debug/dashboard"
         threading.Timer(1.0, lambda: webbrowser.open(dashboard_url)).start()
-
+    
     # Start the server
     logger.info("Starting server...")
     server.start()
-
 
 if __name__ == "__main__":
     main()

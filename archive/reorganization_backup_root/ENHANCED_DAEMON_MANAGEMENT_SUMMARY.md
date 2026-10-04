@@ -42,10 +42,10 @@
 ```python
 # Changed return format from boolean to structured dict:
 return {
-    "success": True / False,
-    "message": "Descriptive message",
-    "status": detailed_status_report,
-    "error": error_info,  # if applicable
+    'success': True/False,
+    'message': 'Descriptive message',
+    'status': detailed_status_report,
+    'error': error_info  # if applicable
 }
 ```
 

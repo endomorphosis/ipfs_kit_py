@@ -50,8 +50,8 @@ MOCK_RESPONSES = {
             "storacha": {"available": True, "simulation": True},
             "filecoin": {"available": True, "simulation": True},
             "lassie": {"available": True, "simulation": True},
-            "s3": {"available": True, "simulation": True},
-        },
+            "s3": {"available": True, "simulation": True}
+        }
     },
     "storage_health": {
         "success": True,
@@ -64,18 +64,43 @@ MOCK_RESPONSES = {
             "storacha": {"status": "available", "simulation": True},
             "filecoin": {"status": "available", "simulation": True},
             "lassie": {"status": "available", "simulation": True},
-            "s3": {"status": "available", "simulation": True},
-        },
+            "s3": {"status": "available", "simulation": True}
+        }
     },
-    "ipfs_version": {"success": True, "version": "ipfs version 0.14.0"},
-    "ipfs_add": {"success": True, "cid": "QmTestCID123456"},
-    "huggingface_status": {"available": True, "simulation": True, "mode": "mock"},
-    "s3_status": {"available": True, "simulation": True, "mode": "mock"},
-    "filecoin_status": {"available": True, "simulation": True, "mode": "mock"},
-    "storacha_status": {"available": True, "simulation": True, "mode": "mock"},
-    "lassie_status": {"available": True, "simulation": True, "mode": "mock"},
+    "ipfs_version": {
+        "success": True,
+        "version": "ipfs version 0.14.0"
+    },
+    "ipfs_add": {
+        "success": True,
+        "cid": "QmTestCID123456"
+    },
+    "huggingface_status": {
+        "available": True,
+        "simulation": True,
+        "mode": "mock"
+    },
+    "s3_status": {
+        "available": True,
+        "simulation": True,
+        "mode": "mock"
+    },
+    "filecoin_status": {
+        "available": True,
+        "simulation": True,
+        "mode": "mock"
+    },
+    "storacha_status": {
+        "available": True,
+        "simulation": True,
+        "mode": "mock"
+    },
+    "lassie_status": {
+        "available": True,
+        "simulation": True,
+        "mode": "mock"
+    }
 }
-
 
 # Helper function for making mock requests
 def make_mock_request(method, url, **kwargs):
@@ -98,21 +123,14 @@ def make_mock_request(method, url, **kwargs):
     elif endpoint.startswith("/ipfs/cat/"):
         mock_response.content = b"Test content from mock server"
     elif endpoint.startswith("/ipfs/pin/"):
-        mock_response.json.return_value = {
-            "success": True,
-            "pinned": True,
-            "pins": ["QmTestCID123456"],
-        }
+        mock_response.json.return_value = {"success": True, "pinned": True, "pins": ["QmTestCID123456"]}
     elif endpoint.startswith("/ipfs/object/"):
         mock_response.json.return_value = {"success": True, "cid": "QmTestCID123456", "links": []}
     elif endpoint.startswith("/ipfs/dag/"):
         if "put" in endpoint:
             mock_response.json.return_value = {"success": True, "cid": "QmTestCID123456"}
         else:
-            mock_response.json.return_value = {
-                "success": True,
-                "data": {"test": True, "content": "Test content"},
-            }
+            mock_response.json.return_value = {"success": True, "data": {"test": True, "content": "Test content"}}
     elif endpoint == "/huggingface/status":
         mock_response.json.return_value = MOCK_RESPONSES["huggingface_status"]
     elif endpoint == "/s3/status":
@@ -129,9 +147,7 @@ def make_mock_request(method, url, **kwargs):
 
     return mock_response
 
-
 # Tests for MCP server functionality
-
 
 def test_server_health():
     """Test the server health endpoint."""
@@ -155,7 +171,6 @@ def test_server_health():
 
     return True
 
-
 def test_storage_health():
     """Test the storage health endpoint."""
     print("Testing storage health...")
@@ -174,7 +189,6 @@ def test_storage_health():
 
     return True
 
-
 def test_ipfs_version():
     """Test the IPFS version endpoint."""
     print("Testing IPFS version...")
@@ -190,14 +204,11 @@ def test_ipfs_version():
 
     return True
 
-
 def test_ipfs_add_and_cat():
     """Test the IPFS add and cat endpoints."""
     print("Testing IPFS add and cat...")
     # Test add
-    response = make_mock_request(
-        "post", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/add", files={"file": "mock_file"}
-    )
+    response = make_mock_request("post", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/add", files={"file": "mock_file"})
 
     assert response.status_code == 200, "IPFS add endpoint returned non-200 status"
     data = response.json()
@@ -218,13 +229,14 @@ def test_ipfs_add_and_cat():
 
     return True
 
-
 def test_ipfs_pin_operations():
     """Test the IPFS pin add and list endpoints."""
     print("Testing IPFS pin operations...")
     # Test pin add
     response = make_mock_request(
-        "post", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/pin/add", data={"cid": "QmTestCID123456"}
+        "post",
+        f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/pin/add",
+        data={"cid": "QmTestCID123456"}
     )
     assert response.status_code == 200, "IPFS pin add endpoint returned non-200 status"
     data = response.json()
@@ -242,7 +254,6 @@ def test_ipfs_pin_operations():
 
     return True
 
-
 def test_ipfs_object_operations():
     """Test the enhanced IPFS object operations."""
     print("Testing IPFS object operations...")
@@ -250,7 +261,7 @@ def test_ipfs_object_operations():
     response = make_mock_request(
         "post",
         f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/object/new",
-        data={"template": "unixfs-dir"},
+        data={"template": "unixfs-dir"}
     )
 
     assert response.status_code == 200, "IPFS object new endpoint returned non-200 status"
@@ -262,9 +273,7 @@ def test_ipfs_object_operations():
     print(f"Created new directory object with CID: {dir_cid}")
 
     # Test object links
-    response = make_mock_request(
-        "get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/object/links/{dir_cid}"
-    )
+    response = make_mock_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/object/links/{dir_cid}")
     assert response.status_code == 200, "IPFS object links endpoint returned non-200 status"
     data = response.json()
     assert data["success"], "IPFS object links reported failure"
@@ -274,18 +283,25 @@ def test_ipfs_object_operations():
 
     return True
 
-
 def test_ipfs_dag_operations():
     """Test the enhanced IPFS DAG operations."""
     print("Testing IPFS DAG operations...")
     # Create test JSON data
-    test_data = json.dumps({"test": True, "content": test_content, "timestamp": time.time()})
+    test_data = json.dumps({
+        "test": True,
+        "content": test_content,
+        "timestamp": time.time()
+    })
 
     # Test DAG put
     response = make_mock_request(
         "post",
         f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/dag/put",
-        data={"data": test_data, "input_codec": "dag-json", "store_codec": "dag-cbor"},
+        data={
+            "data": test_data,
+            "input_codec": "dag-json",
+            "store_codec": "dag-cbor"
+        }
     )
 
     assert response.status_code == 200, "IPFS DAG put endpoint returned non-200 status"
@@ -297,9 +313,7 @@ def test_ipfs_dag_operations():
     print(f"Added DAG node with CID: {dag_cid}")
 
     # Test DAG get
-    response = make_mock_request(
-        "get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/dag/get/{dag_cid}"
-    )
+    response = make_mock_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/ipfs/dag/get/{dag_cid}")
     assert response.status_code == 200, "IPFS DAG get endpoint returned non-200 status"
     data = response.json()
     assert data["success"], "IPFS DAG get reported failure"
@@ -308,7 +322,6 @@ def test_ipfs_dag_operations():
     print(f"Successfully tested IPFS DAG operations")
 
     return True
-
 
 def test_storage_status_endpoints():
     """Test all storage backend status endpoints."""
@@ -319,9 +332,7 @@ def test_storage_status_endpoints():
     assert response.status_code == 200, "HuggingFace status endpoint returned non-200 status"
     data = response.json()
     assert data["available"], "HuggingFace backend should be available"
-    print(
-        f"HuggingFace status: available={data['available']}, simulation={data.get('simulation', False)}"
-    )
+    print(f"HuggingFace status: available={data['available']}, simulation={data.get('simulation', False)}")
 
     # Test S3 status
     response = make_mock_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/s3/status")
@@ -335,30 +346,23 @@ def test_storage_status_endpoints():
     assert response.status_code == 200, "Filecoin status endpoint returned non-200 status"
     data = response.json()
     assert data["available"], "Filecoin backend should be available"
-    print(
-        f"Filecoin status: available={data['available']}, simulation={data.get('simulation', False)}"
-    )
+    print(f"Filecoin status: available={data['available']}, simulation={data.get('simulation', False)}")
 
     # Test Storacha status
     response = make_mock_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/storacha/status")
     assert response.status_code == 200, "Storacha status endpoint returned non-200 status"
     data = response.json()
     assert data["available"], "Storacha backend should be available"
-    print(
-        f"Storacha status: available={data['available']}, simulation={data.get('simulation', False)}"
-    )
+    print(f"Storacha status: available={data['available']}, simulation={data.get('simulation', False)}")
 
     # Test Lassie status
     response = make_mock_request("get", f"{TEST_SERVER_URL}{TEST_API_PREFIX}/lassie/status")
     assert response.status_code == 200, "Lassie status endpoint returned non-200 status"
     data = response.json()
     assert data["available"], "Lassie backend should be available"
-    print(
-        f"Lassie status: available={data['available']}, simulation={data.get('simulation', False)}"
-    )
+    print(f"Lassie status: available={data['available']}, simulation={data.get('simulation', False)}")
 
     return True
-
 
 def test_error_handling():
     """Test error handling in the MCP server."""
@@ -378,7 +382,13 @@ def test_error_handling():
     mock_response = MagicMock()
     mock_response.status_code = 422
     mock_response.json.return_value = {
-        "detail": [{"loc": ["body", "cid"], "msg": "field required", "type": "value_error.missing"}]
+        "detail": [
+            {
+                "loc": ["body", "cid"],
+                "msg": "field required",
+                "type": "value_error.missing"
+            }
+        ]
     }
 
     # Verify error response format
@@ -388,12 +398,11 @@ def test_error_handling():
 
     return True
 
-
 def main():
     """Run all MCP server tests with mock responses."""
-    print("\n" + "=" * 60)
+    print("\n" + "="*60)
     print("Running MCP Server Tests with Mock Framework")
-    print("=" * 60)
+    print("="*60)
     print(f"Time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
 
     try:
@@ -411,54 +420,57 @@ def main():
         ]
 
         # Run all tests and track results
-        results = {"total": len(tests), "passed": 0, "failed": 0, "failures": []}
+        results = {
+            'total': len(tests),
+            'passed': 0,
+            'failed': 0,
+            'failures': []
+        }
 
         for test_name, test_func in tests:
-            print("\n" + "-" * 60)
+            print("\n" + "-"*60)
             print(f"Running test: {test_name}")
-            print("-" * 60)
+            print("-"*60)
 
             try:
                 result = test_func()
                 if result:
                     print(f"✅ SUCCESS: {test_name}")
-                    results["passed"] += 1
+                    results['passed'] += 1
                 else:
                     print(f"❌ FAILURE: {test_name} (returned False)")
-                    results["failed"] += 1
-                    results["failures"].append(test_name)
+                    results['failed'] += 1
+                    results['failures'].append(test_name)
             except Exception as e:
                 print(f"❌ FAILURE: {test_name}")
                 print(f"Error: {str(e)}")
                 import traceback
-
                 traceback.print_exc()
-                results["failed"] += 1
-                results["failures"].append(f"{test_name} ({str(e)})")
+                results['failed'] += 1
+                results['failures'].append(f"{test_name} ({str(e)})")
 
         # Print summary
-        print("\n\n" + "=" * 60)
+        print("\n\n" + "="*60)
         print("Test Summary")
-        print("=" * 60)
+        print("="*60)
         print(f"Total tests: {results['total']}")
         print(f"Passed: {results['passed']}")
         print(f"Failed: {results['failed']}")
 
-        if results["failures"]:
+        if results['failures']:
             print("\nFailed tests:")
-            for failure in results["failures"]:
+            for failure in results['failures']:
                 print(f"  - {failure}")
         else:
             print("\nAll tests passed! ✨ 🎉 ✨")
 
         # Exit with appropriate code
-        return 0 if results["failed"] == 0 else 1
+        return 0 if results['failed'] == 0 else 1
 
     finally:
         # Clean up temporary directory
         shutil.rmtree(temp_dir)
         print("\nCleanup complete.")
-
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -20,13 +20,12 @@ import re
 import py_compile
 
 # Define path to IPFS model file
-MODEL_FILE = "ipfs_kit_py/mcp/models/ipfs_model.py"
-
+MODEL_FILE = 'ipfs_kit_py/mcp/models/ipfs_model.py'
 
 def find_method(content):
     """Find the ipfs_name_resolve method in the content."""
     # Find the method definition
-    method_pattern = re.compile(r"(\s*)def\s+ipfs_name_resolve\s*\([^)]*\)\s*-?>?\s*[^:]*:")
+    method_pattern = re.compile(r'(\s*)def\s+ipfs_name_resolve\s*\([^)]*\)\s*-?>?\s*[^:]*:')
     match = method_pattern.search(content)
 
     if not match:
@@ -38,7 +37,7 @@ def find_method(content):
     method_start_pos = match.start()
 
     # Find the next method (or end of file)
-    next_method_pattern = re.compile(r"\n\s*def\s+", re.MULTILINE)
+    next_method_pattern = re.compile(r'\n\s*def\s+', re.MULTILINE)
     next_match = next_method_pattern.search(content, match.end())
 
     if next_match:
@@ -47,7 +46,6 @@ def find_method(content):
         method_end_pos = len(content)
 
     return method_start_pos, method_end_pos, indentation
-
 
 def create_fixed_method(indentation):
     """Create a fixed implementation of the method with the right indentation."""
@@ -221,7 +219,6 @@ def create_fixed_method(indentation):
 
 {body_indent}return result"""
 
-
 def fix_file():
     """Find and fix the ipfs_name_resolve method in the IPFS model file."""
     # Check if file exists
@@ -230,7 +227,7 @@ def fix_file():
         return False
 
     # Read the file content
-    with open(MODEL_FILE, "r") as f:
+    with open(MODEL_FILE, 'r') as f:
         content = f.read()
 
     # Find the method
@@ -246,12 +243,12 @@ def fix_file():
     new_content = content[:method_start_pos] + fixed_method + content[method_end_pos:]
 
     # Create a backup of the original file
-    backup_file = MODEL_FILE + ".orig_fix"
+    backup_file = MODEL_FILE + '.orig_fix'
     shutil.copy2(MODEL_FILE, backup_file)
     print(f"Created backup: {backup_file}")
 
     # Write the new content
-    with open(MODEL_FILE, "w") as f:
+    with open(MODEL_FILE, 'w') as f:
         f.write(new_content)
 
     print(f"Updated {MODEL_FILE} with fixed ipfs_name_resolve method")
@@ -268,13 +265,10 @@ def fix_file():
         print(f"Restored original file from backup")
         return False
 
-
 if __name__ == "__main__":
     if fix_file():
         print("Successfully fixed ipfs_name_resolve method")
-        print(
-            "This method now properly handles bytes responses, enhancing the robustness of the MCP server"
-        )
+        print("This method now properly handles bytes responses, enhancing the robustness of the MCP server")
     else:
         print("Failed to fix ipfs_name_resolve method")
         print("Manual intervention may be required")

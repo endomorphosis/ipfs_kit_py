@@ -3,7 +3,6 @@
 Mirrors the canonical exception taxonomy used by ipfs_datasets_py's mcp_server
 so error shapes stay interoperable across the Mcp-Plus-Plus aligned servers.
 """
-
 from __future__ import annotations
 
 

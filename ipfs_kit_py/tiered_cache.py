@@ -1,7 +1,7 @@
 """
 Tiered Cache System for IPFS - Backward Compatibility Module.
 
-This module provides backward compatibility for the tiered caching system
+This module provides backward compatibility for the tiered caching system 
 which has been split into separate files. It re-exports the core classes
 from their new locations.
 """
@@ -24,7 +24,7 @@ try:
         MinHash,
         TopK,
         ProbabilisticDataStructureManager,
-        HashFunction,
+        HashFunction
     )
 except ImportError:
     # Fallback when module not available
@@ -47,7 +47,7 @@ try:
         ContentTypePartitionStrategy,
         HashBasedPartitionStrategy,
         DynamicPartitionManager,
-        AdvancedPartitionManager,
+        AdvancedPartitionManager
     )
 except ImportError:
     # Fallback when module not available
@@ -69,7 +69,7 @@ try:
         SchemaOptimizer,
         SchemaEvolutionManager,
         ParquetCIDCache,
-        SchemaColumnOptimizationManager,
+        SchemaColumnOptimizationManager
     )
 except ImportError:
     # Fallback when module not available
@@ -91,38 +91,38 @@ warnings.warn(
     "arc_cache.py, disk_cache.py, tiered_cache_manager.py, "
     "and the cache/ directory for specialized components.",
     DeprecationWarning,
-    stacklevel=2,
+    stacklevel=2
 )
 
 # List all exported symbols
 __all__ = [
-    "ARCache",
-    "DiskCache",
-    "TieredCacheManager",
+    'ARCache',
+    'DiskCache',
+    'TieredCacheManager',
     # Probabilistic data structures
-    "BloomFilter",
-    "HyperLogLog",
-    "CountMinSketch",
-    "CuckooFilter",
-    "MinHash",
-    "TopK",
-    "ProbabilisticDataStructureManager",
-    "HashFunction",
+    'BloomFilter',
+    'HyperLogLog',
+    'CountMinSketch',
+    'CuckooFilter',
+    'MinHash',
+    'TopK',
+    'ProbabilisticDataStructureManager',
+    'HashFunction',
     # Advanced partitioning
-    "PartitioningStrategy",
-    "PartitionInfo",
-    "TimeBasedPartitionStrategy",
-    "SizeBasedPartitionStrategy",
-    "ContentTypePartitionStrategy",
-    "HashBasedPartitionStrategy",
-    "DynamicPartitionManager",
-    "AdvancedPartitionManager",
+    'PartitioningStrategy',
+    'PartitionInfo',
+    'TimeBasedPartitionStrategy',
+    'SizeBasedPartitionStrategy',
+    'ContentTypePartitionStrategy',
+    'HashBasedPartitionStrategy',
+    'DynamicPartitionManager',
+    'AdvancedPartitionManager',
     # Schema optimization
-    "WorkloadType",
-    "ColumnStatistics",
-    "SchemaProfiler",
-    "SchemaOptimizer",
-    "SchemaEvolutionManager",
-    "ParquetCIDCache",
-    "SchemaColumnOptimizationManager",
+    'WorkloadType',
+    'ColumnStatistics',
+    'SchemaProfiler',
+    'SchemaOptimizer',
+    'SchemaEvolutionManager',
+    'ParquetCIDCache',
+    'SchemaColumnOptimizationManager'
 ]

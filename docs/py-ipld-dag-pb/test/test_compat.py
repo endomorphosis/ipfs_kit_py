@@ -4,7 +4,7 @@ import json
 from multiformats import CID
 import pytest
 
-from ipld_dag_pb import encode, decode
+from ipld_dag_pb import  encode, decode
 from ipld_dag_pb.decode import decode_node
 from ipld_dag_pb.encode import encode_node
 from ipld_dag_pb.node import PBNode, RawPBLink, RawPBNode
@@ -65,9 +65,9 @@ def serialize_node_to_json(node: Union[RawPBNode, PBNode]):
 
 def verify_round_trip(test_case: Case, bypass: bool):
     actual_bytes = (
-        encode_node(test_case["node"]) if bypass else encode(test_case["node"])  # type: ignore[type-arg]
+        encode_node(test_case['node']) if bypass else encode(test_case['node'])  # type: ignore[type-arg]
     )
-    assert actual_bytes.hex() == test_case["expected_bytes"]
+    assert actual_bytes.hex() == test_case['expected_bytes']
     round_trip_node = decode_node(actual_bytes) if bypass else decode(actual_bytes)
     if getattr(round_trip_node, "data", None):
         # this can't be a string, but we're making it so for ease of test
@@ -90,7 +90,7 @@ def test_empty():
             "expected_bytes": "",
             "expected_form": r'{"links": []}',
         },
-        bypass=False,
+        bypass=False
     )
 
 
@@ -98,10 +98,10 @@ def test_data_zero():
     verify_round_trip(
         {
             "node": PBNode(data=bytes(0)),
-            "expected_bytes": "0a00",
+            "expected_bytes": '0a00',
             "expected_form": r'{"data": "", "links": []}',
         },
-        bypass=False,
+        bypass=False
     )
 
 
@@ -109,17 +109,21 @@ def test_data_some():
     verify_round_trip(
         {
             "node": PBNode(data=bytearray([0, 1, 2, 3, 4])),
-            "expected_bytes": "0a050001020304",
+            "expected_bytes": '0a050001020304',
             "expected_form": r'{"data": "0001020304", "links": []}',
         },
-        bypass=False,
+        bypass=False
     )
 
 
 def test_link_zero():
     verify_round_trip(
-        {"node": PBNode(links=[]), "expected_bytes": "", "expected_form": r'{"links": []}'},
-        bypass=False,
+        {
+            "node": PBNode(links=[]),
+            "expected_bytes": '',
+            "expected_form": r'{"links": []}'
+        },
+        bypass=False
     )
 
 
@@ -127,7 +131,7 @@ def test_data_some_links_zero():
     test_case: Case = {
         "node": PBNode(data=bytearray([0, 1, 2, 3, 4]), links=[]),
         "expected_bytes": "0a050001020304",
-        "expected_form": r'{"data": "0001020304", "links": []}',
+        "expected_form": r'{"data": "0001020304", "links": []}'
     }
     verify_round_trip(test_case, False)
 
@@ -138,16 +142,21 @@ def test_links_empty():
             {
                 "node": PBNode(links=[as_link({})]),
                 "expected_bytes": "1200",
-                "expected_form": r'{"links": [{}]}',
+                "expected_form": r'{"links": [{}]}'
             },
-            False,
+            False
         )
     pbn = RawPBNode()
     pbl = RawPBLink()
     pbn.links = [pbl]
     # bypass straight to encode and it should verify the bytes
     verify_round_trip(
-        {"node": pbn, "expected_bytes": "1200", "expected_form": r'{"links": [{}]}'}, True
+        {
+            "node": pbn,
+            "expected_bytes": "1200",
+            "expected_form": r'{"links": [{}]}'
+        },
+        True
     )
 
 
@@ -160,7 +169,7 @@ def test_data_some_links_empty():
     test_case: Case = {
         "node": pbn,
         "expected_bytes": "12000a050001020304",
-        "expected_form": r'{"data": "0001020304", "links": [{}]}',
+        "expected_form": r'{"data": "0001020304", "links": [{}]}'
     }
     with pytest.raises(Exception):
         # bypass straight to encode and it should verify the bytes
@@ -176,13 +185,11 @@ def test_links_hash_zero():
         # tests where there is an invalid/absent link hash
         verify_round_trip(
             {
-                "node": PBNode(
-                    links=[as_link({"hash": bytes(0)})]
-                ),  # eager decoding detects that hash bytes has len(varint) < 1 and raises exception before round-trip occurs
+                "node": PBNode(links=[as_link({"hash": bytes(0)})]),  # eager decoding detects that hash bytes has len(varint) < 1 and raises exception before round-trip occurs
                 "expected_bytes": "12020a00",
-                "expected_form": r'{"links": [{"hash": ""}]}',
+                "expected_form": r'{"links": [{"hash": ""}]}'
             },
-            False,
+            False
         )
 
     pbn = RawPBNode()
@@ -207,9 +214,9 @@ def test_links_hash_some():
         {
             "node": PBNode(links=[as_link({"hash": a_cid})]),
             "expected_bytes": "120b0a09015500050001020304",
-            "expected_form": r'{"links": [{"hash": "015500050001020304"}]}',
+            "expected_form": r'{"links": [{"hash": "015500050001020304"}]}'
         },
-        False,
+        False
     )
 
 
@@ -217,13 +224,11 @@ def test_links_name_zero():
     with pytest.raises(Exception):
         verify_round_trip(
             {
-                "node": PBNode(
-                    links=[as_link({"name": ""})]
-                ),  # eager validation detects absence of link's hash and raises exception before round-trip occurs
+                "node": PBNode(links=[as_link({"name": ""})]),  # eager validation detects absence of link's hash and raises exception before round-trip occurs
                 "expected_bytes": "12021200",
-                "expected_form": r'{"links": [{"name": ""}]}',
+                "expected_form": r'{"links": [{"name": ""}]}'
             },
-            False,
+            False
         )
     pbn = RawPBNode()
     pbl = RawPBLink()
@@ -235,7 +240,7 @@ def test_links_name_zero():
             "expected_bytes": "12021200",
             "expected_form": r'{"links": [{"name": ""}]}',
         },
-        True,
+        True
     )
 
 
@@ -246,7 +251,7 @@ def test_links_hash_name_zero():
             "expected_bytes": "120d0a090155000500010203041200",
             "expected_form": r'{"links": [{"hash": "015500050001020304", "name": ""}]}',
         },
-        False,
+        False
     )
 
 
@@ -254,13 +259,11 @@ def test_links_name_some():
     with pytest.raises(Exception):
         verify_round_trip(
             {
-                "node": PBNode(
-                    links=[as_link({"name": "some name"})]
-                ),  # eager validation detects absence of link's hash and raises exception before round-trip occurs
+                "node": PBNode(links=[as_link({"name": "some name"})]),  # eager validation detects absence of link's hash and raises exception before round-trip occurs
                 "expected_bytes": "120b1209736f6d65206e616d65",
-                "expected_form": r'{"links": [{"name": "some name"}]}',
+                "expected_form": r'{"links": [{"name": "some name"}]}'
             },
-            False,
+            False
         )
 
     pbn = RawPBNode()
@@ -272,9 +275,9 @@ def test_links_name_some():
         {
             "node": pbn,
             "expected_bytes": "120b1209736f6d65206e616d65",
-            "expected_form": r'{"links": [{"name": "some name"}]}',
+            "expected_form": r'{"links": [{"name": "some name"}]}'
         },
-        True,
+        True
     )
 
 
@@ -284,9 +287,9 @@ def test_links_hash_some_name_some():
         {
             "node": PBNode(links=[as_link({"hash": a_cid, "name": "some name"})]),
             "expected_bytes": "12160a090155000500010203041209736f6d65206e616d65",
-            "expected_form": r'{"links": [{"hash": "015500050001020304", "name": "some name"}]}',
+            "expected_form": r'{"links": [{"hash": "015500050001020304", "name": "some name"}]}'
         },
-        False,
+        False
     )
 
 
@@ -294,13 +297,11 @@ def test_links_tsize_zero():
     with pytest.raises(Exception):
         verify_round_trip(
             {
-                "node": PBNode(
-                    links=[as_link({"t_size": 0})]
-                ),  # eager validation detects absence of link's hash and raises exception before round-trip occurs
+                "node": PBNode(links=[as_link({"t_size": 0})]),  # eager validation detects absence of link's hash and raises exception before round-trip occurs
                 "expected_bytes": "12021800",
-                "expected_form": r'{"links": [{"t_size": 0}]}',
+                "expected_form": r'{"links": [{"t_size": 0}]}'
             },
-            False,
+            False
         )
 
     pbn = RawPBNode()
@@ -309,8 +310,12 @@ def test_links_tsize_zero():
     pbn.links = [pbl]
     # bypass straight to encode and it should verify the bytes
     verify_round_trip(
-        {"node": pbn, "expected_bytes": "12021800", "expected_form": r'{"links": [{"t_size": 0}]}'},
-        True,
+        {
+            "node": pbn,
+            "expected_bytes": "12021800",
+            "expected_form": r'{"links": [{"t_size": 0}]}'
+        },
+        True
     )
 
 
@@ -321,7 +326,7 @@ def test_links_hash_some_tsize_zero():
             "expected_bytes": "120d0a090155000500010203041800",
             "expected_form": r'{"links": [{"hash": "015500050001020304", "t_size": 0}]}',
         },
-        False,
+        False
     )
 
 
@@ -329,13 +334,11 @@ def test_links_tsize_some():
     with pytest.raises(Exception):
         verify_round_trip(
             {
-                "node": PBNode(
-                    links=[as_link({"t_size": 1010})]
-                ),  # eager validation detects absence of link's hash and raises exception before round-trip occurs
+                "node": PBNode(links=[as_link({"t_size": 1010})]),  # eager validation detects absence of link's hash and raises exception before round-trip occurs
                 "expected_bytes": "120318f207",
                 "expected_form": r'{"links": [{"t_size": 1010}]}',
             },
-            False,
+            False
         )
 
     pbn = RawPBNode()
@@ -347,9 +350,9 @@ def test_links_tsize_some():
         {
             "node": pbn,
             "expected_bytes": "120318f207",
-            "expected_form": r'{"links": [{"t_size": 1010}]}',
+            "expected_form": r'{"links": [{"t_size": 1010}]}'
         },
-        True,
+        True
     )
 
 
@@ -358,7 +361,7 @@ def test_links_hash_some_tsize_some():
         {
             "node": PBNode(links=[as_link({"hash": a_cid, "t_size": 9007199254740991})]),
             "expected_bytes": "12140a0901550005000102030418ffffffffffffff0f",
-            "expected_form": r'{"links": [{"hash": "015500050001020304", "t_size": 9007199254740991}]}',
-        },
-        False,
+            "expected_form": r'{"links": [{"hash": "015500050001020304", "t_size": 9007199254740991}]}'
+            },
+        False
     )

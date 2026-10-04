@@ -1,0 +1,103 @@
+{
+  "id": "12D3KooW47c900a4a95d11d488fa71374ac30da143091a565fb9cc9654",
+  "cluster_name": "demo-cluster",
+  "cluster": {
+    "secret": "",
+    "peers": [],
+    "bootstrap": [
+      "/ip4/127.0.0.1/tcp/9096/p2p/12D3KooWExample"
+    ],
+    "leave_on_shutdown": true,
+    "listen_multiaddress": "/ip4/0.0.0.0/tcp/9096",
+    "state_sync_interval": "10s",
+    "ipfs_sync_interval": "130s",
+    "replication_factor_min": 1,
+    "replication_factor_max": 3,
+    "monitor_ping_interval": "12s"
+  },
+  "api": {
+    "restapi": {
+      "listen_multiaddress": "/ip4/127.0.0.1/tcp/9097",
+      "read_timeout": "0s",
+      "read_header_timeout": "5s",
+      "write_timeout": "0s",
+      "idle_timeout": "120s",
+      "max_header_bytes": 4096,
+      "cors_allowed_origins": [
+        "*"
+      ],
+      "cors_allowed_methods": [
+        "GET",
+        "POST"
+      ],
+      "cors_allowed_headers": [
+        "*"
+      ],
+      "cors_exposed_headers": [
+        "*"
+      ],
+      "cors_allow_credentials": true,
+      "cors_max_age": "0s"
+    },
+    "ipfsproxy": {
+      "listen_multiaddress": "/ip4/127.0.0.1/tcp/9098",
+      "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
+      "read_timeout": "0s",
+      "read_header_timeout": "5s",
+      "write_timeout": "0s",
+      "idle_timeout": "60s",
+      "max_header_bytes": 4096
+    }
+  },
+  "ipfs_connector": {
+    "ipfshttp": {
+      "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
+      "connect_swarms_delay": "30s",
+      "ipfs_request_timeout": "5m",
+      "pin_timeout": "2m",
+      "unpin_timeout": "3m"
+    }
+  },
+  "pin_tracker": {
+    "stateless": {
+      "concurrent_pins": 10,
+      "priority_pin_max_age": "24h",
+      "priority_pin_max_retries": 5
+    }
+  },
+  "monitor": {
+    "pubsubmon": {
+      "check_interval": "15s",
+      "failure_threshold": 3
+    }
+  },
+  "informer": {
+    "disk": {
+      "metric_ttl": "30s",
+      "metric_type": "freespace"
+    },
+    "tags": {
+      "metric_ttl": "30s",
+      "tags": {
+        "group": "follower",
+        "cluster": "demo-cluster",
+        "role": "demo-follower",
+        "region": "local",
+        "updated": "true"
+      }
+    }
+  },
+  "custom_settings": {
+    "cluster": {
+      "leave_on_shutdown": true
+    },
+    "informer": {
+      "tags": {
+        "tags": {
+          "role": "demo-follower",
+          "region": "local"
+        }
+      }
+    }
+  }
+}

@@ -142,7 +142,7 @@ DAEMON_CONFIG = {
     "health_check_interval": 30,
     "replication_sync_interval": 300,
     "max_log_size": "100MB",
-    "data_dir": "/tmp/ipfs_kit_daemon",
+    "data_dir": "/tmp/ipfs_kit_daemon"
 }
 ```
 
@@ -150,13 +150,13 @@ DAEMON_CONFIG = {
 ```python
 # In refactored_mcp_server.py or config file
 SERVER_CONFIG = {
-    "host": "127.0.0.1",
+    "host": "127.0.0.1", 
     "port": 8888,
     "daemon_url": "http://127.0.0.1:8887",
     "enable_dashboard": True,
     "ipfs_kit_config": {
         "auto_start_daemons": False  # Daemon manages this
-    },
+    }
 }
 ```
 

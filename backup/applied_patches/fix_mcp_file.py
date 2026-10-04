@@ -48,12 +48,7 @@ yaml_section_replacement = """if command_request.format == FormatType.YAML:
 content = re.sub(yaml_section_pattern, yaml_section_replacement, content)
 
 # Fix any duplicate async shutdown methods
-content = re.sub(
-    r"(async def shutdown.*?sync_shutdown completed successfully\"\s+)(\s+try:.*?sync_shutdown completed successfully\"\s+)",
-    r"\1",
-    content,
-    flags=re.DOTALL,
-)
+content = re.sub(r"(async def shutdown.*?sync_shutdown completed successfully\"\s+)(\s+try:.*?sync_shutdown completed successfully\"\s+)", r"\1", content, flags=re.DOTALL)
 
 # Write the fixed content back to the file
 with open(file_path, "w") as f:

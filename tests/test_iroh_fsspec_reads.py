@@ -160,9 +160,13 @@ def test_find_walk_and_glob_are_recursive_and_deterministic(tree: Any) -> None:
         url("docs/archive"),
         url("docs/readme.txt"),
     ]
-    assert fs.glob(f"{root}docs/**/*.bin") == [url("docs/archive/data.bin")]
+    assert fs.glob(f"{root}docs/**/*.bin") == [
+        url("docs/archive/data.bin")
+    ]
     assert fs.glob(f"{root}docs/**/*.bin", maxdepth=1) == []
-    assert fs.glob(f"{root}docs/**/*.bin", maxdepth=2) == [url("docs/archive/data.bin")]
+    assert fs.glob(f"{root}docs/**/*.bin", maxdepth=2) == [
+        url("docs/archive/data.bin")
+    ]
 
     detailed = fs.find(f"{root}docs", withdirs=True, detail=True)
     assert list(detailed) == [
@@ -326,7 +330,9 @@ with filesystem.open(f"iroh://{namespace}/value.txt", "rt", encoding="utf-8") as
     assert result.returncode == 0, result.stderr
 
 
-def test_cat_and_get_file_stream_without_materializing_the_tree(tree: Any, tmp_path: Path) -> None:
+def test_cat_and_get_file_stream_without_materializing_the_tree(
+    tree: Any, tmp_path: Path
+) -> None:
     fs, payloads, _manifests, _blobs = tree
     path = f"iroh://{NAMESPACE}/docs/readme.txt"
 
@@ -335,9 +341,9 @@ def test_cat_and_get_file_stream_without_materializing_the_tree(tree: Any, tmp_p
         url("docs/archive/data.bin"): payloads["nested"],
         url("docs/readme.txt"): payloads["readme"],
     }
-    assert fs.cat(f"iroh://{NAMESPACE}/docs", recursive=True, maxdepth=1) == {
-        url("docs/readme.txt"): payloads["readme"]
-    }
+    assert fs.cat(
+        f"iroh://{NAMESPACE}/docs", recursive=True, maxdepth=1
+    ) == {url("docs/readme.txt"): payloads["readme"]}
     destination = tmp_path / "parents" / "readme.txt"
     fs.get_file(path, destination)
     assert destination.read_bytes() == payloads["readme"]
@@ -384,7 +390,9 @@ def test_cat_and_get_file_pin_one_manifest_snapshot(tmp_path: Path) -> None:
     blobs = MemoryBlobStore({original_hash: original, replacement_hash: replacement})
     fs = IrohFileSystem(manifest_store=manifests, blob_store=blobs, block_size=4)
 
-    assert fs.cat(url("docs"), recursive=True) == {url("docs/value.txt"): original}
+    assert fs.cat(url("docs"), recursive=True) == {
+        url("docs/value.txt"): original
+    }
     assert manifests.reads == 1
 
     destination = tmp_path / "value.txt"

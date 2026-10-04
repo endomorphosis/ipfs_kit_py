@@ -12,16 +12,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 try:
     from mcp.dashboard.refactored_unified_mcp_dashboard import RefactoredUnifiedMCPDashboard
-
+    
     print("🚀 Starting Refactored Unified MCP Dashboard...")
     print("🌐 Dashboard will be available at: http://127.0.0.1:8004")
     print("📁 Static files served from: mcp/dashboard/static/")
     print("📄 Templates from: mcp/dashboard/templates/")
     print("=" * 60)
-
+    
     dashboard = RefactoredUnifiedMCPDashboard()
     dashboard.run()
-
+    
 except ImportError as e:
     print(f"❌ Import error: {e}")
     print("💡 Make sure you're running from the correct directory")

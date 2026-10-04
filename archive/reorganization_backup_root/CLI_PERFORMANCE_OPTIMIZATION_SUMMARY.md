@@ -94,7 +94,6 @@ if hasattr(self, '_enable_zero_copy') and self._enable_zero_copy:
 ```python
 # Direct database access without heavy frameworks
 import duckdb  # Only when actually needed
-
 conn = duckdb.connect(str(db_file), read_only=True)
 result = conn.execute(query).fetchall()
 ```

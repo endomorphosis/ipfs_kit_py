@@ -1,0 +1,146 @@
+{
+  "passed": 9,
+  "failed": 5,
+  "errors": [
+    "metrics_endpoint: Metrics endpoint returned status 404",
+    "jsonrpc_error_handling: JSON-RPC returned status 404",
+    "ipfs_version: IPFS version missing expected fields",
+    "jsonrpc_tools_listing: JSON-RPC tools listing returned status 404",
+    "error_handling: Unexpected status for invalid JSON: 404"
+  ],
+  "start_time": "2025-06-25T14:16:02.536591",
+  "tests": {
+    "server_file_exists": {
+      "passed": true,
+      "message": "Server file final_mcp_server_enhanced.py found",
+      "details": null,
+      "timestamp": "2025-06-25T14:16:02.537272"
+    },
+    "server_startup": {
+      "passed": true,
+      "message": "Server started on port 9998",
+      "details": null,
+      "timestamp": "2025-06-25T14:16:07.766860"
+    },
+    "health_endpoint": {
+      "passed": true,
+      "message": "Health endpoint working correctly",
+      "details": {
+        "status": "healthy",
+        "version": "2.1.0",
+        "timestamp": "2025-06-25T14:16:07.771345",
+        "uptime": "0:00:02.915023",
+        "ipfs_mock": true,
+        "stats": {
+          "total_operations": 0,
+          "storage_size_bytes": 0,
+          "pinned_count": 0,
+          "stored_objects": 0,
+          "server_uptime": "0:00:02.915001"
+        },
+        "system": {
+          "python_version": "3.12.3 (main, Jun 18 2025, 17:59:45) [GCC 13.3.0]",
+          "platform": "linux"
+        }
+      },
+      "timestamp": "2025-06-25T14:16:07.773674"
+    },
+    "info_endpoint": {
+      "passed": true,
+      "message": "Info endpoint working correctly",
+      "details": {
+        "name": "Final MCP Server",
+        "version": "2.1.0",
+        "description": "Production-ready MCP server for IPFS operations",
+        "status": "running",
+        "uptime": "0:00:02.921042",
+        "requests_served": 3,
+        "endpoints": {
+          "health": "/health",
+          "tools": "/mcp/tools",
+          "docs": "/docs",
+          "ipfs": "/ipfs/*"
+        }
+      },
+      "timestamp": "2025-06-25T14:16:07.779956"
+    },
+    "metrics_endpoint": {
+      "passed": false,
+      "message": "Metrics endpoint returned status 404",
+      "details": null,
+      "timestamp": "2025-06-25T14:16:07.785977"
+    },
+    "jsonrpc_error_handling": {
+      "passed": false,
+      "message": "JSON-RPC returned status 404",
+      "details": null,
+      "timestamp": "2025-06-25T14:16:07.791353"
+    },
+    "ipfs_add_operation": {
+      "passed": true,
+      "message": "IPFS add successful, CID: Qm512ad6ad250c0f4813b7e7b6f203c0aec4e588c3ce96",
+      "details": {
+        "success": true,
+        "cid": "Qm512ad6ad250c0f4813b7e7b6f203c0aec4e588c3ce96",
+        "size": 36,
+        "timestamp": "2025-06-25T14:16:07.796535"
+      },
+      "timestamp": "2025-06-25T14:16:07.798867"
+    },
+    "ipfs_cat_operation": {
+      "passed": true,
+      "message": "IPFS cat successful for CID: Qm91bc13bc54ec8d76d7041e961069165ccb5ec3536f92",
+      "details": null,
+      "timestamp": "2025-06-25T14:16:07.810822"
+    },
+    "ipfs_pin_operations": {
+      "passed": true,
+      "message": "Pin operations successful for CID: Qm59869d1b6eaff36b6dfa1ca5eb0190dce55b41be9f17",
+      "details": null,
+      "timestamp": "2025-06-25T14:16:07.829292"
+    },
+    "ipfs_version": {
+      "passed": false,
+      "message": "IPFS version missing expected fields",
+      "details": {
+        "success": true,
+        "version": {
+          "Version": "0.20.0-mock",
+          "Commit": "mock-commit-final",
+          "Repo": "15",
+          "System": "amd64/linux",
+          "Golang": "go1.19.1",
+          "Server": "ipfs_kit_py-2.1.0"
+        },
+        "timestamp": "2025-06-25T14:16:07.832986"
+      },
+      "timestamp": "2025-06-25T14:16:07.835405"
+    },
+    "jsonrpc_tools_listing": {
+      "passed": false,
+      "message": "JSON-RPC tools listing returned status 404",
+      "details": null,
+      "timestamp": "2025-06-25T14:16:07.842357"
+    },
+    "performance_basic": {
+      "passed": true,
+      "message": "Performance test: 10/10 requests successful, 193.14 RPS",
+      "details": null,
+      "timestamp": "2025-06-25T14:16:07.894663"
+    },
+    "error_handling": {
+      "passed": false,
+      "message": "Unexpected status for invalid JSON: 404",
+      "details": null,
+      "timestamp": "2025-06-25T14:16:07.905318"
+    },
+    "server_shutdown": {
+      "passed": true,
+      "message": "Server shut down successfully",
+      "details": null,
+      "timestamp": "2025-06-25T14:16:08.221082"
+    }
+  },
+  "end_time": "2025-06-25T14:16:08.325406",
+  "duration": "0:00:05.788815"
+}

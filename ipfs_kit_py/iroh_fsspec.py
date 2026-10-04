@@ -273,7 +273,9 @@ class IrohTransaction:
             )
         self.namespace_id = action.namespace_id
         if self.snapshot is None:
-            self.snapshot = action.expected or self.fs._load_manifest_snapshot(action.namespace_id)
+            self.snapshot = action.expected or self.fs._load_manifest_snapshot(
+                action.namespace_id
+            )
         elif action.expected is not None and action.expected.head != self.snapshot.head:
             raise IrohConflictError(
                 "Iroh namespace changed while assembling the transaction",
@@ -437,15 +439,21 @@ class IrohFileSystem(AbstractFileSystem):
         if writer_id is not None:
             writer_id = _validate_hash(writer_id)
         max_concurrency = _positive_int(max_concurrency, "max_concurrency")
-        max_pending_operations = _positive_int(max_pending_operations, "max_pending_operations")
+        max_pending_operations = _positive_int(
+            max_pending_operations, "max_pending_operations"
+        )
         if max_pending_operations < max_concurrency:
             raise ValueError("max_pending_operations must be at least max_concurrency")
         if read_ahead_size is None:
             read_ahead_size = self.blocksize
         read_ahead_size = _positive_int(read_ahead_size, "read_ahead_size")
         range_cache_size = _non_negative_int(range_cache_size, "range_cache_size")
-        multipart_threshold = _positive_int(multipart_threshold, "multipart_threshold")
-        multipart_part_size = _positive_int(multipart_part_size, "multipart_part_size")
+        multipart_threshold = _positive_int(
+            multipart_threshold, "multipart_threshold"
+        )
+        multipart_part_size = _positive_int(
+            multipart_part_size, "multipart_part_size"
+        )
 
         # These assignments are inert: none performs discovery, RPC, process
         # management, installation, or filesystem writes.
@@ -609,7 +617,9 @@ class IrohFileSystem(AbstractFileSystem):
         if "b" not in mode:
             binary_mode = mode.replace("t", "") + "b"
             text_options = {
-                key: kwargs.pop(key) for key in ("encoding", "errors", "newline") if key in kwargs
+                key: kwargs.pop(key)
+                for key in ("encoding", "errors", "newline")
+                if key in kwargs
             }
             binary = self.open(
                 stripped,
@@ -1116,7 +1126,9 @@ class IrohFileSystem(AbstractFileSystem):
         double_star = pattern_parts.index("**") if "**" in pattern_parts else None
         matches: list[tuple[str, dict[str, Any]]] = []
         for entry_path, entry in view.entries.items():
-            candidate = str(parsed_pattern.namespace_id) + (f"/{entry_path}" if entry_path else "")
+            candidate = str(parsed_pattern.namespace_id) + (
+                f"/{entry_path}" if entry_path else ""
+            )
             if matcher.match(candidate) is None:
                 continue
             if maxdepth is not None and double_star is not None:
@@ -1184,9 +1196,7 @@ class IrohFileSystem(AbstractFileSystem):
         for values in children.values():
             values.sort(key=lambda item: item[0].encode("utf-8"))
 
-        def visit(
-            current_path: str, current_name: str, depth: int
-        ) -> Iterator[tuple[str, Any, Any]]:
+        def visit(current_path: str, current_name: str, depth: int) -> Iterator[tuple[str, Any, Any]]:
             directory_items: dict[str, dict[str, Any]] = {}
             file_items: dict[str, dict[str, Any]] = {}
             for basename, entry in children.get(current_path, []):
@@ -1338,7 +1348,9 @@ class IrohFileSystem(AbstractFileSystem):
                         expanded.add(match)
                         continue
                     if match_entry.get("kind") == "directory":
-                        found = self._find_in_view(parsed_match, view, maxdepth, False, False)
+                        found = self._find_in_view(
+                            parsed_match, view, maxdepth, False, False
+                        )
                         expanded.update(found)
                         was_expanded = True
                         continue
@@ -1365,7 +1377,9 @@ class IrohFileSystem(AbstractFileSystem):
                         blob_size=size,
                         fetch_options=kwargs,
                     )
-                    output[name] = _validate_range_result(value, size, "filesystem.cat")
+                    output[name] = _validate_range_result(
+                        value, size, "filesystem.cat"
+                    )
             except Exception as exc:
                 if on_error == "raise":
                     raise
@@ -1396,8 +1410,12 @@ class IrohFileSystem(AbstractFileSystem):
             # Exports deliberately re-read each range.  A destination is an
             # integrity boundary of its own and must not conceal a newly
             # failing/corrupt collaborator behind an earlier process cache.
-            value = self._read_blob_range(blob_hash, position, stop, fetch_options=kwargs)
-            chunk = _validate_range_result(value, stop - position, "filesystem.get_file")
+            value = self._read_blob_range(
+                blob_hash, position, stop, fetch_options=kwargs
+            )
+            chunk = _validate_range_result(
+                value, stop - position, "filesystem.get_file"
+            )
             written = handle.write(chunk)
             if written is not None and written != len(chunk):
                 raise OSError("short write while exporting Iroh file")
@@ -1484,7 +1502,9 @@ class IrohFileSystem(AbstractFileSystem):
 
     def _blob_size(self, blob_hash: str, *, fetch_options: Mapping[str, Any]) -> int:
         store = self.get_blob_store()
-        stat_options = {key: fetch_options[key] for key in ("timeout",) if key in fetch_options}
+        stat_options = {
+            key: fetch_options[key] for key in ("timeout",) if key in fetch_options
+        }
         try:
             value = _sync_result(_call_required(store, "stat", blob_hash, **stat_options))
         except (FileNotFoundError, IrohNotFoundError):
@@ -1522,12 +1542,16 @@ class IrohFileSystem(AbstractFileSystem):
         }
         try:
             return _sync_result(
-                _call_required(store, "read_range", blob_hash, start=start, end=end, **read_options)
+                _call_required(
+                    store, "read_range", blob_hash, start=start, end=end, **read_options
+                )
             )
         except (FileNotFoundError, IrohNotFoundError):
             self._fetch_blob(blob_hash, fetch_options)
             return _sync_result(
-                _call_required(store, "read_range", blob_hash, start=start, end=end, **read_options)
+                _call_required(
+                    store, "read_range", blob_hash, start=start, end=end, **read_options
+                )
             )
 
     def _read_blob_cached(
@@ -1777,9 +1801,7 @@ class IrohFileSystem(AbstractFileSystem):
             kind="file",
         )
         metadata = _validate_metadata(
-            existing.get("metadata")
-            if existing is not None and action.metadata is None
-            else action.metadata
+            existing.get("metadata") if existing is not None and action.metadata is None else action.metadata
         )
         entries[action.path] = {
             "path": action.path,
@@ -1857,12 +1879,13 @@ class IrohFileSystem(AbstractFileSystem):
                     "Iroh removal target was not found", operation="filesystem.rm"
                 )
             children = [
-                path
-                for path, candidate in entries.items()
+                path for path, candidate in entries.items()
                 if _entry_is_live(candidate) and path.startswith(target + "/")
             ]
             if entry.get("kind") == "directory" and children and not action.recursive:
-                raise IrohNotEmptyError("Iroh directory is not empty", operation="filesystem.rm")
+                raise IrohNotEmptyError(
+                    "Iroh directory is not empty", operation="filesystem.rm"
+                )
             planned.add(target)
             if action.recursive:
                 planned.update(children)
@@ -1891,21 +1914,19 @@ class IrohFileSystem(AbstractFileSystem):
         del source_manifest
         source = _live_entry(source_entries, source_path)
         if source is None:
-            raise IrohNotFoundError("Iroh copy source was not found", operation="filesystem.copy")
+            raise IrohNotFoundError(
+                "Iroh copy source was not found", operation="filesystem.copy"
+            )
         if source.get("kind") == "directory" and not action.recursive:
             raise IrohIsDirectoryError(
                 "recursive mode is required to copy an Iroh directory",
                 operation="filesystem.copy",
             )
-        if (
-            source.get("kind") == "directory"
-            and (
-                source_path == ""
-                or action.destination == source_path
-                or action.destination.startswith(source_path + "/")
-            )
-            and action.source.namespace_id == action.namespace_id
-        ):
+        if source.get("kind") == "directory" and (
+            source_path == ""
+            or action.destination == source_path
+            or action.destination.startswith(source_path + "/")
+        ) and action.source.namespace_id == action.namespace_id:
             raise IrohInvalidPathError(
                 "an Iroh directory cannot be copied below itself",
                 operation="filesystem.copy",
@@ -1986,9 +2007,9 @@ class IrohFileSystem(AbstractFileSystem):
         action.source = IrohPath(IROH_PROTOCOL, namespace_id=action.namespace_id, path=action.path)
         planned = self._copy_entries(entries, manifest, action)
         source_paths = [
-            path
-            for path, entry in entries.items()
-            if _entry_is_live(entry) and (path == action.path or path.startswith(action.path + "/"))
+            path for path, entry in entries.items()
+            if _entry_is_live(entry)
+            and (path == action.path or path.startswith(action.path + "/"))
         ]
         assert action.destination is not None
         destination_existing = _live_entry(entries, action.destination)
@@ -2054,9 +2075,7 @@ class IrohFileSystem(AbstractFileSystem):
             )
         permissions = snapshot.manifest.get("permissions")
         if not isinstance(permissions, Mapping):
-            identity = (
-                self.writer_id or snapshot.manifest.get("writer_id") or snapshot.view.namespace_id
-            )
+            identity = self.writer_id or snapshot.manifest.get("writer_id") or snapshot.view.namespace_id
             permissions = {
                 "owner": identity,
                 "public_read": False,
@@ -2083,14 +2102,7 @@ class IrohFileSystem(AbstractFileSystem):
     ) -> None:
         store = self.manifest_store
         methods = ("compare_and_swap", "cas_head", "commit_manifest", "publish_manifest")
-        method = next(
-            (
-                getattr(store, name, None)
-                for name in methods
-                if callable(getattr(store, name, None))
-            ),
-            None,
-        )
+        method = next((getattr(store, name, None) for name in methods if callable(getattr(store, name, None))), None)
         if method is not None:
             try:
                 result = _sync_result(
@@ -2170,7 +2182,9 @@ class IrohFileSystem(AbstractFileSystem):
         end: int | None = None,
         **kwargs: Any,
     ) -> bytes:
-        return await self.as_async()._cat_file(path, start=start, end=end, **kwargs)
+        return await self.as_async()._cat_file(
+            path, start=start, end=end, **kwargs
+        )
 
     async def _cat(self, path: Any, **kwargs: Any) -> Any:
         return await self.as_async()._cat(path, **kwargs)
@@ -2205,13 +2219,19 @@ class IrohFileSystem(AbstractFileSystem):
     async def _cp_file(self, path1: str, path2: str, **kwargs: Any) -> None:
         await self.as_async()._cp_file(path1, path2, **kwargs)
 
-    async def _copy(self, path1: str, path2: str, recursive: bool = False, **kwargs: Any) -> None:
+    async def _copy(
+        self, path1: str, path2: str, recursive: bool = False, **kwargs: Any
+    ) -> None:
         await self.as_async()._copy(path1, path2, recursive=recursive, **kwargs)
 
-    async def _mv(self, path1: str, path2: str, recursive: bool = False, **kwargs: Any) -> None:
+    async def _mv(
+        self, path1: str, path2: str, recursive: bool = False, **kwargs: Any
+    ) -> None:
         await self.as_async()._mv(path1, path2, recursive=recursive, **kwargs)
 
-    async def open_async(self, path: str, mode: str = "rb", **kwargs: Any) -> "IrohAsyncFile":
+    async def open_async(
+        self, path: str, mode: str = "rb", **kwargs: Any
+    ) -> "IrohAsyncFile":
         return await self.as_async().open_async(path, mode=mode, **kwargs)
 
 
@@ -2236,9 +2256,7 @@ def _extract_manifest_head(value: Any) -> str | None:
     if isinstance(value, Mapping):
         candidates.extend(value.get(key) for key in ("head", "manifest_hash", "etag", "token"))
     else:
-        candidates.extend(
-            getattr(value, key, None) for key in ("head", "manifest_hash", "etag", "token")
-        )
+        candidates.extend(getattr(value, key, None) for key in ("head", "manifest_hash", "etag", "token"))
     for candidate in candidates:
         if isinstance(candidate, Mapping):
             candidate = candidate.get("hash") or candidate.get("manifest_hash")
@@ -2300,7 +2318,9 @@ def _entry_is_live(entry: Mapping[str, Any] | None) -> bool:
     return entry is not None and entry.get("tombstone") is not True
 
 
-def _live_entry(entries: Mapping[str, Mapping[str, Any]], path: str) -> Mapping[str, Any] | None:
+def _live_entry(
+    entries: Mapping[str, Mapping[str, Any]], path: str
+) -> Mapping[str, Any] | None:
     entry = entries.get(path)
     return entry if _entry_is_live(entry) else None
 
@@ -2320,10 +2340,16 @@ def _require_parent(
         for index in range(1, len(segments) + 1):
             ancestor = _live_entry(entries, "/".join(segments[:index]))
             if ancestor is not None and ancestor.get("kind") != "directory":
-                raise IrohNotDirectoryError("an Iroh path traverses a file", operation=operation)
-        raise IrohNotFoundError("Iroh parent directory was not found", operation=operation)
+                raise IrohNotDirectoryError(
+                    "an Iroh path traverses a file", operation=operation
+                )
+        raise IrohNotFoundError(
+            "Iroh parent directory was not found", operation=operation
+        )
     if parent.get("kind") != "directory":
-        raise IrohNotDirectoryError("Iroh parent path is not a directory", operation=operation)
+        raise IrohNotDirectoryError(
+            "Iroh parent path is not a directory", operation=operation
+        )
     return parent
 
 
@@ -2331,16 +2357,12 @@ def _validate_creation_mode(value: Any, *, kind: str) -> int:
     default = 0o755 if kind == "directory" else 0o644
     if value is None:
         return default
-    allowed = (
-        {0o500, 0o555, 0o700, 0o755}
-        if kind == "directory"
-        else {
-            0o400,
-            0o444,
-            0o600,
-            0o644,
-        }
-    )
+    allowed = {0o500, 0o555, 0o700, 0o755} if kind == "directory" else {
+        0o400,
+        0o444,
+        0o600,
+        0o644,
+    }
     if isinstance(value, bool) or not isinstance(value, int) or value not in allowed:
         raise ValueError(f"unsupported Iroh {kind} mode")
     return value
@@ -2504,7 +2526,11 @@ def _call_manifest_cas(
         "new_manifest": manifest,
         "value": manifest,
     }
-    kwargs = {name: aliases[name] for name in signature.parameters if name in aliases}
+    kwargs = {
+        name: aliases[name]
+        for name in signature.parameters
+        if name in aliases
+    }
     try:
         signature.bind(**kwargs)
     except TypeError:
@@ -2642,10 +2668,8 @@ def _unwrap_manifest(value: Any) -> Any:
 
 
 def _manifest_field(manifest: Any, name: str, default: Any = None) -> Any:
-    return (
-        manifest.get(name, default)
-        if isinstance(manifest, Mapping)
-        else getattr(manifest, name, default)
+    return manifest.get(name, default) if isinstance(manifest, Mapping) else getattr(
+        manifest, name, default
     )
 
 
@@ -2693,7 +2717,9 @@ def _manifest_view(namespace_id: str, manifest: Any) -> _ManifestView:
             entry.setdefault("path", entry_path)
             normalized_entries.append(entry)
         raw_entries = normalized_entries
-    if not isinstance(raw_entries, Sequence) or isinstance(raw_entries, (str, bytes, bytearray)):
+    if not isinstance(raw_entries, Sequence) or isinstance(
+        raw_entries, (str, bytes, bytearray)
+    ):
         raise IrohInvalidManifestError(
             "manifest entries must be a sequence", operation="filesystem.manifest"
         )
@@ -2942,7 +2968,9 @@ class IrohBufferedFile(AbstractBufferedFile):
                 self._closed = True
                 raise
         has_read_backend = (
-            fs.blob_store is not None or fs.client is not None or fs.client_factory is not None
+            fs.blob_store is not None
+            or fs.client is not None
+            or fs.client_factory is not None
         )
         if self.mode == "rb" and (
             (self._iroh_path.is_blob and has_read_backend)
@@ -3110,7 +3138,9 @@ class IrohBufferedFile(AbstractBufferedFile):
             if staging is not None and self.autocommit:
                 staging.flush()
                 assert self._write_action is not None
-                self.fs._commit_actions([self._write_action], expected=self._write_action.expected)
+                self.fs._commit_actions(
+                    [self._write_action], expected=self._write_action.expected
+                )
         finally:
             if staging is not None and (self.autocommit or not self._transaction_registered):
                 staging.close()
@@ -3241,11 +3271,17 @@ class IrohAsyncFileSystem(IrohFileSystem):
                 if self._operation_limiter is None:
                     import anyio
 
-                    self._operation_limiter = anyio.CapacityLimiter(self.max_concurrency)
-                    self._pending_limiter = anyio.CapacityLimiter(self.max_pending_operations)
+                    self._operation_limiter = anyio.CapacityLimiter(
+                        self.max_concurrency
+                    )
+                    self._pending_limiter = anyio.CapacityLimiter(
+                        self.max_pending_operations
+                    )
         return self._operation_limiter, self._pending_limiter
 
-    async def _run_sync_call(self, function: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    async def _run_sync_call(
+        self, function: Callable[..., Any], *args: Any, **kwargs: Any
+    ) -> Any:
         """Run one blocking boundary with queue and execution backpressure."""
 
         import anyio
@@ -3256,7 +3292,9 @@ class IrohAsyncFileSystem(IrohFileSystem):
             async with operation_limiter:
                 return await anyio.to_thread.run_sync(call)
 
-    async def _invoke_async(self, function: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    async def _invoke_async(
+        self, function: Callable[..., Any], *args: Any, **kwargs: Any
+    ) -> Any:
         """Invoke a collaborator without blocking the active event-loop."""
 
         import anyio
@@ -3266,7 +3304,9 @@ class IrohAsyncFileSystem(IrohFileSystem):
             async with operation_limiter:
                 if inspect.iscoroutinefunction(function):
                     return await function(*args, **kwargs)
-                value = await anyio.to_thread.run_sync(partial(function, *args, **kwargs))
+                value = await anyio.to_thread.run_sync(
+                    partial(function, *args, **kwargs)
+                )
                 if inspect.isawaitable(value):
                     return await value
                 return value
@@ -3277,7 +3317,9 @@ class IrohAsyncFileSystem(IrohFileSystem):
     async def _blob_store_async(self) -> Any:
         return await self._run_sync_call(self.get_blob_store)
 
-    async def _load_manifest_snapshot_async(self, namespace_id: str) -> _ManifestSnapshot:
+    async def _load_manifest_snapshot_async(
+        self, namespace_id: str
+    ) -> _ManifestSnapshot:
         store = self.manifest_store
         read_methods = (
             "read_head",
@@ -3329,7 +3371,9 @@ class IrohAsyncFileSystem(IrohFileSystem):
     async def _load_manifest_async(self, namespace_id: str) -> _ManifestView:
         return (await self._load_manifest_snapshot_async(namespace_id)).view
 
-    async def _fetch_blob_async(self, blob_hash: str, options: Mapping[str, Any]) -> None:
+    async def _fetch_blob_async(
+        self, blob_hash: str, options: Mapping[str, Any]
+    ) -> None:
         if self.offline or not self.auto_fetch:
             raise IrohNotFoundError(
                 "Iroh blob is not available in the local cache",
@@ -3359,7 +3403,9 @@ class IrohAsyncFileSystem(IrohFileSystem):
         selected.update({key: options[key] for key in allowed if key in options})
         await self._invoke_async(fetch, blob_hash, **selected)
 
-    async def _blob_size_async(self, blob_hash: str, *, fetch_options: Mapping[str, Any]) -> int:
+    async def _blob_size_async(
+        self, blob_hash: str, *, fetch_options: Mapping[str, Any]
+    ) -> int:
         store = await self._blob_store_async()
         method = getattr(store, "stat", None)
         if not callable(method):
@@ -3367,7 +3413,9 @@ class IrohAsyncFileSystem(IrohFileSystem):
                 "Iroh collaborator does not implement stat",
                 operation="filesystem.read",
             )
-        stat_options = {key: fetch_options[key] for key in ("timeout",) if key in fetch_options}
+        stat_options = {
+            key: fetch_options[key] for key in ("timeout",) if key in fetch_options
+        }
         try:
             value = await self._invoke_async(method, blob_hash, **stat_options)
         except (FileNotFoundError, IrohNotFoundError):
@@ -3412,10 +3460,14 @@ class IrohAsyncFileSystem(IrohFileSystem):
             if key in fetch_options
         }
         try:
-            return await self._invoke_async(method, blob_hash, start=start, end=end, **read_options)
+            return await self._invoke_async(
+                method, blob_hash, start=start, end=end, **read_options
+            )
         except (FileNotFoundError, IrohNotFoundError):
             await self._fetch_blob_async(blob_hash, fetch_options)
-            return await self._invoke_async(method, blob_hash, start=start, end=end, **read_options)
+            return await self._invoke_async(
+                method, blob_hash, start=start, end=end, **read_options
+            )
 
     async def _read_blob_cached_async(
         self,
@@ -3457,7 +3509,9 @@ class IrohAsyncFileSystem(IrohFileSystem):
     ) -> tuple[str, int]:
         if parsed.is_blob:
             digest = str(parsed.blob_hash)
-            return digest, await self._blob_size_async(digest, fetch_options=fetch_options)
+            return digest, await self._blob_size_async(
+                digest, fetch_options=fetch_options
+            )
         view = await self._load_manifest_async(str(parsed.namespace_id))
         entry = view.entry(parsed.path)
         if entry.get("kind") != "file":
@@ -3467,12 +3521,16 @@ class IrohAsyncFileSystem(IrohFileSystem):
     async def _info(self, path: str, **kwargs: Any) -> dict[str, Any]:
         parsed = self.parse_path(path)
         if parsed.is_blob:
-            size = await self._blob_size_async(str(parsed.blob_hash), fetch_options=kwargs)
+            size = await self._blob_size_async(
+                str(parsed.blob_hash), fetch_options=kwargs
+            )
             return _blob_info(parsed, size)
         view = await self._load_manifest_async(str(parsed.namespace_id))
         return self._entry_info(parsed, view.entry(parsed.path), view.revision)
 
-    async def _ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[Any]:
+    async def _ls(
+        self, path: str, detail: bool = True, **kwargs: Any
+    ) -> list[Any]:
         del kwargs
         parsed = self.parse_path(path)
         if parsed.is_blob:
@@ -3568,7 +3626,9 @@ class IrohAsyncFileSystem(IrohFileSystem):
         **kwargs: Any,
     ) -> bytes:
         parsed = self.parse_path(path)
-        blob_hash, size = await self._resolve_blob_async(parsed, fetch_options=kwargs)
+        blob_hash, size = await self._resolve_blob_async(
+            parsed, fetch_options=kwargs
+        )
         begin, stop = _normalize_read_range(size, start, end)
         value = await self._read_blob_cached_async(
             blob_hash,
@@ -3577,7 +3637,9 @@ class IrohAsyncFileSystem(IrohFileSystem):
             blob_size=size,
             fetch_options=kwargs,
         )
-        return _validate_range_result(value, stop - begin, "filesystem.cat_file")
+        return _validate_range_result(
+            value, stop - begin, "filesystem.cat_file"
+        )
 
     async def _gather_ordered(
         self, calls: Sequence[Callable[[], Any]], *, return_exceptions: bool = False
@@ -3665,37 +3727,57 @@ class IrohAsyncFileSystem(IrohFileSystem):
         return await self._gather_ordered(calls, return_exceptions=True)
 
     async def _get_file(self, rpath: str, lpath: Any, **kwargs: Any) -> None:
-        await self._run_sync_call(IrohFileSystem.get_file, self, rpath, lpath, **kwargs)
+        await self._run_sync_call(
+            IrohFileSystem.get_file, self, rpath, lpath, **kwargs
+        )
 
     async def _pipe_file(self, path: str, value: Any, **kwargs: Any) -> None:
-        await self._run_sync_call(IrohFileSystem.pipe_file, self, path, value, **kwargs)
+        await self._run_sync_call(
+            IrohFileSystem.pipe_file, self, path, value, **kwargs
+        )
 
     async def _pipe(
         self, path: str | Mapping[str, bytes], value: bytes | None = None, **kwargs: Any
     ) -> None:
         # A mapping intentionally crosses the worker boundary as one call: the
         # synchronous planner stages all blobs and publishes one manifest CAS.
-        await self._run_sync_call(IrohFileSystem.pipe, self, path, value, **kwargs)
+        await self._run_sync_call(
+            IrohFileSystem.pipe, self, path, value, **kwargs
+        )
 
     async def _put_file(self, lpath: Any, rpath: str, **kwargs: Any) -> None:
-        await self._run_sync_call(IrohFileSystem.put_file, self, lpath, rpath, **kwargs)
+        await self._run_sync_call(
+            IrohFileSystem.put_file, self, lpath, rpath, **kwargs
+        )
 
     async def _mkdir(self, path: str, **kwargs: Any) -> None:
         await self._run_sync_call(IrohFileSystem.mkdir, self, path, **kwargs)
 
     async def _makedirs(self, path: str, exist_ok: bool = False) -> None:
-        await self._run_sync_call(IrohFileSystem.makedirs, self, path, exist_ok=exist_ok)
+        await self._run_sync_call(
+            IrohFileSystem.makedirs, self, path, exist_ok=exist_ok
+        )
 
     async def _rm_file(self, path: str, **kwargs: Any) -> None:
-        await self._run_sync_call(IrohFileSystem.rm, self, path, recursive=False, **kwargs)
+        await self._run_sync_call(
+            IrohFileSystem.rm, self, path, recursive=False, **kwargs
+        )
 
-    async def _rm(self, path: str | Sequence[str], recursive: bool = False, **kwargs: Any) -> None:
-        await self._run_sync_call(IrohFileSystem.rm, self, path, recursive=recursive, **kwargs)
+    async def _rm(
+        self, path: str | Sequence[str], recursive: bool = False, **kwargs: Any
+    ) -> None:
+        await self._run_sync_call(
+            IrohFileSystem.rm, self, path, recursive=recursive, **kwargs
+        )
 
     async def _cp_file(self, path1: str, path2: str, **kwargs: Any) -> None:
-        await self._run_sync_call(IrohFileSystem.cp_file, self, path1, path2, **kwargs)
+        await self._run_sync_call(
+            IrohFileSystem.cp_file, self, path1, path2, **kwargs
+        )
 
-    async def _copy(self, path1: str, path2: str, recursive: bool = False, **kwargs: Any) -> None:
+    async def _copy(
+        self, path1: str, path2: str, recursive: bool = False, **kwargs: Any
+    ) -> None:
         await self._run_sync_call(
             IrohFileSystem.copy,
             self,
@@ -3705,7 +3787,9 @@ class IrohAsyncFileSystem(IrohFileSystem):
             **kwargs,
         )
 
-    async def _mv(self, path1: str, path2: str, recursive: bool = False, **kwargs: Any) -> None:
+    async def _mv(
+        self, path1: str, path2: str, recursive: bool = False, **kwargs: Any
+    ) -> None:
         await self._run_sync_call(
             IrohFileSystem.mv,
             self,
@@ -3715,7 +3799,9 @@ class IrohAsyncFileSystem(IrohFileSystem):
             **kwargs,
         )
 
-    async def open_async(self, path: str, mode: str = "rb", **kwargs: Any) -> "IrohAsyncFile":
+    async def open_async(
+        self, path: str, mode: str = "rb", **kwargs: Any
+    ) -> "IrohAsyncFile":
         return await IrohAsyncFile.create(self, path, mode=mode, **kwargs)
 
 
@@ -3782,14 +3868,18 @@ class IrohAsyncFile:
                 )
             )
             try:
-                snapshot = await fs._load_manifest_snapshot_async(str(parsed.namespace_id))
+                snapshot = await fs._load_manifest_snapshot_async(
+                    str(parsed.namespace_id)
+                )
                 handle._write_action = _Mutation(
                     "write",
                     str(parsed.namespace_id),
                     parsed.path,
                     source=handle._staging,
                     overwrite=normalized != "xb",
-                    mode=handle.kwargs.pop("file_mode", handle.kwargs.pop("permissions", None)),
+                    mode=handle.kwargs.pop(
+                        "file_mode", handle.kwargs.pop("permissions", None)
+                    ),
                     metadata=handle.kwargs.pop("metadata", None),
                     expected=snapshot,
                 )
@@ -3847,7 +3937,9 @@ class IrohAsyncFile:
         if isinstance(offset, bool) or not isinstance(offset, int):
             raise TypeError("offset must be an integer")
         if self._staging is not None:
-            return int(await self.fs._run_sync_call(self._staging.seek, offset, whence))
+            return int(
+                await self.fs._run_sync_call(self._staging.seek, offset, whence)
+            )
         if whence == os.SEEK_SET:
             target = offset
         elif whence == os.SEEK_CUR:
@@ -3902,7 +3994,9 @@ class IrohAsyncFile:
             raise ValueError("I/O operation on closed file")
         return self
 
-    async def __aexit__(self, exc_type: Any, exc: BaseException | None, traceback: Any) -> bool:
+    async def __aexit__(
+        self, exc_type: Any, exc: BaseException | None, traceback: Any
+    ) -> bool:
         del exc_type, traceback
         if exc is not None and self.writable():
             await self.discard()

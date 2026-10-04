@@ -3,9 +3,8 @@ import tempfile
 import subprocess
 import os
 
-
 def ipfs_add(params, encoding="utf-8", path=None, filename=None, pin=False):
-    content = params.get("content") if isinstance(params, dict) else params
+    content = params.get('content') if isinstance(params, dict) else params
     if content is None and not path:
         return {"success": False, "error": "Either content or path must be provided"}
     """Add content to IPFS."""
@@ -52,14 +51,13 @@ def ipfs_add(params, encoding="utf-8", path=None, filename=None, pin=False):
             "size": size,
             "path": filename or actual_path,
             "hash": cid,
-            "Hash": cid,
+            "Hash": cid
         }
     else:
         return {"success": False, "error": f"IPFS add failed: {result.stderr}"}
 
-
 def ipfs_cat(params, cid=None):
-    path = params.get("hash") if isinstance(params, dict) else params
+    path = params.get('hash') if isinstance(params, dict) else params
     """Get content from IPFS."""
     ipfs_path = path or cid
     if not ipfs_path:
@@ -78,13 +76,12 @@ def ipfs_cat(params, cid=None):
                 "content": content,
                 "encoding": encoding,
                 "size": len(result.stdout),
-                "cid": ipfs_path,
+                "cid": ipfs_path
             }
         else:
             return {"error": f"IPFS cat failed: {result.stderr.decode()}"}
     except Exception as e:
         return {"error": str(e)}
-
 
 def ipfs_files_mkdir(path=None, parents=True):
     """Make directory in IPFS MFS."""
@@ -103,10 +100,9 @@ def ipfs_files_mkdir(path=None, parents=True):
     except Exception as e:
         return {"error": str(e)}
 
-
 def ipfs_files_write(params, content=None, encoding="utf-8", create=True, truncate=True):
-    path = params.get("path") if isinstance(params, dict) else params
-    content = params.get("content") if isinstance(params, dict) else content
+    path = params.get('path') if isinstance(params, dict) else params
+    content = params.get('content') if isinstance(params, dict) else content
     """Write to a file in IPFS MFS."""
     if not path or content is None:
         return {"error": "Path and content must be provided"}
@@ -135,9 +131,8 @@ def ipfs_files_write(params, content=None, encoding="utf-8", create=True, trunca
     except Exception as e:
         return {"error": str(e)}
 
-
 def ipfs_files_read(params, offset=0, count=-1):
-    path = params.get("path") if isinstance(params, dict) else params
+    path = params.get('path') if isinstance(params, dict) else params
     """Read a file from IPFS MFS."""
     if not path:
         return {"error": "Path must be provided"}
@@ -151,15 +146,18 @@ def ipfs_files_read(params, offset=0, count=-1):
         result = subprocess.run(cmd, capture_output=True)
         if result.returncode == 0:
             encoded = base64.b64encode(result.stdout).decode("utf-8")
-            return {"data": encoded, "encoding": "base64", "size": len(result.stdout)}
+            return {
+                "data": encoded, 
+                "encoding": "base64",
+                "size": len(result.stdout)
+            }
         else:
             return {"error": f"Failed to read file: {result.stderr.decode()}"}
     except Exception as e:
         return {"error": str(e)}
 
-
 def ipfs_files_ls(params="/", long=False):
-    path = params.get("path") if isinstance(params, dict) else params
+    path = params.get('path') if isinstance(params, dict) else params
     """List directory contents in IPFS MFS."""
     try:
         cmd = ["ipfs", "files", "ls"]
@@ -171,7 +169,7 @@ def ipfs_files_ls(params="/", long=False):
             entries = []
             lines = result.stdout.strip()
             if lines:
-                entries = lines.split("\n")
+                entries = lines.split('\n')
             parsed_entries = []
             for entry in entries:
                 if long:
@@ -187,7 +185,6 @@ def ipfs_files_ls(params="/", long=False):
             return {"error": f"Failed to list directory: {result.stderr}", "success": False}
     except Exception as e:
         return {"error": str(e)}
-
 
 def ipfs_files_rm(path=None, recursive=False):
     """Remove files from IPFS MFS."""
@@ -206,7 +203,6 @@ def ipfs_files_rm(path=None, recursive=False):
     except Exception as e:
         return {"error": str(e)}
 
-
 def ipfs_pin(cid=None):
     """Pin a CID."""
     if not cid:
@@ -219,7 +215,6 @@ def ipfs_pin(cid=None):
             return {"error": f"Failed to pin CID: {result.stderr}"}
     except Exception as e:
         return {"error": str(e)}
-
 
 def ipfs_unpin(cid=None):
     """Unpin a CID."""
@@ -234,13 +229,10 @@ def ipfs_unpin(cid=None):
     except Exception as e:
         return {"error": str(e)}
 
-
 def ipfs_list_pins(params=None):
     """List all pinned CIDs."""
     try:
-        result = subprocess.run(
-            ["ipfs", "pin", "ls", "--type=recursive"], capture_output=True, text=True
-        )
+        result = subprocess.run(["ipfs", "pin", "ls", "--type=recursive"], capture_output=True, text=True)
         if result.returncode == 0:
             pins = []
             for line in result.stdout.splitlines():
@@ -253,7 +245,6 @@ def ipfs_list_pins(params=None):
     except Exception as e:
         return {"pins": [], "error": str(e)}
 
-
 def ipfs_version(params=None):
     """Get the IPFS version information."""
     try:
@@ -263,22 +254,21 @@ def ipfs_version(params=None):
             return {
                 "success": True,
                 "version": version,
-                "versionInfo": {"Version": version.replace("ipfs version ", "")},
+                "versionInfo": {
+                    "Version": version.replace("ipfs version ", "")
+                }
             }
         else:
             return {"success": False, "error": "IPFS command failed"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-
 def ipfs_files_stat(path=None):
     """Get file status in IPFS MFS."""
     if not path:
         return {"error": "Path must be provided"}
     try:
-        result = subprocess.run(
-            ["ipfs", "files", "stat", "--hash", path], capture_output=True, text=True
-        )
+        result = subprocess.run(["ipfs", "files", "stat", "--hash", path], capture_output=True, text=True)
         if result.returncode == 0:
             return {"success": True, "hash": result.stdout.strip()}
         else:
@@ -286,15 +276,12 @@ def ipfs_files_stat(path=None):
     except Exception as e:
         return {"error": str(e)}
 
-
 def ipfs_files_cp(source=None, dest=None):
     """Copy files in IPFS MFS."""
     if not source or not dest:
         return {"error": "Source and destination must be provided"}
     try:
-        result = subprocess.run(
-            ["ipfs", "files", "cp", source, dest], capture_output=True, text=True
-        )
+        result = subprocess.run(["ipfs", "files", "cp", source, dest], capture_output=True, text=True)
         if result.returncode == 0:
             return {"success": True}
         else:
@@ -302,22 +289,18 @@ def ipfs_files_cp(source=None, dest=None):
     except Exception as e:
         return {"error": str(e)}
 
-
 def ipfs_files_mv(source=None, dest=None):
     """Move files in IPFS MFS."""
     if not source or not dest:
         return {"error": "Source and destination must be provided"}
     try:
-        result = subprocess.run(
-            ["ipfs", "files", "mv", source, dest], capture_output=True, text=True
-        )
+        result = subprocess.run(["ipfs", "files", "mv", source, dest], capture_output=True, text=True)
         if result.returncode == 0:
             return {"success": True}
         else:
             return {"error": f"Failed to move file: {result.stderr}"}
     except Exception as e:
         return {"error": str(e)}
-
 
 def ipfs_files_flush(path=None):
     """Flush a directory in IPFS MFS."""

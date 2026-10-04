@@ -151,7 +151,6 @@ python -m ipfs_kit_py.cli bucket download-vfs --help
 ### ✅ Enhanced Extractor Test
 ```python
 from enhanced_ipfs_vfs_extractor import EnhancedIPFSVFSExtractor
-
 extractor = EnhancedIPFSVFSExtractor()
 cli_check = extractor.check_ipfs_kit_cli()
 # Result: CLI available via python -m ipfs_kit_py.cli

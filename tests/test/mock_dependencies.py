@@ -16,11 +16,10 @@ logger = logging.getLogger(__name__)
 # Dictionary to store mock modules
 MOCK_MODULES = {}
 
-
 # Mock classes and functions
 class WebSocket:
     """Mock WebSocket implementation for testing."""
-
+    
     def __init__(self):
         self.accepted = False
         self.closed = False
@@ -31,40 +30,40 @@ class WebSocket:
         self.query_params = {}
         self.path_params = {}
         self.cookies = {}
-
+        
     async def accept(self):
         """Accept the WebSocket connection."""
         self.accepted = True
         self.client_state = "CONNECTED"
         logger.info("WebSocket connection accepted")
         return True
-
+        
     async def close(self, code: int = 1000):
         """Close the WebSocket connection."""
         self.closed = True
         self.client_state = "DISCONNECTED"
         logger.info(f"WebSocket connection closed with code {code}")
         return True
-
+        
     async def send_text(self, data: str):
         """Send text data to the client."""
         self.sent_messages.append({"type": "text", "data": data})
         logger.info(f"Sent text message: {data}")
         return True
-
+        
     async def send_json(self, data: Dict[str, Any]):
         """Send JSON data to the client."""
         text_data = json.dumps(data)
         self.sent_messages.append({"type": "json", "data": data})
         logger.info(f"Sent JSON message: {data}")
         return True
-
+        
     async def send_bytes(self, data: bytes):
         """Send binary data to the client."""
         self.sent_messages.append({"type": "bytes", "data": data})
         logger.info(f"Sent binary message: {len(data)} bytes")
         return True
-
+        
     async def receive_text(self):
         """Receive text data from the client."""
         if not self.received_messages:
@@ -77,7 +76,7 @@ class WebSocket:
         elif isinstance(msg, bytes):
             return msg.decode("utf-8")
         return str(msg)
-
+        
     async def receive_json(self):
         """Receive JSON data from the client."""
         if not self.received_messages:
@@ -90,7 +89,7 @@ class WebSocket:
         elif isinstance(msg, bytes):
             return json.loads(msg.decode("utf-8"))
         return {}
-
+        
     async def receive_bytes(self):
         """Receive binary data from the client."""
         if not self.received_messages:
@@ -104,18 +103,16 @@ class WebSocket:
             return msg
         return str(msg).encode("utf-8")
 
-
 class WebSocketDisconnect(Exception):
     """Exception raised when WebSocket connection is closed."""
-
+    
     def __init__(self, code: int = 1000):
         self.code = code
         super().__init__(f"WebSocket disconnected with code {code}")
 
-
 class FastAPI:
     """Mock FastAPI implementation for testing."""
-
+    
     def __init__(self, **kwargs):
         self.routes = []
         self.router = Router()
@@ -129,70 +126,56 @@ class FastAPI:
         self.docs_url = kwargs.get("docs_url", "/docs")
         self.redoc_url = kwargs.get("redoc_url", "/redoc")
         self.state = SimpleNamespace()
-
+        
     def get(self, path, **kwargs):
         """Register a GET route."""
-
         def decorator(func):
             self.routes.append(Route(path, func, methods=["GET"]))
             return func
-
         return decorator
-
+        
     def post(self, path, **kwargs):
         """Register a POST route."""
-
         def decorator(func):
             self.routes.append(Route(path, func, methods=["POST"]))
             return func
-
         return decorator
-
+        
     def put(self, path, **kwargs):
         """Register a PUT route."""
-
         def decorator(func):
             self.routes.append(Route(path, func, methods=["PUT"]))
             return func
-
         return decorator
-
+        
     def delete(self, path, **kwargs):
         """Register a DELETE route."""
-
         def decorator(func):
             self.routes.append(Route(path, func, methods=["DELETE"]))
             return func
-
         return decorator
-
+        
     def websocket(self, path):
         """Register a WebSocket route."""
-
         def decorator(func):
             self.routes.append(WebSocketRoute(path, func))
             return func
-
         return decorator
-
+        
     def exception_handler(self, exc_class_or_status_code):
         """Register an exception handler."""
-
         def decorator(func):
             self.exception_handlers[exc_class_or_status_code] = func
             return func
-
         return decorator
-
+        
     def middleware(self, middleware_type):
         """Register middleware."""
-
         def decorator(func):
             self.middleware.append((middleware_type, func))
             return func
-
         return decorator
-
+        
     def include_router(self, router, **kwargs):
         """Include routes from another router."""
         for route in router.routes:
@@ -200,16 +183,13 @@ class FastAPI:
                 route.path = kwargs["prefix"] + route.path
             self.routes.append(route)
 
-
 class SimpleNamespace:
     """Simple namespace for storing attributes."""
-
     pass
-
 
 class Router:
     """Mock router implementation for testing."""
-
+    
     def __init__(self):
         self.routes = []
         self.dependencies = {}
@@ -217,59 +197,49 @@ class Router:
         self.tags = []
         self.on_startup = []
         self.on_shutdown = []
-
+        
     def get(self, path, **kwargs):
         """Register a GET route."""
-
         def decorator(func):
             self.routes.append(Route(path, func, methods=["GET"]))
             return func
-
         return decorator
-
+        
     def post(self, path, **kwargs):
         """Register a POST route."""
-
         def decorator(func):
             self.routes.append(Route(path, func, methods=["POST"]))
             return func
-
         return decorator
-
+        
     def put(self, path, **kwargs):
         """Register a PUT route."""
-
         def decorator(func):
             self.routes.append(Route(path, func, methods=["PUT"]))
             return func
-
         return decorator
-
+        
     def delete(self, path, **kwargs):
         """Register a DELETE route."""
-
         def decorator(func):
             self.routes.append(Route(path, func, methods=["DELETE"]))
             return func
-
         return decorator
-
+        
     def websocket(self, path):
         """Register a WebSocket route."""
-
         def decorator(func):
             self.routes.append(WebSocketRoute(path, func))
             return func
-
         return decorator
-
+        
     def include_router(self, router, **kwargs):
         """Include routes from another router."""
         for route in router.routes:
             if kwargs.get("prefix"):
                 route.path = kwargs["prefix"] + route.path
             self.routes.append(route)
-
+            
     def add_event_handler(self, event, func):
         """Add an event handler."""
         if event == "startup":
@@ -277,33 +247,28 @@ class Router:
         elif event == "shutdown":
             self.on_shutdown.append(func)
 
-
 class APIRouter(Router):
     """Mock APIRouter implementation for testing."""
-
     pass
-
 
 class Route:
     """Mock route implementation for testing."""
-
+    
     def __init__(self, path, endpoint, methods=None):
         self.path = path
         self.endpoint = endpoint
         self.methods = methods or ["GET"]
         self.dependencies = []
         self.tags = []
-
-
+        
 class WebSocketRoute(Route):
     """Mock WebSocket route implementation for testing."""
-
+    
     def __init__(self, path, endpoint):
         super().__init__(path, endpoint, methods=None)
-
-
+        
 # Create mock modules
-
+        
 # fastapi module
 fastapi_module = types.ModuleType("fastapi")
 fastapi_module.FastAPI = FastAPI
@@ -315,9 +280,7 @@ fastapi_module.__spec__ = None  # Fix for ValueError: fastapi.__spec__ is not se
 
 # fastapi.middleware module
 middleware_module = types.ModuleType("fastapi.middleware")
-middleware_module.Middleware = type(
-    "Middleware", (), {"__init__": lambda self, cls, **options: None}
-)
+middleware_module.Middleware = type("Middleware", (), {"__init__": lambda self, cls, **options: None})
 
 # fastapi.middleware.cors module
 cors_module = types.ModuleType("fastapi.middleware.cors")
@@ -325,30 +288,18 @@ cors_module.CORSMiddleware = type("CORSMiddleware", (), {"__init__": lambda self
 
 # fastapi.responses module
 responses_module = types.ModuleType("fastapi.responses")
-responses_module.JSONResponse = type(
-    "JSONResponse",
-    (),
-    {
-        "__init__": lambda self, content, status_code=200, headers=None: None,
-        "body": property(lambda self: ""),
-    },
-)
-responses_module.StreamingResponse = type(
-    "StreamingResponse",
-    (),
-    {
-        "__init__": lambda self, content, status_code=200, headers=None: None,
-        "body_iterator": property(lambda self: []),
-    },
-)
-responses_module.Response = type(
-    "Response",
-    (),
-    {
-        "__init__": lambda self, content="", status_code=200, headers=None, media_type=None: None,
-        "body": property(lambda self: ""),
-    },
-)
+responses_module.JSONResponse = type("JSONResponse", (), {
+    "__init__": lambda self, content, status_code=200, headers=None: None,
+    "body": property(lambda self: "")
+})
+responses_module.StreamingResponse = type("StreamingResponse", (), {
+    "__init__": lambda self, content, status_code=200, headers=None: None,
+    "body_iterator": property(lambda self: [])
+})
+responses_module.Response = type("Response", (), {
+    "__init__": lambda self, content="", status_code=200, headers=None, media_type=None: None,
+    "body": property(lambda self: "")
+})
 
 # fastapi.websockets module
 websockets_module = types.ModuleType("fastapi.websockets")
@@ -356,18 +307,14 @@ websockets_module.WebSocketDisconnect = WebSocketDisconnect
 
 # fastapi.testclient module
 testclient_module = types.ModuleType("fastapi.testclient")
-testclient_module.TestClient = type(
-    "TestClient",
-    (),
-    {
-        "__init__": lambda self, app: None,
-        "get": lambda self, url, **kwargs: None,
-        "post": lambda self, url, **kwargs: None,
-        "put": lambda self, url, **kwargs: None,
-        "delete": lambda self, url, **kwargs: None,
-        "websocket_connect": lambda self, url, **kwargs: None,
-    },
-)
+testclient_module.TestClient = type("TestClient", (), {
+    "__init__": lambda self, app: None,
+    "get": lambda self, url, **kwargs: None,
+    "post": lambda self, url, **kwargs: None,
+    "put": lambda self, url, **kwargs: None,
+    "delete": lambda self, url, **kwargs: None,
+    "websocket_connect": lambda self, url, **kwargs: None
+})
 
 # Register modules
 MOCK_MODULES["fastapi"] = fastapi_module
@@ -390,23 +337,21 @@ registry_module.get_filesystem_class = lambda protocol: None
 # fsspec.spec module
 spec_module = types.ModuleType("fsspec.spec")
 
-
 # Create abstract filesystem class
 class AbstractFileSystem:
     protocol = "abstract"
-
+    
     def __init__(self, *args, **kwargs):
         self.kwargs = kwargs
-
+    
     def ls(self, path, detail=True, **kwargs):
         return []
-
+    
     def info(self, path, **kwargs):
         return {"name": path, "size": 0, "type": "file"}
-
+    
     def open(self, path, mode="rb", **kwargs):
         return None
-
 
 # Add class to spec module
 spec_module.AbstractFileSystem = AbstractFileSystem
@@ -420,29 +365,27 @@ MOCK_MODULES["fsspec.spec"] = spec_module
 networkx_module = types.ModuleType("networkx")
 networkx_module.__version__ = "3.1"
 
-
 # Basic graph class
 class Graph:
     def __init__(self, *args, **kwargs):
         self.nodes = {}
         self.edges = {}
-
+        
     def add_node(self, node, **attrs):
         self.nodes[node] = attrs
-
+        
     def add_edge(self, u, v, **attrs):
         if u not in self.nodes:
             self.add_node(u)
         if v not in self.nodes:
             self.add_node(v)
         self.edges[(u, v)] = attrs
-
+        
     def neighbors(self, node):
         return [v for u, v in self.edges if u == node]
-
+        
     def __iter__(self):
         return iter(self.nodes)
-
 
 # Add to networkx module
 networkx_module.Graph = Graph
@@ -453,13 +396,11 @@ networkx_module.MultiDiGraph = Graph
 MOCK_MODULES["networkx"] = networkx_module
 MOCK_MODULES["nx"] = networkx_module  # Common alias
 
-
 def register_mock_modules():
     """Register mock modules in sys.modules."""
     for name, module in MOCK_MODULES.items():
         sys.modules[name] = module
     logger.info(f"Registered {len(MOCK_MODULES)} mock modules")
-
 
 def apply_additional_patches():
     """Apply additional patches to specific modules."""
@@ -473,10 +414,9 @@ def apply_additional_patches():
     api_stability_module = types.ModuleType("api_stability")
     api_stability_module.stable_api = {"endpoints": []}
     sys.modules["api_stability"] = api_stability_module
-
+    
     logger.info("Applied additional patches to system modules")
     return True
-
 
 # Register modules the safer way
 register_mock_modules()

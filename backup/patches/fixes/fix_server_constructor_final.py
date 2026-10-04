@@ -9,11 +9,8 @@ import logging
 import re
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
 
 def fix_server_constructor():
     """Fix the FastMCP server constructor"""
@@ -38,7 +35,7 @@ def fix_server_constructor():
                 found_comment = True
                 # Replace the comment with a proper closing parenthesis
                 lines[i] = ")\n\n"
-                logger.info(f"Fixed server constructor at line {i + 1}")
+                logger.info(f"Fixed server constructor at line {i+1}")
                 break
 
         if not found_comment and server_start_index is not None:
@@ -47,7 +44,7 @@ def fix_server_constructor():
                 if "logger.info" in lines[i] and "Registering all IPFS" in lines[i]:
                     # Insert closing parenthesis before this line
                     lines.insert(i, ")\n\n")
-                    logger.info(f"Added closing parenthesis at line {i + 1}")
+                    logger.info(f"Added closing parenthesis at line {i+1}")
                     break
 
         # Write the fixed content back to the file
@@ -61,7 +58,6 @@ def fix_server_constructor():
         logger.error(f"Error fixing server constructor: {e}")
         return False
 
-
 def main():
     """Main function"""
     logger.info("Starting to fix server constructor in direct_mcp_server_with_tools.py...")
@@ -74,7 +70,6 @@ def main():
     logger.info("\n✅ Successfully fixed server constructor in direct_mcp_server_with_tools.py")
     logger.info("You can now run the server with './restart_mcp_with_tools.sh'")
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

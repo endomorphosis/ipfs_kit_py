@@ -2,16 +2,12 @@ import logging
 
 import sys
 import os
-
 # Add the parent directory to sys.path to allow importing mcp_error_handling
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-)
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 import mcp_error_handling
 
-logger = logging.getLogger(__name__)  # Added logger initialization
-import sniffio  # Import sniffio here
-
+logger = logging.getLogger(__name__) # Added logger initialization
+import sniffio # Import sniffio here
 """
 Filecoin Controller for the MCP server with AnyIO support.
 
@@ -21,36 +17,20 @@ to provide support for any async backend (async-io or trio).
 """
 
 import warnings
-
 # AnyIO import (already handled at top level)
 # from fastapi import APIRouter, HTTPException # Imported below
 from ipfs_kit_py.mcp.controllers.storage.filecoin_controller import (
-    FilecoinController,
-    WalletRequest,
-    DealRequest,
-    RetrieveRequest,
-    IPFSToFilecoinRequest,
-    FilecoinToIPFSRequest,
-    ImportFileRequest,
-    MinerInfoRequest,
-    OperationResponse,
-    WalletResponse,
-    WalletListResponse,
-    WalletBalanceResponse,
-    DealResponse,
-    RetrieveResponse,
-    MinerListResponse,
-    MinerInfoResponse,
-    ImportResponse,
-    ImportListResponse,
-    DealListResponse,
-    DealInfoResponse,
-    IPFSToFilecoinResponse,
-    FilecoinToIPFSResponse,
+    FilecoinController, WalletRequest, DealRequest, RetrieveRequest,
+    IPFSToFilecoinRequest, FilecoinToIPFSRequest, ImportFileRequest,
+    MinerInfoRequest, OperationResponse, WalletResponse, WalletListResponse,
+    WalletBalanceResponse, DealResponse, RetrieveResponse, MinerListResponse,
+    MinerInfoResponse, ImportResponse, ImportListResponse, DealListResponse,
+    DealInfoResponse, IPFSToFilecoinResponse, FilecoinToIPFSResponse
 )
-
 # Assuming FastAPI is available based on project structure
 from fastapi import APIRouter, HTTPException
+
+
 
 
 class FilecoinControllerAnyIO(FilecoinController):
@@ -60,7 +40,6 @@ class FilecoinControllerAnyIO(FilecoinController):
     Handles HTTP requests related to Filecoin operations and delegates
     the business logic to the Filecoin model, using AnyIO for async operations.
     """
-
     @staticmethod
     def get_backend():
         """Get the current async backend being used."""
@@ -294,11 +273,9 @@ class FilecoinControllerAnyIO(FilecoinController):
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
                 code="FILECOIN_WALLET_LIST_FAILED",
-                message_override=result.get(
-                    "error", "Failed to list wallets"
-                ),  # Pass string directly
+                message_override=result.get("error", "Failed to list wallets"), # Pass string directly
                 endpoint="/api/v0/filecoin/wallets",
-                doc_category="storage",
+                doc_category="storage"
             )
         return result
 
@@ -317,11 +294,9 @@ class FilecoinControllerAnyIO(FilecoinController):
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
                 code="FILECOIN_WALLET_BALANCE_FAILED",
-                message_override=result.get(
-                    "error", f"Failed to get balance for {address}"
-                ),  # Pass string directly
+                message_override=result.get("error", f"Failed to get balance for {address}"), # Pass string directly
                 endpoint=f"/api/v0/filecoin/wallet/balance/{address}",
-                doc_category="storage",
+                doc_category="storage"
             )
         return result
 
@@ -340,11 +315,9 @@ class FilecoinControllerAnyIO(FilecoinController):
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
                 code="FILECOIN_WALLET_CREATE_FAILED",
-                message_override=result.get(
-                    "error", "Failed to create wallet"
-                ),  # Pass string directly
+                message_override=result.get("error", "Failed to create wallet"), # Pass string directly
                 endpoint="/api/v0/filecoin/wallet/create",
-                doc_category="storage",
+                doc_category="storage"
             )
         return result
 
@@ -363,11 +336,9 @@ class FilecoinControllerAnyIO(FilecoinController):
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
                 code="FILECOIN_IMPORT_FAILED",
-                message_override=result.get(
-                    "error", f"Failed to import file {request.file_path}"
-                ),  # Pass string directly
+                message_override=result.get("error", f"Failed to import file {request.file_path}"), # Pass string directly
                 endpoint="/api/v0/filecoin/import",
-                doc_category="storage",
+                doc_category="storage"
             )
         return result
 
@@ -383,11 +354,9 @@ class FilecoinControllerAnyIO(FilecoinController):
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
                 code="FILECOIN_LIST_IMPORTS_FAILED",
-                message_override=result.get(
-                    "error", "Failed to list imports"
-                ),  # Pass string directly
+                message_override=result.get("error", "Failed to list imports"), # Pass string directly
                 endpoint="/api/v0/filecoin/imports",
-                doc_category="storage",
+                doc_category="storage"
             )
         return result
 
@@ -403,11 +372,9 @@ class FilecoinControllerAnyIO(FilecoinController):
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
                 code="FILECOIN_LIST_DEALS_FAILED",
-                message_override=result.get(
-                    "error", "Failed to list deals"
-                ),  # Pass string directly
+                message_override=result.get("error", "Failed to list deals"), # Pass string directly
                 endpoint="/api/v0/filecoin/deals",
-                doc_category="storage",
+                doc_category="storage"
             )
         return result
 
@@ -426,11 +393,9 @@ class FilecoinControllerAnyIO(FilecoinController):
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
                 code="FILECOIN_DEAL_INFO_FAILED",
-                message_override=result.get(
-                    "error", f"Failed to get info for deal {deal_id}"
-                ),  # Pass string directly
+                message_override=result.get("error", f"Failed to get info for deal {deal_id}"), # Pass string directly
                 endpoint=f"/api/v0/filecoin/deal/{deal_id}",
-                doc_category="storage",
+                doc_category="storage"
             )
         return result
 
@@ -457,11 +422,9 @@ class FilecoinControllerAnyIO(FilecoinController):
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
                 code="FILECOIN_START_DEAL_FAILED",
-                message_override=result.get(
-                    "error", "Failed to start deal"
-                ),  # Pass string directly
+                message_override=result.get("error", "Failed to start deal"), # Pass string directly
                 endpoint="/api/v0/filecoin/deal/start",
-                doc_category="storage",
+                doc_category="storage"
             )
         return result
 
@@ -482,11 +445,9 @@ class FilecoinControllerAnyIO(FilecoinController):
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
                 code="FILECOIN_RETRIEVE_FAILED",
-                message_override=result.get(
-                    "error", f"Failed to retrieve data {request.data_cid}"
-                ),  # Pass string directly
+                message_override=result.get("error", f"Failed to retrieve data {request.data_cid}"), # Pass string directly
                 endpoint="/api/v0/filecoin/retrieve",
-                doc_category="storage",
+                doc_category="storage"
             )
         return result
 
@@ -502,11 +463,9 @@ class FilecoinControllerAnyIO(FilecoinController):
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
                 code="FILECOIN_LIST_MINERS_FAILED",
-                message_override=result.get(
-                    "error", "Failed to list miners"
-                ),  # Pass string directly
+                message_override=result.get("error", "Failed to list miners"), # Pass string directly
                 endpoint="/api/v0/filecoin/miners",
-                doc_category="storage",
+                doc_category="storage"
             )
         return result
 
@@ -525,11 +484,9 @@ class FilecoinControllerAnyIO(FilecoinController):
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
                 code="FILECOIN_MINER_INFO_FAILED",
-                message_override=result.get(
-                    "error", f"Failed to get info for miner {request.miner_address}"
-                ),  # Pass string directly
+                message_override=result.get("error", f"Failed to get info for miner {request.miner_address}"), # Pass string directly
                 endpoint="/api/v0/filecoin/miner/info",
-                doc_category="storage",
+                doc_category="storage"
             )
         return result
 
@@ -557,11 +514,9 @@ class FilecoinControllerAnyIO(FilecoinController):
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
                 code="FILECOIN_IPFS_TO_FC_FAILED",
-                message_override=result.get(
-                    "error", f"Failed to store IPFS CID {request.cid} on Filecoin"
-                ),  # Pass string directly
+                message_override=result.get("error", f"Failed to store IPFS CID {request.cid} on Filecoin"), # Pass string directly
                 endpoint="/api/v0/filecoin/from_ipfs",
-                doc_category="storage",
+                doc_category="storage"
             )
         return result
 
@@ -582,11 +537,9 @@ class FilecoinControllerAnyIO(FilecoinController):
         if not result.get("success", False):
             mcp_error_handling.raise_http_exception(
                 code="FILECOIN_FC_TO_IPFS_FAILED",
-                message_override=result.get(
-                    "error", f"Failed to retrieve Filecoin CID {request.data_cid} to IPFS"
-                ),  # Pass string directly
+                message_override=result.get("error", f"Failed to retrieve Filecoin CID {request.data_cid} to IPFS"), # Pass string directly
                 endpoint="/api/v0/filecoin/to_ipfs",
-                doc_category="storage",
+                doc_category="storage"
             )
         return result
 

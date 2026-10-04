@@ -11,7 +11,6 @@ from typing import Dict, Any
 # Configure logger
 logger = logging.getLogger(__name__)
 
-
 def get_ipfs_py_class():
     """
     Helper function to obtain the ipfs_py class with proper error handling.
@@ -24,7 +23,6 @@ def get_ipfs_py_class():
     try:
         # Import from the main module
         from ipfs_kit_py.ipfs import ipfs_py
-
         logger.info("Successfully imported ipfs_py from ipfs_kit_py.ipfs")
         return ipfs_py
     except ImportError as e1:
@@ -40,7 +38,6 @@ def get_ipfs_py_class():
 
             # Try import as a module
             from ipfs import ipfs_py
-
             logger.info("Successfully imported ipfs_py from ipfs module")
             return ipfs_py
         except ImportError as e2:
@@ -50,7 +47,6 @@ def get_ipfs_py_class():
             try:
                 # Find ipfs.py file in the project
                 import glob
-
                 potential_ipfs_files = glob.glob(f"{project_root}/**/ipfs.py", recursive=True)
 
                 if potential_ipfs_files:
@@ -60,93 +56,49 @@ def get_ipfs_py_class():
 
                     # Try to import again
                     from ipfs import ipfs_py
-
-                    logger.info(
-                        f"Successfully imported ipfs_py from discovered file: {potential_ipfs_files[0]}"
-                    )
+                    logger.info(f"Successfully imported ipfs_py from discovered file: {potential_ipfs_files[0]}")
                     return ipfs_py
             except (ImportError, Exception) as e3:
                 logger.warning(f"Could not import ipfs_py from discovered files: {e3}")
 
             # Create a mock implementation as a last resort
-            logger.error(
-                "Could not import ipfs_py from any location. Creating mock implementation."
-            )
+            logger.error("Could not import ipfs_py from any location. Creating mock implementation.")
             from unittest.mock import MagicMock
 
             class MockIPFSPy:
                 def __init__(self, *args, **kwargs):
                     self.logger = logging.getLogger("mock_ipfs_py")
-                    self.logger.warning(
-                        "Using mock IPFS implementation - limited functionality available"
-                    )
+                    self.logger.warning("Using mock IPFS implementation - limited functionality available")
 
                 def ipfs_add_file(self, *args, **kwargs):
-                    return {
-                        "success": False,
-                        "error": "Mock IPFS implementation",
-                        "error_type": "MockImplementation",
-                    }
+                    return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
 
                 def ipfs_add_bytes(self, *args, **kwargs):
-                    return {
-                        "success": False,
-                        "error": "Mock IPFS implementation",
-                        "error_type": "MockImplementation",
-                    }
+                    return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
 
                 def ipfs_cat(self, *args, **kwargs):
-                    return {
-                        "success": False,
-                        "error": "Mock IPFS implementation",
-                        "error_type": "MockImplementation",
-                    }
+                    return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
 
                 def ipfs_pin_ls(self, *args, **kwargs):
-                    return {
-                        "success": False,
-                        "error": "Mock IPFS implementation",
-                        "error_type": "MockImplementation",
-                    }
+                    return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
 
                 def ipfs_pin_add(self, *args, **kwargs):
-                    return {
-                        "success": False,
-                        "error": "Mock IPFS implementation",
-                        "error_type": "MockImplementation",
-                    }
+                    return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
 
                 def ipfs_pin_rm(self, *args, **kwargs):
-                    return {
-                        "success": False,
-                        "error": "Mock IPFS implementation",
-                        "error_type": "MockImplementation",
-                    }
+                    return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
 
                 def ipfs_object_stat(self, *args, **kwargs):
-                    return {
-                        "success": False,
-                        "error": "Mock IPFS implementation",
-                        "error_type": "MockImplementation",
-                    }
+                    return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
 
                 def ipfs_add_metadata(self, *args, **kwargs):
-                    return {
-                        "success": False,
-                        "error": "Mock IPFS implementation",
-                        "error_type": "MockImplementation",
-                    }
+                    return {"success": False, "error": "Mock IPFS implementation", "error_type": "MockImplementation"}
 
                 # Implement standard methods from ipfs_py
                 def __getattr__(self, name):
                     # Handle any method call with a standard error response
                     def method(*args, **kwargs):
-                        return {
-                            "success": False,
-                            "error": f"Mock IPFS implementation (method: {name})",
-                            "error_type": "MockImplementation",
-                        }
-
+                        return {"success": False, "error": f"Mock IPFS implementation (method: {name})", "error_type": "MockImplementation"}
                     return method
 
             return MockIPFSPy

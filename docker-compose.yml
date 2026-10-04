@@ -1,0 +1,194 @@
+# Docker Configuration for GPU and Multi-Architecture Support
+# Based on deploy/docker-compose.yaml patterns
+
+version: '3.8'
+
+services:
+  ipfs-kit-py:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PYTHON_VERSION: 3.11
+        BUILD_TYPE: production
+    image: ipfs-kit-py:latest
+    container_name: ipfs-kit-py-main
+    restart: unless-stopped
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config:/app/config:ro
+    ports:
+      - "8000:8000"
+    networks:
+      - ipfs-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import ipfs_kit_py; print('OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  ipfs-kit-py-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+      args:
+        CUDA_VERSION: 12.1
+        PYTHON_VERSION: 3.11
+        BUILD_TYPE: production
+    image: ipfs-kit-py:gpu
+    container_name: ipfs-kit-py-gpu
+    restart: unless-stopped
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
+      - CUDA_VISIBLE_DEVICES=all
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config:/app/config:ro
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    ports:
+      - "8001:8000"
+    networks:
+      - ipfs-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import torch; assert torch.cuda.is_available(); print('GPU OK')"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 60s
+
+  ipfs-kit-py-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        PYTHON_VERSION: 3.11
+    image: ipfs-kit-py:dev
+    container_name: ipfs-kit-py-dev
+    restart: "no"
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=DEBUG
+      - DEVELOPMENT=1
+    volumes:
+      - .:/app
+      - ./data:/app/data
+      - ./logs:/app/logs
+    ports:
+      - "8002:8000"
+      - "5678:5678"  # debugpy port
+    networks:
+      - ipfs-network
+    command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "--wait-for-client", "-m", "ipfs_kit_py"]
+
+  # Testing services
+  ipfs-kit-py-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+      args:
+        PYTHON_VERSION: 3.11
+    image: ipfs-kit-py:test
+    container_name: ipfs-kit-py-test
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - .:/app
+      - ./test-results:/app/test-results
+      - ./coverage-reports:/app/coverage-reports
+    networks:
+      - ipfs-network
+    command: ["pytest", "tests/", "--verbose", "--cov=ipfs_kit_py", "--cov-report=html:/app/coverage-reports"]
+    profiles:
+      - testing
+
+  # Benchmark service
+  ipfs-kit-py-benchmark:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+      args:
+        CUDA_VERSION: 12.1
+        PYTHON_VERSION: 3.11
+        BUILD_TYPE: benchmark
+    image: ipfs-kit-py:benchmark
+    container_name: ipfs-kit-py-benchmark
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
+      - CUDA_VISIBLE_DEVICES=all
+    volumes:
+      - ./benchmarks:/app/benchmarks
+      - ./benchmark-results:/app/benchmark-results
+    networks:
+      - ipfs-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command: ["python", "-m", "pytest", "tests/benchmarks/", "--benchmark-only", "--benchmark-json=/app/benchmark-results/results.json"]
+    profiles:
+      - benchmarking
+
+  # Documentation service
+  docs:
+    build:
+      context: .
+      dockerfile: Dockerfile.docs
+    image: ipfs-kit-py:docs
+    container_name: ipfs-kit-py-docs
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./docs:/app/docs
+      - ./docs-build:/app/docs-build
+    networks:
+      - ipfs-network
+    command: ["mkdocs", "serve", "--dev-addr", "0.0.0.0:8080"]
+    profiles:
+      - documentation
+
+networks:
+  ipfs-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  ipfs-data:
+    driver: local
+  ipfs-logs:
+    driver: local
+  test-results:
+    driver: local
+  coverage-reports:
+    driver: local
+  benchmark-results:
+    driver: local
+  docs-build:
+    driver: local

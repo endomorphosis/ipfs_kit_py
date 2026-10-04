@@ -11,14 +11,13 @@ from unittest.mock import MagicMock, patch
 import contextlib
 
 # Ensure we have mocks for problematic imports
-sys.modules["_pytest.assertion"] = MagicMock()
-sys.modules["_pytest.assertion.rewrite"] = MagicMock()
-sys.modules["_pytest.assertion.rewrite"].assertion = MagicMock()
-sys.modules["_pytest.assertion"].rewrite = sys.modules["_pytest.assertion.rewrite"]
+sys.modules['_pytest.assertion'] = MagicMock()
+sys.modules['_pytest.assertion.rewrite'] = MagicMock()
+sys.modules['_pytest.assertion.rewrite'].assertion = MagicMock()
+sys.modules['_pytest.assertion'].rewrite = sys.modules['_pytest.assertion.rewrite']
 
 # Now import pytest
 import pytest
-
 
 # Register custom markers
 def pytest_configure(config):
@@ -27,10 +26,8 @@ def pytest_configure(config):
         "markers", "no_global_reset: mark test to not reset global variables after running"
     )
 
-
 # Configure test logging
 logging.basicConfig(level=logging.INFO)
-
 
 @contextlib.contextmanager
 def suppress_logging(logger_name=None, level=logging.ERROR):
@@ -53,18 +50,16 @@ def suppress_logging(logger_name=None, level=logging.ERROR):
         finally:
             root_logger.setLevel(old_level)
 
-
 # Make sure the package root is in the path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # Mock pandas if needed
 try:
     import pandas as pd
-
     PANDAS_AVAILABLE = True
-
+    
     # Check if pandas is a real module or a mock
-    if not hasattr(pd, "DataFrame"):
+    if not hasattr(pd, 'DataFrame'):
         # It's a mock, so create DataFrame attribute
         pd.DataFrame = MagicMock()
         pd.DataFrame.to_numpy = MagicMock(return_value=None)
@@ -92,46 +87,44 @@ try:
 
 except ImportError:
     PANDAS_AVAILABLE = False
-
+    
     # Create a mock pandas module
     class MockPandas:
         def __init__(self):
             class DataFrame:
                 def __init__(self, *args, **kwargs):
                     pass
-
+                    
                 def to_numpy(self, *args, **kwargs):
                     return None
-
+            
             self.DataFrame = DataFrame
-
+            
     # Add to sys.modules
-    sys.modules["pandas"] = MockPandas()
+    sys.modules['pandas'] = MockPandas()
     logging.info("Created mock pandas module")
 
 # Apply numpy patches if numpy is available
 try:
     import numpy as np
-
     NUMPY_AVAILABLE = True
-
+    
     # Check if numpy is a real module or a mock
-    if not hasattr(np, "array"):
+    if not hasattr(np, 'array'):
         np.array = MagicMock(return_value=None)
-
+        
 except ImportError:
     NUMPY_AVAILABLE = False
-
+    
     # Create a mock numpy module
     class MockNumpy:
         def __init__(self):
             self.array = lambda x, *args, **kwargs: x
-            self.ndarray = type("ndarray", (), {})
-
+            self.ndarray = type('ndarray', (), {})
+            
     # Add to sys.modules
-    sys.modules["numpy"] = MockNumpy()
+    sys.modules['numpy'] = MockNumpy()
     logging.info("Created mock numpy module")
-
 
 # Setup pytest fixtures for unit tests
 @pytest.fixture

@@ -1,0 +1,162 @@
+{
+  "start_time": "2025-06-26T02:27:05.501584",
+  "server_tests": {
+    "endpoint_health": {
+      "status": "PASS",
+      "message": "Health check OK (200)",
+      "details": null,
+      "timestamp": "2025-06-26T02:27:09.696228"
+    },
+    "endpoint_": {
+      "status": "PASS",
+      "message": "Server info OK (200)",
+      "details": null,
+      "timestamp": "2025-06-26T02:27:09.716909"
+    },
+    "endpoint_mcp_tools": {
+      "status": "PASS",
+      "message": "Tools listing OK (200)",
+      "details": null,
+      "timestamp": "2025-06-26T02:27:09.737012"
+    },
+    "endpoint_stats": {
+      "status": "PASS",
+      "message": "Statistics OK (200)",
+      "details": null,
+      "timestamp": "2025-06-26T02:27:09.760976"
+    },
+    "endpoint_docs": {
+      "status": "PASS",
+      "message": "Documentation OK (200)",
+      "details": null,
+      "timestamp": "2025-06-26T02:27:09.787487"
+    }
+  },
+  "tool_tests": {
+    "discovery": {
+      "status": "PASS",
+      "message": "Found 5 tools",
+      "details": [
+        {
+          "name": "ipfs_add",
+          "description": "Add content to IPFS",
+          "method": "POST",
+          "endpoint": "/ipfs/add"
+        },
+        {
+          "name": "ipfs_cat",
+          "description": "Get content from IPFS",
+          "method": "GET",
+          "endpoint": "/ipfs/cat/{cid}"
+        },
+        {
+          "name": "ipfs_pin_add",
+          "description": "Pin content in IPFS",
+          "method": "POST",
+          "endpoint": "/ipfs/pin/add/{cid}"
+        },
+        {
+          "name": "ipfs_pin_rm",
+          "description": "Unpin content in IPFS",
+          "method": "DELETE",
+          "endpoint": "/ipfs/pin/rm/{cid}"
+        },
+        {
+          "name": "ipfs_version",
+          "description": "Get IPFS version information",
+          "method": "GET",
+          "endpoint": "/ipfs/version"
+        }
+      ],
+      "timestamp": "2025-06-26T02:27:09.810535"
+    },
+    "tool_load_dataset_present": {
+      "status": "FAIL",
+      "message": "Tool load_dataset missing",
+      "details": null,
+      "timestamp": "2025-06-26T02:27:09.810586"
+    },
+    "tool_save_dataset_present": {
+      "status": "FAIL",
+      "message": "Tool save_dataset missing",
+      "details": null,
+      "timestamp": "2025-06-26T02:27:09.810608"
+    },
+    "tool_process_dataset_present": {
+      "status": "FAIL",
+      "message": "Tool process_dataset missing",
+      "details": null,
+      "timestamp": "2025-06-26T02:27:09.810627"
+    },
+    "tool_pin_to_ipfs_present": {
+      "status": "FAIL",
+      "message": "Tool pin_to_ipfs missing",
+      "details": null,
+      "timestamp": "2025-06-26T02:27:09.810642"
+    },
+    "tool_get_from_ipfs_present": {
+      "status": "FAIL",
+      "message": "Tool get_from_ipfs missing",
+      "details": null,
+      "timestamp": "2025-06-26T02:27:09.810656"
+    },
+    "ipfs_add": {
+      "status": "PASS",
+      "message": "Added content, CID: Qm8ef677595eff1641906f2bdadff644aeb1898d8f0adc",
+      "details": null,
+      "timestamp": "2025-06-26T02:27:09.832983"
+    },
+    "ipfs_cat": {
+      "status": "PASS",
+      "message": "Retrieved content successfully",
+      "details": null,
+      "timestamp": "2025-06-26T02:27:09.854790"
+    },
+    "ipfs_pin": {
+      "status": "PASS",
+      "message": "Pinned content successfully",
+      "details": null,
+      "timestamp": "2025-06-26T02:27:09.875896"
+    },
+    "ipfs_version": {
+      "status": "PASS",
+      "message": "Version: {'Version': '0.20.0-mock', 'Commit': 'mock-commit-final', 'Repo': '15', 'System': 'amd64/linux', 'Golang': 'go1.19.1', 'Server': 'ipfs_kit_py-2.1.0'}",
+      "details": null,
+      "timestamp": "2025-06-26T02:27:09.896436"
+    },
+    "dataset_load": {
+      "status": "FAIL",
+      "message": "Unexpected response: {'detail': 'Not Found'}",
+      "details": null,
+      "timestamp": "2025-06-26T02:27:09.919585"
+    }
+  },
+  "integration_tests": {
+    "performance": {
+      "status": "PASS",
+      "message": "10/10 requests, 47.62 RPS",
+      "details": null,
+      "timestamp": "2025-06-26T02:27:10.129722"
+    }
+  },
+  "summary": {
+    "passed": 13,
+    "failed": 6,
+    "total": 19
+  },
+  "server": {
+    "startup": {
+      "status": "PASS",
+      "message": "Started on port 9997",
+      "details": null,
+      "timestamp": "2025-06-26T02:27:09.675126"
+    },
+    "shutdown": {
+      "status": "PASS",
+      "message": "Server stopped",
+      "details": null,
+      "timestamp": "2025-06-26T02:27:10.597409"
+    }
+  },
+  "end_time": "2025-06-26T02:27:10.597439"
+}

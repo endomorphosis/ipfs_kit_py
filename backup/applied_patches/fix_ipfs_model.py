@@ -13,13 +13,18 @@ import importlib
 import inspect
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
-
 
 def find_ipfs_model_anyio_module():
     """Find the IPFSModelAnyIO module in the project."""
-    module_paths = ["ipfs_kit_py.mcp.models.ipfs_model_anyio", "mcp.models.ipfs_model_anyio"]
+    module_paths = [
+        "ipfs_kit_py.mcp.models.ipfs_model_anyio",
+        "mcp.models.ipfs_model_anyio"
+    ]
 
     for path in module_paths:
         try:
@@ -32,10 +37,12 @@ def find_ipfs_model_anyio_module():
 
     return None
 
-
 def find_ipfs_model_class():
     """Find the regular IPFSModel class to check for method names."""
-    module_paths = ["ipfs_kit_py.mcp.models.ipfs_model", "mcp.models.ipfs_model"]
+    module_paths = [
+        "ipfs_kit_py.mcp.models.ipfs_model",
+        "mcp.models.ipfs_model"
+    ]
 
     for path in module_paths:
         try:
@@ -47,7 +54,6 @@ def find_ipfs_model_class():
             continue
 
     return None
-
 
 def add_compatibility_methods():
     """Add compatibility methods to the IPFSModelAnyIO class."""
@@ -118,13 +124,9 @@ def add_compatibility_methods():
                 # Replace synchronous IPFS calls with async versions
                 # This part is tricky and might need manual adjustments
                 if "self.ipfs.add_string" in new_source:
-                    new_source = new_source.replace(
-                        "self.ipfs.add_string", "await self.ipfs.add_string_async"
-                    )
+                    new_source = new_source.replace("self.ipfs.add_string", "await self.ipfs.add_string_async")
                 if "self.ipfs.add_bytes" in new_source:
-                    new_source = new_source.replace(
-                        "self.ipfs.add_bytes", "await self.ipfs.add_bytes_async"
-                    )
+                    new_source = new_source.replace("self.ipfs.add_bytes", "await self.ipfs.add_bytes_async")
 
             # Save the modified source to a temporary file
             with open("temp_method.py", "w") as f:
@@ -150,18 +152,14 @@ def add_compatibility_methods():
                 f.write("        elif hasattr(self, 'add_bytes'):\n")
                 f.write("            return await self.add_bytes(content_bytes, **kwargs)\n")
                 f.write("        elif hasattr(self.ipfs, 'add_bytes_async'):\n")
-                f.write(
-                    "            return await self.ipfs.add_bytes_async(content_bytes, **kwargs)\n"
-                )
+                f.write("            return await self.ipfs.add_bytes_async(content_bytes, **kwargs)\n")
                 f.write("        elif hasattr(self.ipfs, 'add_bytes'):\n")
                 f.write("            return await self.ipfs.add_bytes(content_bytes, **kwargs)\n")
                 f.write("        else:\n")
                 f.write("            # Last resort: try direct command method\n")
                 f.write("            import base64\n")
                 f.write("            encoded = base64.b64encode(content_bytes).decode('utf-8')\n")
-                f.write(
-                    "            result = await self.ipfs.command_async('add', stdin=content_bytes)\n"
-                )
+                f.write("            result = await self.ipfs.command_async('add', stdin=content_bytes)\n")
                 f.write("            return result\n")
                 f.write("    except Exception as e:\n")
                 f.write("        raise RuntimeError(f'Failed to add content: {e}')\n")
@@ -201,9 +199,7 @@ def add_compatibility_methods():
                     result = await self.ipfs.add_str(content)
                 else:
                     # Convert to string if it's bytes
-                    content_str = (
-                        content.decode("utf-8") if isinstance(content, bytes) else str(content)
-                    )
+                    content_str = content.decode('utf-8') if isinstance(content, bytes) else str(content)
                     result = await self.ipfs.add_str(content_str)
                 return result
             elif hasattr(self, "ipfs") and hasattr(self.ipfs, "add"):
@@ -221,7 +217,6 @@ def add_compatibility_methods():
     logger.info("Added minimal add_content implementation")
     return True
 
-
 def check_method_added():
     """Check if the method was successfully added."""
     anyio_module = find_ipfs_model_anyio_module()
@@ -229,10 +224,7 @@ def check_method_added():
         return False
 
     IPFSModelAnyIO = anyio_module.IPFSModelAnyIO
-    return hasattr(IPFSModelAnyIO, "add_content") and callable(
-        getattr(IPFSModelAnyIO, "add_content")
-    )
-
+    return hasattr(IPFSModelAnyIO, "add_content") and callable(getattr(IPFSModelAnyIO, "add_content"))
 
 def main():
     """Main function to fix the IPFS model."""
@@ -246,7 +238,7 @@ def main():
         if check_method_added():
             print("Successfully added add_content method to IPFSModelAnyIO")
             print("\nTo use this fix, restart the MCP server with:")
-            print('python -c "import fix_ipfs_model" start_mcp_with_daemon.py')
+            print("python -c \"import fix_ipfs_model\" start_mcp_with_daemon.py")
             return 0
         else:
             print("Failed to verify that add_content method was added")
@@ -254,7 +246,6 @@ def main():
     else:
         print("Failed to add compatibility methods")
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

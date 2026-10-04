@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPFS WebRTC Streaming Example</title>
+    <style>
+        :root {
+            --primary-color: #3371e3;
+            --secondary-color: #285cb9;
+            --text-color: #333;
+            --light-bg: #f9f9f9;
+            --border-color: #ddd;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --error-color: #dc3545;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: var(--text-color);
+        }
+        
+        h1, h2, h3 {
+            color: var(--primary-color);
+        }
+        
+        h1 {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        h2 {
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: 500;
+        }
+        
+        input, select, button {
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 16px;
+            font-family: inherit;
+        }
+        
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 10px 15px;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .video-container {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .video-wrapper {
+            position: relative;
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        video {
+            width: 100%;
+            max-height: 70vh;
+            background-color: #000;
+        }
+        
+        .video-controls {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            color: white;
+            transition: opacity 0.3s;
+        }
+        
+        .video-wrapper:hover .video-controls {
+            opacity: 1;
+        }
+        
+        .video-stats {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .control-panel {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            background-color: var(--light-bg);
+        }
+        
+        .control-panel h3 {
+            margin-top: 0;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+        
+        .control-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .control-row button {
+            flex: 1;
+        }
+        
+        .status-box {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: var(--light-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+        
+        .signal-log {
+            height: 200px;
+            overflow-y: auto;
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        .info {
+            background-color: #e7f3fe;
+            border-left: 4px solid var(--primary-color);
+            padding: 12px 15px;
+            margin: 15px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .status-indicator.connected {
+            background-color: var(--success-color);
+        }
+        
+        .status-indicator.connecting {
+            background-color: var(--warning-color);
+        }
+        
+        .status-indicator.disconnected {
+            background-color: var(--error-color);
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            margin-bottom: -1px;
+            transition: all 0.2s;
+        }
+        
+        .tab.active {
+            border-color: var(--border-color);
+            border-radius: 4px 4px 0 0;
+            background-color: #fff;
+        }
+        
+        .tab:hover:not(.active) {
+            background-color: rgba(51, 113, 227, 0.1);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .quality-indicator {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        
+        .quality-bar {
+            flex: 1;
+            height: 10px;
+            background-color: #eee;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 0 10px;
+        }
+        
+        .quality-level {
+            height: 100%;
+            background-color: var(--primary-color);
+            transition: width 0.5s ease-out;
+        }
+        
+        .notifications {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 300px;
+            z-index: 1000;
+        }
+        
+        .notification {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin-bottom: 10px;
+            animation: slideIn 0.3s forwards;
+            max-height: 0;
+        }
+        
+        @keyframes slideIn {
+            to {
+                max-height: 200px;
+                margin-bottom: 10px;
+            }
+        }
+        
+        .notification.success {
+            border-left: 4px solid var(--success-color);
+        }
+        
+        .notification.warning {
+            border-left: 4px solid var(--warning-color);
+        }
+        
+        .notification.error {
+            border-left: 4px solid var(--error-color);
+        }
+        
+        .notification-content {
+            padding: 15px;
+            position: relative;
+        }
+        
+        .notification-close {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            color: #999;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            line-height: 24px;
+        }
+        
+        .notification-close:hover {
+            color: #333;
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>IPFS WebRTC Streaming Example</h1>
+    
+    <div class="info">
+        <p>This example demonstrates WebRTC streaming of media content directly from IPFS. 
+        It uses WebSocket for signaling and WebRTC for the actual media transfer, providing 
+        low-latency, real-time streaming with adaptive quality based on network conditions.</p>
+    </div>
+    
+    <div class="controls">
+        <div class="control-panel">
+            <h3>Connection</h3>
+            
+            <label for="serverUrl">WebSocket Server URL:</label>
+            <input type="text" id="serverUrl" value="ws://localhost:8000/ws/webrtc" size="40">
+            
+            <label for="ipfsCid">IPFS Content ID (CID):</label>
+            <input type="text" id="ipfsCid" placeholder="QmExample..." size="40">
+            
+            <div class="control-row">
+                <button id="connectButton" class="primary">Connect to Server</button>
+                <button id="disconnectButton" disabled>Disconnect</button>
+            </div>
+        </div>
+        
+        <div class="control-panel">
+            <h3>Stream Settings</h3>
+            
+            <label for="mediaKind">Media Kind:</label>
+            <select id="mediaKind">
+                <option value="video">Video</option>
+                <option value="audio">Audio</option>
+            </select>
+            
+            <label for="initialQuality">Initial Quality:</label>
+            <select id="initialQuality">
+                <option value="auto">Auto (Adaptive)</option>
+                <option value="very_low">Very Low (320p)</option>
+                <option value="low">Low (360p)</option>
+                <option value="medium">Medium (480p)</option>
+                <option value="high">High (720p)</option>
+                <option value="very_high">Very High (1080p)</option>
+            </select>
+            
+            <label for="frameRate">Frame Rate:</label>
+            <input type="number" id="frameRate" value="30" min="1" max="60">
+            
+            <div class="control-row">
+                <button id="streamButton" disabled>Stream from IPFS</button>
+                <button id="stopStreamButton" disabled>Stop Stream</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="video-container">
+        <div class="video-wrapper">
+            <video id="remoteVideo" autoplay playsinline controls></video>
+            <div class="video-stats" id="videoStats">No stream active</div>
+            <div class="video-controls" id="videoControls">
+                <div>
+                    <label for="qualitySelector">Quality:</label>
+                    <select id="qualitySelector" disabled>
+                        <option value="auto">Auto (Adaptive)</option>
+                        <option value="very_low">Very Low (320p)</option>
+                        <option value="low">Low (360p)</option>
+                        <option value="medium">Medium (480p)</option>
+                        <option value="high">High (720p)</option>
+                        <option value="very_high">Very High (1080p)</option>
+                    </select>
+                </div>
+                <div>
+                    <span id="bitrateDisplay">0 kbps</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="status-box">
+            <div class="tabs">
+                <div class="tab active" data-tab="status">Status</div>
+                <div class="tab" data-tab="log">Signal Log</div>
+                <div class="tab" data-tab="stats">Statistics</div>
+            </div>
+            
+            <div class="tab-content active" id="statusTab">
+                <h3>Connection Status</h3>
+                <div id="connectionStatus">
+                    <span class="status-indicator disconnected"></span> Not connected
+                </div>
+                
+                <h3>Stream Quality</h3>
+                <div class="quality-indicator">
+                    <span>Low</span>
+                    <div class="quality-bar">
+                        <div class="quality-level" id="qualityLevel" style="width: 0%;"></div>
+                    </div>
+                    <span>High</span>
+                </div>
+                <div id="currentQuality">No active stream</div>
+                
+                <h3>Network Health</h3>
+                <div id="networkHealth">No data available</div>
+            </div>
+            
+            <div class="tab-content" id="logTab">
+                <h3>Signal Log</h3>
+                <pre id="signalLog" class="signal-log"></pre>
+                <button id="clearLogButton">Clear Log</button>
+            </div>
+            
+            <div class="tab-content" id="statsTab">
+                <h3>Stream Statistics</h3>
+                <div id="streamStats">
+                    <p>No statistics available</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="notifications" id="notifications"></div>
+    
+    <script>
+        // DOM Elements
+        const connectButton = document.getElementById('connectButton');
+        const disconnectButton = document.getElementById('disconnectButton');
+        const streamButton = document.getElementById('streamButton');
+        const stopStreamButton = document.getElementById('stopStreamButton');
+        const clearLogButton = document.getElementById('clearLogButton');
+        
+        const serverUrlInput = document.getElementById('serverUrl');
+        const ipfsCidInput = document.getElementById('ipfsCid');
+        const mediaKindSelect = document.getElementById('mediaKind');
+        const initialQualitySelect = document.getElementById('initialQuality');
+        const frameRateInput = document.getElementById('frameRate');
+        const qualitySelector = document.getElementById('qualitySelector');
+        
+        const remoteVideo = document.getElementById('remoteVideo');
+        const videoStats = document.getElementById('videoStats');
+        const videoControls = document.getElementById('videoControls');
+        const bitrateDisplay = document.getElementById('bitrateDisplay');
+        
+        const connectionStatus = document.getElementById('connectionStatus');
+        const qualityLevel = document.getElementById('qualityLevel');
+        const currentQuality = document.getElementById('currentQuality');
+        const networkHealth = document.getElementById('networkHealth');
+        
+        const signalLog = document.getElementById('signalLog');
+        const streamStats = document.getElementById('streamStats');
+        const notificationsContainer = document.getElementById('notifications');
+        
+        // Tabs functionality
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs and content
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked tab and corresponding content
+                tab.classList.add('active');
+                document.getElementById(`${tab.dataset.tab}Tab`).classList.add('active');
+            });
+        });
+        
+        // Clear log button
+        clearLogButton.addEventListener('click', () => {
+            signalLog.textContent = '';
+        });
+        
+        // WebRTC state
+        let signalWs = null;
+        let peerConnection = null;
+        let currentPcId = null;
+        let statsInterval = null;
+        let lastBytesReceived = 0;
+        let lastStatsTime = Date.now();
+        
+        // Statistics collection
+        const stats = {
+            connectionAttempts: 0,
+            successfulConnections: 0,
+            connectTime: 0,
+            currentQuality: initialQualitySelect.value,
+            qualityChanges: [],
+            totalBytesReceived: 0,
+            framesReceived: 0,
+            framesDropped: 0,
+            frameRate: 0,
+            bitrate: 0,
+            packetsLost: 0,
+            roundTripTime: 0,
+            jitter: 0,
+            networkScore: 100,
+            startTime: null,
+            connectedTime: null
+        };
+        
+        // ICE servers configuration
+        const iceServers = [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+        ];
+        
+        // Event listeners for buttons
+        connectButton.addEventListener('click', connect);
+        disconnectButton.addEventListener('click', disconnect);
+        streamButton.addEventListener('click', startStream);
+        stopStreamButton.addEventListener('click', stopStream);
+        
+        // Quality selector change event
+        qualitySelector.addEventListener('change', changeQuality);
+        
+        // Connect to WebSocket server
+        async function connect() {
+            const serverUrl = serverUrlInput.value;
+            
+            if (!serverUrl) {
+                showNotification('Please enter a valid server URL', 'error');
+                return;
+            }
+            
+            logSignal('Connecting to server: ' + serverUrl);
+            updateConnectionStatus('connecting', 'Connecting...');
+            
+            try {
+                stats.connectionAttempts++;
+                stats.startTime = Date.now();
+                
+                signalWs = new WebSocket(serverUrl);
+                
+                signalWs.onopen = () => {
+                    logSignal('Connected to signaling server');
+                    updateConnectionStatus('connected', 'Connected to signaling server');
+                    
+                    connectButton.disabled = true;
+                    disconnectButton.disabled = false;
+                    streamButton.disabled = false;
+                    
+                    showNotification('Connected to signaling server', 'success');
+                };
+                
+                signalWs.onmessage = (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        logSignal('⬇️ Received: ' + JSON.stringify(message, null, 2));
+                        
+                        handleSignalingMessage(message);
+                    } catch (error) {
+                        logSignal('Error parsing message: ' + error.message);
+                    }
+                };
+                
+                signalWs.onerror = (error) => {
+                    logSignal('WebSocket error');
+                    updateConnectionStatus('disconnected', 'Connection error');
+                    showNotification('WebSocket connection error', 'error');
+                };
+                
+                signalWs.onclose = () => {
+                    logSignal('WebSocket connection closed');
+                    updateConnectionStatus('disconnected', 'Disconnected');
+                    
+                    connectButton.disabled = false;
+                    disconnectButton.disabled = true;
+                    streamButton.disabled = true;
+                    stopStreamButton.disabled = true;
+                    
+                    cleanupConnection();
+                };
+            } catch (error) {
+                logSignal('Error connecting: ' + error.message);
+                updateConnectionStatus('disconnected', 'Connection failed');
+                showNotification('Failed to connect: ' + error.message, 'error');
+            }
+        }
+        
+        // Disconnect from the server
+        function disconnect() {
+            if (signalWs) {
+                // Send close command for any active connections
+                if (currentPcId) {
+                    sendSignalMessage({
+                        type: 'close',
+                        pc_id: currentPcId
+                    });
+                }
+                
+                signalWs.close();
+                signalWs = null;
+                
+                cleanupConnection();
+                updateConnectionStatus('disconnected', 'Disconnected');
+                
+                connectButton.disabled = false;
+                disconnectButton.disabled = true;
+                streamButton.disabled = true;
+                stopStreamButton.disabled = true;
+                
+                showNotification('Disconnected from server', 'info');
+            }
+        }
+        
+        // Clean up WebRTC connection
+        function cleanupConnection() {
+            // Stop stats collection
+            if (statsInterval) {
+                clearInterval(statsInterval);
+                statsInterval = null;
+            }
+            
+            // Close peer connection
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            
+            currentPcId = null;
+            
+            // Clear video element
+            remoteVideo.srcObject = null;
+            videoStats.textContent = 'No stream active';
+            qualitySelector.disabled = true;
+            
+            // Update UI
+            updateQualityIndicator(0);
+            currentQuality.textContent = 'No active stream';
+            networkHealth.textContent = 'No data available';
+            bitrateDisplay.textContent = '0 kbps';
+            
+            // Reset stream stats display
+            streamStats.innerHTML = '<p>No statistics available</p>';
+        }
+        
+        // Start streaming from IPFS
+        function startStream() {
+            const cid = ipfsCidInput.value;
+            if (!cid) {
+                showNotification('Please enter a valid IPFS CID', 'error');
+                return;
+            }
+            
+            const kind = mediaKindSelect.value;
+            const quality = initialQualitySelect.value;
+            const frameRate = parseInt(frameRateInput.value, 10);
+            
+            // Request an offer from the server
+            sendSignalMessage({
+                type: 'offer_request',
+                cid: cid,
+                kind: kind,
+                frameRate: frameRate,
+                quality: quality
+            });
+            
+            updateConnectionStatus('connecting', 'Requesting stream...');
+            streamButton.disabled = true;
+            
+            logSignal(`Requesting ${kind} stream for CID: ${cid}, quality: ${quality}, frameRate: ${frameRate}`);
+            showNotification(`Requesting stream for CID: ${cid.substring(0, 10)}...`, 'info');
+        }
+        
+        // Stop the current stream
+        function stopStream() {
+            if (currentPcId) {
+                sendSignalMessage({
+                    type: 'close',
+                    pc_id: currentPcId
+                });
+                
+                cleanupConnection();
+                
+                updateConnectionStatus('connected', 'Stream stopped');
+                streamButton.disabled = false;
+                stopStreamButton.disabled = true;
+                
+                showNotification('Stream stopped', 'info');
+            }
+        }
+        
+        // Change streaming quality
+        function changeQuality() {
+            const quality = qualitySelector.value;
+            
+            if (currentPcId && peerConnection) {
+                sendSignalMessage({
+                    type: 'set_quality',
+                    pc_id: currentPcId,
+                    quality: quality
+                });
+                
+                logSignal(`Requested quality change to: ${quality}`);
+                showNotification(`Changing quality to: ${quality}`, 'info');
+                
+                // Record quality change
+                stats.qualityChanges.push({
+                    time: Date.now(),
+                    fromQuality: stats.currentQuality,
+                    toQuality: quality,
+                    userInitiated: true
+                });
+                
+                stats.currentQuality = quality;
+                updateQualityDisplay(quality);
+            }
+        }
+        
+        // Handle signaling messages from the server
+        function handleSignalingMessage(message) {
+            const type = message.type;
+            
+            switch (type) {
+                case 'welcome':
+                    logSignal('Connected to IPFS WebRTC server');
+                    updateConnectionStatus('connected', 'Connected to IPFS WebRTC server');
+                    break;
+                    
+                case 'offer':
+                    // Create a new RTCPeerConnection
+                    const pcId = message.pc_id;
+                    currentPcId = pcId;
+                    
+                    peerConnection = new RTCPeerConnection({ iceServers });
+                    
+                    // Set up event handlers
+                    peerConnection.onicecandidate = (event) => {
+                        if (event.candidate) {
+                            sendSignalMessage({
+                                type: 'candidate',
+                                pc_id: pcId,
+                                candidate: event.candidate.candidate,
+                                sdpMid: event.candidate.sdpMid,
+                                sdpMLineIndex: event.candidate.sdpMLineIndex
+                            });
+                        }
+                    };
+                    
+                    peerConnection.ontrack = (event) => {
+                        logSignal(`Received remote ${event.track.kind} track`);
+                        remoteVideo.srcObject = event.streams[0];
+                        
+                        if (event.track.kind === 'video') {
+                            videoStats.textContent = 'Loading...';
+                            qualitySelector.disabled = false;
+                            qualitySelector.value = initialQualitySelect.value;
+                            
+                            // Start collecting statistics
+                            startStatsCollection();
+                        }
+                    };
+                    
+                    peerConnection.onconnectionstatechange = () => {
+                        const state = peerConnection.connectionState;
+                        logSignal(`Connection state changed: ${state}`);
+                        
+                        if (state === 'connected') {
+                            updateConnectionStatus('connected', 'Streaming from IPFS');
+                            stopStreamButton.disabled = false;
+                            
+                            // Record connected time for statistics
+                            stats.connectedTime = Date.now();
+                            stats.successfulConnections++;
+                            stats.connectTime = stats.connectedTime - stats.startTime;
+                            
+                            showNotification('WebRTC connection established', 'success');
+                        } else if (state === 'failed' || state === 'closed') {
+                            updateConnectionStatus('disconnected', `Connection ${state}`);
+                            streamButton.disabled = false;
+                            stopStreamButton.disabled = true;
+                            
+                            showNotification(`Connection ${state}`, 'error');
+                        }
+                    };
+                    
+                    // Set the remote description (offer from server)
+                    peerConnection.setRemoteDescription(new RTCSessionDescription({
+                        type: message.sdpType,
+                        sdp: message.sdp
+                    }))
+                    .then(() => {
+                        logSignal('Set remote description');
+                        
+                        // Create an answer
+                        return peerConnection.createAnswer();
+                    })
+                    .then((answer) => {
+                        // Set local description
+                        return peerConnection.setLocalDescription(answer);
+                    })
+                    .then(() => {
+                        // Send the answer to the server
+                        sendSignalMessage({
+                            type: 'answer',
+                            pc_id: pcId,
+                            sdp: peerConnection.localDescription.sdp,
+                            sdpType: peerConnection.localDescription.type
+                        });
+                        
+                        logSignal('Sent answer to server');
+                    })
+                    .catch((error) => {
+                        logSignal('Error handling offer: ' + error);
+                        showNotification('Error establishing connection: ' + error, 'error');
+                    });
+                    break;
+                    
+                case 'connected':
+                    logSignal('WebRTC connection established!');
+                    break;
+                    
+                case 'notification':
+                    // Handle WebRTC quality notifications
+                    if (message.notification_type === 'webrtc_quality_changed') {
+                        const data = message.data;
+                        
+                        if (data && data.quality_level && data.quality_level !== stats.currentQuality) {
+                            // Record quality change from automatic adaptation
+                            stats.qualityChanges.push({
+                                time: Date.now(),
+                                fromQuality: stats.currentQuality,
+                                toQuality: data.quality_level,
+                                userInitiated: false,
+                                networkScore: data.network_score,
+                                bufferLevel: data.buffer_level
+                            });
+                            
+                            stats.currentQuality = data.quality_level;
+                            stats.networkScore = data.network_score || 0;
+                            
+                            // Update UI
+                            updateQualityDisplay(data.quality_level);
+                            qualitySelector.value = data.quality_level;
+                            
+                            // Show notification
+                            showNotification(`Quality adapted to: ${data.quality_level}`, 'info');
+                        }
+                        
+                        // Update network health if available
+                        if (data.network_metrics) {
+                            const metrics = data.network_metrics;
+                            networkHealth.innerHTML = `
+                                <p>Round-trip time: ${metrics.rtt.toFixed(2)} ms</p>
+                                <p>Packet loss: ${metrics.packet_loss.toFixed(2)}%</p>
+                                <p>Bandwidth: ${(metrics.bandwidth_estimate / 1000).toFixed(0)} kbps</p>
+                                <p>Jitter: ${metrics.jitter.toFixed(2)} ms</p>
+                                <p>Network score: ${data.network_score || 'N/A'}/100</p>
+                            `;
+                            
+                            stats.roundTripTime = metrics.rtt;
+                            stats.jitter = metrics.jitter;
+                            stats.packetsLost = metrics.packet_loss;
+                        }
+                    }
+                    break;
+                    
+                case 'closed':
+                    logSignal(`Peer connection ${message.pc_id} closed`);
+                    
+                    if (currentPcId === message.pc_id) {
+                        cleanupConnection();
+                        
+                        updateConnectionStatus('connected', 'Stream closed');
+                        streamButton.disabled = false;
+                        stopStreamButton.disabled = true;
+                    }
+                    break;
+                    
+                case 'error':
+                    logSignal('Error: ' + message.message);
+                    showNotification('Error: ' + message.message, 'error');
+                    break;
+                    
+                default:
+                    logSignal('Received message: ' + type);
+            }
+        }
+        
+        // Send a signaling message to the server
+        function sendSignalMessage(message) {
+            if (signalWs && signalWs.readyState === WebSocket.OPEN) {
+                signalWs.send(JSON.stringify(message));
+                logSignal('⬆️ Sent: ' + JSON.stringify(message, null, 2));
+            } else {
+                logSignal('Cannot send message, WebSocket is not open');
+            }
+        }
+        
+        // Start collecting WebRTC statistics
+        function startStatsCollection() {
+            if (statsInterval) {
+                clearInterval(statsInterval);
+            }
+            
+            statsInterval = setInterval(async () => {
+                if (!peerConnection) {
+                    return;
+                }
+                
+                try {
+                    const statsReport = await peerConnection.getStats();
+                    
+                    let videoReceived = 0;
+                    let framesReceived = 0;
+                    let framesDropped = 0;
+                    let currentFrameRate = 0;
+                    let packetsLost = 0;
+                    let jitter = 0;
+                    let rtt = 0;
+                    
+                    statsReport.forEach(report => {
+                        if (report.type === 'inbound-rtp' && report.kind === 'video') {
+                            videoReceived = report.bytesReceived;
+                            framesReceived = report.framesReceived;
+                            framesDropped = report.framesDropped;
+                            currentFrameRate = report.framesPerSecond;
+                            
+                            // Calculate bitrate
+                            const now = Date.now();
+                            const timeDiff = now - lastStatsTime;
+                            const bytesDiff = videoReceived - lastBytesReceived;
+                            
+                            if (timeDiff > 0 && bytesDiff >= 0) {
+                                const bitrate = (bytesDiff * 8) / timeDiff; // bits per ms
+                                stats.bitrate = bitrate * 1000; // convert to bits per second
+                                bitrateDisplay.textContent = `${(stats.bitrate / 1000).toFixed(0)} kbps`;
+                            }
+                            
+                            lastBytesReceived = videoReceived;
+                            lastStatsTime = now;
+                            
+                            // Update total stats
+                            stats.totalBytesReceived = videoReceived;
+                            stats.framesReceived = framesReceived;
+                            stats.framesDropped = framesDropped;
+                            stats.frameRate = currentFrameRate;
+                        }
+                        
+                        if (report.type === 'remote-inbound-rtp') {
+                            packetsLost = report.packetsLost;
+                            jitter = report.jitter;
+                        }
+                        
+                        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                            rtt = report.currentRoundTripTime * 1000; // convert to ms
+                        }
+                    });
+                    
+                    // Update video stats display
+                    if (stats.connectedTime) {
+                        const streamDuration = (Date.now() - stats.connectedTime) / 1000; // seconds
+                        
+                        videoStats.textContent = `
+                            ${stats.currentQuality} | 
+                            ${(stats.bitrate / 1000).toFixed(0)} kbps | 
+                            ${currentFrameRate?.toFixed(1) || 0} fps | 
+                            ${streamDuration.toFixed(0)}s
+                        `;
+                        
+                        // Update detailed statistics tab
+                        streamStats.innerHTML = `
+                            <p><strong>Duration:</strong> ${streamDuration.toFixed(1)} seconds</p>
+                            <p><strong>Quality:</strong> ${stats.currentQuality}</p>
+                            <p><strong>Bitrate:</strong> ${(stats.bitrate / 1000).toFixed(1)} kbps</p>
+                            <p><strong>Frame Rate:</strong> ${currentFrameRate?.toFixed(1) || 0} fps</p>
+                            <p><strong>Frames Received:</strong> ${framesReceived}</p>
+                            <p><strong>Frames Dropped:</strong> ${framesDropped} (${framesReceived > 0 ? (framesDropped / framesReceived * 100).toFixed(1) : 0}%)</p>
+                            <p><strong>Data Received:</strong> ${(stats.totalBytesReceived / (1024 * 1024)).toFixed(2)} MB</p>
+                            <p><strong>Round-trip Time:</strong> ${rtt.toFixed(2)} ms</p>
+                            <p><strong>Jitter:</strong> ${(jitter * 1000).toFixed(2)} ms</p>
+                            <p><strong>Connect Time:</strong> ${stats.connectTime} ms</p>
+                            <p><strong>Quality Changes:</strong> ${stats.qualityChanges.length}</p>
+                        `;
+                        
+                        // Update network metrics (if we don't get them from notifications)
+                        if (!stats.roundTripTime) {
+                            stats.roundTripTime = rtt;
+                            stats.jitter = jitter * 1000;
+                            
+                            // Simple network health display
+                            networkHealth.innerHTML = `
+                                <p>Round-trip time: ${rtt.toFixed(2)} ms</p>
+                                <p>Jitter: ${(jitter * 1000).toFixed(2)} ms</p>
+                                <p>Frame rate: ${currentFrameRate?.toFixed(1) || 0} fps</p>
+                                <p>Drop rate: ${framesReceived > 0 ? (framesDropped / framesReceived * 100).toFixed(1) : 0}%</p>
+                            `;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error getting stats:', error);
+                }
+            }, 1000);
+        }
+        
+        // Log signal messages
+        function logSignal(message) {
+            const now = new Date().toLocaleTimeString();
+            signalLog.textContent = `[${now}] ${message}\n${signalLog.textContent}`;
+            
+            // Keep log from getting too long
+            if (signalLog.textContent.length > 10000) {
+                signalLog.textContent = signalLog.textContent.substring(0, 10000);
+            }
+        }
+        
+        // Update connection status display
+        function updateConnectionStatus(state, message) {
+            let indicator = '';
+            
+            switch (state) {
+                case 'connected':
+                    indicator = '<span class="status-indicator connected"></span>';
+                    break;
+                case 'connecting':
+                    indicator = '<span class="status-indicator connecting"></span>';
+                    break;
+                case 'disconnected':
+                    indicator = '<span class="status-indicator disconnected"></span>';
+                    break;
+            }
+            
+            connectionStatus.innerHTML = `${indicator} ${message}`;
+        }
+        
+        // Update quality display
+        function updateQualityDisplay(quality) {
+            currentQuality.textContent = `Current quality: ${quality}`;
+            
+            let qualityPercentage = 0;
+            
+            switch (quality) {
+                case 'very_low':
+                    qualityPercentage = 20;
+                    break;
+                case 'low':
+                    qualityPercentage = 40;
+                    break;
+                case 'medium':
+                    qualityPercentage = 60;
+                    break;
+                case 'high':
+                    qualityPercentage = 80;
+                    break;
+                case 'very_high':
+                    qualityPercentage = 100;
+                    break;
+                case 'auto':
+                    qualityPercentage = 60; // Default to medium for auto
+                    break;
+            }
+            
+            updateQualityIndicator(qualityPercentage);
+        }
+        
+        // Update quality indicator bar
+        function updateQualityIndicator(percentage) {
+            qualityLevel.style.width = `${percentage}%`;
+        }
+        
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            
+            notification.innerHTML = `
+                <div class="notification-content">
+                    <button class="notification-close">&times;</button>
+                    <p>${message}</p>
+                </div>
+            `;
+            
+            notificationsContainer.appendChild(notification);
+            
+            // Add close button functionality
+            const closeButton = notification.querySelector('.notification-close');
+            closeButton.addEventListener('click', () => {
+                notification.remove();
+            });
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+        
+        // Set initial state
+        updateConnectionStatus('disconnected', 'Not connected');
+        updateQualityIndicator(0);
+    </script>
+</body>
+</html>

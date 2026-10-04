@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Test script to check if the MCP server is running."""
-
 import requests
 
 try:

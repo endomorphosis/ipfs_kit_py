@@ -1,0 +1,98 @@
+name: VFS Readiness CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "ipfs_kit_py/ipfs_fsspec.py"
+      - "ipfs_kit_py/ipfs_datasets_integration.py"
+      - "ipfs_kit_py/vfs_readiness_benchmark.py"
+      - "scripts/ci/run_vfs_readiness_benchmark.py"
+      - "tests/test_vfs_contract_hardening.py"
+      - "tests/test_datasets_metadata_index_contract.py"
+      - "tests/test_vfs_readiness_benchmark_contract.py"
+      - ".github/workflows/vfs-readiness-ci.yml"
+  pull_request:
+    paths:
+      - "ipfs_kit_py/ipfs_fsspec.py"
+      - "ipfs_kit_py/ipfs_datasets_integration.py"
+      - "ipfs_kit_py/vfs_readiness_benchmark.py"
+      - "scripts/ci/run_vfs_readiness_benchmark.py"
+      - "tests/test_vfs_contract_hardening.py"
+      - "tests/test_datasets_metadata_index_contract.py"
+      - "tests/test_vfs_readiness_benchmark_contract.py"
+      - ".github/workflows/vfs-readiness-ci.yml"
+  workflow_dispatch: {}
+
+jobs:
+  real-dependency-contracts:
+    name: Real Dependency Contracts (Py${{ matrix.python-version }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install project + contract test deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
+
+      - name: Install real integration dependencies
+        run: |
+          python -m pip install git+https://github.com/endomorphosis/ipfs_datasets_py.git@main
+          python -m pip install git+https://github.com/endomorphosis/ipfs_accelerate_py.git@main
+
+      - name: Run VFS + datasets contract gates
+        run: |
+          pytest tests/test_vfs_contract_hardening.py \
+            tests/test_datasets_metadata_index_contract.py \
+            tests/test_mcp_vfs_adapter_contract.py \
+            tests/test_vfs_mcp_integration.py -q
+
+  throughput-gate:
+    name: Throughput Gate (Mutation + Queue Lag)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install project + benchmark deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
+
+      - name: Run readiness throughput benchmark
+        env:
+          IPFS_KIT_VFS_BENCH_SAMPLES: "20"
+          IPFS_KIT_VFS_BENCH_MUTATION_P95_MS: "800"
+          IPFS_KIT_VFS_BENCH_QUEUE_LAG_P95_MS: "4000"
+          IPFS_KIT_VFS_BENCH_QUEUE_WAIT_TIMEOUT_SEC: "8.0"
+          IPFS_KIT_VFS_BENCHMARK_OUT: "build/vfs_readiness_benchmark.json"
+        run: |
+          python scripts/ci/run_vfs_readiness_benchmark.py
+
+      - name: Generate VFS readiness report
+        env:
+          IPFS_KIT_VFS_CONTRACTS_PASSED: "1"
+          IPFS_KIT_VFS_READINESS_REPORT_OUT: "build/vfs_readiness_report.json"
+          IPFS_KIT_VFS_BENCHMARK_OUT: "build/vfs_readiness_benchmark.json"
+        run: |
+          python scripts/ci/generate_vfs_readiness_report.py
+
+      - name: Upload benchmark artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vfs-readiness-evidence
+          path: |
+            build/vfs_readiness_benchmark.json
+            build/vfs_readiness_report.json

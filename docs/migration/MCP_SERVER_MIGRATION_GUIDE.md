@@ -89,7 +89,7 @@ server = create_mcp_server(
     host="127.0.0.1",
     port=8004,
     data_dir="/path/to/data",  # optional
-    debug=False,  # optional
+    debug=False  # optional
 )
 ```
 
@@ -137,7 +137,11 @@ server.run()
 ```python
 from ipfs_kit_py.mcp.servers.standalone_vfs_mcp_server import VFSMCPServer
 
-server = VFSMCPServer(host="localhost", port=8004, data_path="/custom/path")
+server = VFSMCPServer(
+    host="localhost",
+    port=8004,
+    data_path="/custom/path"
+)
 server.serve_forever()
 ```
 
@@ -145,7 +149,11 @@ server.serve_forever()
 ```python
 from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
 
-server = create_mcp_server(host="127.0.0.1", port=8004, data_dir="/custom/path")
+server = create_mcp_server(
+    host="127.0.0.1",
+    port=8004,
+    data_dir="/custom/path"
+)
 server.run()
 ```
 

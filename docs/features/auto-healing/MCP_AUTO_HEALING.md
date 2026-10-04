@@ -42,7 +42,7 @@ For MCP tool errors, the following information is captured:
 
 ```python
 # User calls MCP tool via dashboard
-await mcpClient.callTool("ipfs_add", {content: "test"})
+await mcpClient.callTool('ipfs_add', {content: 'test'})
 
 # Tool fails internally
 # Error is automatically captured and reported

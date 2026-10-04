@@ -177,7 +177,11 @@ Are you writing NEW code?
 from ipfs_kit_py.backends import get_backend_adapter
 
 # Factory pattern
-backend = get_backend_adapter(backend_type="s3", backend_name="my_s3", config_manager=config_mgr)
+backend = get_backend_adapter(
+    backend_type='s3',
+    backend_name='my_s3',
+    config_manager=config_mgr
+)
 
 # Async operations
 health = await backend.health_check()
@@ -192,12 +196,13 @@ from ipfs_kit_py.mcp.storage_manager.backends.ipfs_backend import IPFSBackend
 
 # Direct instantiation
 backend = IPFSBackend(
-    resources={"ipfs_host": "localhost", "ipfs_port": 5001}, metadata={"backend_name": "my_ipfs"}
+    resources={'ipfs_host': 'localhost', 'ipfs_port': 5001},
+    metadata={'backend_name': 'my_ipfs'}
 )
 
 # Content operations
 result = backend.add_content(b"Hello, IPFS!")
-cid = result["identifier"]
+cid = result['identifier']
 content = backend.get_content(cid)
 ```
 
@@ -208,12 +213,13 @@ from ipfs_kit_py.s3_kit import S3Kit
 
 # Direct service integration
 kit = S3Kit(
-    access_key=os.getenv("AWS_ACCESS_KEY_ID"), secret_key=os.getenv("AWS_SECRET_ACCESS_KEY")
+    access_key=os.getenv('AWS_ACCESS_KEY_ID'),
+    secret_key=os.getenv('AWS_SECRET_ACCESS_KEY')
 )
 
 # Direct API calls
-kit.upload_file("local.txt", "my-bucket", "remote.txt")
-kit.download_file("my-bucket", "remote.txt", "download.txt")
+kit.upload_file('local.txt', 'my-bucket', 'remote.txt')
+kit.download_file('my-bucket', 'remote.txt', 'download.txt')
 ```
 
 ---
@@ -356,7 +362,7 @@ backends = mgr.list_backends()
 # Method 2: Via adapter (Layer A)
 from ipfs_kit_py.backends import get_backend_adapter
 
-adapter = get_backend_adapter("s3", "my_s3", config_mgr)
+adapter = get_backend_adapter('s3', 'my_s3', config_mgr)
 health = await adapter.health_check()
 print(f"Healthy: {health['healthy']}")
 print(f"Response time: {health['response_time_ms']}ms")
@@ -365,7 +371,7 @@ print(f"Response time: {health['response_time_ms']}ms")
 from ipfs_kit_py.mcp.storage_manager.backend_manager import BackendManager
 
 mcp_mgr = BackendManager()
-health = mcp_mgr.check_backend_health("my_s3")
+health = mcp_mgr.check_backend_health('my_s3')
 ```
 
 ---

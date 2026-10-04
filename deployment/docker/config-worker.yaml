@@ -1,0 +1,72 @@
+# Worker node configuration for IPFS Kit in Docker
+role: worker
+logging:
+  level: INFO
+  file: ""  # Log to stdout in container
+  format: "json"
+
+# Resource settings for worker - balanced
+resources:
+  max_memory: "2GB"    # Overridable by environment
+  max_storage: "50GB"  # Overridable by environment
+  cpu_limit: 1.0
+
+# Cache settings optimized for worker role - more cache for content processing
+cache:
+  memory_size: "512MB"
+  disk_size: "5GB"
+  disk_path: "/data/ipfs/cache"
+  eviction_policy: "arc"
+
+# Network settings
+network:
+  swarm_connections: 200
+  auto_relay: true
+  nat_traversal: true
+  max_bandwidth_in: "100M"
+  max_bandwidth_out: "100M"
+
+# Gateway settings - workers don't expose gateway by default
+gateway:
+  enabled: false
+  writable: false
+  cors_allowed_origins: []
+  path_prefix: ""
+
+# API settings - local access only
+api:
+  enabled: true
+  cors_allowed_origins: []
+  authenticated: false
+  local_only: true
+
+# Cluster settings
+cluster:
+  enabled: true
+  role: "worker"
+  follow_master: true
+
+# Storage backends - focused on local and cluster
+storage:
+  backends:
+    - name: "ipfs"
+      priority: 1
+      enabled: true
+    - name: "local"
+      priority: 2
+      enabled: true
+    - name: "cluster"
+      priority: 3
+      enabled: true
+    - name: "storacha"
+      priority: 4
+      enabled: false
+    - name: "s3"
+      priority: 5
+      enabled: false
+
+# Worker-specific settings
+worker:
+  task_concurrency: 4
+  max_tasks: 10
+  task_timeout: 600

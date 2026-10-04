@@ -70,7 +70,6 @@ try:
 except ImportError:
     # For development/testing
     import sys
-
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
     from ipfs_kit_py.openapi_schema import get_openapi_schema
 
@@ -93,7 +92,7 @@ try:
         WebSocketDisconnect,
         BackgroundTasks,
     )
-
+    
     # Handle WebSocketState import based on FastAPI/Starlette version
     # In FastAPI < 0.100, WebSocketState was in fastapi module
     # In FastAPI >= 0.100, WebSocketState moved to starlette.websockets
@@ -107,12 +106,10 @@ try:
         except ImportError:
             # Fallback for when WebSocketState is not available
             from enum import Enum
-
             class WebSocketState(str, Enum):
                 CONNECTING = "CONNECTING"
                 CONNECTED = "CONNECTED"
                 DISCONNECTED = "DISCONNECTED"
-
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
     from fastapi.routing import APIRouter
@@ -157,26 +154,24 @@ try:
     # First try relative imports (when used as a package)
     from .error import IPFSError
     from .high_level_api import IPFSSimpleAPI
-
+    
     # Import WebSocket notifications - try anyio version first
     try:
         from .websocket_notifications_anyio import (
-            handle_notification_websocket,
-            emit_event,
+            handle_notification_websocket, 
+            emit_event, 
             NotificationType,
-            notification_manager,
+            notification_manager
         )
-
         NOTIFICATIONS_AVAILABLE = True
     except ImportError:
         try:
             from .websocket_notifications import (
-                handle_notification_websocket,
-                emit_event,
+                handle_notification_websocket, 
+                emit_event, 
                 NotificationType,
-                notification_manager,
+                notification_manager
             )
-
             NOTIFICATIONS_AVAILABLE = True
         except ImportError:
             NOTIFICATIONS_AVAILABLE = False
@@ -195,11 +190,10 @@ try:
         GRAPHQL_AVAILABLE = graphql_schema.GRAPHQL_AVAILABLE
     except ImportError:
         GRAPHQL_AVAILABLE = False
-
+        
     # Try to import WAL API
     try:
         from . import wal_api
-
         WAL_API_AVAILABLE = True
     except ImportError:
         WAL_API_AVAILABLE = False
@@ -227,11 +221,10 @@ except ImportError:
         GRAPHQL_AVAILABLE = graphql_schema.GRAPHQL_AVAILABLE
     except ImportError:
         GRAPHQL_AVAILABLE = False
-
+        
     # Try to import WAL API
     try:
         from ipfs_kit_py import wal_api
-
         WAL_API_AVAILABLE = True
     except ImportError:
         WAL_API_AVAILABLE = False
@@ -409,14 +402,14 @@ if FASTAPI_AVAILABLE:
         redoc_url="/redoc",
         openapi_url="/openapi.json",
     )
-
+    
     # Override the default OpenAPI schema with our custom schema
     def custom_openapi():
         if app.openapi_schema:
             return app.openapi_schema
         app.openapi_schema = get_openapi_schema()
         return app.openapi_schema
-
+        
     app.openapi = custom_openapi
 
     # Add CORS middleware
@@ -444,7 +437,6 @@ ipfs_api = IPFSSimpleAPI(config_path=config_path)
 
 # Add an explicit endpoint to serve the OpenAPI schema
 if FASTAPI_AVAILABLE:
-
     @app.get("/api/openapi", tags=["System"])
     def get_openapi():
         """
@@ -452,7 +444,6 @@ if FASTAPI_AVAILABLE:
         This is useful for generating client libraries or documentation.
         """
         return get_openapi_schema()
-
 
 # Configure logging level from environment or config
 log_level = os.environ.get("IPFS_KIT_LOG_LEVEL", "INFO").upper()
@@ -481,18 +472,17 @@ if FASTAPI_AVAILABLE:
         "rate_limit": int(os.environ.get("IPFS_KIT_RATE_LIMIT", 100)),  # requests per minute
         "metrics_enabled": os.environ.get("IPFS_KIT_METRICS_ENABLED", "true").lower() == "true",
     }
-
+    
     # Add the performance metrics instance to app state if it exists on the API
     if hasattr(ipfs_api, "performance_metrics"):
         app.state.performance_metrics = ipfs_api.performance_metrics
     else:
         # Create a new instance if not available
         from .performance_metrics import PerformanceMetrics
-
         app.state.performance_metrics = PerformanceMetrics(
             metrics_dir=os.environ.get("IPFS_KIT_METRICS_DIR"),
             enable_logging=True,
-            track_system_resources=True,
+            track_system_resources=True
         )
 
 # Define API models for standardized responses if FastAPI is available
@@ -763,9 +753,7 @@ if FASTAPI_AVAILABLE:
 
                 # Set up Prometheus metrics
                 instrumentator = Instrumentator()
-                instrumentator.instrument(app).expose(
-                    app, endpoint="/metrics", include_in_schema=False
-                )
+                instrumentator.instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
                 logger.info("Prometheus metrics enabled at /metrics (using instrumentator)")
             except ImportError:
@@ -862,16 +850,14 @@ if FASTAPI_AVAILABLE:
 
             # Get content from IPFS with anyio timeout
             logger.info(f"Getting content for CID: {cid}, timeout={timeout}")
-
+            
             try:
                 # Use anyio.fail_after instead of anyio.wait_for
                 with anyio.fail_after(timeout):
                     # Make sure to await the get method
                     content = await api.get(cid)
             except anyio.TimeoutError:
-                raise HTTPException(
-                    status_code=504, detail=f"Timeout retrieving content for CID: {cid}"
-                )
+                raise HTTPException(status_code=504, detail=f"Timeout retrieving content for CID: {cid}")
 
             # Return content as bytes
             return Response(content=content, media_type="application/octet-stream")
@@ -879,36 +865,35 @@ if FASTAPI_AVAILABLE:
             logger.exception(f"Error retrieving content: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error retrieving content: {str(e)}")
 
+
     @v0_router.get("/stream", tags=["content"])
     async def stream_content(
         path: str,
         chunk_size: Optional[int] = Query(1024 * 1024, description="Size of each chunk in bytes"),
         mime_type: Optional[str] = Query(None, description="MIME type of the content"),
-        cache: Optional[bool] = Query(
-            True, description="Whether to cache content for faster repeated access"
-        ),
-        timeout: Optional[int] = Query(30, description="Timeout in seconds"),
+        cache: Optional[bool] = Query(True, description="Whether to cache content for faster repeated access"),
+        timeout: Optional[int] = Query(30, description="Timeout in seconds")
     ):
         """
         Stream content from IPFS with chunked delivery.
-
-        This endpoint efficiently streams content from IPFS, allowing for progressive
+        
+        This endpoint efficiently streams content from IPFS, allowing for progressive 
         loading of large files including media content like video and audio.
-
+        
         Parameters:
         - **path**: IPFS path or CID
         - **chunk_size**: Size of each chunk in bytes (default: 1MB)
         - **mime_type**: MIME type of the content (auto-detected if not provided)
         - **cache**: Whether to cache content for faster repeated access (default: True)
         - **timeout**: Timeout in seconds (default: 30)
-
+        
         Returns:
             Streaming response with content
         """
         try:
             # Get API from app state
             api = app.state.ipfs_api
-
+            
             # Get content size if possible for proper content-length header
             content_length = None
             try:
@@ -919,7 +904,7 @@ if FASTAPI_AVAILABLE:
             except Exception:
                 # Continue without content length if info can't be determined
                 pass
-
+            
             # Create async generator for streaming content
             async def content_generator():
                 try:
@@ -931,7 +916,7 @@ if FASTAPI_AVAILABLE:
                             chunk_size=chunk_size,
                             mime_type=mime_type,
                             cache=cache,
-                            timeout=timeout,
+                            timeout=timeout
                         ):
                             yield chunk
                 except anyio.get_cancelled_exc_class() as e:
@@ -945,21 +930,23 @@ if FASTAPI_AVAILABLE:
                     # We can't raise an HTTP exception in the generator
                     # Just stop the generator which will end the response
                     return
-
+            
             # Detect mime type if not provided
             if mime_type is None:
                 mime_type, _ = mimetypes.guess_type(path)
                 if mime_type is None:
                     mime_type = "application/octet-stream"
-
+            
             # Create response headers
             headers = {}
             if content_length is not None:
                 headers["Content-Length"] = str(content_length)
-
+            
             # Return streaming response
             return StreamingResponse(
-                content=content_generator(), media_type=mime_type, headers=headers
+                content=content_generator(),
+                media_type=mime_type,
+                headers=headers
             )
         except Exception as e:
             logger.exception(f"Error setting up content streaming: {str(e)}")
@@ -970,21 +957,17 @@ if FASTAPI_AVAILABLE:
         path: str,
         chunk_size: Optional[int] = Query(1024 * 1024, description="Size of each chunk in bytes"),
         mime_type: Optional[str] = Query(None, description="MIME type of the media content"),
-        start_byte: Optional[int] = Query(
-            None, description="Start byte position for range request"
-        ),
+        start_byte: Optional[int] = Query(None, description="Start byte position for range request"),
         end_byte: Optional[int] = Query(None, description="End byte position for range request"),
-        cache: Optional[bool] = Query(
-            True, description="Whether to cache content for faster repeated access"
-        ),
-        timeout: Optional[int] = Query(30, description="Timeout in seconds"),
+        cache: Optional[bool] = Query(True, description="Whether to cache content for faster repeated access"),
+        timeout: Optional[int] = Query(30, description="Timeout in seconds")
     ):
         """
         Stream media content from IPFS with range support.
-
+        
         This endpoint specifically optimized for media streaming (video/audio) with
         support for range requests enabling seeking, fast-forward, and other media player features.
-
+        
         Parameters:
         - **path**: IPFS path or CID
         - **chunk_size**: Size of each chunk in bytes (default: 1MB)
@@ -993,14 +976,14 @@ if FASTAPI_AVAILABLE:
         - **end_byte**: End byte position for range request
         - **cache**: Whether to cache content for faster repeated access (default: True)
         - **timeout**: Timeout in seconds (default: 30)
-
+        
         Returns:
             Streaming response with media content and appropriate headers for range support
         """
         try:
             # Get API from app state
             api = app.state.ipfs_api
-
+            
             # Get content size if possible for proper content-length header
             content_length = None
             try:
@@ -1011,7 +994,7 @@ if FASTAPI_AVAILABLE:
             except Exception:
                 # Continue without content length if info can't be determined
                 pass
-
+            
             # Create async generator for streaming content
             async def content_generator():
                 try:
@@ -1025,7 +1008,7 @@ if FASTAPI_AVAILABLE:
                             start_byte=start_byte,
                             end_byte=end_byte,
                             cache=cache,
-                            timeout=timeout,
+                            timeout=timeout
                         ):
                             yield chunk
                 except anyio.get_cancelled_exc_class() as e:
@@ -1039,7 +1022,7 @@ if FASTAPI_AVAILABLE:
                     # We can't raise an HTTP exception in the generator
                     # Just stop the generator which will end the response
                     return
-
+            
             # Detect mime type if not provided
             if mime_type is None:
                 mime_type, _ = mimetypes.guess_type(path)
@@ -1050,12 +1033,12 @@ if FASTAPI_AVAILABLE:
                         mime_type = "audio/mpeg"
                     else:
                         mime_type = "application/octet-stream"
-
+            
             # Create response headers
             headers = {
                 "Accept-Ranges": "bytes"  # Indicate that server supports range requests
             }
-
+            
             # Calculate content length for range requests
             if start_byte is not None or end_byte is not None:
                 if content_length is None:
@@ -1065,11 +1048,11 @@ if FASTAPI_AVAILABLE:
                     # Default to full range if either end is not specified
                     start = start_byte or 0
                     end = end_byte or (content_length - 1)
-
+                    
                     # Set headers for range response
                     headers["Content-Range"] = f"bytes {start}-{end}/{content_length}"
                     headers["Content-Length"] = str(end - start + 1)
-
+                    
                     # Set status code to 206 Partial Content for range requests
                     status_code = 206
             else:
@@ -1077,13 +1060,13 @@ if FASTAPI_AVAILABLE:
                 if content_length is not None:
                     headers["Content-Length"] = str(content_length)
                 status_code = 200
-
+            
             # Return streaming response
             return StreamingResponse(
                 content=content_generator(),
                 media_type=mime_type,
                 headers=headers,
-                status_code=status_code,
+                status_code=status_code
             )
         except Exception as e:
             logger.exception(f"Error setting up media streaming: {str(e)}")
@@ -1093,43 +1076,41 @@ if FASTAPI_AVAILABLE:
     async def upload_stream(
         file: UploadFile = File(...),
         chunk_size: Optional[int] = Form(1024 * 1024, description="Size of each chunk in bytes"),
-        timeout: Optional[int] = Form(30, description="Timeout in seconds"),
+        timeout: Optional[int] = Form(30, description="Timeout in seconds")
     ):
         """
         Stream upload content to IPFS.
-
+        
         This endpoint allows efficient streaming uploads for large files,
         processing the file in chunks to minimize memory usage.
-
+        
         Parameters:
         - **file**: The file to upload
         - **chunk_size**: Size of each chunk in bytes (default: 1MB)
         - **timeout**: Timeout in seconds (default: 30)
-
+        
         Returns:
             CID and metadata of the added content
         """
         try:
             # Get API from app state
             api = app.state.ipfs_api
-
+            
             # Use a file-like object for streaming the file
             # Initialize file info
             filename = file.filename or "unnamed_file"
-
+            
             # Log the operation
             logger.info(f"Streaming upload of file {filename}, chunk_size={chunk_size}")
-
+            
             # Use anyio timeout
             try:
                 with anyio.fail_after(timeout):
                     # Call streaming upload method
                     result = await api.add_file_streaming(file, chunk_size=chunk_size)
             except TimeoutError:
-                raise HTTPException(
-                    status_code=504, detail=f"Timeout during file upload: {filename}"
-                )
-
+                raise HTTPException(status_code=504, detail=f"Timeout during file upload: {filename}")
+            
             # Create standardized response
             if isinstance(result, dict) and "Hash" in result:
                 # Handle older Kubo API response format
@@ -1166,19 +1147,18 @@ if FASTAPI_AVAILABLE:
 
     # WebSocket endpoint for notifications if WebSocket notifications are available
     if NOTIFICATIONS_AVAILABLE and "handle_notification_websocket" in globals():
-
         @app.websocket("/ws/notifications")
         async def notifications_websocket(websocket: WebSocket):
             """
             WebSocket endpoint for real-time notifications.
-
+            
             Clients can connect to this endpoint to receive real-time notifications
             about IPFS events, such as content additions, pinning operations, etc.
-
+            
             The client can send a JSON message to specify which notification types
             to subscribe to. Format:
             {"subscribe": ["add", "pin", "cluster"]}
-
+            
             If no subscription message is sent, the client will receive all notifications.
             """
             # Use anyio-based WebSocket handler if available
@@ -1189,7 +1169,7 @@ if FASTAPI_AVAILABLE:
     async def health_check():
         """
         Check if the API is healthy.
-
+        
         Returns:
             Health status and basic system information
         """
@@ -1197,7 +1177,7 @@ if FASTAPI_AVAILABLE:
         ipfs_status = True
         cluster_status = None
         system_stats = None
-
+        
         # Task function to check IPFS status
         async def check_ipfs():
             nonlocal ipfs_status
@@ -1207,7 +1187,7 @@ if FASTAPI_AVAILABLE:
                 ipfs_status = True
             except Exception:
                 ipfs_status = False
-
+        
         # Task function to check cluster status
         async def check_cluster():
             nonlocal cluster_status
@@ -1218,19 +1198,15 @@ if FASTAPI_AVAILABLE:
                     cluster_status = cluster_result.get("success", False)
                 except Exception:
                     cluster_status = False
-
+        
         # Task function to get system stats
         async def get_system_stats():
             nonlocal system_stats
             try:
                 # First try using the async get_system_stats method if available
-                if hasattr(app.state.performance_metrics, "get_system_stats") and callable(
-                    app.state.performance_metrics.get_system_stats
-                ):
+                if hasattr(app.state.performance_metrics, "get_system_stats") and callable(app.state.performance_metrics.get_system_stats):
                     # Check if it's an async method
-                    if callable(
-                        getattr(app.state.performance_metrics.get_system_stats, "__await__", None)
-                    ):
+                    if callable(getattr(app.state.performance_metrics.get_system_stats, "__await__", None)):
                         system_stats = await app.state.performance_metrics.get_system_stats()
                     else:
                         # Fall back to running in thread if not async
@@ -1239,24 +1215,31 @@ if FASTAPI_AVAILABLE:
                         )
                 else:
                     # Fallback to a basic system stats if not available
-                    system_stats = {"cpu_percent": 0.0, "memory_percent": 0.0, "disk_percent": 0.0}
+                    system_stats = {
+                        "cpu_percent": 0.0,
+                        "memory_percent": 0.0,
+                        "disk_percent": 0.0
+                    }
             except Exception as e:
                 logger.error(f"Error getting system stats: {str(e)}")
-                system_stats = {"error": "Failed to get system stats", "reason": str(e)}
-
+                system_stats = {
+                    "error": "Failed to get system stats",
+                    "reason": str(e)
+                }
+        
         # Run all checks concurrently with TaskGroup
         async with anyio.create_task_group() as tg:
             tg.start_soon(check_ipfs)
             tg.start_soon(check_cluster)
             tg.start_soon(get_system_stats)
-
+        
         return {
             "status": "healthy" if ipfs_status else "unhealthy",
             "timestamp": time.time(),
             "ipfs_status": ipfs_status,
             "cluster_status": cluster_status,
             "version": getattr(ipfs_api, "version", "unknown"),
-            "system_stats": system_stats,
+            "system_stats": system_stats
         }
 
     # Include all routers
@@ -1283,31 +1266,33 @@ if FASTAPI_AVAILABLE:
         # Force a division by zero error
         1 / 0
 
-
 # Run the server if executed directly
 if __name__ == "__main__":
     if FASTAPI_AVAILABLE:
         port = int(os.environ.get("IPFS_KIT_API_PORT", 8000))
         host = os.environ.get("IPFS_KIT_API_HOST", "127.0.0.1")
         log_level = os.environ.get("IPFS_KIT_LOG_LEVEL", "info").lower()
-
+        
         # Print startup message
         print(f"Starting IPFS Kit API server on {host}:{port}")
         print(f"Documentation available at http://{host}:{port}/docs")
-
+        
         # Use anyio.run instead of running uvicorn directly
         # This allows the server to use different async backends
         async def run_server():
             config = uvicorn.Config(
-                "api_anyio:app", host=host, port=port, log_level=log_level, reload=False
+                "api_anyio:app", 
+                host=host, 
+                port=port,
+                log_level=log_level,
+                reload=False
             )
             server = uvicorn.Server(config)
             await server.serve()
-
+            
         # Run with anyio to support multiple backends
         import anyio
-
-        default_backend = "asyncio"
+        default_backend = "async" "io"
         backend = os.environ.get("IPFS_KIT_ASYNC_BACKEND", default_backend)
         anyio.run(run_server, backend=backend)
     else:

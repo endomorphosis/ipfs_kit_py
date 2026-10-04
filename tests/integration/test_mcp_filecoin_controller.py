@@ -8,70 +8,26 @@ import anyio
 from ipfs_kit_py.mcp.controllers.storage.filecoin_controller import FilecoinController
 from ipfs_kit_py.mcp.models.storage.filecoin_model import FilecoinModel
 
-
 class TestFilecoinController:
     @pytest.fixture
     def mock_model(self):
         """Create mock model with appropriate return values."""
         model = MagicMock(spec=FilecoinModel)
         # Configure default mock return values for common methods
-        model.check_connection.return_value = {
-            "success": True,
-            "connected": True,
-            "version": "mock_version",
-        }
+        model.check_connection.return_value = {"success": True, "connected": True, "version": "mock_version"}
         model.list_wallets.return_value = {"success": True, "wallets": ["mock_wallet1"], "count": 1}
-        model.get_wallet_balance.return_value = {
-            "success": True,
-            "address": "mock_wallet1",
-            "balance": "1000",
-        }
-        model.create_wallet.return_value = {
-            "success": True,
-            "address": "new_mock_wallet",
-            "wallet_type": "bls",
-        }
-        model.import_file.return_value = {
-            "success": True,
-            "root": "mock_cid_root",
-            "file_path": "/path/to/file",
-            "size_bytes": 1024,
-        }
-        model.list_imports.return_value = {
-            "success": True,
-            "imports": [{"Root": {"/": "mock_cid_root"}}],
-            "count": 1,
-        }
+        model.get_wallet_balance.return_value = {"success": True, "address": "mock_wallet1", "balance": "1000"}
+        model.create_wallet.return_value = {"success": True, "address": "new_mock_wallet", "wallet_type": "bls"}
+        model.import_file.return_value = {"success": True, "root": "mock_cid_root", "file_path": "/path/to/file", "size_bytes": 1024}
+        model.list_imports.return_value = {"success": True, "imports": [{"Root": {"/": "mock_cid_root"}}], "count": 1}
         model.list_deals.return_value = {"success": True, "deals": [{"DealID": 1}], "count": 1}
-        model.get_deal_info.return_value = {
-            "success": True,
-            "deal_id": 1,
-            "deal_info": {"State": 0},
-        }
+        model.get_deal_info.return_value = {"success": True, "deal_id": 1, "deal_info": {"State": 0}}
         model.start_deal.return_value = {"success": True, "deal_cid": "mock_deal_cid"}
-        model.retrieve_data.return_value = {
-            "success": True,
-            "cid": "mock_data_cid",
-            "file_path": "/output/path",
-            "size_bytes": 1024,
-        }
+        model.retrieve_data.return_value = {"success": True, "cid": "mock_data_cid", "file_path": "/output/path", "size_bytes": 1024}
         model.list_miners.return_value = {"success": True, "miners": ["f01000"], "count": 1}
-        model.get_miner_info.return_value = {
-            "success": True,
-            "miner_address": "f01000",
-            "miner_info": {"PeerId": "mock_peerid"},
-        }
-        model.ipfs_to_filecoin.return_value = {
-            "success": True,
-            "ipfs_cid": "ipfs_cid",
-            "filecoin_cid": "filecoin_cid",
-            "deal_cid": "deal_cid",
-        }
-        model.filecoin_to_ipfs.return_value = {
-            "success": True,
-            "filecoin_cid": "filecoin_cid",
-            "ipfs_cid": "ipfs_cid",
-        }
+        model.get_miner_info.return_value = {"success": True, "miner_address": "f01000", "miner_info": {"PeerId": "mock_peerid"}}
+        model.ipfs_to_filecoin.return_value = {"success": True, "ipfs_cid": "ipfs_cid", "filecoin_cid": "filecoin_cid", "deal_cid": "deal_cid"}
+        model.filecoin_to_ipfs.return_value = {"success": True, "filecoin_cid": "filecoin_cid", "ipfs_cid": "ipfs_cid"}
         return model
 
     @pytest.fixture
@@ -190,10 +146,10 @@ class TestFilecoinController:
             "data_cid": "mock_data_cid",
             "miner": "f01000",
             "price": "100",
-            "duration": 518400,  # Example duration
+            "duration": 518400, # Example duration
             "wallet": "mock_wallet1",
             "verified": False,
-            "fast_retrieval": True,
+            "fast_retrieval": True
         }
         response = client.post("/filecoin/deal/start", json=request_data)
         assert response.status_code == 200
@@ -208,12 +164,15 @@ class TestFilecoinController:
             duration=518400,
             wallet="mock_wallet1",
             verified=False,
-            fast_retrieval=True,
+            fast_retrieval=True
         )
 
     def test_retrieve_data_endpoint(self, client, mock_model):
         """Test the /filecoin/retrieve endpoint."""
-        request_data = {"data_cid": "mock_data_cid", "out_file": "/output/path"}
+        request_data = {
+            "data_cid": "mock_data_cid",
+            "out_file": "/output/path"
+        }
         response = client.post("/filecoin/retrieve", json=request_data)
         assert response.status_code == 200
         data = response.json()
@@ -223,7 +182,8 @@ class TestFilecoinController:
         assert data["file_path"] == "/output/path"
         assert data["size_bytes"] == 1024
         mock_model.retrieve_data.assert_called_once_with(
-            data_cid="mock_data_cid", out_file="/output/path"
+            data_cid="mock_data_cid",
+            out_file="/output/path"
         )
 
     def test_list_miners_endpoint(self, client, mock_model):
@@ -259,7 +219,7 @@ class TestFilecoinController:
             "wallet": "mock_wallet1",
             "verified": False,
             "fast_retrieval": True,
-            "pin": True,
+            "pin": True
         }
         response = client.post("/filecoin/from_ipfs", json=request_data)
         assert response.status_code == 200
@@ -277,12 +237,15 @@ class TestFilecoinController:
             wallet="mock_wallet1",
             verified=False,
             fast_retrieval=True,
-            pin=True,
+            pin=True
         )
 
     def test_filecoin_to_ipfs_endpoint(self, client, mock_model):
         """Test the /filecoin/to_ipfs endpoint."""
-        request_data = {"data_cid": "filecoin_cid", "pin": True}
+        request_data = {
+            "data_cid": "filecoin_cid",
+            "pin": True
+        }
         response = client.post("/filecoin/to_ipfs", json=request_data)
         assert response.status_code == 200
         data = response.json()
@@ -290,33 +253,28 @@ class TestFilecoinController:
         assert data["operation"] == "filecoin_to_ipfs"
         assert data["filecoin_cid"] == "filecoin_cid"
         assert data["ipfs_cid"] == "ipfs_cid"
-        mock_model.filecoin_to_ipfs.assert_called_once_with(data_cid="filecoin_cid", pin=True)
+        mock_model.filecoin_to_ipfs.assert_called_once_with(
+            data_cid="filecoin_cid",
+            pin=True
+        )
 
     # --- Test Error Handling ---
 
     def test_status_endpoint_error(self, client, mock_model):
         """Test the /filecoin/status endpoint when model fails."""
-        mock_model.check_connection.return_value = {
-            "success": False,
-            "error": "Connection failed",
-            "error_type": "ConnectionError",
-        }
+        mock_model.check_connection.return_value = {"success": False, "error": "Connection failed", "error_type": "ConnectionError"}
         response = client.get("/filecoin/status")
         # Status endpoint should still return 200 but indicate failure in the body
         assert response.status_code == 200
         data = response.json()
-        assert data["success"] is True  # The endpoint call itself succeeded
+        assert data["success"] is True # The endpoint call itself succeeded
         assert data["is_available"] is False
         assert data["error"] == "Connection failed"
         mock_model.check_connection.assert_called_once()
 
     def test_list_wallets_endpoint_error(self, client, mock_model):
         """Test the /filecoin/wallets endpoint when model fails."""
-        mock_model.list_wallets.return_value = {
-            "success": False,
-            "error": "Cannot list wallets",
-            "error_type": "WalletListError",
-        }
+        mock_model.list_wallets.return_value = {"success": False, "error": "Cannot list wallets", "error_type": "WalletListError"}
         response = client.get("/filecoin/wallets")
         assert response.status_code == 500
         data = response.json()
@@ -326,16 +284,9 @@ class TestFilecoinController:
 
     def test_start_deal_endpoint_error(self, client, mock_model):
         """Test the /filecoin/deal/start endpoint when model fails."""
-        mock_model.start_deal.return_value = {
-            "success": False,
-            "error": "Deal failed",
-            "error_type": "StartDealError",
-        }
+        mock_model.start_deal.return_value = {"success": False, "error": "Deal failed", "error_type": "StartDealError"}
         request_data = {
-            "data_cid": "mock_data_cid",
-            "miner": "f01000",
-            "price": "100",
-            "duration": 518400,
+            "data_cid": "mock_data_cid", "miner": "f01000", "price": "100", "duration": 518400
         }
         response = client.post("/filecoin/deal/start", json=request_data)
         assert response.status_code == 500
@@ -348,7 +299,7 @@ class TestFilecoinController:
             miner="f01000",
             price="100",
             duration=518400,
-            wallet=None,  # Default value if not provided
-            verified=False,  # Default value
-            fast_retrieval=True,  # Default value
+            wallet=None, # Default value if not provided
+            verified=False, # Default value
+            fast_retrieval=True # Default value
         )

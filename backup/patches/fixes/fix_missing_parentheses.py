@@ -9,11 +9,8 @@ import logging
 import re
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
 
 def fix_missing_parentheses():
     """Add the missing closing parentheses in Route definitions"""
@@ -31,11 +28,11 @@ def fix_missing_parentheses():
         # Find lines with Route definitions that are missing closing parentheses
         fixed_count = 0
         for i, line in enumerate(lines):
-            if "app.routes.append(Route(" in line and not line.strip().endswith("))"):
+            if 'app.routes.append(Route(' in line and not line.strip().endswith('))'):
                 # If the line ends with "[POST]" or similar but without the closing parenthesis
                 if re.search(r'methods=\[".+"\]$', line.strip()):
-                    lines[i] = line.rstrip() + "))\n"
-                    logger.info(f"Fixed missing closing parenthesis at line {i + 1}")
+                    lines[i] = line.rstrip() + '))\n'
+                    logger.info(f"Fixed missing closing parenthesis at line {i+1}")
                     fixed_count += 1
 
         if fixed_count == 0:
@@ -53,7 +50,6 @@ def fix_missing_parentheses():
         logger.error(f"Error fixing missing parentheses: {e}")
         return False
 
-
 def main():
     """Main function"""
     logger.info("Starting to fix missing parentheses in Route definitions...")
@@ -66,7 +62,6 @@ def main():
     logger.info("\n✅ Successfully fixed missing parentheses")
     logger.info("You can now run the server with './restart_mcp_with_tools.sh'")
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -254,21 +254,21 @@ def test_with_mock_ipfs(mock_ipfs_client):
 ```python
 def test_with_factory(test_data_factory):
     """Test using data factory."""
-    region = test_data_factory.create_region(region_id="custom-region", priority=5)
+    region = test_data_factory.create_region(
+        region_id="custom-region",
+        priority=5
+    )
     assert region["region_id"] == "custom-region"
 ```
 
 ### Writing Parameterized Tests
 
 ```python
-@pytest.mark.parametrize(
-    "input_value,expected",
-    [
-        (1, 2),
-        (2, 4),
-        (3, 6),
-    ],
-)
+@pytest.mark.parametrize("input_value,expected", [
+    (1, 2),
+    (2, 4),
+    (3, 6),
+])
 def test_doubling(input_value, expected):
     """Test doubling function."""
     assert double(input_value) == expected

@@ -7,4 +7,4 @@ including CAR files and IPLD codecs.
 
 from .car_manager import CARManager
 
-__all__ = ["CARManager"]
+__all__ = ['CARManager']

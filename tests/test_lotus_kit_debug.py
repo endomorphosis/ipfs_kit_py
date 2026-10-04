@@ -10,14 +10,12 @@ import pytest
 # Configure logging
 logging.basicConfig(level=logging.WARNING)
 
-
 def run_lotus_kit_simple() -> bool:
     """Run lotus_kit availability checks and return success."""
     print("Testing lotus_kit availability...")
 
     try:
         import ipfs_kit_py
-
         print("✓ ipfs_kit_py imported successfully")
 
         kit_factory = getattr(ipfs_kit_py, "get_ipfs_kit", None)
@@ -38,13 +36,13 @@ def run_lotus_kit_simple() -> bool:
         print("✓ ipfs_kit instance created successfully")
 
         # Check all attributes
-        attrs = [attr for attr in dir(kit) if not attr.startswith("_")]
+        attrs = [attr for attr in dir(kit) if not attr.startswith('_')]
         print(f"Kit has {len(attrs)} attributes:")
         for attr in sorted(attrs):
             print(f"  - {attr}")
 
         # Specifically check for lotus_kit
-        has_lotus_kit = hasattr(kit, "lotus_kit")
+        has_lotus_kit = hasattr(kit, 'lotus_kit')
         print(f"\nhasattr(kit, 'lotus_kit'): {has_lotus_kit}")
 
         if has_lotus_kit:
@@ -57,7 +55,6 @@ def run_lotus_kit_simple() -> bool:
     except Exception as e:
         print(f"✗ Error: {e}")
         import traceback
-
         traceback.print_exc()
         pytest.skip(f"lotus_kit integration unavailable: {e}")
 
@@ -65,7 +62,6 @@ def run_lotus_kit_simple() -> bool:
 def test_lotus_kit_simple():
     """Simple test for lotus_kit availability"""
     assert run_lotus_kit_simple() is True
-
 
 if __name__ == "__main__":
     success = run_lotus_kit_simple()

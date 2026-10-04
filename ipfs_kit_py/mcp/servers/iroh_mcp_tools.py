@@ -90,11 +90,7 @@ async def handle_iroh_diagnostics(
     """Compatibility handler retaining the diagnostic-only safe contract."""
 
     if arguments is not None and not isinstance(arguments, Mapping):
-        return {
-            "success": False,
-            "code": "invalid_arguments",
-            "error": "arguments must be an object",
-        }
+        return {"success": False, "code": "invalid_arguments", "error": "arguments must be an object"}
     args = dict(arguments or {})
     if set(args) - {"instance", "format", "persist"}:
         return {"success": False, "code": "invalid_arguments", "error": "unsupported argument"}
@@ -111,11 +107,7 @@ async def handle_iroh_diagnostics(
             args, observability_factory=observability_factory, state_root=state_root
         )
     except Exception:
-        return {
-            "success": False,
-            "code": "diagnostics_unavailable",
-            "error": "Iroh diagnostics unavailable",
-        }
+        return {"success": False, "code": "diagnostics_unavailable", "error": "Iroh diagnostics unavailable"}
 
 
 async def handle_iroh_tool(
@@ -150,51 +142,35 @@ async def handle_iroh_tool(
     )
 
 
-async def iroh_diagnostics(
-    arguments: Mapping[str, Any] | None = None, **kwargs: Any
-) -> dict[str, Any]:
+async def iroh_diagnostics(arguments: Mapping[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
     return await handle_iroh_tool("iroh_diagnostics", arguments, **kwargs)
 
 
-async def handle_iroh_service_status(
-    arguments: Mapping[str, Any] | None = None, **kwargs: Any
-) -> dict[str, Any]:
+async def handle_iroh_service_status(arguments: Mapping[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
     return await handle_iroh_tool("iroh_service_status", arguments, **kwargs)
 
 
-async def handle_iroh_blob_stat(
-    arguments: Mapping[str, Any] | None = None, **kwargs: Any
-) -> dict[str, Any]:
+async def handle_iroh_blob_stat(arguments: Mapping[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
     return await handle_iroh_tool("iroh_blob_stat", arguments, **kwargs)
 
 
-async def handle_iroh_service_start(
-    arguments: Mapping[str, Any] | None = None, **kwargs: Any
-) -> dict[str, Any]:
+async def handle_iroh_service_start(arguments: Mapping[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
     return await handle_iroh_tool("iroh_service_start", arguments, **kwargs)
 
 
-async def handle_iroh_blob_fetch(
-    arguments: Mapping[str, Any] | None = None, **kwargs: Any
-) -> dict[str, Any]:
+async def handle_iroh_blob_fetch(arguments: Mapping[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
     return await handle_iroh_tool("iroh_blob_fetch", arguments, **kwargs)
 
 
-async def handle_iroh_ticket_import(
-    arguments: Mapping[str, Any] | None = None, **kwargs: Any
-) -> dict[str, Any]:
+async def handle_iroh_ticket_import(arguments: Mapping[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
     return await handle_iroh_tool("iroh_ticket_import", arguments, **kwargs)
 
 
-async def handle_iroh_service_stop(
-    arguments: Mapping[str, Any] | None = None, **kwargs: Any
-) -> dict[str, Any]:
+async def handle_iroh_service_stop(arguments: Mapping[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
     return await handle_iroh_tool("iroh_service_stop", arguments, **kwargs)
 
 
-async def handle_iroh_service_restart(
-    arguments: Mapping[str, Any] | None = None, **kwargs: Any
-) -> dict[str, Any]:
+async def handle_iroh_service_restart(arguments: Mapping[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
     return await handle_iroh_tool("iroh_service_restart", arguments, **kwargs)
 
 

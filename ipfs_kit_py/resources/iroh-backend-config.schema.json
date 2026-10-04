@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/endomorphosis/ipfs_kit_py/schemas/iroh-backend-config.schema.json",
+  "title": "IPFS Kit Iroh backend configuration",
+  "description": "Persistable, secret-free configuration for one named Iroh filesystem backend.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "name",
+    "type",
+    "enabled",
+    "namespace",
+    "service",
+    "credentials",
+    "timeouts",
+    "sync"
+  ],
+  "properties": {
+    "$schema": { "type": "string", "format": "uri-reference" },
+    "schema_version": { "const": 1 },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9][a-z0-9_-]*$"
+    },
+    "type": { "const": "iroh" },
+    "enabled": { "type": "boolean" },
+    "namespace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "access"],
+      "properties": {
+        "id": { "$ref": "#/$defs/hex32" },
+        "access": { "enum": ["read-only", "read-write"] }
+      }
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["instance", "managed", "rpc_endpoint"],
+      "properties": {
+        "instance": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$"
+        },
+        "managed": { "type": "boolean" },
+        "rpc_endpoint": {
+          "type": "string",
+          "maxLength": 4096,
+          "pattern": "^(?:unix:///[^\\u0000\\r\\n]+|npipe:///[A-Za-z0-9._/-]+)$"
+        }
+      }
+    },
+    "credentials": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_key_ref"],
+      "properties": {
+        "node_key_ref": { "$ref": "#/$defs/secretReference" },
+        "write_capability_ref": { "$ref": "#/$defs/secretReference" },
+        "read_ticket_ref": { "$ref": "#/$defs/secretReference" }
+      }
+    },
+    "timeouts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["connect_seconds", "operation_seconds", "shutdown_seconds"],
+      "properties": {
+        "connect_seconds": { "$ref": "#/$defs/timeout" },
+        "operation_seconds": { "$ref": "#/$defs/timeout" },
+        "shutdown_seconds": { "$ref": "#/$defs/timeout" }
+      }
+    },
+    "sync": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "on_open", "read_consistency", "conflict_policy"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "on_open": { "type": "boolean" },
+        "read_consistency": { "enum": ["local", "synchronized"] },
+        "conflict_policy": { "const": "fail" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["namespace"],
+        "properties": {
+          "namespace": {
+            "required": ["access"],
+            "properties": { "access": { "const": "read-write" } }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "credentials": { "required": ["write_capability_ref"] }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["sync"],
+        "properties": {
+          "sync": {
+            "required": ["read_consistency"],
+            "properties": { "read_consistency": { "const": "synchronized" } }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "sync": {
+            "required": ["enabled"],
+            "properties": { "enabled": { "const": true } }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "hex32": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "secretReference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320,
+      "pattern": "^secretref:(?:secure-config|enhanced-secrets|credential-manager|environment):[A-Za-z0-9][A-Za-z0-9._/-]{0,254}$"
+    },
+    "timeout": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 3600
+    }
+  }
+}

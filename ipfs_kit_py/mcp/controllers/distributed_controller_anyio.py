@@ -23,14 +23,13 @@ logger = logging.getLogger(__name__)
 # Define Pydantic models for requests and responses
 class DistributedResponse(BaseModel):
     """
-    import sys
-    import os
-    # Add the parent directory to sys.path to allow importing mcp_error_handling
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-    import mcp_error_handling
+import sys
+import os
+# Add the parent directory to sys.path to allow importing mcp_error_handling
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+import mcp_error_handling
 
-    Base response model for distributed operations."""
-
+Base response model for distributed operations."""
     success: bool = Field(..., description="Whether the operation was successful")
     operation_id: Optional[str] = Field(None, description="Unique identifier for this operation")
     timestamp: float = Field(..., description="Operation timestamp")
@@ -38,7 +37,6 @@ class DistributedResponse(BaseModel):
 
 class PeerDiscoveryRequest(BaseModel):
     """Request model for peer discovery."""
-
     discovery_methods: List[str] = Field(
         default=["mdns", "dht", "bootstrap", "direct"],
         description="Methods to use for peer discovery",
@@ -54,7 +52,6 @@ class PeerDiscoveryRequest(BaseModel):
 
 class PeerDiscoveryResponse(DistributedResponse):
     """Response model for peer discovery."""
-
     peers: List[Dict[str, Any]] = Field(default=[], description="List of discovered peers")
     discovery_methods_used: List[str] = Field(
         default=[], description="Discovery methods that were successful"
@@ -64,7 +61,6 @@ class PeerDiscoveryResponse(DistributedResponse):
 
 class ClusterCacheRequest(BaseModel):
     """Request model for cluster-wide cache operations."""
-
     operation: str = Field(
         ..., description="Cache operation to perform (get, put, invalidate, sync)"
     )
@@ -83,7 +79,6 @@ class ClusterCacheRequest(BaseModel):
 
 class ClusterCacheResponse(DistributedResponse):
     """Response model for cluster-wide cache operations."""
-
     operation: str = Field(..., description="Cache operation performed")
     key: Optional[str] = Field(None, description="Cache key for the operation")
     value: Optional[Any] = Field(None, description="Retrieved cache value (for 'get' operations)")
@@ -95,7 +90,6 @@ class ClusterCacheResponse(DistributedResponse):
 
 class ClusterStateRequest(BaseModel):
     """Request model for cluster state operations."""
-
     operation: str = Field(..., description="State operation to perform (query, update, subscribe)")
     path: Optional[str] = Field(
         None, description="State path to operate on (e.g., 'nodes.worker1.status')"
@@ -111,7 +105,6 @@ class ClusterStateRequest(BaseModel):
 
 class StateSyncRequest(BaseModel):
     """Request model for state synchronization."""
-
     force_full_sync: bool = Field(
         False, description="Whether to force a full state synchronization"
     )
@@ -122,7 +115,6 @@ class StateSyncRequest(BaseModel):
 
 class ClusterStateResponse(DistributedResponse):
     """Response model for cluster state operations."""
-
     operation: str = Field(..., description="State operation performed")
     path: Optional[str] = Field(None, description="State path operated on")
     value: Optional[Any] = Field(None, description="Retrieved or updated state value")
@@ -134,7 +126,6 @@ class ClusterStateResponse(DistributedResponse):
 
 class NodeRegistrationRequest(BaseModel):
     """Request model for node registration."""
-
     node_id: Optional[str] = Field(None, description="Node identifier (generated if not provided)")
     role: str = Field(..., description="Node role (master, worker, leecher)")
     capabilities: List[str] = Field(
@@ -148,7 +139,6 @@ class NodeRegistrationRequest(BaseModel):
 
 class NodeRegistrationResponse(DistributedResponse):
     """Response model for node registration."""
-
     node_id: str = Field(..., description="Assigned node identifier")
     role: str = Field(..., description="Confirmed node role")
     status: str = Field(..., description="Node status after registration")
@@ -163,7 +153,6 @@ class NodeRegistrationResponse(DistributedResponse):
 
 class DistributedTaskRequest(BaseModel):
     """Request model for distributed task operations."""
-
     task_type: str = Field(..., description="Type of task to perform or submit")
     parameters: Dict[str, Any] = Field(default={}, description="Task parameters")
     priority: int = Field(default=5, description="Task priority (1-10, with 10 being highest)")
@@ -176,7 +165,6 @@ class DistributedTaskRequest(BaseModel):
 
 class DistributedTaskResponse(DistributedResponse):
     """Response model for distributed task operations."""
-
     task_id: str = Field(..., description="Assigned task identifier")
     task_type: str = Field(..., description="Type of task")
     status: str = Field(..., description="Task status")
@@ -198,7 +186,6 @@ class DistributedControllerAnyIO:
     This implementation uses AnyIO for backend-agnostic async operations,
     supporting both async-io and trio.
     """
-
     def __init__(self, ipfs_model):
         """
         Initialize the distributed controller.
@@ -403,7 +390,7 @@ class DistributedControllerAnyIO:
                     code="INTERNAL_ERROR",
                     message_override=error_msg,
                     endpoint="/api/v0/distributed_anyio",
-                    doc_category="api",
+                    doc_category="api"
                 )
 
             return {
@@ -421,7 +408,7 @@ class DistributedControllerAnyIO:
                 code="TIMEOUT",
                 message_override="Peer discovery timed out",
                 endpoint="/api/v0/distributed_anyio",
-                doc_category="api",
+                doc_category="api"
             )
         except Exception as e:
             logger.error(f"Error discovering peers: {e}")
@@ -429,7 +416,7 @@ class DistributedControllerAnyIO:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/distributed_anyio",
-                doc_category="api",
+                doc_category="api"
             )
 
     async def list_known_peers(
@@ -478,7 +465,7 @@ class DistributedControllerAnyIO:
                     code="INTERNAL_ERROR",
                     message_override=error_msg,
                     endpoint="/api/v0/distributed_anyio",
-                    doc_category="api",
+                    doc_category="api"
                 )
 
             return {
@@ -496,7 +483,7 @@ class DistributedControllerAnyIO:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/distributed_anyio",
-                doc_category="api",
+                doc_category="api"
             )
 
     async def register_node(self, request: NodeRegistrationRequest) -> Dict[str, Any]:
@@ -550,7 +537,7 @@ class DistributedControllerAnyIO:
                     code="INTERNAL_ERROR",
                     message_override=error_msg,
                     endpoint="/api/v0/distributed_anyio",
-                    doc_category="api",
+                    doc_category="api"
                 )
 
             return {
@@ -571,7 +558,7 @@ class DistributedControllerAnyIO:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/distributed_anyio",
-                doc_category="api",
+                doc_category="api"
             )
 
     async def update_node_status(
@@ -615,7 +602,7 @@ class DistributedControllerAnyIO:
                     code="INTERNAL_ERROR",
                     message_override=error_msg,
                     endpoint="/api/v0/distributed_anyio",
-                    doc_category="api",
+                    doc_category="api"
                 )
 
             return {
@@ -631,7 +618,7 @@ class DistributedControllerAnyIO:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/distributed_anyio",
-                doc_category="api",
+                doc_category="api"
             )
 
     async def list_nodes(
@@ -686,7 +673,7 @@ class DistributedControllerAnyIO:
                     code="INTERNAL_ERROR",
                     message_override=error_msg,
                     endpoint="/api/v0/distributed_anyio",
-                    doc_category="api",
+                    doc_category="api"
                 )
 
             return {
@@ -702,7 +689,7 @@ class DistributedControllerAnyIO:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/distributed_anyio",
-                doc_category="api",
+                doc_category="api"
             )
 
     async def cache_operation(self, request: ClusterCacheRequest) -> Dict[str, Any]:
@@ -754,7 +741,7 @@ class DistributedControllerAnyIO:
                     code="INTERNAL_ERROR",
                     message_override=error_msg,
                     endpoint="/api/v0/distributed_anyio",
-                    doc_category="api",
+                    doc_category="api"
                 )
 
             return {
@@ -774,7 +761,7 @@ class DistributedControllerAnyIO:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/distributed_anyio",
-                doc_category="api",
+                doc_category="api"
             )
 
     async def get_cache_status(self) -> Dict[str, Any]:
@@ -807,7 +794,7 @@ class DistributedControllerAnyIO:
                     code="INTERNAL_ERROR",
                     message_override=error_msg,
                     endpoint="/api/v0/distributed_anyio",
-                    doc_category="api",
+                    doc_category="api"
                 )
 
             return {
@@ -823,7 +810,7 @@ class DistributedControllerAnyIO:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/distributed_anyio",
-                doc_category="api",
+                doc_category="api"
             )
 
     async def state_operation(self, request: ClusterStateRequest) -> Dict[str, Any]:
@@ -873,7 +860,7 @@ class DistributedControllerAnyIO:
                     code="INTERNAL_ERROR",
                     message_override=error_msg,
                     endpoint="/api/v0/distributed_anyio",
-                    doc_category="api",
+                    doc_category="api"
                 )
 
             return {
@@ -893,7 +880,7 @@ class DistributedControllerAnyIO:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/distributed_anyio",
-                doc_category="api",
+                doc_category="api"
             )
 
     async def synchronize_state(self, sync_data: StateSyncRequest) -> Dict[str, Any]:
@@ -941,7 +928,7 @@ class DistributedControllerAnyIO:
                     code="INTERNAL_ERROR",
                     message_override=error_msg,
                     endpoint="/api/v0/distributed_anyio",
-                    doc_category="api",
+                    doc_category="api"
                 )
 
             return {
@@ -957,7 +944,7 @@ class DistributedControllerAnyIO:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/distributed_anyio",
-                doc_category="api",
+                doc_category="api"
             )
 
     async def submit_task(self, request: DistributedTaskRequest) -> Dict[str, Any]:
@@ -1017,7 +1004,7 @@ class DistributedControllerAnyIO:
                     code="INTERNAL_ERROR",
                     message_override=error_msg,
                     endpoint="/api/v0/distributed_anyio",
-                    doc_category="api",
+                    doc_category="api"
                 )
 
             return {
@@ -1038,7 +1025,7 @@ class DistributedControllerAnyIO:
                 code="TIMEOUT",
                 message_override=str(e),
                 endpoint="/api/v0/distributed_anyio",
-                doc_category="api",
+                doc_category="api"
             )
         except Exception as e:
             logger.error(f"Error submitting task: {e}")
@@ -1046,7 +1033,7 @@ class DistributedControllerAnyIO:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/distributed_anyio",
-                doc_category="api",
+                doc_category="api"
             )
 
     async def get_task_status(self, task_id: str) -> Dict[str, Any]:
@@ -1101,7 +1088,7 @@ class DistributedControllerAnyIO:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/distributed_anyio",
-                doc_category="api",
+                doc_category="api"
             )
 
     async def cancel_task(self, task_id: str) -> Dict[str, Any]:
@@ -1156,7 +1143,7 @@ class DistributedControllerAnyIO:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/distributed_anyio",
-                doc_category="api",
+                doc_category="api"
             )
 
     async def list_tasks(
@@ -1211,7 +1198,7 @@ class DistributedControllerAnyIO:
                     code="INTERNAL_ERROR",
                     message_override=error_msg,
                     endpoint="/api/v0/distributed_anyio",
-                    doc_category="api",
+                    doc_category="api"
                 )
 
             return {
@@ -1227,7 +1214,7 @@ class DistributedControllerAnyIO:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/distributed_anyio",
-                doc_category="api",
+                doc_category="api"
             )
 
     async def simple_sync(self):

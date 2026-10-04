@@ -99,7 +99,7 @@ result = manager.version(
     dataset_id="my-dataset",
     version="2.0.0",
     parent_version="1.0.0",
-    transformations=["normalize", "augment"],
+    transformations=["normalize", "augment"]
 )
 
 # Get event log
@@ -124,12 +124,13 @@ from ipfs_kit_py.filesystem_journal import FilesystemJournal
 journal = FilesystemJournal(
     base_path="~/.ipfs_kit/journal",
     enable_ipfs_datasets=True,
-    ipfs_client=ipfs_client,  # Optional IPFS client
+    ipfs_client=ipfs_client  # Optional IPFS client
 )
 
 # Store a dataset (automatically logged in journal)
 result = journal.store_dataset(
-    "path/to/dataset.csv", metadata={"description": "Training data", "version": "1.0"}
+    "path/to/dataset.csv",
+    metadata={"description": "Training data", "version": "1.0"}
 )
 
 # Version a dataset with lineage tracking
@@ -138,7 +139,7 @@ result = journal.version_dataset(
     version="1.1.0",
     parent_version="1.0.0",
     transformations=["feature_engineering", "outlier_removal"],
-    metadata={"notes": "Improved quality"},
+    metadata={"notes": "Improved quality"}
 )
 
 # Get dataset-specific logs
@@ -157,20 +158,23 @@ from ipfs_kit_py.mcp.ai.dataset_manager import DatasetManager
 # Initialize with IPFS backend
 manager = DatasetManager(
     enable_ipfs_backend=True,
-    ipfs_client=ipfs_client,  # Optional
+    ipfs_client=ipfs_client  # Optional
 )
 
 # Create a dataset
 dataset = manager.create_dataset(
-    name="training-data", description="Image classification training set", domain="computer_vision"
+    name="training-data",
+    description="Image classification training set",
+    domain="computer_vision"
 )
 
 # Store dataset files to IPFS
 result = manager.store_dataset_to_ipfs(
-    "path/to/dataset.tar.gz", metadata={"dataset_id": dataset.id}
+    "path/to/dataset.tar.gz",
+    metadata={"dataset_id": dataset.id}
 )
 
-if result["success"] and result.get("distributed"):
+if result['success'] and result.get('distributed'):
     print(f"Dataset stored to IPFS with CID: {result['cid']}")
 else:
     print(f"Dataset stored locally: {result['local_path']}")
@@ -178,7 +182,7 @@ else:
 # Load from IPFS
 result = manager.load_dataset_from_ipfs(
     "Qm...",  # CID
-    target_path="/tmp/dataset",
+    target_path="/tmp/dataset"
 )
 
 # Version with provenance
@@ -186,7 +190,7 @@ result = manager.version_dataset_with_ipfs(
     dataset_id=dataset.id,
     version="2.0.0",
     parent_version="1.0.0",
-    transformations=["augmentation", "balancing"],
+    transformations=["augmentation", "balancing"]
 )
 ```
 
@@ -269,7 +273,7 @@ from ipfs_kit_py.ipfs_datasets_integration import DatasetIPFSBackend
 
 backend = DatasetIPFSBackend(
     base_path="~/.custom_datasets",  # Custom storage path
-    enable_distributed=True,  # Enable distributed mode
+    enable_distributed=True           # Enable distributed mode
 )
 ```
 
@@ -279,11 +283,11 @@ backend = DatasetIPFSBackend(
 
 ```python
 {
-    "operation": "store",  # Operation type
-    "path": "/path/to/dataset.csv",  # Dataset path
-    "timestamp": "2024-01-28T...",  # ISO timestamp
-    "success": True,  # Success flag
-    "cid": "Qm...",  # CID (if distributed)
+    "operation": "store",              # Operation type
+    "path": "/path/to/dataset.csv",    # Dataset path
+    "timestamp": "2024-01-28T...",     # ISO timestamp
+    "success": True,                   # Success flag
+    "cid": "Qm..."                     # CID (if distributed)
 }
 ```
 
@@ -294,9 +298,12 @@ backend = DatasetIPFSBackend(
     "dataset_id": "my-dataset",
     "version": "2.0.0",
     "parent_version": "1.0.0",
-    "transformations": ["normalize", "augment"],
+    "transformations": [
+        "normalize",
+        "augment"
+    ],
     "timestamp": "2024-01-28T...",
-    "cid": "Qm...",  # CID (if distributed)
+    "cid": "Qm..."                     # CID (if distributed)
 }
 ```
 
@@ -347,8 +354,8 @@ from ipfs_kit_py.ipfs_datasets_search import get_dataset_search_indexer
 # Initialize the search indexer with optional components
 indexer = get_dataset_search_indexer(
     ipfs_client=ipfs_client,  # Optional IPFS client
-    enable_graphrag=True,  # Enable semantic search
-    enable_knowledge_graph=True,  # Enable relationship tracking
+    enable_graphrag=True,      # Enable semantic search
+    enable_knowledge_graph=True # Enable relationship tracking
 )
 
 # Index a dataset
@@ -358,9 +365,9 @@ result = indexer.index_dataset(
     metadata={
         "description": "ML training dataset",
         "tags": ["machine-learning", "classification"],
-        "version": "1.0",
+        "version": "1.0"
     },
-    cid="Qm...",  # Optional IPFS CID
+    cid="Qm..."  # Optional IPFS CID
 )
 
 print(f"Indexed in: {result['indexed_components']}")
@@ -371,7 +378,10 @@ print(f"Indexed in: {result['indexed_components']}")
 
 ```python
 # Simple text search
-results = indexer.search_datasets(query="machine learning", limit=10)
+results = indexer.search_datasets(
+    query="machine learning",
+    limit=10
+)
 
 for dataset in results:
     print(f"Found: {dataset['dataset_id']} - {dataset.get('description')}")
@@ -380,7 +390,7 @@ for dataset in results:
 results = indexer.search_datasets(
     query="training",
     filters={"content_type": "tabular", "version": "1.0"},
-    use_semantic_search=True,  # Use vector embeddings if available
+    use_semantic_search=True  # Use vector embeddings if available
 )
 
 # List all indexed datasets
@@ -388,7 +398,9 @@ all_datasets = indexer.list_indexed_datasets()
 print(f"Total indexed datasets: {len(all_datasets)}")
 
 # Filter by type
-csv_datasets = indexer.list_indexed_datasets(filters={"content_type": "tabular"})
+csv_datasets = indexer.list_indexed_datasets(
+    filters={"content_type": "tabular"}
+)
 ```
 
 ### Tracking Dataset Lineage
@@ -415,7 +427,7 @@ The search indexer can automatically index datasets when they are stored through
 from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
 from ipfs_kit_py.ipfs_datasets_search import (
     get_dataset_search_indexer,
-    integrate_with_dataset_manager,
+    integrate_with_dataset_manager
 )
 
 # Get both managers
@@ -450,7 +462,8 @@ When GraphRAG is enabled, you can perform semantic searches that understand cont
 ```python
 # Semantic search finds datasets based on meaning, not just keywords
 results = indexer.search_datasets(
-    query="customer churn prediction models", use_semantic_search=True
+    query="customer churn prediction models",
+    use_semantic_search=True
 )
 
 # This might find datasets with descriptions like:

@@ -1,0 +1,82 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8001,
+    "debug": false,
+    "log_level": "INFO"
+  },
+  "metadata": {
+    "path": "~/.ipfs_kit",
+    "cache_ttl": 60,
+    "enable_caching": true
+  },
+  "daemon": {
+    "host": "127.0.0.1",
+    "port": 9999,
+    "auto_connect": true,
+    "health_check_interval": 30
+  },
+  "features": {
+    "cli_parity": true,
+    "metadata_efficient": true,
+    "daemon_managed": true,
+    "rest_endpoints": true,
+    "command_interface": true
+  },
+  "handlers": {
+    "daemon": {
+      "enabled": true,
+      "intelligent_daemon_support": true
+    },
+    "pin": {
+      "enabled": true,
+      "wal_integration": true,
+      "car_support": true
+    },
+    "backend": {
+      "enabled": true,
+      "supported_types": [
+        "huggingface",
+        "github", 
+        "s3",
+        "storacha",
+        "ipfs", 
+        "gdrive",
+        "lotus",
+        "synapse",
+        "sshfs", 
+        "ftp",
+        "ipfs_cluster",
+        "ipfs_cluster_follow",
+        "parquet",
+        "arrow"
+      ]
+    },
+    "bucket": {
+      "enabled": true
+    },
+    "log": {
+      "enabled": true,
+      "max_entries": 10000
+    },
+    "service": {
+      "enabled": true,
+      "supported_services": ["ipfs", "lotus", "cluster", "lassie"]
+    },
+    "mcp": {
+      "enabled": true,
+      "role_management": true
+    }
+  },
+  "cors": {
+    "allow_origins": ["*"],
+    "allow_credentials": true,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"]
+  },
+  "logging": {
+    "format": "%(asctime)s [%(levelname)8s] %(name)s: %(message)s",
+    "date_format": "%H:%M:%S",
+    "handlers": ["console"]
+  }
+}

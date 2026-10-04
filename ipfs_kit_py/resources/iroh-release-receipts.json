@@ -1,0 +1,107 @@
+{
+  "$schema": "./iroh-release-receipts.schema.json",
+  "schema_version": 1,
+  "kind": "ipfs-kit-iroh-release-receipts",
+  "task_id": "IROH-027",
+  "release_bundle": "iroh-1.0.2-ipfs-kit.1",
+  "recorded_at": "2026-07-13T00:00:00Z",
+  "receipts": [
+    {
+      "id": "iroh-offline-contracts-20260713",
+      "type": "test",
+      "status": "passed",
+      "required_for": "disabled",
+      "command": ["python", "-m", "pytest", "-q", "tests/test_iroh_release_readiness.py"],
+      "evidence": [
+        ".github/workflows/iroh-ci.yml",
+        "docs/iroh/ci-packaging.md",
+        "tests/test_iroh_release_readiness.py"
+      ],
+      "scope": "Offline contract, fsspec, async, lifecycle, installer, packaging, and release-policy gates."
+    },
+    {
+      "id": "iroh-performance-floor-20260713",
+      "type": "benchmark",
+      "status": "passed",
+      "required_for": "experimental",
+      "command": ["python", "-m", "pytest", "-q", "tests/test_iroh_performance.py"],
+      "evidence": [
+        "ipfs_kit_py/resources/iroh-performance-baseline.json",
+        "docs/iroh/performance.md",
+        "tests/test_iroh_performance.py"
+      ],
+      "scope": "Deterministic in-memory latency, throughput, concurrency, range-size, cache, and staging-memory regression floor."
+    },
+    {
+      "id": "iroh-security-hardening-20260713",
+      "type": "security",
+      "status": "passed",
+      "required_for": "disabled",
+      "command": [
+        "python", "-m", "pytest", "-q",
+        "tests/test_install_iroh.py", "tests/test_iroh_filesystem_contract.py",
+        "tests/test_iroh_config.py", "tests/test_iroh_observability.py",
+        "tests/test_iroh_gc.py", "tests/test_iroh_release_readiness.py"
+      ],
+      "evidence": [
+        ".github/workflows/iroh-ci.yml",
+        "ipfs_kit_py/resources/iroh-releases.json",
+        "tests/test_iroh_filesystem_contract.py",
+        "tests/test_iroh_observability.py",
+        "tests/test_iroh_gc.py"
+      ],
+      "scope": "Artifact verification, bounded inputs/resources, traversal defense, secret redaction, least-privilege state, integrity, and non-destructive GC/rollback invariants."
+    },
+    {
+      "id": "iroh-operations-recovery-20260713",
+      "type": "operations",
+      "status": "passed",
+      "required_for": "experimental",
+      "command": ["python", "-m", "pytest", "-q", "tests/test_iroh_service.py", "tests/test_iroh_gc.py"],
+      "evidence": [
+        "docs/iroh/install-lifecycle.md",
+        "docs/iroh/service-lifecycle.md",
+        "docs/iroh/observability.md",
+        "tests/test_iroh_service.py",
+        "tests/test_iroh_gc.py"
+      ],
+      "scope": "Install rollback, service recovery, health diagnostics, leases, dry-run GC, and manifest/blob preservation."
+    },
+    {
+      "id": "iroh-packaging-source-pinned-20260713",
+      "type": "packaging",
+      "status": "conditional",
+      "required_for": "canary",
+      "command": ["python", "-m", "pytest", "-q", "tests/test_iroh_packaging.py"],
+      "evidence": [
+        "docs/iroh/ci-packaging.md",
+        "ipfs_kit_py/resources/iroh-releases.json",
+        "tests/test_iroh_packaging.py"
+      ],
+      "scope": "Python wheel/sdist gates pass; a signed, attested, installable sidecar is not yet published.",
+      "limitation": "The selected sidecar has distribution_status=source-pinned and every platform is installable=false."
+    },
+    {
+      "id": "iroh-real-multinode-pending-20260713",
+      "type": "interoperability",
+      "status": "not_run",
+      "required_for": "canary",
+      "command": ["python", "-m", "pytest", "-q", "tests/test_iroh_multinode.py::test_real_multinode_interoperability_lane"],
+      "evidence": [
+        "ipfs_kit_py/resources/iroh-interoperability-evidence.json",
+        "docs/iroh/interoperability.md",
+        "tests/test_iroh_multinode.py"
+      ],
+      "scope": "Direct, relay, NAT-like, interruption, version-skew, key-rotation, and large-data real-node scenarios.",
+      "limitation": "The checked-in interoperability record is not_run; a protected real-node lane must attach passing Linux and macOS evidence."
+    }
+  ],
+  "security_findings": {
+    "unresolved_critical": 0,
+    "unresolved_high": 0,
+    "unresolved_medium": 0,
+    "unresolved_low": 0,
+    "review_owner": "IPFS Kit security maintainers",
+    "reviewed_at": "2026-07-13"
+  }
+}

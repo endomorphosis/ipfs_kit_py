@@ -442,7 +442,7 @@ def create_health_router(api_prefix: str) -> APIRouter:
                 "ipfs": {"healthy": ipfs_health, "status": ipfs_status},
                 "disk": {"healthy": disk_health, "status": disk_status},
                 "memory": {"healthy": memory_health, "status": memory_status},
-                "storage_backends": storage_backends,
+                "storage_backends": storage_backends
             },
             "monitoring_available": MONITORING_AVAILABLE and monitoring_system is not None,
         }

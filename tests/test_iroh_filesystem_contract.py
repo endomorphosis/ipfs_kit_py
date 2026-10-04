@@ -28,7 +28,9 @@ CONTRACT_PATH = FIXTURE_DIR / "contract-v1.json"
 HEX32 = re.compile(r"^[a-f0-9]{64}$")
 TICKET_REF = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
 BAD_PERCENT = re.compile(r"%(?![0-9A-Fa-f]{2})")
-ENCODED_SEPARATOR_OR_CONTROL = re.compile(r"%(?:2[fF]|5[cC]|0[0-9A-Fa-f]|1[0-9A-Fa-f]|7[fF])")
+ENCODED_SEPARATOR_OR_CONTROL = re.compile(
+    r"%(?:2[fF]|5[cC]|0[0-9A-Fa-f]|1[0-9A-Fa-f]|7[fF])"
+)
 
 EXPECTED_ERROR_CODES = {
     "IROH_INVALID_URL",

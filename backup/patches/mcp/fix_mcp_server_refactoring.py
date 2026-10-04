@@ -383,7 +383,6 @@ SERVER_ADD = '''
             logger.error(f"Error during graceful shutdown: {e}")
 '''
 
-
 def fix_blue_green_proxy():
     """Fix the blue-green proxy implementation."""
     print(f"Updating blue-green proxy at {BLUE_GREEN_PROXY_PATH}...")
@@ -398,11 +397,10 @@ def fix_blue_green_proxy():
         print(f"Created backup at {backup_path}")
 
     # Write the updated content
-    with open(BLUE_GREEN_PROXY_PATH, "w") as f:
+    with open(BLUE_GREEN_PROXY_PATH, 'w') as f:
         f.write(BLUE_GREEN_PROXY_CONTENT)
 
     print("Blue-green proxy updated successfully")
-
 
 def update_storage_controller():
     """Update the storage controller with additional methods."""
@@ -413,17 +411,17 @@ def update_storage_controller():
     print(f"Updating storage controller at {STORAGE_CONTROLLER_PATH}...")
 
     # Read the original content
-    with open(STORAGE_CONTROLLER_PATH, "r") as f:
+    with open(STORAGE_CONTROLLER_PATH, 'r') as f:
         content = f.read()
 
     # Create backup
     backup_path = STORAGE_CONTROLLER_PATH.with_suffix(".py.bak")
-    with open(backup_path, "w") as f:
+    with open(backup_path, 'w') as f:
         f.write(content)
         print(f"Created backup at {backup_path}")
 
     # Find position to insert new methods (before the last closing brace)
-    last_brace_pos = content.rfind("}")
+    last_brace_pos = content.rfind('}')
     if last_brace_pos > 0:
         new_content = content[:last_brace_pos] + STORAGE_CONTROLLER_ADD + content[last_brace_pos:]
     else:
@@ -431,11 +429,10 @@ def update_storage_controller():
         new_content = content + "\n" + STORAGE_CONTROLLER_ADD
 
     # Write the updated content
-    with open(STORAGE_CONTROLLER_PATH, "w") as f:
+    with open(STORAGE_CONTROLLER_PATH, 'w') as f:
         f.write(new_content)
 
     print("Storage controller updated successfully")
-
 
 def update_server():
     """Update the server with graceful shutdown method."""
@@ -446,20 +443,20 @@ def update_server():
     print(f"Updating server at {SERVER_PATH}...")
 
     # Read the original content
-    with open(SERVER_PATH, "r") as f:
+    with open(SERVER_PATH, 'r') as f:
         content = f.read()
 
     # Create backup
     backup_path = SERVER_PATH.with_suffix(".py.bak")
-    with open(backup_path, "w") as f:
+    with open(backup_path, 'w') as f:
         f.write(content)
         print(f"Created backup at {backup_path}")
 
     # Find the MCPServer class definition
-    mcp_server_class_match = re.search(r"class\s+MCPServer\s*:", content)
+    mcp_server_class_match = re.search(r'class\s+MCPServer\s*:', content)
     if mcp_server_class_match:
         # Find the end of the class (last method in the class)
-        methods = re.finditer(r"    def\s+\w+\s*\(", content[mcp_server_class_match.start() :])
+        methods = re.finditer(r'    def\s+\w+\s*\(', content[mcp_server_class_match.start():])
         last_method_start = None
         for m in methods:
             last_method_start = m.start() + mcp_server_class_match.start()
@@ -473,26 +470,23 @@ def update_server():
             triple_quote_type = None
 
             for i, char in enumerate(method_body):
-                if i >= 3 and method_body[i - 3 : i] in ['"""', "'''"]:
+                if i >= 3 and method_body[i-3:i] in ['"""', "'''"]:
                     if not in_triple_quote:
                         in_triple_quote = True
-                        triple_quote_type = method_body[i - 3 : i]
-                    elif triple_quote_type == method_body[i - 3 : i]:
+                        triple_quote_type = method_body[i-3:i]
+                    elif triple_quote_type == method_body[i-3:i]:
                         in_triple_quote = False
                         triple_quote_type = None
 
                 if not in_triple_quote:
-                    if char == "{":
+                    if char == '{':
                         brace_level += 1
-                    elif char == "}":
+                    elif char == '}':
                         brace_level -= 1
 
-                    if char == "\n":
+                    if char == '\n':
                         next_non_space = i + 1
-                        while (
-                            next_non_space < len(method_body)
-                            and method_body[next_non_space].isspace()
-                        ):
+                        while next_non_space < len(method_body) and method_body[next_non_space].isspace():
                             next_non_space += 1
 
                         if next_non_space < len(method_body):
@@ -503,15 +497,10 @@ def update_server():
                                 insertion_point = last_method_start + i
 
                                 # Insert the new method after the last method
-                                new_content = (
-                                    content[:insertion_point]
-                                    + "\n"
-                                    + SERVER_ADD
-                                    + content[insertion_point:]
-                                )
+                                new_content = content[:insertion_point] + "\n" + SERVER_ADD + content[insertion_point:]
 
                                 # Write the updated content
-                                with open(SERVER_PATH, "w") as f:
+                                with open(SERVER_PATH, 'w') as f:
                                     f.write(new_content)
 
                                 print("Server updated successfully")
@@ -521,11 +510,10 @@ def update_server():
     new_content = content + "\n\n" + SERVER_ADD
 
     # Write the updated content
-    with open(SERVER_PATH, "w") as f:
+    with open(SERVER_PATH, 'w') as f:
         f.write(new_content)
 
     print("Server updated by appending to the end")
-
 
 def apply_mcp_server_fixes():
     """Apply all MCP server refactoring fixes."""
@@ -547,7 +535,6 @@ def apply_mcp_server_fixes():
     except Exception as e:
         print(f"Error applying MCP server fixes: {e}")
         return False
-
 
 if __name__ == "__main__":
     try:

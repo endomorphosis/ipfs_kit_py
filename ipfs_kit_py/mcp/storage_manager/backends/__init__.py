@@ -8,4 +8,8 @@ from .ipfs_backend import IPFSBackend
 from .filecoin_pin_backend import FilecoinPinBackend
 from .saturn_backend import SaturnBackend
 
-__all__ = ["IPFSBackend", "FilecoinPinBackend", "SaturnBackend"]
+__all__ = [
+    "IPFSBackend",
+    "FilecoinPinBackend",
+    "SaturnBackend"
+]

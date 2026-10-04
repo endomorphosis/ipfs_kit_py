@@ -10,15 +10,12 @@ import importlib
 # Try to import the module
 try:
     import ipfs_kit_py.lotus_kit
-
     module_file = ipfs_kit_py.lotus_kit.__file__
     print(f"lotus_kit module location: {module_file}")
 
     # Check if LOTUS_KIT_AVAILABLE is defined
-    if hasattr(ipfs_kit_py.lotus_kit, "LOTUS_KIT_AVAILABLE"):
-        print(
-            f"LOTUS_KIT_AVAILABLE is already defined: {ipfs_kit_py.lotus_kit.LOTUS_KIT_AVAILABLE}"
-        )
+    if hasattr(ipfs_kit_py.lotus_kit, 'LOTUS_KIT_AVAILABLE'):
+        print(f"LOTUS_KIT_AVAILABLE is already defined: {ipfs_kit_py.lotus_kit.LOTUS_KIT_AVAILABLE}")
     else:
         print("LOTUS_KIT_AVAILABLE is not defined, adding it now...")
 
@@ -28,24 +25,20 @@ try:
 
         # Now try to update the source file
         if os.path.exists(module_file):
-            with open(module_file, "r") as f:
+            with open(module_file, 'r') as f:
                 content = f.read()
 
-            if "LOTUS_KIT_AVAILABLE" not in content:
+            if 'LOTUS_KIT_AVAILABLE' not in content:
                 print(f"Adding LOTUS_KIT_AVAILABLE to {module_file}")
                 import_section_end = content.find("import requests")
                 if import_section_end != -1:
                     # Find the line after the imports
                     line_end = content.find("\n", import_section_end)
                     if line_end != -1:
-                        new_content = (
-                            content[: line_end + 1]
-                            + "\n# Flag to indicate lotus_kit is available\nLOTUS_KIT_AVAILABLE = True\n"
-                            + content[line_end + 1 :]
-                        )
+                        new_content = content[:line_end+1] + "\n# Flag to indicate lotus_kit is available\nLOTUS_KIT_AVAILABLE = True\n" + content[line_end+1:]
 
                         # Write the modified content back
-                        with open(module_file, "w") as f:
+                        with open(module_file, 'w') as f:
                             f.write(new_content)
                         print(f"Successfully updated {module_file}")
                     else:
@@ -62,7 +55,7 @@ try:
     importlib.reload(ipfs_kit_py.lotus_kit)
 
     # Check again
-    if hasattr(ipfs_kit_py.lotus_kit, "LOTUS_KIT_AVAILABLE"):
+    if hasattr(ipfs_kit_py.lotus_kit, 'LOTUS_KIT_AVAILABLE'):
         print(f"After reload: LOTUS_KIT_AVAILABLE = {ipfs_kit_py.lotus_kit.LOTUS_KIT_AVAILABLE}")
     else:
         print("After reload: LOTUS_KIT_AVAILABLE is still not defined")

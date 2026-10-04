@@ -62,13 +62,11 @@ A new file can be created to implement the missing methods:
 def add_content(self, content, filename=None, pin=True):
     """Add content to IPFS."""
     # Implementation here
-
-
+    
 def cat(self, cid):
     """Retrieve content from IPFS."""
     # Implementation here
-
-
+    
 def pin_add(self, cid, recursive=True):
     """Pin content to IPFS."""
     # Implementation here

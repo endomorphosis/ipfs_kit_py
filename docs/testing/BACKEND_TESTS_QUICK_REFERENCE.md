@@ -228,17 +228,16 @@ pytest tests/integration/test_s3_backend.py::TestS3Backend::test_store_retrieve_
 import unittest
 import os
 
-
 class TestNewBackend(unittest.TestCase):
     """Test template for new backend"""
-
+    
     MOCK_MODE = os.environ.get("NEW_BACKEND_MOCK_MODE", "true").lower() == "true"
-
+    
     def setUp(self):
         """Initialize backend"""
         self.backend = self._create_backend()
         self.created_resources = []
-
+    
     def tearDown(self):
         """Cleanup"""
         for resource in self.created_resources:
@@ -246,16 +245,16 @@ class TestNewBackend(unittest.TestCase):
                 self.backend.delete(resource)
             except:
                 pass
-
+    
     def test_store_retrieve(self):
         """Test basic store/retrieve"""
         content = b"test data"
         identifier = self.backend.store(content)
         self.created_resources.append(identifier)
-
+        
         retrieved = self.backend.retrieve(identifier)
         self.assertEqual(content, retrieved)
-
+    
     @staticmethod
     def _create_backend():
         """Create backend instance"""

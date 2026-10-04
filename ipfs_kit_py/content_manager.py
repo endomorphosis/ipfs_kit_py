@@ -7,9 +7,8 @@ import time
 
 logger = logging.getLogger(__name__)
 
-IPFS_KIT_PATH = Path.home() / ".ipfs_kit"
-CONTENT_PATH = IPFS_KIT_PATH / "content.json"
-
+IPFS_KIT_PATH = Path.home() / '.ipfs_kit'
+CONTENT_PATH = IPFS_KIT_PATH / 'content.json'
 
 class ContentManager:
     def __init__(self):
@@ -19,7 +18,7 @@ class ContentManager:
         if not CONTENT_PATH.exists():
             return []
         try:
-            with open(CONTENT_PATH, "r") as f:
+            with open(CONTENT_PATH, 'r') as f:
                 return json.load(f)
         except Exception as e:
             logger.error(f"Error loading content data: {e}")
@@ -28,7 +27,7 @@ class ContentManager:
     def _save_content(self):
         CONTENT_PATH.parent.mkdir(parents=True, exist_ok=True)
         try:
-            with open(CONTENT_PATH, "w") as f:
+            with open(CONTENT_PATH, 'w') as f:
                 json.dump(self.content_data, f, indent=2)
         except Exception as e:
             logger.error(f"Error saving content data: {e}")
@@ -47,7 +46,7 @@ class ContentManager:
         content_str = json.dumps(data, sort_keys=True)
         content_hash = hashlib.sha256(content_str.encode()).hexdigest()
         cid = f"sha256-{content_hash}"
-
+        
         new_item = {
             "cid": cid,
             "name": data.get("name", ""),
@@ -57,7 +56,7 @@ class ContentManager:
             "hash_algorithm": "sha256",
             "multihash": base64.b64encode(bytes.fromhex(content_hash)).decode(),
             "tags": data.get("tags", []),
-            "metadata": data.get("metadata", {}),
+            "metadata": data.get("metadata", {})
         }
         self.content_data.append(new_item)
         self._save_content()

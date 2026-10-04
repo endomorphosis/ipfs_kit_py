@@ -1,0 +1,112 @@
+{
+  "performance": {
+    "name": "performance",
+    "description": "Prioritize performance over cost",
+    "cost_weight": 0.1,
+    "performance_weight": 0.7,
+    "reliability_weight": 0.2,
+    "max_replicas": 2,
+    "content_filters": {},
+    "backend_preferences": {
+      "s3": 1.2,
+      "local": 1.1,
+      "ipfs": 0.9,
+      "filecoin": 0.5
+    },
+    "geo_preferences": {
+      "same_region": 1.5,
+      "same_continent": 1.2,
+      "different_continent": 0.7
+    }
+  },
+  "cost-effective": {
+    "name": "cost-effective",
+    "description": "Prioritize cost over performance",
+    "cost_weight": 0.7,
+    "performance_weight": 0.1,
+    "reliability_weight": 0.2,
+    "max_replicas": 1,
+    "content_filters": {},
+    "backend_preferences": {
+      "filecoin": 1.3,
+      "ipfs": 1.0,
+      "local": 0.9,
+      "s3": 0.7
+    },
+    "geo_preferences": {
+      "same_region": 1.1,
+      "same_continent": 1.0,
+      "different_continent": 0.9
+    }
+  },
+  "balanced": {
+    "name": "balanced",
+    "description": "Balance between cost, performance, and reliability",
+    "cost_weight": 0.3,
+    "performance_weight": 0.3,
+    "reliability_weight": 0.4,
+    "max_replicas": 2,
+    "content_filters": {},
+    "backend_preferences": {
+      "s3": 1.0,
+      "ipfs": 1.0,
+      "local": 1.0,
+      "filecoin": 1.0,
+      "storacha": 1.0,
+      "huggingface": 1.0,
+      "lassie": 1.0
+    },
+    "geo_preferences": {
+      "same_region": 1.2,
+      "same_continent": 1.0,
+      "different_continent": 0.8
+    }
+  },
+  "archive": {
+    "name": "archive",
+    "description": "Optimize for long-term storage with multiple replicas",
+    "cost_weight": 0.5,
+    "performance_weight": 0.1,
+    "reliability_weight": 0.4,
+    "max_replicas": 3,
+    "content_filters": {
+      "min_size_mb": 10
+    },
+    "backend_preferences": {
+      "filecoin": 1.5,
+      "s3": 1.0,
+      "ipfs": 0.8,
+      "local": 0.5
+    },
+    "geo_preferences": {
+      "same_region": 0.9,
+      "same_continent": 1.0,
+      "different_continent": 1.1
+    }
+  },
+  "media-streaming": {
+    "name": "media-streaming",
+    "description": "Optimize for media streaming with low latency",
+    "cost_weight": 0.2,
+    "performance_weight": 0.6,
+    "reliability_weight": 0.2,
+    "max_replicas": 2,
+    "content_filters": {
+      "content_types": [
+        "video/",
+        "audio/"
+      ]
+    },
+    "backend_preferences": {
+      "s3": 1.3,
+      "ipfs": 1.1,
+      "local": 1.0,
+      "filecoin": 0.4
+    },
+    "geo_preferences": {
+      "same_region": 1.5,
+      "same_continent": 1.0,
+      "different_continent": 0.5
+    }
+  }
+}

@@ -15,7 +15,6 @@ import ipfs_dht_operations
 # Configure logger
 logger = logging.getLogger(__name__)
 
-
 class DHTController:
     """
     Controller for DHT operations.
@@ -150,7 +149,9 @@ class DHTController:
             return result
         except Exception as e:
             logger.error(f"Error putting value in DHT: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error putting value in DHT: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error putting value in DHT: {str(e)}"
+            )
 
     async def get_value(self, key: str) -> Dict[str, Any]:
         """
@@ -168,7 +169,9 @@ class DHTController:
             return result
         except Exception as e:
             logger.error(f"Error getting value from DHT: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error getting value from DHT: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error getting value from DHT: {str(e)}"
+            )
 
     async def provide_content(
         self, cid: str = Body(...), recursive: bool = Body(False)
@@ -189,7 +192,9 @@ class DHTController:
             return result
         except Exception as e:
             logger.error(f"Error providing content in DHT: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error providing content in DHT: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error providing content in DHT: {str(e)}"
+            )
 
     async def find_providers(
         self, cid: str, num_providers: int = Query(20, ge=1, le=100)
@@ -206,11 +211,15 @@ class DHTController:
         """
         logger.debug(f"Finding providers for CID: {cid}, num_providers: {num_providers}")
         try:
-            result = self.dht_operations.find_providers(cid=cid, num_providers=num_providers)
+            result = self.dht_operations.find_providers(
+                cid=cid, num_providers=num_providers
+            )
             return result
         except Exception as e:
             logger.error(f"Error finding providers in DHT: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error finding providers in DHT: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error finding providers in DHT: {str(e)}"
+            )
 
     async def find_peer(self, peer_id: str) -> Dict[str, Any]:
         """
@@ -228,7 +237,9 @@ class DHTController:
             return result
         except Exception as e:
             logger.error(f"Error finding peer in DHT: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error finding peer in DHT: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error finding peer in DHT: {str(e)}"
+            )
 
     async def query_dht(self, peer_id: str) -> Dict[str, Any]:
         """
@@ -246,7 +257,9 @@ class DHTController:
             return result
         except Exception as e:
             logger.error(f"Error querying DHT: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error querying DHT: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error querying DHT: {str(e)}"
+            )
 
     async def get_routing_table(self) -> Dict[str, Any]:
         """
@@ -290,7 +303,9 @@ class DHTController:
             return result
         except Exception as e:
             logger.error(f"Error discovering peers: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error discovering peers: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error discovering peers: {str(e)}"
+            )
 
     async def get_network_diagnostics(self) -> Dict[str, Any]:
         """
@@ -322,4 +337,6 @@ class DHTController:
             return result
         except Exception as e:
             logger.error(f"Error getting DHT metrics: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error getting DHT metrics: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error getting DHT metrics: {str(e)}"
+            )

@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/endomorphosis/ipfs_kit_py/schemas/iroh-manifest.schema.json",
+  "title": "IPFS Kit Iroh filesystem manifest",
+  "description": "The immutable, canonical directory manifest published at an Iroh namespace head.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "namespace_id",
+    "revision",
+    "parent_revision",
+    "created_at",
+    "writer_id",
+    "permissions",
+    "entries"
+  ],
+  "properties": {
+    "$schema": { "type": "string", "format": "uri-reference" },
+    "schema_version": { "const": 1 },
+    "namespace_id": { "$ref": "#/$defs/hex32" },
+    "revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "parent_revision": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/parentRevision" }
+      ]
+    },
+    "created_at": { "$ref": "#/$defs/utcTimestamp" },
+    "writer_id": { "$ref": "#/$defs/hex32" },
+    "permissions": { "$ref": "#/$defs/permissions" },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1000000,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/entry" },
+      "contains": {
+        "type": "object",
+        "required": ["path", "kind", "tombstone"],
+        "properties": {
+          "path": { "const": "" },
+          "kind": { "const": "directory" },
+          "tombstone": { "const": false }
+        }
+      },
+      "minContains": 1,
+      "maxContains": 1
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["revision"],
+        "properties": { "revision": { "const": 0 } }
+      },
+      "then": { "properties": { "parent_revision": { "type": "null" } } },
+      "else": { "properties": { "parent_revision": { "$ref": "#/$defs/parentRevision" } } }
+    }
+  ],
+  "$defs": {
+    "hex32": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "utcTimestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "manifestPath": {
+      "type": "string",
+      "maxLength": 4096,
+      "pattern": "^(?:$|(?!(?:.*?/)?\\.{1,2}(?:/|$))(?!.*//)(?!/)(?!.*\\\\)(?!.*[\\u0000-\\u001f\\u007f])[^/]+(?:/[^/]+)*)$"
+    },
+    "parentRevision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["revision", "manifest_hash"],
+      "properties": {
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "manifest_hash": { "$ref": "#/$defs/hex32" }
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "public_read", "readers", "writers"],
+      "properties": {
+        "owner": { "$ref": "#/$defs/hex32" },
+        "public_read": { "type": "boolean" },
+        "readers": {
+          "type": "array",
+          "maxItems": 4096,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/hex32" }
+        },
+        "writers": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/hex32" }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": {
+        "pattern": "^(?!(?:.*[_.-])?(?:secret|token|ticket|password|credential|private_key|node_key)(?:[_.-]|$))[a-z][a-z0-9_.-]{0,63}$"
+      },
+      "additionalProperties": {
+        "anyOf": [
+          { "type": "string", "maxLength": 4096 },
+          { "type": "integer" },
+          { "type": "number" },
+          { "type": "boolean" },
+          { "type": "null" }
+        ]
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "kind", "tombstone", "mode", "mtime", "metadata"],
+      "properties": {
+        "path": { "$ref": "#/$defs/manifestPath" },
+        "kind": { "enum": ["file", "directory"] },
+        "tombstone": { "type": "boolean" },
+        "blob_hash": { "$ref": "#/$defs/hex32" },
+        "size": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "mode": {
+          "type": "integer",
+          "enum": [256, 292, 384, 420, 320, 365, 448, 493]
+        },
+        "mtime": { "$ref": "#/$defs/utcTimestamp" },
+        "metadata": { "$ref": "#/$defs/metadata" },
+        "deleted_at": { "$ref": "#/$defs/utcTimestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["tombstone"],
+            "properties": { "tombstone": { "const": true } }
+          },
+          "then": {
+            "required": ["deleted_at"],
+            "not": {
+              "anyOf": [
+                { "required": ["blob_hash"] },
+                { "required": ["size"] }
+              ]
+            }
+          },
+          "else": {
+            "not": { "required": ["deleted_at"] }
+          }
+        },
+        {
+          "if": {
+            "required": ["kind"],
+            "properties": { "kind": { "const": "file" } }
+          },
+          "then": {
+            "properties": { "mode": { "enum": [256, 292, 384, 420] } }
+          }
+        },
+        {
+          "if": {
+            "required": ["kind", "tombstone"],
+            "properties": {
+              "kind": { "const": "file" },
+              "tombstone": { "const": false }
+            }
+          },
+          "then": { "required": ["blob_hash", "size"] }
+        },
+        {
+          "if": {
+            "required": ["kind"],
+            "properties": { "kind": { "const": "directory" } }
+          },
+          "then": {
+            "properties": { "mode": { "enum": [320, 365, 448, 493] } },
+            "not": {
+              "anyOf": [
+                { "required": ["blob_hash"] },
+                { "required": ["size"] }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

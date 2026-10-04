@@ -1,7 +1,6 @@
 """
 API Routes for the Modular Enhanced MCP Server.
 """
-
 import time
 import logging
 from fastapi import FastAPI, Request
@@ -16,13 +15,8 @@ logger = logging.getLogger(__name__)
 class APIRoutes:
     """Sets up API routes for the server."""
 
-    def __init__(
-        self,
-        app: FastAPI,
-        backend_monitor: BackendHealthMonitor,
-        templates: Jinja2Templates,
-        websocket_manager=None,
-    ):
+    def __init__(self, app: FastAPI, backend_monitor: BackendHealthMonitor,
+                 templates: Jinja2Templates, websocket_manager=None):
         self.app = app
         self.backend_monitor = backend_monitor
         self.templates = templates
@@ -57,7 +51,7 @@ class APIRoutes:
                     "status": "error",
                     "error": str(e),
                     "timestamp": time.time(),
-                    "system_healthy": False,
+                    "system_healthy": False
                 }
 
         @self.app.get("/health/backends")
@@ -67,7 +61,11 @@ class APIRoutes:
                 return await self.backend_monitor.check_all_backends_health()
             except Exception as e:
                 logger.error(f"Backend health check failed: {e}")
-                return {"status": "error", "error": str(e), "timestamp": time.time()}
+                return {
+                    "status": "error",
+                    "error": str(e),
+                    "timestamp": time.time()
+                }
 
         @self.app.get("/health/filesystem")
         async def filesystem_health_check():
@@ -76,4 +74,8 @@ class APIRoutes:
                 return await self.backend_monitor.get_filesystem_status_from_parquet()
             except Exception as e:
                 logger.error(f"Filesystem health check failed: {e}")
-                return {"status": "error", "error": str(e), "timestamp": time.time()}
+                return {
+                    "status": "error",
+                    "error": str(e),
+                    "timestamp": time.time()
+                }

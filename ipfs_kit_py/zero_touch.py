@@ -110,21 +110,17 @@ def _install_python_deps(level: str) -> None:
         raise RuntimeError(f"Requirements file not found: {requirements}")
 
     print(f"📦 Installing Python dependencies ({level}) from {requirements}...")
-    subprocess.check_call(
-        [
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            "-r",
-            str(requirements),
-        ]
-    )
+    subprocess.check_call([
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "-r",
+        str(requirements),
+    ])
 
 
-def install_all_binaries(
-    *, include_cluster: bool = True, include_lassie: bool = True, include_lotus: bool = True
-) -> None:
+def install_all_binaries(*, include_cluster: bool = True, include_lassie: bool = True, include_lotus: bool = True) -> None:
     """Install all supported external binaries into the package bin directory."""
 
     bin_dir = _package_bin_dir()
@@ -145,9 +141,7 @@ def install_all_binaries(
     from ipfs_kit_py.install_ipfs import install_ipfs
 
     if _supports_kubo(os_name, arch):
-        ipfs_installer = install_ipfs(
-            metadata={"role": "leecher", "bin_dir": str(bin_dir), "ipfs_path": str(ipfs_repo)}
-        )
+        ipfs_installer = install_ipfs(metadata={"role": "leecher", "bin_dir": str(bin_dir), "ipfs_path": str(ipfs_repo)})
         ipfs_installer.install_ipfs_daemon()
     else:
         print(f"⚠️  Kubo/IPFS install skipped on unsupported platform: {os_name}/{arch}")

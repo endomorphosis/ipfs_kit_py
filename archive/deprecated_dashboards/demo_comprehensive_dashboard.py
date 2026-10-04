@@ -7,7 +7,7 @@ the previous MCP dashboard plus new conflict-free content-addressed operations.
 
 Features Demonstrated:
 - Complete system monitoring and control
-- Real-time WebSocket updates
+- Real-time WebSocket updates 
 - Peer management and discovery
 - Bucket browsing and upload capabilities
 - Content-addressed operations
@@ -33,19 +33,20 @@ from ipfs_kit_py.mcp.enhanced_dashboard import EnhancedMCPDashboard
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
 
 async def demo_comprehensive_dashboard():
     """Demonstrate the comprehensive enhanced MCP dashboard."""
-
+    
     print("=" * 80)
     print("COMPREHENSIVE ENHANCED MCP DASHBOARD DEMO")
     print("=" * 80)
     print()
-
+    
     print("🚀 Features Overview:")
     print("- Complete system monitoring and control")
     print("- Real-time WebSocket updates with live metrics")
@@ -59,14 +60,14 @@ async def demo_comprehensive_dashboard():
     print("- Comprehensive metrics and analytics")
     print("- Modern responsive web interface")
     print()
-
+    
     # Initialize the enhanced dashboard
     print("📊 Initializing Enhanced MCP Dashboard...")
-
+    
     # Configuration for the dashboard
     config = {
         "mcp_server_url": "http://127.0.0.1:8001",
-        "dashboard_host": "127.0.0.1",
+        "dashboard_host": "127.0.0.1", 
         "dashboard_port": 8080,
         "metadata_path": os.path.expanduser("~/.ipfs_kit"),
         "update_interval": 5,
@@ -79,25 +80,25 @@ async def demo_comprehensive_dashboard():
             "configuration_widgets": True,
             "real_time_updates": True,
             "enhanced_logging": True,
-            "metrics_analytics": True,
-        },
+            "metrics_analytics": True
+        }
     }
-
+    
     dashboard = EnhancedMCPDashboard(
         mcp_server_url=config["mcp_server_url"],
         dashboard_host=config["dashboard_host"],
         dashboard_port=config["dashboard_port"],
         metadata_path=config["metadata_path"],
         update_interval=config["update_interval"],
-        config=config,
+        config=config
     )
-
+    
     print(f"✅ Dashboard initialized with comprehensive features")
     print(f"📡 MCP Server URL: {config['mcp_server_url']}")
     print(f"🌐 Dashboard URL: http://{config['dashboard_host']}:{config['dashboard_port']}")
     print(f"📁 Metadata Path: {config['metadata_path']}")
     print()
-
+    
     print("🎯 Available Dashboard Pages:")
     print("- / - Main overview with comprehensive metrics")
     print("- /daemon - Enhanced daemon control and monitoring")
@@ -111,7 +112,7 @@ async def demo_comprehensive_dashboard():
     print("- /config - Configuration management with widgets")
     print("- /metrics - Comprehensive metrics and analytics")
     print()
-
+    
     print("🔌 API Endpoints Available:")
     print("- GET /api/status - Comprehensive system status")
     print("- GET /api/daemon/status - Enhanced daemon status")
@@ -131,7 +132,7 @@ async def demo_comprehensive_dashboard():
     print("- GET /api/metrics - Comprehensive metrics")
     print("- WebSocket /ws - Real-time updates")
     print()
-
+    
     print("🎨 User Interface Features:")
     print("- Modern responsive design with gradient backgrounds")
     print("- Real-time charts and visualizations")
@@ -142,7 +143,7 @@ async def demo_comprehensive_dashboard():
     print("- Mobile-responsive grid layouts")
     print("- Smooth animations and transitions")
     print()
-
+    
     print("⚡ Advanced Capabilities:")
     print("- Content-addressed operations (conflict-free)")
     print("- Distributed operations without global state sync")
@@ -154,7 +155,7 @@ async def demo_comprehensive_dashboard():
     print("- Real-time system and network metrics")
     print("- Operation history and status tracking")
     print()
-
+    
     print("🔄 Content-Addressed Operations:")
     print("- Automatic content hash generation (SHA-256)")
     print("- Conflict-free merge operations")
@@ -163,7 +164,7 @@ async def demo_comprehensive_dashboard():
     print("- Multihash support for content addressing")
     print("- CID-based content identification")
     print()
-
+    
     print("📈 Monitoring & Analytics:")
     print("- Real-time system resource monitoring")
     print("- Network activity visualization")
@@ -172,11 +173,11 @@ async def demo_comprehensive_dashboard():
     print("- Performance metrics collection")
     print("- Historical data and trends")
     print()
-
+    
     print("🚀 Starting Enhanced Dashboard Server...")
     print("Press Ctrl+C to stop the server")
     print()
-
+    
     try:
         # Start the dashboard server
         await dashboard.run()

@@ -26,10 +26,10 @@ from .batch_operations import BatchOperationManager
 from .zero_copy_interface import ZeroCopyManager, ZeroCopyTable
 from .async_operations import AsyncOperationManager, AsyncParquetCIDCache, async_cache_get_or_create
 from .intelligent_cache import (
-    AccessPattern,
-    PredictiveModel,
-    IntelligentCacheManager,
-    IntelligentCacheStrategyProvider,
+    AccessPattern, 
+    PredictiveModel, 
+    IntelligentCacheManager, 
+    IntelligentCacheStrategyProvider
 )
 from .read_ahead_prefetching import (
     AccessPattern as PrefetchAccessPattern,
@@ -38,7 +38,7 @@ from .read_ahead_prefetching import (
     TemporalPrefetchStrategy,
     HybridPrefetchStrategy,
     ContentAwarePrefetchStrategy,
-    ReadAheadPrefetchManager,
+    ReadAheadPrefetchManager
 )
 from .compression_encoding import (
     CompressionProfile,
@@ -47,7 +47,7 @@ from .compression_encoding import (
     CompressionProfileSelector,
     ParquetCompressionManager,
     compression_profiles,
-    parquet_compression,
+    parquet_compression
 )
 
 # Import schema and column optimization
@@ -59,7 +59,7 @@ try:
         SchemaOptimizer,
         SchemaEvolutionManager,
         ParquetCIDCache,
-        SchemaColumnOptimizationManager,
+        SchemaColumnOptimizationManager
     )
 except ImportError:
     # Fallback when module not available
@@ -86,7 +86,7 @@ try:
         TimePartitioning,
         SizePartitioning,
         ContentTypePartitioning,
-        HashPartitioning,
+        HashPartitioning
     )
 except ImportError:
     # Fallback when module not available
@@ -115,7 +115,7 @@ try:
         PartitionExecutor,
         ThreadPoolManager,
         QueryCacheManager,
-        QueryExecutionStatistics,
+        QueryExecutionStatistics
     )
 except ImportError:
     # Fallback when module not available
@@ -140,7 +140,7 @@ try:
         MinHash,
         TopK,
         ProbabilisticDataStructureManager,
-        HashFunction,
+        HashFunction
     )
 except ImportError:
     # Fallback when module not available
@@ -154,72 +154,72 @@ except ImportError:
     HashFunction = None
 
 __all__ = [
-    "CacheEntry",
-    "QueryVector",
-    "SemanticCache",
-    "BatchOperationManager",
-    "ZeroCopyManager",
-    "ZeroCopyTable",
-    "AsyncOperationManager",
-    "AsyncParquetCIDCache",
-    "async_cache_get_or_create",
-    "AccessPattern",
-    "PredictiveModel",
-    "IntelligentCacheManager",
-    "IntelligentCacheStrategyProvider",
-    "PrefetchAccessPattern",
-    "PrefetchStrategy",
-    "SequentialPrefetchStrategy",
-    "TemporalPrefetchStrategy",
-    "HybridPrefetchStrategy",
-    "ContentAwarePrefetchStrategy",
-    "ReadAheadPrefetchManager",
-    "CompressionProfile",
-    "EncodingOptimizer",
-    "ColumnAnalyzer",
-    "CompressionProfileSelector",
-    "ParquetCompressionManager",
-    "compression_profiles",
-    "parquet_compression",
+    'CacheEntry', 
+    'QueryVector', 
+    'SemanticCache', 
+    'BatchOperationManager',
+    'ZeroCopyManager',
+    'ZeroCopyTable',
+    'AsyncOperationManager',
+    'AsyncParquetCIDCache',
+    'async_cache_get_or_create',
+    'AccessPattern',
+    'PredictiveModel',
+    'IntelligentCacheManager',
+    'IntelligentCacheStrategyProvider',
+    'PrefetchAccessPattern',
+    'PrefetchStrategy',
+    'SequentialPrefetchStrategy',
+    'TemporalPrefetchStrategy',
+    'HybridPrefetchStrategy',
+    'ContentAwarePrefetchStrategy',
+    'ReadAheadPrefetchManager',
+    'CompressionProfile',
+    'EncodingOptimizer',
+    'ColumnAnalyzer',
+    'CompressionProfileSelector',
+    'ParquetCompressionManager',
+    'compression_profiles',
+    'parquet_compression',
     # Schema and column optimization
-    "WorkloadType",
-    "ColumnStatistics",
-    "SchemaProfiler",
-    "SchemaOptimizer",
-    "SchemaEvolutionManager",
-    "ParquetCIDCache",
-    "SchemaColumnOptimizationManager",
+    'WorkloadType',
+    'ColumnStatistics',
+    'SchemaProfiler',
+    'SchemaOptimizer',
+    'SchemaEvolutionManager',
+    'ParquetCIDCache',
+    'SchemaColumnOptimizationManager',
     # Advanced partitioning strategies
-    "PartitioningStrategy",
-    "PartitionInfo",
-    "TimeBasedPartitionStrategy",
-    "SizeBasedPartitionStrategy",
-    "ContentTypePartitionStrategy",
-    "HashBasedPartitionStrategy",
-    "DynamicPartitionManager",
-    "AdvancedPartitionManager",
-    "TimePartitioning",
-    "SizePartitioning",
-    "ContentTypePartitioning",
-    "HashPartitioning",
+    'PartitioningStrategy',
+    'PartitionInfo',
+    'TimeBasedPartitionStrategy',
+    'SizeBasedPartitionStrategy',
+    'ContentTypePartitionStrategy',
+    'HashBasedPartitionStrategy',
+    'DynamicPartitionManager',
+    'AdvancedPartitionManager',
+    'TimePartitioning',
+    'SizePartitioning',
+    'ContentTypePartitioning',
+    'HashPartitioning',
     # Parallel query execution
-    "ParallelQueryManager",
-    "Query",
-    "QueryType",
-    "QueryPredicate",
-    "QueryAggregation",
-    "QueryPlanner",
-    "PartitionExecutor",
-    "ThreadPoolManager",
-    "QueryCacheManager",
-    "QueryExecutionStatistics",
+    'ParallelQueryManager',
+    'Query',
+    'QueryType',
+    'QueryPredicate',
+    'QueryAggregation',
+    'QueryPlanner',
+    'PartitionExecutor',
+    'ThreadPoolManager',
+    'QueryCacheManager',
+    'QueryExecutionStatistics',
     # Probabilistic data structures
-    "BloomFilter",
-    "HyperLogLog",
-    "CountMinSketch",
-    "CuckooFilter",
-    "MinHash",
-    "TopK",
-    "ProbabilisticDataStructureManager",
-    "HashFunction",
+    'BloomFilter',
+    'HyperLogLog',
+    'CountMinSketch',
+    'CuckooFilter',
+    'MinHash',
+    'TopK',
+    'ProbabilisticDataStructureManager',
+    'HashFunction'
 ]

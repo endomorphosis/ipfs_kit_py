@@ -12,13 +12,13 @@ from datetime import datetime
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("test-final-mcp")
 
 # Server URL
 SERVER_URL = "http://localhost:3000"
-
 
 def check_server_health():
     """Check if the server is healthy."""
@@ -31,7 +31,6 @@ def check_server_health():
     except Exception as e:
         logger.error(f"Server health check failed: {e}")
         return False
-
 
 def get_available_tools():
     """Get the list of available tools."""
@@ -48,14 +47,20 @@ def get_available_tools():
         logger.error(f"Failed to get available tools: {e}")
         return []
 
-
 def test_jsonrpc_endpoint():
     """Test the JSON-RPC endpoint."""
     try:
-        payload = {"jsonrpc": "2.0", "method": "ping", "params": {}, "id": 1}
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "ping",
+            "params": {},
+            "id": 1
+        }
 
         response = requests.post(
-            f"{SERVER_URL}/jsonrpc", json=payload, headers={"Content-Type": "application/json"}
+            f"{SERVER_URL}/jsonrpc",
+            json=payload,
+            headers={"Content-Type": "application/json"}
         )
         response.raise_for_status()
 
@@ -66,7 +71,6 @@ def test_jsonrpc_endpoint():
     except Exception as e:
         logger.error(f"JSON-RPC test failed: {e}")
         return False
-
 
 def main():
     """Main entry point."""
@@ -92,7 +96,6 @@ def main():
     logger.info("Server appears to be functioning correctly.")
 
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

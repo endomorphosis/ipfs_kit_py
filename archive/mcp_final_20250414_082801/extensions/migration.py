@@ -134,7 +134,7 @@ async def estimate_migration_cost(
         "source_cost": 0.0,
         "target_cost": 0.0,
         "transfer_cost": 0.0,
-        "time_estimate_seconds": 0,
+        "time_estimate_seconds": 0
     }
 
     try:
@@ -302,7 +302,7 @@ async def perform_migration(
         migrations[migration_id]["result"] = {
             "source_cid": cid,
             "target_cid": target_result.get("cid", cid),
-            "target_info": target_result,
+            "target_info": target_result
         }
 
         logger.info(f"Migration {migration_id} completed successfully")

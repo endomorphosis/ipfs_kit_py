@@ -25,8 +25,7 @@ class StorageBridgeModel:
     replicating content across multiple backends, verifying content across backends,
     and finding the optimal source for content retrieval.
     """
-
-    def __init__(self, ipfs_model=None, backends=None, cache_manager=None):
+    def __init__(self, ipfs_model = None, backends = None, cache_manager = None):
         """
         Initialize storage bridge model.
 
@@ -42,8 +41,7 @@ class StorageBridgeModel:
         self.operation_stats = self._initialize_stats()
 
         logger.info(
-            f"Storage Bridge Model initialized with backends: {', '.join(self.backends.keys())}"
-        )
+            f"Storage Bridge Model initialized with backends: {', '.join(self.backends.keys())}")
 
     def _initialize_stats(self) -> Dict[str, Any]:
         """Initialize operation statistics tracking."""
@@ -149,8 +147,7 @@ class StorageBridgeModel:
             self.operation_stats["failure_count"] += 1
 
     def _handle_error(
-        self, result: Dict[str, Any], error: Exception, message: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, result: Dict[str, Any], error: Exception, message: Optional[str] = None) -> Dict[str, Any]:
         """
         Handle errors in a standardized way.
 
@@ -183,27 +180,21 @@ class StorageBridgeModel:
         """
         for backend_name, backend_model in self.backends.items():
             has_content = False
-
+            
             # Check if the backend has the content
             if hasattr(backend_model, "has_content"):
                 try:
                     result = backend_model.has_content(content_id)
                     has_content = result.get("success", False) and result.get("has_content", False)
                 except Exception as e:
-                    logger.warning(
-                        f"Error checking if {backend_name} has content {content_id}: {str(e)}"
-                    )
+                    logger.warning(f"Error checking if {backend_name} has content {content_id}: {str(e)}")
                     continue
             elif hasattr(backend_model, "exists") and callable(getattr(backend_model, "exists")):
                 try:
                     result = backend_model.exists(content_id)
-                    has_content = (
-                        result if isinstance(result, bool) else result.get("success", False)
-                    )
+                    has_content = result if isinstance(result, bool) else result.get("success", False)
                 except Exception as e:
-                    logger.warning(
-                        f"Error checking if {backend_name} has content {content_id}: {str(e)}"
-                    )
+                    logger.warning(f"Error checking if {backend_name} has content {content_id}: {str(e)}")
                     continue
             elif backend_name == "ipfs" and hasattr(backend_model, "cat"):
                 try:
@@ -214,10 +205,10 @@ class StorageBridgeModel:
                     # If we get an error, the content is not available
                     logger.debug(f"Error checking if IPFS has content {content_id}: {str(e)}")
                     continue
-
+            
             if has_content:
                 return backend_name
-
+        
         return None
 
     async def _async_find_content_source(self, content_id: str) -> Optional[str]:
@@ -232,49 +223,35 @@ class StorageBridgeModel:
         """
         for backend_name, backend_model in self.backends.items():
             has_content = False
-
+            
             # Check if the backend has the content using async methods if available
             if hasattr(backend_model, "async_has_content"):
                 try:
                     result = await backend_model.async_has_content(content_id)
                     has_content = result.get("success", False) and result.get("has_content", False)
                 except Exception as e:
-                    logger.warning(
-                        f"Error checking if {backend_name} has content {content_id}: {str(e)}"
-                    )
+                    logger.warning(f"Error checking if {backend_name} has content {content_id}: {str(e)}")
                     continue
             elif hasattr(backend_model, "has_content"):
                 try:
                     result = backend_model.has_content(content_id)
                     has_content = result.get("success", False) and result.get("has_content", False)
                 except Exception as e:
-                    logger.warning(
-                        f"Error checking if {backend_name} has content {content_id}: {str(e)}"
-                    )
+                    logger.warning(f"Error checking if {backend_name} has content {content_id}: {str(e)}")
                     continue
-            elif hasattr(backend_model, "async_exists") and callable(
-                getattr(backend_model, "async_exists")
-            ):
+            elif hasattr(backend_model, "async_exists") and callable(getattr(backend_model, "async_exists")):
                 try:
                     result = await backend_model.async_exists(content_id)
-                    has_content = (
-                        result if isinstance(result, bool) else result.get("success", False)
-                    )
+                    has_content = result if isinstance(result, bool) else result.get("success", False)
                 except Exception as e:
-                    logger.warning(
-                        f"Error checking if {backend_name} has content {content_id}: {str(e)}"
-                    )
+                    logger.warning(f"Error checking if {backend_name} has content {content_id}: {str(e)}")
                     continue
             elif hasattr(backend_model, "exists") and callable(getattr(backend_model, "exists")):
                 try:
                     result = backend_model.exists(content_id)
-                    has_content = (
-                        result if isinstance(result, bool) else result.get("success", False)
-                    )
+                    has_content = result if isinstance(result, bool) else result.get("success", False)
                 except Exception as e:
-                    logger.warning(
-                        f"Error checking if {backend_name} has content {content_id}: {str(e)}"
-                    )
+                    logger.warning(f"Error checking if {backend_name} has content {content_id}: {str(e)}")
                     continue
             elif backend_name == "ipfs":
                 if hasattr(backend_model, "async_cat"):
@@ -295,10 +272,10 @@ class StorageBridgeModel:
                         # If we get an error, the content is not available
                         logger.debug(f"Error checking if IPFS has content {content_id}: {str(e)}")
                         continue
-
+            
             if has_content:
                 return backend_name
-
+        
         return None
 
     def _get_content_from_backend(
@@ -387,7 +364,7 @@ class StorageBridgeModel:
                     # Clean up temporary file if it exists
                     if os.path.exists(temp_path):
                         os.unlink(temp_path)
-
+                    
                     # Return the download result
                     return dl_result or {
                         "success": False,
@@ -508,7 +485,7 @@ class StorageBridgeModel:
                     # Clean up temporary file if it exists
                     if os.path.exists(temp_path):
                         os.unlink(temp_path)
-
+                    
                     # Return the download result
                     return dl_result or {
                         "success": False,
@@ -532,11 +509,7 @@ class StorageBridgeModel:
             return result
 
     def _store_content_in_backend(
-        self,
-        backend_name: str,
-        content_id: str,
-        content: bytes,
-        options: Optional[Dict[str, Any]] = None,
+        self, backend_name: str, content_id: str, content: bytes, options: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Store content in a specific backend.
@@ -627,11 +600,7 @@ class StorageBridgeModel:
             return result
 
     async def _async_store_content_in_backend(
-        self,
-        backend_name: str,
-        content_id: str,
-        content: bytes,
-        options: Optional[Dict[str, Any]] = None,
+        self, backend_name: str, content_id: str, content: bytes, options: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Asynchronously store content in a specific backend.
@@ -747,8 +716,7 @@ class StorageBridgeModel:
         target_backend: str,
         content_id: str,
         source_options: Optional[Dict[str, Any]] = None,
-        target_options: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        target_options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Transfer content between storage backends.
 
@@ -765,13 +733,11 @@ class StorageBridgeModel:
         start_time = time.time()
 
         result = self._create_result_dict("transfer_content")
-        result.update(
-            {
-                "source_backend": source_backend,
-                "target_backend": target_backend,
-                "content_id": content_id,
-            }
-        )
+        result.update({
+            "source_backend": source_backend,
+            "target_backend": target_backend,
+            "content_id": content_id,
+        })
 
         try:
             # Validate backends
@@ -786,14 +752,11 @@ class StorageBridgeModel:
                 return result
 
             # Get content from source backend
-            source_result = self._get_content_from_backend(
-                source_backend, content_id, source_options
-            )
+            source_result = self._get_content_from_backend(source_backend, content_id, source_options)
 
             if not source_result.get("success", False):
                 result["error"] = source_result.get(
-                    "error", f"Failed to retrieve content from {source_backend}"
-                )
+                    "error", f"Failed to retrieve content from {source_backend}")
                 result["error_type"] = source_result.get("error_type", "ContentRetrievalError")
                 return result
 
@@ -806,13 +769,11 @@ class StorageBridgeModel:
 
             # Store content in target backend
             target_result = self._store_content_in_backend(
-                target_backend, content_id, content, target_options
-            )
+                target_backend, content_id, content, target_options)
 
             if not target_result.get("success", False):
                 result["error"] = target_result.get(
-                    "error", f"Failed to store content in {target_backend}"
-                )
+                    "error", f"Failed to store content in {target_backend}")
                 result["error_type"] = target_result.get("error_type", "ContentStorageError")
                 return result
 
@@ -821,8 +782,7 @@ class StorageBridgeModel:
             result["source_location"] = source_result.get("location", None)
             result["target_location"] = target_result.get("location", None)
             result["bytes_transferred"] = (
-                len(content) if isinstance(content, (bytes, bytearray)) else None
-            )
+                len(content) if isinstance(content, (bytes, bytearray)) else None)
 
             # Update stats
             self._update_stats(result, result["bytes_transferred"])
@@ -841,8 +801,7 @@ class StorageBridgeModel:
         target_backend: str,
         content_id: str,
         source_options: Optional[Dict[str, Any]] = None,
-        target_options: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        target_options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Asynchronously transfer content between storage backends.
 
@@ -859,13 +818,11 @@ class StorageBridgeModel:
         start_time = time.time()
 
         result = self._create_result_dict("transfer_content")
-        result.update(
-            {
-                "source_backend": source_backend,
-                "target_backend": target_backend,
-                "content_id": content_id,
-            }
-        )
+        result.update({
+            "source_backend": source_backend,
+            "target_backend": target_backend,
+            "content_id": content_id,
+        })
 
         try:
             # Validate backends
@@ -880,14 +837,11 @@ class StorageBridgeModel:
                 return result
 
             # Get content from source backend
-            source_result = await self._async_get_content_from_backend(
-                source_backend, content_id, source_options
-            )
+            source_result = await self._async_get_content_from_backend(source_backend, content_id, source_options)
 
             if not source_result.get("success", False):
                 result["error"] = source_result.get(
-                    "error", f"Failed to retrieve content from {source_backend}"
-                )
+                    "error", f"Failed to retrieve content from {source_backend}")
                 result["error_type"] = source_result.get("error_type", "ContentRetrievalError")
                 return result
 
@@ -900,13 +854,11 @@ class StorageBridgeModel:
 
             # Store content in target backend
             target_result = await self._async_store_content_in_backend(
-                target_backend, content_id, content, target_options
-            )
+                target_backend, content_id, content, target_options)
 
             if not target_result.get("success", False):
                 result["error"] = target_result.get(
-                    "error", f"Failed to store content in {target_backend}"
-                )
+                    "error", f"Failed to store content in {target_backend}")
                 result["error_type"] = target_result.get("error_type", "ContentStorageError")
                 return result
 
@@ -915,8 +867,7 @@ class StorageBridgeModel:
             result["source_location"] = source_result.get("location", None)
             result["target_location"] = target_result.get("location", None)
             result["bytes_transferred"] = (
-                len(content) if isinstance(content, (bytes, bytearray)) else None
-            )
+                len(content) if isinstance(content, (bytes, bytearray)) else None)
 
             # Update stats
             self._update_stats(result, result["bytes_transferred"])

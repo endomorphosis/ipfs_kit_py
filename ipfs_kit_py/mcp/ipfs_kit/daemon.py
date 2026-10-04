@@ -16,9 +16,8 @@ except ImportError:
     # Fallback for development environments where the package is not installed
     import sys
     import os
-
     # Navigate up from mcp/ipfs_kit/ to the project root
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
     from ipfs_kit_py.enhanced_daemon_manager import EnhancedDaemonManager
@@ -26,7 +25,6 @@ except ImportError:
 
 
 logger = logging.getLogger(__name__)
-
 
 class DaemonManager:
     """
@@ -43,9 +41,7 @@ class DaemonManager:
             self.manager = self.kit.daemon_manager
             # Ensure the daemon is running using the comprehensive check
             self.manager.ensure_daemon_running_comprehensive()
-            logger.info(
-                "✓ Centralized EnhancedDaemonManager initialized and daemon status checked."
-            )
+            logger.info("✓ Centralized EnhancedDaemonManager initialized and daemon status checked.")
         except Exception as e:
             logger.error(f"❌ Failed to initialize EnhancedDaemonManager: {e}", exc_info=True)
             self.manager = None
@@ -82,3 +78,4 @@ class DaemonManager:
             logger.info("Cleaning up MCP DaemonManager wrapper...")
             self.manager.stop_all_daemons()
             logger.info("✓ MCP DaemonManager wrapper cleaned up.")
+

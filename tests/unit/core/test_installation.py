@@ -10,7 +10,6 @@ import traceback
 
 import pytest
 
-
 def check_import(module_name):
     """Check if a module can be imported."""
     try:
@@ -18,7 +17,6 @@ def check_import(module_name):
         return True
     except ImportError:
         return False
-
 
 def check_optional_import(module_name):
     """Check if an optional module can be imported."""
@@ -47,7 +45,6 @@ def get_optional_components_status():
         results[description] = check_optional_import(module)
     return results
 
-
 def test_optional_components():
     """Test optional components."""
     results = get_optional_components_status()
@@ -55,7 +52,6 @@ def test_optional_components():
     for description, status in results.items():
         assert isinstance(description, str)
         assert isinstance(status, str)
-
 
 def test_ipfs_kit():
     """Test core IPFS Kit functionality."""
@@ -102,7 +98,6 @@ def test_ipfs_kit():
         traceback.print_exc()
         pytest.skip(f"Error testing IPFS Kit: {e}")
 
-
 def main():
     """Main test function."""
     print("=== IPFS Kit Installation Test ===\n")
@@ -113,7 +108,7 @@ def main():
         "ipfs_kit_py.ipfs_kit",
         "ipfs_kit_py.ipfs",
         "ipfs_kit_py.high_level_api",
-        "ipfs_kit_py.error",
+        "ipfs_kit_py.error"
     ]
 
     all_imports_successful = True
@@ -145,12 +140,9 @@ def main():
 
     # Print installation tips
     print("\nInstallation tips:")
-    print(
-        "  - To add optional components, install with extras: pip install ipfs_kit_py[fsspec,arrow]"
-    )
+    print("  - To add optional components, install with extras: pip install ipfs_kit_py[fsspec,arrow]")
     print("  - For development setup: pip install ipfs_kit_py[dev]")
     print("  - For all features: pip install ipfs_kit_py[full]")
-
 
 if __name__ == "__main__":
     main()

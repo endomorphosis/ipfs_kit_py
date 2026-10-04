@@ -31,17 +31,15 @@ from . import HAS_LIBP2P
 # Configure logger
 logger = logging.getLogger(__name__)
 
-
 # Import our enhanced discovery classes using lazy loading to avoid circular imports
 def _get_enhanced_dht_discovery():
     """Lazy loader for EnhancedDHTDiscovery class."""
     if not HAS_LIBP2P:
         logger.warning("Cannot import EnhancedDHTDiscovery: libp2p is not available")
         return None
-
+    
     try:
         from .enhanced_dht_discovery import EnhancedDHTDiscovery
-
         return EnhancedDHTDiscovery
     except ImportError as e:
         logger.error(f"Error importing EnhancedDHTDiscovery: {e}")
@@ -50,16 +48,14 @@ def _get_enhanced_dht_discovery():
         logger.error(f"Unexpected error getting EnhancedDHTDiscovery: {str(e)}", exc_info=True)
         return None
 
-
 def _get_content_routing_manager():
     """Lazy loader for ContentRoutingManager class."""
     if not HAS_LIBP2P:
         logger.warning("Cannot import ContentRoutingManager: libp2p is not available")
         return None
-
+    
     try:
         from .enhanced_dht_discovery import ContentRoutingManager
-
         return ContentRoutingManager
     except ImportError as e:
         logger.error(f"Error importing ContentRoutingManager: {e}")
@@ -71,7 +67,7 @@ def _get_content_routing_manager():
 
 class LibP2PIntegration:
     """Integration layer between libp2p peer discovery and the filesystem cache.
-
+    
     This class creates the connection between a libp2p peer and the IPFS cache system,
     enabling direct peer-to-peer content retrieval when content is not found in the
     local cache or IPFS daemon.
@@ -89,15 +85,13 @@ class LibP2PIntegration:
         self.ipfs_kit = ipfs_kit
         self.cache_manager = cache_manager
         self.logger = logging.getLogger(__name__)
-
+        
         # Use lazy loading to avoid circular imports
         EnhancedDHTDiscovery = _get_enhanced_dht_discovery()
         ContentRoutingManager = _get_content_routing_manager()
-
+        
         if not EnhancedDHTDiscovery or not ContentRoutingManager:
-            self.logger.error(
-                "Cannot initialize LibP2PIntegration: Required components not available"
-            )
+            self.logger.error("Cannot initialize LibP2PIntegration: Required components not available")
             self.discovery = None
             self.content_router = None
             return
@@ -105,16 +99,16 @@ class LibP2PIntegration:
         # Create enhanced discovery components
         try:
             self.discovery = EnhancedDHTDiscovery(
-                libp2p_peer,
-                role=getattr(libp2p_peer, "role", "leecher"),
-                bootstrap_peers=getattr(libp2p_peer, "bootstrap_peers", []),
+                libp2p_peer, 
+                role=getattr(libp2p_peer, 'role', 'leecher'),
+                bootstrap_peers=getattr(libp2p_peer, 'bootstrap_peers', [])
             )
 
             # Create content routing manager
             self.content_router = ContentRoutingManager(self.discovery, libp2p_peer)
 
             # Start discovery
-            if hasattr(self.discovery, "start"):
+            if hasattr(self.discovery, 'start'):
                 self.discovery.start()
                 self.logger.debug("Started DHT discovery")
         except Exception as e:
@@ -328,24 +322,24 @@ def register_libp2p_with_ipfs_kit(ipfs_kit, libp2p_peer, extend_cache=True):
         The LibP2PIntegration instance or None if registration failed
     """
     logger = logging.getLogger(__name__)
-
+    
     if not HAS_LIBP2P:
         logger.warning("Cannot register libp2p with IPFSKit: libp2p is not available")
         return None
-
+    
     try:
         # Validate inputs
         if ipfs_kit is None:
             logger.error("Cannot register libp2p: IPFSKit instance is None")
             return None
-
+            
         if libp2p_peer is None:
             logger.error("Cannot register libp2p: libp2p_peer is None")
             return None
-
+            
         # Create the integration layer
         integration = LibP2PIntegration(libp2p_peer=libp2p_peer, ipfs_kit=ipfs_kit)
-
+        
         # Check if integration was created successfully
         if integration.discovery is None or integration.content_router is None:
             logger.error("LibP2PIntegration initialization failed")
@@ -379,11 +373,9 @@ def register_libp2p_with_ipfs_kit(ipfs_kit, libp2p_peer, extend_cache=True):
                 logger.error(f"Error extending cache manager: {str(e)}", exc_info=True)
                 # Continue even if cache extension fails
 
-        logger.info(
-            f"Successfully registered libp2p with IPFSKit (role={getattr(libp2p_peer, 'role', 'unknown')})"
-        )
+        logger.info(f"Successfully registered libp2p with IPFSKit (role={getattr(libp2p_peer, 'role', 'unknown')})")
         return integration
-
+        
     except Exception as e:
         logger.error(f"Failed to register libp2p with IPFSKit: {str(e)}", exc_info=True)
         return None

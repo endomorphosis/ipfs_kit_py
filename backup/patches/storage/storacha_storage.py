@@ -22,14 +22,10 @@ logger = logging.getLogger(__name__)
 STORACHA_LIBRARIES_AVAILABLE = False
 try:
     import requests
-
     STORACHA_LIBRARIES_AVAILABLE = True
     logger.info("Required libraries for Storacha integration available")
 except ImportError:
-    logger.warning(
-        "Required libraries for Storacha integration not available. Install with: pip install requests"
-    )
-
+    logger.warning("Required libraries for Storacha integration not available. Install with: pip install requests")
 
 class StorachaStorage:
     """
@@ -48,11 +44,7 @@ class StorachaStorage:
             api_endpoint: Storacha API endpoint. If None, will use the default.
         """
         self.api_key = api_key or os.environ.get("STORACHA_API_KEY")
-        self.api_endpoint = (
-            api_endpoint
-            or os.environ.get("STORACHA_API_URL")
-            or os.environ.get("STORACHA_API_ENDPOINT")
-        )
+        self.api_endpoint = api_endpoint or os.environ.get("STORACHA_API_URL") or os.environ.get("STORACHA_API_ENDPOINT")
         if not self.api_endpoint:
             self.api_endpoint = "https://up.storacha.network/bridge"  # Updated default endpoint
         self.mock_mode = os.environ.get("MCP_USE_STORACHA_MOCK", "").lower() in ["true", "1", "yes"]
@@ -73,11 +65,10 @@ class StorachaStorage:
         """
         status_info = {
             "success": True,
-            "available": STORACHA_LIBRARIES_AVAILABLE
-            and (self.api_key is not None or self.mock_mode),
+            "available": STORACHA_LIBRARIES_AVAILABLE and (self.api_key is not None or self.mock_mode),
             "simulation": self.simulation_mode,
             "mock": self.mock_mode,
-            "timestamp": time.time(),
+            "timestamp": time.time()
         }
 
         if self.simulation_mode:
@@ -88,9 +79,7 @@ class StorachaStorage:
                 status_info["error"] = "Storacha API key not provided"
         elif self.mock_mode:
             status_info["message"] = "Running in mock mode"
-            status_info["warning"] = (
-                "Using local mock implementation (functional but not connected to Storacha API)"
-            )
+            status_info["warning"] = "Using local mock implementation (functional but not connected to Storacha API)"
 
             # Create mock directory if it doesn't exist
             mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_storacha")
@@ -125,9 +114,7 @@ class StorachaStorage:
                             status_info["api_status"] = "available"
                             status_info["endpoint"] = self.api_endpoint
                         else:
-                            status_info["message"] = (
-                                f"Failed to connect to Storacha API: {response.status_code}"
-                            )
+                            status_info["message"] = f"Failed to connect to Storacha API: {response.status_code}"
                             status_info["success"] = False
                 except requests.exceptions.RequestException as e:
                     # If the main endpoint doesn't work, try an alternative endpoint
@@ -137,18 +124,12 @@ class StorachaStorage:
                         if response.status_code < 400:
                             # Update the endpoint to use the working one
                             self.api_endpoint = alt_endpoint
-                            status_info["message"] = (
-                                "Connected to alternative Storacha API endpoint"
-                            )
+                            status_info["message"] = "Connected to alternative Storacha API endpoint"
                             status_info["api_status"] = "available"
                             status_info["endpoint"] = self.api_endpoint
-                            status_info["note"] = (
-                                "Using alternative endpoint due to DNS resolution issues"
-                            )
+                            status_info["note"] = "Using alternative endpoint due to DNS resolution issues"
                         else:
-                            status_info["message"] = (
-                                f"Failed to connect to alternative API: {response.status_code}"
-                            )
+                            status_info["message"] = f"Failed to connect to alternative API: {response.status_code}"
                             status_info["success"] = False
                     except Exception as e2:
                         status_info["message"] = f"Failed to connect to any Storacha API endpoint"
@@ -174,7 +155,7 @@ class StorachaStorage:
             return {
                 "success": False,
                 "simulation": True,
-                "error": "Storacha backend is in simulation mode",
+                "error": "Storacha backend is in simulation mode"
             }
 
         # If in mock mode, simulate the operation with local storage
@@ -182,25 +163,27 @@ class StorachaStorage:
             try:
                 # Verify CID exists on IPFS
                 result = subprocess.run(
-                    ["ipfs", "block", "stat", cid], capture_output=True, text=True
+                    ["ipfs", "block", "stat", cid],
+                    capture_output=True,
+                    text=True
                 )
 
                 if result.returncode != 0:
                     return {
                         "success": False,
                         "mock": True,
-                        "error": f"CID {cid} not found on IPFS: {result.stderr}",
+                        "error": f"CID {cid} not found on IPFS: {result.stderr}"
                     }
 
                 # Create a mock storage directory if it doesn't exist
-                mock_dir = os.path.join(
-                    os.path.expanduser("~"), ".ipfs_kit", "mock_storacha", "objects"
-                )
+                mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_storacha", "objects")
                 os.makedirs(mock_dir, exist_ok=True)
 
                 # Get file size from IPFS
                 size_output = subprocess.run(
-                    ["ipfs", "block", "stat", cid], capture_output=True, text=True
+                    ["ipfs", "block", "stat", cid],
+                    capture_output=True,
+                    text=True
                 ).stdout
 
                 # Extract size from output
@@ -224,7 +207,7 @@ class StorachaStorage:
                     "status": "stored",
                     "created_at": time.time(),
                     "size": size,
-                    "mock": True,
+                    "mock": True
                 }
 
                 # Store the metadata
@@ -232,9 +215,7 @@ class StorachaStorage:
                     json.dump(storage_info, f, indent=2)
 
                 # Also create a mapping from CID to storage ID for easier lookup
-                cid_map_dir = os.path.join(
-                    os.path.expanduser("~"), ".ipfs_kit", "mock_storacha", "cid_map"
-                )
+                cid_map_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_storacha", "cid_map")
                 os.makedirs(cid_map_dir, exist_ok=True)
                 cid_map_file = os.path.join(cid_map_dir, f"{cid}")
 
@@ -249,30 +230,44 @@ class StorachaStorage:
                     "cid": cid,
                     "replication": replication,
                     "status": "stored",
-                    "mock_file": storage_file,
+                    "mock_file": storage_file
                 }
 
             except Exception as e:
                 logger.error(f"Error in mock from_ipfs: {e}")
-                return {"success": False, "mock": True, "error": str(e)}
+                return {
+                    "success": False,
+                    "mock": True,
+                    "error": str(e)
+                }
 
         try:
             # Verify CID exists on IPFS
-            result = subprocess.run(["ipfs", "block", "stat", cid], capture_output=True, text=True)
+            result = subprocess.run(
+                ["ipfs", "block", "stat", cid],
+                capture_output=True,
+                text=True
+            )
 
             if result.returncode != 0:
-                return {"success": False, "error": f"CID {cid} not found on IPFS: {result.stderr}"}
+                return {
+                    "success": False,
+                    "error": f"CID {cid} not found on IPFS: {result.stderr}"
+                }
 
             # Store on Storacha using W3 Blob Protocol
             headers = {"Authorization": f"Bearer {self.api_key}"}
-            data = {"cid": cid, "replication": replication}
+            data = {
+                "cid": cid,
+                "replication": replication
+            }
 
             # Format for the new bridge endpoint
             response = requests.post(
                 f"{self.api_endpoint}/add",  # Changed from /store to /add based on W3 Blob Protocol
                 headers=headers,
                 json=data,
-                timeout=30,
+                timeout=30
             )
 
             if response.status_code == 200:
@@ -284,17 +279,20 @@ class StorachaStorage:
                     "storage_id": result.get("storage_id", str(uuid.uuid4())),
                     "replication": replication,
                     "status": "stored",
-                    "timestamp": time.time(),
+                    "timestamp": time.time()
                 }
             else:
                 return {
                     "success": False,
-                    "error": f"Failed to store content on Storacha: {response.status_code} - {response.text}",
+                    "error": f"Failed to store content on Storacha: {response.status_code} - {response.text}"
                 }
 
         except Exception as e:
             logger.error(f"Error storing IPFS content on Storacha: {e}")
-            return {"success": False, "error": str(e)}
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     def to_ipfs(self, storage_id: str) -> Dict[str, Any]:
         """
@@ -310,23 +308,21 @@ class StorachaStorage:
             return {
                 "success": False,
                 "simulation": True,
-                "error": "Storacha backend is in simulation mode",
+                "error": "Storacha backend is in simulation mode"
             }
 
         # If in mock mode, retrieve content from mock storage
         if self.mock_mode:
             try:
                 # Find the storage metadata in mock storage
-                mock_dir = os.path.join(
-                    os.path.expanduser("~"), ".ipfs_kit", "mock_storacha", "objects"
-                )
+                mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_storacha", "objects")
                 storage_file = os.path.join(mock_dir, f"{storage_id}.json")
 
                 if not os.path.exists(storage_file):
                     return {
                         "success": False,
                         "mock": True,
-                        "error": f"Storage ID {storage_id} not found in mock storage",
+                        "error": f"Storage ID {storage_id} not found in mock storage"
                     }
 
                 # Read the storage information
@@ -338,12 +334,14 @@ class StorachaStorage:
                     return {
                         "success": False,
                         "mock": True,
-                        "error": "Storage information does not contain a CID",
+                        "error": "Storage information does not contain a CID"
                     }
 
                 # Check if content is already in IPFS
                 ipfs_check = subprocess.run(
-                    ["ipfs", "block", "stat", cid], capture_output=True, text=True
+                    ["ipfs", "block", "stat", cid],
+                    capture_output=True,
+                    text=True
                 )
 
                 if ipfs_check.returncode == 0:
@@ -354,7 +352,7 @@ class StorachaStorage:
                         "message": "Content already available in IPFS",
                         "storage_id": storage_id,
                         "cid": cid,
-                        "status": "retrieved",
+                        "status": "retrieved"
                     }
 
                 # In a real implementation, we would retrieve the content and add it to IPFS
@@ -365,12 +363,16 @@ class StorachaStorage:
                     "message": "Mock retrieval from Storacha (content not available in IPFS)",
                     "storage_id": storage_id,
                     "cid": cid,
-                    "status": "retrieval_simulated",
+                    "status": "retrieval_simulated"
                 }
 
             except Exception as e:
                 logger.error(f"Error in mock to_ipfs: {e}")
-                return {"success": False, "mock": True, "error": str(e)}
+                return {
+                    "success": False,
+                    "mock": True,
+                    "error": str(e)
+                }
 
         try:
             # Retrieve from Storacha using W3 Blob Protocol
@@ -380,7 +382,7 @@ class StorachaStorage:
             response = requests.get(
                 f"{self.api_endpoint}/get/{storage_id}",  # Changed from /retrieve to /get based on W3 Blob Protocol
                 headers=headers,
-                timeout=30,
+                timeout=30
             )
 
             if response.status_code == 200:
@@ -389,7 +391,9 @@ class StorachaStorage:
 
                 # Verify the content is now available in IPFS
                 verify_result = subprocess.run(
-                    ["ipfs", "block", "stat", cid], capture_output=True, text=True
+                    ["ipfs", "block", "stat", cid],
+                    capture_output=True,
+                    text=True
                 )
 
                 if verify_result.returncode == 0:
@@ -399,22 +403,25 @@ class StorachaStorage:
                         "cid": cid,
                         "storage_id": storage_id,
                         "status": "retrieved",
-                        "timestamp": time.time(),
+                        "timestamp": time.time()
                     }
                 else:
                     return {
                         "success": False,
-                        "error": f"Retrieved content from Storacha but not found in IPFS: {verify_result.stderr}",
+                        "error": f"Retrieved content from Storacha but not found in IPFS: {verify_result.stderr}"
                     }
             else:
                 return {
                     "success": False,
-                    "error": f"Failed to retrieve content from Storacha: {response.status_code} - {response.text}",
+                    "error": f"Failed to retrieve content from Storacha: {response.status_code} - {response.text}"
                 }
 
         except Exception as e:
             logger.error(f"Error retrieving content from Storacha: {e}")
-            return {"success": False, "error": str(e)}
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     def check_status(self, storage_id: str) -> Dict[str, Any]:
         """
@@ -430,23 +437,21 @@ class StorachaStorage:
             return {
                 "success": False,
                 "simulation": True,
-                "error": "Storacha backend is in simulation mode",
+                "error": "Storacha backend is in simulation mode"
             }
 
         # If in mock mode, check status from mock storage
         if self.mock_mode:
             try:
                 # Find the storage metadata in mock storage
-                mock_dir = os.path.join(
-                    os.path.expanduser("~"), ".ipfs_kit", "mock_storacha", "objects"
-                )
+                mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_storacha", "objects")
                 storage_file = os.path.join(mock_dir, f"{storage_id}.json")
 
                 if not os.path.exists(storage_file):
                     return {
                         "success": False,
                         "mock": True,
-                        "error": f"Storage ID {storage_id} not found in mock storage",
+                        "error": f"Storage ID {storage_id} not found in mock storage"
                     }
 
                 # Read the storage information
@@ -462,7 +467,11 @@ class StorachaStorage:
 
             except Exception as e:
                 logger.error(f"Error in mock check_status: {e}")
-                return {"success": False, "mock": True, "error": str(e)}
+                return {
+                    "success": False,
+                    "mock": True,
+                    "error": str(e)
+                }
 
         try:
             # Check status on Storacha using W3 Blob Protocol
@@ -472,7 +481,7 @@ class StorachaStorage:
             response = requests.get(
                 f"{self.api_endpoint}/info/{storage_id}",  # Changed from /status to /info based on W3 Blob Protocol
                 headers=headers,
-                timeout=10,
+                timeout=10
             )
 
             if response.status_code == 200:
@@ -483,17 +492,20 @@ class StorachaStorage:
                     "cid": result.get("cid"),
                     "status": result.get("status", "unknown"),
                     "replication": result.get("replication"),
-                    "timestamp": time.time(),
+                    "timestamp": time.time()
                 }
             else:
                 return {
                     "success": False,
-                    "error": f"Failed to check status on Storacha: {response.status_code} - {response.text}",
+                    "error": f"Failed to check status on Storacha: {response.status_code} - {response.text}"
                 }
 
         except Exception as e:
             logger.error(f"Error checking status on Storacha: {e}")
-            return {"success": False, "error": str(e)}
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     def list_blobs(self, cursor=None, size=100) -> Dict[str, Any]:
         """
@@ -510,27 +522,25 @@ class StorachaStorage:
             return {
                 "success": False,
                 "simulation": True,
-                "error": "Storacha backend is in simulation mode",
+                "error": "Storacha backend is in simulation mode"
             }
 
         # If in mock mode, list blobs from mock storage
         if self.mock_mode:
             try:
                 # Get list of blobs from mock storage
-                mock_dir = os.path.join(
-                    os.path.expanduser("~"), ".ipfs_kit", "mock_storacha", "objects"
-                )
+                mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_storacha", "objects")
                 if not os.path.exists(mock_dir):
                     return {
                         "success": True,
                         "mock": True,
                         "results": [],
                         "size": 0,
-                        "message": "No blobs found in mock storage",
+                        "message": "No blobs found in mock storage"
                     }
 
                 # Get list of storage files
-                storage_files = [f for f in os.listdir(mock_dir) if f.endswith(".json")]
+                storage_files = [f for f in os.listdir(mock_dir) if f.endswith('.json')]
 
                 # Implement simple pagination
                 if cursor:
@@ -542,43 +552,43 @@ class StorachaStorage:
                     start_index = 0
 
                 # Get subset of files based on pagination
-                results_files = storage_files[start_index : start_index + size]
+                results_files = storage_files[start_index:start_index + size]
 
                 # Get blob info for each file
                 results = []
                 for filename in results_files:
-                    with open(os.path.join(mock_dir, filename), "r") as f:
+                    with open(os.path.join(mock_dir, filename), 'r') as f:
                         storage_info = json.load(f)
                         # Convert to expected format
-                        results.append(
-                            {
-                                "blob": {
-                                    "size": storage_info.get("size", 0),
-                                    "content": storage_info.get("cid"),
-                                },
-                                "insertedAt": time.strftime(
-                                    "%Y-%m-%dT%H:%M:%S.000Z",
-                                    time.gmtime(storage_info.get("created_at", time.time())),
-                                ),
-                            }
-                        )
+                        results.append({
+                            "blob": {
+                                "size": storage_info.get("size", 0),
+                                "content": storage_info.get("cid")
+                            },
+                            "insertedAt": time.strftime("%Y-%m-%dT%H:%M:%S.000Z",
+                                                      time.gmtime(storage_info.get("created_at", time.time())))
+                        })
 
                 # Calculate next cursor
                 next_cursor = None
                 if start_index + size < len(storage_files):
-                    next_cursor = storage_files[start_index + size].replace(".json", "")
+                    next_cursor = storage_files[start_index + size].replace('.json', '')
 
                 return {
                     "success": True,
                     "mock": True,
                     "results": results,
                     "size": len(results),
-                    "cursor": next_cursor,
+                    "cursor": next_cursor
                 }
 
             except Exception as e:
                 logger.error(f"Error in mock list_blobs: {e}")
-                return {"success": False, "mock": True, "error": str(e)}
+                return {
+                    "success": False,
+                    "mock": True,
+                    "error": str(e)
+                }
 
         try:
             # List blobs using W3 Blob Protocol
@@ -591,7 +601,10 @@ class StorachaStorage:
 
             # Make request to list endpoint
             response = requests.get(
-                f"{self.api_endpoint}/space/blob/list", headers=headers, params=params, timeout=30
+                f"{self.api_endpoint}/space/blob/list",
+                headers=headers,
+                params=params,
+                timeout=30
             )
 
             if response.status_code == 200:
@@ -600,17 +613,20 @@ class StorachaStorage:
                     "success": True,
                     "results": result.get("results", []),
                     "size": result.get("size", 0),
-                    "cursor": result.get("cursor"),
+                    "cursor": result.get("cursor")
                 }
             else:
                 return {
                     "success": False,
-                    "error": f"Failed to list blobs from Storacha: {response.status_code} - {response.text}",
+                    "error": f"Failed to list blobs from Storacha: {response.status_code} - {response.text}"
                 }
 
         except Exception as e:
             logger.error(f"Error listing blobs from Storacha: {e}")
-            return {"success": False, "error": str(e)}
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     def remove_blob(self, digest) -> Dict[str, Any]:
         """
@@ -626,7 +642,7 @@ class StorachaStorage:
             return {
                 "success": False,
                 "simulation": True,
-                "error": "Storacha backend is in simulation mode",
+                "error": "Storacha backend is in simulation mode"
             }
 
         # If in mock mode, remove from mock storage
@@ -640,11 +656,11 @@ class StorachaStorage:
                     return {
                         "success": False,
                         "mock": True,
-                        "error": f"Blob with digest {digest} not found in mock storage",
+                        "error": f"Blob with digest {digest} not found in mock storage"
                     }
 
                 # Read the storage ID
-                with open(cid_map_file, "r") as f:
+                with open(cid_map_file, 'r') as f:
                     storage_id = f.read().strip()
 
                 # Get the storage file
@@ -654,11 +670,11 @@ class StorachaStorage:
                     return {
                         "success": False,
                         "mock": True,
-                        "error": f"Storage file for ID {storage_id} not found",
+                        "error": f"Storage file for ID {storage_id} not found"
                     }
 
                 # Read the storage info to get the size
-                with open(storage_file, "r") as f:
+                with open(storage_file, 'r') as f:
                     storage_info = json.load(f)
                 size = storage_info.get("size", 0)
 
@@ -670,12 +686,16 @@ class StorachaStorage:
                     "success": True,
                     "mock": True,
                     "message": "Blob removed from mock storage",
-                    "size": size,
+                    "size": size
                 }
 
             except Exception as e:
                 logger.error(f"Error in mock remove_blob: {e}")
-                return {"success": False, "mock": True, "error": str(e)}
+                return {
+                    "success": False,
+                    "mock": True,
+                    "error": str(e)
+                }
 
         try:
             # Remove blob using W3 Blob Protocol
@@ -684,7 +704,10 @@ class StorachaStorage:
             # Make request to remove endpoint
             data = {"digest": digest}
             response = requests.post(
-                f"{self.api_endpoint}/space/blob/remove", headers=headers, json=data, timeout=30
+                f"{self.api_endpoint}/space/blob/remove",
+                headers=headers,
+                json=data,
+                timeout=30
             )
 
             if response.status_code == 200:
@@ -692,17 +715,20 @@ class StorachaStorage:
                 return {
                     "success": True,
                     "message": "Blob removed from Storacha",
-                    "size": result.get("size", 0),
+                    "size": result.get("size", 0)
                 }
             else:
                 return {
                     "success": False,
-                    "error": f"Failed to remove blob from Storacha: {response.status_code} - {response.text}",
+                    "error": f"Failed to remove blob from Storacha: {response.status_code} - {response.text}"
                 }
 
         except Exception as e:
             logger.error(f"Error removing blob from Storacha: {e}")
-            return {"success": False, "error": str(e)}
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     def get_blob(self, digest) -> Dict[str, Any]:
         """
@@ -718,7 +744,7 @@ class StorachaStorage:
             return {
                 "success": False,
                 "simulation": True,
-                "error": "Storacha backend is in simulation mode",
+                "error": "Storacha backend is in simulation mode"
             }
 
         # If in mock mode, get info from mock storage
@@ -732,11 +758,11 @@ class StorachaStorage:
                     return {
                         "success": False,
                         "mock": True,
-                        "error": f"Blob with digest {digest} not found in mock storage",
+                        "error": f"Blob with digest {digest} not found in mock storage"
                     }
 
                 # Read the storage ID
-                with open(cid_map_file, "r") as f:
+                with open(cid_map_file, 'r') as f:
                     storage_id = f.read().strip()
 
                 # Get the storage file
@@ -746,21 +772,22 @@ class StorachaStorage:
                     return {
                         "success": False,
                         "mock": True,
-                        "error": f"Storage file for ID {storage_id} not found",
+                        "error": f"Storage file for ID {storage_id} not found"
                     }
 
                 # Read the storage info
-                with open(storage_file, "r") as f:
+                with open(storage_file, 'r') as f:
                     storage_info = json.load(f)
 
                 # Create get blob response format
                 blob_info = {
-                    "blob": {"size": storage_info.get("size", 0), "digest": digest},
+                    "blob": {
+                        "size": storage_info.get("size", 0),
+                        "digest": digest
+                    },
                     "cause": storage_info.get("cause", "mock-task-id"),
-                    "insertedAt": time.strftime(
-                        "%Y-%m-%dT%H:%M:%S.000Z",
-                        time.gmtime(storage_info.get("created_at", time.time())),
-                    ),
+                    "insertedAt": time.strftime("%Y-%m-%dT%H:%M:%S.000Z",
+                                               time.gmtime(storage_info.get("created_at", time.time())))
                 }
 
                 return {
@@ -768,12 +795,16 @@ class StorachaStorage:
                     "mock": True,
                     "blob": blob_info["blob"],
                     "cause": blob_info["cause"],
-                    "insertedAt": blob_info["insertedAt"],
+                    "insertedAt": blob_info["insertedAt"]
                 }
 
             except Exception as e:
                 logger.error(f"Error in mock get_blob: {e}")
-                return {"success": False, "mock": True, "error": str(e)}
+                return {
+                    "success": False,
+                    "mock": True,
+                    "error": str(e)
+                }
 
         try:
             # Get blob info using W3 Blob Protocol
@@ -784,7 +815,7 @@ class StorachaStorage:
                 f"{self.api_endpoint}/space/blob/get/0/1",  # As per specification
                 headers=headers,
                 params={"digest": digest},
-                timeout=30,
+                timeout=30
             )
 
             if response.status_code == 200:
@@ -793,14 +824,17 @@ class StorachaStorage:
                     "success": True,
                     "blob": result.get("blob", {}),
                     "cause": result.get("cause", ""),
-                    "insertedAt": result.get("insertedAt", ""),
+                    "insertedAt": result.get("insertedAt", "")
                 }
             else:
                 return {
                     "success": False,
-                    "error": f"Failed to get blob info from Storacha: {response.status_code} - {response.text}",
+                    "error": f"Failed to get blob info from Storacha: {response.status_code} - {response.text}"
                 }
 
         except Exception as e:
             logger.error(f"Error getting blob info from Storacha: {e}")
-            return {"success": False, "error": str(e)}
+            return {
+                "success": False,
+                "error": str(e)
+            }

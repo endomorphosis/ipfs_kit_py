@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/endomorphosis/ipfs_kit_py/schemas/iroh-bucket-reconciliation-receipt.schema.json",
+  "title": "IPFS Kit Iroh bucket reconciliation receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "kind", "receipt_id", "bucket", "operation", "status",
+    "policy_digest", "started_at", "completed_at", "dry_run",
+    "logical_bytes_before", "logical_bytes_after", "quota_bytes",
+    "duplicate_objects", "duplicate_bytes", "action_count", "actions", "receipt_digest"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "kind": { "const": "ipfs-kit-iroh-bucket-reconciliation-receipt" },
+    "receipt_id": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
+    "bucket": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "operation": { "enum": ["reconcile", "policy_migration"] },
+    "status": { "enum": ["converged", "dry-run", "partial", "rejected"] },
+    "policy_digest": { "$ref": "#/$defs/hash" },
+    "started_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": "string", "format": "date-time" },
+    "dry_run": { "type": "boolean" },
+    "logical_bytes_before": { "type": "integer", "minimum": 0 },
+    "logical_bytes_after": { "type": "integer", "minimum": 0 },
+    "quota_bytes": { "type": ["integer", "null"], "minimum": 0 },
+    "duplicate_objects": { "type": "integer", "minimum": 0 },
+    "duplicate_bytes": { "type": "integer", "minimum": 0 },
+    "action_count": { "type": "integer", "minimum": 0 },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["action", "iroh_hash", "size", "backend", "role", "tier", "status", "reason"],
+        "properties": {
+          "action": { "enum": ["place", "remove", "noop", "reject"] },
+          "iroh_hash": { "$ref": "#/$defs/hash" },
+          "size": { "type": "integer", "minimum": 0 },
+          "backend": { "type": ["string", "null"] },
+          "role": { "type": ["string", "null"], "enum": ["primary", "replica", "cache", "archive", null] },
+          "tier": { "type": ["string", "null"], "enum": ["hot", "warm", "cold", "archive", null] },
+          "status": { "enum": ["planned", "placed", "removed", "unchanged", "rejected", "failed"] },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "receipt_digest": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

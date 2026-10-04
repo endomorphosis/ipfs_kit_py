@@ -1,0 +1,8 @@
+{
+  "id": "12D3KooW8640642c46ef00fcfb840c9a3200ca613527d903926cbd39a0",
+  "private_key": "Ry0NSWtBOIgekYyfbzSzj0YznbpCYBkvyDi0Hd3ErtnJuSno4DEZoU5HkxiI+M4A6NSrYAArHeIePx0htmrIfg==",
+  "addresses": [
+    "/ip4/127.0.0.1/tcp/9096/p2p/12D3KooW8640642c46ef00fcfb840c9a3200ca613527d903926cbd39a0",
+    "/ip4/0.0.0.0/tcp/9096/p2p/12D3KooW8640642c46ef00fcfb840c9a3200ca613527d903926cbd39a0"
+  ]
+}

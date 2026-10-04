@@ -230,7 +230,9 @@ from ipfs_kit_py.dashboard.dashboard_integration import enhance_existing_dashboa
 
 # Enhance existing dashboard
 integrator = await enhance_existing_dashboard(
-    dashboard_instance=your_dashboard, ipfs_manager=your_ipfs_manager, dag_manager=your_dag_manager
+    dashboard_instance=your_dashboard,
+    ipfs_manager=your_ipfs_manager,
+    dag_manager=your_dag_manager
 )
 ```
 

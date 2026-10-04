@@ -57,7 +57,6 @@ logger = logging.getLogger(__name__)
 # Import ipfs_datasets_py integration with fallback
 try:
     from .ipfs_datasets_integration import get_ipfs_datasets_manager
-
     HAS_DATASETS = True
     logger.info("ipfs_datasets_py available for arrow metadata index")
 except ImportError:
@@ -93,7 +92,6 @@ def _load_accelerate_compute_class(*, deps: object | None = None):
         return AccelerateCompute
     except Exception:
         return None
-
 
 #
 logger = logging.getLogger(__name__)
@@ -163,28 +161,26 @@ class ArrowMetadataIndex:
         self.ipfs_client = ipfs_client
         self.node_id = node_id  # Store node_id
         self.cluster_id = cluster_id  # Store cluster_id
-
+        
         # Dataset storage configuration
         self.enable_dataset_storage = enable_dataset_storage and HAS_DATASETS
         self.dataset_batch_size = dataset_batch_size
         self.dataset_manager = None
         self._metadata_buffer = []
-
+        
         # Compute layer configuration
         self.enable_compute_layer = bool(enable_compute_layer)
         self.compute_layer = None
-
+        
         # Initialize dataset manager if enabled
         if self.enable_dataset_storage:
             try:
-                self.dataset_manager = get_ipfs_datasets_manager(
-                    enable=True, ipfs_client=ipfs_client
-                )
+                self.dataset_manager = get_ipfs_datasets_manager(enable=True, ipfs_client=ipfs_client)
                 logger.info("Arrow Metadata Index dataset storage enabled")
             except Exception as e:
                 logger.warning(f"Failed to initialize dataset storage: {e}")
                 self.enable_dataset_storage = False
-
+        
         # Initialize compute layer if enabled
         if self.enable_compute_layer:
             try:
@@ -1427,6 +1423,7 @@ class ArrowMetadataIndex:
                         msg_data.get("type") == "partition_data_response"
                         and msg_data.get("request_id") == message["request_id"]
                     ):
+
                         chunk = msg_data.get("chunk")
                         chunk_index = msg_data.get("chunk_index")
                         total_chunks = msg_data.get("total_chunks")
@@ -1500,7 +1497,9 @@ class ArrowMetadataIndex:
                                 os.remove(partition_path)
                             return False
                     else:
-                        self.logger.debug(f"Timeout waiting for partition data from peer {peer_id}")
+                        self.logger.debug(
+                            f"Timeout waiting for partition data from peer {peer_id}"
+                        )
                         return False
                 else:
                     self.logger.debug("IPFS client doesn't support pubsub_publish")
@@ -1826,6 +1825,7 @@ class ArrowMetadataIndex:
         }
 
         try:
+
             if not PLASMA_AVAILABLE:
                 result["error"] = "PyArrow Plasma is not available"
                 return result

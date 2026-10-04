@@ -142,13 +142,16 @@ from ipfs_kit_py.mcp.storage_manager.storage_types import StorageBackendType
 manager = BackendManager()
 
 # Add content to IPFS
-result = manager.add_content(backend_type=StorageBackendType.IPFS, content="Hello, IPFS!")
+result = manager.add_content(
+    backend_type=StorageBackendType.IPFS,
+    content="Hello, IPFS!"
+)
 
 # Store same content in S3
 s3_result = manager.add_content(
     backend_type=StorageBackendType.S3,
     content="Hello, IPFS!",
-    reference=result.get("identifier"),  # Link to IPFS version
+    reference=result.get("identifier")  # Link to IPFS version
 )
 ```
 
@@ -165,7 +168,7 @@ policy = MigrationPolicy(
     name="ipfs_to_filecoin",
     source_backend="ipfs",
     destination_backend="filecoin",
-    content_filter={"min_size": 1024 * 1024},  # Files over 1MB
+    content_filter={"min_size": 1024 * 1024}  # Files over 1MB
 )
 
 # Add policy
@@ -187,7 +190,7 @@ engine = SearchEngine(enable_vector_search=True)
 await engine.index_document(
     cid="QmExample",
     text="This is an example document about IPFS.",
-    metadata={"type": "documentation"},
+    metadata={"type": "documentation"}
 )
 
 # Search by text
@@ -203,14 +206,16 @@ vector_results = await engine.search_vector("distributed storage")
 from ipfs_kit_py.mcp.streaming import ChunkedFileUploader, ProgressTracker
 
 # Create uploader
-uploader = ChunkedFileUploader(chunk_size=1024 * 1024)
+uploader = ChunkedFileUploader(chunk_size=1024*1024)
 
 # Create progress tracker
 tracker = ProgressTracker()
 
 # Upload large file with progress tracking
 result = await uploader.upload(
-    file_path="/path/to/large/file", destination=ipfs_backend, progress_tracker=tracker
+    file_path="/path/to/large/file",
+    destination=ipfs_backend,
+    progress_tracker=tracker
 )
 
 # Get progress information

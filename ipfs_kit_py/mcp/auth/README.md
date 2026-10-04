@@ -38,7 +38,6 @@ app = FastAPI()
 backend_manager = BackendManager()
 # ... configure backends ...
 
-
 # Set up authentication system
 @app.on_event("startup")
 async def startup_event():
@@ -48,8 +47,8 @@ async def startup_event():
         config={
             "token_secret": "your-secret-key",
             "admin_username": "admin",
-            "admin_password": "secure-password",
-        },
+            "admin_password": "secure-password"
+        }
     )
 ```
 
@@ -78,13 +77,13 @@ config = {
         "github": {
             "client_id": "your-github-client-id",
             "client_secret": "your-github-client-secret",
-            "redirect_uri": "http://your-server/api/v0/auth/oauth/github/callback",
+            "redirect_uri": "http://your-server/api/v0/auth/oauth/github/callback"
         },
         "google": {
             "client_id": "your-google-client-id",
             "client_secret": "your-google-client-secret",
-            "redirect_uri": "http://your-server/api/v0/auth/oauth/google/callback",
-        },
+            "redirect_uri": "http://your-server/api/v0/auth/oauth/google/callback"
+        }
     }
 }
 ```
@@ -100,14 +99,14 @@ config = {
             "id": "data_scientist",
             "name": "Data Scientist",
             "parent_role": "user",
-            "permissions": ["read:ipfs", "write:ipfs", "read:huggingface", "write:huggingface"],
+            "permissions": ["read:ipfs", "write:ipfs", "read:huggingface", "write:huggingface"]
         },
         {
             "id": "content_manager",
             "name": "Content Manager",
             "parent_role": "user",
-            "permissions": ["read:ipfs", "write:ipfs", "read:filecoin", "write:filecoin"],
-        },
+            "permissions": ["read:ipfs", "write:ipfs", "read:filecoin", "write:filecoin"]
+        }
     ]
 }
 ```
@@ -153,12 +152,10 @@ from fastapi import Depends
 from ipfs_kit_py.mcp.auth.router import get_current_user, get_admin_user
 from ipfs_kit_py.mcp.auth.models import User
 
-
 @app.get("/api/v0/protected")
 async def protected_endpoint(current_user: User = Depends(get_current_user)):
     """Endpoint requiring authentication."""
     return {"message": f"Hello, {current_user.username}!"}
-
 
 @app.get("/api/v0/admin")
 async def admin_endpoint(admin_user: User = Depends(get_admin_user)):
@@ -186,7 +183,7 @@ api_key = await auth_system.api_key_manager.create_key(
     expires_at=time.time() + (30 * 24 * 60 * 60),  # 30 days
     rate_limit=100,  # requests per minute
     backends=["ipfs", "filecoin"],
-    ip_whitelist=["192.168.1.0/24"],
+    ip_whitelist=["192.168.1.0/24"]
 )
 
 # The key is only returned once
@@ -254,19 +251,31 @@ Record security events for monitoring and compliance:
 
 ```python
 from ipfs_kit_py.mcp.auth.mcp_auth_integration import (
-    audit_login_attempt,
-    audit_permission_check,
-    audit_backend_access,
+    audit_login_attempt, audit_permission_check, audit_backend_access
 )
 
 # Log a login attempt
-audit_login_attempt(user_id="user123", success=True, ip_address="192.168.1.1")
+audit_login_attempt(
+    user_id="user123",
+    success=True,
+    ip_address="192.168.1.1"
+)
 
 # Log a permission check
-audit_permission_check(user_id="user123", permission="write:ipfs", granted=True, resource="Qm...")
+audit_permission_check(
+    user_id="user123",
+    permission="write:ipfs",
+    granted=True,
+    resource="Qm..."
+)
 
 # Log backend access
-audit_backend_access(user_id="user123", backend="ipfs", operation="add", granted=True)
+audit_backend_access(
+    user_id="user123",
+    backend="ipfs",
+    operation="add",
+    granted=True
+)
 ```
 
 ## Verification Tool
@@ -375,7 +384,6 @@ Enable debug logging to see more detailed information:
 
 ```python
 import logging
-
 logging.getLogger("ipfs_kit_py.mcp.auth").setLevel(logging.DEBUG)
 ```
 
@@ -402,7 +410,6 @@ app = FastAPI()
 backend_manager = BackendManager()
 # ... configure backends ...
 
-
 # Set up authentication system
 @app.on_event("startup")
 async def startup_event():
@@ -419,21 +426,18 @@ async def startup_event():
                     "id": "data_scientist",
                     "name": "Data Scientist",
                     "parent_role": "user",
-                    "permissions": ["read:ipfs", "write:ipfs", "read:huggingface"],
+                    "permissions": ["read:ipfs", "write:ipfs", "read:huggingface"]
                 }
-            ],
-        },
-    )
-
-    # Configure backend permissions
-    await auth_system.configure_backend_permissions(
-        {
-            "ipfs": ["read", "write", "pin", "admin"],
-            "filecoin": ["read", "write", "verify"],
-            "s3": ["read", "write", "delete"],
+            ]
         }
     )
-
+    
+    # Configure backend permissions
+    await auth_system.configure_backend_permissions({
+        "ipfs": ["read", "write", "pin", "admin"],
+        "filecoin": ["read", "write", "verify"],
+        "s3": ["read", "write", "delete"]
+    })
 
 # Protected endpoints examples
 @app.get("/api/v0/user/profile")
@@ -443,18 +447,20 @@ async def get_profile(current_user: User = Depends(get_current_user)):
         "id": current_user.id,
         "username": current_user.username,
         "email": current_user.email,
-        "role": current_user.role,
+        "role": current_user.role
     }
-
 
 @app.get("/api/v0/admin/users")
 async def list_users(admin_user: User = Depends(get_admin_user)):
     """Endpoint requiring admin privileges."""
     # Get auth system
     auth_system = get_mcp_auth()
-
+    
     # Get all users
     users = await auth_system.auth_service.list_users()
-
-    return {"success": True, "users": [user.to_dict() for user in users]}
+    
+    return {
+        "success": True,
+        "users": [user.to_dict() for user in users]
+    }
 ```

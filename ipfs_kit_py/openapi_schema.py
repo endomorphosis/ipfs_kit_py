@@ -16,11 +16,19 @@ openapi_schema = {
         "contact": {
             "name": "IPFS Kit Team",
             "email": "info@example.com",
-            "url": "https://github.com/endomorphosis/ipfs_kit_py",
+            "url": "https://github.com/endomorphosis/ipfs_kit_py"
         },
-        "license": {"name": "MIT", "url": "https://opensource.org/licenses/MIT"},
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        }
     },
-    "servers": [{"url": "http://localhost:8000", "description": "Local development server"}],
+    "servers": [
+        {
+            "url": "http://localhost:8000",
+            "description": "Local development server"
+        }
+    ],
     "paths": {
         "/health": {
             "get": {
@@ -36,14 +44,20 @@ openapi_schema = {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "status": {"type": "string", "example": "ok"},
-                                        "version": {"type": "string", "example": "0.1.1"},
-                                    },
+                                        "status": {
+                                            "type": "string",
+                                            "example": "ok"
+                                        },
+                                        "version": {
+                                            "type": "string",
+                                            "example": "0.1.1"
+                                        }
+                                    }
                                 }
                             }
-                        },
+                        }
                     }
-                },
+                }
             }
         },
         "/api/{method_name}": {
@@ -57,8 +71,10 @@ openapi_schema = {
                         "name": "method_name",
                         "in": "path",
                         "required": True,
-                        "schema": {"type": "string"},
-                        "description": "Name of the method to call",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Name of the method to call"
                     }
                 ],
                 "requestBody": {
@@ -69,15 +85,17 @@ openapi_schema = {
                                 "properties": {
                                     "args": {
                                         "type": "array",
-                                        "items": {"type": "object"},
-                                        "description": "Positional arguments",
+                                        "items": {
+                                            "type": "object"
+                                        },
+                                        "description": "Positional arguments"
                                     },
                                     "kwargs": {
                                         "type": "object",
                                         "additionalProperties": True,
-                                        "description": "Keyword arguments",
-                                    },
-                                },
+                                        "description": "Keyword arguments"
+                                    }
+                                }
                             }
                         }
                     }
@@ -89,21 +107,27 @@ openapi_schema = {
                             "application/json": {
                                 "schema": {
                                     "type": "object",
-                                    "properties": {"success": {"type": "boolean"}},
-                                    "additionalProperties": True,
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "additionalProperties": True
                                 }
                             }
-                        },
+                        }
                     },
                     "400": {
                         "description": "Error response",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
                             }
-                        },
-                    },
-                },
+                        }
+                    }
+                }
             }
         },
         "/api/v0/add": {
@@ -121,20 +145,20 @@ openapi_schema = {
                                     "file": {
                                         "type": "string",
                                         "format": "binary",
-                                        "description": "File to add to IPFS",
+                                        "description": "File to add to IPFS"
                                     },
                                     "pin": {
                                         "type": "boolean",
                                         "default": True,
-                                        "description": "Whether to pin the content",
+                                        "description": "Whether to pin the content"
                                     },
                                     "wrap_with_directory": {
                                         "type": "boolean",
                                         "default": False,
-                                        "description": "Whether to wrap the file in a directory",
-                                    },
+                                        "description": "Whether to wrap the file in a directory"
+                                    }
                                 },
-                                "required": ["file"],
+                                "required": ["file"]
                             }
                         }
                     }
@@ -147,27 +171,38 @@ openapi_schema = {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "success": {"type": "boolean", "example": True},
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": True
+                                        },
                                         "cid": {
                                             "type": "string",
-                                            "example": "QmXG8yk8UJjMT6qtE2zSxzz3U7z5jSYRgVWLCUFqAVnByM",
+                                            "example": "QmXG8yk8UJjMT6qtE2zSxzz3U7z5jSYRgVWLCUFqAVnByM"
                                         },
-                                        "name": {"type": "string", "example": "example.txt"},
-                                        "size": {"type": "integer", "example": 1024},
-                                    },
+                                        "name": {
+                                            "type": "string",
+                                            "example": "example.txt"
+                                        },
+                                        "size": {
+                                            "type": "integer",
+                                            "example": 1024
+                                        }
+                                    }
                                 }
                             }
-                        },
+                        }
                     },
                     "400": {
                         "description": "Error response",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
                             }
-                        },
-                    },
-                },
+                        }
+                    }
+                }
             }
         },
         "/api/v0/cat": {
@@ -181,24 +216,35 @@ openapi_schema = {
                         "name": "arg",
                         "in": "query",
                         "required": True,
-                        "schema": {"type": "string"},
-                        "description": "The CID of the content to retrieve",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "The CID of the content to retrieve"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "Content data",
-                        "content": {"*/*": {"schema": {"type": "string", "format": "binary"}}},
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
                     },
                     "404": {
                         "description": "Content not found",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
                             }
-                        },
-                    },
-                },
+                        }
+                    }
+                }
             }
         },
         "/api/v0/ls": {
@@ -212,8 +258,10 @@ openapi_schema = {
                         "name": "arg",
                         "in": "query",
                         "required": True,
-                        "schema": {"type": "string"},
-                        "description": "The CID of the directory to list",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "The CID of the directory to list"
                     }
                 ],
                 "responses": {
@@ -224,7 +272,10 @@ openapi_schema = {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "success": {"type": "boolean", "example": True},
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": True
+                                        },
                                         "entries": {
                                             "type": "array",
                                             "items": {
@@ -232,31 +283,39 @@ openapi_schema = {
                                                 "properties": {
                                                     "name": {
                                                         "type": "string",
-                                                        "example": "example.txt",
+                                                        "example": "example.txt"
                                                     },
-                                                    "type": {"type": "string", "example": "file"},
-                                                    "size": {"type": "integer", "example": 1024},
+                                                    "type": {
+                                                        "type": "string",
+                                                        "example": "file"
+                                                    },
+                                                    "size": {
+                                                        "type": "integer",
+                                                        "example": 1024
+                                                    },
                                                     "cid": {
                                                         "type": "string",
-                                                        "example": "QmXG8yk8UJjMT6qtE2zSxzz3U7z5jSYRgVWLCUFqAVnByM",
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
+                                                        "example": "QmXG8yk8UJjMT6qtE2zSxzz3U7z5jSYRgVWLCUFqAVnByM"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
-                        },
+                        }
                     },
                     "404": {
                         "description": "Directory not found",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
                             }
-                        },
-                    },
-                },
+                        }
+                    }
+                }
             }
         },
         "/api/v0/pin/add": {
@@ -273,15 +332,15 @@ openapi_schema = {
                                 "properties": {
                                     "cid": {
                                         "type": "string",
-                                        "description": "CID of content to pin",
+                                        "description": "CID of content to pin"
                                     },
                                     "recursive": {
                                         "type": "boolean",
                                         "default": True,
-                                        "description": "Pin recursively",
-                                    },
+                                        "description": "Pin recursively"
+                                    }
                                 },
-                                "required": ["cid"],
+                                "required": ["cid"]
                             }
                         }
                     }
@@ -294,28 +353,33 @@ openapi_schema = {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "success": {"type": "boolean", "example": True},
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": True
+                                        },
                                         "pins": {
                                             "type": "array",
-                                            "items": {"type": "string"},
-                                            "example": [
-                                                "QmXG8yk8UJjMT6qtE2zSxzz3U7z5jSYRgVWLCUFqAVnByM"
-                                            ],
-                                        },
-                                    },
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "example": ["QmXG8yk8UJjMT6qtE2zSxzz3U7z5jSYRgVWLCUFqAVnByM"]
+                                        }
+                                    }
                                 }
                             }
-                        },
+                        }
                     },
                     "400": {
                         "description": "Error response",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
                             }
-                        },
-                    },
-                },
+                        }
+                    }
+                }
             }
         },
         "/api/v0/pin/rm": {
@@ -332,15 +396,15 @@ openapi_schema = {
                                 "properties": {
                                     "cid": {
                                         "type": "string",
-                                        "description": "CID of content to unpin",
+                                        "description": "CID of content to unpin"
                                     },
                                     "recursive": {
                                         "type": "boolean",
                                         "default": True,
-                                        "description": "Unpin recursively",
-                                    },
+                                        "description": "Unpin recursively"
+                                    }
                                 },
-                                "required": ["cid"],
+                                "required": ["cid"]
                             }
                         }
                     }
@@ -353,28 +417,33 @@ openapi_schema = {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "success": {"type": "boolean", "example": True},
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": True
+                                        },
                                         "pins": {
                                             "type": "array",
-                                            "items": {"type": "string"},
-                                            "example": [
-                                                "QmXG8yk8UJjMT6qtE2zSxzz3U7z5jSYRgVWLCUFqAVnByM"
-                                            ],
-                                        },
-                                    },
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "example": ["QmXG8yk8UJjMT6qtE2zSxzz3U7z5jSYRgVWLCUFqAVnByM"]
+                                        }
+                                    }
                                 }
                             }
-                        },
+                        }
                     },
                     "400": {
                         "description": "Error response",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
                             }
-                        },
-                    },
-                },
+                        }
+                    }
+                }
             }
         },
         "/api/v0/pin/ls": {
@@ -391,17 +460,20 @@ openapi_schema = {
                         "schema": {
                             "type": "string",
                             "enum": ["all", "direct", "recursive", "indirect"],
-                            "default": "all",
+                            "default": "all"
                         },
-                        "description": "Type of pins to list",
+                        "description": "Type of pins to list"
                     },
                     {
                         "name": "quiet",
                         "in": "query",
                         "required": False,
-                        "schema": {"type": "boolean", "default": False},
-                        "description": "Return only pin hashes",
-                    },
+                        "schema": {
+                            "type": "boolean",
+                            "default": False
+                        },
+                        "description": "Return only pin hashes"
+                    }
                 ],
                 "responses": {
                     "200": {
@@ -411,7 +483,10 @@ openapi_schema = {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "success": {"type": "boolean", "example": True},
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": True
+                                        },
                                         "pins": {
                                             "type": "object",
                                             "additionalProperties": {
@@ -419,30 +494,32 @@ openapi_schema = {
                                                 "properties": {
                                                     "type": {
                                                         "type": "string",
-                                                        "example": "recursive",
+                                                        "example": "recursive"
                                                     }
-                                                },
+                                                }
                                             },
                                             "example": {
                                                 "QmXG8yk8UJjMT6qtE2zSxzz3U7z5jSYRgVWLCUFqAVnByM": {
                                                     "type": "recursive"
                                                 }
-                                            },
-                                        },
-                                    },
+                                            }
+                                        }
+                                    }
                                 }
                             }
-                        },
+                        }
                     },
                     "400": {
                         "description": "Error response",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
                             }
-                        },
-                    },
-                },
+                        }
+                    }
+                }
             }
         },
         "/api/v0/name/publish": {
@@ -460,25 +537,25 @@ openapi_schema = {
                                     "path": {
                                         "type": "string",
                                         "description": "IPFS path to publish",
-                                        "example": "/ipfs/QmXG8yk8UJjMT6qtE2zSxzz3U7z5jSYRgVWLCUFqAVnByM",
+                                        "example": "/ipfs/QmXG8yk8UJjMT6qtE2zSxzz3U7z5jSYRgVWLCUFqAVnByM"
                                     },
                                     "key": {
                                         "type": "string",
                                         "description": "Name of the key to use",
-                                        "default": "self",
+                                        "default": "self"
                                     },
                                     "lifetime": {
                                         "type": "string",
                                         "description": "Time duration that the record will be valid",
-                                        "default": "24h",
+                                        "default": "24h"
                                     },
                                     "ttl": {
                                         "type": "string",
                                         "description": "Time duration for caching the record",
-                                        "default": "1h",
-                                    },
+                                        "default": "1h"
+                                    }
                                 },
-                                "required": ["path"],
+                                "required": ["path"]
                             }
                         }
                     }
@@ -491,29 +568,34 @@ openapi_schema = {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "success": {"type": "boolean", "example": True},
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": True
+                                        },
                                         "name": {
                                             "type": "string",
-                                            "example": "QmYCvbfNbCwFR45HiNP45rwJgvatpiW38D961L5qAhUM5Y",
+                                            "example": "QmYCvbfNbCwFR45HiNP45rwJgvatpiW38D961L5qAhUM5Y"
                                         },
                                         "value": {
                                             "type": "string",
-                                            "example": "/ipfs/QmXG8yk8UJjMT6qtE2zSxzz3U7z5jSYRgVWLCUFqAVnByM",
-                                        },
-                                    },
+                                            "example": "/ipfs/QmXG8yk8UJjMT6qtE2zSxzz3U7z5jSYRgVWLCUFqAVnByM"
+                                        }
+                                    }
                                 }
                             }
-                        },
+                        }
                     },
                     "400": {
                         "description": "Error response",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
                             }
-                        },
-                    },
-                },
+                        }
+                    }
+                }
             }
         },
         "/api/v0/name/resolve": {
@@ -527,17 +609,22 @@ openapi_schema = {
                         "name": "arg",
                         "in": "query",
                         "required": True,
-                        "schema": {"type": "string"},
+                        "schema": {
+                            "type": "string"
+                        },
                         "description": "The IPNS name to resolve",
-                        "example": "/ipns/QmYCvbfNbCwFR45HiNP45rwJgvatpiW38D961L5qAhUM5Y",
+                        "example": "/ipns/QmYCvbfNbCwFR45HiNP45rwJgvatpiW38D961L5qAhUM5Y"
                     },
                     {
                         "name": "recursive",
                         "in": "query",
                         "required": False,
-                        "schema": {"type": "boolean", "default": True},
-                        "description": "Resolve recursively",
-                    },
+                        "schema": {
+                            "type": "boolean",
+                            "default": True
+                        },
+                        "description": "Resolve recursively"
+                    }
                 ],
                 "responses": {
                     "200": {
@@ -547,25 +634,30 @@ openapi_schema = {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "success": {"type": "boolean", "example": True},
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": True
+                                        },
                                         "path": {
                                             "type": "string",
-                                            "example": "/ipfs/QmXG8yk8UJjMT6qtE2zSxzz3U7z5jSYRgVWLCUFqAVnByM",
-                                        },
-                                    },
+                                            "example": "/ipfs/QmXG8yk8UJjMT6qtE2zSxzz3U7z5jSYRgVWLCUFqAVnByM"
+                                        }
+                                    }
                                 }
                             }
-                        },
+                        }
                     },
                     "400": {
                         "description": "Error response",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
                             }
-                        },
-                    },
-                },
+                        }
+                    }
+                }
             }
         },
         "/api/v0/id": {
@@ -582,36 +674,43 @@ openapi_schema = {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "success": {"type": "boolean", "example": True},
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": True
+                                        },
                                         "id": {
                                             "type": "string",
-                                            "example": "QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn",
+                                            "example": "QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"
                                         },
                                         "addresses": {
                                             "type": "array",
-                                            "items": {"type": "string"},
+                                            "items": {
+                                                "type": "string"
+                                            },
                                             "example": [
                                                 "/ip4/127.0.0.1/tcp/4001/p2p/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"
-                                            ],
+                                            ]
                                         },
                                         "agent_version": {
                                             "type": "string",
-                                            "example": "kubo/0.18.0",
-                                        },
-                                    },
+                                            "example": "kubo/0.18.0"
+                                        }
+                                    }
                                 }
                             }
-                        },
+                        }
                     },
                     "400": {
                         "description": "Error response",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
                             }
-                        },
-                    },
-                },
+                        }
+                    }
+                }
             }
         },
         "/api/v0/swarm/peers": {
@@ -625,23 +724,32 @@ openapi_schema = {
                         "name": "verbose",
                         "in": "query",
                         "required": False,
-                        "schema": {"type": "boolean", "default": False},
-                        "description": "Display all extra information",
+                        "schema": {
+                            "type": "boolean",
+                            "default": False
+                        },
+                        "description": "Display all extra information"
                     },
                     {
                         "name": "latency",
                         "in": "query",
                         "required": False,
-                        "schema": {"type": "boolean", "default": False},
-                        "description": "Display information about latency",
+                        "schema": {
+                            "type": "boolean",
+                            "default": False
+                        },
+                        "description": "Display information about latency"
                     },
                     {
                         "name": "direction",
                         "in": "query",
                         "required": False,
-                        "schema": {"type": "boolean", "default": False},
-                        "description": "Display information about connection direction",
-                    },
+                        "schema": {
+                            "type": "boolean",
+                            "default": False
+                        },
+                        "description": "Display information about connection direction"
+                    }
                 ],
                 "responses": {
                     "200": {
@@ -651,34 +759,50 @@ openapi_schema = {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "success": {"type": "boolean", "example": True},
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": True
+                                        },
                                         "peers": {
                                             "type": "array",
                                             "items": {
                                                 "type": "object",
                                                 "properties": {
-                                                    "peer": {"type": "string"},
-                                                    "addr": {"type": "string"},
-                                                    "latency": {"type": "string"},
-                                                    "direction": {"type": "string"},
-                                                },
-                                            },
+                                                    "peer": {
+                                                        "type": "string"
+                                                    },
+                                                    "addr": {
+                                                        "type": "string"
+                                                    },
+                                                    "latency": {
+                                                        "type": "string"
+                                                    },
+                                                    "direction": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            }
                                         },
-                                        "count": {"type": "integer", "example": 42},
-                                    },
+                                        "count": {
+                                            "type": "integer",
+                                            "example": 42
+                                        }
+                                    }
                                 }
                             }
-                        },
+                        }
                     },
                     "400": {
                         "description": "Error response",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
                             }
-                        },
-                    },
-                },
+                        }
+                    }
+                }
             }
         },
         "/api/v0/swarm/connect": {
@@ -696,10 +820,10 @@ openapi_schema = {
                                     "addr": {
                                         "type": "string",
                                         "description": "Multiaddress of peer to connect to",
-                                        "example": "/ip4/1.2.3.4/tcp/4001/p2p/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn",
+                                        "example": "/ip4/1.2.3.4/tcp/4001/p2p/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"
                                     }
                                 },
-                                "required": ["addr"],
+                                "required": ["addr"]
                             }
                         }
                     }
@@ -712,28 +836,35 @@ openapi_schema = {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "success": {"type": "boolean", "example": True},
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": True
+                                        },
                                         "added": {
                                             "type": "array",
-                                            "items": {"type": "string"},
+                                            "items": {
+                                                "type": "string"
+                                            },
                                             "example": [
                                                 "/ip4/1.2.3.4/tcp/4001/p2p/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"
-                                            ],
-                                        },
-                                    },
+                                            ]
+                                        }
+                                    }
                                 }
                             }
-                        },
+                        }
                     },
                     "400": {
                         "description": "Error response",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
                             }
-                        },
-                    },
-                },
+                        }
+                    }
+                }
             }
         },
         "/api/v0/cluster/peers": {
@@ -750,47 +881,61 @@ openapi_schema = {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "success": {"type": "boolean", "example": True},
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": True
+                                        },
                                         "peers": {
                                             "type": "array",
                                             "items": {
                                                 "type": "object",
                                                 "properties": {
-                                                    "id": {"type": "string"},
+                                                    "id": {
+                                                        "type": "string"
+                                                    },
                                                     "addresses": {
                                                         "type": "array",
-                                                        "items": {"type": "string"},
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
                                                     },
                                                     "role": {
                                                         "type": "string",
-                                                        "enum": ["master", "worker", "leecher"],
-                                                    },
-                                                },
-                                            },
+                                                        "enum": ["master", "worker", "leecher"]
+                                                    }
+                                                }
+                                            }
                                         },
-                                        "count": {"type": "integer", "example": 5},
-                                    },
+                                        "count": {
+                                            "type": "integer",
+                                            "example": 5
+                                        }
+                                    }
                                 }
                             }
-                        },
+                        }
                     },
                     "400": {
                         "description": "Error response",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
                             }
-                        },
+                        }
                     },
                     "403": {
                         "description": "Permission denied - requires master or worker role",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
                             }
-                        },
-                    },
-                },
+                        }
+                    }
+                }
             }
         },
         "/api/v0/cluster/pin/add": {
@@ -807,19 +952,19 @@ openapi_schema = {
                                 "properties": {
                                     "cid": {
                                         "type": "string",
-                                        "description": "CID of content to pin",
+                                        "description": "CID of content to pin"
                                     },
                                     "replication_factor": {
                                         "type": "integer",
                                         "default": 1,
-                                        "description": "Number of nodes to replicate across",
+                                        "description": "Number of nodes to replicate across"
                                     },
                                     "name": {
                                         "type": "string",
-                                        "description": "Optional name for the pinned content",
-                                    },
+                                        "description": "Optional name for the pinned content"
+                                    }
                                 },
-                                "required": ["cid"],
+                                "required": ["cid"]
                             }
                         }
                     }
@@ -832,40 +977,47 @@ openapi_schema = {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "success": {"type": "boolean", "example": True},
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": True
+                                        },
                                         "cid": {
                                             "type": "string",
-                                            "example": "QmXG8yk8UJjMT6qtE2zSxzz3U7z5jSYRgVWLCUFqAVnByM",
+                                            "example": "QmXG8yk8UJjMT6qtE2zSxzz3U7z5jSYRgVWLCUFqAVnByM"
                                         },
                                         "peers": {
                                             "type": "array",
-                                            "items": {"type": "string"},
-                                            "example": [
-                                                "12D3KooWA1b3VJmnwdzJZKcQpjxgd1RD9wr5QzvYx1XdkypQJV5d"
-                                            ],
-                                        },
-                                    },
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "example": ["12D3KooWA1b3VJmnwdzJZKcQpjxgd1RD9wr5QzvYx1XdkypQJV5d"]
+                                        }
+                                    }
                                 }
                             }
-                        },
+                        }
                     },
                     "400": {
                         "description": "Error response",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
                             }
-                        },
+                        }
                     },
                     "403": {
                         "description": "Permission denied - requires master or worker role",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
                             }
-                        },
-                    },
-                },
+                        }
+                    }
+                }
             }
         },
         "/api/v0/cluster/status": {
@@ -879,8 +1031,10 @@ openapi_schema = {
                         "name": "arg",
                         "in": "query",
                         "required": False,
-                        "schema": {"type": "string"},
-                        "description": "CID to check status for (all pins if not specified)",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "CID to check status for (all pins if not specified)"
                     }
                 ],
                 "responses": {
@@ -891,59 +1045,68 @@ openapi_schema = {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "success": {"type": "boolean", "example": True},
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": True
+                                        },
                                         "status": {
                                             "type": "object",
                                             "additionalProperties": {
                                                 "type": "object",
                                                 "properties": {
-                                                    "cid": {"type": "string"},
-                                                    "name": {"type": "string"},
+                                                    "cid": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
                                                     "status": {
                                                         "type": "string",
-                                                        "enum": [
-                                                            "pinned",
-                                                            "pinning",
-                                                            "unpinned",
-                                                            "queued",
-                                                            "failed",
-                                                        ],
+                                                        "enum": ["pinned", "pinning", "unpinned", "queued", "failed"]
                                                     },
                                                     "peer_map": {
                                                         "type": "object",
                                                         "additionalProperties": {
                                                             "type": "object",
                                                             "properties": {
-                                                                "status": {"type": "string"},
-                                                                "timestamp": {"type": "string"},
-                                                            },
-                                                        },
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
+                                                                "status": {
+                                                                    "type": "string"
+                                                                },
+                                                                "timestamp": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
-                        },
+                        }
                     },
                     "400": {
                         "description": "Error response",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
                             }
-                        },
+                        }
                     },
                     "403": {
                         "description": "Permission denied - requires master or worker role",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
                             }
-                        },
-                    },
-                },
+                        }
+                    }
+                }
             }
         },
         "/metrics": {
@@ -955,290 +1118,247 @@ openapi_schema = {
                 "responses": {
                     "200": {
                         "description": "Prometheus metrics",
-                        "content": {"text/plain": {"schema": {"type": "string"}}},
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
                     }
-                },
+                }
             }
-        },
+        }
     },
     "components": {
         "schemas": {
             "ErrorResponse": {
                 "type": "object",
                 "properties": {
-                    "success": {"type": "boolean", "example": False},
-                    "error": {"type": "string", "example": "Detailed error message"},
-                    "error_type": {"type": "string", "example": "IPFSError"},
-                    "status_code": {"type": "integer", "example": 400},
-                },
+                    "success": {
+                        "type": "boolean",
+                        "example": False
+                    },
+                    "error": {
+                        "type": "string",
+                        "example": "Detailed error message"
+                    },
+                    "error_type": {
+                        "type": "string",
+                        "example": "IPFSError"
+                    },
+                    "status_code": {
+                        "type": "integer",
+                        "example": 400
+                    }
+                }
             }
         },
         "securitySchemes": {
-            "ApiKeyAuth": {"type": "apiKey", "in": "header", "name": "X-API-Key"},
-            "BearerAuth": {"type": "http", "scheme": "bearer"},
-            "BasicAuth": {"type": "http", "scheme": "basic"},
-        },
+            "ApiKeyAuth": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-API-Key"
+            },
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer"
+            },
+            "BasicAuth": {
+                "type": "http",
+                "scheme": "basic"
+            }
+        }
     },
-    "security": [{"ApiKeyAuth": []}, {"BearerAuth": []}, {"BasicAuth": []}],
-    "tags": [
-        {"name": "System", "description": "System-level operations"},
-        {"name": "Generic", "description": "Generic API operations"},
-        {"name": "Content", "description": "Content management operations"},
-        {"name": "Pin", "description": "Pin management operations"},
-        {"name": "IPNS", "description": "IPNS operations"},
-        {"name": "Node", "description": "IPFS node operations"},
-        {"name": "Cluster", "description": "IPFS cluster operations"},
+    "security": [
+        {
+            "ApiKeyAuth": []
+        },
+        {
+            "BearerAuth": []
+        },
+        {
+            "BasicAuth": []
+        }
     ],
+    "tags": [
+        {
+            "name": "System",
+            "description": "System-level operations"
+        },
+        {
+            "name": "Generic",
+            "description": "Generic API operations"
+        },
+        {
+            "name": "Content",
+            "description": "Content management operations"
+        },
+        {
+            "name": "Pin",
+            "description": "Pin management operations"
+        },
+        {
+            "name": "IPNS",
+            "description": "IPNS operations"
+        },
+        {
+            "name": "Node",
+            "description": "IPFS node operations"
+        },
+        {
+            "name": "Cluster",
+            "description": "IPFS cluster operations"
+        }
+    ]
 }
 
 # The application intentionally serves this maintained schema instead of
 # FastAPI's generated schema. Keep governed Iroh routes explicit here so SDKs
 # see their authorization and destructive-confirmation contract.
-openapi_schema["paths"].update(
-    {
-        "/api/v0/storage/iroh/operations": {
-            "get": {
-                "summary": "List governed Iroh operations",
-                "operationId": "listIrohOperations",
-                "tags": ["Iroh"],
-                "responses": {
-                    "200": {
-                        "description": "Implemented Iroh operation allowlist",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "success": {"type": "boolean"},
-                                        "count": {"type": "integer"},
-                                        "operations": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/components/schemas/IrohOperationDescriptor"
-                                            },
-                                        },
-                                    },
-                                    "required": ["success", "count", "operations"],
-                                }
-                            }
-                        },
-                    }
-                },
-            }
-        },
-        "/api/v0/storage/iroh/operations/{operation}": {
-            "post": {
-                "summary": "Execute a governed Iroh operation",
-                "description": "Executes only an implemented allowlisted operation. Permissions are assigned by server authentication; destructive operations additionally require confirm=true.",
-                "operationId": "executeIrohOperation",
-                "tags": ["Iroh"],
-                "parameters": [
-                    {
-                        "name": "operation",
-                        "in": "path",
-                        "required": True,
-                        "schema": {
-                            "type": "string",
-                            "enum": [
-                                "diagnostics",
-                                "service.status",
-                                "blob.stat",
-                                "service.start",
-                                "blob.fetch",
-                                "ticket.import",
-                                "service.stop",
-                                "service.restart",
-                            ],
-                        },
-                    }
-                ],
-                "requestBody": {
-                    "required": False,
-                    "content": {
-                        "application/json": {
-                            "schema": {"$ref": "#/components/schemas/IrohOperationRequest"}
-                        }
-                    },
-                },
-                "responses": {
-                    "200": {
-                        "description": "Completed operation",
-                        "content": {
-                            "application/json": {
-                                "schema": {"$ref": "#/components/schemas/IrohOperationResponse"}
-                            }
-                        },
-                    },
-                    "400": {
-                        "description": "Invalid operation input",
-                        "content": {
-                            "application/json": {
-                                "schema": {"$ref": "#/components/schemas/IrohOperationResponse"}
-                            }
-                        },
-                    },
-                    "403": {
-                        "description": "Required Iroh permission is absent",
-                        "content": {
-                            "application/json": {
-                                "schema": {"$ref": "#/components/schemas/IrohOperationResponse"}
-                            }
-                        },
-                    },
-                    "409": {
-                        "description": "Confirmation required or state conflict",
-                        "content": {
-                            "application/json": {
-                                "schema": {"$ref": "#/components/schemas/IrohOperationResponse"}
-                            }
-                        },
-                    },
-                    "422": {
-                        "description": "Integrity verification failed",
-                        "content": {
-                            "application/json": {
-                                "schema": {"$ref": "#/components/schemas/IrohOperationResponse"}
-                            }
-                        },
-                    },
-                    "503": {
-                        "description": "Managed Iroh service unavailable",
-                        "content": {
-                            "application/json": {
-                                "schema": {"$ref": "#/components/schemas/IrohOperationResponse"}
-                            }
-                        },
-                    },
-                },
-            }
-        },
-    }
-)
+openapi_schema["paths"].update({
+    "/api/v0/storage/iroh/operations": {
+        "get": {
+            "summary": "List governed Iroh operations",
+            "operationId": "listIrohOperations",
+            "tags": ["Iroh"],
+            "responses": {
+                "200": {
+                    "description": "Implemented Iroh operation allowlist",
+                    "content": {"application/json": {"schema": {"type": "object", "properties": {
+                        "success": {"type": "boolean"},
+                        "count": {"type": "integer"},
+                        "operations": {"type": "array", "items": {"$ref": "#/components/schemas/IrohOperationDescriptor"}},
+                    }, "required": ["success", "count", "operations"]}}},
+                }
+            },
+        }
+    },
+    "/api/v0/storage/iroh/operations/{operation}": {
+        "post": {
+            "summary": "Execute a governed Iroh operation",
+            "description": "Executes only an implemented allowlisted operation. Permissions are assigned by server authentication; destructive operations additionally require confirm=true.",
+            "operationId": "executeIrohOperation",
+            "tags": ["Iroh"],
+            "parameters": [{
+                "name": "operation",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "enum": [
+                    "diagnostics", "service.status", "blob.stat", "service.start",
+                    "blob.fetch", "ticket.import", "service.stop", "service.restart",
+                ]},
+            }],
+            "requestBody": {
+                "required": False,
+                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IrohOperationRequest"}}},
+            },
+            "responses": {
+                "200": {"description": "Completed operation", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IrohOperationResponse"}}}},
+                "400": {"description": "Invalid operation input", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IrohOperationResponse"}}}},
+                "403": {"description": "Required Iroh permission is absent", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IrohOperationResponse"}}}},
+                "409": {"description": "Confirmation required or state conflict", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IrohOperationResponse"}}}},
+                "422": {"description": "Integrity verification failed", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IrohOperationResponse"}}}},
+                "503": {"description": "Managed Iroh service unavailable", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/IrohOperationResponse"}}}},
+            },
+        }
+    },
+})
 
-openapi_schema["components"]["schemas"].update(
-    {
-        "IrohOperationDescriptor": {
-            "type": "object",
-            "required": ["name", "description", "permission", "destructive", "input_schema"],
-            "properties": {
-                "name": {"type": "string"},
-                "description": {"type": "string"},
-                "permission": {"$ref": "#/components/schemas/IrohPermission"},
-                "destructive": {"type": "boolean"},
-                "input_schema": {"type": "object", "additionalProperties": True},
-            },
+openapi_schema["components"]["schemas"].update({
+    "IrohOperationDescriptor": {
+        "type": "object",
+        "required": ["name", "description", "permission", "destructive", "input_schema"],
+        "properties": {
+            "name": {"type": "string"},
+            "description": {"type": "string"},
+            "permission": {"$ref": "#/components/schemas/IrohPermission"},
+            "destructive": {"type": "boolean"},
+            "input_schema": {"type": "object", "additionalProperties": True},
         },
-        "IrohPermission": {
-            "type": "string",
-            "enum": ["iroh.read", "iroh.control", "iroh.destructive"],
-            "description": "Permission assigned by trusted authentication middleware.",
+    },
+    "IrohPermission": {
+        "type": "string",
+        "enum": ["iroh.read", "iroh.control", "iroh.destructive"],
+        "description": "Permission assigned by trusted authentication middleware.",
+    },
+    "IrohOperationRequest": {
+        "type": "object",
+        "additionalProperties": True,
+        "properties": {
+            "instance": {"type": "string", "pattern": "^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$", "default": "default"},
+            "operation_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+            "confirm": {"type": "boolean", "description": "Must be true for destructive operations."},
+            "arguments": {"type": "object", "additionalProperties": True},
         },
-        "IrohOperationRequest": {
-            "type": "object",
-            "additionalProperties": True,
-            "properties": {
-                "instance": {
-                    "type": "string",
-                    "pattern": "^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$",
-                    "default": "default",
-                },
-                "operation_id": {
-                    "type": "string",
-                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
-                },
-                "confirm": {
-                    "type": "boolean",
-                    "description": "Must be true for destructive operations.",
-                },
-                "arguments": {"type": "object", "additionalProperties": True},
-            },
+    },
+    "IrohProgress": {
+        "type": "object",
+        "required": ["sequence", "state", "at"],
+        "properties": {
+            "sequence": {"type": "integer", "minimum": 0},
+            "state": {"type": "string", "enum": ["accepted", "running", "completed", "failed"]},
+            "at": {"type": "string", "format": "date-time"},
+            "phase": {"type": "string"},
+            "completed": {"type": "integer", "minimum": 0},
+            "total": {"type": "integer", "minimum": 0, "nullable": True},
+            "resumed": {"type": "boolean"},
+            "code": {"type": "string"},
         },
-        "IrohProgress": {
-            "type": "object",
-            "required": ["sequence", "state", "at"],
-            "properties": {
-                "sequence": {"type": "integer", "minimum": 0},
-                "state": {"type": "string", "enum": ["accepted", "running", "completed", "failed"]},
-                "at": {"type": "string", "format": "date-time"},
-                "phase": {"type": "string"},
-                "completed": {"type": "integer", "minimum": 0},
-                "total": {"type": "integer", "minimum": 0, "nullable": True},
-                "resumed": {"type": "boolean"},
-                "code": {"type": "string"},
-            },
+    },
+    "IrohAuditRecord": {
+        "type": "object",
+        "required": ["audit_id", "operation_id", "operation", "permission", "outcome", "started_at", "finished_at", "actor"],
+        "properties": {
+            "audit_id": {"type": "string", "format": "uuid"},
+            "operation_id": {"type": "string"},
+            "operation": {"type": "string"},
+            "permission": {"$ref": "#/components/schemas/IrohPermission"},
+            "outcome": {"type": "string", "enum": ["success", "failure"]},
+            "started_at": {"type": "string", "format": "date-time"},
+            "finished_at": {"type": "string", "format": "date-time"},
+            "actor": {"type": "string"},
+            "error_code": {"type": "string", "nullable": True},
         },
-        "IrohAuditRecord": {
-            "type": "object",
-            "required": [
-                "audit_id",
-                "operation_id",
-                "operation",
-                "permission",
-                "outcome",
-                "started_at",
-                "finished_at",
-                "actor",
-            ],
-            "properties": {
-                "audit_id": {"type": "string", "format": "uuid"},
-                "operation_id": {"type": "string"},
-                "operation": {"type": "string"},
-                "permission": {"$ref": "#/components/schemas/IrohPermission"},
-                "outcome": {"type": "string", "enum": ["success", "failure"]},
-                "started_at": {"type": "string", "format": "date-time"},
-                "finished_at": {"type": "string", "format": "date-time"},
-                "actor": {"type": "string"},
-                "error_code": {"type": "string", "nullable": True},
-            },
+    },
+    "IrohTypedError": {
+        "type": "object",
+        "required": ["code", "type", "message", "status", "retryable"],
+        "properties": {
+            "code": {"type": "string"},
+            "type": {"type": "string"},
+            "message": {"type": "string"},
+            "status": {"type": "integer"},
+            "retryable": {"type": "boolean"},
         },
-        "IrohTypedError": {
-            "type": "object",
-            "required": ["code", "type", "message", "status", "retryable"],
-            "properties": {
-                "code": {"type": "string"},
-                "type": {"type": "string"},
-                "message": {"type": "string"},
-                "status": {"type": "integer"},
-                "retryable": {"type": "boolean"},
-            },
+    },
+    "IrohOperationResponse": {
+        "type": "object",
+        "required": ["success", "operation", "operation_id", "progress", "audit"],
+        "properties": {
+            "success": {"type": "boolean"},
+            "operation": {"type": "string"},
+            "operation_id": {"type": "string"},
+            "permission": {"allOf": [{"$ref": "#/components/schemas/IrohPermission"}], "nullable": True},
+            "progress": {"type": "array", "items": {"$ref": "#/components/schemas/IrohProgress"}},
+            "result": {"type": "object", "additionalProperties": True},
+            "error": {"$ref": "#/components/schemas/IrohTypedError"},
+            "audit": {"$ref": "#/components/schemas/IrohAuditRecord"},
         },
-        "IrohOperationResponse": {
-            "type": "object",
-            "required": ["success", "operation", "operation_id", "progress", "audit"],
-            "properties": {
-                "success": {"type": "boolean"},
-                "operation": {"type": "string"},
-                "operation_id": {"type": "string"},
-                "permission": {
-                    "allOf": [{"$ref": "#/components/schemas/IrohPermission"}],
-                    "nullable": True,
-                },
-                "progress": {
-                    "type": "array",
-                    "items": {"$ref": "#/components/schemas/IrohProgress"},
-                },
-                "result": {"type": "object", "additionalProperties": True},
-                "error": {"$ref": "#/components/schemas/IrohTypedError"},
-                "audit": {"$ref": "#/components/schemas/IrohAuditRecord"},
-            },
-        },
-    }
-)
+    },
+})
 
 if not any(tag.get("name") == "Iroh" for tag in openapi_schema["tags"]):
-    openapi_schema["tags"].append(
-        {
-            "name": "Iroh",
-            "description": "Governed Iroh storage operations with independent read, control, and destructive permissions.",
-        }
-    )
-
+    openapi_schema["tags"].append({
+        "name": "Iroh",
+        "description": "Governed Iroh storage operations with independent read, control, and destructive permissions.",
+    })
 
 # Function to get the OpenAPI schema
 def get_openapi_schema():
     """
     Returns the OpenAPI schema for the REST API server.
-
+    
     Returns:
         dict: OpenAPI schema dictionary
     """

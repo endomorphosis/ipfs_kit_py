@@ -53,16 +53,16 @@ Quick reference for all 36 ipfs_datasets_py and ipfs_accelerate_py integrations.
 
 ```python
 # All dataset-enabled modules accept these parameters:
-enable_dataset_storage = (True,)  # Enable ipfs_datasets_py integration
-ipfs_client = (ipfs_client,)  # Optional IPFS client instance
-dataset_batch_size = (100,)  # Operations per batch (default: 100)
+enable_dataset_storage=True,      # Enable ipfs_datasets_py integration
+ipfs_client=ipfs_client,          # Optional IPFS client instance
+dataset_batch_size=100,           # Operations per batch (default: 100)
 ```
 
 ### Compute Acceleration Parameters
 
 ```python
 # All compute-enabled modules accept these parameters:
-enable_compute_layer = (True,)  # Enable ipfs_accelerate_py integration
+enable_compute_layer=True,        # Enable ipfs_accelerate_py integration
 ```
 
 ## Code Snippets by Use Case
@@ -77,7 +77,7 @@ server = EnhancedMCPServer(
     port=8001,
     enable_dataset_storage=True,  # Track all commands
     dataset_batch_size=100,
-    ipfs_client=ipfs_client,
+    ipfs_client=ipfs_client
 )
 
 # All 97+ MCP command handlers automatically tracked!
@@ -92,7 +92,7 @@ logger = AuditLogger(
     log_file="/var/log/audit.log",
     enable_dataset_storage=True,
     ipfs_client=ipfs_client,
-    dataset_batch_size=100,
+    dataset_batch_size=100
 )
 
 # Immutable audit trail - tamper-proof!
@@ -106,9 +106,9 @@ from ipfs_kit_py.bucket_vfs_manager import BucketVFSManager
 
 manager = BucketVFSManager(
     base_path="~/.ipfs_kit/vfs",
-    enable_dataset_storage=True,  # Dataset storage
-    enable_compute_layer=True,  # Compute acceleration
-    dataset_batch_size=100,
+    enable_dataset_storage=True,   # Dataset storage
+    enable_compute_layer=True,     # Compute acceleration
+    dataset_batch_size=100
 )
 
 # Operations tracked + accelerated!
@@ -134,7 +134,7 @@ telemetry = WALTelemetry(
     wal=wal_instance,
     metrics_path="~/.ipfs_kit/metrics",
     enable_dataset_storage=True,
-    dataset_batch_size=200,
+    dataset_batch_size=200
 )
 
 # Time-series metrics as queryable datasets
@@ -146,11 +146,15 @@ telemetry = WALTelemetry(
 from ipfs_kit_py.vfs_version_tracker import VFSVersionTracker
 
 tracker = VFSVersionTracker(
-    base_path="~/.ipfs_kit/versions", enable_dataset_storage=True, ipfs_client=ipfs_client
+    base_path="~/.ipfs_kit/versions",
+    enable_dataset_storage=True,
+    ipfs_client=ipfs_client
 )
 
 version = tracker.create_version_snapshot(
-    bucket_name="my-bucket", version_id="v1.0.0", metadata={"author": "alice"}
+    bucket_name="my-bucket",
+    version_id="v1.0.0",
+    metadata={"author": "alice"}
 )
 
 # Complete version provenance!
@@ -162,7 +166,10 @@ version = tracker.create_version_snapshot(
 from ipfs_kit_py.fs_journal_monitor import JournalHealthMonitor
 
 monitor = JournalHealthMonitor(
-    journal=journal_instance, check_interval=60, enable_dataset_storage=True, dataset_batch_size=100
+    journal=journal_instance,
+    check_interval=60,
+    enable_dataset_storage=True,
+    dataset_batch_size=100
 )
 
 # Monitoring stats stored as datasets
@@ -177,7 +184,10 @@ from ipfs_kit_py.fs_journal_replication import MetadataReplicationManager
 manager = MetadataReplicationManager(
     node_id="worker-1",
     role="worker",
-    config={"enable_dataset_storage": True, "dataset_batch_size": 50},
+    config={
+        "enable_dataset_storage": True,
+        "dataset_batch_size": 50
+    }
 )
 
 # Replication operations tracked!
@@ -253,7 +263,7 @@ manager = SomeManager(
     enable_dataset_storage=True,
     enable_compute_layer=True,
     dataset_batch_size=100,
-    ipfs_client=ipfs_client,
+    ipfs_client=ipfs_client
 )
 ```
 
@@ -261,7 +271,11 @@ manager = SomeManager(
 
 ```python
 # Just dataset storage, no compute
-manager = SomeManager(enable_dataset_storage=True, dataset_batch_size=100, ipfs_client=ipfs_client)
+manager = SomeManager(
+    enable_dataset_storage=True,
+    dataset_batch_size=100,
+    ipfs_client=ipfs_client
+)
 ```
 
 ### Pattern 3: Compute Acceleration Only
@@ -280,9 +294,9 @@ from ipfs_kit_py.mcp.ai.utils import check_dependencies
 deps = check_dependencies()
 
 manager = SomeManager(
-    enable_dataset_storage=deps["ipfs_datasets_py"],
-    enable_compute_layer=deps["ipfs_accelerate_py"],
-    dataset_batch_size=100,
+    enable_dataset_storage=deps['ipfs_datasets_py'],
+    enable_compute_layer=deps['ipfs_accelerate_py'],
+    dataset_batch_size=100
 )
 ```
 

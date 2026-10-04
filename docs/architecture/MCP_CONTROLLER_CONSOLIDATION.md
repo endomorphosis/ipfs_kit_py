@@ -168,7 +168,6 @@ from ipfs_kit_py.mcp.controllers.s3_controller import S3Controller as LegacyS3
 # New features - use anyio
 from ipfs_kit_py.mcp.controllers.storage.s3_controller_anyio import S3Controller
 
-
 class MyService:
     def __init__(self):
         self.legacy = LegacyS3()  # For existing code
@@ -183,24 +182,18 @@ class MyService:
 
 ```python
 # Step 1: Import both controllers
-from ipfs_kit_py.mcp.controllers.fs_journal_controller import (
-    FSJournalController as LegacyController,
-)
-from ipfs_kit_py.mcp.controllers.fs_journal_controller_anyio import (
-    FSJournalController as ModernController,
-)
-
+from ipfs_kit_py.mcp.controllers.fs_journal_controller import FSJournalController as LegacyController
+from ipfs_kit_py.mcp.controllers.fs_journal_controller_anyio import FSJournalController as ModernController
 
 # Step 2: Switch one method at a time
 class MyService:
     def legacy_method(self):
         controller = LegacyController()
         return controller.do_something()
-
+    
     async def modern_method(self):
         controller = ModernController()
         return await controller.do_something()
-
 
 # Step 3: Eventually remove legacy methods
 ```
@@ -244,7 +237,6 @@ from ipfs_kit_py.mcp.controllers.storage import *
 **AnyIO Pattern (Structured Concurrency):**
 ```python
 import anyio
-
 
 async def handle_operation():
     try:

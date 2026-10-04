@@ -45,13 +45,12 @@ class StorachaConnectionManager:
     4. Providing detailed error information
     5. Supporting connection pooling for performance
     """
-
     DEFAULT_ENDPOINTS = ["https://api.web3.storage/", "https://w3s.link/"]
 
     def __init__(
         self,
-        api_endpoints=None,
-        api_key=None,
+        api_endpoints = None,
+        api_key = None,
         max_retries=DEFAULT_MAX_RETRIES,
         mock_mode=False,
         connection_timeout=DEFAULT_CONNECTION_TIMEOUT,
@@ -346,7 +345,6 @@ class StorachaBackend(BackendStorage):
     4. Cross-backend migration capabilities
     5. Enhanced error handling and monitoring
     """
-
     def __init__(self, resources: Dict[str, Any], metadata: Dict[str, Any]):
         """Initialize Storacha backend with advanced features."""
         super().__init__(StorageBackendType.STORACHA, resources, metadata)
@@ -1350,7 +1348,7 @@ class StorachaBackend(BackendStorage):
         # Store in Storacha
         store_result = self.store(
             data,
-            container=None,  # Not used in Storacha
+            container = None,  # Not used in Storacha
             path=target_path,
             options=storage_options,
         )
@@ -1378,7 +1376,7 @@ class StorachaBackend(BackendStorage):
             # Retrieve content from Storacha to verify
             target_retrieve = self.retrieve(
                 target_identifier,
-                container=None,
+                container = None,
                 options=options.get("verification_options", {}),
             )
 
@@ -1523,25 +1521,23 @@ class StorachaBackend(BackendStorage):
                         logger.warning(f"Failed to remove cache directory: {str(e)}")
         except Exception as e:
             logger.error(f"Error during Storacha backend cleanup: {str(e)}")
-
+            
     def get_name(self) -> str:
         """Get the name of this backend implementation.
-
+        
         Returns:
             String representation of the backend name
         """
         return "storacha"
-
+            
     # BackendStorage interface implementations
-    def add_content(
-        self, content: Union[str, bytes, BinaryIO], metadata: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def add_content(self, content: Union[str, bytes, BinaryIO], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Add content to the storage backend.
-
+        
         Args:
             content: Content to store (can be a path, bytes, or file-like object)
             metadata: Optional metadata for the content
-
+            
         Returns:
             Dict with operation result including content ID
         """
@@ -1549,28 +1545,28 @@ class StorachaBackend(BackendStorage):
         options = {}
         if metadata:
             options["metadata"] = metadata
-
+            
         # Delegate to the underlying store method
         return self.store(content, options=options)
-
+        
     def get_content(self, content_id: str) -> Dict[str, Any]:
         """Retrieve content from the storage backend.
-
+        
         Args:
             content_id: ID of the content to retrieve
-
+            
         Returns:
             Dict with operation result including content data
         """
         # Delegate to the underlying retrieve method
         return self.retrieve(content_id)
-
+        
     def remove_content(self, content_id: str) -> Dict[str, Any]:
         """Remove content from the storage backend.
-
+        
         Args:
             content_id: ID of the content to remove
-
+            
         Returns:
             Dict with operation result
         """

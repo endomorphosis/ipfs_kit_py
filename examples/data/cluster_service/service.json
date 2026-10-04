@@ -1,0 +1,107 @@
+{
+  "id": "12D3KooW8640642c46ef00fcfb840c9a3200ca613527d903926cbd39a0",
+  "cluster": {
+    "secret": "38a7d8d9d1e044df089a2bb2b21752b8831572b5517bb1385c222826e94093bd",
+    "peers": [],
+    "bootstrap": [],
+    "leave_on_shutdown": false,
+    "listen_multiaddress": "/ip4/0.0.0.0/tcp/9096",
+    "state_sync_interval": "20s",
+    "ipfs_sync_interval": "130s",
+    "replication_factor_min": 1,
+    "replication_factor_max": 3,
+    "monitor_ping_interval": "10s"
+  },
+  "api": {
+    "restapi": {
+      "listen_multiaddress": "/ip4/127.0.0.1/tcp/9094",
+      "read_timeout": "30s",
+      "read_header_timeout": "5s",
+      "write_timeout": "0s",
+      "idle_timeout": "120s",
+      "max_header_bytes": 4096,
+      "cors_allowed_origins": [
+        "*"
+      ],
+      "cors_allowed_methods": [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE"
+      ],
+      "cors_allowed_headers": [
+        "*"
+      ],
+      "cors_exposed_headers": [
+        "*"
+      ],
+      "cors_allow_credentials": true,
+      "cors_max_age": "0s"
+    },
+    "ipfsproxy": {
+      "listen_multiaddress": "/ip4/127.0.0.1/tcp/9095",
+      "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
+      "read_timeout": "0s",
+      "read_header_timeout": "5s",
+      "write_timeout": "0s",
+      "idle_timeout": "60s",
+      "max_header_bytes": 4096
+    }
+  },
+  "ipfs_connector": {
+    "ipfshttp": {
+      "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
+      "connect_swarms_delay": "30s",
+      "ipfs_request_timeout": "5m",
+      "pin_timeout": "2m",
+      "unpin_timeout": "3m"
+    }
+  },
+  "pin_tracker": {
+    "stateless": {
+      "concurrent_pins": 10,
+      "priority_pin_max_age": "24h",
+      "priority_pin_max_retries": 5
+    }
+  },
+  "monitor": {
+    "pubsubmon": {
+      "check_interval": "15s",
+      "failure_threshold": 3
+    }
+  },
+  "allocator": {
+    "balanced": {
+      "allocate_by": [
+        "tag:group",
+        "freespace"
+      ]
+    }
+  },
+  "informer": {
+    "disk": {
+      "metric_ttl": "30s",
+      "metric_type": "freespace"
+    },
+    "tags": {
+      "metric_ttl": "30s",
+      "tags": {
+        "group": "default"
+      }
+    }
+  },
+  "custom_settings": {
+    "cluster": {
+      "replication_factor_min": 2,
+      "replication_factor_max": 5
+    },
+    "api": {
+      "restapi": {
+        "cors_allowed_origins": [
+          "http://localhost:3000",
+          "http://localhost:8080"
+        ]
+      }
+    }
+  }
+}

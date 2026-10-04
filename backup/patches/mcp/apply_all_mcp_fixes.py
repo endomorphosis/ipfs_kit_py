@@ -13,7 +13,7 @@ from pathlib import Path
 import logging
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Ensure we're working from the project root
@@ -24,18 +24,22 @@ os.chdir(PROJECT_ROOT)
 SCRIPTS = [
     # First organize patches
     Path("patches/organize_patches.py"),
+
     # Fix initialization files
     Path("patches/mcp/fix_init_files.py"),
+
     # Ensure controllers are properly implemented
     Path("patches/mcp/ensure_controllers.py"),
+
     # Fix server bridge for compatibility
     Path("patches/mcp/fix_server_bridge.py"),
+
     # Migrate tests to proper locations
     Path("patches/mcp/migrate_tests.py"),
+
     # Apply specific MCP fixes
     Path("patches/mcp/fix_mcp_server_refactoring.py"),
 ]
-
 
 def run_script(script_path):
     """Run a script and handle any errors."""
@@ -47,9 +51,10 @@ def run_script(script_path):
 
     try:
         logger.info(f"Running: {script_path}")
-        result = subprocess.run(
-            [sys.executable, str(full_path)], check=True, capture_output=True, text=True
-        )
+        result = subprocess.run([sys.executable, str(full_path)],
+                                check=True,
+                                capture_output=True,
+                                text=True)
         logger.info(f"Output: {result.stdout}")
 
         if result.stderr:
@@ -62,7 +67,6 @@ def run_script(script_path):
         logger.error(f"Output: {e.stdout}")
         logger.error(f"Error: {e.stderr}")
         return False
-
 
 def apply_all_patches():
     """Apply all patches in the correct order."""
@@ -81,7 +85,6 @@ def apply_all_patches():
     logger.info(f"Successful: {success_count}, Failed: {failure_count}")
 
     return failure_count == 0
-
 
 if __name__ == "__main__":
     try:

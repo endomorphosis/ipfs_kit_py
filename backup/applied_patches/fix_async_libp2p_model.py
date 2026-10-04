@@ -28,7 +28,6 @@ import sys
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 def apply_fixes():
     """Apply fixes to the LibP2PModel class."""
     try:
@@ -36,12 +35,12 @@ def apply_fixes():
         from ipfs_kit_py.mcp.models.libp2p_model import LibP2PModel
 
         # Get the module containing the class
-        module = sys.modules["ipfs_kit_py.mcp.models.libp2p_model"]
+        module = sys.modules['ipfs_kit_py.mcp.models.libp2p_model']
 
         logger.info("Applying fixes to the LibP2PModel class...")
 
         # 1. Add _is_available_sync method
-        if not hasattr(LibP2PModel, "_is_available_sync"):
+        if not hasattr(LibP2PModel, '_is_available_sync'):
             logger.info("Adding _is_available_sync method...")
 
             # Define the new method
@@ -56,7 +55,7 @@ def apply_fixes():
                 return module.HAS_LIBP2P and self.libp2p_peer is not None
 
             # Add the method to the class
-            setattr(LibP2PModel, "_is_available_sync", _is_available_sync)
+            setattr(LibP2PModel, '_is_available_sync', _is_available_sync)
 
             logger.info("_is_available_sync method added to LibP2PModel class")
 
@@ -93,7 +92,7 @@ def apply_fixes():
         has_async_is_available = False
 
         for name, method in members:
-            if name == "is_available":
+            if name == 'is_available':
                 # Check if this is the async version
                 if inspect.iscoroutinefunction(method):
                     has_async_is_available = True
@@ -103,32 +102,22 @@ def apply_fixes():
         # Apply our fixes if needed
         if has_sync_is_available:
             logger.info("Replacing synchronous is_available...")
-            setattr(LibP2PModel, "is_available", is_available)
+            setattr(LibP2PModel, 'is_available', is_available)
 
         if has_async_is_available:
             logger.info("Replacing asynchronous is_available...")
-            setattr(LibP2PModel, "is_available", async_is_available)
+            setattr(LibP2PModel, 'is_available', async_is_available)
 
         # 4. Fix any other methods that directly call is_available
         logger.info("Scanning for methods that use is_available without await...")
 
         # Methods to check for improper is_available calls
         methods_to_check = [
-            "get_health",
-            "discover_peers",
-            "find_content",
-            "retrieve_content",
-            "get_content",
-            "announce_content",
-            "dht_find_peer",
-            "dht_provide",
-            "dht_find_providers",
-            "pubsub_publish",
-            "pubsub_subscribe",
-            "pubsub_unsubscribe",
-            "pubsub_get_topics",
-            "pubsub_get_peers",
-            "get_stats",
+            'get_health', 'discover_peers', 'find_content', 'retrieve_content',
+            'get_content', 'announce_content', 'dht_find_peer', 'dht_provide',
+            'dht_find_providers', 'pubsub_publish', 'pubsub_subscribe',
+            'pubsub_unsubscribe', 'pubsub_get_topics', 'pubsub_get_peers',
+            'get_stats'
         ]
 
         for method_name in methods_to_check:
@@ -149,11 +138,7 @@ def apply_fixes():
                         if "if not self.is_available():" in line:
                             # Replace with the fixed version
                             indent = line.index("if")
-                            new_line = (
-                                line[:indent]
-                                + "if not self._is_available_sync():"
-                                + line[line.index(":") + 1 :]
-                            )
+                            new_line = line[:indent] + "if not self._is_available_sync():" + line[line.index(":") + 1:]
                             new_source_lines.append(new_line)
                         else:
                             new_source_lines.append(line)
@@ -187,7 +172,11 @@ def apply_fixes():
             self.operation_stats["operation_count"] += 1
 
             # Prepare result
-            result = {"success": False, "operation": "peer_info", "timestamp": module.time.time()}
+            result = {
+                "success": False,
+                "operation": "peer_info",
+                "timestamp": module.time.time()
+            }
 
             # Return early if libp2p is not available
             if not self._is_available_sync():
@@ -212,17 +201,15 @@ def apply_fixes():
                     dht_peers = len(self.libp2p_peer.dht.routing_table.get_peers())
 
                 # Update result with collected information
-                result.update(
-                    {
-                        "success": True,
-                        "peer_id": peer_id,
-                        "addresses": addrs,
-                        "connected_peers": len(connected_peers),
-                        "dht_peers": dht_peers,
-                        "protocols": list(self.libp2p_peer.protocol_handlers.keys()),
-                        "role": self.libp2p_peer.role,
-                    }
-                )
+                result.update({
+                    "success": True,
+                    "peer_id": peer_id,
+                    "addresses": addrs,
+                    "connected_peers": len(connected_peers),
+                    "dht_peers": dht_peers,
+                    "protocols": list(self.libp2p_peer.protocol_handlers.keys()),
+                    "role": self.libp2p_peer.role
+                })
 
                 return result
 
@@ -235,40 +222,21 @@ def apply_fixes():
                 return result
 
         # Replace the peer_info method
-        setattr(LibP2PModel, "peer_info", peer_info)
+        setattr(LibP2PModel, 'peer_info', peer_info)
 
         # 6. Fix async methods to properly use anyio.to_thread.run_sync
         logger.info("Fixing async methods to use lambda function for thread delegation...")
 
         async_methods = [
-            "get_health",
-            "discover_peers",
-            "connect_peer",
-            "disconnect_peer",
-            "find_content",
-            "retrieve_content",
-            "get_content",
-            "announce_content",
-            "get_connected_peers",
-            "get_peer_info",
-            "reset",
-            "start",
-            "stop",
-            "dht_find_peer",
-            "dht_provide",
-            "dht_find_providers",
-            "pubsub_publish",
-            "pubsub_subscribe",
-            "pubsub_unsubscribe",
-            "pubsub_get_topics",
-            "pubsub_get_peers",
-            "register_message_handler",
-            "unregister_message_handler",
-            "list_message_handlers",
-            "publish_message",
-            "subscribe_topic",
-            "unsubscribe_topic",
-            "peer_info",
+            'get_health', 'discover_peers', 'connect_peer', 'disconnect_peer',
+            'find_content', 'retrieve_content', 'get_content', 'announce_content',
+            'get_connected_peers', 'get_peer_info', 'reset', 'start', 'stop',
+            'dht_find_peer', 'dht_provide', 'dht_find_providers',
+            'pubsub_publish', 'pubsub_subscribe', 'pubsub_unsubscribe',
+            'pubsub_get_topics', 'pubsub_get_peers',
+            'register_message_handler', 'unregister_message_handler',
+            'list_message_handlers', 'publish_message', 'subscribe_topic',
+            'unsubscribe_topic', 'peer_info'
         ]
 
         for method_name in async_methods:
@@ -285,30 +253,23 @@ def apply_fixes():
 
                 # Check if method uses anyio.to_thread.run_sync without lambda
                 if "await anyio.to_thread.run_sync(LibP2PModel." in source:
-                    logger.info(
-                        f"Fixing {method_name} to use lambda function for thread delegation..."
-                    )
+                    logger.info(f"Fixing {method_name} to use lambda function for thread delegation...")
 
                     # Get the sync method name being called
                     import re
-
-                    match = re.search(r"await anyio.to_thread.run_sync\(LibP2PModel\.(\w+)", source)
+                    match = re.search(r'await anyio.to_thread.run_sync\(LibP2PModel\.(\w+)', source)
                     if match:
                         sync_method_name = match.group(1)
 
                         # Define a new async method that uses a lambda to call the sync method
-                        exec(
-                            f"""
+                        exec(f"""
 async def fixed_{method_name}(self, *args, **kwargs):
     \"\"\"
     Async version of {sync_method_name} for use with async controllers.
     \"\"\"
     # Use lambda to ensure 'self' is properly passed
     return await anyio.to_thread.run_sync(lambda: LibP2PModel.{sync_method_name}(self, *args, **kwargs))
-""",
-                            globals(),
-                            locals(),
-                        )
+""", globals(), locals())
 
                         # Get the new method from the locals
                         new_method = locals()[f"fixed_{method_name}"]
@@ -320,11 +281,9 @@ async def fixed_{method_name}(self, *args, **kwargs):
         logger.info("Fixing register_message_handler to match the test expectations...")
 
         # Check if the method exists
-        if hasattr(LibP2PModel, "register_message_handler"):
+        if hasattr(LibP2PModel, 'register_message_handler'):
             # Define a new async method that matches the test's expectations
-            async def fixed_register_message_handler(
-                self, handler_id, protocol_id, description=None
-            ):
+            async def fixed_register_message_handler(self, handler_id, protocol_id, description=None):
                 """
                 Async version of register_message_handler for use with async controllers.
 
@@ -333,25 +292,22 @@ async def fixed_{method_name}(self, *args, **kwargs):
                     protocol_id: Protocol ID to handle
                     description: Optional description of the handler
                 """
-
                 # Create a dummy handler function
                 def dummy_handler(message):
                     pass
 
                 # Use lambda to ensure 'self' is properly passed
                 return await anyio.to_thread.run_sync(
-                    lambda: LibP2PModel.register_message_handler(
-                        self, protocol_id, dummy_handler, handler_id
-                    )
+                    lambda: LibP2PModel.register_message_handler(self, protocol_id, dummy_handler, handler_id)
                 )
 
             # Replace the method on the class
-            setattr(LibP2PModel, "register_message_handler", fixed_register_message_handler)
+            setattr(LibP2PModel, 'register_message_handler', fixed_register_message_handler)
 
         # 8. Fix logger attribute issue
-        if not hasattr(LibP2PModel, "logger"):
+        if not hasattr(LibP2PModel, 'logger'):
             logger.info("Adding logger attribute to LibP2PModel class...")
-            setattr(LibP2PModel, "logger", module.logger)
+            setattr(LibP2PModel, 'logger', module.logger)
 
         logger.info("Fixes applied successfully to LibP2PModel class!")
 
@@ -363,7 +319,6 @@ async def fixed_{method_name}(self, *args, **kwargs):
     except Exception as e:
         logger.error(f"Error applying fixes: {e}")
         return False
-
 
 if __name__ == "__main__":
     success = apply_fixes()

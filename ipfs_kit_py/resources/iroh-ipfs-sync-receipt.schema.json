@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ipfs-kit.dev/schemas/iroh-ipfs-sync-receipt-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "receipt_id", "operation_id", "checkpoint_id", "started_at", "completed_at", "status", "conflict_policy", "resumed", "dry_run", "total_items", "transferred_items", "deduplicated_items", "deleted_items", "skipped_items", "failed_items", "transferred_bytes", "entries", "errors"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"const": "ipfs-kit/iroh-ipfs-sync-receipt"},
+    "receipt_id": {"type": "string", "minLength": 1},
+    "operation_id": {"type": "string", "minLength": 1},
+    "checkpoint_id": {"type": "string", "minLength": 1},
+    "started_at": {"type": "string", "format": "date-time"},
+    "completed_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["success", "partial", "failed"]},
+    "conflict_policy": {"enum": ["fail", "source-wins", "destination-wins", "keep-both"]},
+    "resumed": {"type": "boolean"},
+    "dry_run": {"type": "boolean"},
+    "total_items": {"type": "integer", "minimum": 0},
+    "transferred_items": {"type": "integer", "minimum": 0},
+    "deduplicated_items": {"type": "integer", "minimum": 0},
+    "deleted_items": {"type": "integer", "minimum": 0},
+    "skipped_items": {"type": "integer", "minimum": 0},
+    "failed_items": {"type": "integer", "minimum": 0},
+    "transferred_bytes": {"type": "integer", "minimum": 0},
+    "entries": {"type": "array", "items": {"type": "object"}},
+    "errors": {"type": "array", "items": {"type": "object"}}
+  }
+}

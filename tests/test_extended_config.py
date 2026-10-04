@@ -17,12 +17,14 @@ import pytest
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler("test_extended_config.log")],
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('test_extended_config.log')
+    ]
 )
 
 logger = logging.getLogger(__name__)
-
 
 def test_extended_daemon_config_manager():
     """Test that the extended daemon configuration manager works properly."""
@@ -33,7 +35,7 @@ def test_extended_daemon_config_manager():
         from ipfs_kit_py.daemon_config_manager import DaemonConfigManager
         import json
         import tempfile
-
+        
         # Use a temp repo so we never touch ~/.ipfs
         with tempfile.TemporaryDirectory() as temp_dir:
             manager = DaemonConfigManager()
@@ -61,17 +63,16 @@ def test_extended_daemon_config_manager():
 
             logger.info("✅ Extended daemon configuration manager checks passed")
             assert True
-
+        
     except Exception as e:
         logger.error(f"❌ Error testing extended daemon configuration manager: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         pytest.fail(f"Error testing extended daemon configuration manager: {e}")
 
-
 def test_enhanced_mcp_server():
     """Test that the enhanced MCP server with configuration management works."""
     logger.info("Testing enhanced MCP server with configuration management...")
-
+    
     try:
         from ipfs_kit_py.mcp.enhanced_mcp_server_with_config import InMemoryClusterState, create_app
 
@@ -87,22 +88,21 @@ def test_enhanced_mcp_server():
 
         logger.info("✅ Lightweight MCP server module import/sanity passed")
         assert True
-
+        
     except Exception as e:
         logger.error(f"❌ Error testing enhanced MCP server: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         pytest.fail(f"Error testing enhanced MCP server: {e}")
 
-
 def test_service_specific_configurations():
     """Test that service-specific configurations work correctly."""
     logger.info("Testing service-specific configurations...")
-
+    
     try:
         from ipfs_kit_py.daemon_config_manager import DaemonConfigManager
         import json
         import tempfile
-
+        
         with tempfile.TemporaryDirectory() as temp_dir:
             manager = DaemonConfigManager()
             manager.ipfs_path = str(Path(temp_dir) / ".ipfs")
@@ -117,74 +117,65 @@ def test_service_specific_configurations():
             for daemon_type in ("ipfs", "lotus", "cluster"):
                 logger.info(f"Checking {daemon_type} configuration...")
                 result = manager.check_daemon_configuration(daemon_type)
-                assert set(result.keys()) >= {
-                    "configured",
-                    "path_exists",
-                    "config_exists",
-                    "valid_config",
-                    "errors",
-                }
+                assert set(result.keys()) >= {"configured", "path_exists", "config_exists", "valid_config", "errors"}
 
         assert True
-
+        
     except Exception as e:
         logger.error(f"❌ Error testing service-specific configurations: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         pytest.fail(f"Error testing service-specific configurations: {e}")
 
-
 def main():
     """Run all tests for the extended configuration management."""
     logger.info("🚀 Starting extended daemon configuration management tests...")
-
+    
     tests = [
         ("Extended Daemon Config Manager", test_extended_daemon_config_manager),
         ("Enhanced MCP Server", test_enhanced_mcp_server),
-        ("Service-Specific Configurations", test_service_specific_configurations),
+        ("Service-Specific Configurations", test_service_specific_configurations)
     ]
-
+    
     results = {}
     overall_success = True
-
+    
     for test_name, test_func in tests:
-        logger.info(f"\n{'=' * 60}")
+        logger.info(f"\n{'='*60}")
         logger.info(f"Running: {test_name}")
-        logger.info(f"{'=' * 60}")
-
+        logger.info(f"{'='*60}")
+        
         try:
             result = test_func()
             result = True if result is None else bool(result)
             results[test_name] = result
-
+            
             if result:
                 logger.info(f"✅ {test_name} PASSED")
             else:
                 logger.error(f"❌ {test_name} FAILED")
                 overall_success = False
-
+                
         except Exception as e:
             logger.error(f"❌ {test_name} FAILED with exception: {e}")
             results[test_name] = False
             overall_success = False
-
+    
     # Summary
-    logger.info(f"\n{'=' * 60}")
+    logger.info(f"\n{'='*60}")
     logger.info("TEST SUMMARY")
-    logger.info(f"{'=' * 60}")
-
+    logger.info(f"{'='*60}")
+    
     passed = sum(1 for result in results.values() if result)
     total = len(results)
-
+    
     logger.info(f"Tests passed: {passed}/{total}")
-
+    
     for test_name, result in results.items():
         status = "PASSED" if result else "FAILED"
         logger.info(f"  {test_name}: {status}")
-
+    
     if overall_success:
-        logger.info(
-            "\n🎉 ALL TESTS PASSED! The extended daemon configuration management is working correctly."
-        )
+        logger.info("\n🎉 ALL TESTS PASSED! The extended daemon configuration management is working correctly.")
         logger.info("\n📋 Summary of what was tested:")
         logger.info("  ✅ IPFS configuration management")
         logger.info("  ✅ Lotus configuration management")
@@ -198,9 +189,8 @@ def main():
         logger.info("  ✅ MCP server can update configurations at runtime")
     else:
         logger.error("\n❌ Some tests failed. Please review the output above.")
-
+    
     return overall_success
-
 
 if __name__ == "__main__":
     success = main()

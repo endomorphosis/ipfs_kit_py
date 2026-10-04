@@ -4,7 +4,6 @@ A single tool definition feeds four surfaces — Python import, CLI, MCP server,
 and the generated JavaScript SDK — so all metadata needed to drive those
 surfaces lives on the function itself via ``@tool_metadata``.
 """
-
 from __future__ import annotations
 
 import inspect

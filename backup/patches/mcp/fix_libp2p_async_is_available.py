@@ -15,7 +15,6 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 def patch_mcp_discovery_model():
     """
     Patch the MCP discovery model to fix coroutine warnings.
@@ -30,7 +29,7 @@ def patch_mcp_discovery_model():
             return False
 
         # Read the file
-        with open(file_path, "r") as f:
+        with open(file_path, 'r') as f:
             content = f.read()
 
         # Fix 1: In _detect_available_features method, use _is_available_sync instead of is_available
@@ -77,7 +76,7 @@ def patch_mcp_discovery_model():
         new_content = new_content.replace(original_init_code, fixed_init_code)
 
         # Write the patched content back to the file
-        with open(file_path, "w") as f:
+        with open(file_path, 'w') as f:
             f.write(new_content)
 
         logger.info(f"Successfully patched {file_path}")
@@ -86,7 +85,6 @@ def patch_mcp_discovery_model():
     except Exception as e:
         logger.error(f"Error applying patch: {e}")
         return False
-
 
 if __name__ == "__main__":
     logger.info("Applying patch to fix LibP2P is_available coroutine warnings...")

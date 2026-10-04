@@ -114,12 +114,7 @@ def test_legacy_rest_routes_still_work(client):
     assert client.get("/mcp/tools/list").status_code == 200
     call = client.post(
         "/mcp/tools/call",
-        json={
-            "jsonrpc": "2.0",
-            "id": 9,
-            "method": "tools/call",
-            "params": {"name": "health_check", "arguments": {}},
-        },
+        json={"jsonrpc": "2.0", "id": 9, "method": "tools/call", "params": {"name": "health_check", "arguments": {}}},
     )
     assert call.status_code == 200
     assert call.json()["id"] == 9

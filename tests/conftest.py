@@ -212,7 +212,7 @@ def _ensure_ipfs_daemon_running(ipfs_repo: Path) -> None:
         pass
 
     def _start_and_wait() -> tuple[bool, str, Path]:
-        cache_dir = Path(__file__).resolve().parents[1] / ".cache"
+        cache_dir = (Path(__file__).resolve().parents[1] / ".cache")
         cache_dir.mkdir(parents=True, exist_ok=True)
         log_path = cache_dir / "ipfs-daemon.log"
         log_f = open(log_path, "ab", buffering=0)

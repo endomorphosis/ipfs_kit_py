@@ -89,11 +89,9 @@ ipfs_kit_py/retry_strategy.py
 from ipfs_kit_py.enhanced_secrets_manager import EnhancedSecretManager
 from ipfs_kit_py.aes_encryption import MultiVersionEncryption
 
-
 def create_secrets_tools() -> List[Tool]:
     """Create MCP tool definitions"""
     return [Tool(...), Tool(...)]
-
 
 async def handle_secrets_store(arguments: Dict[str, Any]):
     """Handle MCP tool invocation"""
@@ -178,7 +176,6 @@ await mcpClient.callTool('secrets_store', {
 # mcp/secrets_mcp_tools.py (shim)
 # → ipfs_kit_py/mcp/servers/secrets_mcp_tools.py
 
-
 async def handle_secrets_store(arguments):
     manager = get_secrets_manager()  # Gets core module
     secret_id = manager.store_secret(...)  # Calls core functionality
@@ -189,15 +186,14 @@ async def handle_secrets_store(arguments):
 ```python
 # ipfs_kit_py/enhanced_secrets_manager.py
 
-
 class EnhancedSecretManager:
     def store_secret(self, service, secret_value, secret_type):
         # Uses AES encryption from core module
         encrypted = self._encrypt(secret_value)
-
+        
         # ipfs_kit_py/aes_encryption.py
         # AESEncryption.encrypt() with PBKDF2, salt, nonce
-
+        
         # Store encrypted value
         self.secrets[secret_id] = encrypted
         return secret_id
@@ -214,7 +210,9 @@ from ipfs_kit_py.enhanced_secrets_manager import EnhancedSecretManager
 
 manager = EnhancedSecretManager()
 secret_id = manager.store_secret(
-    service=args.service, secret_value=args.value, secret_type=args.type
+    service=args.service,
+    secret_value=args.value,
+    secret_type=args.type
 )
 ```
 
@@ -225,7 +223,6 @@ secret_id = manager.store_secret(
 # tests/unit/test_aes_encryption.py
 
 from ipfs_kit_py.aes_encryption import AESEncryption
-
 
 def test_encrypt_decrypt():
     aes = AESEncryption(master_key)
@@ -240,10 +237,12 @@ def test_encrypt_decrypt():
 
 from ipfs_kit_py.mcp.servers.secrets_mcp_tools import handle_secrets_store
 
-
 async def test_mcp_store_secret():
-    result = await handle_secrets_store({"service": "test", "secret_value": "test_secret"})
-    assert result["success"] == True
+    result = await handle_secrets_store({
+        'service': 'test',
+        'secret_value': 'test_secret'
+    })
+    assert result['success'] == True
 ```
 
 ### End-to-End Tests (Full Stack)
@@ -292,7 +291,6 @@ To add a new feature, follow this pattern:
 ```python
 # ipfs_kit_py/my_new_feature.py
 
-
 class MyNewFeature:
     def do_something(self, arg):
         # Core business logic here
@@ -324,7 +322,10 @@ from ipfs_kit_py.mcp.servers.my_feature_mcp_tools import *
 ### Step 4: Register with MCP Server
 ```python
 # Enhanced MCP server registration
-from mcp.my_feature_mcp_tools import create_my_feature_tools, handle_my_feature
+from mcp.my_feature_mcp_tools import (
+    create_my_feature_tools,
+    handle_my_feature
+)
 
 # Add to tools list and handlers
 ```

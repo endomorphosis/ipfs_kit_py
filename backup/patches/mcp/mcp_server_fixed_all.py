@@ -28,53 +28,29 @@ from typing import List, Dict, Any, Optional, Union
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    filename="mcp_server.log",
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename='mcp_server.log'
 )
 logger = logging.getLogger(__name__)
-
 
 def main():
     """Run the enhanced MCP server with all extensions initialized."""
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Start the All-in-One MCP server")
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=int(os.environ.get("MCP_PORT", "9994")),
-        help="Port number to use (default: 9994)",
-    )
-    parser.add_argument(
-        "--jsonrpc-port",
-        type=int,
-        default=int(os.environ.get("MCP_JSONRPC_PORT", "9995")),
-        help="JSON-RPC port number (default: 9995)",
-    )
+    parser.add_argument("--port", type=int, default=int(os.environ.get("MCP_PORT", "9994")),
+                      help="Port number to use (default: 9994)")
+    parser.add_argument("--jsonrpc-port", type=int, default=int(os.environ.get("MCP_JSONRPC_PORT", "9995")),
+                      help="JSON-RPC port number (default: 9995)")
     parser.add_argument("--debug", dest="debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--no-debug", dest="debug", action="store_false", help="Disable debug mode")
-    parser.add_argument(
-        "--isolation", dest="isolation", action="store_true", help="Enable isolation mode"
-    )
-    parser.add_argument(
-        "--no-isolation", dest="isolation", action="store_false", help="Disable isolation mode"
-    )
-    parser.add_argument(
-        "--skip-daemon", dest="skip_daemon", action="store_true", help="Skip daemon initialization"
-    )
-    parser.add_argument(
-        "--no-skip-daemon",
-        dest="skip_daemon",
-        action="store_false",
-        help="Don't skip daemon initialization",
-    )
+    parser.add_argument("--isolation", dest="isolation", action="store_true", help="Enable isolation mode")
+    parser.add_argument("--no-isolation", dest="isolation", action="store_false", help="Disable isolation mode")
+    parser.add_argument("--skip-daemon", dest="skip_daemon", action="store_true", help="Skip daemon initialization")
+    parser.add_argument("--no-skip-daemon", dest="skip_daemon", action="store_false", help="Don't skip daemon initialization")
     parser.add_argument("--api-prefix", type=str, default="/api/v0", help="API prefix to use")
     parser.add_argument("--log-file", type=str, default="mcp_server.log", help="Log file to use")
-    parser.add_argument(
-        "--jsonrpc", dest="jsonrpc", action="store_true", help="Enable JSON-RPC support"
-    )
-    parser.add_argument(
-        "--no-jsonrpc", dest="jsonrpc", action="store_false", help="Disable JSON-RPC support"
-    )
+    parser.add_argument("--jsonrpc", dest="jsonrpc", action="store_true", help="Enable JSON-RPC support")
+    parser.add_argument("--no-jsonrpc", dest="jsonrpc", action="store_false", help="Disable JSON-RPC support")
 
     # Set default values
     parser.set_defaults(debug=True, isolation=True, skip_daemon=True, jsonrpc=True)
@@ -85,8 +61,8 @@ def main():
     # Configure logging
     logging.basicConfig(
         level=logging.DEBUG if args.debug else logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        filename=args.log_file,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        filename=args.log_file
     )
 
     # Set environment variables for configuration
@@ -114,7 +90,6 @@ def main():
         # First, apply IPFS model fixes
         try:
             from ipfs_kit_py.mcp.models.ipfs_model_fix import apply_fixes as apply_ipfs_model_fixes
-
             logger.info("Applying IPFS model fixes")
             if apply_ipfs_model_fixes():
                 logger.info("Successfully applied IPFS model fixes")
@@ -126,7 +101,6 @@ def main():
         # Initialize IPFS model extensions
         try:
             from ipfs_kit_py.mcp.models.ipfs_model_initializer import initialize_ipfs_model
-
             logger.info("Initializing IPFS model extensions")
             if initialize_ipfs_model():
                 logger.info("Successfully initialized IPFS model extensions")
@@ -138,7 +112,6 @@ def main():
         # Apply SSE and CORS fixes
         try:
             from ipfs_kit_py.mcp.sse_cors_fix import patch_mcp_server_for_sse
-
             logger.info("Applying SSE and CORS fixes")
             if patch_mcp_server_for_sse():
                 logger.info("Successfully applied SSE and CORS fixes")
@@ -150,7 +123,6 @@ def main():
         # Patch run_mcp_server if needed
         try:
             from ipfs_kit_py.mcp.run_mcp_server_initializer import patch_run_mcp_server
-
             logger.info("Patching run_mcp_server")
             if patch_run_mcp_server():
                 logger.info("Successfully patched run_mcp_server")
@@ -169,7 +141,7 @@ def main():
         import uvicorn
 
         # Write PID file
-        with open("/tmp/mcp_server.pid", "w") as f:
+        with open('/tmp/mcp_server.pid', 'w') as f:
             f.write(str(os.getpid()))
 
         # Run the server
@@ -179,7 +151,7 @@ def main():
             host="0.0.0.0",
             port=args.port,
             reload=False,
-            log_level="debug" if args.debug else "info",
+            log_level="debug" if args.debug else "info"
         )
     except ImportError as e:
         logger.error(f"Failed to import required modules: {e}")
@@ -190,45 +162,35 @@ def main():
         print(f"Error: Failed to start MCP server: {e}")
         sys.exit(1)
 
-
 # Get configuration from environment variables
 debug_mode = os.environ.get("MCP_DEBUG_MODE", "true").lower() == "true"
 isolation_mode = os.environ.get("MCP_ISOLATION_MODE", "true").lower() == "true"
 api_prefix = os.environ.get("MCP_API_PREFIX", "/api/v0")
 persistence_path = os.environ.get("MCP_PERSISTENCE_PATH", "~/.ipfs_kit/mcp")
 
-
 # Define Pydantic models for requests and responses
 class CIDRequest(BaseModel):
     """Request model for operations using a CID."""
-
     cid: str = Field(..., description="Content Identifier (CID)")
-
 
 class OperationResponse(BaseModel):
     """Base response model for operations."""
-
     success: bool = Field(..., description="Whether the operation was successful")
     operation_id: str = Field(..., description="Unique identifier for this operation")
     duration_ms: float = Field(..., description="Duration of the operation in milliseconds")
 
-
 class PinResponse(OperationResponse):
     """Response model for pin operations."""
-
     cid: str = Field(..., description="Content Identifier (CID)")
     error: Optional[str] = Field(None, description="Error message, if any")
     error_type: Optional[str] = Field(None, description="Type of error, if any")
 
-
 class ListPinsResponse(OperationResponse):
     """Response model for listing pins."""
-
     pins: List[str] = Field(..., description="List of pinned CIDs")
     count: int = Field(..., description="Number of pins")
     error: Optional[str] = Field(None, description="Error message, if any")
     error_type: Optional[str] = Field(None, description="Type of error, if any")
-
 
 def create_app():
     """Create and configure the FastAPI app with MCP server."""
@@ -236,7 +198,7 @@ def create_app():
     app = FastAPI(
         title="All-in-One IPFS MCP Server",
         description="Model-Controller-Persistence Server for IPFS Kit with all extensions enabled",
-        version="0.3.0",
+        version="0.3.0"
     )
 
     # Add CORS middleware with permissive settings for client access
@@ -253,7 +215,6 @@ def create_app():
         # Import IPFS model fix
         try:
             from ipfs_kit_py.mcp.models.ipfs_model_fix import apply_fixes
-
             apply_fixes()
             logger.info("Applied IPFS model fixes")
         except ImportError:
@@ -262,7 +223,6 @@ def create_app():
         # Initialize IPFS model extensions
         try:
             from ipfs_kit_py.mcp.models.ipfs_model_initializer import initialize_ipfs_model
-
             if initialize_ipfs_model():
                 logger.info("Initialized IPFS model extensions")
             else:
@@ -273,7 +233,6 @@ def create_app():
         # Apply SSE and CORS fixes
         try:
             from ipfs_kit_py.mcp.sse_cors_fix import patch_mcp_server_for_sse
-
             if patch_mcp_server_for_sse():
                 logger.info("Applied SSE and CORS fixes")
             else:
@@ -319,7 +278,7 @@ def create_app():
         mcp_server = MCPServer(
             debug_mode=debug_mode,
             isolation_mode=isolation_mode,
-            persistence_path=os.path.expanduser(persistence_path),
+            persistence_path=os.path.expanduser(persistence_path)
         )
 
         # Register controllers
@@ -339,7 +298,6 @@ def create_app():
         # Import ipfs_kit for model initialization
         try:
             from ipfs_kit_py import ipfs_kit
-
             ipfs_instance = ipfs_kit
         except ImportError:
             ipfs_instance = None
@@ -349,31 +307,24 @@ def create_app():
         ipfs_config = {
             "ipfs_host": mcp_server.ipfs_host,
             "ipfs_port": mcp_server.ipfs_port,
-            "debug_mode": debug_mode,
+            "debug_mode": debug_mode
         }
 
-        ipfs_model = IPFSModel(ipfs_kit_instance=ipfs_instance, config=ipfs_config)
+        ipfs_model = IPFSModel(
+            ipfs_kit_instance=ipfs_instance,
+            config=ipfs_config
+        )
 
         # Ensure model has extensions
-        if not hasattr(ipfs_model, "add_content"):
+        if not hasattr(ipfs_model, 'add_content'):
             from ipfs_kit_py.mcp.models.ipfs_model_extensions import add_ipfs_model_extensions
-
             logger.info("Manually applying IPFS model extensions")
             add_ipfs_model_extensions(IPFSModel)
 
             # Now explicitly attach the methods to our instance
-            for method_name in [
-                "add_content",
-                "cat",
-                "pin_add",
-                "pin_rm",
-                "pin_ls",
-                "swarm_peers",
-                "swarm_connect",
-                "swarm_disconnect",
-                "storage_transfer",
-                "get_version",
-            ]:
+            for method_name in ['add_content', 'cat', 'pin_add', 'pin_rm', 'pin_ls',
+                               'swarm_peers', 'swarm_connect', 'swarm_disconnect',
+                               'storage_transfer', 'get_version']:
                 # Make sure our model has these methods
                 if hasattr(add_ipfs_model_extensions.__globals__, method_name):
                     method = add_ipfs_model_extensions.__globals__[method_name]
@@ -385,27 +336,32 @@ def create_app():
         # Set up storage manager with reference to our ipfs_model
         # Instead of directly setting an attribute, let's use a safer approach
         # We'll add this attribute to the class if it doesn't exist
-        if not hasattr(ipfs_model, "storage_manager"):
-            setattr(ipfs_model.__class__, "storage_manager", None)
+        if not hasattr(ipfs_model, 'storage_manager'):
+            setattr(ipfs_model.__class__, 'storage_manager', None)
 
         # Create properly formatted resources and metadata for StorageManager
-        resources = {"ipfs": {"host": mcp_server.ipfs_host, "port": mcp_server.ipfs_port}}
+        resources = {
+            "ipfs": {
+                "host": mcp_server.ipfs_host,
+                "port": mcp_server.ipfs_port
+            }
+        }
 
         metadata = {
             "debug_mode": debug_mode,
             "isolation_mode": isolation_mode,
-            "persistence_path": os.path.expanduser(persistence_path),
+            "persistence_path": os.path.expanduser(persistence_path)
         }
 
         # Create StorageManager with correct parameters
         storage_model = StorageManager(
             ipfs_model=ipfs_model,  # Pass the IPFS model we created earlier
             resources=resources,
-            metadata=metadata,
+            metadata=metadata
         )
 
         # Add two-way reference - use setattr to avoid type checking errors
-        setattr(ipfs_model, "storage_manager", storage_model)
+        setattr(ipfs_model, 'storage_manager', storage_model)
 
         mcp_server.register_model("storage_manager", storage_model)
 
@@ -458,7 +414,6 @@ def create_app():
         # Directly add the storage backend routers from mcp_extensions
         try:
             import mcp_extensions
-
             logger.info("Adding routers from mcp_extensions...")
             extension_routers = mcp_extensions.create_extension_routers(api_prefix)
             for ext_router in extension_routers:
@@ -470,7 +425,6 @@ def create_app():
         # Add IPFS routers from ipfs_router_extensions
         try:
             import ipfs_router_extensions
-
             logger.info("Adding routers from ipfs_router_extensions...")
             ipfs_routers = ipfs_router_extensions.create_ipfs_routers(api_prefix)
             for ipfs_router in ipfs_routers:
@@ -488,7 +442,7 @@ def create_app():
                 "ipfs": {
                     "running": True,
                     "host": mcp_server.ipfs_host,
-                    "port": mcp_server.ipfs_port,
+                    "port": mcp_server.ipfs_port
                 }
             }
 
@@ -499,18 +453,9 @@ def create_app():
             ipfs_extensions = {}
             if "ipfs" in mcp_server.models:
                 ipfs_model = mcp_server.models["ipfs"]
-                for method_name in [
-                    "add_content",
-                    "cat",
-                    "pin_add",
-                    "pin_rm",
-                    "pin_ls",
-                    "swarm_peers",
-                    "swarm_connect",
-                    "swarm_disconnect",
-                    "storage_transfer",
-                    "get_version",
-                ]:
+                for method_name in ['add_content', 'cat', 'pin_add', 'pin_rm', 'pin_ls',
+                                    'swarm_peers', 'swarm_connect', 'swarm_disconnect',
+                                    'storage_transfer', 'get_version']:
                     ipfs_extensions[method_name] = hasattr(ipfs_model, method_name)
 
             # Storage backends status
@@ -521,8 +466,8 @@ def create_app():
                     for backend_name, backend in storage_manager.storage_models.items():
                         storage_backends[backend_name] = {
                             "available": True,
-                            "simulation": getattr(backend, "simulation_mode", False),
-                            "real_implementation": True,
+                            "simulation": getattr(backend, 'simulation_mode', False),
+                            "real_implementation": True
                         }
                 except Exception as e:
                     storage_backends["error"] = str(e)
@@ -536,44 +481,46 @@ def create_app():
                     "pin": {
                         "add": f"{api_prefix}/ipfs/pin/add?cid={{cid}}",
                         "rm": f"{api_prefix}/ipfs/pin/rm?cid={{cid}}",
-                        "ls": f"{api_prefix}/ipfs/pin/ls",
-                    },
+                        "ls": f"{api_prefix}/ipfs/pin/ls"
+                    }
                 },
                 "storage": {
                     "huggingface": {
                         "status": f"{api_prefix}/huggingface/status",
                         "from_ipfs": f"{api_prefix}/huggingface/from_ipfs",
-                        "to_ipfs": f"{api_prefix}/huggingface/to_ipfs",
+                        "to_ipfs": f"{api_prefix}/huggingface/to_ipfs"
                     },
                     "storacha": {
                         "status": f"{api_prefix}/storacha/status",
                         "from_ipfs": f"{api_prefix}/storacha/from_ipfs",
-                        "to_ipfs": f"{api_prefix}/storacha/to_ipfs",
+                        "to_ipfs": f"{api_prefix}/storacha/to_ipfs"
                     },
                     "filecoin": {
                         "status": f"{api_prefix}/filecoin/status",
                         "from_ipfs": f"{api_prefix}/filecoin/from_ipfs",
-                        "to_ipfs": f"{api_prefix}/filecoin/to_ipfs",
+                        "to_ipfs": f"{api_prefix}/filecoin/to_ipfs"
                     },
                     "lassie": {
                         "status": f"{api_prefix}/lassie/status",
-                        "to_ipfs": f"{api_prefix}/lassie/to_ipfs",
+                        "to_ipfs": f"{api_prefix}/lassie/to_ipfs"
                     },
                     "s3": {
                         "status": f"{api_prefix}/s3/status",
                         "from_ipfs": f"{api_prefix}/s3/from_ipfs",
-                        "to_ipfs": f"{api_prefix}/s3/to_ipfs",
-                    },
+                        "to_ipfs": f"{api_prefix}/s3/to_ipfs"
+                    }
                 },
-                "daemon": {"status": f"{api_prefix}/daemon/status"},
-                "health": f"{api_prefix}/health",
+                "daemon": {
+                    "status": f"{api_prefix}/daemon/status"
+                },
+                "health": f"{api_prefix}/health"
             }
 
             # Add JSON-RPC endpoint information
             example_endpoints["jsonrpc"] = {
                 "root": "/jsonrpc",
                 "api": f"{api_prefix}/jsonrpc",
-                "supported_methods": ["initialize", "shutdown", "exit"],
+                "supported_methods": ["initialize", "shutdown", "exit"]
             }
 
             # Help message about URL structure
@@ -601,17 +548,16 @@ def create_app():
                 "example_endpoints": example_endpoints,
                 "help": help_message,
                 "documentation": "/docs",
-                "server_id": str(uuid.uuid4()),
+                "server_id": str(uuid.uuid4())
             }
 
         # Add SSE endpoint for server-sent events - both at root and with API prefix
         async def sse_handler(request: Request):
             """Server-Sent Events (SSE) endpoint for real-time updates."""
-
             async def event_generator():
                 """Generate SSE events."""
                 # Initial connection established event
-                yield 'event: connected\ndata: {"status": "connected"}\n\n'
+                yield "event: connected\ndata: {\"status\": \"connected\"}\n\n"
 
                 # Keep connection alive with heartbeats
                 counter = 0
@@ -625,7 +571,7 @@ def create_app():
                         status_data = {
                             "event": "heartbeat",
                             "timestamp": time.time(),
-                            "server_id": str(uuid.uuid4()),
+                            "server_id": str(uuid.uuid4())
                         }
                         yield f"event: heartbeat\ndata: {json.dumps(status_data)}\n\n"
 
@@ -639,8 +585,8 @@ def create_app():
                 headers={
                     "Cache-Control": "no-cache",
                     "Connection": "keep-alive",
-                    "Access-Control-Allow-Origin": "*",
-                },
+                    "Access-Control-Allow-Origin": "*"
+                }
             )
 
         # Register SSE endpoint at root level
@@ -669,29 +615,40 @@ def create_app():
                             "capabilities": {
                                 "textDocumentSync": {
                                     "openClose": True,
-                                    "change": 1,  # Full document sync
+                                    "change": 1  # Full document sync
                                 },
                                 "completionProvider": {
                                     "resolveProvider": False,
-                                    "triggerCharacters": ["/"],
+                                    "triggerCharacters": ["/"]
                                 },
                                 "hoverProvider": True,
                                 "definitionProvider": True,
-                                "referencesProvider": True,
+                                "referencesProvider": True
                             },
-                            "serverInfo": {"name": "MCP IPFS Tools Server", "version": "0.3.0"},
-                        },
+                            "serverInfo": {
+                                "name": "MCP IPFS Tools Server",
+                                "version": "0.3.0"
+                            }
+                        }
                     }
 
                 # Handle 'shutdown' request
                 elif data.get("method") == "shutdown":
                     logger.info("Received shutdown request from VS Code")
-                    return {"jsonrpc": "2.0", "id": data.get("id"), "result": None}
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": data.get("id"),
+                        "result": None
+                    }
 
                 # Handle 'exit' notification
                 elif data.get("method") == "exit":
                     logger.info("Received exit notification from VS Code")
-                    return {"jsonrpc": "2.0", "id": data.get("id"), "result": None}
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": data.get("id"),
+                        "result": None
+                    }
 
                 # For any other method, return a 'method not found' error
                 else:
@@ -701,15 +658,18 @@ def create_app():
                         "id": data.get("id"),
                         "error": {
                             "code": -32601,
-                            "message": f"Method '{data.get('method')}' not found",
-                        },
+                            "message": f"Method '{data.get('method')}' not found"
+                        }
                     }
             except Exception as e:
                 logger.error(f"Error handling JSON-RPC request: {e}")
                 return {
                     "jsonrpc": "2.0",
                     "id": None,
-                    "error": {"code": -32603, "message": f"Internal error: {str(e)}"},
+                    "error": {
+                        "code": -32603,
+                        "message": f"Internal error: {str(e)}"
+                    }
                 }
 
         # Add JSON-RPC endpoint at root level too (some clients might expect it here)
@@ -732,29 +692,40 @@ def create_app():
                             "capabilities": {
                                 "textDocumentSync": {
                                     "openClose": True,
-                                    "change": 1,  # Full document sync
+                                    "change": 1  # Full document sync
                                 },
                                 "completionProvider": {
                                     "resolveProvider": False,
-                                    "triggerCharacters": ["/"],
+                                    "triggerCharacters": ["/"]
                                 },
                                 "hoverProvider": True,
                                 "definitionProvider": True,
-                                "referencesProvider": True,
+                                "referencesProvider": True
                             },
-                            "serverInfo": {"name": "MCP IPFS Tools Server", "version": "0.3.0"},
-                        },
+                            "serverInfo": {
+                                "name": "MCP IPFS Tools Server",
+                                "version": "0.3.0"
+                            }
+                        }
                     }
 
                 # Handle 'shutdown' request
                 elif data.get("method") == "shutdown":
                     logger.info("Received shutdown request from VS Code")
-                    return {"jsonrpc": "2.0", "id": data.get("id"), "result": None}
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": data.get("id"),
+                        "result": None
+                    }
 
                 # Handle 'exit' notification
                 elif data.get("method") == "exit":
                     logger.info("Received exit notification from VS Code")
-                    return {"jsonrpc": "2.0", "id": data.get("id"), "result": None}
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": data.get("id"),
+                        "result": None
+                    }
 
                 # For any other method, return a 'method not found' error
                 else:
@@ -764,15 +735,18 @@ def create_app():
                         "id": data.get("id"),
                         "error": {
                             "code": -32601,
-                            "message": f"Method '{data.get('method')}' not found",
-                        },
+                            "message": f"Method '{data.get('method')}' not found"
+                        }
                     }
             except Exception as e:
                 logger.error(f"Error handling JSON-RPC request: {e}")
                 return {
                     "jsonrpc": "2.0",
                     "id": None,
-                    "error": {"code": -32603, "message": f"Internal error: {str(e)}"},
+                    "error": {
+                        "code": -32603,
+                        "message": f"Internal error: {str(e)}"
+                    }
                 }
 
         # Custom pin endpoints for IPFS operations
@@ -783,7 +757,7 @@ def create_app():
                 raise HTTPException(status_code=500, detail="IPFS model not found")
 
             ipfs_model = mcp_server.models["ipfs"]
-            if not hasattr(ipfs_model, "pin_add"):
+            if not hasattr(ipfs_model, 'pin_add'):
                 raise HTTPException(status_code=500, detail="pin_add method not available")
 
             try:
@@ -795,7 +769,7 @@ def create_app():
                     success=True,
                     operation_id=f"pin_add_{int(start_time * 1000)}",
                     duration_ms=duration_ms,
-                    cid=cid,
+                    cid=cid
                 )
             except Exception as e:
                 logger.error(f"Error pinning content: {e}")
@@ -805,7 +779,7 @@ def create_app():
                     duration_ms=0,
                     cid=cid,
                     error=str(e),
-                    error_type=type(e).__name__,
+                    error_type=type(e).__name__
                 )
 
         @app.get(f"{api_prefix}/ipfs/pin/rm")
@@ -815,7 +789,7 @@ def create_app():
                 raise HTTPException(status_code=500, detail="IPFS model not found")
 
             ipfs_model = mcp_server.models["ipfs"]
-            if not hasattr(ipfs_model, "pin_rm"):
+            if not hasattr(ipfs_model, 'pin_rm'):
                 raise HTTPException(status_code=500, detail="pin_rm method not available")
 
             try:
@@ -827,7 +801,7 @@ def create_app():
                     success=True,
                     operation_id=f"pin_rm_{int(start_time * 1000)}",
                     duration_ms=duration_ms,
-                    cid=cid,
+                    cid=cid
                 )
             except Exception as e:
                 logger.error(f"Error unpinning content: {e}")
@@ -837,7 +811,7 @@ def create_app():
                     duration_ms=0,
                     cid=cid,
                     error=str(e),
-                    error_type=type(e).__name__,
+                    error_type=type(e).__name__
                 )
 
         @app.get(f"{api_prefix}/ipfs/pin/ls")
@@ -847,7 +821,7 @@ def create_app():
                 raise HTTPException(status_code=500, detail="IPFS model not found")
 
             ipfs_model = mcp_server.models["ipfs"]
-            if not hasattr(ipfs_model, "pin_ls"):
+            if not hasattr(ipfs_model, 'pin_ls'):
                 raise HTTPException(status_code=500, detail="pin_ls method not available")
 
             try:
@@ -860,7 +834,7 @@ def create_app():
                     operation_id=f"pin_ls_{int(start_time * 1000)}",
                     duration_ms=duration_ms,
                     pins=result,
-                    count=len(result),
+                    count=len(result)
                 )
             except Exception as e:
                 logger.error(f"Error listing pins: {e}")
@@ -871,46 +845,36 @@ def create_app():
                     pins=[],
                     count=0,
                     error=str(e),
-                    error_type=type(e).__name__,
+                    error_type=type(e).__name__
                 )
 
         # Add a health check specifically for verifying model extensions
         @app.get(f"{api_prefix}/tools/health")
         async def tools_health():
             """Health check for MCP tools and extensions."""
-            health_info = {"success": True, "timestamp": time.time(), "methods": {}}
+            health_info = {
+                "success": True,
+                "timestamp": time.time(),
+                "methods": {}
+            }
 
             # Check if IPFS model has extensions
             if "ipfs" in mcp_server.models:
                 ipfs_model = mcp_server.models["ipfs"]
 
                 # Check each method
-                for method_name in [
-                    "add_content",
-                    "cat",
-                    "pin_add",
-                    "pin_rm",
-                    "pin_ls",
-                    "swarm_peers",
-                    "swarm_connect",
-                    "swarm_disconnect",
-                    "storage_transfer",
-                    "get_version",
-                ]:
+                for method_name in ['add_content', 'cat', 'pin_add', 'pin_rm', 'pin_ls',
+                                    'swarm_peers', 'swarm_connect', 'swarm_disconnect',
+                                    'storage_transfer', 'get_version']:
                     has_method = hasattr(ipfs_model, method_name)
                     health_info["methods"][method_name] = {
                         "available": has_method,
-                        "callable": callable(getattr(ipfs_model, method_name, None))
-                        if has_method
-                        else False,
+                        "callable": callable(getattr(ipfs_model, method_name, None)) if has_method else False
                     }
 
             # Overall status
-            missing_methods = [
-                m
-                for m, status in health_info["methods"].items()
-                if not status.get("available", False)
-            ]
+            missing_methods = [m for m, status in health_info["methods"].items()
+                              if not status.get("available", False)]
 
             health_info["overall_status"] = "healthy" if not missing_methods else "degraded"
             health_info["missing_methods"] = missing_methods
@@ -929,7 +893,6 @@ def create_app():
             return {"error": f"Failed to initialize MCP server: {error_message}"}
 
         return app, None
-
 
 # Create the app for uvicorn
 app, mcp_server = create_app()

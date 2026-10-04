@@ -7,4 +7,4 @@ This module provides gateway fallback chains and intelligent retrieval strategie
 from .gateway_chain import GatewayChain
 from .enhanced_gateway_chain import EnhancedGatewayChain
 
-__all__ = ["GatewayChain", "EnhancedGatewayChain"]
+__all__ = ['GatewayChain', 'EnhancedGatewayChain']

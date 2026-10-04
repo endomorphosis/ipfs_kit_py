@@ -1,0 +1,70 @@
+# Leecher node configuration for IPFS Kit in Docker
+role: leecher
+logging:
+  level: INFO
+  file: ""  # Log to stdout in container
+  format: "json"
+
+# Resource settings for leecher - minimal
+resources:
+  max_memory: "1GB"    # Overridable by environment
+  max_storage: "20GB"  # Overridable by environment
+  cpu_limit: 0.5
+
+# Cache settings optimized for leecher role - focus on read cache
+cache:
+  memory_size: "256MB"
+  disk_size: "2GB"
+  disk_path: "/data/ipfs/cache"
+  eviction_policy: "arc"
+  read_focused: true
+
+# Network settings - limited connections to preserve resources
+network:
+  swarm_connections: 50
+  auto_relay: true
+  nat_traversal: true
+  max_bandwidth_in: "50M"
+  max_bandwidth_out: "20M"
+
+# Gateway settings - leechers expose gateway by default
+gateway:
+  enabled: true
+  writable: false
+  cors_allowed_origins: ["*"]
+  path_prefix: ""
+
+# API settings - allow local API
+api:
+  enabled: true
+  cors_allowed_origins: ["*"]
+  authenticated: false
+
+# Cluster settings - not a cluster member
+cluster:
+  enabled: false
+
+# Storage backends - focused on local cache
+storage:
+  backends:
+    - name: "ipfs"
+      priority: 1
+      enabled: true
+    - name: "local"
+      priority: 2
+      enabled: true
+    - name: "cluster"
+      priority: 3
+      enabled: false
+    - name: "storacha"
+      priority: 4
+      enabled: false
+    - name: "s3"
+      priority: 5
+      enabled: false
+
+# Leecher-specific settings
+leecher:
+  offline_mode_support: true
+  prefetch_popular_content: true
+  max_content_size: "1GB"  # Skip larger content

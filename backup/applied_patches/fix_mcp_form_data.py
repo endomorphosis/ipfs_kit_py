@@ -11,11 +11,8 @@ import os
 import sys
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
 
 def fix_ipfs_controller_anyio():
     """Fix the form data handling issues in the MCP IPFS controller (AnyIO version)."""
@@ -26,7 +23,7 @@ def fix_ipfs_controller_anyio():
         logger.error(f"File not found: {file_path}")
         return False
 
-    with open(file_path, "r") as f:
+    with open(file_path, 'r') as f:
         content = f.read()
 
     # Fix handle_add_request method
@@ -302,18 +299,15 @@ def fix_ipfs_controller_anyio():
 
     # Check if any changes were made
     if content == updated_content:
-        logger.warning(
-            "No changes were made to the file. Make sure the target methods exist with exact patterns."
-        )
+        logger.warning("No changes were made to the file. Make sure the target methods exist with exact patterns.")
         return False
 
     # Write the updated content back to the file
-    with open(file_path, "w") as f:
+    with open(file_path, 'w') as f:
         f.write(updated_content)
 
     logger.info(f"Successfully updated {file_path}")
     return True
-
 
 if __name__ == "__main__":
     logger.info("Starting to fix form data handling in MCP IPFS controller")

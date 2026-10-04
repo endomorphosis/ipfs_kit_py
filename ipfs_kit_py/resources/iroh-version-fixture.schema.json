@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/endomorphosis/ipfs_kit_py/schemas/iroh-version-fixture.schema.json",
+  "title": "IPFS Kit Iroh sidecar --version fixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "fixture_kind",
+    "platform_id",
+    "command",
+    "exit_code",
+    "stdout",
+    "stderr"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "fixture_kind": { "enum": ["contract-golden", "artifact-capture"] },
+    "platform_id": {
+      "enum": [
+        "linux_x86_64_gnu",
+        "linux_x86_64_musl",
+        "linux_aarch64_gnu",
+        "linux_aarch64_musl",
+        "macos_x86_64",
+        "macos_aarch64",
+        "windows_x86_64"
+      ]
+    },
+    "command": {
+      "type": "array",
+      "prefixItems": [
+        { "const": "ipfs-kit-iroh-sidecar" },
+        { "const": "--version" }
+      ],
+      "items": false
+    },
+    "exit_code": { "const": 0 },
+    "stdout": {
+      "type": "string",
+      "pattern": "^ipfs-kit-iroh-sidecar [0-9]+\\.[0-9]+\\.[0-9]+ \\(protocol [1-9][0-9]*; iroh [^;]+; iroh-blobs [^;]+; iroh-docs [^;]+; iroh-gossip [^)]+\\)\\n$"
+    },
+    "stderr": { "const": "" },
+    "captured_at": { "type": "string", "format": "date-time" },
+    "artifact_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "fixture_kind": { "const": "artifact-capture" } } },
+      "then": { "required": ["captured_at", "artifact_sha256"] },
+      "else": {
+        "not": {
+          "anyOf": [
+            { "required": ["captured_at"] },
+            { "required": ["artifact_sha256"] }
+          ]
+        }
+      }
+    }
+  ]
+}

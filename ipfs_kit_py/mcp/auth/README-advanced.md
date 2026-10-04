@@ -162,7 +162,7 @@ import requests
 # Admin login
 response = requests.post(
     "http://localhost:5000/api/v0/auth/login",
-    json={"username": "admin", "password": "admin_password"},
+    json={"username": "admin", "password": "admin_password"}
 )
 admin_token = response.json()["access_token"]
 
@@ -171,20 +171,20 @@ role_data = {
     "id": "data_analyst",
     "name": "Data Analyst",
     "permissions": ["read:ipfs", "read:search", "read:huggingface"],
-    "parent_role": "user",
+    "parent_role": "user"
 }
 
 response = requests.post(
     "http://localhost:5000/api/v0/rbac/roles",
     headers={"Authorization": f"Bearer {admin_token}"},
-    json=role_data,
+    json=role_data
 )
 
 # Assign role to user
 response = requests.post(
     "http://localhost:5000/api/v0/rbac/users/user123/roles",
     headers={"Authorization": f"Bearer {admin_token}"},
-    json={"roles": ["data_analyst"]},
+    json={"roles": ["data_analyst"]}
 )
 ```
 
@@ -195,7 +195,8 @@ import requests
 
 # User login
 response = requests.post(
-    "http://localhost:5000/api/v0/auth/login", json={"username": "user1", "password": "password123"}
+    "http://localhost:5000/api/v0/auth/login",
+    json={"username": "user1", "password": "password123"}
 )
 user_token = response.json()["access_token"]
 
@@ -203,14 +204,19 @@ user_token = response.json()["access_token"]
 response = requests.post(
     "http://localhost:5000/api/v0/auth/apikeys",
     headers={"Authorization": f"Bearer {user_token}"},
-    json={"name": "My Script", "permissions": ["read:ipfs", "write:ipfs"], "expires_in_days": 30},
+    json={
+        "name": "My Script",
+        "permissions": ["read:ipfs", "write:ipfs"],
+        "expires_in_days": 30
+    }
 )
 
 api_key = response.json()["key"]
 
 # Use API key to access IPFS
 response = requests.get(
-    "http://localhost:5000/api/v0/ipfs/cat/QmExample", headers={"X-API-Key": api_key}
+    "http://localhost:5000/api/v0/ipfs/cat/QmExample",
+    headers={"X-API-Key": api_key}
 )
 ```
 

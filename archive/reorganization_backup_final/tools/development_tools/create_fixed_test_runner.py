@@ -7,24 +7,23 @@ This script will create a modified version of mcp_test_runner.py.
 import sys
 import os
 
-
 def create_fixed_version():
     """Create a fixed version of the test runner with proper error handling"""
-
+    
     # Check if original exists
-    if not os.path.exists("mcp_test_runner.py"):
+    if not os.path.exists('mcp_test_runner.py'):
         print("ERROR: Could not find mcp_test_runner.py")
         return False
-
+    
     # Make a backup if needed
-    if not os.path.exists("mcp_test_runner.py.backup"):
-        with open("mcp_test_runner.py", "r") as f_in:
-            with open("mcp_test_runner.py.backup", "w") as f_out:
+    if not os.path.exists('mcp_test_runner.py.backup'):
+        with open('mcp_test_runner.py', 'r') as f_in:
+            with open('mcp_test_runner.py.backup', 'w') as f_out:
                 f_out.write(f_in.read())
         print("Created backup at mcp_test_runner.py.backup")
-
+    
     # Create a new fixed file
-    with open("fixed_mcp_test_runner.py", "w") as f:
+    with open('fixed_mcp_test_runner.py', 'w') as f:
         f.write('''#!/usr/bin/env python3
 """
 Comprehensive MCP Test Runner (Fixed Version)
@@ -827,10 +826,9 @@ def main():
 if __name__ == "__main__":
     main()
 ''')
-
+    
     print("Created fixed MCP test runner at fixed_mcp_test_runner.py")
     return True
-
 
 if __name__ == "__main__":
     create_fixed_version()

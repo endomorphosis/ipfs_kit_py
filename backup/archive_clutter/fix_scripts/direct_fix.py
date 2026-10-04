@@ -18,8 +18,8 @@ try:
     print(f"dir(ipfs_kit_py) = {dir(ipfs_kit_py)}")
 
     # Check if lotus_kit is in the directory listing
-    if "lotus_kit" in dir(ipfs_kit_py):
-        lotus_kit_obj = getattr(ipfs_kit_py, "lotus_kit")
+    if 'lotus_kit' in dir(ipfs_kit_py):
+        lotus_kit_obj = getattr(ipfs_kit_py, 'lotus_kit')
         print(f"Type of ipfs_kit_py.lotus_kit: {type(lotus_kit_obj)}")
         print(f"Is class: {inspect.isclass(lotus_kit_obj)}")
         print(f"Is module: {inspect.ismodule(lotus_kit_obj)}")
@@ -35,13 +35,13 @@ try:
             print(f"Module file: {module.__file__}")
 
             # Add LOTUS_KIT_AVAILABLE to the module
-            if not hasattr(module, "LOTUS_KIT_AVAILABLE"):
+            if not hasattr(module, 'LOTUS_KIT_AVAILABLE'):
                 print("Adding LOTUS_KIT_AVAILABLE to the module...")
                 module.LOTUS_KIT_AVAILABLE = True
                 print(f"Added: {module.LOTUS_KIT_AVAILABLE}")
 
                 # Now directly add it to the file
-                with open(module.__file__, "r") as f:
+                with open(module.__file__, 'r') as f:
                     content = f.read()
 
                 # Find the class definition
@@ -49,14 +49,10 @@ try:
                 if class_def in content:
                     # Add the constant just before the class definition
                     insert_index = content.find(class_def)
-                    new_content = (
-                        content[:insert_index]
-                        + "\n# Flag to indicate lotus_kit is available\nLOTUS_KIT_AVAILABLE = True\n\n"
-                        + content[insert_index:]
-                    )
+                    new_content = content[:insert_index] + "\n# Flag to indicate lotus_kit is available\nLOTUS_KIT_AVAILABLE = True\n\n" + content[insert_index:]
 
                     # Write the updated file
-                    with open(module.__file__, "w") as f:
+                    with open(module.__file__, 'w') as f:
                         f.write(new_content)
                     print(f"Updated {module.__file__} with LOTUS_KIT_AVAILABLE constant")
                 else:
@@ -73,24 +69,20 @@ try:
         print(f"Found lotus_kit.py at {lotus_kit_file}")
 
         # Check file content
-        with open(lotus_kit_file, "r") as f:
+        with open(lotus_kit_file, 'r') as f:
             content = f.read()
 
         # Look for LOTUS_KIT_AVAILABLE in the file
-        if "LOTUS_KIT_AVAILABLE" not in content:
+        if 'LOTUS_KIT_AVAILABLE' not in content:
             # Find a suitable location to add the constant
             class_def = "class lotus_kit:"
             if class_def in content:
                 # Add the constant just before the class definition
                 insert_index = content.find(class_def)
-                new_content = (
-                    content[:insert_index]
-                    + "\n# Flag to indicate lotus_kit is available\nLOTUS_KIT_AVAILABLE = True\n\n"
-                    + content[insert_index:]
-                )
+                new_content = content[:insert_index] + "\n# Flag to indicate lotus_kit is available\nLOTUS_KIT_AVAILABLE = True\n\n" + content[insert_index:]
 
                 # Write the updated file
-                with open(lotus_kit_file, "w") as f:
+                with open(lotus_kit_file, 'w') as f:
                     f.write(new_content)
                 print(f"Updated {lotus_kit_file} with LOTUS_KIT_AVAILABLE constant")
             else:
@@ -108,19 +100,17 @@ except Exception as e:
 print("\nNow let's verify the fixes worked:")
 try:
     # Force reload all relevant modules
-    if "ipfs_kit_py.lotus_kit" in sys.modules:
-        del sys.modules["ipfs_kit_py.lotus_kit"]
-    if "ipfs_kit_py" in sys.modules:
-        del sys.modules["ipfs_kit_py"]
+    if 'ipfs_kit_py.lotus_kit' in sys.modules:
+        del sys.modules['ipfs_kit_py.lotus_kit']
+    if 'ipfs_kit_py' in sys.modules:
+        del sys.modules['ipfs_kit_py']
 
     # Import again
     import ipfs_kit_py.lotus_kit
 
     # Check if LOTUS_KIT_AVAILABLE exists
-    if hasattr(ipfs_kit_py.lotus_kit, "LOTUS_KIT_AVAILABLE"):
-        print(
-            f"SUCCESS: LOTUS_KIT_AVAILABLE is now defined as {ipfs_kit_py.lotus_kit.LOTUS_KIT_AVAILABLE}"
-        )
+    if hasattr(ipfs_kit_py.lotus_kit, 'LOTUS_KIT_AVAILABLE'):
+        print(f"SUCCESS: LOTUS_KIT_AVAILABLE is now defined as {ipfs_kit_py.lotus_kit.LOTUS_KIT_AVAILABLE}")
     else:
         print("FAILED: LOTUS_KIT_AVAILABLE is still not defined")
 except Exception as e:

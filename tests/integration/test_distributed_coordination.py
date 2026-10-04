@@ -61,7 +61,7 @@ def cluster_nodes():
                     "cluster_name": "test-cluster",
                     "test_mode": True,
                     "enable_libp2p": True,
-                    "worker_id": f"worker-{i + 1}",  # Added comma
+                    "worker_id": f"worker-{i+1}",  # Added comma
                 },  # Added closing brace comma
             )
             worker.ipfs = MagicMock()
@@ -214,8 +214,8 @@ class TestDistributedTaskDistribution:
             return True
 
         # Subscribe to task topic and register handler
-        worker.libp2p.pubsub.subscribe.side_effect = lambda topic, handler: (
-            setattr(worker, "_task_handler", handler) or True
+        worker.libp2p.pubsub.subscribe.side_effect = (
+            lambda topic, handler: setattr(worker, "_task_handler", handler) or True
         )
 
         # Call the subscribe method to register the handler
@@ -663,18 +663,14 @@ class TestLeaderElectionAndConsensus:
                 # Most workers vote for master in normal conditions
                 if i < 2:
                     votes.append(
-                        {
-                            "voter": f"QmWorker{i + 1}ID",
-                            "candidate": "QmMasterNodeID",
-                            "weight": 1.0,
-                        }
+                        {"voter": f"QmWorker{i+1}ID", "candidate": "QmMasterNodeID", "weight": 1.0}
                     )
                 else:
                     # One worker votes for itself
                     votes.append(
                         {
-                            "voter": f"QmWorker{i + 1}ID",
-                            "candidate": f"QmWorker{i + 1}ID",
+                            "voter": f"QmWorker{i+1}ID",
+                            "candidate": f"QmWorker{i+1}ID",
                             "weight": 1.0,
                         }
                     )

@@ -1,0 +1,46 @@
+[0;34m[2025-05-10 19:38:09] [INFO] [SETUP] Python executable: /usr/bin/python3[0m
+[0;34m[2025-05-10 19:38:09] [INFO] [SETUP] Python version: Python 3.12.3[0m
+[0;34m[2025-05-10 19:38:09] [INFO] [SETUP] PYTHONPATH: '(not set)'[0m
+[0;34m[2025-05-10 19:38:09] [INFO] [SETUP] User site-packages: /home/barberb/.local/lib/python3.12/site-packages[0m
+[0;34m[2025-05-10 19:38:09] [INFO] [SETUP] Checking required Python packages...[0m
+[0;32m[2025-05-10 19:38:16] [SUCCESS] [SETUP] All required Python packages are installed[0m
+[0;34m[2025-05-10 19:38:16] [INFO] [SETUP] Checking for required test files...[0m
+[0;34m[2025-05-10 19:38:16] [INFO] [SERVER] No PID file found, server is not running[0m
+[0;34m[2025-05-10 19:38:16] [INFO] [SERVER] No PID file found, server is not running[0m
+[0;34m[2025-05-10 19:38:16] [INFO] [SERVER] Starting MCP server using final_mcp_server.py on port 9997...[0m
+[0;34m[2025-05-10 19:38:16] [INFO] [SERVER] Verifying server file for required functionality...[0m
+[0;34m[2025-05-10 19:38:16] [INFO] [IPFS] IPFS daemon is already running[0m
+[0;34m[2025-05-10 19:38:16] [INFO] [SERVER] Starting MCP server (attempt 1/5)[0m
+[0;34m[2025-05-10 19:38:16] [INFO] [SERVER] Prepending USER_SITE_PACKAGES to PYTHONPATH for server execution: /home/barberb/.local/lib/python3.12/site-packages[0m
+[0;34m[2025-05-10 19:38:16] [INFO] [SERVER] MCP server started with PID: 1131508[0m
+[0;34m[2025-05-10 19:38:16] [INFO] [SERVER] Waiting for server to initialize...[0m
+[0;34m[2025-05-10 19:38:17] [INFO] [SERVER] Still waiting for health endpoint... (1s). Last curl error (code 7): curl: (7) Failed to connect to localhost port 9997 after 0 ms: Couldn't connect to server[0m
+[0;34m[2025-05-10 19:38:21] [INFO] [SERVER] Still waiting for health endpoint... (5s). Last curl error (code 7): curl: (7) Failed to connect to localhost port 9997 after 0 ms: Couldn't connect to server[0m
+[0;34m[2025-05-10 19:38:26] [INFO] [SERVER] Still waiting for health endpoint... (10s). Last curl error (code 7): curl: (7) Failed to connect to localhost port 9997 after 0 ms: Couldn't connect to server[0m
+[0;34m[2025-05-10 19:38:31] [INFO] [SERVER] Still waiting for health endpoint... (15s). Last curl error (code 7): curl: (7) Failed to connect to localhost port 9997 after 0 ms: Couldn't connect to server[0m
+[0;34m[2025-05-10 19:38:31] [INFO] [SERVER] Health endpoint is responsive. Output: {"status":"ok","version":"1.0.0","uptime_seconds":11.069439,"tools_count":53,"registered_tool_categories":["ipfs_tools","fs_journal_tools","multi_backend_tools"]}[0m
+[0;34m[2025-05-10 19:38:31] [INFO] [SERVER] JSON-RPC endpoint is responsive. Response: {"jsonrpc":"2.0","result":"pong","id":1}[0m
+[0;32m[2025-05-10 19:38:31] [SUCCESS] [SERVER] MCP server is fully responsive! Tools listed.[0m
+[0;34m[2025-05-10 19:38:33] [INFO] [SERVER] Checking available MCP tools post-start...[0m
+[0;34m[2025-05-10 19:38:33] [INFO] [SERVER] Detected 21 IPFS tools and 0 VFS tools[0m
+[0;34m[2025-05-10 19:38:33] [INFO] [TEST] Starting comprehensive test suite...[0m
+[0;34m[2025-05-10 19:38:33] [INFO] [SETUP] Checking for required test files...[0m
+  File "/home/barberb/ipfs_kit_py/mcp_test_runner.py", line 267
+    health_tool_result = self.call_jsonrpc("health")
+IndentationError: expected an indented block after 'else' statement on line 266
+[1m[0;31m[2025-05-10 19:38:34] [ERROR] [TEST] Comprehensive tests FAILED[0m
+[0;34m[2025-05-10 19:38:34] [INFO] [TEST] Running IPFS Kit specific tests...[0m
+[0;32m[2025-05-10 19:38:34] [SUCCESS] [TEST] IPFS Kit specific tests completed (placeholder)[0m
+[0;34m[2025-05-10 19:38:34] [INFO] [TEST] Running VFS specific tests...[0m
+[0;32m[2025-05-10 19:38:34] [SUCCESS] [TEST] VFS specific tests completed (placeholder)[0m
+[0;34m[2025-05-10 19:38:34] [INFO] [TEST] Analyzing tool coverage...[0m
+[0;34m[2025-05-10 19:38:34] [INFO] [SETUP] Checking for required test files...[0m
+[1m[0;31m[2025-05-10 19:38:34] [ERROR] [TEST] Tools coverage analysis failed[0m
+[1m[0;31m[2025-05-10 19:38:34] [ERROR] [MAIN] One or more test suites FAILED.[0m
+[0;34m[2025-05-10 19:38:34] [INFO] [MAIN] Detailed test summary written to: test_results/summary_20250510_193809.md[0m
+[0;34m[2025-05-10 19:38:34] [INFO] [MAIN] Full logs available in: mcp_test_20250510_193809.log[0m
+[0;34m[2025-05-10 19:38:34] [INFO] [MAIN] Test results JSON: [0m
+[0;34m[2025-05-10 19:38:34] [INFO] [SERVER] Stopping MCP server with PID: 1131508[0m
+[0;32m[2025-05-10 19:38:36] [SUCCESS] [SERVER] Server stopped gracefully[0m
+[0;34m[2025-05-10 19:38:36] [INFO] [SERVER] No PID file found, server is not running[0m
+[0;34m[2025-05-10 19:38:36] [INFO] [MAIN] Test script finished.[0m

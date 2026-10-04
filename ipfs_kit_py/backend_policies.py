@@ -50,17 +50,15 @@ class LegacyReplicationCleanupBlockedError(LegacyReplicationConfigurationError):
 
 class QuotaUnit(str, Enum):
     """Units for quota specifications."""
-
     BYTES = "bytes"
     KB = "kb"
     MB = "mb"
     GB = "gb"
     TB = "tb"
-
+    
 
 class ReplicationStrategy(str, Enum):
     """Replication strategies for content."""
-
     NONE = "none"
     SIMPLE = "simple"  # Simple redundancy across backends
     ERASURE_CODING = "erasure_coding"  # Erasure coding for efficiency
@@ -70,7 +68,6 @@ class ReplicationStrategy(str, Enum):
 
 class RetentionAction(str, Enum):
     """Actions to take when retention period expires."""
-
     DELETE = "delete"
     ARCHIVE = "archive"
     MIGRATE = "migrate"
@@ -79,7 +76,6 @@ class RetentionAction(str, Enum):
 
 class CacheEvictionPolicy(str, Enum):
     """Cache eviction policies."""
-
     LRU = "lru"  # Least Recently Used
     LFU = "lfu"  # Least Frequently Used
     FIFO = "fifo"  # First In First Out
@@ -89,7 +85,6 @@ class CacheEvictionPolicy(str, Enum):
 
 class StorageQuotaPolicy(BaseModel):
     """Storage quota policy for a backend."""
-
     enabled: bool = True
     max_size: Optional[int] = Field(None, description="Maximum storage size")
     max_size_unit: QuotaUnit = QuotaUnit.GB
@@ -101,7 +96,6 @@ class StorageQuotaPolicy(BaseModel):
 
 class TrafficQuotaPolicy(BaseModel):
     """Traffic quota policy for a backend."""
-
     enabled: bool = True
     max_bandwidth_mbps: Optional[float] = Field(None, description="Max bandwidth in Mbps")
     max_requests_per_minute: Optional[int] = Field(None, description="Max requests per minute")
@@ -113,7 +107,6 @@ class TrafficQuotaPolicy(BaseModel):
 
 class ReplicationPolicy(BaseModel):
     """Replication policy for content."""
-
     enabled: bool = True
     strategy: ReplicationStrategy = ReplicationStrategy.SIMPLE
     min_redundancy: int = Field(2, ge=1, description="Minimum number of copies")
@@ -262,7 +255,6 @@ class LegacyReplicationAdapter:
 
 class RetentionPolicy(BaseModel):
     """Retention policy for content."""
-
     enabled: bool = True
     default_retention_days: Optional[int] = Field(None, description="Default retention period")
     max_retention_days: Optional[int] = Field(None, description="Maximum retention period")
@@ -275,7 +267,6 @@ class RetentionPolicy(BaseModel):
 
 class CachePolicy(BaseModel):
     """Cache policy for a backend."""
-
     enabled: bool = True
     max_cache_size: Optional[int] = Field(None, description="Maximum cache size")
     max_cache_size_unit: QuotaUnit = QuotaUnit.GB
@@ -289,7 +280,6 @@ class CachePolicy(BaseModel):
 
 class BackendPolicySet(BaseModel):
     """Complete policy set for a storage backend."""
-
     backend_name: str
     storage_quota: Optional[StorageQuotaPolicy] = None
     traffic_quota: Optional[TrafficQuotaPolicy] = None
@@ -303,7 +293,6 @@ class BackendPolicySet(BaseModel):
 
 class PolicyViolation(BaseModel):
     """Represents a policy violation event."""
-
     backend_name: str
     policy_type: str  # storage_quota, traffic_quota, etc.
     violation_type: str  # exceeded, warning, etc.
@@ -318,16 +307,16 @@ def convert_size_to_bytes(size: int, unit: QuotaUnit) -> int:
     multipliers = {
         QuotaUnit.BYTES: 1,
         QuotaUnit.KB: 1024,
-        QuotaUnit.MB: 1024**2,
-        QuotaUnit.GB: 1024**3,
-        QuotaUnit.TB: 1024**4,
+        QuotaUnit.MB: 1024 ** 2,
+        QuotaUnit.GB: 1024 ** 3,
+        QuotaUnit.TB: 1024 ** 4,
     }
     return size * multipliers[unit]
 
 
 def format_bytes(size_bytes: int) -> str:
     """Format bytes to human readable string."""
-    for unit in ["B", "KB", "MB", "GB", "TB"]:
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
         if size_bytes < 1024:
             return f"{size_bytes:.1f} {unit}"
         size_bytes /= 1024

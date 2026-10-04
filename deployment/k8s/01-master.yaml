@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ipfs-mcp-master
+  namespace: ipfs-cluster
+  labels:
+    app: ipfs-mcp
+    role: master
+spec:
+  serviceName: ipfs-mcp-master
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ipfs-mcp
+      role: master
+  template:
+    metadata:
+      labels:
+        app: ipfs-mcp
+        role: master
+    spec:
+      containers:
+      - name: ipfs-mcp
+        image: ipfs-kit-mcp:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9998
+          name: mcp-api
+        - containerPort: 5001
+          name: ipfs-api
+        - containerPort: 8080
+          name: ipfs-gateway
+        - containerPort: 4001
+          name: ipfs-swarm
+        env:
+        - name: NODE_ID
+          value: "master-1"
+        - name: NODE_ROLE
+          value: "master"
+        - name: SERVER_HOST
+          value: "0.0.0.0"
+        - name: SERVER_PORT
+          value: "9998"
+        - name: CLUSTER_PEERS
+          valueFrom:
+            configMapKeyRef:
+              name: cluster-config
+              key: cluster-peers
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: cluster-config
+              key: log-level
+        - name: CLUSTER_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: cluster-secrets
+              key: cluster-secret
+        - name: PYTHONPATH
+          value: "/app"
+        args:
+        - "--host"
+        - "0.0.0.0"
+        - "--port"
+        - "9998"
+        - "--node-id"
+        - "master-1"
+        - "--role"
+        - "master"
+        - "--initialize"
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+        - name: ipfs-data
+          mountPath: /app/ipfs_data
+        - name: logs
+          mountPath: /app/logs
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 9998
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 9998
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      volumes:
+      - name: logs
+        emptyDir: {}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+  - metadata:
+      name: ipfs-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 50Gi

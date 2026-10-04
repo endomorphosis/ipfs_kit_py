@@ -17,8 +17,11 @@ from pathlib import Path
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("simple_mcp_server.log", mode="w"), logging.StreamHandler()],
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("simple_mcp_server.log", mode='w'),
+        logging.StreamHandler()
+    ]
 )
 logger = logging.getLogger("simple-mcp")
 
@@ -28,7 +31,6 @@ try:
     from fastapi import FastAPI, Request, Response
     from fastapi.responses import JSONResponse
     from fastapi.middleware.cors import CORSMiddleware
-
     logger.info("✅ FastAPI imports successful")
 except ImportError as e:
     logger.error(f"❌ Failed to import FastAPI components: {e}")
@@ -39,7 +41,6 @@ try:
     import jsonrpcserver
     from jsonrpcserver import dispatch, Success, Error
     from jsonrpcserver import method as jsonrpc_method
-
     logger.info("✅ JSON-RPC imports successful")
 except ImportError as e:
     logger.error(f"❌ Failed to import JSON-RPC components: {e}")
@@ -51,7 +52,9 @@ registered_tools = {}
 
 # Create FastAPI app
 app = FastAPI(
-    title="Simple MCP Server", description="A simplified MCP server for testing", version="1.0.0"
+    title="Simple MCP Server",
+    description="A simplified MCP server for testing",
+    version="1.0.0"
 )
 
 # Add CORS middleware
@@ -63,7 +66,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # Health endpoint
 @app.get("/health")
 async def health_check():
@@ -71,16 +73,14 @@ async def health_check():
     return {
         "status": "healthy",
         "message": "Simple MCP Server is running",
-        "tools_count": len(registered_tools),
+        "tools_count": len(registered_tools)
     }
-
 
 # Ping method for JSON-RPC
 @jsonrpc_method
 def ping():
     """Simple ping method."""
     return "pong"
-
 
 # JSON-RPC endpoint
 @app.post("/jsonrpc")
@@ -89,26 +89,26 @@ async def jsonrpc_endpoint(request: Request):
     try:
         # Get request body
         body = await request.json()
-
+        
         # Dispatch the request
         response = dispatch(body)
-
+        
         return JSONResponse(content=response)
     except Exception as e:
         logger.error(f"JSON-RPC error: {e}")
-        return JSONResponse(content={"error": str(e)}, status_code=500)
-
+        return JSONResponse(
+            content={"error": str(e)},
+            status_code=500
+        )
 
 # Signal handlers
 def handle_sigterm(signum, frame):
     logger.info("Received SIGTERM, shutting down gracefully...")
     sys.exit(0)
 
-
 def handle_sigint(signum, frame):
     logger.info("Received SIGINT, shutting down gracefully...")
     sys.exit(0)
-
 
 def main():
     """Main function."""
@@ -123,7 +123,6 @@ def main():
 
     # Check if port is already in use
     import socket
-
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         s.bind((args.host, args.port))
@@ -141,9 +140,7 @@ def main():
     try:
         with open(pid_file, "w") as f:
             f.write(str(os.getpid()))
-        logger.info(
-            f"Starting simple server on {args.host}:{args.port}, debug={args.debug}, PID: {os.getpid()}"
-        )
+        logger.info(f"Starting simple server on {args.host}:{args.port}, debug={args.debug}, PID: {os.getpid()}")
 
         # Start the server
         uvicorn.run(
@@ -152,7 +149,7 @@ def main():
             port=args.port,
             log_level="debug" if args.debug else "info",
             timeout_keep_alive=30,
-            timeout_graceful_shutdown=10,
+            timeout_graceful_shutdown=10
         )
     finally:
         try:
@@ -161,7 +158,6 @@ def main():
         except Exception as e:
             logger.error(f"Error removing PID file: {e}")
         logger.info("Server shutdown complete.")
-
 
 if __name__ == "__main__":
     main()

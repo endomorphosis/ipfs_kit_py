@@ -69,7 +69,7 @@ def cluster_state_setup():
                         "conflict_resolution": "lww",  # Added comma
                     },  # Added comma
                     "test_mode": True,
-                    "node_id": f"worker-{i + 1}",  # Add node_id for metadata access # Added comma
+                    "node_id": f"worker-{i+1}",  # Add node_id for metadata access # Added comma
                 },  # Added comma
             )
             worker.ipfs = MagicMock()
@@ -167,8 +167,7 @@ class TestStateReplication:
         # Test sync process
         # Call on the mocked state_crdt attribute
         master_update = master.state_crdt.get_state_update(
-            node_id=worker.metadata.get("node_id"),
-            last_sequence=41,  # Access metadata correctly
+            node_id=worker.metadata.get("node_id"), last_sequence=41  # Access metadata correctly
         )
 
         # Verify master update

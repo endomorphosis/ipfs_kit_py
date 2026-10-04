@@ -23,16 +23,19 @@ MCP_PATCHES_DIR = PATCHES_DIR / "mcp"
 # Make sure the MCP patches directory exists
 os.makedirs(MCP_PATCHES_DIR, exist_ok=True)
 
-
 def is_mcp_patch(filename):
     """Determine if a file is an MCP-related patch."""
-    mcp_patterns = [r"mcp", r"libp2p", r"storage_backends", r"ipfs_controller"]
+    mcp_patterns = [
+        r'mcp',
+        r'libp2p',
+        r'storage_backends',
+        r'ipfs_controller'
+    ]
 
     for pattern in mcp_patterns:
         if re.search(pattern, filename, re.IGNORECASE):
             return True
     return False
-
 
 def organize_patches():
     """Move MCP-related patches to the MCP patches directory."""
@@ -68,7 +71,6 @@ def organize_patches():
     print(f"Organization complete. Moved {len(moved_files)} patch files.")
     return moved_files
 
-
 if __name__ == "__main__":
     # Execute the organization
     try:
@@ -76,10 +78,7 @@ if __name__ == "__main__":
         print("Patch organization successful!")
 
         # Ask if original files should be removed
-        if (
-            moved_files
-            and input("Do you want to remove the original patch files? (y/n): ").lower() == "y"
-        ):
+        if moved_files and input("Do you want to remove the original patch files? (y/n): ").lower() == 'y':
             for original, _ in moved_files:
                 if original.exists():
                     original.unlink()

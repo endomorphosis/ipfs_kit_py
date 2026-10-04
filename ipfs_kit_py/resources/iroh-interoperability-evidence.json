@@ -1,0 +1,108 @@
+{
+  "$schema": "./iroh-interoperability-evidence.schema.json",
+  "generated_at": "2026-07-13T00:00:00Z",
+  "harness_version": "1.0.0",
+  "kind": "ipfs-kit-iroh-interoperability-evidence",
+  "not_run_reason": "The source-pinned sidecar record has no installable artifacts; real platform lanes must replace this record with harness output.",
+  "platform": {
+    "architecture": "pending",
+    "os": "pending",
+    "python": "3.12/3.13"
+  },
+  "release_bundles": {
+    "current": "iroh-1.0.2-ipfs-kit.1",
+    "previous": null
+  },
+  "resource_bounds": {
+    "max_active_transfers": 4,
+    "max_driver_output_bytes": 1048576,
+    "max_node_count": 4,
+    "max_peak_rss_bytes": 805306368,
+    "max_transfer_chunk_bytes": 1048576,
+    "scenario_timeout_seconds": 180.0
+  },
+  "results": [],
+  "run_id": "not-run-source-pinned",
+  "scenario_matrix": [
+    {
+      "direct_path_blocked": false,
+      "expected_transport": "direct",
+      "interrupt_after_bytes": null,
+      "node_count": 2,
+      "payload_size": 262144,
+      "requires_identity_rotation": false,
+      "requires_previous_binary": false,
+      "scenario_id": "direct_lan",
+      "topology": "isolated_processes_lan"
+    },
+    {
+      "direct_path_blocked": true,
+      "expected_transport": "relay",
+      "interrupt_after_bytes": null,
+      "node_count": 3,
+      "payload_size": 262144,
+      "requires_identity_rotation": false,
+      "requires_previous_binary": false,
+      "scenario_id": "relay_fallback",
+      "topology": "isolated_processes_relay"
+    },
+    {
+      "direct_path_blocked": true,
+      "expected_transport": "relay",
+      "interrupt_after_bytes": null,
+      "node_count": 3,
+      "payload_size": 262144,
+      "requires_identity_rotation": false,
+      "requires_previous_binary": false,
+      "scenario_id": "nat_container",
+      "topology": "isolated_containers_nat"
+    },
+    {
+      "direct_path_blocked": false,
+      "expected_transport": "direct",
+      "interrupt_after_bytes": 131072,
+      "node_count": 2,
+      "payload_size": 262144,
+      "requires_identity_rotation": false,
+      "requires_previous_binary": false,
+      "scenario_id": "interruption_resume",
+      "topology": "isolated_processes_lan"
+    },
+    {
+      "direct_path_blocked": false,
+      "expected_transport": "direct",
+      "interrupt_after_bytes": null,
+      "node_count": 2,
+      "payload_size": 262144,
+      "requires_identity_rotation": false,
+      "requires_previous_binary": true,
+      "scenario_id": "version_skew",
+      "topology": "isolated_processes_lan"
+    },
+    {
+      "direct_path_blocked": false,
+      "expected_transport": "direct",
+      "interrupt_after_bytes": null,
+      "node_count": 2,
+      "payload_size": 262144,
+      "requires_identity_rotation": true,
+      "requires_previous_binary": false,
+      "scenario_id": "key_rotation",
+      "topology": "isolated_processes_lan"
+    },
+    {
+      "direct_path_blocked": false,
+      "expected_transport": "direct",
+      "interrupt_after_bytes": null,
+      "node_count": 2,
+      "payload_size": 33554432,
+      "requires_identity_rotation": false,
+      "requires_previous_binary": false,
+      "scenario_id": "large_data",
+      "topology": "isolated_processes_lan"
+    }
+  ],
+  "schema_version": 1,
+  "status": "not_run",
+  "task_id": "IROH-025"
+}

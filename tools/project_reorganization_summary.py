@@ -155,12 +155,10 @@ Next Steps:
 4. Verify import statements in moved files work correctly
 """
 
-
 def print_reorganization_summary():
     """Print the reorganization summary."""
     print(PROJECT_STRUCTURE)
     print(REORGANIZATION_NOTES)
-
 
 if __name__ == "__main__":
     print_reorganization_summary()

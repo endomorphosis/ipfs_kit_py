@@ -1,18 +1,18 @@
-# \!/usr/bin/env python3
+#\!/usr/bin/env python3
 """
 Completely rewrite the ipfs_name_resolve method to fix indentation issues.
 """
 
 import re
 
-file_path = "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/models/ipfs_model.py"
+file_path = '/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/models/ipfs_model.py'
 
 # Read the file
-with open(file_path, "r") as f:
+with open(file_path, 'r') as f:
     content = f.read()
 
 # Find and remove the problematic method
-pattern = r"def ipfs_name_resolve\([^)]*\).*?(?=def|\Z)"
+pattern = r'def ipfs_name_resolve\([^)]*\).*?(?=def|\Z)'
 match = re.search(pattern, content, re.DOTALL)
 
 if not match:
@@ -190,7 +190,7 @@ replacement = """def ipfs_name_resolve(self, name: str, recursive: bool = True, 
 new_content = content.replace(match.group(0), replacement)
 
 # Write the updated content back to the file
-with open(file_path, "w") as f:
+with open(file_path, 'w') as f:
     f.write(new_content)
 
 print("Completely replaced ipfs_name_resolve method with correct indentation")

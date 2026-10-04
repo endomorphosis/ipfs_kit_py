@@ -18,7 +18,9 @@ class FixedSizeChunker(StatelessChunker[FixedSizeContext]):
     def __init__(self, max_chunk_size: int = default_max_chunk_size) -> None:
         self.context = FixedSizeContext(max_chunk_size)
 
-    def cut(self, context: FixedSizeContext, buffer: Chunk, end: bool = False) -> list[int]:
+    def cut(
+        self, context: FixedSizeContext, buffer: Chunk, end: bool = False
+    ) -> list[int]:
         # number of fixed size chunks that would fit
         n = floor(buffer.byte_length / context.max_chunk_size)
         chunks = list(map(lambda _: context.max_chunk_size, range(n)))

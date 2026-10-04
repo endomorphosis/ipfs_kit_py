@@ -9,11 +9,8 @@ import logging
 import re
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
 
 def fix_async_io_sleep():
     """Fix the async-io sleep call missing closing parenthesis"""
@@ -32,7 +29,7 @@ def fix_async_io_sleep():
             if 'await async_io.sleep(DEPLOYMENT_CONFIG["health_check_interval"]' in line:
                 # Add closing parenthesis
                 lines[i] = line.rstrip() + ")\n"
-                logger.info(f"Fixed async-io sleep call at line {i + 1}")
+                logger.info(f"Fixed async-io sleep call at line {i+1}")
                 break
 
         # Write the fixed content back to the file
@@ -46,7 +43,6 @@ def fix_async_io_sleep():
         logger.error(f"Error fixing async-io sleep call: {e}")
         return False
 
-
 def main():
     """Main function"""
     logger.info("Starting to fix async-io sleep call in direct_mcp_server_with_tools.py...")
@@ -59,7 +55,6 @@ def main():
     logger.info("\n✅ Successfully fixed async-io sleep call in direct_mcp_server_with_tools.py")
     logger.info("You can now run the server with './restart_mcp_with_tools.sh'")
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

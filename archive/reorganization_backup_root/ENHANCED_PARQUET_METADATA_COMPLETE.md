@@ -24,8 +24,8 @@ class StorageBackendType(str, Enum):
     GDRIVE = "gdrive"
     LOTUS = "lotus"
     SYNAPSE = "synapse"
-    SSHFS = "sshfs"  # ✅ NEW
-    FTP = "ftp"  # ✅ NEW
+    SSHFS = "sshfs"      # ✅ NEW
+    FTP = "ftp"          # ✅ NEW
 ```
 
 #### 2. FTP Backend Model (`mcp/models/storage/ftp_model.py`)
@@ -121,76 +121,76 @@ class StorageBackendType(str, Enum):
 #### 1. Git VFS Metadata (`git_vfs/metadata/*.parquet`)
 ```python
 {
-    "repository_path": "/path/to/git/repo",
-    "repository_url": "https://github.com/user/repo.git",
-    "vfs_bucket_id": "bucket_git_repo",
-    "translation_status": "active|synced|error",
-    "last_sync_timestamp": "2024-01-15T10:30:00Z",
-    "commit_count": 150,
-    "vfs_snapshots_count": 25,
-    "content_addressing_type": "blake3",
-    "git_branch": "main",
-    "latest_commit_hash": "abc123...",
-    "vfs_metadata_hash": "blake3:xyz789...",
-    "translation_errors": [],
-    "supported_operations": ["sync_git_to_vfs", "sync_vfs_to_git"],
-    "backend_integrations": {"ipfs": true, "sshfs": true, "ftp": false},
+    'repository_path': '/path/to/git/repo',
+    'repository_url': 'https://github.com/user/repo.git',
+    'vfs_bucket_id': 'bucket_git_repo',
+    'translation_status': 'active|synced|error',
+    'last_sync_timestamp': '2024-01-15T10:30:00Z',
+    'commit_count': 150,
+    'vfs_snapshots_count': 25,
+    'content_addressing_type': 'blake3',
+    'git_branch': 'main',
+    'latest_commit_hash': 'abc123...',
+    'vfs_metadata_hash': 'blake3:xyz789...',
+    'translation_errors': [],
+    'supported_operations': ['sync_git_to_vfs', 'sync_vfs_to_git'],
+    'backend_integrations': {'ipfs': true, 'sshfs': true, 'ftp': false}
 }
 ```
 
 #### 2. Backend Health Metadata (`backend_health/metadata/*.parquet`)
 ```python
 {
-    "backend_type": "sshfs|ftp|ipfs|s3|...",
-    "backend_id": "unique_backend_identifier",
-    "is_healthy": true | false,
-    "last_health_check": "2024-01-15T10:30:00Z",
-    "connection_status": "connected|disconnected|error",
-    "connection_latency_ms": 45,
-    "active_connections": 3,
-    "total_operations": 1250,
-    "successful_operations": 1220,
-    "failed_operations": 30,
-    "error_rate_24h": 2.4,
-    "avg_response_time_ms": 120,
-    "storage_used_bytes": 5368709120,
-    "storage_available_bytes": 53687091200,
+    'backend_type': 'sshfs|ftp|ipfs|s3|...',
+    'backend_id': 'unique_backend_identifier',
+    'is_healthy': true|false,
+    'last_health_check': '2024-01-15T10:30:00Z',
+    'connection_status': 'connected|disconnected|error',
+    'connection_latency_ms': 45,
+    'active_connections': 3,
+    'total_operations': 1250,
+    'successful_operations': 1220,
+    'failed_operations': 30,
+    'error_rate_24h': 2.4,
+    'avg_response_time_ms': 120,
+    'storage_used_bytes': 5368709120,
+    'storage_available_bytes': 53687091200,
     # Remote backend specific
-    "remote_host": "remote.example.com",
-    "remote_port": 22,
-    "connection_pool_size": 5,
-    "transfer_speed_mbps": 12.5,
+    'remote_host': 'remote.example.com',
+    'remote_port': 22,
+    'connection_pool_size': 5,
+    'transfer_speed_mbps': 12.5,
     # Git VFS integration
-    "git_vfs_enabled": true,
-    "git_repositories_count": 3,
-    "vfs_snapshots_count": 15,
-    "recent_errors": ["Connection timeout on 2024-01-15"],
-    "configuration_status": {"authentication": "key_based", "encryption": "enabled"},
+    'git_vfs_enabled': true,
+    'git_repositories_count': 3,
+    'vfs_snapshots_count': 15,
+    'recent_errors': ['Connection timeout on 2024-01-15'],
+    'configuration_status': {'authentication': 'key_based', 'encryption': 'enabled'}
 }
 ```
 
 #### 3. VFS Snapshots Metadata (`vfs_snapshots/metadata/*.parquet`)
 ```python
 {
-    "snapshot_id": "snap_2024_001",
-    "bucket_id": "bucket_git_my_project",
-    "created_timestamp": "2024-01-15T10:30:00Z",
-    "git_commit_hash": "abc123def456...",
-    "git_branch": "main",
-    "content_hash": "blake3:snapshot_hash_123...",
-    "file_count": 125,
-    "total_size_bytes": 104857600,
-    "snapshot_type": "git_sync|manual|scheduled",
-    "parent_snapshot_id": "snap_2024_000",
-    "backend_storage": {"ipfs": true, "sshfs": true, "ftp": false},
-    "metadata_changes": {"files_added": 5, "files_modified": 12, "files_deleted": 2},
-    "translation_status": "complete|in_progress|error",
-    "vfs_mount_points": ["/vfs/git_repos/my_project"],
-    "content_addressing_hashes": {
-        "manifest_hash": "blake3:manifest_abc123...",
-        "metadata_hash": "blake3:metadata_def456...",
-        "content_tree_hash": "blake3:tree_ghi789...",
-    },
+    'snapshot_id': 'snap_2024_001',
+    'bucket_id': 'bucket_git_my_project',
+    'created_timestamp': '2024-01-15T10:30:00Z',
+    'git_commit_hash': 'abc123def456...',
+    'git_branch': 'main',
+    'content_hash': 'blake3:snapshot_hash_123...',
+    'file_count': 125,
+    'total_size_bytes': 104857600,
+    'snapshot_type': 'git_sync|manual|scheduled',
+    'parent_snapshot_id': 'snap_2024_000',
+    'backend_storage': {'ipfs': true, 'sshfs': true, 'ftp': false},
+    'metadata_changes': {'files_added': 5, 'files_modified': 12, 'files_deleted': 2},
+    'translation_status': 'complete|in_progress|error',
+    'vfs_mount_points': ['/vfs/git_repos/my_project'],
+    'content_addressing_hashes': {
+        'manifest_hash': 'blake3:manifest_abc123...',
+        'metadata_hash': 'blake3:metadata_def456...',
+        'content_tree_hash': 'blake3:tree_ghi789...'
+    }
 }
 ```
 
@@ -201,7 +201,7 @@ class StorageBackendType(str, Enum):
 reader = ParquetDataReader()
 git_vfs_data = reader.read_git_vfs_metadata(
     repository_path="/path/to/repo",  # Optional filter
-    limit=10,  # Optional limit
+    limit=10  # Optional limit
 )
 ```
 
@@ -216,7 +216,7 @@ backend_health = reader.read_backend_health_metadata(
 ```python
 snapshots = reader.read_vfs_snapshots(
     bucket_id="bucket_git_my_project",  # Optional filter
-    limit=20,  # Optional limit
+    limit=20  # Optional limit
 )
 ```
 

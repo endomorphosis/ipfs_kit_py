@@ -43,16 +43,7 @@ import mimetypes
 import os
 
 # Web framework imports
-from fastapi import (
-    FastAPI,
-    Request,
-    WebSocket,
-    WebSocketDisconnect,
-    HTTPException,
-    File,
-    UploadFile,
-    Form,
-)
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, File, UploadFile, Form
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -65,7 +56,6 @@ try:
     from ..bucket_vfs_manager import BucketType, VFSStructureType, get_global_bucket_manager
     from ..enhanced_bucket_index import EnhancedBucketIndex
     from ..error import create_result_dict
-
     IPFS_KIT_AVAILABLE = True
 except ImportError:
     IPFS_KIT_AVAILABLE = False
@@ -77,7 +67,7 @@ class ComprehensiveMCPDashboard:
     """
     The most comprehensive dashboard with ALL features from previous dashboards
     plus new MCP interface capabilities.
-
+    
     This dashboard provides:
     - Complete MCP server monitoring and control
     - Real-time ~/.ipfs_kit/ data visualization
@@ -94,27 +84,28 @@ class ComprehensiveMCPDashboard:
     - Cross-backend queries
     - Mobile-responsive interface
     """
-
+    
     def __init__(self, config: Dict[str, Any]):
         """Initialize the comprehensive dashboard."""
         self.config = config
-        self.host = config.get("host", "127.0.0.1")
-        self.port = config.get("port", 8085)
-        self.mcp_server_url = config.get("mcp_server_url", "http://127.0.0.1:8004")
-        self.data_dir = Path(config.get("data_dir", "~/.ipfs_kit")).expanduser()
-        self.debug = config.get("debug", False)
-        self.update_interval = config.get("update_interval", 5)
-
+        self.host = config.get('host', '127.0.0.1')
+        self.port = config.get('port', 8085)
+        self.mcp_server_url = config.get('mcp_server_url', 'http://127.0.0.1:8004')
+        self.data_dir = Path(config.get('data_dir', '~/.ipfs_kit')).expanduser()
+        self.debug = config.get('debug', False)
+        self.update_interval = config.get('update_interval', 5)
+        
         # Initialize components
         self.app = FastAPI(title="Comprehensive MCP Dashboard", version="3.0.0")
         self.websocket_clients: Set[WebSocket] = set()
         self.system_metrics_history: List[Dict] = []
         self.active_uploads: Dict[str, Dict] = {}
-
+        
         # Initialize IPFS Kit components if available
         if IPFS_KIT_AVAILABLE:
             self.bucket_interface = UnifiedBucketInterface(
-                data_dir=str(self.data_dir), enable_cross_backend_queries=True
+                data_dir=str(self.data_dir),
+                enable_cross_backend_queries=True
             )
             self.bucket_manager = get_global_bucket_manager(
                 storage_path=str(self.data_dir / "buckets")
@@ -124,7 +115,7 @@ class ComprehensiveMCPDashboard:
             self.bucket_interface = None
             self.bucket_manager = None
             self.bucket_index = None
-
+        
         # Configure CORS
         self.app.add_middleware(
             CORSMiddleware,
@@ -133,125 +124,125 @@ class ComprehensiveMCPDashboard:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-
+        
         # Setup routes
         self._setup_routes()
-
+        
         logger.info(f"Comprehensive MCP Dashboard initialized on {self.host}:{self.port}")
-
+    
     def _setup_routes(self):
         """Setup all API routes and endpoints."""
-
+        
         # Main dashboard page
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard_home():
             return await self._render_dashboard()
-
+        
         # API Routes - System Status
         @self.app.get("/api/status")
         async def get_system_status():
             return await self._get_system_status()
-
+        
         @self.app.get("/api/health")
         async def get_system_health():
             return await self._get_comprehensive_health()
-
+        
         # API Routes - MCP Server
         @self.app.get("/api/mcp")
         async def get_mcp_status():
             return await self._get_mcp_status()
-
+        
         @self.app.post("/api/mcp/restart")
         async def restart_mcp_server():
             return await self._restart_mcp_server()
-
+        
         @self.app.get("/api/mcp/tools")
         async def list_mcp_tools():
             return await self._list_mcp_tools()
-
+        
         # API Routes - Services
         @self.app.get("/api/services")
         async def get_services():
             return await self._get_services_data()
-
+        
         @self.app.post("/api/services/control")
         async def control_service(request: Request):
             data = await request.json()
-            return await self._control_service(data.get("service"), data.get("action"))
-
+            return await self._control_service(data.get('service'), data.get('action'))
+        
         @self.app.get("/api/services/{service_name}")
         async def get_service_details(service_name: str):
             return await self._get_service_details(service_name)
-
+        
         # API Routes - Backends
         @self.app.get("/api/backends")
         async def get_backends():
             return await self._get_backends_data()
-
+        
         @self.app.get("/api/backends/health")
         async def get_backend_health():
             return await self._get_backend_health()
-
+        
         @self.app.post("/api/backends/sync")
         async def sync_backend(request: Request):
             data = await request.json()
-            return await self._sync_backend(data.get("backend"))
-
+            return await self._sync_backend(data.get('backend'))
+        
         @self.app.get("/api/backends/{backend_name}/stats")
         async def get_backend_stats(backend_name: str):
             return await self._get_backend_stats(backend_name)
-
+        
         # API Routes - Backend Configuration Management
         @self.app.get("/api/backend_configs")
         async def get_all_backend_configs():
             return await self._get_all_backend_configs()
-
+        
         @self.app.get("/api/backend_configs/{backend_name}")
         async def get_backend_config(backend_name: str):
             return await self._get_backend_config(backend_name)
-
+        
         @self.app.post("/api/backend_configs")
         async def create_backend_config(request: Request):
             data = await request.json()
             return await self._create_backend_config(data)
-
+        
         @self.app.put("/api/backend_configs/{backend_name}")
         async def update_backend_config(backend_name: str, request: Request):
             data = await request.json()
             return await self._update_backend_config(backend_name, data)
-
+        
         @self.app.delete("/api/backend_configs/{backend_name}")
         async def delete_backend_config(backend_name: str):
             return await self._delete_backend_config(backend_name)
-
+        
         @self.app.post("/api/backend_configs/{backend_name}/test")
         async def test_backend_config(backend_name: str):
             return await self._test_backend_config(backend_name)
-
+        
         # API Routes - Backend Pin Management
         @self.app.get("/api/backend_configs/{backend_name}/pins")
         async def get_backend_pins(backend_name: str):
             return await self._get_backend_pins(backend_name)
-
+        
         @self.app.post("/api/backend_configs/{backend_name}/pins")
         async def add_backend_pin(backend_name: str, request: Request):
             data = await request.json()
             return await self._add_backend_pin(backend_name, data)
-
+        
         @self.app.delete("/api/backend_configs/{backend_name}/pins/{cid}")
         async def remove_backend_pin(backend_name: str, cid: str):
             return await self._remove_backend_pin(backend_name, cid)
-
+        
         @self.app.get("/api/backend_configs/pins/{cid}")
         async def find_pin_across_backends(cid: str):
             return await self._find_pin_across_backends(cid)
-
+        
         # API Routes - Comprehensive Configuration Management
         @self.app.get("/api/configs")
         async def get_all_configs():
             """Get all configurations from ~/.ipfs_kit/ directories"""
             return await self._get_all_configs()
-
+        
         @self.app.get("/api/configs/{config_type}")
         async def get_configs_by_type(config_type: str):
             """Get configurations by type (backend, bucket, main)"""
@@ -262,7 +253,7 @@ class ComprehensiveMCPDashboard:
                 else:
                     return {"success": False, "error": f"Unknown config type: {config_type}"}
             return result
-
+        
         @self.app.get("/api/configs/{config_type}/{config_name}")
         async def get_specific_config(config_type: str, config_name: str):
             """Get a specific configuration"""
@@ -274,48 +265,48 @@ class ComprehensiveMCPDashboard:
                 else:
                     return {"success": False, "error": f"Configuration '{config_name}' not found"}
             return result
-
+        
         @self.app.post("/api/configs/{config_type}")
         async def create_config(config_type: str, request: Request):
             """Create a new configuration"""
             data = await request.json()
-            config_name = data.get("name") or data.get("bucket_name")
+            config_name = data.get('name') or data.get('bucket_name')
             if not config_name:
                 return {"success": False, "error": "Configuration name is required"}
             return await self._create_config(config_type, config_name, data)
-
+        
         @self.app.put("/api/configs/{config_type}/{config_name}")
         async def update_config(config_type: str, config_name: str, request: Request):
             """Update an existing configuration"""
             data = await request.json()
             return await self._update_config(config_type, config_name, data)
-
+        
         @self.app.delete("/api/configs/{config_type}/{config_name}")
         async def delete_config(config_type: str, config_name: str):
             """Delete a configuration"""
             return await self._delete_config(config_type, config_name)
-
+        
         @self.app.post("/api/configs/{config_type}/{config_name}/validate")
         async def validate_config(config_type: str, config_name: str):
             """Validate a configuration against schema"""
             return await self._validate_config(config_type, config_name)
-
+        
         @self.app.post("/api/configs/{config_type}/validate")
         async def validate_config_data(config_type: str, request: Request):
             """Validate configuration data against schema"""
             data = await request.json()
             return await self._validate_config(config_type, data=data)
-
+        
         @self.app.post("/api/configs/{config_type}/{config_name}/test")
         async def test_config(config_type: str, config_name: str):
             """Test a configuration connection"""
             return await self._test_config(config_type, config_name)
-
+        
         @self.app.get("/api/configs/schemas")
         async def get_config_schemas():
             """Get all configuration schemas for UI generation"""
             return {"success": True, "schemas": self._get_config_schemas()}
-
+        
         @self.app.get("/api/configs/schemas/{schema_name}")
         async def get_config_schema(schema_name: str):
             """Get a specific configuration schema"""
@@ -324,53 +315,51 @@ class ComprehensiveMCPDashboard:
                 return {"success": True, "schema": schemas[schema_name]}
             else:
                 return {"success": False, "error": f"Schema '{schema_name}' not found"}
-
+        
         # API Routes - Buckets
         @self.app.get("/api/buckets")
         async def get_buckets():
             return await self._get_buckets_data()
-
+        
         @self.app.post("/api/buckets")
         async def create_bucket(request: Request):
             data = await request.json()
             return await self._create_bucket(data)
-
+        
         @self.app.get("/api/buckets/{bucket_name}")
         async def get_bucket_details(bucket_name: str):
             return await self._get_bucket_details(bucket_name)
-
+        
         @self.app.get("/api/buckets/{bucket_name}/files")
         async def list_bucket_files(bucket_name: str):
             return await self._list_bucket_files(bucket_name)
-
+        
         @self.app.post("/api/buckets/{bucket_name}/upload")
-        async def upload_to_bucket(
-            bucket_name: str, file: UploadFile = File(...), virtual_path: str = Form(None)
-        ):
+        async def upload_to_bucket(bucket_name: str, file: UploadFile = File(...), virtual_path: str = Form(None)):
             return await self._upload_file_to_bucket(bucket_name, file, virtual_path)
-
+        
         @self.app.get("/api/buckets/{bucket_name}/download/{file_path:path}")
         async def download_from_bucket(bucket_name: str, file_path: str):
             return await self._download_file_from_bucket(bucket_name, file_path)
-
+        
         @self.app.delete("/api/buckets/{bucket_name}/files/{file_path:path}")
         async def delete_bucket_file(bucket_name: str, file_path: str):
             return await self._delete_bucket_file(bucket_name, file_path)
-
+            
         # API Routes - Bucket Index Management
         @self.app.get("/api/bucket_index")
         async def get_bucket_index():
             return await self._get_bucket_index()
-
+        
         @self.app.post("/api/bucket_index/create")
         async def create_bucket_index(request: Request):
             data = await request.json()
             return await self._create_bucket_index(data)
-
+            
         @self.app.post("/api/bucket_index/rebuild")
         async def rebuild_bucket_index():
             return await self._rebuild_bucket_index()
-
+            
         @self.app.get("/api/bucket_index/{bucket_name}")
         async def get_bucket_index_info(bucket_name: str):
             return await self._get_bucket_index_info(bucket_name)
@@ -379,28 +368,28 @@ class ComprehensiveMCPDashboard:
         @self.app.get("/api/vfs")
         async def get_vfs_structure():
             return await self._get_vfs_structure()
-
+        
         @self.app.get("/api/vfs/{bucket_name}")
         async def browse_vfs(bucket_name: str, path: str = "/"):
             return await self._browse_vfs(bucket_name, path)
-
+        
         # API Routes - Peers
         @self.app.get("/api/peers")
         async def get_peers():
             return await self._get_peers_data()
-
+        
         @self.app.post("/api/peers/connect")
         async def connect_peer(request: Request):
             data = await request.json()
-            return await self._connect_peer(data.get("address"))
-
+            return await self._connect_peer(data.get('address'))
+        
     async def _disconnect_peer(self, peer_id: str) -> Dict[str, Any]:
         """Disconnect from a peer using the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/peer_disconnect",
-                    json={"arguments": {"peer_id": peer_id}},
+                    json={"arguments": {"peer_id": peer_id}}
                 ) as resp:
                     if resp.status == 200:
                         return await resp.json()
@@ -408,99 +397,99 @@ class ComprehensiveMCPDashboard:
                         return {"success": False, "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+        
         @self.app.get("/api/peers/stats")
         async def get_peer_stats():
             return await self._get_peer_stats()
-
+        
         # API Routes - Pins
         @self.app.get("/api/pins")
         async def get_pins():
             return await self._get_pins_data()
-
+        
         @self.app.post("/api/pins")
         async def add_pin(request: Request):
             data = await request.json()
-            return await self._add_pin(data.get("cid"), data.get("name"))
-
+            return await self._add_pin(data.get('cid'), data.get('name'))
+        
         @self.app.delete("/api/pins/{cid}")
         async def remove_pin(cid: str):
             return await self._remove_pin(cid)
-
+        
         @self.app.post("/api/pins/sync")
         async def sync_pins():
             return await self._sync_pins()
-
+        
         # API Routes - Metrics
         @self.app.get("/api/metrics")
         async def get_metrics():
             return await self._get_system_metrics()
-
+        
         @self.app.get("/api/metrics/detailed")
         async def get_detailed_metrics():
             return await self._get_detailed_metrics()
-
+        
         @self.app.get("/api/metrics/history")
         async def get_metrics_history():
             return await self._get_metrics_history()
-
+        
         # API Routes - Logs
         @self.app.get("/api/logs")
         async def get_logs(component: str = "all", level: str = "info", limit: int = 100):
             return await self._get_logs(component, level, limit)
-
+        
         @self.app.get("/api/logs/stream")
         async def stream_logs():
             return await self._stream_logs()
-
+        
         # API Routes - Configuration
         @self.app.get("/api/config")
         async def get_config():
             return await self._get_configuration()
-
+        
         @self.app.post("/api/config")
         async def update_config(request: Request):
             data = await request.json()
             return await self._update_configuration(data)
-
+        
         @self.app.get("/api/config/{component}")
         async def get_component_config(component: str):
             return await self._get_component_config(component)
-
+        
         # API Routes - Analytics
         @self.app.get("/api/analytics/summary")
         async def get_analytics_summary():
             return await self._get_analytics_summary()
-
+        
         @self.app.get("/api/analytics/buckets")
         async def get_bucket_analytics():
             return await self._get_bucket_analytics()
-
+        
         @self.app.get("/api/analytics/performance")
         async def get_performance_analytics():
             return await self._get_performance_analytics()
-
+        
         # API Routes - CAR Files
         @self.app.post("/api/car/generate")
         async def generate_car_file(request: Request):
             data = await request.json()
-            return await self._generate_car_file(data.get("bucket_name"), data.get("output_path"))
-
+            return await self._generate_car_file(data.get('bucket_name'), data.get('output_path'))
+        
         @self.app.get("/api/car/list")
         async def list_car_files():
             return await self._list_car_files()
-
+        
         # API Routes - Cross-Backend Queries
         @self.app.post("/api/query")
         async def execute_cross_backend_query(request: Request):
             data = await request.json()
-            return await self._execute_cross_backend_query(data.get("query"), data.get("backends"))
-
+            return await self._execute_cross_backend_query(data.get('query'), data.get('backends'))
+        
         # WebSocket endpoint
         @self.app.websocket("/ws")
         async def websocket_endpoint(websocket: WebSocket):
             await self._handle_websocket(websocket)
-
+    
     async def _render_dashboard(self) -> str:
         """Render the comprehensive dashboard HTML."""
         html_template = """
@@ -3186,25 +3175,25 @@ class ComprehensiveMCPDashboard:
         </body>
         </html>
         """
-
+        
         return html_template
-
+    
     # ========================================
     # COMPREHENSIVE API IMPLEMENTATION
     # ========================================
-
+    
     async def _get_system_status(self) -> Dict[str, Any]:
         """Get comprehensive system status from MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/daemon_status",
-                    json={"arguments": {"detailed": True}},
+                    json={"arguments": {"detailed": True}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         daemon_status = data.get("daemon_status", {})
-
+                        
                         # Get system metrics separately for now
                         cpu_percent = psutil.cpu_percent(interval=None)
                         memory = psutil.virtual_memory()
@@ -3214,9 +3203,7 @@ class ComprehensiveMCPDashboard:
                             "status": "ok",
                             "timestamp": datetime.now().isoformat(),
                             "mcp_status": "Running",
-                            "ipfs_status": "Running"
-                            if daemon_status.get("is_running")
-                            else "Stopped",
+                            "ipfs_status": "Running" if daemon_status.get("is_running") else "Stopped",
                             "system": {
                                 "cpu_percent": cpu_percent,
                                 "memory_percent": memory.percent,
@@ -3226,20 +3213,21 @@ class ComprehensiveMCPDashboard:
                             "data_dir": str(self.data_dir),
                             "data_dir_exists": self.data_dir.exists(),
                             "daemon_details": daemon_status,
-                            "metadata_summary": data.get("metadata_summary"),
+                            "metadata_summary": data.get("metadata_summary")
                         }
                     else:
                         return {"status": "error", "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             logger.error(f"Error getting system status from MCP: {e}")
             return {"status": "error", "error": str(e)}
-
+    
     async def _get_comprehensive_health(self) -> Dict[str, Any]:
         """Get comprehensive health status from MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.mcp_server_url}/tools/daemon_intelligent_status", json={"arguments": {}}
+                    f"{self.mcp_server_url}/tools/daemon_intelligent_status",
+                    json={"arguments": {}}
                 ) as resp:
                     if resp.status == 200:
                         health_data = await resp.json()
@@ -3248,16 +3236,16 @@ class ComprehensiveMCPDashboard:
                         return {
                             "overall_status": "degraded",
                             "error": f"MCP server error: {resp.status}",
-                            "timestamp": datetime.now().isoformat(),
+                            "timestamp": datetime.now().isoformat()
                         }
         except Exception as e:
             logger.error(f"Error getting comprehensive health from MCP: {e}")
             return {
                 "overall_status": "unhealthy",
                 "error": str(e),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now().isoformat()
             }
-
+    
     async def _get_mcp_status(self) -> Dict[str, Any]:
         """Get MCP server status from the refactored server."""
         try:
@@ -3266,12 +3254,12 @@ class ComprehensiveMCPDashboard:
                 async with session.get(f"{self.mcp_server_url}/health") as resp:
                     if resp.status == 200:
                         health_data = await resp.json()
-
+                        
                         # Get detailed status
                         async with session.get(f"{self.mcp_server_url}/status") as status_resp:
                             if status_resp.status == 200:
                                 status_data = await status_resp.json()
-
+                                
                                 return {
                                     "status": "connected",
                                     "server_info": {
@@ -3279,16 +3267,16 @@ class ComprehensiveMCPDashboard:
                                         "server": health_data.get("server", "unknown"),
                                         "mode": health_data.get("mode", "unknown"),
                                         "data_dir": health_data.get("data_dir", "unknown"),
-                                        "timestamp": health_data.get("timestamp", "unknown"),
+                                        "timestamp": health_data.get("timestamp", "unknown")
                                     },
                                     "daemon_info": {
                                         "mcp_server": status_data.get("mcp_server", "unknown"),
                                         "daemon_running": status_data.get("daemon_running", False),
                                         "daemon_role": status_data.get("daemon_role", "unknown"),
-                                        "backend_count": status_data.get("backend_count", 0),
+                                        "backend_count": status_data.get("backend_count", 0)
                                     },
                                     "url": self.mcp_server_url,
-                                    "last_checked": datetime.now().isoformat(),
+                                    "last_checked": datetime.now().isoformat()
                                 }
                             else:
                                 return {
@@ -3296,14 +3284,14 @@ class ComprehensiveMCPDashboard:
                                     "server_info": health_data,
                                     "error": f"Status endpoint failed: {status_resp.status}",
                                     "url": self.mcp_server_url,
-                                    "last_checked": datetime.now().isoformat(),
+                                    "last_checked": datetime.now().isoformat()
                                 }
                     else:
                         return {
                             "status": "disconnected",
                             "error": f"Health check failed: {resp.status}",
                             "url": self.mcp_server_url,
-                            "last_checked": datetime.now().isoformat(),
+                            "last_checked": datetime.now().isoformat()
                         }
         except Exception as e:
             logger.error(f"Error getting MCP status: {e}")
@@ -3311,20 +3299,22 @@ class ComprehensiveMCPDashboard:
                 "status": "error",
                 "error": str(e),
                 "url": self.mcp_server_url,
-                "last_checked": datetime.now().isoformat(),
+                "last_checked": datetime.now().isoformat()
             }
-
+    
     async def _restart_mcp_server(self) -> Dict[str, Any]:
         """Restart the MCP server using the daemon_start tool."""
         try:
             async with aiohttp.ClientSession() as session:
                 # First, try to stop the daemon gracefully
                 await session.post(
-                    f"{self.mcp_server_url}/tools/daemon_stop", json={"arguments": {}}
+                    f"{self.mcp_server_url}/tools/daemon_stop",
+                    json={"arguments": {}}
                 )
                 # Then, start it again
                 async with session.post(
-                    f"{self.mcp_server_url}/tools/daemon_start", json={"arguments": {}}
+                    f"{self.mcp_server_url}/tools/daemon_start",
+                    json={"arguments": {}}
                 ) as resp:
                     if resp.status == 200:
                         return {"success": True, "message": "MCP server restart initiated"}
@@ -3332,7 +3322,7 @@ class ComprehensiveMCPDashboard:
                         return {"success": False, "error": f"HTTP {resp.status}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _list_mcp_tools(self) -> Dict[str, Any]:
         """List available MCP tools from the MCP server."""
         try:
@@ -3343,13 +3333,13 @@ class ComprehensiveMCPDashboard:
                         return {
                             "tools": data.get("tools", []),
                             "count": len(data.get("tools", [])),
-                            "timestamp": datetime.now().isoformat(),
+                            "timestamp": datetime.now().isoformat()
                         }
                     else:
                         return {"tools": [], "error": f"HTTP {resp.status}"}
         except Exception as e:
             return {"tools": [], "error": str(e)}
-
+    
     # Backend Configuration Management Implementation
     async def _get_all_backend_configs(self):
         """Get all backend configurations from ~/.ipfs_kit/backend_configs/"""
@@ -3358,200 +3348,185 @@ class ComprehensiveMCPDashboard:
             if not os.path.exists(config_dir):
                 os.makedirs(config_dir, exist_ok=True)
                 return {"success": True, "configs": {}}
-
+            
             configs = {}
             for filename in os.listdir(config_dir):
-                if filename.endswith(".yml") or filename.endswith(".yaml"):
+                if filename.endswith('.yml') or filename.endswith('.yaml'):
                     config_path = os.path.join(config_dir, filename)
                     try:
-                        with open(config_path, "r") as f:
+                        with open(config_path, 'r') as f:
                             import yaml
-
                             config_data = yaml.safe_load(f)
-                            backend_name = filename.replace(".yml", "").replace(".yaml", "")
+                            backend_name = filename.replace('.yml', '').replace('.yaml', '')
                             configs[backend_name] = config_data
                     except Exception as e:
                         print(f"Error loading config {filename}: {e}")
-
+            
             return {"success": True, "configs": configs}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _get_backend_config(self, backend_name: str):
         """Get a specific backend configuration"""
         try:
             config_dir = os.path.expanduser("~/.ipfs_kit/backend_configs")
             config_path = os.path.join(config_dir, f"{backend_name}.yml")
-
+            
             if not os.path.exists(config_path):
                 return {"success": False, "error": "Backend configuration not found"}
-
-            with open(config_path, "r") as f:
+            
+            with open(config_path, 'r') as f:
                 import yaml
-
                 config_data = yaml.safe_load(f)
-
+            
             return {"success": True, "config": config_data}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _create_backend_config(self, data: dict):
         """Create a new backend configuration"""
         try:
-            if "name" not in data:
+            if 'name' not in data:
                 return {"success": False, "error": "Backend name is required"}
-
-            backend_name = data["name"]
-            config_data = {k: v for k, v in data.items() if k != "name"}
-
+            
+            backend_name = data['name']
+            config_data = {k: v for k, v in data.items() if k != 'name'}
+            
             config_dir = os.path.expanduser("~/.ipfs_kit/backend_configs")
             os.makedirs(config_dir, exist_ok=True)
-
+            
             config_path = os.path.join(config_dir, f"{backend_name}.yml")
-
+            
             # Check if already exists
             if os.path.exists(config_path):
                 return {"success": False, "error": "Backend configuration already exists"}
-
-            with open(config_path, "w") as f:
+            
+            with open(config_path, 'w') as f:
                 import yaml
-
                 yaml.safe_dump(config_data, f, default_flow_style=False)
-
+            
             return {"success": True, "message": f"Backend '{backend_name}' created successfully"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _update_backend_config(self, backend_name: str, data: dict):
         """Update an existing backend configuration"""
         try:
             config_dir = os.path.expanduser("~/.ipfs_kit/backend_configs")
             config_path = os.path.join(config_dir, f"{backend_name}.yml")
-
+            
             if not os.path.exists(config_path):
                 return {"success": False, "error": "Backend configuration not found"}
-
-            with open(config_path, "w") as f:
+            
+            with open(config_path, 'w') as f:
                 import yaml
-
                 yaml.safe_dump(data, f, default_flow_style=False)
-
+            
             return {"success": True, "message": f"Backend '{backend_name}' updated successfully"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _delete_backend_config(self, backend_name: str):
         """Delete a backend configuration"""
         try:
             config_dir = os.path.expanduser("~/.ipfs_kit/backend_configs")
             config_path = os.path.join(config_dir, f"{backend_name}.yml")
-
+            
             if not os.path.exists(config_path):
                 return {"success": False, "error": "Backend configuration not found"}
-
+            
             os.remove(config_path)
             return {"success": True, "message": f"Backend '{backend_name}' deleted successfully"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _test_backend_config(self, backend_name: str):
         """Test backend configuration connection"""
         try:
             # Use the CLI command to test the backend
             result = subprocess.run(
-                ["python", "ipfs_kit_cli.py", "backend", "test", backend_name],
+                ['python', 'ipfs_kit_cli.py', 'backend', 'test', backend_name],
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=30
             )
-
+            
             if result.returncode == 0:
-                return {
-                    "success": True,
-                    "message": "Backend connection test successful",
-                    "output": result.stdout,
-                }
+                return {"success": True, "message": "Backend connection test successful", "output": result.stdout}
             else:
-                return {
-                    "success": False,
-                    "error": "Backend connection test failed",
-                    "output": result.stderr,
-                }
+                return {"success": False, "error": "Backend connection test failed", "output": result.stderr}
         except subprocess.TimeoutExpired:
             return {"success": False, "error": "Backend connection test timed out"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _get_backend_pins(self, backend_name: str):
         """Get pins for a specific backend"""
         try:
             result = subprocess.run(
-                ["python", "ipfs_kit_cli.py", "backend", "pin", "list", backend_name],
+                ['python', 'ipfs_kit_cli.py', 'backend', 'pin', 'list', backend_name],
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=30
             )
-
+            
             if result.returncode == 0:
-                return {
-                    "success": True,
-                    "pins": result.stdout.strip().split("\n") if result.stdout.strip() else [],
-                }
+                return {"success": True, "pins": result.stdout.strip().split('\n') if result.stdout.strip() else []}
             else:
                 return {"success": False, "error": result.stderr}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _add_backend_pin(self, backend_name: str, data: dict):
         """Add a pin to a specific backend"""
         try:
-            cid = data.get("cid")
+            cid = data.get('cid')
             if not cid:
                 return {"success": False, "error": "CID is required"}
-
+            
             result = subprocess.run(
-                ["python", "ipfs_kit_cli.py", "backend", "pin", "add", backend_name, cid],
+                ['python', 'ipfs_kit_cli.py', 'backend', 'pin', 'add', backend_name, cid],
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=30
             )
-
+            
             if result.returncode == 0:
                 return {"success": True, "message": f"Pin added to backend '{backend_name}'"}
             else:
                 return {"success": False, "error": result.stderr}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _remove_backend_pin(self, backend_name: str, cid: str):
         """Remove a pin from a specific backend"""
         try:
             result = subprocess.run(
-                ["python", "ipfs_kit_cli.py", "backend", "pin", "rm", backend_name, cid],
+                ['python', 'ipfs_kit_cli.py', 'backend', 'pin', 'rm', backend_name, cid],
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=30
             )
-
+            
             if result.returncode == 0:
                 return {"success": True, "message": f"Pin removed from backend '{backend_name}'"}
             else:
                 return {"success": False, "error": result.stderr}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _find_pin_across_backends(self, cid: str):
         """Find which backends have a specific pin"""
         try:
             result = subprocess.run(
-                ["python", "ipfs_kit_cli.py", "backend", "pin", "find", cid],
+                ['python', 'ipfs_kit_cli.py', 'backend', 'pin', 'find', cid],
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=30
             )
-
+            
             if result.returncode == 0:
-                backends = result.stdout.strip().split("\n") if result.stdout.strip() else []
+                backends = result.stdout.strip().split('\n') if result.stdout.strip() else []
                 return {"success": True, "backends": backends}
             else:
                 return {"success": False, "error": result.stderr}
@@ -3561,140 +3536,141 @@ class ComprehensiveMCPDashboard:
     async def _get_services_data(self) -> Dict[str, Any]:
         """Get comprehensive storage services data to ensure proper data storage configuration."""
         services = {}
-
+        
         # Define the comprehensive storage services we need to check for data storage operations
         storage_services = {
-            "ipfs": {
-                "description": "IPFS Node",
-                "type": "storage_service",
-                "ports": [5001, 8080],
-                "config_check": self._check_ipfs_config,
+            'ipfs': {
+                'description': 'IPFS Node',
+                'type': 'storage_service',
+                'ports': [5001, 8080], 
+                'config_check': self._check_ipfs_config
             },
-            "ipfs_cluster_service": {
-                "description": "IPFS Cluster Service (Master)",
-                "type": "storage_service",
-                "ports": [9094, 9095, 9096],
-                "config_check": self._check_ipfs_cluster_service_config,
+            'ipfs_cluster_service': {
+                'description': 'IPFS Cluster Service (Master)',
+                'type': 'storage_service', 
+                'ports': [9094, 9095, 9096],
+                'config_check': self._check_ipfs_cluster_service_config
             },
-            "ipfs_cluster_follow": {
-                "description": "IPFS Cluster Follow (Worker)",
-                "type": "storage_service",
-                "ports": [9094, 9095],
-                "config_check": self._check_ipfs_cluster_follow_config,
+            'ipfs_cluster_follow': {
+                'description': 'IPFS Cluster Follow (Worker)',
+                'type': 'storage_service',
+                'ports': [9094, 9095],
+                'config_check': self._check_ipfs_cluster_follow_config
             },
-            "lotus_kit": {
-                "description": "Lotus Filecoin Storage",
-                "type": "storage_service",
-                "ports": [1234, 2345],
-                "config_check": self._check_lotus_kit_config,
+            'lotus_kit': {
+                'description': 'Lotus Filecoin Storage',
+                'type': 'storage_service',
+                'ports': [1234, 2345],
+                'config_check': self._check_lotus_kit_config
             },
-            "storacha_kit": {
-                "description": "Storacha Storage Service",
-                "type": "storage_service",
-                "ports": [3000, 8080],
-                "config_check": self._check_storacha_kit_config,
+            'storacha_kit': {
+                'description': 'Storacha Storage Service',
+                'type': 'storage_service', 
+                'ports': [3000, 8080],
+                'config_check': self._check_storacha_kit_config
             },
-            "s3_kit": {
-                "description": "Amazon S3 Storage Backend",
-                "type": "storage_backend",
-                "ports": [],
-                "config_check": self._check_s3_kit_config,
+            's3_kit': {
+                'description': 'Amazon S3 Storage Backend',
+                'type': 'storage_backend',
+                'ports': [],
+                'config_check': self._check_s3_kit_config
             },
-            "google_drive": {
-                "description": "Google Drive Storage Backend",
-                "type": "storage_backend",
-                "ports": [],
-                "config_check": self._check_google_drive_config,
+            'google_drive': {
+                'description': 'Google Drive Storage Backend',
+                'type': 'storage_backend',
+                'ports': [],
+                'config_check': self._check_google_drive_config
             },
-            "github": {
-                "description": "GitHub Storage Backend",
-                "type": "storage_backend",
-                "ports": [],
-                "config_check": self._check_github_config,
+            'github': {
+                'description': 'GitHub Storage Backend',
+                'type': 'storage_backend',
+                'ports': [],
+                'config_check': self._check_github_config
             },
-            "huggingface": {
-                "description": "Hugging Face Hub Storage",
-                "type": "storage_backend",
-                "ports": [],
-                "config_check": self._check_huggingface_config,
+            'huggingface': {
+                'description': 'Hugging Face Hub Storage',
+                'type': 'storage_backend',
+                'ports': [],
+                'config_check': self._check_huggingface_config
             },
-            "lassie": {
-                "description": "Lassie IPFS Retrieval",
-                "type": "storage_service",
-                "ports": [7777],
-                "config_check": self._check_lassie_config,
+            'lassie': {
+                'description': 'Lassie IPFS Retrieval',
+                'type': 'storage_service',
+                'ports': [7777],
+                'config_check': self._check_lassie_config
             },
-            "synapse_sdk": {
-                "description": "Synapse Matrix Storage",
-                "type": "storage_backend",
-                "ports": [8008, 8448],
-                "config_check": self._check_synapse_sdk_config,
+            'synapse_sdk': {
+                'description': 'Synapse Matrix Storage',
+                'type': 'storage_backend',
+                'ports': [8008, 8448],
+                'config_check': self._check_synapse_sdk_config
             },
-            "parquet": {
-                "description": "Apache Parquet Format Support",
-                "type": "data_format",
-                "ports": [],
-                "config_check": self._check_parquet_config,
+            'parquet': {
+                'description': 'Apache Parquet Format Support',
+                'type': 'data_format',
+                'ports': [],
+                'config_check': self._check_parquet_config
             },
-            "apache_arrow": {
-                "description": "Apache Arrow Data Framework",
-                "type": "data_format",
-                "ports": [],
-                "config_check": self._check_apache_arrow_config,
+            'apache_arrow': {
+                'description': 'Apache Arrow Data Framework',
+                'type': 'data_format',
+                'ports': [],
+                'config_check': self._check_apache_arrow_config
             },
-            "sshfs": {
-                "description": "SSHFS Remote Filesystem",
-                "type": "storage_backend",
-                "ports": [22],
-                "config_check": self._check_sshfs_config,
+            'sshfs': {
+                'description': 'SSHFS Remote Filesystem',
+                'type': 'storage_backend',
+                'ports': [22],
+                'config_check': self._check_sshfs_config
             },
-            "ftp": {
-                "description": "FTP Storage Backend",
-                "type": "storage_backend",
-                "ports": [21, 22],
-                "config_check": self._check_ftp_config,
-            },
+            'ftp': {
+                'description': 'FTP Storage Backend',
+                'type': 'storage_backend',
+                'ports': [21, 22],
+                'config_check': self._check_ftp_config
+            }
         }
-
+        
         # Check each storage service
         for service_name, service_info in storage_services.items():
             try:
                 # Check if service is running
-                status = await self._check_service_status(service_name, service_info["ports"])
-
+                status = await self._check_service_status(service_name, service_info['ports'])
+                
                 # Check configuration
-                config_status = await service_info["config_check"]()
-
+                config_status = await service_info['config_check']()
+                
                 services[service_name] = {
                     "name": service_name,
                     "status": status,
-                    "type": service_info["type"],
-                    "description": service_info["description"],
+                    "type": service_info['type'],
+                    "description": service_info['description'],
                     "config_status": config_status,
-                    "timestamp": datetime.now().isoformat(),
+                    "timestamp": datetime.now().isoformat()
                 }
-
+                
             except Exception as e:
                 services[service_name] = {
                     "name": service_name,
                     "status": "error",
                     "error": str(e),
-                    "type": service_info["type"],
-                    "description": service_info["description"],
+                    "type": service_info['type'],
+                    "description": service_info['description'],
                     "config_status": "error",
-                    "timestamp": datetime.now().isoformat(),
+                    "timestamp": datetime.now().isoformat()
                 }
-
+        
         # Also check for any additional backends via MCP
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.mcp_server_url}/tools/mbfs_list_backends", json={"arguments": {}}
+                    f"{self.mcp_server_url}/tools/mbfs_list_backends",
+                    json={"arguments": {}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         backends_info = data.get("backends", {})
-
+                        
                         for backend_id, backend_info in backends_info.items():
                             if backend_id not in services:  # Don't override existing entries
                                 services[backend_id] = {
@@ -3704,9 +3680,9 @@ class ComprehensiveMCPDashboard:
                                     "description": f"{backend_info.get('type', 'Unknown')} Backend",
                                     "is_default": backend_info.get("is_default", False),
                                     "config_status": "configured",
-                                    "timestamp": datetime.now().isoformat(),
+                                    "timestamp": datetime.now().isoformat()
                                 }
-
+                        
         except Exception as e:
             # Don't fail completely if backends can't be retrieved
             pass
@@ -3716,7 +3692,7 @@ class ComprehensiveMCPDashboard:
         configured = sum(1 for s in services.values() if s["status"] == "configured")
         stopped = sum(1 for s in services.values() if s["status"] == "stopped")
         error = sum(1 for s in services.values() if s["status"] == "error")
-
+        
         return {
             "services": services,
             "summary": {
@@ -3724,21 +3700,21 @@ class ComprehensiveMCPDashboard:
                 "running": running,
                 "configured": configured,
                 "stopped": stopped,
-                "error": error,
+                "error": error
             },
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now().isoformat()
         }
-
+    
     async def _check_service_status(self, service_name: str, ports: list) -> str:
         """Check if a storage service is running by testing its ports."""
         # For IPFS, use the daemon status tool
-        if service_name == "ipfs":
+        if service_name == 'ipfs':
             try:
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
                         f"{self.mcp_server_url}/tools/daemon_status",
                         json={"arguments": {"detailed": True}},
-                        timeout=5,
+                        timeout=5
                     ) as resp:
                         if resp.status == 200:
                             data = await resp.json()
@@ -3747,36 +3723,33 @@ class ComprehensiveMCPDashboard:
                         return "error"
             except:
                 return "error"
-
+        
         # For backend services without ports, check if they're available/configured
         if not ports:
             return "configured"  # Backends are typically always available once configured
-
+        
         # For network services, check if any of their ports are accessible
         for port in ports:
             try:
                 async with aiohttp.ClientSession() as session:
                     # Try common endpoints for each service
                     endpoints = []
-                    if service_name in ["ipfs_cluster_service", "ipfs_cluster_follow"]:
-                        endpoints = [
-                            f"http://127.0.0.1:{port}/id",
-                            f"http://127.0.0.1:{port}/health",
-                        ]
-                    elif service_name == "lotus_kit":
+                    if service_name in ['ipfs_cluster_service', 'ipfs_cluster_follow']:
+                        endpoints = [f"http://127.0.0.1:{port}/id", f"http://127.0.0.1:{port}/health"]
+                    elif service_name == 'lotus_kit':
                         endpoints = [f"http://127.0.0.1:{port}/rpc/v0", f"http://127.0.0.1:{port}"]
-                    elif service_name == "storacha_kit":
+                    elif service_name == 'storacha_kit':
                         endpoints = [f"http://127.0.0.1:{port}/status", f"http://127.0.0.1:{port}"]
-                    elif service_name == "lassie":
+                    elif service_name == 'lassie':
                         endpoints = [f"http://127.0.0.1:{port}", f"http://127.0.0.1:{port}/stats"]
-                    elif service_name == "synapse_sdk":
+                    elif service_name == 'synapse_sdk':
                         endpoints = [f"http://127.0.0.1:{port}/_matrix/client/versions"]
-                    elif service_name in ["sshfs", "ftp"]:
+                    elif service_name in ['sshfs', 'ftp']:
                         # For these, check if the service process is running rather than HTTP
                         return await self._check_system_service(service_name)
                     else:
                         endpoints = [f"http://127.0.0.1:{port}"]
-
+                    
                     for endpoint in endpoints:
                         try:
                             async with session.get(endpoint, timeout=3) as resp:
@@ -3786,34 +3759,33 @@ class ComprehensiveMCPDashboard:
                             continue
             except:
                 continue
-
+        
         return "stopped"
-
+    
     async def _check_system_service(self, service_name: str) -> str:
         """Check if a system service is running using process checks."""
         try:
             import subprocess
-
-            if service_name == "sshfs":
+            if service_name == 'sshfs':
                 # Check if sshfs is available
-                result = subprocess.run(["which", "sshfs"], capture_output=True, text=True)
+                result = subprocess.run(['which', 'sshfs'], capture_output=True, text=True)
                 return "configured" if result.returncode == 0 else "not_configured"
-            elif service_name == "ftp":
+            elif service_name == 'ftp':
                 # Check if ftp/sftp tools are available
-                result = subprocess.run(["which", "ftp"], capture_output=True, text=True)
+                result = subprocess.run(['which', 'ftp'], capture_output=True, text=True)
                 return "configured" if result.returncode == 0 else "not_configured"
             return "stopped"
         except:
             return "error"
-
+    
     async def _check_ipfs_config(self) -> str:
         """Check IPFS configuration status."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.mcp_server_url}/tools/daemon_status",
+                    f"{self.mcp_server_url}/tools/daemon_status", 
                     json={"arguments": {"detailed": True}},
-                    timeout=5,
+                    timeout=5
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -3825,7 +3797,7 @@ class ComprehensiveMCPDashboard:
                     return "error"
         except:
             return "error"
-
+    
     async def _check_lotus_kit_config(self) -> str:
         """Check Lotus kit configuration status."""
         try:
@@ -3838,12 +3810,11 @@ class ComprehensiveMCPDashboard:
         except:
             # Check if Lotus configuration exists
             import os
-
             lotus_config_path = os.path.expanduser("~/.lotus")
             if os.path.exists(lotus_config_path):
                 return "configured_offline"
             return "not_configured"
-
+    
     async def _check_storacha_kit_config(self) -> str:
         """Check Storacha kit configuration status."""
         try:
@@ -3851,9 +3822,7 @@ class ComprehensiveMCPDashboard:
             async with aiohttp.ClientSession() as session:
                 for port in [3000, 8080]:
                     try:
-                        async with session.get(
-                            f"http://127.0.0.1:{port}/status", timeout=5
-                        ) as resp:
+                        async with session.get(f"http://127.0.0.1:{port}/status", timeout=5) as resp:
                             if resp.status == 200:
                                 return "configured"
                     except:
@@ -3861,7 +3830,7 @@ class ComprehensiveMCPDashboard:
                 return "not_configured"
         except:
             return "not_configured"
-
+    
     async def _check_ipfs_cluster_service_config(self) -> str:
         """Check IPFS Cluster Service configuration status."""
         try:
@@ -3876,12 +3845,11 @@ class ComprehensiveMCPDashboard:
         except:
             # Check if cluster configuration files exist
             import os
-
             cluster_config_path = os.path.expanduser("~/.ipfs-cluster")
             if os.path.exists(cluster_config_path):
                 return "configured_offline"
             return "not_configured"
-
+    
     async def _check_ipfs_cluster_follow_config(self) -> str:
         """Check IPFS Cluster Follow configuration status."""
         try:
@@ -3894,76 +3862,71 @@ class ComprehensiveMCPDashboard:
         except:
             # Check if cluster follow configuration exists
             import os
-
             cluster_config_path = os.path.expanduser("~/.ipfs-cluster-follow")
             if os.path.exists(cluster_config_path):
                 return "configured_offline"
             return "not_configured"
-
+    
     async def _check_s3_kit_config(self) -> str:
         """Check S3 kit configuration status."""
         try:
             import os
-
             # Check for AWS credentials
             aws_config = os.path.expanduser("~/.aws/credentials")
             env_vars = ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
-
+            
             if os.path.exists(aws_config) or all(os.getenv(var) for var in env_vars):
                 return "configured"
             return "not_configured"
         except:
             return "error"
-
+    
     async def _check_google_drive_config(self) -> str:
         """Check Google Drive configuration status."""
         try:
             import os
-
             # Check for Google Drive credentials
             google_creds_paths = [
                 os.path.expanduser("~/.config/rclone/rclone.conf"),
                 os.path.expanduser("~/.google/credentials.json"),
-                os.path.expanduser("~/credentials.json"),
+                os.path.expanduser("~/credentials.json")
             ]
-
+            
             for path in google_creds_paths:
                 if os.path.exists(path):
                     return "configured"
             return "not_configured"
         except:
             return "error"
-
+    
     async def _check_github_config(self) -> str:
         """Check GitHub configuration status."""
         try:
             import os
-
             # Check for GitHub token
             github_token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
             git_config = os.path.expanduser("~/.gitconfig")
-
+            
             if github_token or os.path.exists(git_config):
                 return "configured"
             return "not_configured"
         except:
             return "error"
-
+    
     async def _check_huggingface_config(self) -> str:
         """Check Hugging Face configuration status."""
         try:
             import os
-
             # Check for Hugging Face token
             hf_token = os.getenv("HUGGINGFACE_HUB_TOKEN") or os.getenv("HF_TOKEN")
             hf_cache = os.path.expanduser("~/.cache/huggingface")
-
+            
             if hf_token or os.path.exists(hf_cache):
                 return "configured"
             return "not_configured"
         except:
             return "error"
-
+    
     async def _check_lassie_config(self) -> str:
         """Check Lassie configuration status."""
         try:
@@ -3976,87 +3939,79 @@ class ComprehensiveMCPDashboard:
         except:
             # Check if lassie binary exists
             import subprocess
-
             try:
-                result = subprocess.run(["which", "lassie"], capture_output=True, text=True)
+                result = subprocess.run(['which', 'lassie'], capture_output=True, text=True)
                 return "configured_offline" if result.returncode == 0 else "not_configured"
             except:
                 return "not_configured"
-
+    
     async def _check_synapse_sdk_config(self) -> str:
         """Check Synapse SDK configuration status."""
         try:
             # Check if Synapse server is reachable
             async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    "http://127.0.0.1:8008/_matrix/client/versions", timeout=5
-                ) as resp:
+                async with session.get("http://127.0.0.1:8008/_matrix/client/versions", timeout=5) as resp:
                     if resp.status == 200:
                         return "configured"
                     return "not_configured"
         except:
             # Check if synapse configuration exists
             import os
-
             synapse_config = os.path.expanduser("~/.synapse")
             if os.path.exists(synapse_config):
                 return "configured_offline"
             return "not_configured"
-
+    
     async def _check_parquet_config(self) -> str:
         """Check Apache Parquet support configuration."""
         try:
             # Check if pyarrow (parquet support) is available
             import importlib
-
-            importlib.import_module("pyarrow")
-            importlib.import_module("pyarrow.parquet")
+            importlib.import_module('pyarrow')
+            importlib.import_module('pyarrow.parquet')
             return "configured"
         except ImportError:
             return "not_configured"
         except:
             return "error"
-
+    
     async def _check_apache_arrow_config(self) -> str:
         """Check Apache Arrow configuration status."""
         try:
             # Check if pyarrow is available
             import importlib
-
-            importlib.import_module("pyarrow")
+            importlib.import_module('pyarrow')
             return "configured"
         except ImportError:
             return "not_configured"
         except:
             return "error"
-
+    
     async def _check_sshfs_config(self) -> str:
         """Check SSHFS configuration status."""
         try:
             import subprocess
-
             # Check if sshfs is installed
-            result = subprocess.run(["which", "sshfs"], capture_output=True, text=True)
+            result = subprocess.run(['which', 'sshfs'], capture_output=True, text=True)
             if result.returncode == 0:
                 return "configured"
             return "not_configured"
         except:
             return "error"
-
+    
     async def _check_ftp_config(self) -> str:
         """Check FTP configuration status."""
         try:
             import subprocess
-
             # Check if ftp/lftp tools are available
-            for tool in ["ftp", "lftp", "sftp"]:
-                result = subprocess.run(["which", tool], capture_output=True, text=True)
+            for tool in ['ftp', 'lftp', 'sftp']:
+                result = subprocess.run(['which', tool], capture_output=True, text=True)
                 if result.returncode == 0:
                     return "configured"
             return "not_configured"
         except:
             return "error"
-
+    
     async def _control_service(self, service: str, action: str) -> Dict[str, Any]:
         """Control a service (start/stop/restart) using the MCP server."""
         try:
@@ -4068,7 +4023,7 @@ class ComprehensiveMCPDashboard:
             elif action == "restart":
                 # Restart is a stop then a start
                 await self._control_service(service, "stop")
-                await anyio.sleep(2)  # Give it a moment to stop
+                await anyio.sleep(2) # Give it a moment to stop
                 return await self._control_service(service, "start")
             else:
                 return {"success": False, "error": f"Unknown action: {action}"}
@@ -4076,7 +4031,7 @@ class ComprehensiveMCPDashboard:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/{tool_name}",
-                    json={"arguments": {"service": service}},
+                    json={"arguments": {"service": service}}
                 ) as resp:
                     if resp.status == 200:
                         return {"success": True, "message": f"Service {service} {action} completed"}
@@ -4084,48 +4039,42 @@ class ComprehensiveMCPDashboard:
                         return {"success": False, "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _get_service_details(self, service_name: str) -> Dict[str, Any]:
         """Get detailed information about a specific service from the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/daemon_status",
-                    json={"arguments": {"detailed": True}},
+                    json={"arguments": {"detailed": True}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         daemon_status = data.get("daemon_status", {})
-                        if service_name == "ipfs":
+                        if service_name == 'ipfs':
                             return {
                                 "name": service_name,
-                                "status": "running"
-                                if daemon_status.get("is_running")
-                                else "stopped",
-                                "pid": None,  # Not available
-                                "cpu_percent": None,  # Not available
-                                "memory_mb": None,  # Not available
-                                "create_time": None,  # Not available
-                                "cmdline": None,  # Not available
+                                "status": "running" if daemon_status.get("is_running") else "stopped",
+                                "pid": None, # Not available
+                                "cpu_percent": None, # Not available
+                                "memory_mb": None, # Not available
+                                "create_time": None, # Not available
+                                "cmdline": None, # Not available
                                 "timestamp": datetime.now().isoformat(),
-                                "details": daemon_status,
+                                "details": daemon_status
                             }
                         else:
                             return {"name": service_name, "status": "unknown"}
                     else:
-                        return {
-                            "name": service_name,
-                            "status": "error",
-                            "error": f"MCP server error: {resp.status}",
-                        }
+                        return {"name": service_name, "status": "error", "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"name": service_name, "status": "error", "error": str(e)}
-
+    
     async def _get_backends_data(self) -> Dict[str, Any]:
         """Get backend data from ~/.ipfs_kit/ metadata and MCP server status."""
         try:
             backends = []
-
+            
             # First, try to get data from MCP server
             try:
                 async with aiohttp.ClientSession() as session:
@@ -4138,87 +4087,65 @@ class ComprehensiveMCPDashboard:
                                 if isinstance(backend_list, list):
                                     backends = [
                                         {
-                                            "name": backend.get("name", "unknown")
-                                            if isinstance(backend, dict)
-                                            else str(backend),
-                                            "type": backend.get("type", "unknown")
-                                            if isinstance(backend, dict)
-                                            else "unknown",
-                                            "status": backend.get("status", "unknown")
-                                            if isinstance(backend, dict)
-                                            else "unknown",
-                                            "health": backend.get("status", "unknown")
-                                            if isinstance(backend, dict)
-                                            else "unknown",
-                                            "pins": backend.get("pins", 0)
-                                            if isinstance(backend, dict)
-                                            else 0,
+                                            "name": backend.get("name", "unknown") if isinstance(backend, dict) else str(backend),
+                                            "type": backend.get("type", "unknown") if isinstance(backend, dict) else "unknown",
+                                            "status": backend.get("status", "unknown") if isinstance(backend, dict) else "unknown",
+                                            "health": backend.get("status", "unknown") if isinstance(backend, dict) else "unknown",
+                                            "pins": backend.get("pins", 0) if isinstance(backend, dict) else 0,
                                             "config": {},
-                                            "metadata": backend
-                                            if isinstance(backend, dict)
-                                            else {"raw": backend},
+                                            "metadata": backend if isinstance(backend, dict) else {"raw": backend},
                                             "last_sync": "from MCP server",
-                                            "pin_count": backend.get("pins", 0)
-                                            if isinstance(backend, dict)
-                                            else 0,
-                                            "file_count": 0,
+                                            "pin_count": backend.get("pins", 0) if isinstance(backend, dict) else 0,
+                                            "file_count": 0
                                         }
                                         for backend in backend_list
                                     ]
-                                    logger.info(
-                                        f"Retrieved {len(backends)} backends from MCP server"
-                                    )
+                                    logger.info(f"Retrieved {len(backends)} backends from MCP server")
             except Exception as e:
                 logger.warning(f"Could not get data from MCP server: {e}")
                 import traceback
-
                 logger.warning(f"Traceback: {traceback.format_exc()}")
-
-            # If no MCP data, fallback to reading ~/.ipfs_kit/ metadata
+            
+            # If no MCP data, fallback to reading ~/.ipfs_kit/ metadata 
             if not backends:
                 backends_dir = self.data_dir / "backends"
                 if backends_dir.exists():
                     for backend_file in backends_dir.glob("*.json"):
                         try:
-                            with open(backend_file, "r") as f:
+                            with open(backend_file, 'r') as f:
                                 backend_data = json.load(f)
-
+                                
                                 # Add enhanced status information
                                 backend_name = backend_file.stem
                                 backend_info = {
                                     "name": backend_name,
                                     "type": backend_data.get("type", "unknown"),
                                     "status": backend_data.get("status", "unknown"),
-                                    "health": await self._check_backend_health(
-                                        backend_name, backend_data
-                                    ),
+                                    "health": await self._check_backend_health(backend_name, backend_data),
                                     "config": backend_data.get("config", {}),
                                     "metadata": backend_data,
                                     "last_sync": backend_data.get("last_sync", "never"),
                                     "pin_count": backend_data.get("pin_count", 0),
-                                    "file_count": backend_data.get("file_count", 0),
+                                    "file_count": backend_data.get("file_count", 0)
                                 }
                                 backends.append(backend_info)
                         except Exception as e:
                             logger.warning(f"Error reading backend file {backend_file}: {e}")
-
+            
             # Add summary information
             total_backends = len(backends)
-            healthy_backends = sum(
-                1
-                for b in backends
-                if (isinstance(b.get("health"), dict) and b["health"].get("status") == "healthy")
-                or (isinstance(b.get("health"), str) and b["health"] == "healthy")
-            )
-
+            healthy_backends = sum(1 for b in backends if (
+                isinstance(b.get("health"), dict) and b["health"].get("status") == "healthy"
+            ) or (isinstance(b.get("health"), str) and b["health"] == "healthy"))
+            
             return {
                 "backends": backends,
                 "total": total_backends,
                 "healthy": healthy_backends,
                 "unhealthy": total_backends - healthy_backends,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now().isoformat()
             }
-
+            
         except Exception as e:
             logger.error(f"Error getting backends data: {e}")
             return {
@@ -4227,25 +4154,21 @@ class ComprehensiveMCPDashboard:
                 "healthy": 0,
                 "unhealthy": 0,
                 "error": str(e),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now().isoformat()
             }
-
-    async def _check_backend_status(
-        self, backend_name: str, config: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    
+    async def _check_backend_status(self, backend_name: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """Check the status of a specific backend."""
         try:
             backend_type = config.get("type", "unknown")
-
+            
             if backend_type == "ipfs":
                 # Check IPFS connectivity
-                result = subprocess.run(["ipfs", "id"], capture_output=True, timeout=5)
+                result = subprocess.run(['ipfs', 'id'], capture_output=True, timeout=5)
                 return {
                     "healthy": result.returncode == 0,
                     "type": "ipfs",
-                    "details": "IPFS daemon accessible"
-                    if result.returncode == 0
-                    else "IPFS daemon not accessible",
+                    "details": "IPFS daemon accessible" if result.returncode == 0 else "IPFS daemon not accessible"
                 }
             elif backend_type == "s3":
                 # TODO: Implement S3 health check
@@ -4256,20 +4179,21 @@ class ComprehensiveMCPDashboard:
                 return {
                     "healthy": storage_path.exists() if storage_path else False,
                     "type": "parquet",
-                    "details": f"Storage path: {storage_path}",
+                    "details": f"Storage path: {storage_path}"
                 }
             else:
                 return {"healthy": False, "type": backend_type, "details": "Unknown backend type"}
-
+                
         except Exception as e:
             return {"healthy": False, "error": str(e)}
-
+    
     async def _get_backend_health(self) -> Dict[str, Any]:
         """Get detailed backend health information from the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.mcp_server_url}/tools/backend_status", json={"arguments": {}}
+                    f"{self.mcp_server_url}/tools/backend_status",
+                    json={"arguments": {}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -4278,14 +4202,14 @@ class ComprehensiveMCPDashboard:
                         return {"backends": [], "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"backends": [], "error": str(e)}
-
+    
     async def _sync_backend(self, backend_name: str) -> Dict[str, Any]:
         """Sync a specific backend using the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/backend_sync",
-                    json={"arguments": {"backend_name": backend_name}},
+                    json={"arguments": {"backend_name": backend_name}}
                 ) as resp:
                     if resp.status == 200:
                         return await resp.json()
@@ -4293,14 +4217,14 @@ class ComprehensiveMCPDashboard:
                         return {"success": False, "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _get_backend_stats(self, backend_name: str) -> Dict[str, Any]:
         """Get statistics for a specific backend from the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/backend_status",
-                    json={"arguments": {"backend_name": backend_name}},
+                    json={"arguments": {"backend_name": backend_name}}
                 ) as resp:
                     if resp.status == 200:
                         return await resp.json()
@@ -4308,13 +4232,14 @@ class ComprehensiveMCPDashboard:
                         return {"error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"error": str(e)}
-
+    
     async def _get_buckets_data(self) -> List[Dict[str, Any]]:
         """Get comprehensive buckets data from the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.mcp_server_url}/tools/bucket_list", json={"arguments": {}}
+                    f"{self.mcp_server_url}/tools/bucket_list",
+                    json={"arguments": {}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -4324,12 +4249,12 @@ class ComprehensiveMCPDashboard:
         except Exception as e:
             logger.error(f"Error getting buckets data from MCP: {e}")
             return []
-
+    
     async def _get_bucket_info(self, bucket_name: str) -> Dict[str, Any]:
         """Get information about a specific bucket."""
         try:
             bucket_dir = self.data_dir / "buckets" / bucket_name
-
+            
             info = {
                 "name": bucket_name,
                 "type": "unknown",
@@ -4337,52 +4262,55 @@ class ComprehensiveMCPDashboard:
                 "total_size": 0,
                 "created_at": None,
                 "last_modified": None,
-                "status": "unknown",
+                "status": "unknown"
             }
-
+            
             if bucket_dir.exists():
                 # Get basic stats
                 info["status"] = "active"
-
+                
                 # Count files and calculate size
                 for file_path in bucket_dir.rglob("*"):
                     if file_path.is_file():
                         info["file_count"] += 1
                         info["total_size"] += file_path.stat().st_size
-
+                        
                         file_mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
-                        if info["last_modified"] is None or file_mtime > datetime.fromisoformat(
-                            info["last_modified"] or "1970-01-01"
-                        ):
+                        if info["last_modified"] is None or file_mtime > datetime.fromisoformat(info["last_modified"] or "1970-01-01"):
                             info["last_modified"] = file_mtime.isoformat()
-
+                
                 # Get creation time from directory
                 info["created_at"] = datetime.fromtimestamp(bucket_dir.stat().st_ctime).isoformat()
-
+                
                 # Try to get bucket metadata
                 metadata_file = bucket_dir / "metadata.json"
                 if metadata_file.exists():
                     try:
-                        with open(metadata_file, "r") as f:
+                        with open(metadata_file, 'r') as f:
                             metadata = json.load(f)
                             info.update(metadata)
                     except Exception as e:
                         logger.warning(f"Error reading bucket metadata: {e}")
             else:
                 info["status"] = "missing"
-
+            
             return info
-
+            
         except Exception as e:
             logger.error(f"Error getting bucket info for {bucket_name}: {e}")
-            return {"name": bucket_name, "status": "error", "error": str(e)}
-
+            return {
+                "name": bucket_name,
+                "status": "error",
+                "error": str(e)
+            }
+    
     async def _create_bucket(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new bucket using the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.mcp_server_url}/tools/bucket_create", json={"arguments": data}
+                    f"{self.mcp_server_url}/tools/bucket_create",
+                    json={"arguments": data}
                 ) as resp:
                     if resp.status == 200:
                         return await resp.json()
@@ -4390,14 +4318,14 @@ class ComprehensiveMCPDashboard:
                         return {"success": False, "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _get_bucket_details(self, bucket_name: str) -> Dict[str, Any]:
         """Get detailed information about a bucket from the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/bucket_list",
-                    json={"arguments": {"name": bucket_name}},
+                    json={"arguments": {"name": bucket_name}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -4410,14 +4338,14 @@ class ComprehensiveMCPDashboard:
                         return {"error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"error": str(e)}
-
+    
     async def _list_bucket_files(self, bucket_name: str) -> Dict[str, Any]:
         """List files in a bucket using the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/vfs_list",
-                    json={"arguments": {"path": f"/buckets/{bucket_name}"}},
+                    json={"arguments": {"path": f"/buckets/{bucket_name}"}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -4426,10 +4354,8 @@ class ComprehensiveMCPDashboard:
                         return {"files": [], "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"files": [], "error": str(e)}
-
-    async def _upload_file_to_bucket(
-        self, bucket_name: str, file: UploadFile, virtual_path: str = None
-    ) -> Dict[str, Any]:
+    
+    async def _upload_file_to_bucket(self, bucket_name: str, file: UploadFile, virtual_path: str = None) -> Dict[str, Any]:
         """Upload a file to a bucket using the MCP server."""
         try:
             # Save the file temporarily
@@ -4446,9 +4372,9 @@ class ComprehensiveMCPDashboard:
                         "arguments": {
                             "file_path": str(temp_path),
                             "backend": "default",  # Or determine from bucket
-                            "remote_path": f"/buckets/{bucket_name}/{virtual_path or file.filename}",
+                            "remote_path": f"/buckets/{bucket_name}/{virtual_path or file.filename}"
                         }
-                    },
+                    }
                 ) as resp:
                     if resp.status == 200:
                         return await resp.json()
@@ -4460,7 +4386,7 @@ class ComprehensiveMCPDashboard:
             # Clean up the temporary file
             if temp_path.exists():
                 temp_path.unlink()
-
+    
     async def _download_file_from_bucket(self, bucket_name: str, file_path: str) -> FileResponse:
         """Download a file from a bucket using the MCP server."""
         try:
@@ -4468,28 +4394,24 @@ class ComprehensiveMCPDashboard:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/vfs_list",
-                    json={"arguments": {"path": f"/buckets/{bucket_name}/{file_path}"}},
+                    json={"arguments": {"path": f"/buckets/{bucket_name}/{file_path}"}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         items = data.get("items", [])
                         if not items:
                             raise HTTPException(status_code=404, detail="File not found in VFS")
-                        cid = items[0].get("cid")  # Assuming the VFS provides the CID
+                        cid = items[0].get("cid") # Assuming the VFS provides the CID
                         if not cid:
-                            raise HTTPException(
-                                status_code=500, detail="CID not found in VFS for the file"
-                            )
+                            raise HTTPException(status_code=500, detail="CID not found in VFS for the file")
                     else:
-                        raise HTTPException(
-                            status_code=500, detail=f"MCP server error: {resp.status}"
-                        )
+                        raise HTTPException(status_code=500, detail=f"MCP server error: {resp.status}")
 
             # Now download the file using the CID
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/storage_download",
-                    json={"arguments": {"cid": cid, "local_path": f"/tmp/{file_path}"}},
+                    json={"arguments": {"cid": cid, "local_path": f"/tmp/{file_path}"}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -4498,27 +4420,23 @@ class ComprehensiveMCPDashboard:
                             return FileResponse(
                                 path=local_file_path,
                                 filename=Path(file_path).name,
-                                media_type="application/octet-stream",
+                                media_type='application/octet-stream'
                             )
                         else:
-                            raise HTTPException(
-                                status_code=500, detail="File not downloaded correctly"
-                            )
+                            raise HTTPException(status_code=500, detail="File not downloaded correctly")
                     else:
-                        raise HTTPException(
-                            status_code=500, detail=f"MCP server error: {resp.status}"
-                        )
+                        raise HTTPException(status_code=500, detail=f"MCP server error: {resp.status}")
         except Exception as e:
             logger.error(f"Error downloading file: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-
+    
     async def _delete_bucket_file(self, bucket_name: str, file_path: str) -> Dict[str, Any]:
         """Delete a file from a bucket using the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/vfs_remove",
-                    json={"arguments": {"path": f"/buckets/{bucket_name}/{file_path}"}},
+                    json={"arguments": {"path": f"/buckets/{bucket_name}/{file_path}"}}
                 ) as resp:
                     if resp.status == 200:
                         return await resp.json()
@@ -4526,14 +4444,15 @@ class ComprehensiveMCPDashboard:
                         return {"success": False, "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     # Bucket Index Management Methods
     async def _get_bucket_index(self) -> Dict[str, Any]:
         """Get the current bucket index from the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.mcp_server_url}/tools/get_bucket_index", json={"arguments": {}}
+                    f"{self.mcp_server_url}/tools/get_bucket_index",
+                    json={"arguments": {}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -4542,72 +4461,69 @@ class ComprehensiveMCPDashboard:
                         if isinstance(bucket_index, str):
                             # If it's a JSON string, parse it
                             import json
-
                             try:
                                 bucket_index = json.loads(bucket_index)
                             except:
                                 bucket_index = {}
-
+                        
                         return {
                             "success": True,
                             "bucket_index": bucket_index,
-                            "total_buckets": len(bucket_index.get("buckets", []))
-                            if isinstance(bucket_index, dict)
-                            else 0,
-                            "timestamp": datetime.now().isoformat(),
+                            "total_buckets": len(bucket_index.get("buckets", [])) if isinstance(bucket_index, dict) else 0,
+                            "timestamp": datetime.now().isoformat()
                         }
                     else:
                         return {"success": False, "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _create_bucket_index(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create or update bucket index using the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/create_individual_bucket_parquet",
-                    json={"arguments": data},
+                    json={"arguments": data}
                 ) as resp:
                     if resp.status == 200:
                         result = await resp.json()
                         return {
                             "success": True,
                             "message": "Bucket index created successfully",
-                            "result": result,
+                            "result": result
                         }
                     else:
                         return {"success": False, "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _rebuild_bucket_index(self) -> Dict[str, Any]:
         """Rebuild the entire bucket index using the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/rebuild_bucket_index",
-                    json={"arguments": {"force": True}},
+                    json={"arguments": {"force": True}}
                 ) as resp:
                     if resp.status == 200:
                         result = await resp.json()
                         return {
                             "success": True,
                             "message": "Bucket index rebuilt successfully",
-                            "result": result,
+                            "result": result
                         }
                     else:
                         return {"success": False, "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _get_bucket_index_info(self, bucket_name: str) -> Dict[str, Any]:
         """Get index information for a specific bucket."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/get_bucket_index",
-                    json={"arguments": {"bucket_name": bucket_name}},
+                    json={"arguments": {"bucket_name": bucket_name}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -4616,86 +4532,85 @@ class ComprehensiveMCPDashboard:
                         return {"success": False, "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _get_vfs_structure(self) -> Dict[str, Any]:
         """Get VFS structure across all buckets from the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/vfs_list",
-                    json={"arguments": {"path": "/", "recursive": True}},
+                    json={"arguments": {"path": "/", "recursive": True}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         return {
                             "structure": data.get("items", []),
-                            "bucket_count": len(
-                                set(
-                                    item["path"].split("/")[0]
-                                    for item in data.get("items", [])
-                                    if "/" in item["path"]
-                                )
-                            ),
+                            "bucket_count": len(set(item["path"].split("/")[0] for item in data.get("items", []) if "/" in item["path"]))
                         }
                     else:
                         return {"structure": {}, "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"structure": {}, "error": str(e)}
-
+    
     async def _get_bucket_vfs_structure(self, bucket_name: str) -> Dict[str, Any]:
         """Get VFS structure for a specific bucket."""
         try:
             bucket_dir = self.data_dir / "buckets" / bucket_name
             if not bucket_dir.exists():
                 return {"error": "Bucket not found"}
-
+            
             def build_tree(path: Path, relative_to: Path) -> Dict[str, Any]:
                 if path.is_file():
                     return {
                         "type": "file",
                         "name": path.name,
                         "size": path.stat().st_size,
-                        "modified": datetime.fromtimestamp(path.stat().st_mtime).isoformat(),
+                        "modified": datetime.fromtimestamp(path.stat().st_mtime).isoformat()
                     }
                 else:
                     children = {}
                     for child in path.iterdir():
                         if child.name != "metadata.json":  # Skip metadata
                             children[child.name] = build_tree(child, relative_to)
-                    return {"type": "directory", "name": path.name, "children": children}
-
+                    return {
+                        "type": "directory",
+                        "name": path.name,
+                        "children": children
+                    }
+            
             return build_tree(bucket_dir, bucket_dir)
-
+            
         except Exception as e:
             logger.error(f"Error getting bucket VFS structure: {e}")
             return {"error": str(e)}
-
+    
     async def _browse_vfs(self, bucket_name: str, path: str = "/") -> Dict[str, Any]:
         """Browse VFS for a specific bucket and path using the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/vfs_list",
-                    json={"arguments": {"path": f"/buckets/{bucket_name}{path}"}},
+                    json={"arguments": {"path": f"/buckets/{bucket_name}{path}"}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         return {
                             "items": data.get("items", []),
                             "current_path": path,
-                            "bucket": bucket_name,
+                            "bucket": bucket_name
                         }
                     else:
                         return {"items": [], "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"items": [], "error": str(e)}
-
+    
     async def _get_peers_data(self) -> Dict[str, Any]:
         """Get peers data from the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.mcp_server_url}/tools/peer_list", json={"arguments": {}}
+                    f"{self.mcp_server_url}/tools/peer_list",
+                    json={"arguments": {}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -4704,14 +4619,14 @@ class ComprehensiveMCPDashboard:
                         return {"peers": [], "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"peers": [], "error": str(e)}
-
+    
     async def _connect_peer(self, address: str) -> Dict[str, Any]:
         """Connect to a peer using the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/peer_connect",
-                    json={"arguments": {"address": address}},
+                    json={"arguments": {"address": address}}
                 ) as resp:
                     if resp.status == 200:
                         return await resp.json()
@@ -4720,28 +4635,27 @@ class ComprehensiveMCPDashboard:
         except Exception as e:
             return {"success": False, "error": str(e)}
             return {"success": False, "error": str(e)}
-
+    
     async def _disconnect_peer(self, peer_id: str) -> Dict[str, Any]:
         """Disconnect from a peer."""
         try:
-            result = subprocess.run(
-                ["ipfs", "swarm", "disconnect", peer_id], capture_output=True, timeout=10
-            )
+            result = subprocess.run(['ipfs', 'swarm', 'disconnect', peer_id], capture_output=True, timeout=10)
             if result.returncode == 0:
                 return {"success": True, "message": f"Disconnected from peer: {peer_id}"}
             else:
                 error_msg = result.stderr.decode().strip()
                 return {"success": False, "error": error_msg or "Disconnection failed"}
-
+                
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _get_peer_stats(self) -> Dict[str, Any]:
         """Get peer statistics from the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.mcp_server_url}/tools/peer_stats", json={"arguments": {}}
+                    f"{self.mcp_server_url}/tools/peer_stats",
+                    json={"arguments": {}}
                 ) as resp:
                     if resp.status == 200:
                         return await resp.json()
@@ -4750,13 +4664,14 @@ class ComprehensiveMCPDashboard:
         except Exception as e:
             logger.error(f"Error getting peer stats from MCP: {e}")
             return {"error": str(e)}
-
+    
     async def _get_pins_data(self) -> Dict[str, Any]:
         """Get pins data from the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.mcp_server_url}/tools/pin_list", json={"arguments": {}}
+                    f"{self.mcp_server_url}/tools/pin_list",
+                    json={"arguments": {}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -4765,13 +4680,14 @@ class ComprehensiveMCPDashboard:
                         return {"pins": [], "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"pins": [], "error": str(e)}
-
+    
     async def _get_pin_name(self, cid: str) -> str:
         """Get a friendly name for a pin if available using the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.mcp_server_url}/tools/pin_get_name", json={"arguments": {"cid": cid}}
+                    f"{self.mcp_server_url}/tools/pin_get_name",
+                    json={"arguments": {"cid": cid}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -4781,13 +4697,14 @@ class ComprehensiveMCPDashboard:
         except Exception as e:
             logger.error(f"Error getting pin name from MCP: {e}")
             return cid[:12] + "..."
-
+    
     async def _get_pin_size(self, cid: str) -> int:
         """Get the size of a pinned object using the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.mcp_server_url}/tools/pin_get_size", json={"arguments": {"cid": cid}}
+                    f"{self.mcp_server_url}/tools/pin_get_size",
+                    json={"arguments": {"cid": cid}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -4797,14 +4714,14 @@ class ComprehensiveMCPDashboard:
         except Exception as e:
             logger.error(f"Error getting pin size from MCP: {e}")
             return 0
-
+    
     async def _add_pin(self, cid: str, name: str = None) -> Dict[str, Any]:
         """Add a pin using the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/pin_add",
-                    json={"arguments": {"cid": cid, "name": name, "backend": "default"}},
+                    json={"arguments": {"cid": cid, "name": name, "backend": "default"}}
                 ) as resp:
                     if resp.status == 200:
                         return await resp.json()
@@ -4812,14 +4729,14 @@ class ComprehensiveMCPDashboard:
                         return {"success": False, "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _remove_pin(self, cid: str) -> Dict[str, Any]:
         """Remove a pin using the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/pin_remove",
-                    json={"arguments": {"cid": cid, "backend": "default"}},
+                    json={"arguments": {"cid": cid, "backend": "default"}}
                 ) as resp:
                     if resp.status == 200:
                         return await resp.json()
@@ -4827,13 +4744,14 @@ class ComprehensiveMCPDashboard:
                         return {"success": False, "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _sync_pins(self) -> Dict[str, Any]:
         """Sync pins across all backends using the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.mcp_server_url}/tools/backend_sync", json={"arguments": {}}
+                    f"{self.mcp_server_url}/tools/backend_sync",
+                    json={"arguments": {}}
                 ) as resp:
                     if resp.status == 200:
                         return {"success": True, "message": "Pin sync initiated for all backends"}
@@ -4841,14 +4759,14 @@ class ComprehensiveMCPDashboard:
                         return {"success": False, "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _get_system_metrics(self) -> Dict[str, Any]:
         """Get basic system metrics from the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/daemon_status",
-                    json={"arguments": {"detailed": True}},
+                    json={"arguments": {"detailed": True}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -4856,32 +4774,33 @@ class ComprehensiveMCPDashboard:
                         return {
                             "cpu": {
                                 "percent": psutil.cpu_percent(interval=1),
-                                "count": psutil.cpu_count(),
+                                "count": psutil.cpu_count()
                             },
                             "memory": {
                                 "percent": psutil.virtual_memory().percent,
                                 "total": psutil.virtual_memory().total,
-                                "available": psutil.virtual_memory().available,
+                                "available": psutil.virtual_memory().available
                             },
                             "disk": {
                                 "percent": psutil.disk_usage(str(self.data_dir)).percent,
                                 "total": psutil.disk_usage(str(self.data_dir)).total,
-                                "free": psutil.disk_usage(str(self.data_dir)).free,
+                                "free": psutil.disk_usage(str(self.data_dir)).free
                             },
                             "daemon": daemon_status,
-                            "timestamp": datetime.now().isoformat(),
+                            "timestamp": datetime.now().isoformat()
                         }
                     else:
                         return {"error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"error": str(e)}
-
+    
     async def _get_detailed_metrics(self) -> Dict[str, Any]:
         """Get detailed system metrics from the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.mcp_server_url}/tools/daemon_intelligent_status", json={"arguments": {}}
+                    f"{self.mcp_server_url}/tools/daemon_intelligent_status",
+                    json={"arguments": {}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -4890,25 +4809,23 @@ class ComprehensiveMCPDashboard:
                         return {"error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"error": str(e)}
-
-    async def _check_backend_health(
-        self, backend_name: str, backend_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    
+    async def _check_backend_health(self, backend_name: str, backend_data: Dict[str, Any]) -> Dict[str, Any]:
         """Check the health of a specific backend."""
         try:
             backend_type = backend_data.get("type", "unknown")
-
+            
             if backend_type == "ipfs":
                 # Check IPFS backend health
                 try:
-                    result = subprocess.run(["ipfs", "version"], capture_output=True, timeout=5)
+                    result = subprocess.run(['ipfs', 'version'], capture_output=True, timeout=5)
                     if result.returncode == 0:
                         return {"status": "healthy", "message": "IPFS node accessible"}
                     else:
                         return {"status": "unhealthy", "message": "IPFS node not responding"}
                 except Exception:
                     return {"status": "unhealthy", "message": "IPFS not available"}
-
+            
             elif backend_type == "parquet":
                 # Check parquet backend health by checking data directory
                 data_path = backend_data.get("config", {}).get("data_path")
@@ -4916,7 +4833,7 @@ class ComprehensiveMCPDashboard:
                     return {"status": "healthy", "message": "Data directory accessible"}
                 else:
                     return {"status": "unhealthy", "message": "Data directory not found"}
-
+            
             elif backend_type == "sqlite":
                 # Check SQLite backend health
                 db_path = backend_data.get("config", {}).get("db_path")
@@ -4930,99 +4847,79 @@ class ComprehensiveMCPDashboard:
                         return {"status": "unhealthy", "message": f"Database error: {str(e)}"}
                 else:
                     return {"status": "unhealthy", "message": "Database file not found"}
-
+            
             else:
-                return {
-                    "status": "unknown",
-                    "message": f"Health check not implemented for {backend_type}",
-                }
-
+                return {"status": "unknown", "message": f"Health check not implemented for {backend_type}"}
+                
         except Exception as e:
             return {"status": "error", "message": str(e)}
-
+            
             # Add to history
             self.system_metrics_history.append(metrics)
             if len(self.system_metrics_history) > 100:  # Keep last 100 entries
                 self.system_metrics_history.pop(0)
-
+            
             return metrics
-
+            
         except Exception as e:
             logger.error(f"Error getting detailed metrics: {e}")
             return {"error": str(e)}
-
+    
     async def _get_metrics_history(self) -> Dict[str, Any]:
         """Get metrics history."""
         return {
             "history": self.system_metrics_history,
             "count": len(self.system_metrics_history),
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now().isoformat()
         }
-
-    async def _get_logs(
-        self, component: str = "all", level: str = "info", limit: int = 100
-    ) -> Dict[str, Any]:
+    
+    async def _get_logs(self, component: str = "all", level: str = "info", limit: int = 100) -> Dict[str, Any]:
         """Get logs from the ipfs_kit package and backend systems."""
         try:
             # First try to get logs from the backend log manager
             logs = []
-
+            
             # Try to import and use the backend log manager
             try:
                 import sys
                 import os
-
-                sys.path.insert(
-                    0,
-                    os.path.join(
-                        os.path.dirname(__file__), "..", "..", "mcp", "ipfs_kit", "backends"
-                    ),
-                )
+                sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'mcp', 'ipfs_kit', 'backends'))
                 from log_manager import BackendLogManager
-
+                
                 # Initialize log manager
                 log_manager = BackendLogManager()
-
+                
                 if component == "all":
                     # Get logs from all backends
                     backend_logs = log_manager.get_all_backend_logs(limit=limit)
                     for backend_name, backend_log_list in backend_logs.items():
                         for log_entry in backend_log_list:
-                            if (
-                                level == "all"
-                                or log_entry.get("level", "").lower() == level.lower()
-                            ):
-                                logs.append(
-                                    {
-                                        "timestamp": log_entry.get(
-                                            "timestamp", datetime.now().isoformat()
-                                        ),
-                                        "level": log_entry.get("level", "INFO"),
-                                        "component": backend_name,
-                                        "message": log_entry.get("message", ""),
-                                        "backend": backend_name,
-                                    }
-                                )
+                            if level == "all" or log_entry.get('level', '').lower() == level.lower():
+                                logs.append({
+                                    "timestamp": log_entry.get('timestamp', datetime.now().isoformat()),
+                                    "level": log_entry.get('level', 'INFO'),
+                                    "component": backend_name,
+                                    "message": log_entry.get('message', ''),
+                                    "backend": backend_name
+                                })
                 else:
                     # Get logs for specific component/backend
                     backend_logs = log_manager.get_backend_logs(component, limit=limit, level=level)
                     for log_entry in backend_logs:
-                        logs.append(
-                            {
-                                "timestamp": log_entry.get("timestamp", datetime.now().isoformat()),
-                                "level": log_entry.get("level", "INFO"),
-                                "component": component,
-                                "message": log_entry.get("message", ""),
-                                "backend": component,
-                            }
-                        )
-
+                        logs.append({
+                            "timestamp": log_entry.get('timestamp', datetime.now().isoformat()),
+                            "level": log_entry.get('level', 'INFO'),
+                            "component": component,
+                            "message": log_entry.get('message', ''),
+                            "backend": component
+                        })
+                        
             except Exception as backend_log_error:
                 print(f"Backend log manager not available: {backend_log_error}")
-
+                
                 # Fallback to direct log file reading
                 log_sources = []
-
+                
                 # Determine log sources based on component
                 if component == "all" or component == "mcp":
                     log_sources.append(self.data_dir / "logs" / "mcp_server.log")
@@ -5037,59 +4934,39 @@ class ComprehensiveMCPDashboard:
                     log_sources.append(self.data_dir / "logs" / "health.log")
                 if component == "all" or component == "replication":
                     log_sources.append(self.data_dir / "logs" / "replication.log")
-
+                
                 # Read logs from files
                 for log_file in log_sources:
                     if log_file.exists():
                         try:
-                            with open(log_file, "r") as f:
+                            with open(log_file, 'r') as f:
                                 lines = f.readlines()
                                 for line in reversed(lines[-limit:]):  # Get last N lines
                                     if line.strip():
                                         # Try to parse structured log entries
                                         log_level = "INFO"
-                                        if any(
-                                            l in line
-                                            for l in [
-                                                "ERROR",
-                                                "CRITICAL",
-                                                "WARNING",
-                                                "DEBUG",
-                                                "INFO",
-                                            ]
-                                        ):
-                                            for l in [
-                                                "CRITICAL",
-                                                "ERROR",
-                                                "WARNING",
-                                                "INFO",
-                                                "DEBUG",
-                                            ]:
+                                        if any(l in line for l in ["ERROR", "CRITICAL", "WARNING", "DEBUG", "INFO"]):
+                                            for l in ["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"]:
                                                 if l in line:
                                                     log_level = l
                                                     break
-
+                                        
                                         if level == "all" or log_level.lower() == level.lower():
-                                            logs.append(
-                                                {
-                                                    "timestamp": datetime.now().isoformat(),  # Simplified
-                                                    "level": log_level,
-                                                    "component": log_file.stem,
-                                                    "message": line.strip(),
-                                                }
-                                            )
+                                            logs.append({
+                                                "timestamp": datetime.now().isoformat(),  # Simplified
+                                                "level": log_level,
+                                                "component": log_file.stem,
+                                                "message": line.strip()
+                                            })
                         except Exception as e:
                             print(f"Error reading log file {log_file}: {e}")
-
+            
             # If still no logs, try to get logs from CLI
             if not logs:
                 try:
                     # Try using the ipfs-kit CLI to get logs
                     result = subprocess.run(
-                        [
-                            "python",
-                            "-c",
-                            f'''
+                        ['python', '-c', f'''
 import sys
 import os
 sys.path.insert(0, "{os.path.dirname(__file__)}")
@@ -5100,29 +4977,26 @@ async def get_logs():
     return await cli.cmd_log_show(component="{component}", level="{level}", limit={limit})
 result = anyio.run(get_logs)
 print(result)
-                        ''',
-                        ],
+                        '''],
                         capture_output=True,
                         text=True,
-                        timeout=10,
+                        timeout=10
                     )
-
+                    
                     if result.returncode == 0 and result.stdout.strip():
                         # Parse CLI output
-                        cli_logs = result.stdout.strip().split("\n")
+                        cli_logs = result.stdout.strip().split('\n')
                         for log_line in cli_logs:
                             if log_line.strip():
-                                logs.append(
-                                    {
-                                        "timestamp": datetime.now().isoformat(),
-                                        "level": level.upper(),
-                                        "component": component,
-                                        "message": log_line.strip(),
-                                    }
-                                )
+                                logs.append({
+                                    "timestamp": datetime.now().isoformat(),
+                                    "level": level.upper(),
+                                    "component": component,
+                                    "message": log_line.strip()
+                                })
                 except Exception as cli_error:
                     print(f"CLI log access failed: {cli_error}")
-
+            
             # If still no logs found, create sample logs with realistic system information
             if not logs:
                 current_time = datetime.now()
@@ -5131,42 +5005,42 @@ print(result)
                         "timestamp": current_time.isoformat(),
                         "level": "INFO",
                         "component": "dashboard",
-                        "message": "Dashboard started successfully - connecting to ipfs_kit logs",
+                        "message": "Dashboard started successfully - connecting to ipfs_kit logs"
                     },
                     {
                         "timestamp": (current_time - timedelta(minutes=1)).isoformat(),
                         "level": "INFO",
                         "component": "mcp",
-                        "message": "MCP server monitoring active",
+                        "message": "MCP server monitoring active"
                     },
                     {
                         "timestamp": (current_time - timedelta(minutes=2)).isoformat(),
                         "level": "INFO",
                         "component": "backend",
-                        "message": "Backend health check completed",
+                        "message": "Backend health check completed"
                     },
                     {
                         "timestamp": (current_time - timedelta(minutes=3)).isoformat(),
                         "level": "DEBUG",
                         "component": "ipfs",
-                        "message": "IPFS daemon connectivity verified",
+                        "message": "IPFS daemon connectivity verified"
                     },
                     {
                         "timestamp": (current_time - timedelta(minutes=5)).isoformat(),
                         "level": "WARNING",
                         "component": "logs",
-                        "message": "Log aggregation system initializing - connecting to ipfs_kit log sources",
-                    },
+                        "message": "Log aggregation system initializing - connecting to ipfs_kit log sources"
+                    }
                 ]
-
+            
             # Sort logs by timestamp (most recent first)
-            logs.sort(key=lambda x: x["timestamp"], reverse=True)
-
+            logs.sort(key=lambda x: x['timestamp'], reverse=True)
+            
             return {"logs": logs[:limit], "total": len(logs)}
-
+            
         except Exception as e:
             return {"logs": [], "error": str(e), "total": 0}
-
+            
     async def _stream_logs(self) -> Dict[str, Any]:
         """Stream logs for real-time updates."""
         try:
@@ -5174,46 +5048,39 @@ print(result)
             try:
                 import sys
                 import os
-
-                sys.path.insert(
-                    0,
-                    os.path.join(
-                        os.path.dirname(__file__), "..", "..", "mcp", "ipfs_kit", "backends"
-                    ),
-                )
+                sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'mcp', 'ipfs_kit', 'backends'))
                 from log_manager import BackendLogManager
-
+                
                 log_manager = BackendLogManager()
                 recent_logs = log_manager.get_recent_logs(minutes=5, limit=50)
-
+                
                 formatted_logs = []
                 for log_entry in recent_logs:
-                    formatted_logs.append(
-                        {
-                            "timestamp": log_entry.get("timestamp", datetime.now().isoformat()),
-                            "level": log_entry.get("level", "INFO"),
-                            "component": log_entry.get("backend", "system"),
-                            "message": log_entry.get("message", ""),
-                            "backend": log_entry.get("backend", "system"),
-                        }
-                    )
-
+                    formatted_logs.append({
+                        "timestamp": log_entry.get('timestamp', datetime.now().isoformat()),
+                        "level": log_entry.get('level', 'INFO'),
+                        "component": log_entry.get('backend', 'system'),
+                        "message": log_entry.get('message', ''),
+                        "backend": log_entry.get('backend', 'system')
+                    })
+                
                 return {"logs": formatted_logs, "streaming": True}
-
+                
             except Exception as stream_error:
                 print(f"Log streaming not available: {stream_error}")
-
+                
                 # Fallback to recent file-based logs
                 recent_logs = await self._get_logs("all", "all", 20)
                 return {"logs": recent_logs.get("logs", []), "streaming": False}
-
+                
         except Exception as e:
             return {"logs": [], "error": str(e), "streaming": False}
         """Get configuration from the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.mcp_server_url}/tools/config_show", json={"arguments": {}}
+                    f"{self.mcp_server_url}/tools/config_show",
+                    json={"arguments": {}}
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -5222,13 +5089,14 @@ print(result)
                         return {"config": {}, "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"config": {}, "error": str(e)}
-
+    
     async def _update_configuration(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Update configuration using the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.mcp_server_url}/tools/config_set", json={"arguments": data}
+                    f"{self.mcp_server_url}/tools/config_set",
+                    json={"arguments": data}
                 ) as resp:
                     if resp.status == 200:
                         return await resp.json()
@@ -5236,14 +5104,14 @@ print(result)
                         return {"success": False, "error": f"MCP server error: {resp.status}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def _get_component_config(self, component: str) -> Dict[str, Any]:
         """Get configuration for a specific component using the MCP server."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.mcp_server_url}/tools/config_show",
-                    json={"arguments": {"component": component}},
+                    json={"arguments": {"component": component}}
                 ) as resp:
                     if resp.status == 200:
                         return await resp.json()
@@ -5252,7 +5120,7 @@ print(result)
         except Exception as e:
             logger.error(f"Error getting component config from MCP: {e}")
             return {"error": str(e)}
-
+    
     async def _get_analytics_summary(self) -> Dict[str, Any]:
         """Get analytics summary."""
         try:
@@ -5260,173 +5128,165 @@ print(result)
             buckets_data = await self._get_buckets_data()
             bucket_count = len(buckets_data)
             total_bucket_size = sum(bucket.get("total_size", 0) for bucket in buckets_data)
-
+            
             # Get pin analytics
             pins_data = await self._get_pins_data()
             pin_count = pins_data.get("total", 0)
-
+            
             # Get backend analytics
             backends_data = await self._get_backends_data()
             backend_count = backends_data.get("total", 0)
             healthy_backends = backends_data.get("healthy", 0)
-
+            
             return {
                 "summary": {
-                    "buckets": {"total": bucket_count, "total_size": total_bucket_size},
-                    "pins": {"total": pin_count},
+                    "buckets": {
+                        "total": bucket_count,
+                        "total_size": total_bucket_size
+                    },
+                    "pins": {
+                        "total": pin_count
+                    },
                     "backends": {
                         "total": backend_count,
                         "healthy": healthy_backends,
-                        "health_percentage": (healthy_backends / backend_count * 100)
-                        if backend_count > 0
-                        else 0,
-                    },
+                        "health_percentage": (healthy_backends / backend_count * 100) if backend_count > 0 else 0
+                    }
                 },
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now().isoformat()
             }
-
+            
         except Exception as e:
             logger.error(f"Error getting analytics summary: {e}")
             return {"error": str(e)}
-
+    
     async def _get_bucket_analytics(self) -> Dict[str, Any]:
         """Get detailed bucket analytics."""
         try:
             buckets_data = await self._get_buckets_data()
-
+            
             analytics = {
                 "by_type": {},
                 "by_size": {},
                 "total_files": 0,
                 "total_size": 0,
-                "average_size": 0,
+                "average_size": 0
             }
-
+            
             for bucket in buckets_data:
                 bucket_type = bucket.get("type", "unknown")
                 bucket_size = bucket.get("total_size", 0)
                 file_count = bucket.get("file_count", 0)
-
+                
                 if bucket_type not in analytics["by_type"]:
                     analytics["by_type"][bucket_type] = {"count": 0, "total_size": 0}
-
+                
                 analytics["by_type"][bucket_type]["count"] += 1
                 analytics["by_type"][bucket_type]["total_size"] += bucket_size
                 analytics["total_files"] += file_count
                 analytics["total_size"] += bucket_size
-
+            
             if len(buckets_data) > 0:
                 analytics["average_size"] = analytics["total_size"] / len(buckets_data)
-
+            
             return analytics
-
+            
         except Exception as e:
             logger.error(f"Error getting bucket analytics: {e}")
             return {"error": str(e)}
-
+    
     async def _get_performance_analytics(self) -> Dict[str, Any]:
         """Get performance analytics."""
         try:
             # Calculate performance metrics from history
             if not self.system_metrics_history:
                 return {"error": "No metrics history available"}
-
+            
             recent_metrics = self.system_metrics_history[-10:]  # Last 10 entries
-
-            avg_cpu = sum(m["system"]["cpu"]["percent"] for m in recent_metrics) / len(
-                recent_metrics
-            )
-            avg_memory = sum(m["system"]["memory"]["percent"] for m in recent_metrics) / len(
-                recent_metrics
-            )
-
+            
+            avg_cpu = sum(m["system"]["cpu"]["percent"] for m in recent_metrics) / len(recent_metrics)
+            avg_memory = sum(m["system"]["memory"]["percent"] for m in recent_metrics) / len(recent_metrics)
+            
             return {
-                "averages": {"cpu_percent": avg_cpu, "memory_percent": avg_memory},
+                "averages": {
+                    "cpu_percent": avg_cpu,
+                    "memory_percent": avg_memory
+                },
                 "trends": {
                     "cpu_trend": "stable",  # Could calculate actual trend
-                    "memory_trend": "stable",
+                    "memory_trend": "stable"
                 },
                 "data_points": len(self.system_metrics_history),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now().isoformat()
             }
-
+            
         except Exception as e:
             logger.error(f"Error getting performance analytics: {e}")
             return {"error": str(e)}
-
-    async def _execute_cross_backend_query(
-        self, query: str, backends: List[str] = None
-    ) -> Dict[str, Any]:
+    
+    async def _execute_cross_backend_query(self, query: str, backends: List[str] = None) -> Dict[str, Any]:
         """Execute a cross-backend query."""
         try:
             if not self.bucket_interface:
                 return {"error": "Bucket interface not available"}
-
+            
             # Use the unified bucket interface for cross-backend queries
             result = await self.bucket_interface.query_across_backends(query, backends)
             return result
-
+            
         except Exception as e:
             logger.error(f"Error executing cross-backend query: {e}")
             return {"error": str(e)}
-
+    
     async def _generate_car_file(self, bucket_name: str, output_path: str = None) -> Dict[str, Any]:
         """Generate CAR file for a bucket."""
         try:
             if not output_path:
                 output_path = str(self.data_dir / "car_files" / f"{bucket_name}.car")
-
+            
             # Create output directory
             Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-
+            
             # Use MCP server to generate CAR file if available
             async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.mcp_server_url}/car/generate",
-                    json={"bucket_name": bucket_name, "output_path": output_path},
-                ) as resp:
+                async with session.post(f"{self.mcp_server_url}/car/generate", 
+                                       json={"bucket_name": bucket_name, "output_path": output_path}) as resp:
                     if resp.status == 200:
-                        return {
-                            "success": True,
-                            "message": f"CAR file generation initiated for {bucket_name}",
-                            "output_path": output_path,
-                        }
+                        return {"success": True, "message": f"CAR file generation initiated for {bucket_name}", "output_path": output_path}
                     else:
                         return {"success": False, "error": f"MCP server error: {resp.status}"}
-
+                        
         except Exception as e:
             logger.error(f"Error generating CAR file: {e}")
             return {"success": False, "error": str(e)}
-
+    
     async def _list_car_files(self) -> Dict[str, Any]:
         """List available CAR files."""
         try:
             car_files = []
             car_dir = self.data_dir / "car_files"
-
+            
             if car_dir.exists():
                 for car_file in car_dir.glob("*.car"):
                     file_stats = car_file.stat()
-                    car_files.append(
-                        {
-                            "name": car_file.name,
-                            "path": str(car_file),
-                            "size": file_stats.st_size,
-                            "created": datetime.fromtimestamp(file_stats.st_ctime).isoformat(),
-                            "modified": datetime.fromtimestamp(file_stats.st_mtime).isoformat(),
-                        }
-                    )
-
+                    car_files.append({
+                        "name": car_file.name,
+                        "path": str(car_file),
+                        "size": file_stats.st_size,
+                        "created": datetime.fromtimestamp(file_stats.st_ctime).isoformat(),
+                        "modified": datetime.fromtimestamp(file_stats.st_mtime).isoformat()
+                    })
+            
             return {
                 "car_files": car_files,
                 "count": len(car_files),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now().isoformat()
             }
-
+            
         except Exception as e:
             logger.error(f"Error listing CAR files: {e}")
             return {"error": str(e)}
-
+    
     async def _handle_websocket(self, websocket: WebSocket):
         """Handle WebSocket connection for real-time updates."""
         try:
@@ -5434,24 +5294,23 @@ print(result)
             await websocket.accept()
             logger.info("WebSocket connection accepted")
             self.websocket_clients.add(websocket)
-
+            
             # Send initial connection confirmation
-            await websocket.send_text(
-                json.dumps(
-                    {
-                        "type": "connection_status",
-                        "data": {"status": "connected", "timestamp": str(datetime.now())},
-                    }
-                )
-            )
-
+            await websocket.send_text(json.dumps({
+                'type': 'connection_status',
+                'data': {'status': 'connected', 'timestamp': str(datetime.now())}
+            }))
+            
             while True:
                 # Send periodic updates
                 await anyio.sleep(self.update_interval)
-
+                
                 status = await self._get_system_status()
-                await websocket.send_text(json.dumps({"type": "status_update", "data": status}))
-
+                await websocket.send_text(json.dumps({
+                    'type': 'status_update',
+                    'data': status
+                }))
+                
         except WebSocketDisconnect:
             logger.info("WebSocket client disconnected")
             self.websocket_clients.discard(websocket)
@@ -5466,32 +5325,32 @@ print(result)
             print(f"Starting Comprehensive MCP Dashboard on {self.host}:{self.port}")
             print(f"Data directory: {self.data_dir}")
             print(f"MCP Server URL: {self.mcp_server_url}")
-
+            
             # Initialize data directory structure
             (self.data_dir / "buckets").mkdir(parents=True, exist_ok=True)
             (self.data_dir / "logs").mkdir(parents=True, exist_ok=True)
             (self.data_dir / "config").mkdir(parents=True, exist_ok=True)
             (self.data_dir / "car_files").mkdir(parents=True, exist_ok=True)
             (self.data_dir / "pin_metadata").mkdir(parents=True, exist_ok=True)
-
+            
             # Start metrics collection task
             anyio.lowlevel.spawn_system_task(self._metrics_collection_task)
-
+            
             # Start the server
             config = uvicorn.Config(
                 app=self.app,
                 host=self.host,
                 port=self.port,
                 log_level="info" if self.debug else "warning",
-                access_log=self.debug,
+                access_log=self.debug
             )
             server = uvicorn.Server(config)
             await server.serve()
-
+            
         except Exception as e:
             logger.error(f"Error starting dashboard: {e}")
             raise
-
+    
     async def _metrics_collection_task(self):
         """Background task to collect system metrics."""
         while True:
@@ -5502,6 +5361,7 @@ print(result)
                 logger.error(f"Error in metrics collection: {e}")
                 await anyio.sleep(self.update_interval)
 
+
     # Comprehensive Configuration Management System
     async def _get_all_configs(self):
         """Get all configuration files from ~/.ipfs_kit/ directories"""
@@ -5511,76 +5371,61 @@ print(result)
                 "backend_configs": {},
                 "bucket_configs": {},
                 "main_configs": {},
-                "schemas": self._get_config_schemas(),
+                "schemas": self._get_config_schemas()
             }
-
+            
             # Backend configurations
             backend_config_dir = os.path.join(ipfs_kit_dir, "backend_configs")
             if os.path.exists(backend_config_dir):
                 for filename in os.listdir(backend_config_dir):
-                    if filename.endswith((".yml", ".yaml")):
+                    if filename.endswith(('.yml', '.yaml')):
                         config_path = os.path.join(backend_config_dir, filename)
                         try:
-                            with open(config_path, "r") as f:
+                            with open(config_path, 'r') as f:
                                 import yaml
-
                                 config_data = yaml.safe_load(f)
-                                backend_name = filename.replace(".yml", "").replace(".yaml", "")
+                                backend_name = filename.replace('.yml', '').replace('.yaml', '')
                                 configs["backend_configs"][backend_name] = config_data
                         except Exception as e:
                             logger.error(f"Error loading backend config {filename}: {e}")
-
+            
             # Bucket configurations
             bucket_config_dir = os.path.join(ipfs_kit_dir, "bucket_configs")
             if os.path.exists(bucket_config_dir):
                 for filename in os.listdir(bucket_config_dir):
-                    if filename.endswith((".yml", ".yaml")):
+                    if filename.endswith(('.yml', '.yaml')):
                         config_path = os.path.join(bucket_config_dir, filename)
                         try:
-                            with open(config_path, "r") as f:
+                            with open(config_path, 'r') as f:
                                 import yaml
-
                                 config_data = yaml.safe_load(f)
-                                bucket_name = filename.replace(".yml", "").replace(".yaml", "")
+                                bucket_name = filename.replace('.yml', '').replace('.yaml', '')
                                 configs["bucket_configs"][bucket_name] = config_data
                         except Exception as e:
                             logger.error(f"Error loading bucket config {filename}: {e}")
-
+            
             # Main configuration files in ~/.ipfs_kit/ root
             main_config_files = [
-                "package_config.yaml",
-                "s3_config.yaml",
-                "lotus_config.yaml",
-                "storacha_config.yaml",
-                "gdrive_config.yaml",
-                "synapse_config.yaml",
-                "huggingface_config.yaml",
-                "github_config.yaml",
-                "ipfs_cluster_config.yaml",
-                "cluster_follow_config.yaml",
-                "parquet_config.yaml",
-                "arrow_config.yaml",
-                "sshfs_config.yaml",
-                "ftp_config.yaml",
-                "daemon_config.yaml",
-                "wal_config.yaml",
-                "fs_journal_config.yaml",
-                "pinset_policy_config.yaml",
+                'package_config.yaml', 's3_config.yaml', 'lotus_config.yaml', 
+                'storacha_config.yaml', 'gdrive_config.yaml', 'synapse_config.yaml',
+                'huggingface_config.yaml', 'github_config.yaml', 'ipfs_cluster_config.yaml',
+                'cluster_follow_config.yaml', 'parquet_config.yaml', 'arrow_config.yaml',
+                'sshfs_config.yaml', 'ftp_config.yaml', 'daemon_config.yaml',
+                'wal_config.yaml', 'fs_journal_config.yaml', 'pinset_policy_config.yaml'
             ]
-
+            
             for config_file in main_config_files:
                 config_path = os.path.join(ipfs_kit_dir, config_file)
                 if os.path.exists(config_path):
                     try:
-                        with open(config_path, "r") as f:
+                        with open(config_path, 'r') as f:
                             import yaml
-
                             config_data = yaml.safe_load(f)
-                            config_name = config_file.replace(".yaml", "").replace("_config", "")
+                            config_name = config_file.replace('.yaml', '').replace('_config', '')
                             configs["main_configs"][config_name] = config_data
                     except Exception as e:
                         logger.error(f"Error loading main config {config_file}: {e}")
-
+            
             return {"success": True, "configs": configs}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -5600,27 +5445,21 @@ print(result)
                         "required": ["access_key_id", "secret_access_key", "bucket_name", "region"],
                         "properties": {
                             "access_key_id": {"type": "string", "description": "AWS Access Key ID"},
-                            "secret_access_key": {
-                                "type": "string",
-                                "description": "AWS Secret Access Key",
-                            },
+                            "secret_access_key": {"type": "string", "description": "AWS Secret Access Key"},
                             "bucket_name": {"type": "string", "description": "S3 bucket name"},
                             "region": {"type": "string", "description": "AWS region"},
-                            "endpoint_url": {
-                                "type": "string",
-                                "description": "Custom S3 endpoint (optional)",
-                            },
-                            "use_ssl": {"type": "boolean", "default": True},
-                        },
+                            "endpoint_url": {"type": "string", "description": "Custom S3 endpoint (optional)"},
+                            "use_ssl": {"type": "boolean", "default": True}
+                        }
                     },
                     "metadata": {
                         "type": "object",
                         "properties": {
                             "description": {"type": "string"},
-                            "version": {"type": "string", "default": "1.0"},
-                        },
-                    },
-                },
+                            "version": {"type": "string", "default": "1.0"}
+                        }
+                    }
+                }
             },
             "backend_storacha": {
                 "type": "object",
@@ -5634,25 +5473,17 @@ print(result)
                         "required": ["api_token"],
                         "properties": {
                             "api_token": {"type": "string", "description": "Storacha API token"},
-                            "endpoint": {
-                                "type": "string",
-                                "description": "Storacha endpoint",
-                                "default": "https://up.storacha.network/bridge",
-                            },
-                        },
-                    },
-                },
+                            "endpoint": {"type": "string", "description": "Storacha endpoint", "default": "https://up.storacha.network/bridge"}
+                        }
+                    }
+                }
             },
             "bucket": {
                 "type": "object",
                 "required": ["bucket_name", "type"],
                 "properties": {
                     "bucket_name": {"type": "string", "description": "Bucket name"},
-                    "type": {
-                        "type": "string",
-                        "enum": ["dataset", "archive", "cache"],
-                        "description": "Bucket type",
-                    },
+                    "type": {"type": "string", "enum": ["dataset", "archive", "cache"], "description": "Bucket type"},
                     "version": {"type": "string", "default": "2.0"},
                     "schema_version": {"type": "string", "default": "1.0"},
                     "description": {"type": "string"},
@@ -5663,12 +5494,8 @@ print(result)
                             "deduplication_enabled": {"type": "boolean", "default": True},
                             "encryption_enabled": {"type": "boolean", "default": False},
                             "wal_enabled": {"type": "boolean", "default": True},
-                            "wal_format": {
-                                "type": "string",
-                                "enum": ["car", "json"],
-                                "default": "car",
-                            },
-                        },
+                            "wal_format": {"type": "string", "enum": ["car", "json"], "default": "car"}
+                        }
                     },
                     "replication": {
                         "type": "object",
@@ -5676,8 +5503,8 @@ print(result)
                             "enabled": {"type": "boolean", "default": True},
                             "min_replicas": {"type": "integer", "minimum": 1, "default": 2},
                             "max_replicas": {"type": "integer", "minimum": 1, "default": 5},
-                            "target_replicas": {"type": "integer", "minimum": 1, "default": 3},
-                        },
+                            "target_replicas": {"type": "integer", "minimum": 1, "default": 3}
+                        }
                     },
                     "daemon": {
                         "type": "object",
@@ -5685,41 +5512,29 @@ print(result)
                             "auto_start": {"type": "boolean", "default": True},
                             "managed": {"type": "boolean", "default": True},
                             "health_check_interval": {"type": "integer", "default": 30},
-                            "log_level": {
-                                "type": "string",
-                                "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
-                                "default": "INFO",
-                            },
-                        },
-                    },
-                },
+                            "log_level": {"type": "string", "enum": ["DEBUG", "INFO", "WARNING", "ERROR"], "default": "INFO"}
+                        }
+                    }
+                }
             },
             "daemon": {
                 "type": "object",
                 "properties": {
-                    "role": {
-                        "type": "string",
-                        "enum": ["leecher", "seeder", "hybrid"],
-                        "default": "leecher",
-                    },
+                    "role": {"type": "string", "enum": ["leecher", "seeder", "hybrid"], "default": "leecher"},
                     "port": {"type": "integer", "minimum": 1024, "maximum": 65535, "default": 8004},
                     "host": {"type": "string", "default": "127.0.0.1"},
                     "workers": {"type": "integer", "minimum": 1, "default": 4},
-                    "log_level": {
-                        "type": "string",
-                        "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
-                        "default": "INFO",
-                    },
-                    "health_check_enabled": {"type": "boolean", "default": True},
-                },
-            },
+                    "log_level": {"type": "string", "enum": ["DEBUG", "INFO", "WARNING", "ERROR"], "default": "INFO"},
+                    "health_check_enabled": {"type": "boolean", "default": True}
+                }
+            }
         }
 
     async def _create_config(self, config_type: str, config_name: str, data: dict):
         """Create a new configuration file"""
         try:
             ipfs_kit_dir = os.path.expanduser("~/.ipfs_kit")
-
+            
             if config_type == "backend":
                 config_dir = os.path.join(ipfs_kit_dir, "backend_configs")
                 config_path = os.path.join(config_dir, f"{config_name}.yaml")
@@ -5731,28 +5546,23 @@ print(result)
                 config_path = os.path.join(config_dir, f"{config_name}_config.yaml")
             else:
                 return {"success": False, "error": f"Unknown config type: {config_type}"}
-
+            
             os.makedirs(config_dir, exist_ok=True)
-
+            
             # Check if already exists
             if os.path.exists(config_path):
                 return {"success": False, "error": f"Configuration '{config_name}' already exists"}
-
+            
             # Add timestamps
             from datetime import datetime
-
-            data["created_at"] = datetime.now().isoformat()
-            data["updated_at"] = datetime.now().isoformat()
-
-            with open(config_path, "w") as f:
+            data['created_at'] = datetime.now().isoformat()
+            data['updated_at'] = datetime.now().isoformat()
+            
+            with open(config_path, 'w') as f:
                 import yaml
-
                 yaml.safe_dump(data, f, default_flow_style=False, indent=2)
-
-            return {
-                "success": True,
-                "message": f"Configuration '{config_name}' created successfully",
-            }
+            
+            return {"success": True, "message": f"Configuration '{config_name}' created successfully"}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -5760,7 +5570,7 @@ print(result)
         """Update an existing configuration file"""
         try:
             ipfs_kit_dir = os.path.expanduser("~/.ipfs_kit")
-
+            
             if config_type == "backend":
                 config_path = os.path.join(ipfs_kit_dir, "backend_configs", f"{config_name}.yaml")
             elif config_type == "bucket":
@@ -5769,24 +5579,19 @@ print(result)
                 config_path = os.path.join(ipfs_kit_dir, f"{config_name}_config.yaml")
             else:
                 return {"success": False, "error": f"Unknown config type: {config_type}"}
-
+            
             if not os.path.exists(config_path):
                 return {"success": False, "error": f"Configuration '{config_name}' not found"}
-
+            
             # Update timestamp
             from datetime import datetime
-
-            data["updated_at"] = datetime.now().isoformat()
-
-            with open(config_path, "w") as f:
+            data['updated_at'] = datetime.now().isoformat()
+            
+            with open(config_path, 'w') as f:
                 import yaml
-
                 yaml.safe_dump(data, f, default_flow_style=False, indent=2)
-
-            return {
-                "success": True,
-                "message": f"Configuration '{config_name}' updated successfully",
-            }
+            
+            return {"success": True, "message": f"Configuration '{config_name}' updated successfully"}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -5794,7 +5599,7 @@ print(result)
         """Delete a configuration file"""
         try:
             ipfs_kit_dir = os.path.expanduser("~/.ipfs_kit")
-
+            
             if config_type == "backend":
                 config_path = os.path.join(ipfs_kit_dir, "backend_configs", f"{config_name}.yaml")
             elif config_type == "bucket":
@@ -5803,15 +5608,12 @@ print(result)
                 config_path = os.path.join(ipfs_kit_dir, f"{config_name}_config.yaml")
             else:
                 return {"success": False, "error": f"Unknown config type: {config_type}"}
-
+            
             if not os.path.exists(config_path):
                 return {"success": False, "error": f"Configuration '{config_name}' not found"}
-
+            
             os.remove(config_path)
-            return {
-                "success": True,
-                "message": f"Configuration '{config_name}' deleted successfully",
-            }
+            return {"success": True, "message": f"Configuration '{config_name}' deleted successfully"}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -5819,15 +5621,15 @@ print(result)
         """Validate configuration against schema"""
         try:
             import jsonschema
-
+            
             schemas = self._get_config_schemas()
-
+            
             if config_name:
                 # Validate existing config file
                 result = await self._get_all_configs()
                 if not result["success"]:
                     return result
-
+                
                 configs = result["configs"]
                 if config_type == "backend" and config_name in configs["backend_configs"]:
                     config_data = configs["backend_configs"][config_name]
@@ -5849,13 +5651,10 @@ print(result)
                     schema_key = f"backend_{backend_type}"
                 else:
                     schema_key = config_type
-
+            
             if schema_key not in schemas:
-                return {
-                    "success": True,
-                    "message": f"No schema available for '{schema_key}' - validation skipped",
-                }
-
+                return {"success": True, "message": f"No schema available for '{schema_key}' - validation skipped"}
+            
             try:
                 jsonschema.validate(config_data, schemas[schema_key])
                 return {"success": True, "message": "Configuration is valid"}
@@ -5872,30 +5671,19 @@ print(result)
             if config_type == "backend":
                 # Use CLI to test backend
                 result = subprocess.run(
-                    ["python", "-m", "ipfs_kit_py.cli", "backend", "test", config_name],
+                    ['python', '-m', 'ipfs_kit_py.cli', 'backend', 'test', config_name],
                     capture_output=True,
                     text=True,
                     timeout=30,
-                    cwd=os.path.dirname(os.path.dirname(__file__)),
+                    cwd=os.path.dirname(os.path.dirname(__file__))
                 )
-
+                
                 if result.returncode == 0:
-                    return {
-                        "success": True,
-                        "message": "Backend connection test successful",
-                        "output": result.stdout,
-                    }
+                    return {"success": True, "message": "Backend connection test successful", "output": result.stdout}
                 else:
-                    return {
-                        "success": False,
-                        "error": "Backend connection test failed",
-                        "output": result.stderr,
-                    }
+                    return {"success": False, "error": "Backend connection test failed", "output": result.stderr}
             else:
-                return {
-                    "success": True,
-                    "message": f"Test not implemented for config type '{config_type}'",
-                }
+                return {"success": True, "message": f"Test not implemented for config type '{config_type}'"}
         except subprocess.TimeoutExpired:
             return {"success": False, "error": "Configuration test timed out"}
         except Exception as e:
@@ -5905,7 +5693,7 @@ print(result)
 def main():
     """Main entry point for the comprehensive dashboard."""
     import argparse
-
+    
     parser = argparse.ArgumentParser(description="Comprehensive MCP Dashboard")
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
     parser.add_argument("--port", type=int, default=8085, help="Port to bind to")
@@ -5913,20 +5701,20 @@ def main():
     parser.add_argument("--mcp-server-url", default="http://localhost:8004", help="MCP server URL")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--update-interval", type=int, default=5, help="Update interval in seconds")
-
+    
     args = parser.parse_args()
-
+    
     config = {
-        "host": args.host,
-        "port": args.port,
-        "mcp_server_url": args.mcp_server_url,
-        "data_dir": args.data_dir,
-        "debug": args.debug,
-        "update_interval": args.update_interval,
+        'host': args.host,
+        'port': args.port,
+        'mcp_server_url': args.mcp_server_url,
+        'data_dir': args.data_dir,
+        'debug': args.debug,
+        'update_interval': args.update_interval
     }
-
+    
     dashboard = ComprehensiveMCPDashboard(config)
-
+    
     try:
         anyio.run(dashboard.start)
     except KeyboardInterrupt:

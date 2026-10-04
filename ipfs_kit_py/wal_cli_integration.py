@@ -17,7 +17,6 @@ from .high_level_api import IPFSSimpleAPI
 # Configure logging
 logger = logging.getLogger(__name__)
 
-
 def register_wal_commands(subparsers):
     """
     Register WAL-related commands with the CLI parser.
@@ -180,47 +179,37 @@ def parse_wal_kwargs(args: argparse.Namespace) -> Dict[str, Any]:
         operation_type = getattr(args, "operation_type", "all")
         limit = getattr(args, "limit", 10)
         backend = getattr(args, "backend", "all")
-        kwargs.update(
-            {
-                "operation_type": operation_type,
-                "limit": limit,
-                "backend": backend,
-            }
-        )
+        kwargs.update({
+            "operation_type": operation_type,
+            "limit": limit,
+            "backend": backend,
+        })
     elif args.wal_command == "wait":
         # Use default timeout if missing
         timeout = getattr(args, "timeout", 60)
-        kwargs.update(
-            {
-                "timeout": timeout,
-            }
-        )
+        kwargs.update({
+            "timeout": timeout,
+        })
     elif args.wal_command == "health":
         # Use a default value of "all" if backend attribute is missing
         backend = getattr(args, "backend", "all")
-        kwargs.update(
-            {
-                "backend": backend,
-            }
-        )
+        kwargs.update({
+            "backend": backend,
+        })
     elif args.wal_command == "process":
         # Use default values if attributes are missing
         limit = getattr(args, "limit", 10)
         backend = getattr(args, "backend", "all")
-        kwargs.update(
-            {
-                "limit": limit,
-                "backend": backend,
-            }
-        )
+        kwargs.update({
+            "limit": limit,
+            "backend": backend,
+        })
     elif args.wal_command == "metrics":
         # Use default detailed flag if missing
         detailed = getattr(args, "detailed", False)
-        kwargs.update(
-            {
-                "detailed": detailed,
-            }
-        )
+        kwargs.update({
+            "detailed": detailed,
+        })
     elif args.wal_command == "config":
         if hasattr(args, "set") and args.set:
             config_values = {}
@@ -296,25 +285,15 @@ def handle_wal_command(args: argparse.Namespace, client: IPFSSimpleAPI) -> Any:
         limit = getattr(args, "limit", 10)
 
         if operation_type == "pending":
-            return client.get_pending_operations(
-                limit=limit, operation_type=operation_type, backend=backend
-            )
+            return client.get_pending_operations(limit=limit, operation_type=operation_type, backend=backend)
         elif operation_type == "processing":
-            return client.get_processing_operations(
-                limit=limit, operation_type=operation_type, backend=backend
-            )
+            return client.get_processing_operations(limit=limit, operation_type=operation_type, backend=backend)
         elif operation_type == "completed":
-            return client.get_completed_operations(
-                limit=limit, operation_type=operation_type, backend=backend
-            )
+            return client.get_completed_operations(limit=limit, operation_type=operation_type, backend=backend)
         elif operation_type == "failed":
-            return client.get_failed_operations(
-                limit=limit, operation_type=operation_type, backend=backend
-            )
+            return client.get_failed_operations(limit=limit, operation_type=operation_type, backend=backend)
         else:  # "all"
-            return client.get_all_operations(
-                limit=limit, operation_type=operation_type, backend=backend
-            )
+            return client.get_all_operations(limit=limit, operation_type=operation_type, backend=backend)
 
     elif args.wal_command == "show":
         # Get operation details
@@ -329,7 +308,11 @@ def handle_wal_command(args: argparse.Namespace, client: IPFSSimpleAPI) -> Any:
         if operation_id is None:
             return {"success": False, "error": "Operation ID is required"}
         timeout = getattr(args, "timeout", 60)
-        return client.wait_for_operation(operation_id, timeout=timeout, check_interval=1)
+        return client.wait_for_operation(
+            operation_id,
+            timeout=timeout,
+            check_interval=1
+        )
 
     elif args.wal_command == "cleanup":
         # Clean up old operations
@@ -355,7 +338,8 @@ def handle_wal_command(args: argparse.Namespace, client: IPFSSimpleAPI) -> Any:
         limit = getattr(args, "limit", 10)
         backend = getattr(args, "backend", "all")
         return client.process_pending_operations(
-            limit=limit, backend=backend if backend != "all" else None
+            limit=limit,
+            backend=backend if backend != "all" else None
         )
 
     elif args.wal_command == "metrics":

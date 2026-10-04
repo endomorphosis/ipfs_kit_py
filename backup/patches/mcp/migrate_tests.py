@@ -18,7 +18,11 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 os.chdir(PROJECT_ROOT)
 
 # Define source and destination directories
-SOURCE_DIRS = [Path("test/mcp"), Path("ipfs_kit_py/tests"), Path("ipfs_kit_py/mcp/tests")]
+SOURCE_DIRS = [
+    Path("test/mcp"),
+    Path("ipfs_kit_py/tests"),
+    Path("ipfs_kit_py/mcp/tests")
+]
 
 # Define destination structure
 TEST_ROOT = Path("test")
@@ -36,7 +40,7 @@ DIRS_TO_CREATE = [
     MODEL_TEST_DIR,
     SERVER_TEST_DIR,
     UNIT_TEST_DIR,
-    INTEGRATION_TEST_DIR,
+    INTEGRATION_TEST_DIR
 ]
 
 for dir_path in DIRS_TO_CREATE:
@@ -47,23 +51,22 @@ for dir_path in DIRS_TO_CREATE:
         with open(init_file, "w") as f:
             f.write("# Test directory for MCP components\n")
 
-
 def is_controller_test(filename):
     """Determine if a file is a controller test."""
     controller_patterns = [
-        r"controller",
-        r"test_mcp_aria2",
-        r"test_mcp_ipfs",
-        r"test_mcp_libp2p",
-        r"test_mcp_storage",
-        r"test_mcp_filecoin",
-        r"test_mcp_lassie",
-        r"test_mcp_storacha",
-        r"test_mcp_s3",
-        r"test_mcp_peer",
-        r"test_mcp_discovery",
-        r"test_mcp_huggingface",
-        r"test_mcp_webrtc",
+        r'controller',
+        r'test_mcp_aria2',
+        r'test_mcp_ipfs',
+        r'test_mcp_libp2p',
+        r'test_mcp_storage',
+        r'test_mcp_filecoin',
+        r'test_mcp_lassie',
+        r'test_mcp_storacha',
+        r'test_mcp_s3',
+        r'test_mcp_peer',
+        r'test_mcp_discovery',
+        r'test_mcp_huggingface',
+        r'test_mcp_webrtc'
     ]
 
     for pattern in controller_patterns:
@@ -71,17 +74,16 @@ def is_controller_test(filename):
             return True
     return False
 
-
 def is_model_test(filename):
     """Determine if a file is a model test."""
     model_patterns = [
-        r"model",
-        r"test_mcp_metadata",
-        r"test_mcp_dht_operations",
-        r"test_mcp_ipns_operations",
-        r"test_mcp_block_operations",
-        r"test_mcp_dag_operations",
-        r"test_mcp_files_operations",
+        r'model',
+        r'test_mcp_metadata',
+        r'test_mcp_dht_operations',
+        r'test_mcp_ipns_operations',
+        r'test_mcp_block_operations',
+        r'test_mcp_dag_operations',
+        r'test_mcp_files_operations',
     ]
 
     for pattern in model_patterns:
@@ -89,19 +91,18 @@ def is_model_test(filename):
             return True
     return False
 
-
 def is_server_test(filename):
     """Determine if a file is a server test."""
     server_patterns = [
-        r"server",
-        r"test_mcp_server_anyio",
-        r"test_mcp_communication",
-        r"test_mcp_component",
-        r"test_mcp_shutdown",
-        r"test_mcp_distributed",
-        r"test_mcp_api",
-        r"test_mcp_unified",
-        r"test_mcp_endpoint",
+        r'server',
+        r'test_mcp_server_anyio',
+        r'test_mcp_communication',
+        r'test_mcp_component',
+        r'test_mcp_shutdown',
+        r'test_mcp_distributed',
+        r'test_mcp_api',
+        r'test_mcp_unified',
+        r'test_mcp_endpoint',
     ]
 
     for pattern in server_patterns:
@@ -109,16 +110,15 @@ def is_server_test(filename):
             return True
     return False
 
-
 def is_integration_test(filename):
     """Determine if a file is an integration test."""
     integration_patterns = [
-        r"integration",
-        r"test_mcp_comprehensive",
-        r"test_mcp_advanced",
-        r"test_mcp_end_to_end",
-        r"test_mcp_unified",
-        r"test_mcp_features",
+        r'integration',
+        r'test_mcp_comprehensive',
+        r'test_mcp_advanced',
+        r'test_mcp_end_to_end',
+        r'test_mcp_unified',
+        r'test_mcp_features'
     ]
 
     for pattern in integration_patterns:
@@ -126,21 +126,19 @@ def is_integration_test(filename):
             return True
     return False
 
-
 def update_imports(file_path):
     """Update imports in the file to reflect the new structure."""
-    with open(file_path, "r") as f:
+    with open(file_path, 'r') as f:
         content = f.read()
 
     # Update imports for the new structure
-    content = content.replace("from ipfs_kit_py.mcp.", "from ipfs_kit_py.mcp_server.")
+    content = content.replace('from ipfs_kit_py.mcp.', 'from ipfs_kit_py.mcp_server.')
 
     # Update imports for test fixtures
-    content = content.replace("from test.mcp.", "from test.mcp.")
+    content = content.replace('from test.mcp.', 'from test.mcp.')
 
-    with open(file_path, "w") as f:
+    with open(file_path, 'w') as f:
         f.write(content)
-
 
 def migrate_test_files():
     """Migrate test files to their appropriate directories."""
@@ -191,7 +189,6 @@ def migrate_test_files():
     print(f"Migration complete. Moved {len(moved_files)} test files.")
     return moved_files
 
-
 if __name__ == "__main__":
     # Execute the migration
     try:
@@ -199,10 +196,7 @@ if __name__ == "__main__":
         print("Test migration successful!")
 
         # Ask if original files should be removed
-        if (
-            moved_files
-            and input("Do you want to remove the original test files? (y/n): ").lower() == "y"
-        ):
+        if moved_files and input("Do you want to remove the original test files? (y/n): ").lower() == 'y':
             for original, _ in moved_files:
                 if original.exists():
                     original.unlink()

@@ -4,7 +4,6 @@ Emits ipfs-kit-mcp-sdk.js so the dashboard reuses the exact same tool names and
 input schemas the Python server exposes — no second hand-maintained tool list.
 Run: python -m ipfs_kit_py.mcp_server.js_sdk.generate
 """
-
 from __future__ import annotations
 
 import json
@@ -160,27 +159,15 @@ export class IpfsKitMcpClient {{
 
 def render() -> str:
     tm = HierarchicalToolManager()
-    tools = {
-        s["name"]: {
-            "category": s["category"],
-            "inputSchema": s["inputSchema"],
-            "description": s["description"],
-        }
-        for s in tm.all_tool_schemas()
-    }
+    tools = {s["name"]: {"category": s["category"], "inputSchema": s["inputSchema"],
+                         "description": s["description"]} for s in tm.all_tool_schemas()}
     return TEMPLATE.format(tools=json.dumps(tools, indent=2))
 
 
 def render_ts() -> str:
     tm = HierarchicalToolManager()
-    tools = {
-        s["name"]: {
-            "category": s["category"],
-            "inputSchema": s["inputSchema"],
-            "description": s["description"],
-        }
-        for s in tm.all_tool_schemas()
-    }
+    tools = {s["name"]: {"category": s["category"], "inputSchema": s["inputSchema"],
+                         "description": s["description"]} for s in tm.all_tool_schemas()}
     return TS_TEMPLATE.format(tools=json.dumps(tools, indent=2))
 
 

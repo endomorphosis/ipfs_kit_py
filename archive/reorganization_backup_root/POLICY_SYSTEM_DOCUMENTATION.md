@@ -699,16 +699,24 @@ pm = PolicyManager()
 
 # Set global policy
 pm.set_global_policy(
-    replication_strategy="adaptive", cache_policy="lru", performance_tier="balanced"
+    replication_strategy="adaptive",
+    cache_policy="lru",
+    performance_tier="balanced"
 )
 
 # Set bucket policy
 pm.set_bucket_policy(
-    bucket="my-bucket", primary_backend="arrow", performance_tier="speed-optimized"
+    bucket="my-bucket",
+    primary_backend="arrow",
+    performance_tier="speed-optimized"
 )
 
 # Configure backend quota
-pm.configure_backend(backend="arrow", memory_quota="8GB", retention_policy="temporary")
+pm.configure_backend(
+    backend="arrow",
+    memory_quota="8GB",
+    retention_policy="temporary"
+)
 ```
 
 ---

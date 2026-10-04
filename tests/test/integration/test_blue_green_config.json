@@ -1,0 +1,91 @@
+{
+    "blue": {
+        "ipfs": {
+            "api_url": "http://localhost:5001",
+            "gateway_url": "http://localhost:8080",
+            "connect_timeout": 5
+        },
+        "libp2p": {
+            "enabled": false,
+            "listen_addresses": ["/ip4/127.0.0.1/tcp/9090"]
+        },
+        "storage": {
+            "backends": ["local"],
+            "default_backend": "local",
+            "local": {
+                "path": "test/data/storage_blue"
+            }
+        }
+    },
+    "green": {
+        "ipfs": {
+            "api_url": "http://localhost:5001",
+            "gateway_url": "http://localhost:8080",
+            "connect_timeout": 5
+        },
+        "libp2p": {
+            "enabled": false,
+            "listen_addresses": ["/ip4/127.0.0.1/tcp/9091"]
+        },
+        "storage": {
+            "backends": ["local"],
+            "default_backend": "local",
+            "local": {
+                "path": "test/data/storage_green"
+            }
+        }
+    },
+    "deployment": {
+        "mode": "parallel",
+        "green_percentage": 20,
+        "step_size": 10,
+        "evaluation_interval": 5,
+        "health_check_interval": 5,
+        "auto": {
+            "enabled": true,
+            "promotion_delay": 30,
+            "rollback_delay": 0,
+            "max_green_percentage": 100,
+            "gradual_rampup": true
+        },
+        "safety_thresholds": {
+            "min_success_rate": 99.0,
+            "max_error_rate_increase": 1.0,
+            "max_latency_increase": 20.0,
+            "critical_error_threshold": 5.0
+        }
+    },
+    "validation": {
+        "enabled": true,
+        "min_validation_count": 10,
+        "min_compatible_rate": 99.0,
+        "max_critical_diff_rate": 0.1,
+        "ignored_fields": [
+            "timestamp", 
+            "response_id", 
+            "request_time",
+            "server_id"
+        ],
+        "critical_fields": [
+            "success",
+            "cid",
+            "data_size",
+            "error_code"
+        ],
+        "similarity_threshold": 90.0
+    },
+    "monitoring": {
+        "enabled": true,
+        "prometheus": {
+            "enabled": false
+        },
+        "logging": {
+            "level": "INFO",
+            "file": "test/logs/integration_test.log"
+        }
+    },
+    "web_dashboard": {
+        "enabled": false
+    },
+    "stats_dir": "test/data/stats"
+}

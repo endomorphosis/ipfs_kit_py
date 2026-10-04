@@ -26,7 +26,6 @@ logger = logging.getLogger(__name__)
 # Default chunk size for streaming (1MB)
 DEFAULT_CHUNK_SIZE = 1024 * 1024
 
-
 class StreamingOperations:
     """
     Class for handling streaming operations with IPFS.
@@ -69,7 +68,7 @@ class StreamingOperations:
             size = 0
             hash_obj = hashlib.sha256()  # For integrity verification
 
-            async with aiofiles.open(temp_path, "wb") as f:
+            async with aiofiles.open(temp_path, 'wb') as f:
                 while chunk := await file.read(self.chunk_size):
                     await f.write(chunk)
                     size += len(chunk)
@@ -80,7 +79,9 @@ class StreamingOperations:
             # Add the file to IPFS
             start_time = time.time()
             process = await anyio.open_process(
-                ["ipfs", "add", "-Q", temp_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                ["ipfs", "add", "-Q", temp_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
             stdout, stderr = await process.communicate()
 
@@ -101,7 +102,7 @@ class StreamingOperations:
                 "content_type": file.content_type,
                 "hash": file_hash,
                 "duration": duration,
-                "throughput_mbps": (size / duration) / (1024 * 1024) if duration > 0 else 0,
+                "throughput_mbps": (size / duration) / (1024 * 1024) if duration > 0 else 0
             }
         finally:
             # Clean up the temporary file
@@ -120,7 +121,9 @@ class StreamingOperations:
         """
         # Create a subprocess to stream data directly from IPFS
         process = await anyio.open_process(
-            ["ipfs", "cat", cid], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            ["ipfs", "cat", cid],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
 
         # Check if the process started successfully
@@ -164,7 +167,7 @@ class StreamingOperations:
         # Ensure the directory exists
         os.makedirs(os.path.dirname(os.path.abspath(file_path)), exist_ok=True)
 
-        async with aiofiles.open(file_path, "wb") as f:
+        async with aiofiles.open(file_path, 'wb') as f:
             async for chunk in self.stream_from_ipfs(cid):
                 await f.write(chunk)
                 size += len(chunk)
@@ -180,7 +183,7 @@ class StreamingOperations:
             "size": size,
             "hash": file_hash,
             "duration": duration,
-            "throughput_mbps": (size / duration) / (1024 * 1024) if duration > 0 else 0,
+            "throughput_mbps": (size / duration) / (1024 * 1024) if duration > 0 else 0
         }
 
     def pin_in_background(self, background_tasks: BackgroundTasks, cid: str) -> None:
@@ -206,7 +209,9 @@ class StreamingOperations:
         start_time = time.time()
 
         process = await anyio.open_process(
-            ["ipfs", "pin", "add", cid], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            ["ipfs", "pin", "add", cid],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
         stdout, stderr = await process.communicate()
 
@@ -215,9 +220,19 @@ class StreamingOperations:
         if process.returncode != 0:
             error = stderr.decode().strip()
             logger.error(f"Error pinning content {cid}: {error}")
-            return {"success": False, "cid": cid, "error": error, "duration": duration}
+            return {
+                "success": False,
+                "cid": cid,
+                "error": error,
+                "duration": duration
+            }
 
-        return {"success": True, "cid": cid, "pinned": True, "duration": duration}
+        return {
+            "success": True,
+            "cid": cid,
+            "pinned": True,
+            "duration": duration
+        }
 
     async def unpin_in_background(self, background_tasks: BackgroundTasks, cid: str) -> None:
         """
@@ -240,16 +255,26 @@ class StreamingOperations:
             Dict with unpin results
         """
         process = await anyio.open_process(
-            ["ipfs", "pin", "rm", cid], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            ["ipfs", "pin", "rm", cid],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
         stdout, stderr = await process.communicate()
 
         if process.returncode != 0:
             error = stderr.decode().strip()
             logger.error(f"Error unpinning content {cid}: {error}")
-            return {"success": False, "cid": cid, "error": error}
+            return {
+                "success": False,
+                "cid": cid,
+                "error": error
+            }
 
-        return {"success": True, "cid": cid, "unpinned": True}
+        return {
+            "success": True,
+            "cid": cid,
+            "unpinned": True
+        }
 
     async def dag_export_stream(self, cid: str) -> AsyncGenerator[bytes, None]:
         """
@@ -262,7 +287,9 @@ class StreamingOperations:
             Chunks of the CAR file
         """
         process = await anyio.open_process(
-            ["ipfs", "dag", "export", cid], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            ["ipfs", "dag", "export", cid],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
 
         if process.stdout is None:
@@ -302,7 +329,7 @@ class StreamingOperations:
         try:
             # Stream the file to disk in chunks
             size = 0
-            async with aiofiles.open(temp_path, "wb") as f:
+            async with aiofiles.open(temp_path, 'wb') as f:
                 while chunk := await file.read(self.chunk_size):
                     await f.write(chunk)
                     size += len(chunk)
@@ -310,7 +337,9 @@ class StreamingOperations:
             # Import the DAG
             start_time = time.time()
             process = await anyio.open_process(
-                ["ipfs", "dag", "import", temp_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                ["ipfs", "dag", "import", temp_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
             stdout, stderr = await process.communicate()
 
@@ -324,7 +353,7 @@ class StreamingOperations:
 
             # Parse the output to get root CIDs
             roots = []
-            for line in output.split("\n"):
+            for line in output.split('\n'):
                 if line and "root" in line:
                     parts = line.split()
                     if len(parts) >= 3:
@@ -336,16 +365,14 @@ class StreamingOperations:
                 "roots": roots,
                 "size": size,
                 "duration": duration,
-                "throughput_mbps": (size / duration) / (1024 * 1024) if duration > 0 else 0,
+                "throughput_mbps": (size / duration) / (1024 * 1024) if duration > 0 else 0
             }
         finally:
             # Clean up the temporary file
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
 
-
 # Create FastAPI router for streaming endpoints
-
 
 def create_streaming_router(api_prefix: str) -> APIRouter:
     """
@@ -392,13 +419,15 @@ def create_streaming_router(api_prefix: str) -> APIRouter:
             filename = f"{cid}.bin"
 
         # Create the response headers
-        headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+        headers = {
+            "Content-Disposition": f"attachment; filename=\"{filename}\""
+        }
 
         # Return a streaming response
         return StreamingResponse(
             streaming_ops.stream_from_ipfs(cid),
             media_type="application/octet-stream",
-            headers=headers,
+            headers=headers
         )
 
     @router.post("/download")
@@ -429,7 +458,11 @@ def create_streaming_router(api_prefix: str) -> APIRouter:
         """
         if background_tasks:
             streaming_ops.pin_in_background(background_tasks, cid)
-            return {"success": True, "cid": cid, "pinning": "in_progress"}
+            return {
+                "success": True,
+                "cid": cid,
+                "pinning": "in_progress"
+            }
         else:
             # Do it synchronously if no background tasks
             return await streaming_ops._pin_content(cid)
@@ -445,7 +478,11 @@ def create_streaming_router(api_prefix: str) -> APIRouter:
         """
         if background_tasks:
             streaming_ops.unpin_in_background(background_tasks, cid)
-            return {"success": True, "cid": cid, "unpinning": "in_progress"}
+            return {
+                "success": True,
+                "cid": cid,
+                "unpinning": "in_progress"
+            }
         else:
             # Do it synchronously if no background tasks
             return await streaming_ops._unpin_content(cid)
@@ -464,13 +501,15 @@ def create_streaming_router(api_prefix: str) -> APIRouter:
             filename = f"{cid}.car"
 
         # Create the response headers
-        headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+        headers = {
+            "Content-Disposition": f"attachment; filename=\"{filename}\""
+        }
 
         # Return a streaming response
         return StreamingResponse(
             streaming_ops.dag_export_stream(cid),
             media_type="application/vnd.ipld.car",
-            headers=headers,
+            headers=headers
         )
 
     @router.post("/dag/import")

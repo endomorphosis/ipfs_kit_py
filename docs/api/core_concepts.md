@@ -88,18 +88,21 @@ config_data = {
     "cache_config": {
         "memory_cache_size": 512 * 1024 * 1024,  # 512MB
         "disk_cache_path": "~/.ipfs_cache",
-        "disk_cache_size": 10 * 1024 * 1024 * 1024,  # 10GB
+        "disk_cache_size": 10 * 1024 * 1024 * 1024  # 10GB
     },
-    "enable_ai_ml": True,
+    "enable_ai_ml": True
 }
 kit_worker = ipfs_kit(metadata=config_data)
 
 # Initialize master with cluster management enabled
 kit_master = ipfs_kit(
     metadata={
-        "role": "master",
+        "role": "master", 
         "enable_cluster_management": True,
-        "cluster_config": {"replication_factor": 3, "consensus": "crdt"},
+        "cluster_config": {
+            "replication_factor": 3,
+            "consensus": "crdt"
+        }
     }
 )
 ```
@@ -165,8 +168,8 @@ kit_master = ipfs_kit(
         "cluster_config": {
             "secret": "your-cluster-secret-key",  # Required for security
             "replication_factor": 3,  # Content replicated to 3 nodes
-            "consensus": "crdt",  # Using CRDT consensus (recommended)
-        },
+            "consensus": "crdt"  # Using CRDT consensus (recommended)
+        }
     }
 )
 
@@ -178,10 +181,10 @@ if add_result.get("success"):
     # Pin to the cluster, which will distribute to worker nodes
     pin_result = kit_master.ipfs_cluster_ctl.ipfs_cluster_ctl_add_pin(cid)
     print(f"Content {cid} pinned to cluster with status: {pin_result.get('status')}")
-
+    
     # Monitor pinning status across the cluster
     status_result = kit_master.ipfs_cluster_ctl.ipfs_cluster_ctl_status(cid)
-    for peer_id, status in status_result.get("peer_map", {}).items():
+    for peer_id, status in status_result.get('peer_map', {}).items():
         print(f"Peer {peer_id}: {status.get('status')}")
 ```
 
@@ -200,8 +203,8 @@ kit_worker = ipfs_kit(
         "worker_resources": {
             "storage_quota": "100GB",
             "processing_threads": 4,
-            "gpu_enabled": True,
-        },
+            "gpu_enabled": True
+        }
     }
 )
 
@@ -210,7 +213,6 @@ kit_worker = ipfs_kit(
 follow_status = kit_worker.ipfs_cluster_follow.get_status()
 if follow_status.get("success"):
     print(f"Following master with {follow_status.get('pin_count')} pins")
-
 
 # Process a task received from the cluster
 def process_task(task_data):
@@ -241,8 +243,8 @@ kit_leecher = ipfs_kit(
         ],
         "cache_config": {
             "memory_cache_size": 128 * 1024 * 1024,  # 128MB memory cache
-            "disk_cache_size": 1 * 1024 * 1024 * 1024,  # 1GB disk cache
-        },
+            "disk_cache_size": 1 * 1024 * 1024 * 1024  # 1GB disk cache
+        }
     }
 )
 
@@ -252,7 +254,7 @@ content = kit_leecher.ipfs.cat("QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx")
 if content.get("success"):
     data = content.get("content")
     print(f"Retrieved {len(data)} bytes of content")
-
+    
     # Access as filesystem (uses cache)
     fs = kit_leecher.get_filesystem()
     with fs.open("ipfs://QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx", "r") as f:
@@ -275,9 +277,9 @@ if add_result.get("success"):
     print(f"Added file with CID: {cid}")
 
 # If master, add pin to cluster
-if kit.role == "master" and hasattr(kit, "ipfs_cluster_ctl"):
-    pin_result = kit.ipfs_cluster_ctl.ipfs_cluster_ctl_add_pin(cid)
-    print(f"Pinned to cluster: {pin_result.get('status')}")
+if kit.role == "master" and hasattr(kit, 'ipfs_cluster_ctl'):
+   pin_result = kit.ipfs_cluster_ctl.ipfs_cluster_ctl_add_pin(cid)
+   print(f"Pinned to cluster: {pin_result.get('status')}")
 
 # Get node ID
 id_result = kit.ipfs_id()
@@ -344,17 +346,15 @@ Configuration can be provided via:
 The most direct method is passing a metadata dictionary during initialization:
 
 ```python
-kit = ipfs_kit(
-    metadata={
-        "role": "worker",
-        "ipfs_path": "~/.ipfs-custom",
-        "enable_libp2p": True,
-        "cache_config": {
-            "memory_cache_size": 512 * 1024 * 1024,  # 512MB
-            "disk_cache_size": 5 * 1024 * 1024 * 1024,  # 5GB
-        },
+kit = ipfs_kit(metadata={
+    "role": "worker",
+    "ipfs_path": "~/.ipfs-custom",
+    "enable_libp2p": True,
+    "cache_config": {
+        "memory_cache_size": 512 * 1024 * 1024,  # 512MB
+        "disk_cache_size": 5 * 1024 * 1024 * 1024  # 5GB
     }
-)
+})
 ```
 
 ### 2. Environment Variables
@@ -442,29 +442,23 @@ The caching system automatically manages content movement between tiers based on
 
 ```python
 # Configure the caching system
-kit = ipfs_kit(
-    metadata={
-        "cache_config": {
-            "memory_cache_size": 512 * 1024 * 1024,  # 512MB memory cache
-            "disk_cache_path": "~/.ipfs_cache",  # Location for disk cache
-            "disk_cache_size": 10 * 1024 * 1024 * 1024,  # 10GB disk cache
-            "min_item_size": 4096,  # Items smaller than 4KB always go to memory
-            "max_memory_item_size": 50 * 1024 * 1024,  # Items larger than 50MB skip memory
-            "prefetch_enabled": True,  # Enable predictive prefetching
-        }
+kit = ipfs_kit(metadata={
+    "cache_config": {
+        "memory_cache_size": 512 * 1024 * 1024,  # 512MB memory cache
+        "disk_cache_path": "~/.ipfs_cache",      # Location for disk cache
+        "disk_cache_size": 10 * 1024 * 1024 * 1024,  # 10GB disk cache
+        "min_item_size": 4096,  # Items smaller than 4KB always go to memory
+        "max_memory_item_size": 50 * 1024 * 1024,  # Items larger than 50MB skip memory
+        "prefetch_enabled": True  # Enable predictive prefetching
     }
-)
+})
 
 # The cache is used automatically when accessing content
-content1 = kit.ipfs.cat(
-    "QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx"
-)  # First access (not cached)
-content2 = kit.ipfs.cat(
-    "QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx"
-)  # Cached access (much faster)
+content1 = kit.ipfs.cat("QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx")  # First access (not cached)
+content2 = kit.ipfs.cat("QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx")  # Cached access (much faster)
 
 # Access cache metrics
-if hasattr(kit, "tiered_cache"):
+if hasattr(kit, 'tiered_cache'):
     metrics = kit.tiered_cache.get_metrics()
     print(f"Memory cache hit rate: {metrics.get('memory_hit_rate', 0):.2f}")
     print(f"Disk cache hit rate: {metrics.get('disk_hit_rate', 0):.2f}")
@@ -510,9 +504,7 @@ if cat_result.get("success"):
     print(f"Retrieved {len(content)} bytes")
 
 # Get a file to a specific location
-get_result = kit.ipfs.get(
-    "QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx", "/tmp/retrieved_file.txt"
-)
+get_result = kit.ipfs.get("QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx", "/tmp/retrieved_file.txt")
 if get_result.get("success"):
     print(f"Retrieved file to: {get_result.get('output_path')}")
 
@@ -534,7 +526,8 @@ if pin_result.get("success"):
 # Pin to cluster (master/worker only)
 if kit.role in ["master", "worker"] and hasattr(kit, "ipfs_cluster_ctl"):
     cluster_pin = kit.ipfs_cluster_ctl.ipfs_cluster_ctl_add_pin(
-        "QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx", replication_factor=3
+        "QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx",
+        replication_factor=3
     )
     if cluster_pin.get("success"):
         print(f"Pinned to cluster with replication factor 3")
@@ -574,7 +567,6 @@ print(df.head())
 
 # Read a Parquet file from IPFS
 import pyarrow.parquet as pq
-
 table = pq.read_table("ipfs://QmXH6qjnYXCSfc5Wn1jZyZV8AtrNKgWbXLLGJvXVYzk4wC", filesystem=fs)
 df2 = table.to_pandas()
 print(df2.head())
@@ -674,10 +666,10 @@ dataset_result = master.ipfs.add_directory("/path/to/large_dataset")
 if dataset_result.get("success"):
     dataset_cid = dataset_result.get("Hash")
     print(f"Dataset added with CID: {dataset_cid}")
-
+    
     # Pin to cluster (distributes across workers)
     master.ipfs_cluster_ctl.ipfs_cluster_ctl_add_pin(dataset_cid)
-
+    
     # Create processing tasks for workers
     # (In a real scenario, this would be handled by cluster_management)
     for i in range(10):
@@ -685,13 +677,12 @@ if dataset_result.get("success"):
             "task_id": f"task_{i}",
             "dataset_cid": dataset_cid,
             "process_subset": f"subset_{i}",
-            "output_prefix": f"result_{i}",
+            "output_prefix": f"result_{i}"
         }
         master.cluster_manager.submit_task(task)
 
 # Worker node: Process assigned tasks
 worker = ipfs_kit(metadata={"role": "worker"})
-
 
 # Process task (simplified example)
 def process_task(task):
@@ -700,12 +691,12 @@ def process_task(task):
     if dataset_path.get("success"):
         # Process the data
         result_data = f"Processed result for {task['task_id']}"
-
+        
         # Store result back to IPFS
         result = worker.ipfs.add_str(result_data)
         if result.get("success"):
             result_cid = result.get("Hash")
-
+            
             # Report back to master
             return {"task_id": task["task_id"], "result_cid": result_cid}
 ```
@@ -725,14 +716,14 @@ fs = kit.get_filesystem()
 df = pd.read_csv("ipfs://QmCSVbfpQL6BjGog5c85xwsJ8arFiBg9ACdHF6RbqXegcV", filesystem=fs)
 
 # Perform analysis
-df["value_squared"] = df["value"] ** 2
-result = df.groupby("category").agg({"value": "mean", "value_squared": "mean"})
+df['value_squared'] = df['value'] ** 2
+result = df.groupby('category').agg({'value': 'mean', 'value_squared': 'mean'})
 
 # Create a visualization
 plt.figure(figsize=(10, 6))
-result.plot(kind="bar")
-plt.title("Category Analysis")
-plt.savefig("analysis.png")
+result.plot(kind='bar')
+plt.title('Category Analysis')
+plt.savefig('analysis.png')
 
 # Store results back to IPFS
 result_csv = result.to_csv()
@@ -740,28 +731,28 @@ add_result = kit.ipfs.add_str(result_csv)
 if add_result.get("success"):
     result_cid = add_result.get("Hash")
     print(f"Analysis results stored with CID: {result_cid}")
-
+    
     # Store visualization
     img_result = kit.ipfs.add("analysis.png")
     if img_result.get("success"):
         img_cid = img_result.get("Hash")
         print(f"Visualization stored with CID: {img_cid}")
-
+        
         # Create a metadata record linking everything
         metadata = {
             "title": "Category Analysis",
             "source_data": "QmCSVbfpQL6BjGog5c85xwsJ8arFiBg9ACdHF6RbqXegcV",
             "result_data": result_cid,
             "visualization": img_cid,
-            "timestamp": pd.Timestamp.now().isoformat(),
+            "timestamp": pd.Timestamp.now().isoformat()
         }
-
+        
         # Store metadata
         meta_result = kit.ipfs.add_json(metadata)
         if meta_result.get("success"):
             meta_cid = meta_result.get("Hash")
             print(f"Complete analysis package available at: {meta_cid}")
-
+            
             # Pin everything for persistence
             kit.ipfs.pin_add(meta_cid)
 ```

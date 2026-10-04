@@ -34,7 +34,6 @@ def test_file_path(temp_test_dir):
 def cli_main():
     """Import and return the CLI main function."""
     from ipfs_kit_py.cli import main as cli_main
-
     return cli_main
 
 
@@ -83,7 +82,7 @@ def test_cli_key_value_parsing(cli_main, capsys):
         config=None,
         verbose=False,
         format="text",
-        no_color=False,
+        no_color=False
     )
 
     # Call parse_kwargs directly
@@ -101,7 +100,7 @@ def test_cli_key_value_parsing(cli_main, capsys):
         config=None,
         verbose=False,
         format="text",
-        no_color=False,
+        no_color=False
     )
     kwargs = parse_kwargs(mock_args)
 
@@ -116,7 +115,7 @@ def test_cli_key_value_parsing(cli_main, capsys):
         config=None,
         verbose=False,
         format="text",
-        no_color=False,
+        no_color=False
     )
     kwargs = parse_kwargs(mock_args)
 
@@ -167,8 +166,8 @@ def test_cli_wal_status_command(mock_ipfs_api, cli_main, capsys):
                 "retrying": 0,
                 "partitions": 3,
                 "archives": 1,
-                "processing_active": True,
-            },
+                "processing_active": True
+            }
         }
 
         # Run with wal status command
@@ -183,7 +182,6 @@ def test_cli_wal_status_command(mock_ipfs_api, cli_main, capsys):
         captured = capsys.readouterr()
         assert "Total operations" in captured.out
 
-
 def test_cli_wal_list_command(mock_ipfs_api, cli_main, capsys):
     """Test CLI handling of the 'wal list' command."""
     # Skip if WAL CLI integration is not available
@@ -193,8 +191,8 @@ def test_cli_wal_list_command(mock_ipfs_api, cli_main, capsys):
             "success": True,
             "operations": [
                 {"id": "entry1", "operation": "add", "timestamp": "2023-04-01T12:34:56Z"},
-                {"id": "entry2", "operation": "pin", "timestamp": "2023-04-01T12:35:00Z"},
-            ],
+                {"id": "entry2", "operation": "pin", "timestamp": "2023-04-01T12:35:00Z"}
+            ]
         }
 
         # Run with wal list command
@@ -230,7 +228,7 @@ def test_cli_error_handling_validation_error(mock_ipfs_api, cli_main, capsys):
             no_color=False,
             timeout=30,  # Add timeout attribute
             timeout_get=30,  # Add command-specific timeout
-            func=None,  # We'll set this next
+            func=None  # We'll set this next
         )
 
         # We need to set the func attribute to a function that uses our mock API

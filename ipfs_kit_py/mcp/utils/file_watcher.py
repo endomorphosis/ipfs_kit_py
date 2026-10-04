@@ -36,7 +36,6 @@ class MCPFileHandler(FileSystemEventHandler):
 
     Monitors file changes and triggers server restart when Python files change.
     """
-
     def __init__(
         self,
         root_dirs: List[str],
@@ -261,6 +260,7 @@ class MCPFileHandler(FileSystemEventHandler):
                 logger.error(str(e))
 
             # Log full traceback at debug level
+            
 
             logger.debug(f"Full traceback:\n{traceback.format_exc()}")
 
@@ -364,6 +364,7 @@ class MCPFileHandler(FileSystemEventHandler):
         lines = [f"Error in {file_path}: {str(error)}"]
 
         # Try to extract line number information if available
+        
 
         tb_info = traceback.extract_tb(sys.exc_info()[2])
 
@@ -596,7 +597,6 @@ class MCPFileWatcher:
 
     Monitors file changes and triggers server restart.
     """
-
     def __init___v2(
         self,
         project_root: str,
@@ -604,7 +604,7 @@ class MCPFileWatcher:
         ignore_dirs: Optional[List[str]] = None,
         ignore_patterns: Optional[List[str]] = None,
         server_class: Optional[Type] = None,
-        server_instance=None,
+        server_instance = None,
         server_args: Optional[Dict[str, Any]] = None,
         use_dashboard: bool = True,
     ):
@@ -670,7 +670,6 @@ class MCPFileWatcher:
 
     def _setup_error_logging(self):
         """Configure custom error logging to capture all errors."""
-
         # Create custom handler to capture errors
         class ErrorCaptureHandler(logging.Handler):
             def __init__(self, error_reporter):
@@ -696,7 +695,7 @@ class MCPFileWatcher:
         )
         logging.getLogger().addHandler(error_handler)
 
-    def report_error(self, error_msg, record=None):
+    def report_error(self, error_msg, record = None):
         """
         Report an error to the error log.
 
@@ -868,7 +867,7 @@ class MCPFileWatcher:
 
         return "\n".join(summary)
 
-    def mark_errors_resolved(self, file_path=None):
+    def mark_errors_resolved(self, file_path = None):
         """
         Mark errors as resolved.
 
@@ -892,7 +891,7 @@ class MCPFileWatcher:
         # Update unresolved error flag
         self.has_unresolved_errors = any(not e.get("resolved", False) for e in self.error_log)
 
-    def restart_server(self, changed_file=None, affected_modules=None):
+    def restart_server(self, changed_file = None, affected_modules = None):
         """
         Restart the server in a new thread.
 
@@ -1055,7 +1054,7 @@ class MCPFileWatcher:
             self.report_error(f"Server restart failed: {e}\n{traceback.format_exc()}")
             return False
 
-    def _print_restart_banner(self, changed_file=None, affected_modules=None):
+    def _print_restart_banner(self, changed_file = None, affected_modules = None):
         """
         Print a visible restart banner.
 

@@ -12,59 +12,58 @@ import functools
 
 logger = logging.getLogger("tool-parameter-adapter")
 
-
 def adapt_parameters(func):
     """Decorator to adapt parameters for a tool function."""
-
+    
     @functools.wraps(func)
     async def wrapper(ctx):
         # Extract arguments from context
         arguments = {}
-        if hasattr(ctx, "arguments") and ctx.arguments is not None:
+        if hasattr(ctx, 'arguments') and ctx.arguments is not None:
             arguments = ctx.arguments
-        elif hasattr(ctx, "params") and ctx.params is not None:
+        elif hasattr(ctx, 'params') and ctx.params is not None:
             arguments = ctx.params
         else:
             # Try to extract keyword arguments
             for attr_name in dir(ctx):
-                if not attr_name.startswith("_") and not callable(getattr(ctx, attr_name)):
+                if not attr_name.startswith('_') and not callable(getattr(ctx, attr_name)):
                     arguments[attr_name] = getattr(ctx, attr_name)
-
+        
         # Common parameter mappings
         param_map = {
             # IPFS content parameters
-            "content": ["content", "data", "text", "value"],
+            'content': ['content', 'data', 'text', 'value'],
             # IPFS identifiers
-            "cid": ["cid", "hash", "content_id", "ipfs_hash"],
+            'cid': ['cid', 'hash', 'content_id', 'ipfs_hash'],
             # Paths
-            "path": ["path", "file_path", "filepath", "mfs_path", "vfs_path", "fs_path"],
+            'path': ['path', 'file_path', 'filepath', 'mfs_path', 'vfs_path', 'fs_path'],
             # Backend parameters
-            "backend_id": ["backend_id", "backend", "id", "name"],
-            "backend_type": ["backend_type", "type"],
+            'backend_id': ['backend_id', 'backend', 'id', 'name'],
+            'backend_type': ['backend_type', 'type'],
             # MFS parameters
-            "source": ["source", "src", "from_path", "from"],
-            "dest": ["dest", "destination", "to_path", "to", "target"],
+            'source': ['source', 'src', 'from_path', 'from'],
+            'dest': ['dest', 'destination', 'to_path', 'to', 'target'],
             # Pin parameters
-            "recursive": ["recursive", "recurse"],
+            'recursive': ['recursive', 'recurse'],
             # Other
-            "filename": ["filename", "name", "file_name"],
-            "offset": ["offset", "start"],
-            "count": ["count", "length", "size", "limit"],
+            'filename': ['filename', 'name', 'file_name'],
+            'offset': ['offset', 'start'],
+            'count': ['count', 'length', 'size', 'limit'],
         }
-
+        
         # Get expected parameters from function signature
         sig = inspect.signature(func)
-        expected_params = [p for p in sig.parameters.keys() if p != "ctx"]
-
+        expected_params = [p for p in sig.parameters.keys() if p != 'ctx']
+        
         # Map parameters
         mapped_args = {}
-
+        
         for param in expected_params:
             # Direct match
             if param in arguments:
                 mapped_args[param] = arguments[param]
                 continue
-
+            
             # Try mapped parameters
             for target, alternatives in param_map.items():
                 if param == target:
@@ -80,21 +79,15 @@ def adapt_parameters(func):
                     mapped_args[param] = arguments[target]
                     logger.debug(f"Mapped '{target}' to '{param}'")
                     break
-
-        logger.debug(
-            f"Function: {func.__name__}, Expected params: {expected_params}, Mapped args: {mapped_args}"
-        )
-
+        
+        logger.debug(f"Function: {func.__name__}, Expected params: {expected_params}, Mapped args: {mapped_args}")
+        
         # Provide default values for missing parameters if they have defaults in the function signature
         for param_name, param in sig.parameters.items():
-            if (
-                param_name not in mapped_args
-                and param_name != "ctx"
-                and param.default is not param.empty
-            ):
+            if param_name not in mapped_args and param_name != 'ctx' and param.default is not param.empty:
                 mapped_args[param_name] = param.default
                 logger.debug(f"Using default value for '{param_name}'")
-
+        
         # Call with mapped parameters
         try:
             return await func(**mapped_args)
@@ -106,7 +99,7 @@ def adapt_parameters(func):
             return {
                 "success": False,
                 "error": f"Parameter mapping error: {e}",
-                "function": func.__name__,
+                "function": func.__name__
             }
-
+    
     return wrapper

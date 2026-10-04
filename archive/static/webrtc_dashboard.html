@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Monitoring Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f7f9fc;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eaeaea;
+        }
+        .header h1 {
+            margin: 0;
+            color: #2c3e50;
+        }
+        .header .refresh {
+            display: flex;
+            align-items: center;
+        }
+        .refresh-btn {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            margin-left: 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h2 {
+            margin-top: 0;
+            color: #2c3e50;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            padding: 15px;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #3498db;
+            margin: 10px 0;
+        }
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        thead {
+            background-color: #f8f9fa;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eaeaea;
+        }
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        .status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-active {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+        .status-closed {
+            background-color: #ffebee;
+            color: #d32f2f;
+        }
+        .status-connecting {
+            background-color: #fff8e1;
+            color: #f57c00;
+        }
+        .operation-buttons {
+            margin-bottom: 20px;
+        }
+        .operation-btn {
+            background-color: #3498db;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .operation-btn.danger {
+            background-color: #e74c3c;
+        }
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+        .log-container {
+            max-height: 300px;
+            overflow-y: auto;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            font-family: monospace;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid #34495e;
+        }
+        .timestamp {
+            color: #95a5a6;
+        }
+        .error {
+            color: #e74c3c;
+        }
+        .success {
+            color: #2ecc71;
+        }
+        .warning {
+            color: #f39c12;
+        }
+        #connection-form {
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            font-size: 14px;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .form-btn {
+            background-color: #3498db;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>WebRTC Monitoring Dashboard</h1>
+            <div class="refresh">
+                <span id="last-updated">Last updated: Never</span>
+                <button class="refresh-btn" onclick="refreshDashboard()">Refresh Data</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Connection Summary</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Active Connections</div>
+                    <div class="stat-value" id="active-connections">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Operations</div>
+                    <div class="stat-value" id="total-operations">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Active Tasks</div>
+                    <div class="stat-value" id="active-tasks">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Average Connection Time</div>
+                    <div class="stat-value" id="avg-conn-time">0 ms</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Control Panel</h2>
+            <div class="operation-buttons">
+                <button class="operation-btn" onclick="testConnection()">Test Connection</button>
+                <button class="operation-btn" onclick="streamTestContent()">Stream Test Content</button>
+                <button class="operation-btn danger" onclick="closeAllConnections()">Close All Connections</button>
+            </div>
+
+            <div id="connection-form">
+                <h3>Start Stream</h3>
+                <div class="form-group">
+                    <label for="content-cid">Content CID:</label>
+                    <input type="text" id="content-cid" class="form-control" placeholder="QmExample...">
+                </div>
+                <div class="form-group">
+                    <label for="quality">Quality (0-100):</label>
+                    <input type="number" id="quality" class="form-control" value="80" min="0" max="100">
+                </div>
+                <button class="form-btn" onclick="startStream()">Start Streaming</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Active Connections</h2>
+            <table id="connections-table">
+                <thead>
+                    <tr>
+                        <th>Connection ID</th>
+                        <th>Content CID</th>
+                        <th>Status</th>
+                        <th>Start Time</th>
+                        <th>Duration</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Connection rows will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>Recent Operations</h2>
+            <table id="operations-table">
+                <thead>
+                    <tr>
+                        <th>Operation</th>
+                        <th>Connection ID</th>
+                        <th>Status</th>
+                        <th>Duration</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Operation rows will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>Operation Logs</h2>
+            <div class="log-container" id="operation-logs">
+                <!-- Log entries will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Constants
+        const API_BASE = '/api/v0/webrtc';
+        
+        // Dashboard state
+        let dashboardData = {
+            connections: [],
+            operations: [],
+            tasks: [],
+            stats: {
+                activeConnections: 0,
+                totalOperations: 0,
+                activeTasks: 0,
+                avgConnectionTime: 0
+            }
+        };
+
+        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshDashboard();
+            // Auto-refresh every 10 seconds
+            setInterval(refreshDashboard, 10000);
+        });
+
+        // Refresh dashboard data
+        async function refreshDashboard() {
+            try {
+                await Promise.all([
+                    fetchConnections(),
+                    fetchOperations(),
+                    fetchTasks()
+                ]);
+                
+                updateStats();
+                updateConnectionsTable();
+                updateOperationsTable();
+                updateLastUpdated();
+            } catch (error) {
+                console.error('Error refreshing dashboard:', error);
+                addLogEntry(`Error refreshing dashboard: ${error.message}`, 'error');
+            }
+        }
+
+        // Fetch connections data
+        async function fetchConnections() {
+            try {
+                const response = await fetch(`${API_BASE}/connections`);
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                const data = await response.json();
+                dashboardData.connections = data.connections || [];
+                return data;
+            } catch (error) {
+                console.error('Error fetching connections:', error);
+                throw error;
+            }
+        }
+
+        // Fetch operations data
+        async function fetchOperations() {
+            try {
+                const response = await fetch(`${API_BASE}/operations`);
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                const data = await response.json();
+                dashboardData.operations = data.operations || [];
+                return data;
+            } catch (error) {
+                console.error('Error fetching operations:', error);
+                throw error;
+            }
+        }
+
+        // Fetch tasks data
+        async function fetchTasks() {
+            try {
+                const response = await fetch(`${API_BASE}/tasks`);
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                const data = await response.json();
+                dashboardData.tasks = data.tasks || [];
+                return data;
+            } catch (error) {
+                console.error('Error fetching tasks:', error);
+                throw error;
+            }
+        }
+
+        // Update dashboard statistics
+        function updateStats() {
+            // Calculate stats
+            const activeConnections = dashboardData.connections.filter(conn => 
+                conn.status === 'active' || conn.status === 'connecting'
+            ).length;
+            
+            const totalOperations = dashboardData.operations.length;
+            
+            const activeTasks = dashboardData.tasks.filter(task => 
+                !task.completed
+            ).length;
+            
+            // Calculate average connection time
+            let avgTime = 0;
+            const completedConnections = dashboardData.connections.filter(conn => 
+                conn.status === 'closed' && conn.start_time && conn.end_time
+            );
+            
+            if (completedConnections.length > 0) {
+                const totalTime = completedConnections.reduce((sum, conn) => {
+                    const duration = new Date(conn.end_time) - new Date(conn.start_time);
+                    return sum + duration;
+                }, 0);
+                avgTime = totalTime / completedConnections.length;
+            }
+            
+            // Update state
+            dashboardData.stats = {
+                activeConnections,
+                totalOperations,
+                activeTasks,
+                avgConnectionTime: avgTime
+            };
+            
+            // Update DOM
+            document.getElementById('active-connections').textContent = activeConnections;
+            document.getElementById('total-operations').textContent = totalOperations;
+            document.getElementById('active-tasks').textContent = activeTasks;
+            document.getElementById('avg-conn-time').textContent = 
+                avgTime > 0 ? `${Math.round(avgTime)} ms` : 'N/A';
+        }
+
+        // Update connections table
+        function updateConnectionsTable() {
+            const tableBody = document.querySelector('#connections-table tbody');
+            tableBody.innerHTML = '';
+            
+            if (dashboardData.connections.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = '<td colspan="6" style="text-align: center;">No active connections</td>';
+                tableBody.appendChild(row);
+                return;
+            }
+            
+            // Sort connections by start time (newest first)
+            const sortedConnections = [...dashboardData.connections].sort((a, b) => {
+                return new Date(b.start_time) - new Date(a.start_time);
+            });
+            
+            sortedConnections.forEach(conn => {
+                const row = document.createElement('tr');
+                
+                // Calculate duration
+                let duration = 'N/A';
+                if (conn.start_time) {
+                    const start = new Date(conn.start_time);
+                    const end = conn.end_time ? new Date(conn.end_time) : new Date();
+                    duration = formatDuration(end - start);
+                }
+                
+                // Format status class
+                let statusClass = 'status-connecting';
+                if (conn.status === 'active') statusClass = 'status-active';
+                if (conn.status === 'closed') statusClass = 'status-closed';
+                
+                row.innerHTML = `
+                    <td>${conn.connection_id || 'N/A'}</td>
+                    <td>${conn.content_cid || 'N/A'}</td>
+                    <td><span class="status ${statusClass}">${conn.status || 'unknown'}</span></td>
+                    <td>${formatTimestamp(conn.start_time)}</td>
+                    <td>${duration}</td>
+                    <td>
+                        ${conn.status !== 'closed' ? 
+                            `<button class="operation-btn danger" onclick="closeConnection('${conn.connection_id}')">Close</button>` : 
+                            ''}
+                        ${conn.status === 'active' ? 
+                            `<button class="operation-btn" onclick="openVideoPlayer('${conn.connection_id}', '${conn.content_cid}')">Open Player</button>` : 
+                            ''}
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Update operations table
+        function updateOperationsTable() {
+            const tableBody = document.querySelector('#operations-table tbody');
+            tableBody.innerHTML = '';
+            
+            if (dashboardData.operations.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = '<td colspan="5" style="text-align: center;">No operations recorded</td>';
+                tableBody.appendChild(row);
+                return;
+            }
+            
+            // Sort operations by timestamp (newest first)
+            const sortedOperations = [...dashboardData.operations].sort((a, b) => {
+                return new Date(b.timestamp) - new Date(a.timestamp);
+            });
+            
+            // Show latest 10 operations
+            sortedOperations.slice(0, 10).forEach(op => {
+                const row = document.createElement('tr');
+                
+                // Calculate duration
+                let duration = 'N/A';
+                if (op.start_time && op.end_time) {
+                    const start = new Date(op.start_time);
+                    const end = new Date(op.end_time);
+                    duration = `${end - start} ms`;
+                }
+                
+                // Format status class
+                let statusClass = 'status-connecting';
+                if (op.success) statusClass = 'status-active';
+                if (!op.success) statusClass = 'status-closed';
+                
+                row.innerHTML = `
+                    <td>${op.operation || 'N/A'}</td>
+                    <td>${op.connection_id || 'N/A'}</td>
+                    <td><span class="status ${statusClass}">${op.success ? 'success' : 'failed'}</span></td>
+                    <td>${duration}</td>
+                    <td>${formatTimestamp(op.timestamp)}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Update last updated timestamp
+        function updateLastUpdated() {
+            document.getElementById('last-updated').textContent = 
+                `Last updated: ${new Date().toLocaleTimeString()}`;
+        }
+
+        // Format timestamp for display
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return 'N/A';
+            const date = new Date(timestamp);
+            return date.toLocaleString();
+        }
+
+        // Format duration for display
+        function formatDuration(ms) {
+            if (!ms || isNaN(ms)) return 'N/A';
+            
+            if (ms < 1000) return `${ms} ms`;
+            if (ms < 60000) return `${Math.round(ms/1000)} sec`;
+            
+            const minutes = Math.floor(ms / 60000);
+            const seconds = Math.round((ms % 60000) / 1000);
+            return `${minutes}m ${seconds}s`;
+        }
+
+        // Add log entry to the operations log
+        function addLogEntry(message, type = 'info') {
+            const logContainer = document.getElementById('operation-logs');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerHTML = `
+                <span class="timestamp">[${new Date().toLocaleTimeString()}]</span> ${message}
+            `;
+            logContainer.insertBefore(entry, logContainer.firstChild);
+            
+            // Limit to 50 entries
+            const entries = logContainer.querySelectorAll('.log-entry');
+            if (entries.length > 50) {
+                logContainer.removeChild(entries[entries.length - 1]);
+            }
+        }
+
+        // API interaction functions
+        async function testConnection() {
+            addLogEntry('Testing WebRTC connection...');
+            try {
+                const response = await fetch(`${API_BASE}/test_connection`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    addLogEntry(`Connection test successful. Connection ID: ${result.connection_id}`, 'success');
+                } else {
+                    addLogEntry(`Connection test failed: ${result.error || 'Unknown error'}`, 'error');
+                }
+                
+                refreshDashboard();
+            } catch (error) {
+                console.error('Error testing connection:', error);
+                addLogEntry(`Error testing connection: ${error.message}`, 'error');
+            }
+        }
+
+        async function streamTestContent() {
+            addLogEntry('Streaming test content...');
+            try {
+                const response = await fetch(`${API_BASE}/stream_test_content`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    addLogEntry(`Streaming started. Connection ID: ${result.connection_id}`, 'success');
+                } else {
+                    addLogEntry(`Streaming failed: ${result.error || 'Unknown error'}`, 'error');
+                }
+                
+                refreshDashboard();
+            } catch (error) {
+                console.error('Error streaming test content:', error);
+                addLogEntry(`Error streaming test content: ${error.message}`, 'error');
+            }
+        }
+
+        async function startStream() {
+            const contentCid = document.getElementById('content-cid').value.trim();
+            const quality = document.getElementById('quality').value;
+            
+            if (!contentCid) {
+                addLogEntry('Please enter a content CID', 'warning');
+                return;
+            }
+            
+            addLogEntry(`Starting stream for CID: ${contentCid} (Quality: ${quality})...`);
+            
+            try {
+                const response = await fetch(`${API_BASE}/stream`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        cid: contentCid,
+                        quality: parseInt(quality, 10)
+                    })
+                });
+                
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    addLogEntry(`Streaming started. Connection ID: ${result.connection_id}`, 'success');
+                } else {
+                    addLogEntry(`Streaming failed: ${result.error || 'Unknown error'}`, 'error');
+                }
+                
+                refreshDashboard();
+            } catch (error) {
+                console.error('Error starting stream:', error);
+                addLogEntry(`Error starting stream: ${error.message}`, 'error');
+            }
+        }
+
+        async function closeConnection(connectionId) {
+            if (!connectionId) return;
+            
+            addLogEntry(`Closing connection: ${connectionId}...`);
+            
+            try {
+                const response = await fetch(`${API_BASE}/close/${connectionId}`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    addLogEntry(`Connection ${connectionId} closed successfully`, 'success');
+                } else {
+                    addLogEntry(`Failed to close connection: ${result.error || 'Unknown error'}`, 'error');
+                }
+                
+                refreshDashboard();
+            } catch (error) {
+                console.error(`Error closing connection ${connectionId}:`, error);
+                addLogEntry(`Error closing connection: ${error.message}`, 'error');
+            }
+        }
+
+        async function closeAllConnections() {
+            addLogEntry('Closing all connections...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/close_all`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    addLogEntry(`All connections closed successfully`, 'success');
+                } else {
+                    addLogEntry(`Failed to close all connections: ${result.error || 'Unknown error'}`, 'error');
+                }
+                
+                refreshDashboard();
+            } catch (error) {
+                console.error('Error closing all connections:', error);
+                addLogEntry(`Error closing all connections: ${error.message}`, 'error');
+            }
+        }
+        
+        function openVideoPlayer(connectionId, contentCid) {
+            // Format correct URL to video player
+            const videoPlayerUrl = `/api/v0/webrtc/player?connection_id=${encodeURIComponent(connectionId)}&content_cid=${encodeURIComponent(contentCid)}`;
+            
+            // Open the video player in a new tab
+            window.open(videoPlayerUrl, '_blank');
+            
+            addLogEntry(`Opening video player for connection ${connectionId}`, 'info');
+        }
+    </script>
+</body>
+</html>

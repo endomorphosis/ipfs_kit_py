@@ -10,7 +10,6 @@ from ipld_dag_pb.util import as_link, validate
 
 a_cid = CID.decode("bafkqabiaaebagba")
 
-
 def test_validate_good_forms():
     def doesnt_throw(good: PBNode) -> None:
         validate(good)
@@ -53,7 +52,20 @@ def test_validate_fails_bad_forms():
         with pytest.raises(TypeError):
             encode(bad)
 
-    bads = [True, False, None, 0, 101, -101, "blip", [], inf, object(), bytearray([1, 2, 3])]
+
+    bads = [
+        True,
+        False,
+        None,
+        0,
+        101,
+        -101,
+        'blip',
+        [],
+        inf,
+        object(),
+        bytearray([1, 2, 3])
+    ]
     for bad in bads:
         throws(bad)
 
@@ -66,17 +78,17 @@ def test_validate_fails_bad_forms():
     throws(PBNode(links=[{}]))  # type: ignore[type-arg]
 
     # bad data forms
-    bads = [True, False, 0, 101, -101, "blip", inf, object, []]
+    bads = [True, False, 0, 101, -101, 'blip', inf, object, []]
     for bad in bads:
         throws(PBNode(data=bad, links=[]))
 
     # bad link array forms
-    bads = [True, False, 0, 101, -101, "blip", inf, object, bytearray([1, 2, 3])]
+    bads = [True, False, 0, 101, -101, 'blip', inf, object, bytearray([1, 2, 3])]
     for bad in bads:
         throws(PBNode(links=bad))
 
     # bad link forms
-    bads = [True, False, 0, 101, -101, "blip", inf, object, bytearray([1, 2, 3])]
+    bads = [True, False, 0, 101, -101, 'blip', inf, object, bytearray([1, 2, 3])]
     for bad in bads:
         throws(PBNode(links=bad))
 
@@ -91,7 +103,7 @@ def test_validate_fails_bad_forms():
         throws(PBNode(links=[PBLink(hash=a_cid, name=bad)]))
 
     # bad link.t_size forms
-    bads = [True, False, [], "blip", {}, object, bytearray([1, 2, 3])]
+    bads = [True, False, [], 'blip', {}, object, bytearray([1, 2, 3])]
     for bad in bads:
         throws(PBNode(links=[PBLink(hash=a_cid, size=bad)]))
 
@@ -101,12 +113,16 @@ def test_validate_fails_bad_forms():
             links=[
                 PBLink(hash=a_cid),
                 PBLink(hash=a_cid, name="foo"),
-                PBLink(hash=a_cid, name="bar"),
+                PBLink(hash=a_cid, name="bar")
             ]
         )
     )
     throws(
         PBNode(
-            links=[PBLink(hash=a_cid), PBLink(hash=a_cid, name="aa"), PBLink(hash=a_cid, name="a")]
+            links=[
+                PBLink(hash=a_cid),
+                PBLink(hash=a_cid, name="aa"),
+                PBLink(hash=a_cid, name="a")
+            ]
         )
     )

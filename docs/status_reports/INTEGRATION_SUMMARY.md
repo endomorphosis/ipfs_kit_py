@@ -43,12 +43,10 @@ HAS_FEATURE = False
 try:
     import sys
     from pathlib import Path
-
     feature_path = Path(__file__).parent.parent / "external" / "feature_package"
     if feature_path.exists():
         sys.path.insert(0, str(feature_path))
     from feature_package import Feature
-
     HAS_FEATURE = True
     logger.info("feature available")
 except ImportError:

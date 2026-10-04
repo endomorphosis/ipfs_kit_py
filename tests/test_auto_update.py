@@ -17,23 +17,9 @@ def run_script(env, repo_dir):
         bash = git_bash if os.path.exists(git_bash) else shutil.which("bash")
         if not bash:
             pytest.skip("bash not available on Windows for .sh script execution")
-        proc = subprocess.run(
-            [bash, str(script)],
-            env=env,
-            cwd=repo_dir,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
+        proc = subprocess.run([bash, str(script)], env=env, cwd=repo_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     else:
-        proc = subprocess.run(
-            [str(script)],
-            env=env,
-            cwd=repo_dir,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
+        proc = subprocess.run([str(script)], env=env, cwd=repo_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     return proc.returncode, proc.stdout
 
 

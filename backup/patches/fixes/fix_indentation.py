@@ -8,11 +8,8 @@ import sys
 import logging
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
 
 def fix_indentation():
     """Fix the indentation issue around line 1024"""
@@ -52,7 +49,7 @@ def fix_indentation():
                         lines[i] = "    " + lines[i]
                     i += 1
 
-                logger.info(f"Fixed indentation from lines {start_line + 1} to {i + 1}")
+                logger.info(f"Fixed indentation from lines {start_line+1} to {i+1}")
 
         # Write the fixed content back to the file
         with open("direct_mcp_server_with_tools.py", "w") as f:
@@ -63,7 +60,6 @@ def fix_indentation():
     except Exception as e:
         logger.error(f"Error fixing indentation: {e}")
         return False
-
 
 def main():
     """Main function"""
@@ -77,7 +73,6 @@ def main():
     logger.info("\n✅ Successfully fixed indentation issue in direct_mcp_server_with_tools.py")
     logger.info("You can now run the server with './restart_mcp_with_tools.sh'")
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

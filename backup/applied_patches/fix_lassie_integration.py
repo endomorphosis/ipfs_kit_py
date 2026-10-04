@@ -25,7 +25,8 @@ from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,6 @@ ORIGINAL_LASSIE_STORAGE = PACKAGE_ROOT / "lassie_storage.py"
 BACKUP_LASSIE_STORAGE = PACKAGE_ROOT / "lassie_storage.py.bak"
 LASSIE_EXTENSION = MCP_EXTENSIONS_DIR / "lassie_extension.py"
 BACKUP_LASSIE_EXTENSION = MCP_EXTENSIONS_DIR / "lassie_extension.py.bak"
-
 
 def backup_file(file_path):
     """Create a backup of a file.
@@ -60,13 +60,10 @@ def backup_file(file_path):
         logger.error(f"Failed to back up {file_path}: {e}")
         return None
 
-
 def update_lassie_storage():
     """Replace the current lassie_storage.py with the enhanced version."""
     if not ENHANCED_LASSIE_STORAGE.exists():
-        logger.error(
-            f"Enhanced Lassie storage implementation not found at {ENHANCED_LASSIE_STORAGE}"
-        )
+        logger.error(f"Enhanced Lassie storage implementation not found at {ENHANCED_LASSIE_STORAGE}")
         return False
 
     try:
@@ -82,7 +79,6 @@ def update_lassie_storage():
         logger.error(f"Failed to update lassie_storage.py: {e}")
         return False
 
-
 def update_lassie_extension():
     """Update the MCP Lassie extension to use the enhanced implementation."""
     if not LASSIE_EXTENSION.exists():
@@ -94,14 +90,12 @@ def update_lassie_extension():
         backup_file(LASSIE_EXTENSION)
 
         # Read the extension file content
-        with open(LASSIE_EXTENSION, "r") as f:
+        with open(LASSIE_EXTENSION, 'r') as f:
             content = f.read()
 
         # Update the import to use EnhancedLassieStorage
         old_import = "from lassie_storage import LassieStorage, LASSIE_AVAILABLE"
-        new_import = (
-            "from lassie_storage import EnhancedLassieStorage as LassieStorage, LASSIE_AVAILABLE"
-        )
+        new_import = "from lassie_storage import EnhancedLassieStorage as LassieStorage, LASSIE_AVAILABLE"
 
         # Replace the import
         updated_content = content.replace(old_import, new_import)
@@ -117,9 +111,7 @@ def update_lassie_extension():
     """
 
         # Add the new endpoint
-        updated_content = updated_content.replace(
-            router_end, well_known_endpoint + "\n" + router_end
-        )
+        updated_content = updated_content.replace(router_end, well_known_endpoint + "\n" + router_end)
 
         # Update LassieStorage initialization to include new parameters
         old_init_real = """    # Initialize with real binary path
@@ -246,7 +238,7 @@ def update_lassie_status(storage_backends: Dict[str, Any]) -> None:
         updated_content = updated_content.replace(old_update_function, new_update_function)
 
         # Write the updated content back to the file
-        with open(LASSIE_EXTENSION, "w") as f:
+        with open(LASSIE_EXTENSION, 'w') as f:
             f.write(updated_content)
 
         logger.info(f"Updated {LASSIE_EXTENSION} with enhanced initialization and endpoints")
@@ -254,7 +246,6 @@ def update_lassie_status(storage_backends: Dict[str, Any]) -> None:
     except Exception as e:
         logger.error(f"Failed to update Lassie extension: {e}")
         return False
-
 
 def restart_mcp_server():
     """Restart the MCP server to apply changes."""
@@ -265,7 +256,7 @@ def restart_mcp_server():
         # Find PID file
         pid_file = Path("/tmp/mcp/server.pid")
         if pid_file.exists():
-            with open(pid_file, "r") as f:
+            with open(pid_file, 'r') as f:
                 pid = f.read().strip()
                 try:
                     subprocess.run(["kill", "-15", pid], check=False)
@@ -275,7 +266,10 @@ def restart_mcp_server():
 
         # Also try to kill any process matching enhanced_mcp_server.py
         try:
-            subprocess.run(["pkill", "-f", "enhanced_mcp_server.py"], check=False)
+            subprocess.run(
+                ["pkill", "-f", "enhanced_mcp_server.py"],
+                check=False
+            )
         except Exception:
             pass
 
@@ -297,7 +291,6 @@ def restart_mcp_server():
         logger.error(f"Error restarting MCP server: {e}")
         return False
 
-
 def test_lassie_integration():
     """Test the Lassie integration to verify it's working properly."""
     try:
@@ -310,7 +303,7 @@ def test_lassie_integration():
                 ["curl", "http://localhost:9997/api/v0/health"],
                 capture_output=True,
                 text=True,
-                check=True,
+                check=True
             )
 
             if "lassie" not in health_output.stdout.lower():
@@ -323,17 +316,12 @@ def test_lassie_integration():
             # Parse the health output to check Lassie status
             try:
                 health_data = json.loads(health_output.stdout)
-                if (
-                    "storage_backends" in health_data
-                    and "lassie" in health_data["storage_backends"]
-                ):
+                if "storage_backends" in health_data and "lassie" in health_data["storage_backends"]:
                     lassie_status = health_data["storage_backends"]["lassie"]
                     logger.info(f"Lassie status: {json.dumps(lassie_status, indent=2)}")
 
                     # Check if it's available and not simulation mode
-                    if lassie_status.get("available", False) and not lassie_status.get(
-                        "simulation", True
-                    ):
+                    if lassie_status.get("available", False) and not lassie_status.get("simulation", True):
                         logger.info("Lassie backend is available and not in simulation mode")
 
                         # Get well-known CIDs list to verify the new endpoint
@@ -341,7 +329,7 @@ def test_lassie_integration():
                             ["curl", "http://localhost:9997/api/v0/lassie/well_known_cids"],
                             capture_output=True,
                             text=True,
-                            check=True,
+                            check=True
                         )
 
                         try:
@@ -352,14 +340,10 @@ def test_lassie_integration():
                                 # Try to retrieve a well-known CID
                                 if "hello_world" in well_known_data["cids"]:
                                     test_cid = well_known_data["cids"]["hello_world"]["cid"]
-                                    logger.info(
-                                        f"Testing retrieval with well-known CID: {test_cid}"
-                                    )
+                                    logger.info(f"Testing retrieval with well-known CID: {test_cid}")
 
                                     # This will only be used for logging, we won't actually run it
-                                    logger.info(
-                                        f"To test manually: curl -X POST -F cid={test_cid} http://localhost:9997/api/v0/lassie/to_ipfs"
-                                    )
+                                    logger.info(f"To test manually: curl -X POST -F cid={test_cid} http://localhost:9997/api/v0/lassie/to_ipfs")
 
                                 return True
                             else:
@@ -392,7 +376,6 @@ def test_lassie_integration():
     except Exception as e:
         logger.error(f"Error testing Lassie integration: {e}")
         return False
-
 
 def main():
     """Main function to fix Lassie integration."""
@@ -428,9 +411,7 @@ def main():
 
     logger.info("")
     logger.info("=== New Features ===")
-    logger.info(
-        "1. Well-known CIDs endpoint: curl http://localhost:9997/api/v0/lassie/well_known_cids"
-    )
+    logger.info("1. Well-known CIDs endpoint: curl http://localhost:9997/api/v0/lassie/well_known_cids")
     logger.info("2. Improved content retrieval with multiple fallback mechanisms:")
     logger.info("   - Direct Lassie retrieval")
     logger.info("   - Public gateway fallback")
@@ -439,7 +420,6 @@ def main():
     logger.info("4. Support for testing with well-known content")
 
     return True
-
 
 if __name__ == "__main__":
     success = main()

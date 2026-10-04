@@ -44,13 +44,12 @@ class StorachaConnectionManager:
     4. Providing detailed error information
     5. Supporting connection pooling for performance
     """
-
     DEFAULT_ENDPOINTS = ["https://api.web3.storage/", "https://w3s.link/"]
 
     def __init__(
         self,
-        api_endpoints=None,
-        api_key=None,
+        api_endpoints = None,
+        api_key = None,
         max_retries=DEFAULT_MAX_RETRIES,
         mock_mode=False,
         connection_timeout=DEFAULT_CONNECTION_TIMEOUT,
@@ -345,7 +344,6 @@ class StorachaBackend(BackendStorage):
     4. Cross-backend migration capabilities
     5. Enhanced error handling and monitoring
     """
-
     def __init__(self, resources: Dict[str, Any], metadata: Dict[str, Any]):
         """Initialize Storacha backend with advanced features."""
         super().__init__(StorageBackendType.STORACHA, resources, metadata)
@@ -387,7 +385,7 @@ class StorachaBackend(BackendStorage):
 
         # Initialize local cache for frequently accessed data
         self._init_local_cache()
-
+        
     def get_name(self) -> str:
         """Get the name of this backend implementation."""
         return "storacha"
@@ -502,8 +500,7 @@ class StorachaBackend(BackendStorage):
                         os.remove(tmp_path)
                 except OSError as cleanup_error:
                     logger.warning(
-                        f"Error removing temporary cache file {tmp_path}: {str(cleanup_error)}"
-                    )
+                        f"Error removing temporary cache file {tmp_path}: {str(cleanup_error)}")
 
             if data_committed:
                 for final_path in (cache_path, meta_path):
@@ -512,8 +509,7 @@ class StorachaBackend(BackendStorage):
                             os.remove(final_path)
                     except OSError as cleanup_error:
                         logger.warning(
-                            f"Error removing incomplete cache file {final_path}: {str(cleanup_error)}"
-                        )
+                            f"Error removing incomplete cache file {final_path}: {str(cleanup_error)}")
                 if previous_size:
                     self.cache_usage = max(0, self.cache_usage - previous_size)
 
@@ -576,21 +572,19 @@ class StorachaBackend(BackendStorage):
     def _is_file_like(self, obj):
         """Check if object is file-like (has read method)."""
         return hasattr(obj, "read") and callable(obj.read)
-
+        
     # Implement required abstract method
-    def add_content(
-        self, content: Union[str, bytes, BinaryIO], metadata: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def add_content(self, content: Union[str, bytes, BinaryIO], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Add content to Storacha storage.
-
+        
         This method implements the abstract method from BackendStorage.
         It serves as a bridge to the store() method with appropriate parameter mapping.
-
+        
         Args:
             content: Content to add (can be a path, bytes, or file-like object)
             metadata: Optional metadata to associate with the content
-
+            
         Returns:
             Dict with operation result including content ID
         """
@@ -598,7 +592,7 @@ class StorachaBackend(BackendStorage):
         options = {}
         if metadata:
             options["metadata"] = metadata
-
+            
         # Call the existing store method with mapped parameters
         return self.store(content, options=options)
 
@@ -606,30 +600,30 @@ class StorachaBackend(BackendStorage):
     def get_content(self, content_id: str) -> Dict[str, Any]:
         """
         Retrieve content from Storacha storage.
-
+        
         This method implements the abstract method from BackendStorage.
         It serves as a bridge to the retrieve() method.
-
+        
         Args:
             content_id: ID of the content to retrieve
-
+            
         Returns:
             Dict with operation result including content data
         """
         # Call the existing retrieve method
         return self.retrieve(content_id)
-
+        
     # Implement required abstract method
     def remove_content(self, content_id: str) -> Dict[str, Any]:
         """
         Remove content from Storacha storage.
-
+        
         This method implements the abstract method from BackendStorage.
         It serves as a bridge to the delete() method.
-
+        
         Args:
             content_id: ID of the content to remove
-
+            
         Returns:
             Dict with operation result
         """
@@ -1298,7 +1292,7 @@ class StorachaBackend(BackendStorage):
 
         # Combine metadata for target backend
         combined_metadata = {**metadata, **migration_metadata}
-
+        
         # Store in target backend using add_content (not store, as we've fixed the method names)
         store_result = target_backend.add_content(data, combined_metadata)
 
@@ -1446,7 +1440,7 @@ class StorachaBackend(BackendStorage):
         # Store in Storacha
         store_result = self.store(
             data,
-            container=None,  # Not used in Storacha
+            container = None,  # Not used in Storacha
             path=target_path,
             options=storage_options,
         )
@@ -1474,7 +1468,7 @@ class StorachaBackend(BackendStorage):
             # Retrieve content from Storacha to verify
             target_retrieve = self.retrieve(
                 target_identifier,
-                container=None,
+                container = None,
                 options=options.get("verification_options", {}),
             )
 

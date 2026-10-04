@@ -54,8 +54,7 @@ def _run_async_from_sync(async_fn, *args, **kwargs):
 
 class StorageManagerAnyIO:
     """Storage Manager with AnyIO support for backend-agnostic async capabilities."""
-
-    def __init__(self, models=None, metadata=None):
+    def __init__(self, models = None, metadata = None):
         """Initialize the storage manager with models.
 
         Args:
@@ -88,7 +87,7 @@ class StorageManagerAnyIO:
             "models": {},
         }
 
-    def _update_stats(self, model_id, result, bytes_processed=None):
+    def _update_stats(self, model_id, result, bytes_processed = None):
         """Update operation statistics.
 
         Args:

@@ -1,0 +1,48 @@
+/* Basic fallback styles loaded only if Tailwind CDN fails. */
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background-color: #f3f4f6; }
+/* Layout */
+.flex { display: flex; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-1 { flex: 1; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.hidden { display: none; }
+.block { display: block; }
+/* Spacing */
+.p-6 { padding: 1.5rem; } .p-4 { padding: 1rem; } .p-3 { padding: .75rem; }
+.px-4 { padding-left:1rem; padding-right:1rem; } .py-2 { padding-top:.5rem; padding-bottom:.5rem; }
+.px-3 { padding-left:.75rem; padding-right:.75rem; } .py-1 { padding-top:.25rem; padding-bottom:.25rem; }
+.mb-6 { margin-bottom:1.5rem; } .mb-4 { margin-bottom:1rem; } .mb-3 { margin-bottom:.75rem; } .mb-2 { margin-bottom:.5rem; }
+.mt-3 { margin-top:.75rem; } .mt-4 { margin-top:1rem; } .mt-6 { margin-top:1.5rem; }
+.mr-1 { margin-right:.25rem; } .mr-2 { margin-right:.5rem; }
+/* Typography */
+.text-2xl { font-size:1.5rem; } .text-xl { font-size:1.25rem; } .text-lg { font-size:1.125rem; }
+.text-sm { font-size:.875rem; } .text-xs { font-size:.75rem; }
+.font-bold { font-weight:700; } .font-semibold { font-weight:600; }
+/* Colors */
+.text-gray-800 { color:#1f2937; } .text-gray-700 { color:#374151; } .text-gray-600 { color:#4b5563; }
+.text-white { color:#fff; }
+.bg-white { background:#fff; } .bg-gray-50 { background:#f9fafb; } .bg-blue-500 { background:#3b82f6; }
+.bg-green-500 { background:#10b981; } .bg-purple-500 { background:#8b5cf6; } .bg-yellow-500 { background:#eab308; } .bg-red-500 { background:#ef4444; } .bg-indigo-500 { background:#6366f1; }
+/* Borders & radius */
+.rounded { border-radius:.25rem; } .rounded-lg { border-radius:.5rem; }
+.border { border:1px solid #d1d5db; }
+/* Utility */
+.shadow { box-shadow:0 1px 3px rgba(0,0,0,.1); } .shadow-lg { box-shadow:0 10px 15px rgba(0,0,0,.1); }
+.w-full { width:100%; } .w-64 { width:16rem; }
+.space-y-2 > * + * { margin-top:.5rem; } .space-y-6 > * + * { margin-top:1.5rem; }
+.gap-2 { gap:.5rem; }
+.rounded-xl { border-radius:.75rem; }
+.font-mono { font-family: ui-monospace, "Cascadia Code", monospace; }
+/* Simple hover states */
+.hover\\:bg-blue-600:hover { background:#2563eb; }
+.hover\\:bg-green-600:hover { background:#059669; }
+.hover\\:bg-purple-600:hover { background:#7c3aed; }
+.hover\\:bg-yellow-600:hover { background:#ca8a04; }
+.hover\\:bg-red-600:hover { background:#dc2626; }
+.hover\\:bg-indigo-600:hover { background:#4f46e5; }
+/* Icon spacing */
+i.mr-2 { margin-right:.5rem; }
+/* Minimal button style fallback */
+button { cursor:pointer; }

@@ -262,13 +262,13 @@ class IrohInstaller:
         url = artifact.get("url")
         digest = artifact.get("checksum_sha256")
         expected_size = artifact.get("size")
-        if (
-            isinstance(expected_size, bool)
-            or not isinstance(expected_size, int)
-            or expected_size <= 0
-        ):
+        if isinstance(expected_size, bool) or not isinstance(expected_size, int) or expected_size <= 0:
             raise ReleaseUnavailableError("artifact has no valid pinned size")
-        if not isinstance(digest, str) or len(digest) != 64 or digest != digest.lower():
+        if (
+            not isinstance(digest, str)
+            or len(digest) != 64
+            or digest != digest.lower()
+        ):
             raise ReleaseUnavailableError("artifact has no valid pinned SHA-256 digest")
         try:
             int(digest, 16)
@@ -300,11 +300,7 @@ class IrohInstaller:
         if artifact.get("archive_format") not in {"tar.gz", "zip"}:
             raise ReleaseUnavailableError("unsupported artifact archive format")
         executable = artifact.get("executable")
-        if (
-            not isinstance(executable, str)
-            or not executable
-            or PurePosixPath(executable).name != executable
-        ):
+        if not isinstance(executable, str) or not executable or PurePosixPath(executable).name != executable:
             raise ReleaseUnavailableError("artifact executable name is missing or unsafe")
 
     def _download(self, artifact: Mapping[str, Any], destination: Path) -> None:
@@ -420,7 +416,9 @@ class IrohInstaller:
                         if member_path.name != executable:
                             continue
                         if not member.isfile():
-                            raise UnsafeArchiveError("sidecar archive member is not a regular file")
+                            raise UnsafeArchiveError(
+                                "sidecar archive member is not a regular file"
+                            )
                         if member.size <= 0 or member.size > MAX_EXECUTABLE_SIZE:
                             raise UnsafeArchiveError("sidecar executable has an unsafe size")
                         candidates.append(member)
@@ -450,10 +448,14 @@ class IrohInstaller:
                         if member_path.name != executable:
                             continue
                         if member.is_dir():
-                            raise UnsafeArchiveError("sidecar archive member is not a regular file")
+                            raise UnsafeArchiveError(
+                                "sidecar archive member is not a regular file"
+                            )
                         file_type = stat.S_IFMT(unix_mode)
                         if file_type not in {0, stat.S_IFREG}:
-                            raise UnsafeArchiveError("sidecar archive member is not a regular file")
+                            raise UnsafeArchiveError(
+                                "sidecar archive member is not a regular file"
+                            )
                         if member.file_size <= 0 or member.file_size > MAX_EXECUTABLE_SIZE:
                             raise UnsafeArchiveError("sidecar executable has an unsafe size")
                         candidates.append(member)
@@ -507,7 +509,9 @@ class IrohInstaller:
                 try:
                     staged_binary.chmod(0o755)
                 except OSError as exc:
-                    raise IrohInstallError(f"cannot make Iroh sidecar executable: {exc}") from exc
+                    raise IrohInstallError(
+                        f"cannot make Iroh sidecar executable: {exc}"
+                    ) from exc
                 if not os.access(staged_binary, os.X_OK):
                     raise IrohInstallError("extracted Iroh sidecar is not executable")
 

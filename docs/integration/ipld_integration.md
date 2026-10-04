@@ -133,7 +133,8 @@ CAR files allow you to package and transfer IPLD data in a self-contained format
 ```python
 # Create a CAR file from content
 result = kit.create_car(
-    roots=["QmXg9Pp2ytZ14xgmQjYEiHjVjMFXzCVVEcRTWJBmLgR39V"], output_path="example.car"
+    roots=["QmXg9Pp2ytZ14xgmQjYEiHjVjMFXzCVVEcRTWJBmLgR39V"], 
+    output_path="example.car"
 )
 
 # Extract a CAR file
@@ -150,7 +151,14 @@ DAG-PB nodes are the building blocks of IPLD graphs in IPFS.
 ```python
 # Create a DAG-PB node with links
 node_result = kit.create_dag_node(
-    data=b"Hello, IPLD!", links=[{"Name": "child", "Hash": "QmChildCID", "Tsize": 123}]
+    data=b"Hello, IPLD!",
+    links=[
+        {
+            "Name": "child", 
+            "Hash": "QmChildCID", 
+            "Tsize": 123
+        }
+    ]
 )
 
 # The result contains the serialized node and its CID
@@ -167,7 +175,7 @@ UnixFS provides file and directory abstractions over IPLD data.
 chunk_result = kit.chunk_file(
     file_path="large_file.dat",
     strategy="size-1048576",  # 1MB chunks
-    output_dir="/tmp/chunks",
+    output_dir="/tmp/chunks"
 )
 
 # The result contains the root CID and chunking info
@@ -279,13 +287,16 @@ parent_node_result = kit.create_dag_node(
     data=b"Parent node data",
     links=[
         {"Name": "child1", "Hash": node1_cid, "Tsize": len(node1_result["node_bytes"])},
-        {"Name": "child2", "Hash": node2_cid, "Tsize": len(node2_result["node_bytes"])},
-    ],
+        {"Name": "child2", "Hash": node2_cid, "Tsize": len(node2_result["node_bytes"])}
+    ]
 )
 parent_cid = parent_node_result["cid"]
 
 # Export the entire DAG to a CAR file
-car_result = kit.create_car(roots=[parent_cid], output_path="dag_export.car")
+car_result = kit.create_car(
+    roots=[parent_cid],
+    output_path="dag_export.car"
+)
 
 # Import to another IPFS node
 import_result = kit.add_car_to_ipfs("dag_export.car")
@@ -330,7 +341,10 @@ content_result = source_kit.ipfs_add("Hello, IPFS and IPLD!")
 content_cid = content_result["Hash"]
 
 # Create a CAR file with this content
-car_result = source_kit.create_car(roots=[content_cid], output_path="transfer.car")
+car_result = source_kit.create_car(
+    roots=[content_cid],
+    output_path="transfer.car"
+)
 
 if car_result["success"]:
     print(f"Created CAR file: {car_result['car_file_path']}")
@@ -338,15 +352,15 @@ if car_result["success"]:
 
     # Initialize destination node with IPLD
     dest_kit = ipfs_kit(metadata={"enable_ipld": True})
-
+    
     # Import the CAR file
     import_result = dest_kit.add_car_to_ipfs("transfer.car")
-
+    
     if import_result["success"]:
         print(f"Successfully imported CAR file")
         print(f"Root CID: {import_result['root_cid']}")
         print(f"Imported {import_result['imported_blocks']} blocks")
-
+        
         # Verify content can be retrieved
         get_result = dest_kit.ipfs_cat(content_cid)
         if get_result["success"]:
@@ -380,8 +394,8 @@ branch1_result = kit.create_dag_node(
     data=b"Branch 1 data",
     links=[
         {"Name": "leaf1", "Hash": leaf1_cid, "Tsize": len(leaf1_result["node_bytes"])},
-        {"Name": "leaf2", "Hash": leaf2_cid, "Tsize": len(leaf2_result["node_bytes"])},
-    ],
+        {"Name": "leaf2", "Hash": leaf2_cid, "Tsize": len(leaf2_result["node_bytes"])}
+    ]
 )
 branch1_cid = branch1_result["cid"]
 
@@ -390,15 +404,18 @@ root_result = kit.create_dag_node(
     data=b"Root node data",
     links=[
         {"Name": "branch1", "Hash": branch1_cid, "Tsize": len(branch1_result["node_bytes"])},
-        {"Name": "leaf3", "Hash": leaf3_cid, "Tsize": len(leaf3_result["node_bytes"])},
-    ],
+        {"Name": "leaf3", "Hash": leaf3_cid, "Tsize": len(leaf3_result["node_bytes"])}
+    ]
 )
 root_cid = root_result["cid"]
 
 print(f"Created DAG with root CID: {root_cid}")
 
 # Export the entire DAG to a CAR file
-car_result = kit.create_car(roots=[root_cid], output_path="custom_dag.car")
+car_result = kit.create_car(
+    roots=[root_cid],
+    output_path="custom_dag.car"
+)
 
 if car_result["success"]:
     print(f"Exported DAG to CAR file: {car_result['car_file_path']}")
@@ -424,20 +441,18 @@ with open(test_file, "wb") as f:
 chunk_result = kit.chunk_file(
     file_path=test_file,
     strategy="size-1048576",  # 1MB chunks
-    output_dir="/tmp/chunks",
+    output_dir="/tmp/chunks"
 )
 
 if chunk_result["success"]:
     print(f"Successfully chunked file")
     print(f"Root CID: {chunk_result['root_cid']}")
     print(f"Number of chunks: {len(chunk_result['chunks'])}")
-    print(
-        f"Average chunk size: {sum(c['size'] for c in chunk_result['chunks']) / len(chunk_result['chunks'])} bytes"
-    )
-
+    print(f"Average chunk size: {sum(c['size'] for c in chunk_result['chunks']) / len(chunk_result['chunks'])} bytes")
+    
     # Add the chunked file to IPFS
     add_result = kit.ipfs_add(test_file)
-
+    
     if add_result["success"]:
         print(f"Added file to IPFS with CID: {add_result['Hash']}")
         print(f"Verify the CIDs match: {add_result['Hash'] == chunk_result['root_cid']}")

@@ -1,4 +1,4 @@
-# \!/usr/bin/env python3
+#\!/usr/bin/env python3
 """
 Additional fixes for LibP2PModel class.
 This script addresses issues found during testing.
@@ -18,11 +18,11 @@ shutil.copy2(file_path, backup_path)
 print(f"Created backup at {backup_path}")
 
 # Read the file content
-with open(file_path, "r") as f:
+with open(file_path, 'r') as f:
     content = f.read()
 
 # Fix the get_health async method's helper function
-get_health_pattern = r"def _get_health_sync\(\):\s*# Call the original method directly to avoid recursion\s*original_method = LibP2PModel\.get_health\.__func__\s*return original_method\(self\)"
+get_health_pattern = r'def _get_health_sync\(\):\s*# Call the original method directly to avoid recursion\s*original_method = LibP2PModel\.get_health\.__func__\s*return original_method\(self\)'
 get_health_replacement = """def _get_health_sync():
             # Directly implement the get_health logic here to avoid recursion
             result = {
@@ -50,7 +50,7 @@ get_health_replacement = """def _get_health_sync():
 content = re.sub(get_health_pattern, get_health_replacement, content)
 
 # Fix the register_message_handler async method
-register_handler_pattern = r"async def register_message_handler\(self, handler_id: str, protocol_id: str[^}]+?return await anyio\.to_thread\.run_sync\(_register_message_handler_sync\)"
+register_handler_pattern = r'async def register_message_handler\(self, handler_id: str, protocol_id: str[^}]+?return await anyio\.to_thread\.run_sync\(_register_message_handler_sync\)'
 register_handler_replacement = """    async def register_message_handler(self, handler_id: str, protocol_id: str, description: Optional[str] = None) -> Dict[str, Any]:
         # Async version of register_message_handler for use with async controllers
         #
@@ -78,12 +78,12 @@ register_handler_replacement = """    async def register_message_handler(self, h
 content = re.sub(register_handler_pattern, register_handler_replacement, content)
 
 # Fix the synchronous register_message_handler method
-sync_register_handler_pattern = r"def register_message_handler\(self, topic: str, handler_function: Callable, handler_id: Optional\[str\] = None\) -> Dict\[str, Any\]:"
+sync_register_handler_pattern = r'def register_message_handler\(self, topic: str, handler_function: Callable, handler_id: Optional\[str\] = None\) -> Dict\[str, Any\]:'
 sync_register_handler_replacement = """def register_message_handler(self, topic: str, handler_function: Callable, handler_id: Optional[str] = None) -> Dict[str, Any]:"""
 content = re.sub(sync_register_handler_pattern, sync_register_handler_replacement, content)
 
 # Write the fixed content to a temporary file first
-with tempfile.NamedTemporaryFile(mode="w", delete=False) as tmp:
+with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp:
     tmp.write(content)
     temp_name = tmp.name
 

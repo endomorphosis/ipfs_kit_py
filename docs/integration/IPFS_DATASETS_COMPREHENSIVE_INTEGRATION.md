@@ -48,7 +48,9 @@ This document provides a complete guide to the ipfs_datasets_py integration acro
 from ipfs_kit_py.mcp.auth.audit_logging import AuditLogger
 
 logger = AuditLogger(
-    log_file="/var/log/audit.log", enable_dataset_storage=True, ipfs_client=ipfs_client
+    log_file="/var/log/audit.log",
+    enable_dataset_storage=True,
+    ipfs_client=ipfs_client
 )
 
 # Events automatically stored in batches
@@ -70,10 +72,16 @@ logger.flush_to_dataset()
 ```python
 from ipfs_kit_py.log_manager import LogManager
 
-manager = LogManager(enable_dataset_storage=True, ipfs_client=ipfs_client)
+manager = LogManager(
+    enable_dataset_storage=True,
+    ipfs_client=ipfs_client
+)
 
 # Store logs as dataset
-result = manager.store_logs_as_dataset(component="ipfs-daemon", version="1.0")
+result = manager.store_logs_as_dataset(
+    component="ipfs-daemon",
+    version="1.0"
+)
 print(f"Stored with CID: {result.get('cid')}")
 ```
 
@@ -90,7 +98,9 @@ print(f"Stored with CID: {result.get('cid')}")
 from ipfs_kit_py.storage_wal import StorageWriteAheadLog
 
 wal = StorageWriteAheadLog(
-    base_path="~/.ipfs_kit/wal", enable_dataset_storage=True, ipfs_client=ipfs_client
+    base_path="~/.ipfs_kit/wal",
+    enable_dataset_storage=True,
+    ipfs_client=ipfs_client
 )
 
 # Partitions automatically stored
@@ -118,7 +128,7 @@ telemetry = WALTelemetry(
     metrics_path="~/.ipfs_kit/telemetry",
     enable_dataset_storage=True,
     ipfs_client=ipfs_client,
-    sampling_interval=60,
+    sampling_interval=60
 )
 
 # Metrics automatically stored in batches
@@ -139,7 +149,9 @@ telemetry.flush_metrics_to_dataset()
 from ipfs_kit_py.mcp.monitoring.health import HealthCheckManager
 
 health_mgr = HealthCheckManager(
-    monitoring_manager=monitoring, enable_dataset_storage=True, ipfs_client=ipfs_client
+    monitoring_manager=monitoring,
+    enable_dataset_storage=True,
+    ipfs_client=ipfs_client
 )
 
 # Run checks
@@ -162,21 +174,21 @@ health_mgr.flush_health_results_to_dataset()
   ```python
   from ipfs_kit_py.fs_journal_monitor import JournalHealthMonitor
   from ipfs_kit_py.filesystem_journal import FilesystemJournal
-
+  
   journal = FilesystemJournal(base_path="~/.ipfs_kit/journal")
-
+  
   monitor = JournalHealthMonitor(
       journal=journal,
       check_interval=60,
       enable_dataset_storage=True,
       ipfs_client=ipfs_client,
-      dataset_batch_size=100,
+      dataset_batch_size=100
   )
-
+  
   # Stats automatically stored in batches
   # Manual flush
   monitor.flush_to_dataset()
-
+  
   # Stop monitoring properly
   monitor.stop()
   ```
@@ -191,7 +203,7 @@ health_mgr.flush_health_results_to_dataset()
 - **Configuration**:
   ```python
   from ipfs_kit_py.fs_journal_replication import MetadataReplicationManager
-
+  
   manager = MetadataReplicationManager(
       node_id="worker-node-1",
       role="worker",
@@ -199,14 +211,14 @@ health_mgr.flush_health_results_to_dataset()
           "base_path": "~/.ipfs_kit/replication",
           "enable_dataset_storage": True,
           "ipfs_client": ipfs_client,
-          "dataset_batch_size": 50,
-      },
+          "dataset_batch_size": 50
+      }
   )
-
+  
   # Replication operations automatically tracked
   # Manual flush
   manager.flush_to_dataset()
-
+  
   # Stop and cleanup properly
   manager.close()
   ```
@@ -229,16 +241,16 @@ health_mgr.flush_health_results_to_dataset()
 - **Configuration**:
   ```python
   from ipfs_kit_py.mcp.enhanced_server import EnhancedMCPServer
-
+  
   # Initialize with dataset storage
   server = EnhancedMCPServer(
       host="127.0.0.1",
       port=8001,
       enable_dataset_storage=True,
       ipfs_client=ipfs_client,
-      dataset_batch_size=100,
+      dataset_batch_size=100
   )
-
+  
   # All commands automatically tracked
   # Manual flush if needed
   server.flush_to_dataset()
@@ -280,20 +292,20 @@ Additional MCP components that could benefit from dataset integration:
 - **Configuration**:
   ```python
   from ipfs_kit_py.mcp.enterprise.lifecycle import LifecycleManager
-
+  
   manager = LifecycleManager(
       metadata_db_path="~/.ipfs_kit/lifecycle/metadata.json",
       enable_dataset_storage=True,
       ipfs_client=ipfs_client,
-      dataset_batch_size=50,
+      dataset_batch_size=50
   )
-
+  
   # Lifecycle operations automatically tracked
   manager.start()
-
+  
   # Manual flush
   manager.flush_to_dataset()
-
+  
   # Stop and save
   manager.stop()
   ```
@@ -309,20 +321,20 @@ Additional MCP components that could benefit from dataset integration:
 - **Configuration**:
   ```python
   from ipfs_kit_py.mcp.enterprise.data_lifecycle import DataLifecycleManager
-
+  
   manager = DataLifecycleManager(
       storage_path="~/.ipfs_kit/data_lifecycle",
       enable_dataset_storage=True,
       ipfs_client=ipfs_client,
-      dataset_batch_size=50,
+      dataset_batch_size=50
   )
-
+  
   # Lifecycle events automatically tracked
   manager.start()
-
+  
   # Manual flush
   manager.flush_to_dataset()
-
+  
   # Stop
   manager.stop()
   ```
@@ -337,24 +349,23 @@ try:
     from .ipfs_datasets_integration import get_ipfs_datasets_manager, IPFS_DATASETS_AVAILABLE
 except ImportError:
     IPFS_DATASETS_AVAILABLE = False
-
     def get_ipfs_datasets_manager(*args, **kwargs):
         return None
-
 
 # 2. Initialize in __init__
 class MyClass:
     def __init__(self, enable_dataset_storage=False, ipfs_client=None):
         # ... other initialization ...
-
+        
         # Initialize ipfs_datasets integration
         self.enable_dataset_storage = enable_dataset_storage and IPFS_DATASETS_AVAILABLE
         self.datasets_manager = None
-
+        
         if self.enable_dataset_storage:
             try:
                 self.datasets_manager = get_ipfs_datasets_manager(
-                    ipfs_client=ipfs_client, enable=True
+                    ipfs_client=ipfs_client,
+                    enable=True
                 )
                 if not (self.datasets_manager and self.datasets_manager.is_available()):
                     self.enable_dataset_storage = False
@@ -362,42 +373,40 @@ class MyClass:
                 logger.warning(f"Failed to initialize ipfs_datasets: {e}")
                 self.enable_dataset_storage = False
 
-
 # 3. Storage method with error handling
 def _store_to_dataset(self):
     """Store data as a dataset."""
     if not self.datasets_manager:
         return
-
+    
     try:
         import tempfile
-
+        
         # Prepare data
         data = {"timestamp": time.time(), "data": self.get_data()}
-
+        
         # Write to temp file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
             json.dump(data, f)
             temp_path = f.name
-
+        
         # Store as dataset
         metadata = {"type": "my_data", "timestamp": datetime.now().isoformat()}
         result = self.datasets_manager.store(temp_path, metadata=metadata)
-
+        
         # Cleanup
         try:
             os.unlink(temp_path)
         except:
             pass
-
+        
         if result.get("success"):
             logger.debug(f"Stored to dataset: {result.get('cid')}")
         else:
             logger.warning(f"Failed to store: {result.get('error')}")
-
+            
     except Exception as e:
         logger.error(f"Error storing to dataset: {e}")
-
 
 # 4. Manual flush method
 def flush_to_dataset(self):
@@ -448,15 +457,23 @@ ENABLE_DATASET_STORAGE = True
 
 # IPFS client setup
 from ipfs_kit_py.ipfs_kit import ipfs_kit
-
 ipfs_client = ipfs_kit()
 
 # Apply to all components
-audit_logger = AuditLogger(enable_dataset_storage=ENABLE_DATASET_STORAGE, ipfs_client=ipfs_client)
+audit_logger = AuditLogger(
+    enable_dataset_storage=ENABLE_DATASET_STORAGE,
+    ipfs_client=ipfs_client
+)
 
-log_manager = LogManager(enable_dataset_storage=ENABLE_DATASET_STORAGE, ipfs_client=ipfs_client)
+log_manager = LogManager(
+    enable_dataset_storage=ENABLE_DATASET_STORAGE,
+    ipfs_client=ipfs_client
+)
 
-wal = StorageWriteAheadLog(enable_dataset_storage=ENABLE_DATASET_STORAGE, ipfs_client=ipfs_client)
+wal = StorageWriteAheadLog(
+    enable_dataset_storage=ENABLE_DATASET_STORAGE,
+    ipfs_client=ipfs_client
+)
 ```
 
 ### Selective Configuration
@@ -464,7 +481,7 @@ wal = StorageWriteAheadLog(enable_dataset_storage=ENABLE_DATASET_STORAGE, ipfs_c
 ```python
 # Enable only for critical components
 audit_logger = AuditLogger(enable_dataset_storage=True)  # Critical
-log_manager = LogManager(enable_dataset_storage=False)  # Not needed
+log_manager = LogManager(enable_dataset_storage=False)   # Not needed
 wal = StorageWriteAheadLog(enable_dataset_storage=True)  # Critical
 ```
 
@@ -580,7 +597,9 @@ logger = AuditLogger(log_file="/var/log/audit.log")
 
 # After:
 logger = AuditLogger(
-    log_file="/var/log/audit.log", enable_dataset_storage=True, ipfs_client=ipfs_client
+    log_file="/var/log/audit.log",
+    enable_dataset_storage=True,
+    ipfs_client=ipfs_client
 )
 
 # Step 3: Test with manual flush
@@ -596,7 +615,7 @@ logger.flush_to_dataset()
 # Set enable_dataset_storage=False
 logger = AuditLogger(
     log_file="/var/log/audit.log",
-    enable_dataset_storage=False,  # Disable
+    enable_dataset_storage=False  # Disable
 )
 
 # Or simply omit the parameter (defaults to False)

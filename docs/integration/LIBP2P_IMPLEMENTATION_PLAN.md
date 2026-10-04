@@ -235,106 +235,126 @@ import semver
 import logging
 from typing import Dict, List, Optional, Tuple
 
-
 class EnhancedProtocolNegotiator:
     """Protocol negotiator with semantic versioning support."""
-
+    
     def __init__(self, supported_protocols):
         """Initialize with mapping of protocol names to version ranges."""
         self.supported_protocols = self._parse_protocols(supported_protocols)
         self.logger = logging.getLogger("EnhancedProtocolNegotiator")
-
+    
     def _parse_protocols(self, protocols):
         """Parse protocol strings with semver support."""
         parsed = {}
         for proto_id, details in protocols.items():
             # Extract base protocol name and version
-            if "/" in proto_id:
-                parts = proto_id.split("/")
+            if '/' in proto_id:
+                parts = proto_id.split('/')
                 if len(parts) >= 3:  # Format: /base/protocol/x.y.z
-                    base_name = "/".join(parts[:-1])
+                    base_name = '/'.join(parts[:-1])
                     version = parts[-1]
-
+                    
                     # Try to parse as semver
                     try:
                         parsed_version = semver.VersionInfo.parse(version)
-
+                        
                         if base_name not in parsed:
                             parsed[base_name] = []
-
-                        parsed[base_name].append(
-                            {"full_id": proto_id, "version": parsed_version, "details": details}
-                        )
+                            
+                        parsed[base_name].append({
+                            'full_id': proto_id,
+                            'version': parsed_version,
+                            'details': details
+                        })
                     except ValueError:
                         # Not semver, treat as regular protocol
-                        parsed[proto_id] = [
-                            {"full_id": proto_id, "version": None, "details": details}
-                        ]
+                        parsed[proto_id] = [{
+                            'full_id': proto_id,
+                            'version': None,
+                            'details': details
+                        }]
                 else:
                     # Regular protocol ID
-                    parsed[proto_id] = [{"full_id": proto_id, "version": None, "details": details}]
+                    parsed[proto_id] = [{
+                        'full_id': proto_id,
+                        'version': None,
+                        'details': details
+                    }]
             else:
                 # Regular protocol ID without slashes
-                parsed[proto_id] = [{"full_id": proto_id, "version": None, "details": details}]
-
+                parsed[proto_id] = [{
+                    'full_id': proto_id,
+                    'version': None,
+                    'details': details
+                }]
+                
         return parsed
-
+        
     async def negotiate(self, remote_protocols):
         """Negotiate best protocol version with remote peer."""
         results = {}
-
+        
         # Parse remote protocols
         remote_parsed = self._parse_protocols({p: {} for p in remote_protocols})
-
+        
         # For each protocol family we support
         for base_name, our_versions in self.supported_protocols.items():
             # Skip if remote doesn't support this protocol family
             if base_name not in remote_parsed:
                 continue
-
+                
             # Get remote versions for this protocol
             their_versions = remote_parsed[base_name]
-
+            
             # Find best matching version
             best_match = None
             best_version = None
-
+            
             # If this is a semver protocol
-            if our_versions[0]["version"] is not None:
+            if our_versions[0]['version'] is not None:
                 # Sort our versions descending
-                sorted_our_versions = sorted(our_versions, key=lambda v: v["version"], reverse=True)
-
+                sorted_our_versions = sorted(
+                    our_versions, 
+                    key=lambda v: v['version'],
+                    reverse=True
+                )
+                
                 # Get their versions that have semver
-                their_semver_versions = [v for v in their_versions if v["version"] is not None]
-
+                their_semver_versions = [
+                    v for v in their_versions 
+                    if v['version'] is not None
+                ]
+                
                 # Sort their versions descending
                 sorted_their_versions = sorted(
-                    their_semver_versions, key=lambda v: v["version"], reverse=True
+                    their_semver_versions,
+                    key=lambda v: v['version'],
+                    reverse=True
                 )
-
+                
                 # Find highest compatible version
                 for our_v in sorted_our_versions:
                     for their_v in sorted_their_versions:
-                        if our_v["version"] == their_v["version"]:
+                        if our_v['version'] == their_v['version']:
                             best_match = our_v
-                            best_version = our_v["version"]
+                            best_version = our_v['version']
                             break
-
+                    
                     if best_match:
                         break
             else:
                 # For non-semver protocols, just check exact match
                 if base_name in remote_parsed:
                     best_match = our_versions[0]
-
+            
             # Store negotiation result
             if best_match:
                 results[base_name] = {
-                    "protocol": best_match["full_id"],
-                    "version": str(best_version) if best_version else None,
-                    "details": best_match["details"],
+                    'protocol': best_match['full_id'],
+                    'version': str(best_version) if best_version else None,
+                    'details': best_match['details']
                 }
-
+        
         return results
 ```
 
@@ -352,136 +372,142 @@ from aioquic.server import serve
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.h3.connection import H3_ALPN
 
-
 class WebTransportDialer:
     """WebTransport dialer for outbound connections."""
-
+    
     def __init__(self, host):
         """Initialize WebTransport dialer."""
         self.host = host
         self.logger = logging.getLogger("WebTransportDialer")
         self.connections = {}
-
+        
     async def dial(self, multiaddr, transport_options=None):
         """Dial a remote peer using WebTransport."""
         # Extract host, port, and peer ID from multiaddr
         host, port, peer_id = self._parse_multiaddr(multiaddr)
         if not host or not port or not peer_id:
             raise ValueError(f"Invalid multiaddr for WebTransport: {multiaddr}")
-
+            
         # Configure QUIC connection
         configuration = QuicConfiguration(
             alpn_protocols=H3_ALPN,
             is_client=True,
-            verify_mode=transport_options.get("verify_mode", None),
+            verify_mode=transport_options.get("verify_mode", None)
         )
-
+        
         # Connect to the remote peer
         try:
             self.logger.info(f"Dialing {host}:{port} via WebTransport")
-            connection = await connect(host=host, port=port, configuration=configuration)
-
+            connection = await connect(
+                host=host,
+                port=port,
+                configuration=configuration
+            )
+            
             # Create a WebTransport session
             session = WebTransportSession(connection)
-
+            
             # Store the connection
-            self.connections[peer_id] = {"connection": connection, "session": session}
-
+            self.connections[peer_id] = {
+                "connection": connection,
+                "session": session
+            }
+            
             return session
-
+            
         except Exception as e:
             self.logger.error(f"WebTransport dial failed: {e}")
             raise
-
+            
     def _parse_multiaddr(self, multiaddr):
         """Parse a multiaddr into host, port, and peer ID."""
         # Implementation depends on multiaddr library
         # This is a placeholder
         return "example.com", 443, "QmExamplePeerID"
-
-
+        
 class WebTransportListener:
     """WebTransport listener for inbound connections."""
-
+    
     def __init__(self, host):
         """Initialize WebTransport listener."""
         self.host = host
         self.logger = logging.getLogger("WebTransportListener")
         self.server = None
         self.connections = {}
-
+        
     async def listen(self, multiaddr):
         """Listen for incoming WebTransport connections."""
         # Extract host and port from multiaddr
         host, port = self._parse_listen_addr(multiaddr)
-
+        
         # Configure QUIC server
         configuration = QuicConfiguration(
             alpn_protocols=H3_ALPN,
             is_client=False,
         )
-
+        
         # Start server
         self.logger.info(f"Starting WebTransport listener on {host}:{port}")
-
+        
         self.server = await serve(
-            host=host, port=port, configuration=configuration, create_protocol=self._create_protocol
+            host=host,
+            port=port,
+            configuration=configuration,
+            create_protocol=self._create_protocol
         )
-
+        
         return True
-
+        
     def _parse_listen_addr(self, multiaddr):
         """Parse a multiaddr into host and port for listening."""
         # Implementation depends on multiaddr library
         # This is a placeholder
         return "0.0.0.0", 443
-
+        
     def _create_protocol(self):
         """Create a protocol handler for new connections."""
         # This would create an HTTP/3 protocol handler
         # that understands WebTransport
         # Placeholder for actual implementation
         pass
-
-
+        
 class WebTransportSession:
     """WebTransport session for libp2p communication."""
-
+    
     def __init__(self, connection):
         """Initialize a WebTransport session with a QUIC connection."""
         self.connection = connection
         self.streams = {}
         self.logger = logging.getLogger("WebTransportSession")
-
+        
     async def create_stream(self, protocol_id):
         """Create a new stream within this session."""
         # Create a new bidirectional stream
         stream_id = self.connection.create_stream()
-
+        
         # Wrap in our Stream interface
         stream = WebTransportStream(self.connection, stream_id)
-
+        
         # Perform protocol negotiation
         await stream.write(protocol_id.encode() + b"\n")
-
+        
         # Store the stream
         self.streams[stream_id] = stream
-
+        
         return stream
-
+        
     async def close(self):
         """Close the WebTransport session and all streams."""
         # Close all streams
         for stream in self.streams.values():
             await stream.close()
-
+            
         # Close the connection
         self.connection.close()
-
-
+        
 class WebTransportStream:
     """Stream implementation for WebTransport."""
-
+    
     def __init__(self, connection, stream_id):
         """Initialize WebTransport stream."""
         self.connection = connection
@@ -489,17 +515,17 @@ class WebTransportStream:
         self.buffer = bytearray()
         self.closed = False
         self.logger = logging.getLogger("WebTransportStream")
-
+        
     async def read(self, size=-1):
         """Read data from the stream."""
         # Implementation would depend on aioquic API
         pass
-
+        
     async def write(self, data):
         """Write data to the stream."""
         # Implementation would depend on aioquic API
         pass
-
+        
     async def close(self):
         """Close the stream."""
         if not self.closed:
@@ -518,22 +544,21 @@ import random
 import json
 from typing import Dict, List, Optional, Set, Tuple
 
-
 class AutoNAT:
     """
     AutoNAT protocol implementation for automatic NAT detection and traversal.
-
+    
     This class implements the AutoNAT protocol to detect the type of NAT a peer
     is behind and determine reachability from the public internet. It does this
     by periodically asking other peers to dial back and confirm connectivity.
     """
-
+    
     PROTOCOL_ID = "/libp2p/autonat/1.0.0"
-
+    
     def __init__(self, host, max_peers_to_query=4, query_interval=300):
         """
         Initialize the AutoNAT service.
-
+        
         Args:
             host: The libp2p host to use for communication
             max_peers_to_query: Maximum number of peers to query for each check
@@ -543,30 +568,30 @@ class AutoNAT:
         self.max_peers_to_query = max_peers_to_query
         self.query_interval = query_interval
         self.logger = logging.getLogger("AutoNAT")
-
+        
         # NAT status and public addresses
         self.nat_status = "unknown"  # unknown, public, private
         self.public_addresses = set()
         self.last_check_time = 0
-
+        
         # Tracking peers that have helped with NAT detection
         self.peers_queried = set()
         self.peers_responded = set()
-
+        
     async def start(self):
         """Start the AutoNAT service."""
         # Register protocol handler
         self.host.set_stream_handler(self.PROTOCOL_ID, self._handle_dial_back)
-
+        
         # Start periodic checking
         anyio.lowlevel.spawn_system_task(self._periodic_check)
-
+        
     async def _periodic_check(self):
         """Periodically check NAT status."""
         while True:
             await self.check_nat_status()
             await anyio.sleep(self.query_interval)
-
+            
     async def check_nat_status(self):
         """Check the NAT status by requesting dial backs from remote peers."""
         # Find peers to query
@@ -574,11 +599,11 @@ class AutoNAT:
         if not peers:
             self.logger.warning("No peers available to query for NAT status")
             return
-
+            
         # Query selected peers
         successful_responses = 0
         self.public_addresses.clear()
-
+        
         for peer_id in peers:
             try:
                 result = await self._query_peer(peer_id)
@@ -586,14 +611,14 @@ class AutoNAT:
                     successful_responses += 1
                     if "address" in result:
                         self.public_addresses.add(result["address"])
-
+                        
                 self.peers_queried.add(peer_id)
                 if result["responded"]:
                     self.peers_responded.add(peer_id)
-
+                    
             except Exception as e:
                 self.logger.warning(f"Error querying peer {peer_id}: {e}")
-
+                
         # Determine NAT status based on responses
         if successful_responses > 0:
             self.nat_status = "public"
@@ -601,26 +626,26 @@ class AutoNAT:
         else:
             self.nat_status = "private"
             self.logger.info("NAT status: private (not directly reachable)")
-
+            
         self.last_check_time = anyio.current_time()
         return {
             "status": self.nat_status,
             "addresses": list(self.public_addresses),
             "successful_queries": successful_responses,
-            "total_queries": len(peers),
+            "total_queries": len(peers)
         }
-
+            
     async def _get_peers_to_query(self):
         """Get a list of peers to query for NAT status."""
         # Get connected peers
         peers = self.host.get_network().get_peers()
-
+        
         # Filter out peers we've recently queried
         available_peers = [p for p in peers if p not in self.peers_queried]
-
+        
         # Prioritize peers that have successfully responded in the past
         prioritized_peers = [p for p in available_peers if p in self.peers_responded]
-
+        
         # Select peers to query (prioritizing responsive peers)
         selected_peers = []
         if len(prioritized_peers) >= self.max_peers_to_query:
@@ -630,60 +655,66 @@ class AutoNAT:
             remaining = self.max_peers_to_query - len(selected_peers)
             if remaining > 0 and len(available_peers) > len(prioritized_peers):
                 remaining_peers = [p for p in available_peers if p not in prioritized_peers]
-                selected_peers.extend(
-                    random.sample(remaining_peers, min(remaining, len(remaining_peers)))
-                )
-
+                selected_peers.extend(random.sample(remaining_peers, min(remaining, len(remaining_peers))))
+                
         return selected_peers
-
+        
     async def _query_peer(self, peer_id):
         """
         Query a peer to dial back and check reachability.
-
+        
         Args:
             peer_id: ID of the peer to query
-
+            
         Returns:
             Dictionary with query results
         """
-        result = {"peer_id": peer_id, "reachable": False, "responded": False, "address": None}
-
+        result = {
+            "peer_id": peer_id,
+            "reachable": False,
+            "responded": False,
+            "address": None
+        }
+        
         try:
             # Open a stream to the peer
             stream = await self.host.new_stream(peer_id, [self.PROTOCOL_ID])
-
+            
             # Send dial-back request with our addresses
             addresses = self.host.get_addrs()
-            request = {"type": "dial_back", "addresses": [str(addr) for addr in addresses]}
-
+            request = {
+                "type": "dial_back",
+                "addresses": [str(addr) for addr in addresses]
+            }
+            
             # Send request
             await stream.write(json.dumps(request).encode() + b"\n")
-
+            
             # Wait for response
             response_data = await stream.read_until(b"\n", 1024 * 10)
             if not response_data:
                 return result
-
+                
             # Parse response
             response = json.loads(response_data.decode().strip())
             result["responded"] = True
-
+            
             if response.get("reachable", False):
                 result["reachable"] = True
                 if "address" in response:
                     result["address"] = response["address"]
-
+                    
             await stream.close()
-
+            
         except Exception as e:
             self.logger.warning(f"Error during dial-back query to {peer_id}: {e}")
-
+            
         return result
-
+        
     async def _handle_dial_back(self, stream):
         """
         Handle a dial-back request from another peer.
-
+        
         This method is called when a remote peer wants us to attempt to dial them
         to determine if they are publicly reachable.
         """
@@ -693,71 +724,72 @@ class AutoNAT:
             if not request_data:
                 await stream.close()
                 return
-
+                
             request = json.loads(request_data.decode().strip())
-
+            
             # Validate request
             if request.get("type") != "dial_back" or "addresses" not in request:
                 await stream.close()
                 return
-
+                
             # Try to dial back to the peer on each provided address
             success = False
             used_address = None
-
+            
             for addr_str in request["addresses"]:
                 try:
                     # Parse the address
                     from multiaddr import Multiaddr
-
                     addr = Multiaddr(addr_str)
-
+                    
                     # Try to dial this address
                     dial_result = await self._try_dial(addr)
                     if dial_result:
                         success = True
                         used_address = addr_str
                         break
-
+                        
                 except Exception as e:
                     self.logger.debug(f"Error dialing back to {addr_str}: {e}")
-
+                    
             # Send response
-            response = {"reachable": success}
+            response = {
+                "reachable": success
+            }
             if success and used_address:
                 response["address"] = used_address
-
+                
             await stream.write(json.dumps(response).encode() + b"\n")
             await stream.close()
-
+            
         except Exception as e:
             self.logger.warning(f"Error handling dial-back request: {e}")
             try:
                 await stream.close()
             except:
                 pass
-
+                
     async def _try_dial(self, addr):
         """Try to dial an address to check reachability."""
         try:
             # Extract peer ID from the address
             peer_id = None
             for proto in reversed(addr.protocols()):
-                if proto.name == "p2p":
-                    peer_id = addr.value_for_protocol("p2p")
+                if proto.name == 'p2p':
+                    peer_id = addr.value_for_protocol('p2p')
                     break
-
+                    
             if not peer_id:
                 return False
-
+                
             # Create a temporary stream to test connectivity
             stream = await self.host.new_stream(peer_id, ["/ping/1.0.0"], addr)
             if stream:
                 await stream.close()
                 return True
-
+                
             return False
-
+            
         except Exception as e:
             self.logger.debug(f"Dial-back failed: {e}")
             return False

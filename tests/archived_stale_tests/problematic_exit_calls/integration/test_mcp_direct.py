@@ -3,7 +3,6 @@ import time
 import json
 import sys
 
-
 def test_server_health(base_url="http://localhost:9999"):
     """Test basic server health endpoint."""
     try:
@@ -14,7 +13,6 @@ def test_server_health(base_url="http://localhost:9999"):
     except Exception as e:
         print(f"Error: {str(e)}")
         return False
-
 
 if __name__ == "__main__":
     print("Testing MCP Server health...")

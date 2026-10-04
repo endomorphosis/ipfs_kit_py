@@ -1,0 +1,123 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cluster-test-job
+  namespace: ipfs-cluster
+  labels:
+    app: cluster-tester
+spec:
+  template:
+    metadata:
+      labels:
+        app: cluster-tester
+    spec:
+      restartPolicy: Never
+      initContainers:
+      - name: wait-for-cluster
+        image: curlimages/curl:latest
+        command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for cluster to be ready..."
+          while ! curl -f http://ipfs-mcp-master:9998/health; do
+            echo "Master not ready, waiting..."
+            sleep 10
+          done
+          while ! curl -f http://ipfs-mcp-worker1:9998/health; do
+            echo "Worker1 not ready, waiting..."
+            sleep 10
+          done
+          while ! curl -f http://ipfs-mcp-worker2:9998/health; do
+            echo "Worker2 not ready, waiting..."
+            sleep 10
+          done
+          echo "All nodes are ready!"
+      containers:
+      - name: cluster-tester
+        image: ipfs-kit-mcp:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: MASTER_URL
+          value: "http://ipfs-mcp-master:9998"
+        - name: WORKER1_URL
+          value: "http://ipfs-mcp-worker1:9998"
+        - name: WORKER2_URL
+          value: "http://ipfs-mcp-worker2:9998"
+        - name: PYTHONPATH
+          value: "/app"
+        command:
+        - sh
+        - -c
+        - |
+          echo "Starting cluster functionality tests..."
+          
+          # Run comprehensive cluster demonstration
+          python comprehensive_cluster_demonstration.py
+          
+          # Run unit tests that don't require external dependencies
+          python -m pytest tests/test_cluster_services.py::TestNodeRole -v
+          python -m pytest tests/test_cluster_services.py::TestLeaderElection -v
+          python -m pytest tests/test_cluster_services.py::TestReplicationManager -v
+          python -m pytest tests/test_cluster_services.py::TestIndexingService -v
+          
+          echo "Cluster tests completed successfully!"
+        volumeMounts:
+        - name: test-results
+          mountPath: /app/data/test_results
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: test-results
+        emptyDir: {}
+  backoffLimit: 3
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-test-script
+  namespace: ipfs-cluster
+data:
+  test-cluster.sh: |
+    #!/bin/bash
+    set -e
+    
+    echo "=== IPFS MCP Cluster Test Suite ==="
+    echo "Testing 3-node cluster configuration"
+    echo
+    
+    # Test master node
+    echo "Testing master node..."
+    curl -f $MASTER_URL/health
+    curl -f $MASTER_URL/cluster/status
+    echo "✅ Master node healthy"
+    
+    # Test worker nodes
+    echo "Testing worker nodes..."
+    curl -f $WORKER1_URL/health
+    curl -f $WORKER2_URL/health
+    echo "✅ Worker nodes healthy"
+    
+    # Test leader election
+    echo "Testing leader election..."
+    LEADER=$(curl -s $MASTER_URL/cluster/leader | jq -r '.leader.id')
+    echo "Current leader: $LEADER"
+    
+    # Test cluster membership
+    echo "Testing cluster membership..."
+    curl -s $MASTER_URL/cluster/peers | jq '.peers'
+    
+    # Test replication (if implemented)
+    echo "Testing replication capabilities..."
+    curl -s $MASTER_URL/replication/status | jq '.'
+    
+    # Test indexing (if implemented)
+    echo "Testing indexing capabilities..."
+    curl -s $MASTER_URL/indexing/stats | jq '.'
+    
+    echo "=== All tests completed successfully! ==="

@@ -33,6 +33,9 @@ extensions = {
 }
 
 
+
+
+
 def create_extension_routers(api_prefix: str) -> List:
     """
     Create FastAPI routers for all available extensions.

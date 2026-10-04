@@ -34,28 +34,28 @@ Dynamic role behavior is configured under the `cluster.dynamic_roles` key:
 ```python
 # Example configuration snippet
 config = {
-    "cluster": {
-        "dynamic_roles": {
-            "enabled": True,
-            "check_interval_seconds": 300,  # Check every 5 minutes
-            "requirements": {
-                "worker": {
-                    "min_cpu_cores": 2,
-                    "min_memory_gb": 4,
-                    "min_disk_gb": 50,
-                    "min_bandwidth_mbps": 10,
-                    "required_capabilities": ["storage"],
+    'cluster': {
+        'dynamic_roles': {
+            'enabled': True,
+            'check_interval_seconds': 300, # Check every 5 minutes
+            'requirements': {
+                'worker': {
+                    'min_cpu_cores': 2,
+                    'min_memory_gb': 4,
+                    'min_disk_gb': 50,
+                    'min_bandwidth_mbps': 10,
+                    'required_capabilities': ['storage']
                 },
-                "master": {
-                    "min_cpu_cores": 4,
-                    "min_memory_gb": 8,
-                    "min_disk_gb": 20,  # Master might need less storage than worker
-                    "min_bandwidth_mbps": 20,
-                    "required_capabilities": ["coordination"],
-                    "min_network_stability": 0.9,  # Example: 90% uptime/reachability
-                },
+                'master': {
+                    'min_cpu_cores': 4,
+                    'min_memory_gb': 8,
+                    'min_disk_gb': 20, # Master might need less storage than worker
+                    'min_bandwidth_mbps': 20,
+                    'required_capabilities': ['coordination'],
+                    'min_network_stability': 0.9 # Example: 90% uptime/reachability
+                }
             },
-            "prefer_upgrade": True,  # Should nodes actively try to upgrade if possible?
+            'prefer_upgrade': True # Should nodes actively try to upgrade if possible?
         }
         # ... other cluster config
     }

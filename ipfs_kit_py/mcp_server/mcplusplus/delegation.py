@@ -34,23 +34,13 @@ def _covers(parent: List[Tuple[str, str]], child: List[Tuple[str, str]]) -> bool
 
 
 def validate_raw_delegation_chain(
-    *,
-    raw_chain: Iterable[Dict[str, Any]],
-    resource: str,
-    ability: str,
-    actor: str = "",
-    now: Optional[float] = None,
+    *, raw_chain: Iterable[Dict[str, Any]], resource: str, ability: str, actor: str = "", now: Optional[float] = None
 ) -> Dict[str, Any]:
     """Return {allowed, reason, chain_length, failure_hop} — unsigned semantics."""
     chain = [d for d in raw_chain if isinstance(d, dict)]
     n = len(chain)
     if not chain:
-        return {
-            "allowed": False,
-            "reason": "missing_delegation_chain",
-            "chain_length": 0,
-            "failure_hop": None,
-        }
+        return {"allowed": False, "reason": "missing_delegation_chain", "chain_length": 0, "failure_hop": None}
     t = float(now if now is not None else time.time())
 
     def res(ok: bool, reason: str, hop=None):
@@ -69,7 +59,7 @@ def validate_raw_delegation_chain(
             return res(False, f"broken_chain_at_hop_{i}", i + 1)
     for i in range(n - 1):
         if not _covers(parsed[i][0], parsed[i + 1][0]):
-            return res(False, f"capability_escalation_at_hop_{i + 1}", i + 1)
+            return res(False, f"capability_escalation_at_hop_{i+1}", i + 1)
     leaf = parsed[-1]
     if actor and leaf[1].get("audience") != actor:
         return res(False, "actor_mismatch", n - 1)
@@ -78,9 +68,7 @@ def validate_raw_delegation_chain(
     return res(True, "allowed", None)
 
 
-def evaluate_policy(
-    *, tool: str, deny: Optional[Iterable[str]] = None, risk: float = 0.0, threshold: float = 0.7
-) -> Dict[str, Any]:
+def evaluate_policy(*, tool: str, deny: Optional[Iterable[str]] = None, risk: float = 0.0, threshold: float = 0.7) -> Dict[str, Any]:
     """Profile D: deterministic allow/deny decision for a tool invocation."""
     deny_set = {str(x).strip() for x in (deny or [])}
     if tool in deny_set:

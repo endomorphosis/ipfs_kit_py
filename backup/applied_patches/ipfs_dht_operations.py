@@ -25,17 +25,14 @@ from ipfs_connection_pool import get_connection_pool
 # Set up logging
 logger = logging.getLogger("ipfs_dht_operations")
 
-
 class DHTMessageType(Enum):
     """Types of DHT messages for the IPFS DHT network."""
-
     PUT_VALUE = "PUT_VALUE"
     GET_VALUE = "GET_VALUE"
     ADD_PROVIDER = "ADD_PROVIDER"
     GET_PROVIDERS = "GET_PROVIDERS"
     FIND_NODE = "FIND_NODE"
     PING = "PING"
-
 
 class DHTRecord:
     """Represents a record in the DHT."""
@@ -94,7 +91,6 @@ class DHTRecord:
             publisher=data.get("publisher"),
         )
 
-
 class DHTOperations:
     """
     Enhanced DHT Operations for IPFS networking.
@@ -145,8 +141,9 @@ class DHTOperations:
 
             # Update success rate using exponential moving average
             alpha = 0.1  # Weight for new observations
-            metrics["success_rate"] = (1 - alpha) * metrics["success_rate"] + alpha * (
-                1.0 if success else 0.0
+            metrics["success_rate"] = (
+                (1 - alpha) * metrics["success_rate"] +
+                alpha * (1.0 if success else 0.0)
             )
 
     def put_value(
@@ -427,12 +424,10 @@ class DHTOperations:
                 for resp in responses:
                     if resp.get("Type") == 4 and "Responses" in resp:  # Type 4 is PROVIDER
                         for provider in resp["Responses"]:
-                            providers.append(
-                                {
-                                    "id": provider.get("ID"),
-                                    "addresses": provider.get("Addrs", []),
-                                }
-                            )
+                            providers.append({
+                                "id": provider.get("ID"),
+                                "addresses": provider.get("Addrs", []),
+                            })
 
                 return {
                     "success": True,
@@ -641,14 +636,12 @@ class DHTOperations:
                 if isinstance(routing_table, dict) and "Buckets" in routing_table:
                     for bucket in routing_table["Buckets"]:
                         for peer in bucket.get("Peers", []):
-                            peers_info.append(
-                                {
-                                    "id": peer.get("ID"),
-                                    "connected": peer.get("Connected", False),
-                                    "agent_version": peer.get("AgentVersion"),
-                                    "last_useful_at": peer.get("LastUsefulAt"),
-                                }
-                            )
+                            peers_info.append({
+                                "id": peer.get("ID"),
+                                "connected": peer.get("Connected", False),
+                                "agent_version": peer.get("AgentVersion"),
+                                "last_useful_at": peer.get("LastUsefulAt"),
+                            })
 
                 return {
                     "success": True,
@@ -893,12 +886,10 @@ class DHTOperations:
                 else:
                     peer_list = []
                     for peer_id, info in peers.items():
-                        peer_list.append(
-                            {
-                                "id": peer_id,
-                                "info": info,
-                            }
-                        )
+                        peer_list.append({
+                            "id": peer_id,
+                            "info": info,
+                        })
                     diagnostics["swarm_peers"] = {
                         "count": len(peer_list),
                         "peers": peer_list,
@@ -936,10 +927,8 @@ class DHTOperations:
             "metrics": self.performance_metrics,
         }
 
-
 # Global instance
 _instance = None
-
 
 def get_instance(connection_pool=None, config=None) -> DHTOperations:
     """Get or create a singleton instance of the DHT operations."""

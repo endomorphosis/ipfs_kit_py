@@ -22,46 +22,32 @@ from fastapi import FastAPI, APIRouter, Request, Response
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    filename="mcp_enhanced_tools.log",
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename='mcp_enhanced_tools.log'
 )
 logger = logging.getLogger(__name__)
 
 # Add console handler for immediate feedback
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 console.setFormatter(formatter)
 logger.addHandler(console)
-
 
 def parse_args():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Enhance MCP tools with all IPFS kit features")
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=int(os.environ.get("MCP_PORT", "9994")),
-        help="Port to run the server on (default: 9994)",
-    )
-    parser.add_argument(
-        "--host", type=str, default="0.0.0.0", help="Host to bind the server to (default: 0.0.0.0)"
-    )
-    parser.add_argument("--debug", action="store_true", default=True, help="Enable debug mode")
-    parser.add_argument(
-        "--log-file",
-        type=str,
-        default="mcp_enhanced_tools.log",
-        help="Log file path (default: mcp_enhanced_tools.log)",
-    )
-    parser.add_argument(
-        "--apply",
-        action="store_true",
-        default=False,
-        help="Apply changes directly to the MCP server",
-    )
+    parser.add_argument("--port", type=int, default=int(os.environ.get("MCP_PORT", "9994")),
+                      help="Port to run the server on (default: 9994)")
+    parser.add_argument("--host", type=str, default="0.0.0.0",
+                      help="Host to bind the server to (default: 0.0.0.0)")
+    parser.add_argument("--debug", action="store_true", default=True,
+                      help="Enable debug mode")
+    parser.add_argument("--log-file", type=str, default="mcp_enhanced_tools.log",
+                      help="Log file path (default: mcp_enhanced_tools.log)")
+    parser.add_argument("--apply", action="store_true", default=False,
+                      help="Apply changes directly to the MCP server")
     return parser.parse_args()
-
 
 def enhance_mcp_initialize_endpoint():
     """
@@ -73,7 +59,6 @@ def enhance_mcp_initialize_endpoint():
         # Import the necessary modules
         try:
             from ipfs_kit_py.mcp.server_bridge import MCPServer
-
             logger.info("Successfully imported MCPServer from server_bridge")
         except ImportError as e:
             logger.error(f"Could not import MCPServer from server_bridge: {e}")
@@ -82,7 +67,6 @@ def enhance_mcp_initialize_endpoint():
         # Import the necessary MCP modules for tool registration
         try:
             from ipfs_kit_py.mcp.server import register_tool, register_resource
-
             logger.info("Successfully imported tool registration functions")
         except ImportError:
             logger.warning("Could not import tool registration functions")
@@ -91,96 +75,57 @@ def enhance_mcp_initialize_endpoint():
         enhanced_capabilities = {
             "tools": [
                 # Core IPFS operations
-                "list_files",
-                "file_exists",
-                "get_file_stats",
-                "copy_file",
-                "move_file",  # Current tools
+                "list_files", "file_exists", "get_file_stats", "copy_file", "move_file",  # Current tools
+
                 # Extended tools for IPFS operations
-                "ipfs_add",
-                "ipfs_cat",
-                "ipfs_pin",
-                "ipfs_unpin",
-                "ipfs_list_pins",
-                "ipfs_get",
-                "ipfs_version",
-                "ipfs_id",
-                "ipfs_stat",
+                "ipfs_add", "ipfs_cat", "ipfs_pin", "ipfs_unpin", "ipfs_list_pins",
+                "ipfs_get", "ipfs_version", "ipfs_id", "ipfs_stat",
+
                 # Virtual filesystem (MFS) operations
-                "ipfs_files_ls",
-                "ipfs_files_stat",
-                "ipfs_files_mkdir",
-                "ipfs_files_read",
-                "ipfs_files_write",
-                "ipfs_files_rm",
-                "ipfs_files_cp",
-                "ipfs_files_mv",
-                "ipfs_files_flush",
+                "ipfs_files_ls", "ipfs_files_stat", "ipfs_files_mkdir",
+                "ipfs_files_read", "ipfs_files_write", "ipfs_files_rm",
+                "ipfs_files_cp", "ipfs_files_mv", "ipfs_files_flush",
+
                 # IPNS operations
-                "ipfs_name_publish",
-                "ipfs_name_resolve",
-                "ipfs_name_list",
+                "ipfs_name_publish", "ipfs_name_resolve", "ipfs_name_list",
+
                 # DHT operations
-                "ipfs_dht_findpeer",
-                "ipfs_dht_findprovs",
-                "ipfs_dht_provide",
+                "ipfs_dht_findpeer", "ipfs_dht_findprovs", "ipfs_dht_provide",
+
                 # DAG operations
-                "ipfs_dag_put",
-                "ipfs_dag_get",
-                "ipfs_dag_resolve",
+                "ipfs_dag_put", "ipfs_dag_get", "ipfs_dag_resolve",
+
                 # Block operations
-                "ipfs_block_put",
-                "ipfs_block_get",
-                "ipfs_block_stat",
+                "ipfs_block_put", "ipfs_block_get", "ipfs_block_stat",
+
                 # Swarm operations
-                "ipfs_swarm_peers",
-                "ipfs_swarm_connect",
-                "ipfs_swarm_disconnect",
+                "ipfs_swarm_peers", "ipfs_swarm_connect", "ipfs_swarm_disconnect",
+
                 # Storage backend operations
-                "storage_transfer",
-                "storage_status",
-                "storage_backends",
-                "storage_huggingface_to_ipfs",
-                "storage_huggingface_from_ipfs",
-                "storage_s3_to_ipfs",
-                "storage_s3_from_ipfs",
-                "storage_filecoin_to_ipfs",
-                "storage_filecoin_from_ipfs",
-                "storage_storacha_to_ipfs",
-                "storage_storacha_from_ipfs",
+                "storage_transfer", "storage_status", "storage_backends",
+                "storage_huggingface_to_ipfs", "storage_huggingface_from_ipfs",
+                "storage_s3_to_ipfs", "storage_s3_from_ipfs",
+                "storage_filecoin_to_ipfs", "storage_filecoin_from_ipfs",
+                "storage_storacha_to_ipfs", "storage_storacha_from_ipfs",
                 "storage_lassie_retrieve",
+
                 # Filesystem tools
-                "read_file",
-                "write_file",
-                "edit_file",
-                "patch_file",
-                "list_files",
-                "read_file_slice",
+                "read_file", "write_file", "edit_file", "patch_file",
+                "list_files", "read_file_slice",
+
                 # Advanced IPFS operations
-                "ipfs_object_get",
-                "ipfs_object_put",
-                "ipfs_object_stat",
-                "ipfs_refs",
-                "ipfs_refs_local",
+                "ipfs_object_get", "ipfs_object_put", "ipfs_object_stat",
+                "ipfs_refs", "ipfs_refs_local",
+
                 # CID conversion tools
-                "ipfs_cid_convert",
-                "ipfs_cid_base32",
-                "ipfs_cid_format",
+                "ipfs_cid_convert", "ipfs_cid_base32", "ipfs_cid_format"
             ],
             "resources": [
-                "ipfs://info",
-                "ipfs://stats",
-                "ipfs://peers",
-                "storage://backends",
-                "storage://status",
-                "storage://capabilities",
-                "file://ls",
-                "file://system",
-                "file://links",
-                "mfs://info",
-                "mfs://root",
-                "mfs://stats",
-            ],
+                "ipfs://info", "ipfs://stats", "ipfs://peers",
+                "storage://backends", "storage://status", "storage://capabilities",
+                "file://ls", "file://system", "file://links",
+                "mfs://info", "mfs://root", "mfs://stats"
+            ]
         }
 
         # Function to enhance the MCPServer's initialize method
@@ -199,20 +144,12 @@ def enhance_mcp_initialize_endpoint():
                 original_response["capabilities"] = enhanced_capabilities
 
                 # Add extended server info
-                original_response["serverInfo"].update(
-                    {
-                        "implementationName": "ipfs-kit-py-enhanced",
-                        "version": "2.0.0",
-                        "features": [
-                            "mfs",
-                            "dag",
-                            "ipns",
-                            "storage_backends",
-                            "virtual_filesystem",
-                        ],
-                        "documentation": "https://github.com/endomorphosis/ipfs_kit_py",
-                    }
-                )
+                original_response["serverInfo"].update({
+                    "implementationName": "ipfs-kit-py-enhanced",
+                    "version": "2.0.0",
+                    "features": ["mfs", "dag", "ipns", "storage_backends", "virtual_filesystem"],
+                    "documentation": "https://github.com/endomorphosis/ipfs_kit_py"
+                })
 
                 logger.info("Enhanced initialize endpoint response with comprehensive capabilities")
                 return original_response
@@ -233,7 +170,6 @@ def enhance_mcp_initialize_endpoint():
         logger.error(f"Error enhancing MCP initialize endpoint: {e}")
         logger.error(traceback.format_exc())
         return False
-
 
 def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
     """
@@ -268,7 +204,7 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
                 "path": path,
                 "count": result.get("count", 0),
                 "operation": "ipfs_files_ls",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
         except Exception as e:
             logger.error(f"Error in mfs_list_tool: {e}")
@@ -278,7 +214,7 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
                 "error_type": type(e).__name__,
                 "path": path,
                 "operation": "ipfs_files_ls",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
     # Define MFS stat tool
@@ -302,7 +238,7 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
                 "type": result.get("type", ""),
                 "path": path,
                 "operation": "ipfs_files_stat",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
         except Exception as e:
             logger.error(f"Error in mfs_stat_tool: {e}")
@@ -312,7 +248,7 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
                 "error_type": type(e).__name__,
                 "path": path,
                 "operation": "ipfs_files_stat",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
     # Define MFS mkdir tool
@@ -334,7 +270,7 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
                 "path": path,
                 "parents": parents,
                 "operation": "ipfs_files_mkdir",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
         except Exception as e:
             logger.error(f"Error in mfs_mkdir_tool: {e}")
@@ -344,7 +280,7 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
                 "error_type": type(e).__name__,
                 "path": path,
                 "operation": "ipfs_files_mkdir",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
     # Define MFS read tool
@@ -366,7 +302,6 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
             if isinstance(content, bytes):
                 # Convert bytes to base64 string for proper JSON transport
                 import base64
-
                 content = base64.b64encode(content).decode("utf-8")
                 result["content_encoding"] = "base64"
 
@@ -379,7 +314,7 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
                 "offset": offset,
                 "count": count,
                 "operation": "ipfs_files_read",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
         except Exception as e:
             logger.error(f"Error in mfs_read_tool: {e}")
@@ -389,7 +324,7 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
                 "error_type": type(e).__name__,
                 "path": path,
                 "operation": "ipfs_files_read",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
     # Define MFS write tool
@@ -412,7 +347,6 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
             # Check if content is base64 encoded (e.g. from a client)
             if isinstance(content, str) and content.startswith("base64:"):
                 import base64
-
                 content = base64.b64decode(content[7:])  # Strip "base64:" prefix and decode
 
             result = await ipfs_controller.write_file(
@@ -421,7 +355,7 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
                 create=create,
                 truncate=truncate,
                 offset=offset,
-                flush=flush,
+                flush=flush
             )
             return {
                 "success": result.get("success", False),
@@ -432,7 +366,7 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
                 "offset": offset,
                 "flush": flush,
                 "operation": "ipfs_files_write",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
         except Exception as e:
             logger.error(f"Error in mfs_write_tool: {e}")
@@ -442,7 +376,7 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
                 "error_type": type(e).__name__,
                 "path": path,
                 "operation": "ipfs_files_write",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
     # Define MFS remove tool
@@ -459,14 +393,18 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
             Operation result
         """
         try:
-            result = await ipfs_controller.remove_file(path=path, recursive=recursive, force=force)
+            result = await ipfs_controller.remove_file(
+                path=path,
+                recursive=recursive,
+                force=force
+            )
             return {
                 "success": result.get("success", False),
                 "path": path,
                 "recursive": recursive,
                 "force": force,
                 "operation": "ipfs_files_rm",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
         except Exception as e:
             logger.error(f"Error in mfs_rm_tool: {e}")
@@ -476,7 +414,7 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
                 "error_type": type(e).__name__,
                 "path": path,
                 "operation": "ipfs_files_rm",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
     # Add the tools to the dictionary
@@ -489,7 +427,6 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
 
     # Add MFS copy and move tools if available in the model
     if hasattr(ipfs_model, "files_cp"):
-
         async def mfs_cp_tool(source, dest):
             """
             Copy files in the MFS.
@@ -511,7 +448,7 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
                     "source": source,
                     "dest": dest,
                     "operation": "ipfs_files_cp",
-                    "timestamp": time.time(),
+                    "timestamp": time.time()
                 }
             except Exception as e:
                 logger.error(f"Error in mfs_cp_tool: {e}")
@@ -522,13 +459,12 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
                     "source": source,
                     "dest": dest,
                     "operation": "ipfs_files_cp",
-                    "timestamp": time.time(),
+                    "timestamp": time.time()
                 }
 
         tools["ipfs_files_cp"] = mfs_cp_tool
 
     if hasattr(ipfs_model, "files_mv"):
-
         async def mfs_mv_tool(source, dest):
             """
             Move files in the MFS.
@@ -550,7 +486,7 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
                     "source": source,
                     "dest": dest,
                     "operation": "ipfs_files_mv",
-                    "timestamp": time.time(),
+                    "timestamp": time.time()
                 }
             except Exception as e:
                 logger.error(f"Error in mfs_mv_tool: {e}")
@@ -561,14 +497,13 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
                     "source": source,
                     "dest": dest,
                     "operation": "ipfs_files_mv",
-                    "timestamp": time.time(),
+                    "timestamp": time.time()
                 }
 
         tools["ipfs_files_mv"] = mfs_mv_tool
 
     # Add MFS flush tool if available
     if hasattr(ipfs_model, "files_flush"):
-
         async def mfs_flush_tool(path="/"):
             """
             Flush changes in MFS to IPFS.
@@ -589,7 +524,7 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
                     "path": path,
                     "cid": result.get("cid", ""),
                     "operation": "ipfs_files_flush",
-                    "timestamp": time.time(),
+                    "timestamp": time.time()
                 }
             except Exception as e:
                 logger.error(f"Error in mfs_flush_tool: {e}")
@@ -599,13 +534,12 @@ def create_mfs_mcp_tools(ipfs_model, ipfs_controller):
                     "error_type": type(e).__name__,
                     "path": path,
                     "operation": "ipfs_files_flush",
-                    "timestamp": time.time(),
+                    "timestamp": time.time()
                 }
 
         tools["ipfs_files_flush"] = mfs_flush_tool
 
     return tools
-
 
 def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
     """
@@ -638,20 +572,17 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
             # If content is a string starting with "base64:", decode it
             if isinstance(content, str) and content.startswith("base64:"):
                 import base64
-
                 content = base64.b64decode(content[7:])  # Strip "base64:" prefix and decode
 
             # Use appropriate method based on content type
             if hasattr(ipfs_controller, "add_content"):
                 # Use controller method if available
-                result = await ipfs_controller.add_content(
-                    {
-                        "content": content,
-                        "filename": filename,
-                        "pin": pin,
-                        "wrap_with_directory": wrap_with_directory,
-                    }
-                )
+                result = await ipfs_controller.add_content({
+                    "content": content,
+                    "filename": filename,
+                    "pin": pin,
+                    "wrap_with_directory": wrap_with_directory
+                })
             else:
                 # Otherwise use model method directly
                 if callable(getattr(ipfs_model, "ipfs_add", None)):
@@ -659,7 +590,11 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
                     if wrap_with_directory:
                         opts["wrap_with_directory"] = True
 
-                    result = ipfs_model.ipfs_add(content, filename=filename, **opts)
+                    result = ipfs_model.ipfs_add(
+                        content,
+                        filename=filename,
+                        **opts
+                    )
                 else:
                     result = {"success": False, "error": "ipfs_add method not available"}
 
@@ -674,7 +609,7 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
                 "pin": pin,
                 "wrap_with_directory": wrap_with_directory,
                 "operation": "ipfs_add",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
         except Exception as e:
             logger.error(f"Error in ipfs_add_tool: {e}")
@@ -684,7 +619,7 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
                 "error_type": type(e).__name__,
                 "filename": filename,
                 "operation": "ipfs_add",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
     # Define IPFS cat tool
@@ -719,7 +654,6 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
             # Convert bytes to base64 for proper JSON transport
             if isinstance(content, bytes):
                 import base64
-
                 content = base64.b64encode(content).decode("utf-8")
                 content_encoding = "base64"
             else:
@@ -732,7 +666,7 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
                 "content_encoding": content_encoding,
                 "size": len(content) if content else 0,
                 "operation": "ipfs_cat",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
         except Exception as e:
             logger.error(f"Error in ipfs_cat_tool: {e}")
@@ -742,7 +676,7 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
                 "error_type": type(e).__name__,
                 "cid": cid,
                 "operation": "ipfs_cat",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
     # Define IPFS pin tool
@@ -774,7 +708,7 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
                 "cid": cid,
                 "recursive": recursive,
                 "operation": "ipfs_pin",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
         except Exception as e:
             logger.error(f"Error in ipfs_pin_tool: {e}")
@@ -784,7 +718,7 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
                 "error_type": type(e).__name__,
                 "cid": cid,
                 "operation": "ipfs_pin",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
     # Define IPFS unpin tool
@@ -816,7 +750,7 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
                 "cid": cid,
                 "recursive": recursive,
                 "operation": "ipfs_unpin",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
         except Exception as e:
             logger.error(f"Error in ipfs_unpin_tool: {e}")
@@ -826,7 +760,7 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
                 "error_type": type(e).__name__,
                 "cid": cid,
                 "operation": "ipfs_unpin",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
     # Define IPFS list pins tool
@@ -858,7 +792,7 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
                 "count": result.get("count", 0),
                 "type": type,
                 "operation": "ipfs_list_pins",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
         except Exception as e:
             logger.error(f"Error in ipfs_list_pins_tool: {e}")
@@ -869,7 +803,7 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
                 "pins": [],
                 "count": 0,
                 "operation": "ipfs_list_pins",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
     # Add the tools to the dictionary
@@ -894,11 +828,7 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
                 if callable(getattr(ipfs_model, "get_version", None)):
                     result = ipfs_model.get_version()
                 else:
-                    result = {
-                        "success": True,
-                        "version": "unknown",
-                        "error": "get_version method not available",
-                    }
+                    result = {"success": True, "version": "unknown", "error": "get_version method not available"}
 
             return {
                 "success": result.get("success", True),
@@ -906,7 +836,7 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
                 "commit": result.get("commit", ""),
                 "repo": result.get("repo", ""),
                 "operation": "ipfs_version",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
         except Exception as e:
             logger.error(f"Error in ipfs_version_tool: {e}")
@@ -915,7 +845,7 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "operation": "ipfs_version",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
     async def ipfs_id_tool():
@@ -942,7 +872,7 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
                 "agent_version": result.get("agent_version", ""),
                 "protocol_version": result.get("protocol_version", ""),
                 "operation": "ipfs_id",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
         except Exception as e:
             logger.error(f"Error in ipfs_id_tool: {e}")
@@ -951,7 +881,7 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "operation": "ipfs_id",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
     # Add the tools to the dictionary
@@ -959,7 +889,6 @@ def create_ipfs_basic_tools(ipfs_model, ipfs_controller):
     tools["ipfs_id"] = ipfs_id_tool
 
     return tools
-
 
 def create_ipns_tools(ipfs_model, ipfs_controller):
     """
@@ -991,12 +920,18 @@ def create_ipns_tools(ipfs_model, ipfs_controller):
         try:
             if hasattr(ipfs_controller, "publish_name"):
                 result = await ipfs_controller.publish_name(
-                    path=path, key=key, resolve=resolve, lifetime=lifetime
+                    path=path,
+                    key=key,
+                    resolve=resolve,
+                    lifetime=lifetime
                 )
             else:
                 if callable(getattr(ipfs_model, "name_publish", None)):
                     result = ipfs_model.name_publish(
-                        path=path, key=key, resolve=resolve, lifetime=lifetime
+                        path=path,
+                        key=key,
+                        resolve=resolve,
+                        lifetime=lifetime
                     )
                 else:
                     result = {"success": False, "error": "name_publish method not available"}
@@ -1010,7 +945,7 @@ def create_ipns_tools(ipfs_model, ipfs_controller):
                 "resolve": resolve,
                 "lifetime": lifetime,
                 "operation": "ipfs_name_publish",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
         except Exception as e:
             logger.error(f"Error in ipns_publish_tool: {e}")
@@ -1020,7 +955,7 @@ def create_ipns_tools(ipfs_model, ipfs_controller):
                 "error_type": type(e).__name__,
                 "path": path,
                 "operation": "ipfs_name_publish",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
     # Define IPNS resolve tool
@@ -1039,12 +974,16 @@ def create_ipns_tools(ipfs_model, ipfs_controller):
         try:
             if hasattr(ipfs_controller, "resolve_name"):
                 result = await ipfs_controller.resolve_name(
-                    name=name, recursive=recursive, nocache=nocache
+                    name=name,
+                    recursive=recursive,
+                    nocache=nocache
                 )
             else:
                 if callable(getattr(ipfs_model, "name_resolve", None)):
                     result = ipfs_model.name_resolve(
-                        name=name, recursive=recursive, nocache=nocache
+                        name=name,
+                        recursive=recursive,
+                        nocache=nocache
                     )
                 else:
                     result = {"success": False, "error": "name_resolve method not available"}
@@ -1056,7 +995,7 @@ def create_ipns_tools(ipfs_model, ipfs_controller):
                 "recursive": recursive,
                 "nocache": nocache,
                 "operation": "ipfs_name_resolve",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
         except Exception as e:
             logger.error(f"Error in ipns_resolve_tool: {e}")
@@ -1066,7 +1005,7 @@ def create_ipns_tools(ipfs_model, ipfs_controller):
                 "error_type": type(e).__name__,
                 "name": name,
                 "operation": "ipfs_name_resolve",
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
     # Add the tools to the dictionary
@@ -1075,7 +1014,6 @@ def create_ipns_tools(ipfs_model, ipfs_controller):
 
     # Add IPNS key list tool if available
     if hasattr(ipfs_model, "key_list"):
-
         async def ipns_key_list_tool():
             """
             List IPNS keys.
@@ -1095,7 +1033,7 @@ def create_ipns_tools(ipfs_model, ipfs_controller):
                     "keys": result.get("keys", []),
                     "count": len(result.get("keys", [])),
                     "operation": "ipfs_name_list",
-                    "timestamp": time.time(),
+                    "timestamp": time.time()
                 }
             except Exception as e:
                 logger.error(f"Error in ipns_key_list_tool: {e}")
@@ -1106,13 +1044,12 @@ def create_ipns_tools(ipfs_model, ipfs_controller):
                     "keys": [],
                     "count": 0,
                     "operation": "ipfs_name_list",
-                    "timestamp": time.time(),
+                    "timestamp": time.time()
                 }
 
         tools["ipfs_name_list"] = ipns_key_list_tool
 
     return tools
-
 
 def register_mcp_tools(mcp_server):
     """
@@ -1127,9 +1064,7 @@ def register_mcp_tools(mcp_server):
     try:
         # Get IPFS model and controller from the server
         ipfs_model = mcp_server.models.get("ipfs") if hasattr(mcp_server, "models") else None
-        ipfs_controller = (
-            mcp_server.controllers.get("ipfs") if hasattr(mcp_server, "controllers") else None
-        )
+        ipfs_controller = mcp_server.controllers.get("ipfs") if hasattr(mcp_server, "controllers") else None
 
         if not ipfs_model or not ipfs_controller:
             logger.error("IPFS model or controller not found in MCP server")
@@ -1168,7 +1103,6 @@ def register_mcp_tools(mcp_server):
             # Method 2: Try using global registration function
             try:
                 from ipfs_kit_py.mcp.server import register_tool
-
                 logger.info("Using global registration function")
                 for tool_name, tool_handler in all_tools.items():
                     logger.info(f"Registering tool: {tool_name}")
@@ -1203,7 +1137,6 @@ def register_mcp_tools(mcp_server):
         logger.error(traceback.format_exc())
         return {}
 
-
 def enhance_existing_server():
     """Enhance an existing running MCP server with more tools."""
     try:
@@ -1213,7 +1146,6 @@ def enhance_existing_server():
         # Attempt 1: server_bridge path
         try:
             from ipfs_kit_py.mcp.server_bridge import MCPServer
-
             logger.info("Successfully imported MCPServer from server_bridge")
             server_instance = MCPServer(debug_mode=True)
             logger.info("Created MCPServer instance via server_bridge")
@@ -1224,7 +1156,6 @@ def enhance_existing_server():
         if server_instance is None:
             try:
                 from ipfs_kit_py.mcp.server import MCPServer
-
                 logger.info("Successfully imported MCPServer from server module")
                 server_instance = MCPServer(debug_mode=True)
                 logger.info("Created MCPServer instance via server module")
@@ -1235,7 +1166,6 @@ def enhance_existing_server():
         if server_instance is None:
             try:
                 from ipfs_kit_py.mcp.server import get_server_instance
-
                 logger.info("Using get_server_instance function")
                 server_instance = get_server_instance()
                 logger.info("Got MCPServer via get_server_instance")
@@ -1254,25 +1184,17 @@ def enhance_existing_server():
         # Update capabilities directly in the server's API description
         try:
             # Try to update capabilities directly in the API
-            if (
-                hasattr(server_instance, "api_description")
-                and "capabilities" in server_instance.api_description
-            ):
+            if hasattr(server_instance, "api_description") and "capabilities" in server_instance.api_description:
                 logger.info("Updating capabilities directly in API description")
                 enhanced_capabilities = {
                     "tools": [
                         # List all relevant tools
-                        "list_files",
-                        "file_exists",
-                        "get_file_stats",
-                        "copy_file",
-                        "move_file",
-                        "ipfs_add",
-                        "ipfs_cat",
-                        "ipfs_files_ls",
-                        "ipfs_files_mkdir",
+                        "list_files", "file_exists", "get_file_stats", "copy_file", "move_file",
+                        "ipfs_add", "ipfs_cat", "ipfs_files_ls", "ipfs_files_mkdir"
                     ],
-                    "resources": ["ipfs://info", "storage://backends", "file://ls", "mfs://root"],
+                    "resources": [
+                        "ipfs://info", "storage://backends", "file://ls", "mfs://root"
+                    ]
                 }
                 server_instance.api_description["capabilities"] = enhanced_capabilities
         except Exception as api_error:
@@ -1288,7 +1210,6 @@ def enhance_existing_server():
         logger.error(f"Error enhancing existing server: {e}")
         logger.error(traceback.format_exc())
         return False
-
 
 def main():
     """Main function to run the script."""
@@ -1321,7 +1242,6 @@ def main():
         logger.info("Changes prepared. Run with --apply to apply changes to a running MCP server")
 
     logger.info("enhance_mcp_tools.py completed")
-
 
 if __name__ == "__main__":
     main()

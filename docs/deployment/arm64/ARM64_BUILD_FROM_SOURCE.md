@@ -159,7 +159,6 @@ If builds timeout (default: 30 minutes for Lotus):
 ```python
 # Increase timeout in your code
 from ipfs_kit_py.install_lotus import install_lotus
-
 installer = install_lotus()
 # The timeout is hardcoded but can be modified in install_lotus.py
 ```

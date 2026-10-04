@@ -23,15 +23,15 @@ class WorkflowListError(RuntimeError):
 def extract_workflow_name(workflow_file: Path) -> Optional[str]:
     """Extract the workflow name from a YAML file."""
     try:
-        content = workflow_file.read_text(encoding="utf-8")
+        content = workflow_file.read_text(encoding='utf-8')
     except (OSError, UnicodeDecodeError) as error:
         raise WorkflowListError(f"Could not read {workflow_file}: {error}") from error
 
     parse_error = None
     try:
         data = yaml.safe_load(content)
-        if data and isinstance(data, dict) and "name" in data:
-            workflow_name = data["name"]
+        if data and isinstance(data, dict) and 'name' in data:
+            workflow_name = data['name']
             if workflow_name is not None:
                 return str(workflow_name)
     except yaml.YAMLError as error:
@@ -51,28 +51,28 @@ def extract_workflow_name(workflow_file: Path) -> Optional[str]:
 def get_workflow_names(workflows_dir: Path, exclude_patterns: List[str]) -> List[str]:
     """Get all workflow names from the workflows directory."""
     workflow_names = []
-
+    
     for workflow_file in workflows_dir.glob("*.yml"):
         # Skip excluded workflows
         filename = workflow_file.name
         if any(pattern in filename for pattern in exclude_patterns):
             continue
-
+        
         name = extract_workflow_name(workflow_file)
         if name:
             workflow_names.append(name)
-
+    
     # Also check for .yaml extension
     for workflow_file in workflows_dir.glob("*.yaml"):
         # Skip excluded workflows
         filename = workflow_file.name
         if any(pattern in filename for pattern in exclude_patterns):
             continue
-
+        
         name = extract_workflow_name(workflow_file)
         if name:
             workflow_names.append(name)
-
+    
     return sorted(set(workflow_names))
 
 
@@ -80,14 +80,14 @@ def generate_yaml_list(names: List[str], indent: int = 6) -> str:
     """Generate YAML list format for workflow names."""
     if not names:
         return ""
-
+    
     lines = []
     for name in names:
         # Properly escape workflow names with quotes
         escaped_name = name.replace('"', '\\"')
         lines.append(f'{" " * indent}- "{escaped_name}"')
-
-    return "\n".join(lines)
+    
+    return '\n'.join(lines)
 
 
 def main():
@@ -95,41 +95,40 @@ def main():
     script_dir = Path(__file__).parent
     repo_root = script_dir.parent.parent
     workflows_dir = repo_root / ".github" / "workflows"
-
+    
     # Workflows to exclude from the trigger list (auto-healing and maintenance workflows)
     exclude_patterns = [
-        "copilot-agent-autofix.yml",
-        "copilot-agent-autofix-enhanced.yml",  # Enhanced version
-        "workflow-auto-fix.yml",
-        "workflow-auto-fix-config.yml",
-        "auto-heal-workflow.yml",
-        "auto-healing-demo.yml",
-        "copilot-auto-heal.yml",
-        "simple-auto-heal.yml",
-        "workflow-failure-autofix.yml",
-        "workflow-failure-monitor.yml",
-        "update-autohealing-list.yml",  # Maintenance workflow
+        'copilot-agent-autofix.yml',
+        'copilot-agent-autofix-enhanced.yml',  # Enhanced version
+        'workflow-auto-fix.yml',
+        'workflow-auto-fix-config.yml',
+        'auto-heal-workflow.yml',
+        'auto-healing-demo.yml',
+        'copilot-auto-heal.yml',
+        'simple-auto-heal.yml',
+        'workflow-failure-autofix.yml',
+        'workflow-failure-monitor.yml',
+        'update-autohealing-list.yml',  # Maintenance workflow
     ]
-
+    
     # Get workflow names
     try:
         workflow_names = get_workflow_names(workflows_dir, exclude_patterns)
     except WorkflowListError as error:
         print(f"Error: {error}", file=sys.stderr)
         sys.exit(1)
-
+    
     if not workflow_names:
         print("Error: No workflows found!", file=sys.stderr)
         sys.exit(1)
-
+    
     # Output in different formats based on command line argument
     output_format = sys.argv[1] if len(sys.argv) > 1 else "yaml"
-
+    
     if output_format == "yaml":
         print(generate_yaml_list(workflow_names))
     elif output_format == "json":
         import json
-
         print(json.dumps(workflow_names, indent=2))
     elif output_format == "count":
         print(len(workflow_names))
@@ -137,7 +136,7 @@ def main():
         # Plain list
         for name in workflow_names:
             print(name)
-
+    
     return 0
 
 

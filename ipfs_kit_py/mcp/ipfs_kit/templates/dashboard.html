@@ -1,0 +1,2042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced IPFS Kit Backend Observatory</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0; padding: 20px; background: #f5f5f5; line-height: 1.6;
+        }
+        .container { max-width: 1600px; margin: 0 auto; }
+        .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;
+        }
+        .tabs { 
+            background: white; border-radius: 8px; margin-bottom: 20px; overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .tab-buttons {
+            display: flex; background: #f8f9fa; border-bottom: 1px solid #ddd;
+        }
+        .tab-button {
+            flex: 1; padding: 15px; background: none; border: none; cursor: pointer;
+            font-size: 14px; font-weight: 600; transition: all 0.3s;
+        }
+        .tab-button.active { background: white; color: #007bff; border-bottom: 2px solid #007bff; }
+        .tab-button:hover { background: #e9ecef; }
+        .tab-content { padding: 20px; display: none; }
+        .tab-content.active { display: block; }
+        .stats-grid { 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px; margin-bottom: 20px;
+        }
+        .stat-card { 
+            background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .backend-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px; margin-bottom: 20px;
+        }
+        .backend-card {
+            background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-left: 4px solid #ddd; position: relative;
+        }
+        .backend-card.healthy { border-left-color: #4CAF50; }
+        .backend-card.unhealthy { border-left-color: #f44336; }
+        .backend-card.partial { border-left-color: #FF9800; }
+        .backend-card.unknown { border-left-color: #9E9E9E; }
+        .backend-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;
+        }
+        .backend-actions {
+            display: flex; gap: 10px;
+        }
+        .action-btn {
+            padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer;
+            font-size: 12px; font-weight: 500;
+        }
+        .action-btn.config { background: #17a2b8; color: white; }
+        .action-btn.restart { background: #28a745; color: white; }
+        .action-btn.logs { background: #6c757d; color: white; }
+        .action-btn:hover { opacity: 0.8; }
+        .status-badge {
+            display: inline-block; padding: 4px 8px; border-radius: 4px;
+            font-size: 12px; font-weight: bold; text-transform: uppercase; margin-right: 5px;
+        }
+        .status-healthy { background: #4CAF50; color: white; }
+        .status-unhealthy { background: #f44336; color: white; }
+        .status-partial { background: #FF9800; color: white; }
+        .status-unknown { background: #9E9E9E; color: white; }
+        
+        .config-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .config-section h4 {
+            color: #495057;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+        
+        .package-config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .config-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .config-card h5 {
+            color: #007bff;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        
+        .config-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .config-form label {
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        
+        .config-form input,
+        .config-form select {
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .config-form input:focus,
+        .config-form select:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+        }
+        
+        .config-form input[type="checkbox"] {
+            width: auto;
+            margin-right: 5px;
+        }
+        
+        .config-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #218838;
+        }
+        .verbose-metrics {
+            background: #f8f9fa; padding: 15px; border-radius: 6px; margin: 15px 0;
+            border: 1px solid #e9ecef;
+        }
+        .metrics-section {
+            margin-bottom: 20px;
+        }
+        .metrics-section h4 {
+            margin: 0 0 10px 0; color: #495057; font-size: 14px; font-weight: 600;
+        }
+        .metrics-table { 
+            width: 100%; border-collapse: collapse; font-size: 13px;
+        }
+        .metrics-table th, .metrics-table td { 
+            padding: 6px 8px; text-align: left; border-bottom: 1px solid #e9ecef;
+        }
+        .metrics-table th { background: #f8f9fa; font-weight: 600; }
+        .metrics-table td.value {
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            background: #fff; color: #495057;
+        }
+        .refresh-btn {
+            background: #007bff; color: white; border: none; padding: 10px 20px;
+            border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px;
+        }
+        .refresh-btn:hover { background: #0056b3; }
+        .auto-refresh { margin-left: 20px; }
+        .error-log {
+            background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px;
+            border-radius: 4px; margin-top: 10px; max-height: 200px; overflow-y: auto;
+            font-size: 12px;
+        }
+        .insights-card {
+            background: #e8f5e8; border: 1px solid #c3e6c3; padding: 15px;
+            border-radius: 8px; margin-top: 20px;
+        }
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0;
+            width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background: white; margin: 5% auto; padding: 20px; width: 80%;
+            max-width: 600px; border-radius: 8px; max-height: 80vh; overflow-y: auto;
+        }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #e9ecef;
+        }
+        .close { 
+            font-size: 28px; font-weight: bold; cursor: pointer; color: #aaa;
+        }
+        .close:hover { color: #000; }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block; margin-bottom: 5px; font-weight: 600; color: #495057;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%; padding: 8px 12px; border: 1px solid #ced4da;
+            border-radius: 4px; font-size: 14px;
+        }
+        .form-group textarea {
+            height: 80px; resize: vertical; font-family: monospace;
+        }
+        .form-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
+        }
+        .btn {
+            padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;
+            font-size: 14px; font-weight: 500; margin-right: 10px;
+        }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn:hover { opacity: 0.8; }
+        .connection-status {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 15px;
+            padding: 10px; background: #f8f9fa; border-radius: 4px;
+        }
+        .connection-indicator {
+            width: 12px; height: 12px; border-radius: 50%; background: #dc3545;
+        }
+        .connection-indicator.connected { background: #28a745; }
+        .progress-bar {
+            width: 100%; height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%; background: #007bff; border-radius: 4px; transition: width 0.3s;
+        }
+        .expandable {
+            border: 1px solid #e9ecef; border-radius: 4px; margin-bottom: 10px;
+        }
+        .expandable-header {
+            padding: 10px 15px; background: #f8f9fa; cursor: pointer; display: flex;
+            justify-content: space-between; align-items: center; font-weight: 600;
+        }
+        .expandable-content {
+            padding: 15px; display: none;
+        }
+        .expandable.expanded .expandable-content { display: block; }
+        .expandable.expanded .expandable-header::after { content: '▼'; }
+        .expandable-header::after { content: '▶'; }
+        .log-viewer {
+            background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 4px;
+            font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        /* Enhanced File Manager Styles with Drag & Drop */
+        .file-manager-container {
+            display: flex;
+            gap: 20px;
+            height: 700px;
+        }
+        
+        .file-manager-sidebar {
+            width: 280px;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        
+        .file-manager-main {
+            flex: 1;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Drag & Drop Styles */
+        .drop-zone {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 123, 255, 0.1);
+            border: 3px dashed #007bff;
+            border-radius: 8px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            font-size: 18px;
+            color: #007bff;
+            font-weight: 600;
+        }
+        
+        .drop-zone.active {
+            display: flex;
+        }
+        
+        .dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+            transition: all 0.2s;
+        }
+        
+        .drag-ghost {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 4px;
+            opacity: 0.7;
+        }
+        
+        .file-item.drag-over {
+            background: #e3f2fd;
+            border: 2px solid #2196f3;
+        }
+        
+        /* File Upload Progress */
+        .upload-progress {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 15px;
+            min-width: 300px;
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s;
+        }
+        
+        .upload-progress.visible {
+            transform: translateX(0);
+        }
+        
+        .upload-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .upload-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .upload-item .file-name {
+            flex: 1;
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .upload-item .progress-bar {
+            width: 60px;
+            height: 4px;
+            background: #e9ecef;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .upload-item .progress-fill {
+            height: 100%;
+            background: #28a745;
+            transition: width 0.3s;
+        }
+        
+        .upload-item .status {
+            font-size: 10px;
+            color: #6c757d;
+        }
+        
+        /* Context Menu */
+        .context-menu {
+            position: fixed;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 5px 0;
+            min-width: 150px;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .context-menu-item {
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .context-menu-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .context-menu-item.danger:hover {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .context-menu-separator {
+            border-top: 1px solid #dee2e6;
+            margin: 5px 0;
+        }
+        
+        /* Replication Management Styles */
+        .backend-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+        }
+        
+        .backend-status {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .backend-status.enabled {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .backend-status.disabled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .btn-danger-small {
+            padding: 4px 8px;
+            font-size: 12px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .btn-danger-small:hover {
+            background: #c82333;
+        }
+        
+        .btn-primary, .btn-secondary {
+            padding: 8px 16px;
+            margin: 4px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        
+        .backend-controls, .backup-controls {
+            margin-bottom: 15px;
+        }
+        
+        #replication-settings-form {
+            display: grid;
+            gap: 10px;
+        }
+        
+        #replication-settings-form label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        #replication-settings-form input {
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100px;
+        }
+        
+        #replication-settings-form input[type="checkbox"] {
+            width: auto;
+        }
+        
+        /* Enhanced File Viewer */
+        .file-viewer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .file-viewer.visible {
+            display: flex;
+        }
+        
+        .file-viewer-content {
+            background: white;
+            border-radius: 8px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+            position: relative;
+        }
+        
+        .file-viewer-header {
+            padding: 15px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .file-viewer-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6c757d;
+        }
+        
+        .file-viewer-body {
+            padding: 20px;
+            max-height: 70vh;
+            overflow: auto;
+        }
+        
+        /* Real-time Updates */
+        .real-time-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .disconnected .real-time-indicator {
+            background: #dc3545;
+            animation: none;
+        }
+        
+        .search-container {
+            margin-left: auto;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .search-container input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+        }
+        
+        .quick-access {
+            margin-bottom: 20px;
+        }
+        
+        .quick-access-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .quick-access-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .quick-access-item .icon {
+            font-size: 16px;
+            width: 20px;
+        }
+        
+        .file-stats {
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .stat-item .label {
+            color: #666;
+        }
+        
+        .stat-item .value {
+            font-weight: 600;
+        }
+        
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .breadcrumb-item {
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .breadcrumb-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .file-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .file-list-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        
+        .btn-sm.active {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .file-list {
+            max-height: 400px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-bottom: 1px solid #f8f9fa;
+        }
+        
+        .file-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .file-item.selected {
+            background-color: #e3f2fd;
+        }
+        
+        .file-icon {
+            font-size: 18px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .file-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        .file-name {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .file-meta {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .file-actions {
+            display: flex;
+            gap: 5px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .file-item:hover .file-actions {
+            opacity: 1;
+        }
+        
+        .file-action-btn {
+            padding: 2px 6px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 10px;
+        }
+        
+        .file-action-btn:hover {
+            background: #545b62;
+        }
+        
+        .file-action-btn.delete {
+            background: #dc3545;
+        }
+        
+        .file-action-btn.delete:hover {
+            background: #c82333;
+        }
+        
+        .grid-view .file-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .grid-view .file-item {
+            flex-direction: column;
+            text-align: center;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+        }
+        
+        .grid-view .file-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .grid-view .file-info {
+            align-items: center;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        /* Modal styles for file operations */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 500px;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .modal-close:hover {
+            color: #333;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .form-group textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        
+        /* Peer Management Styles */
+        .peer-controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .control-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .filter-group label {
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 14px;
+        }
+        
+        .filter-group input,
+        .filter-group select {
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            min-width: 200px;
+        }
+        
+        .peer-stats-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .peer-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 6px;
+            border-left: 4px solid #4299e1;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #718096;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-top: 5px;
+        }
+        
+        .peer-list-container,
+        .peer-content-container {
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .peer-list-header,
+        .peer-content-header {
+            background: #f7fafc;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .peer-list-header h4,
+        .peer-content-header h4 {
+            margin: 0;
+            color: #2d3748;
+            font-weight: 600;
+        }
+        
+        .pagination-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .btn-pagination {
+            padding: 6px 12px;
+            background: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-pagination:hover {
+            background: #3182ce;
+        }
+        
+        .btn-pagination:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+        }
+        
+        .page-info {
+            font-size: 14px;
+            color: #718096;
+            font-weight: 500;
+        }
+        
+        .peer-list,
+        .peer-content {
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .peer-item {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .peer-item:hover {
+            background: #edf2f7;
+            border-color: #4299e1;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .peer-item.connected {
+            border-left: 4px solid #48bb78;
+        }
+        
+        .peer-item.disconnected {
+            border-left: 4px solid #ed8936;
+        }
+        
+        .peer-item.discovered {
+            border-left: 4px solid #4299e1;
+        }
+        
+        .peer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .peer-id {
+            font-family: monospace;
+            font-size: 12px;
+            color: #4a5568;
+            background: #edf2f7;
+            padding: 4px 8px;
+            border-radius: 4px;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .peer-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .peer-status.connected {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .peer-status.disconnected {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+        
+        .peer-status.discovered {
+            background: #bee3f8;
+            color: #2a4365;
+        }
+        
+        .peer-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .peer-detail {
+            font-size: 12px;
+        }
+        
+        .peer-detail-label {
+            color: #718096;
+            font-weight: 600;
+        }
+        
+        .peer-detail-value {
+            color: #2d3748;
+            margin-left: 5px;
+        }
+        
+        .peer-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .btn-peer-action {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-connect {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .btn-connect:hover {
+            background: #38a169;
+        }
+        
+        .btn-disconnect {
+            background: #ed8936;
+            color: white;
+        }
+        
+        .btn-disconnect:hover {
+            background: #dd6b20;
+        }
+        
+        .btn-query {
+            background: #4299e1;
+            color: white;
+        }
+        
+        .btn-query:hover {
+            background: #3182ce;
+        }
+        
+        .content-item {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .content-hash {
+            font-family: monospace;
+            font-size: 12px;
+            color: #4a5568;
+            background: #edf2f7;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        
+        .content-metadata {
+            font-size: 12px;
+            color: #718096;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔭 Enhanced IPFS Kit Backend Observatory</h1>
+            <p>Comprehensive monitoring, observability and configuration for all filesystem backends</p>
+        </div>
+        
+        <div class="tabs">
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="switchTab('overview', event)">📊 Overview</button>
+                <button class="tab-button" onclick="switchTab('monitoring', event)">🔍 Monitoring</button>
+                <button class="tab-button" onclick="switchTab('vfs', event)">💾 VFS Observatory</button>
+                <button class="tab-button" onclick="switchTab('vfs-journal', event)">📓 VFS Journal</button>
+                <button class="tab-button" onclick="switchTab('vector-kb', event)">🧠 Vector & KB</button>
+                <button class="tab-button" onclick="switchTab('replication', event)">🔄 Replication</button>
+                <button class="tab-button" onclick="switchTab('peer-management', event)">🌐 Peer Management</button>
+                <button class="tab-button" onclick="switchTab('configuration', event)">⚙️ Configuration</button>
+                <button class="tab-button" onclick="switchTab('filemanager', event)">📁 File Manager</button>
+                <button class="tab-button" onclick="switchTab('backends', event)">📦 Backends</button>
+                <button class="tab-button" onclick="switchTab('logs', event)">📋 Logs</button>
+            </div>
+            
+            <div id="overview" class="tab-content active">
+                <div class="controls">
+                    <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+                    <button class="refresh-btn" onclick="getInsights()">💡 Get Insights</button>
+                    <button class="refresh-btn" onclick="exportConfig()">📤 Export Config</button>
+                    <label class="auto-refresh">
+                        <input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()">
+                        Auto-refresh (30s)
+                    </label>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>System Status</h3>
+                        <div id="systemStatus">Loading...</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Backend Summary</h3>
+                        <div id="backendSummary">Loading...</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Performance</h3>
+                        <div id="performanceMetrics">Loading...</div>
+                    </div>
+                </div>
+                
+                <div class="insights-card" id="insightsCard" style="display: none;">
+                    <h3>🧠 Development Insights</h3>
+                    <div id="insightsContent"></div>
+                </div>
+            </div>
+            
+            <div id="monitoring" class="tab-content">
+                <div class="backend-grid" id="backendGrid">
+                    <!-- Backend cards will be populated here -->
+                </div>
+            </div>
+            
+            <div id="vfs" class="tab-content">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>🧬 Cache Performance</h3>
+                        <div id="cachePerformance">Loading cache metrics...</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>🗂️ Filesystem Status</h3>
+                        <div id="filesystemStatus">Loading filesystem metrics...</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>📈 Access Patterns</h3>
+                        <div id="accessPatterns">Loading access patterns...</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>💻 Resource Usage</h3>
+                        <div id="resourceUsage">Loading resource metrics...</div>
+                    </div>
+                </div>
+                
+                <div class="expandable">
+                    <div class="expandable-header">Tiered Cache Details</div>
+                    <div class="expandable-content">
+                        <div id="tieredCacheDetails">Loading detailed cache information...</div>
+                    </div>
+                </div>
+                
+                <div class="expandable">
+                    <div class="expandable-header">Hot Content Analysis</div>
+                    <div class="expandable-content">
+                        <div id="hotContentAnalysis">Loading hot content analysis...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="vfs-journal" class="tab-content">
+                <h3>🗂️ Virtual FileSystem Observatory</h3>
+                <p class="tab-description">Monitor filesystem operations across all storage backends with real-time journal tracking</p>
+                
+                <div class="journal-controls">
+                    <div class="filter-group">
+                        <label for="journalSearch">🔍 Search Operations:</label>
+                        <input type="text" id="journalSearch" placeholder="Search paths, files, or operations..." 
+                               onkeyup="if(event.key==='Enter') filterVFSJournal()">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="journalBackendFilter">🔧 Backend Filter:</label>
+                        <select id="journalBackendFilter" onchange="filterVFSJournal()">
+                            <option value="">All Backends</option>
+                            <option value="ipfs">IPFS</option>
+                            <option value="ipfs_cluster">IPFS Cluster</option>
+                            <option value="lotus">Lotus (Filecoin)</option>
+                            <option value="storacha">Storacha</option>
+                            <option value="s3">Amazon S3</option>
+                            <option value="local">Local Storage</option>
+                            <option value="huggingface">HuggingFace</option>
+                            <option value="synapse">Synapse</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="journalOperationFilter">⚡ Operation Filter:</label>
+                        <select id="journalOperationFilter" onchange="filterVFSJournal()">
+                            <option value="">All Operations</option>
+                            <option value="read">Read</option>
+                            <option value="write">Write</option>
+                            <option value="upload">Upload</option>
+                            <option value="download">Download</option>
+                            <option value="delete">Delete</option>
+                            <option value="list">List</option>
+                            <option value="index">Index</option>
+                            <option value="search">Search</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button onclick="filterVFSJournal()" class="btn-primary">🔄 Refresh</button>
+                        <button onclick="clearVFSJournalFilters()" class="btn-secondary">🗑️ Clear Filters</button>
+                    </div>
+                </div>
+                
+                <div id="vfsJournalContent" class="journal-content"></div>
+            </div>
+            
+            <div id="vector-kb" class="tab-content">
+                <!-- Search Interface -->
+                <div class="search-interface" style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h3>🔍 Vector & Knowledge Graph Search</h3>
+                    <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+                        <div style="flex: 1;">
+                            <label for="vectorSearch" style="display: block; margin-bottom: 5px; font-weight: 600;">Vector Search:</label>
+                            <input type="text" id="vectorSearch" placeholder="Enter text to search in vector database..." 
+                                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label for="entitySearch" style="display: block; margin-bottom: 5px; font-weight: 600;">Entity ID Search:</label>
+                            <input type="text" id="entitySearch" placeholder="Enter entity ID to explore knowledge graph..." 
+                                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="performVectorSearch()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            🔍 Search Vectors
+                        </button>
+                        <button onclick="performEntitySearch()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            🕸️ Explore Entity
+                        </button>
+                        <button onclick="listVectorCollections()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            📋 List Collections
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search Results -->
+                <div id="searchResults" style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: none;">
+                    <h3>🎯 Search Results</h3>
+                    <div id="searchResultsContent"></div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>🔍 Vector Index Status</h3>
+                        <div id="vectorIndexStatus">Loading vector index metrics...</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>🕸️ Knowledge Graph</h3>
+                        <div id="knowledgeGraphStatus">Loading knowledge graph metrics...</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>🎯 Search Performance</h3>
+                        <div id="searchPerformance">Loading search performance...</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>📊 Content Distribution</h3>
+                        <div id="contentDistribution">Loading content distribution...</div>
+                    </div>
+                </div>
+                
+                <div class="expandable">
+                    <div class="expandable-header">Vector Index Details</div>
+                    <div class="expandable-content">
+                        <div id="vectorIndexDetails">Loading vector index details...</div>
+                    </div>
+                </div>
+                
+                <div class="expandable">
+                    <div class="expandable-header">Knowledge Base Analytics</div>
+                    <div class="expandable-content">
+                        <div id="knowledgeBaseAnalytics">Loading knowledge base analytics...</div>
+                    </div>
+                </div>
+                
+                <div class="expandable">
+                    <div class="expandable-header">Semantic Cache Performance</div>
+                    <div class="expandable-content">
+                        <div id="semanticCachePerformance">Loading semantic cache performance...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="configuration" class="tab-content">
+                <div id="configurationContent">
+                    <h3>🔧 Configuration Management</h3>
+                    
+                    <!-- Package Configuration Section -->
+                    <div class="config-section">
+                        <h4>📦 Package Configuration</h4>
+                        <div class="package-config-grid">
+                            <div class="config-card">
+                                <h5>System Settings</h5>
+                                <div class="config-form">
+                                    <label>Log Level:</label>
+                                    <select id="system-log-level">
+                                        <option value="DEBUG">DEBUG</option>
+                                        <option value="INFO">INFO</option>
+                                        <option value="WARNING">WARNING</option>
+                                        <option value="ERROR">ERROR</option>
+                                    </select>
+                                    
+                                    <label>Max Workers:</label>
+                                    <input type="number" id="system-max-workers" min="1" max="16" value="4">
+                                    
+                                    <label>Cache Size:</label>
+                                    <input type="text" id="system-cache-size" value="1000" placeholder="e.g., 1000, 10MB">
+                                    
+                                    <label>Data Directory:</label>
+                                    <input type="text" id="system-data-dir" value="/tmp/ipfs_kit" placeholder="/path/to/data">
+                                </div>
+                            </div>
+                            
+                            <div class="config-card">
+                                <h5>VFS Settings</h5>
+                                <div class="config-form">
+                                    <label>Cache Enabled:</label>
+                                    <input type="checkbox" id="vfs-cache-enabled" checked>
+                                    
+                                    <label>Cache Max Size:</label>
+                                    <input type="text" id="vfs-cache-max-size" value="10GB" placeholder="e.g., 10GB, 1000MB">
+                                    
+                                    <label>Vector Dimensions:</label>
+                                    <input type="number" id="vfs-vector-dimensions" value="384" min="1" max="2048">
+                                    
+                                    <label>Knowledge Base Max Nodes:</label>
+                                    <input type="number" id="vfs-kb-max-nodes" value="10000" min="100" max="1000000">
+                                </div>
+                            </div>
+                            
+                            <div class="config-card">
+                                <h5>Observability Settings</h5>
+                                <div class="config-form">
+                                    <label>Metrics Enabled:</label>
+                                    <input type="checkbox" id="obs-metrics-enabled" checked>
+                                    
+                                    <label>Prometheus Port:</label>
+                                    <input type="number" id="obs-prometheus-port" value="9090" min="1000" max="65535">
+                                    
+                                    <label>Dashboard Enabled:</label>
+                                    <input type="checkbox" id="obs-dashboard-enabled" checked>
+                                    
+                                    <label>Health Check Interval (seconds):</label>
+                                    <input type="number" id="obs-health-check-interval" value="30" min="5" max="300">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="config-actions">
+                            <button onclick="loadPackageConfig()" class="btn btn-secondary">🔄 Load Current Config</button>
+                            <button onclick="savePackageConfig()" class="btn btn-primary">💾 Save Package Config</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Backend Configuration Section -->
+                    <div class="config-section">
+                        <h4>🔌 Backend Configuration</h4>
+                        <p>Select a backend to configure its settings:</p>
+                        <div id="configBackendList"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="filemanager" class="tab-content">
+                {% include 'file_manager.html' %}
+            </div>
+
+            <div id="backends" class="tab-content">
+                <div id="backend-details-grid" class="backend-grid">
+                    <!-- Backend details will be populated here -->
+                </div>
+            </div>
+
+            <div id="replication" class="tab-content">
+                <div class="tab-header">
+                    <h3>🔄 Replication Management</h3>
+                    <p class="tab-description">Manage pin replication across storage backends with data loss protection</p>
+                </div>
+                
+                <!-- Replication Status Overview -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h4>📊 Replication Status</h4>
+                        <div id="replication-overview">
+                            <p><strong>Total Pins:</strong> <span id="total-pins">-</span></p>
+                            <p><strong>Replicated Pins:</strong> <span id="replicated-pins">-</span></p>
+                            <p><strong>Storage Backends:</strong> <span id="storage-backends">-</span></p>
+                            <p><strong>Health Status:</strong> <span id="replication-health">-</span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <h4>⚙️ Replication Settings</h4>
+                        <form id="replication-settings-form" onsubmit="replicationManager.saveSettings(event)">
+                            <label>Target Replicas: <input type="number" id="target-replicas" min="1" max="10" value="3"></label>
+                            <label>Max Storage (GB): <input type="number" id="max-storage" min="1" value="100"></label>
+                            <label>Auto Replication: <input type="checkbox" id="auto-replication" checked></label>
+                            <button type="submit" class="btn-primary">💾 Save Settings</button>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Storage Backends Management -->
+                <div class="stat-card">
+                    <h4>💾 Storage Backends</h4>
+                    <div class="backend-controls">
+                        <button onclick="replicationManager.addBackend()" class="btn-primary">➕ Add Backend</button>
+                        <button onclick="replicationManager.refreshBackends()" class="btn-secondary">🔄 Refresh</button>
+                    </div>
+                    <div id="storage-backends-list">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+                
+                <!-- Export/Import Tools -->
+                <div class="stat-card">
+                    <h4>📦 Backup & Restore</h4>
+                    <div class="backup-controls">
+                        <button onclick="replicationManager.exportPins()" class="btn-primary">📤 Export Pins</button>
+                        <button onclick="replicationManager.importPins()" class="btn-secondary">📥 Import Pins</button>
+                        <input type="file" id="import-file" accept=".json" style="display: none;" onchange="replicationManager.handleImport(event)">
+                    </div>
+                    <div id="backup-status">
+                        <p>Ready to export or import pin data for backup protection</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="peer-management" class="tab-content">
+                <div class="tab-header">
+                    <h3>🌐 Peer Management & Discovery</h3>
+                    <p class="tab-description">Discover, connect, and manage libp2p peers with integrated IPFS/Cluster bootstrapping</p>
+                </div>
+                
+                <div class="peer-controls">
+                    <div class="control-group">
+                        <button onclick="peerManager.discoverPeers()" class="btn-primary">🔍 Discover Peers</button>
+                        <button onclick="peerManager.refreshAll()" class="btn-secondary">🔄 Refresh All</button>
+                        <button onclick="peerManager.toggleAutoRefresh()" id="peerAutoRefreshBtn" class="btn-toggle">⏸️ Auto-Refresh</button>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="peerSearch">🔍 Search Peers:</label>
+                        <input type="text" id="peerSearch" placeholder="Search by peer ID, address, or metadata..." 
+                               onkeyup="if(event.key==='Enter') peerManager.applyFilters()">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="peerStatusFilter">📊 Status Filter:</label>
+                        <select id="peerStatusFilter" onchange="peerManager.applyFilters()">
+                            <option value="">All Peers</option>
+                            <option value="connected">Connected</option>
+                            <option value="disconnected">Disconnected</option>
+                            <option value="discovered">Discovered</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="peer-stats-container">
+                    <div class="stat-card">
+                        <h4>📊 Peer Statistics</h4>
+                        <div id="peerStats" class="peer-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Total Peers:</span>
+                                <span id="totalPeers" class="stat-value">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Connected:</span>
+                                <span id="connectedPeers" class="stat-value">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Discovered:</span>
+                                <span id="discoveredPeers" class="stat-value">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">With Content:</span>
+                                <span id="peersWithContent" class="stat-value">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="peer-list-container">
+                    <div class="peer-list-header">
+                        <h4>🌐 Discovered Peers</h4>
+                        <div class="pagination-controls">
+                            <button onclick="peerManager.previousPage()" id="prevPageBtn" class="btn-pagination">← Previous</button>
+                            <span id="pageInfo" class="page-info">Page 1 of 1</span>
+                            <button onclick="peerManager.nextPage()" id="nextPageBtn" class="btn-pagination">Next →</button>
+                        </div>
+                    </div>
+                    
+                    <div id="peerList" class="peer-list">
+                        <div class="loading">Discovering peers...</div>
+                    </div>
+                </div>
+                
+                <div class="peer-content-container">
+                    <div class="peer-content-header">
+                        <h4>📁 Peer Content & Metadata</h4>
+                        <button onclick="peerManager.refreshContent()" class="btn-secondary">🔄 Refresh Content</button>
+                    </div>
+                    
+                    <div id="peerContent" class="peer-content">
+                        <div class="loading">Loading peer content...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="logs" class="tab-content">
+                <div class="tab-header">
+                    <h3>📋 System Activity Logs</h3>
+                    <p class="tab-description">Monitor real-time system activity across all backend services and operations</p>
+                </div>
+                
+                <div class="log-controls">
+                    <div class="filter-group">
+                        <label for="logSearch">🔍 Search Logs:</label>
+                        <input type="text" id="logSearch" placeholder="Search log entries..." 
+                               onkeyup="if(event.key==='Enter') filterLogs()">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="logLevelFilter">📊 Log Level:</label>
+                        <select id="logLevelFilter" onchange="filterLogs()">
+                            <option value="">All Levels</option>
+                            <option value="DEBUG">Debug</option>
+                            <option value="INFO">Info</option>
+                            <option value="WARNING">Warning</option>
+                            <option value="ERROR">Error</option>
+                            <option value="CRITICAL">Critical</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="logSourceFilter">🔧 Source Filter:</label>
+                        <select id="logSourceFilter" onchange="filterLogs()">
+                            <option value="">All Sources</option>
+                            <option value="system">System</option>
+                            <option value="backend">Backend</option>
+                            <option value="api">API</option>
+                            <option value="mcp">MCP Server</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button onclick="filterLogs()" class="btn-primary">🔄 Refresh</button>
+                        <button onclick="clearLogFilters()" class="btn-secondary">🗑️ Clear Filters</button>
+                        <button onclick="toggleAutoRefresh()" id="autoRefreshBtn" class="btn-toggle">⏸️ Auto-Refresh</button>
+                    </div>
+                </div>
+                
+                <div class="log-viewer-container">
+                    <div id="logViewer" class="log-viewer">
+                        <div class="loading">Loading system logs...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration Modal -->
+    <div id="configModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="configModalTitle">Configure Backend</h3>
+                <span class="close" onclick="closeConfigModal()">&times;</span>
+            </div>
+            <div id="configModalContent">
+                <!-- Configuration form will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Logs Modal -->
+    <div id="logsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="logsModalTitle">Backend Logs</h3>
+                <span class="close" onclick="closeLogsModal()">&times;</span>
+            </div>
+            <div id="logsModalContent">
+                <!-- Logs will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- File Manager Modals -->
+    <div id="createFolderModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Create New Folder</h3>
+                <button class="modal-close" onclick="fileManager.closeModal('createFolderModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label for="newFolderName">Folder Name</label>
+                <input type="text" id="newFolderName" class="form-control">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="fileManager.closeModal('createFolderModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="fileManager.createNewFolder()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="renameModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Rename Item</h3>
+                <button class="modal-close" onclick="fileManager.closeModal('renameModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label for="newItemName">New Name</label>
+                <input type="text" id="newItemName" class="form-control">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="fileManager.closeModal('renameModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="fileManager.renameItem()">Rename</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="moveModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Move Item</h3>
+                <button class="modal-close" onclick="fileManager.closeModal('moveModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label for="targetPath">Destination Path</label>
+                <input type="text" id="targetPath" class="form-control">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="fileManager.closeModal('moveModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="fileManager.moveItem()">Move</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="uploadProgress" class="upload-progress">
+        <h4>Uploads</h4>
+        <div id="uploadProgressList"></div>
+    </div>
+
+    <ul id="contextMenu" class="context-menu">
+        <li class="context-menu-item" data-action="open">Open</li>
+        <li class="context-menu-item" data-action="download">Download</li>
+        <li class="context-menu-separator"></li>
+        <li class="context-menu-item" data-action="rename">Rename</li>
+        <li class="context-menu-item" data-action="move">Move</li>
+        <li class="context-menu-separator"></li>
+        <li class="context-menu-item danger" data-action="delete">Delete</li>
+    </ul>
+
+
+    
+    
+    <script src="/static/js/dashboard-core.js"></script>
+    <script src="/static/js/file_manager.js"></script>
+    <script src="/static/js/peer-management.js"></script>
+    
+    <script>
+        // Replication Manager JavaScript
+        const replicationManager = {
+            async loadReplicationStatus() {
+                try {
+                    const response = await fetch('/api/replication/status');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        document.getElementById('total-pins').textContent = data.total_pins || 0;
+                        document.getElementById('replicated-pins').textContent = data.replicated_pins || 0;
+                        document.getElementById('storage-backends').textContent = data.total_backends || 0;
+                        document.getElementById('replication-health').textContent = data.replication_health || 'Unknown';
+                    }
+                } catch (error) {
+                    console.error('Failed to load replication status:', error);
+                }
+            },
+            
+            async loadSettings() {
+                try {
+                    const response = await fetch('/api/replication/settings');
+                    const data = await response.json();
+                    
+                    if (data.success && data.settings) {
+                        document.getElementById('target-replicas').value = data.settings.target_replicas || 3;
+                        document.getElementById('max-storage').value = data.settings.max_total_storage_gb || 100;
+                        document.getElementById('auto-replication').checked = data.settings.auto_replication || false;
+                    }
+                } catch (error) {
+                    console.error('Failed to load replication settings:', error);
+                }
+            },
+            
+            async saveSettings(event) {
+                event.preventDefault();
+                try {
+                    const settings = {
+                        target_replicas: parseInt(document.getElementById('target-replicas').value),
+                        max_total_storage_gb: parseFloat(document.getElementById('max-storage').value),
+                        auto_replication: document.getElementById('auto-replication').checked
+                    };
+                    
+                    const response = await fetch('/api/replication/settings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(settings)
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        showToast('Replication settings saved successfully', 'success');
+                    } else {
+                        showToast('Failed to save settings: ' + data.error, 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to save replication settings:', error);
+                    showToast('Failed to save settings', 'error');
+                }
+            },
+            
+            async loadBackends() {
+                try {
+                    const response = await fetch('/api/replication/backends');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        const backendsList = document.getElementById('storage-backends-list');
+                        backendsList.innerHTML = '';
+                        
+                        data.backends.forEach(backend => {
+                            const backendDiv = document.createElement('div');
+                            backendDiv.className = 'backend-item';
+                            backendDiv.innerHTML = `
+                                <strong>${backend.name}</strong> (${backend.backend_type})
+                                <span class="backend-status ${backend.enabled ? 'enabled' : 'disabled'}">
+                                    ${backend.enabled ? 'Enabled' : 'Disabled'}
+                                </span>
+                                <button onclick="replicationManager.removeBackend('${backend.name}')" class="btn-danger-small">Remove</button>
+                            `;
+                            backendsList.appendChild(backendDiv);
+                        });
+                    }
+                } catch (error) {
+                    console.error('Failed to load backends:', error);
+                }
+            },
+            
+            async addBackend() {
+                const name = prompt('Backend name:');
+                const type = prompt('Backend type (ipfs_cluster, storacha, pinata, etc.):');
+                
+                if (name && type) {
+                    try {
+                        const response = await fetch('/api/replication/backends', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: name,
+                                backend_type: type,
+                                config: { endpoint: prompt('Backend endpoint:') || 'http://localhost:9094' },
+                                enabled: true
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        if (data.success) {
+                            showToast('Backend added successfully', 'success');
+                            this.loadBackends();
+                        } else {
+                            showToast('Failed to add backend: ' + data.error, 'error');
+                        }
+                    } catch (error) {
+                        console.error('Failed to add backend:', error);
+                        showToast('Failed to add backend', 'error');
+                    }
+                }
+            },
+            
+            async removeBackend(backendName) {
+                if (confirm(`Remove backend "${backendName}"?`)) {
+                    try {
+                        const response = await fetch(`/api/replication/backends/${backendName}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        const data = await response.json();
+                        if (data.success) {
+                            showToast('Backend removed successfully', 'success');
+                            this.loadBackends();
+                        } else {
+                            showToast('Failed to remove backend: ' + data.error, 'error');
+                        }
+                    } catch (error) {
+                        console.error('Failed to remove backend:', error);
+                        showToast('Failed to remove backend', 'error');
+                    }
+                }
+            },
+            
+            async refreshBackends() {
+                await this.loadBackends();
+                await this.loadReplicationStatus();
+                showToast('Backends refreshed', 'info');
+            },
+            
+            async exportPins() {
+                try {
+                    const response = await fetch('/api/replication/backends/local/export', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        showToast(`Exported ${data.count} pins to ${data.export_file}`, 'success');
+                    } else {
+                        showToast('Failed to export pins: ' + data.error, 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to export pins:', error);
+                    showToast('Failed to export pins', 'error');
+                }
+            },
+            
+            async importPins() {
+                document.getElementById('import-file').click();
+            },
+
+            async handleImport(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        try {
+                            const pins = JSON.parse(e.target.result);
+                            const response = await fetch('/api/replication/backends/local/import', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ pins: pins })
+                            });
+                            const data = await response.json();
+                            if (data.success) {
+                                showToast(`Imported ${data.count} pins`, 'success');
+                                this.loadReplicationStatus();
+                            } else {
+                                showToast('Failed to import pins: ' + data.error, 'error');
+                            }
+                        } catch (error) {
+                            console.error('Failed to import pins:', error);
+                            showToast('Failed to import pins', 'error');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            },
+            
+            async init() {
+                await this.loadReplicationStatus();
+                await this.loadSettings();
+                await this.loadBackends();
+                
+                // Setup form handler
+                const form = document.getElementById('replication-settings-form');
+                if(form) {
+                    form.addEventListener('submit', this.saveSettings);
+                }
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            replicationManager.init();
+        });
+    </script>
+</body>
+</html>

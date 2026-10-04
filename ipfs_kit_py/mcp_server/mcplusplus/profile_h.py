@@ -21,12 +21,7 @@ from typing import Any
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives.serialization import (
-    Encoding,
-    NoEncryption,
-    PrivateFormat,
-    PublicFormat,
-)
+from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat, PublicFormat
 
 from mcplusplus_profile_h import (
     CallbackFacilitator,
@@ -109,9 +104,7 @@ class KitPaymentConfig:
     def from_mapping(cls, value: Mapping[str, Any]) -> "KitPaymentConfig":
         """Load an operator configuration without accepting unknown term types."""
         operations = {
-            name: terms
-            if isinstance(terms, KitOperationTerms)
-            else KitOperationTerms(**dict(terms))
+            name: terms if isinstance(terms, KitOperationTerms) else KitOperationTerms(**dict(terms))
             for name, terms in dict(value.get("operations", {})).items()
         }
         fields = {key: item for key, item in value.items() if key != "operations"}
@@ -125,15 +118,9 @@ def default_operation_terms(amounts: Mapping[str, str]) -> dict[str, KitOperatio
     if missing:
         raise ValueError(f"missing prices for: {', '.join(sorted(missing))}")
     return {
-        "storage/add": KitOperationTerms(
-            amounts["storage/add"], quota_units=1, unit="mebibyte", max_request_units=1024
-        ),
-        "storage/pin": KitOperationTerms(
-            amounts["storage/pin"], quota_units=30, unit="gigabyte-day", max_request_units=30
-        ),
-        "storage/retrieve": KitOperationTerms(
-            amounts["storage/retrieve"], quota_units=1024, unit="mebibyte", max_request_units=1024
-        ),
+        "storage/add": KitOperationTerms(amounts["storage/add"], quota_units=1, unit="mebibyte", max_request_units=1024),
+        "storage/pin": KitOperationTerms(amounts["storage/pin"], quota_units=30, unit="gigabyte-day", max_request_units=30),
+        "storage/retrieve": KitOperationTerms(amounts["storage/retrieve"], quota_units=1024, unit="mebibyte", max_request_units=1024),
     }
 
 
@@ -172,12 +159,10 @@ class CatalogSigner:
         unsigned = dict(document)
         unsigned.pop("signature", None)
         public = self._key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
-        unsigned.update(
-            {
-                "signatureAlg": "Ed25519",
-                "publicKey": base64.b64encode(public).decode("ascii"),
-            }
-        )
+        unsigned.update({
+            "signatureAlg": "Ed25519",
+            "publicKey": base64.b64encode(public).decode("ascii"),
+        })
         signature = self._key.sign(canonical_json(unsigned))
         return {
             **unsigned,
@@ -200,9 +185,7 @@ class CatalogSigner:
 class EntitlementStore:
     """Durable, transactionally consumed quota and immutable usage receipts."""
 
-    def __init__(
-        self, path: str | Path, artifacts: FileCIDArtifactStore, clock_ms: Callable[[], int]
-    ) -> None:
+    def __init__(self, path: str | Path, artifacts: FileCIDArtifactStore, clock_ms: Callable[[], int]) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.artifacts = artifacts
@@ -226,86 +209,42 @@ class EntitlementStore:
         return sqlite3.connect(self.path, timeout=30, isolation_level=None)
 
     def issue(
-        self,
-        *,
-        subject: str,
-        capability_cid: str,
-        namespace: str,
-        cid_scope: str | None,
-        quota: int,
-        unit: str,
-        expires_at: int,
-        settlement_cid: str,
+        self, *, subject: str, capability_cid: str, namespace: str, cid_scope: str | None,
+        quota: int, unit: str, expires_at: int, settlement_cid: str,
     ) -> str:
         artifact = {
             "schema": "mcp++/profile-h/paid-entitlement@1.0",
-            "createdAt": self.clock_ms(),
-            "parents": [settlement_cid],
+            "createdAt": self.clock_ms(), "parents": [settlement_cid],
             "correlationId": commitment({"settlement": settlement_cid, "subject": subject}),
-            "settlementCid": settlement_cid,
-            "subjectCommitment": commitment(subject),
-            "capabilityCid": capability_cid,
-            "namespace": namespace,
-            "cidScope": cid_scope,
-            "quotaUnits": quota,
-            "consumedUnits": 0,
-            "unit": unit,
-            "expiresAt": expires_at,
+            "settlementCid": settlement_cid, "subjectCommitment": commitment(subject),
+            "capabilityCid": capability_cid, "namespace": namespace, "cidScope": cid_scope,
+            "quotaUnits": quota, "consumedUnits": 0, "unit": unit, "expiresAt": expires_at,
         }
         entitlement_cid = self.artifacts.put(artifact)
         with self._connect() as db:
             db.execute(
                 "INSERT OR IGNORE INTO entitlements VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (
-                    entitlement_cid,
-                    commitment(subject),
-                    capability_cid,
-                    namespace,
-                    cid_scope,
-                    quota,
-                    0,
-                    unit,
-                    expires_at,
-                    settlement_cid,
-                ),
+                (entitlement_cid, commitment(subject), capability_cid, namespace, cid_scope,
+                 quota, 0, unit, expires_at, settlement_cid),
             )
         return entitlement_cid
 
     def consume(
-        self,
-        entitlement_cid: str,
-        *,
-        subject: str,
-        capability_cid: str,
-        namespace: str,
-        cid_scope: str | None,
-        units: int,
+        self, entitlement_cid: str, *, subject: str, capability_cid: str,
+        namespace: str, cid_scope: str | None, units: int,
     ) -> str:
         usage_cid, _ = self.consume_once(
-            entitlement_cid,
-            subject=subject,
-            capability_cid=capability_cid,
-            namespace=namespace,
-            cid_scope=cid_scope,
-            units=units,
+            entitlement_cid, subject=subject, capability_cid=capability_cid,
+            namespace=namespace, cid_scope=cid_scope, units=units,
             idempotency_key=commitment({"entitlement": entitlement_cid, "time": self.clock_ms()}),
-            request_cid=commitment(
-                {"entitlement": entitlement_cid, "units": units, "time": self.clock_ms()}
-            ),
+            request_cid=commitment({"entitlement": entitlement_cid, "units": units, "time": self.clock_ms()}),
         )
         return usage_cid
 
     def consume_once(
-        self,
-        entitlement_cid: str,
-        *,
-        subject: str,
-        capability_cid: str,
-        namespace: str,
-        cid_scope: str | None,
-        units: int,
-        idempotency_key: str,
-        request_cid: str,
+        self, entitlement_cid: str, *, subject: str, capability_cid: str,
+        namespace: str, cid_scope: str | None, units: int,
+        idempotency_key: str, request_cid: str,
     ) -> tuple[str, bool]:
         """Consume once, returning the prior receipt for an identical retry."""
         if units < 1:
@@ -319,63 +258,36 @@ class EntitlementStore:
             if prior:
                 db.rollback()
                 if prior[0] != request_cid or prior[1] != entitlement_cid:
-                    raise KitPaymentError(
-                        "H_REQUEST_MISMATCH", "idempotency key is bound to another request"
-                    )
+                    raise KitPaymentError("H_REQUEST_MISMATCH", "idempotency key is bound to another request")
                 return str(prior[2]), True
             row = db.execute(
                 "SELECT subject,capability,namespace,cid_scope,quota,consumed,unit,expires,settlement "
-                "FROM entitlements WHERE cid=?",
-                (entitlement_cid,),
+                "FROM entitlements WHERE cid=?", (entitlement_cid,),
             ).fetchone()
             if row is None:
                 db.rollback()
                 raise KitPaymentError("H_ENTITLEMENT_INVALID", "entitlement is unknown")
-            (
-                expected_subject,
-                expected_capability,
-                expected_namespace,
-                expected_cid,
-                quota,
-                consumed,
-                unit,
-                expires,
-                settlement,
-            ) = row
+            expected_subject, expected_capability, expected_namespace, expected_cid, quota, consumed, unit, expires, settlement = row
             scoped = (
-                expected_subject == commitment(subject)
-                and expected_capability == capability_cid
-                and expected_namespace == namespace
-                and (expected_cid is None or expected_cid == cid_scope)
+                expected_subject == commitment(subject) and expected_capability == capability_cid
+                and expected_namespace == namespace and (expected_cid is None or expected_cid == cid_scope)
             )
             if not scoped:
                 db.rollback()
-                raise KitPaymentError(
-                    "H_ENTITLEMENT_SCOPE_MISMATCH", "entitlement scope does not match request"
-                )
+                raise KitPaymentError("H_ENTITLEMENT_SCOPE_MISMATCH", "entitlement scope does not match request")
             if self.clock_ms() >= expires or consumed + units > quota:
                 db.rollback()
-                raise KitPaymentError(
-                    "H_ENTITLEMENT_EXHAUSTED", "entitlement is expired or exhausted"
-                )
+                raise KitPaymentError("H_ENTITLEMENT_EXHAUSTED", "entitlement is expired or exhausted")
             usage = {
-                "schema": "mcp++/profile-h/usage-record@1.0",
-                "createdAt": self.clock_ms(),
-                "parents": [entitlement_cid, settlement],
-                "correlationId": commitment(request_cid),
-                "entitlementCid": entitlement_cid,
-                "unit": unit,
+                "schema": "mcp++/profile-h/usage-record@1.0", "createdAt": self.clock_ms(),
+                "parents": [entitlement_cid, settlement], "correlationId": commitment(request_cid),
+                "entitlementCid": entitlement_cid, "unit": unit,
                 "inputCid": cid_scope or commitment({"namespace": namespace}),
-                "outputCid": commitment(
-                    {"entitlement": entitlement_cid, "consumed": consumed + units}
-                ),
-                "units": units,
-                "recordedAt": self.clock_ms(),
+                "outputCid": commitment({"entitlement": entitlement_cid, "consumed": consumed + units}),
+                "units": units, "recordedAt": self.clock_ms(),
             }
             usage_cid = self.artifacts.put(usage)
-            db.execute(
-                "UPDATE entitlements SET consumed=consumed+? WHERE cid=?", (units, entitlement_cid)
-            )
+            db.execute("UPDATE entitlements SET consumed=consumed+? WHERE cid=?", (units, entitlement_cid))
             db.execute(
                 "INSERT INTO entitlement_uses VALUES (?,?,?,?)",
                 (idempotency_key, request_cid, entitlement_cid, usage_cid),
@@ -391,24 +303,16 @@ class EntitlementStore:
             ).fetchone()
         if row is None:
             return None
-        return {
-            "entitlementCid": entitlement_cid,
-            "namespace": row[0],
-            "cidScope": row[1],
-            "quotaUnits": row[2],
-            "consumedUnits": row[3],
-            "unit": row[4],
-            "expiresAt": row[5],
-            "settlementCid": row[6],
-        }
+        return {"entitlementCid": entitlement_cid, "namespace": row[0], "cidScope": row[1],
+                "quotaUnits": row[2], "consumedUnits": row[3], "unit": row[4],
+                "expiresAt": row[5], "settlementCid": row[6]}
 
     def get_usage(self, usage_cid: str, *, subject: str) -> dict[str, Any] | None:
         """Resolve usage only when it belongs to the authenticated subject."""
         with self._connect() as db:
             row = db.execute(
                 "SELECT u.entitlement_cid FROM entitlement_uses u JOIN entitlements e ON e.cid=u.entitlement_cid "
-                "WHERE u.usage_cid=? AND e.subject=?",
-                (usage_cid, commitment(subject)),
+                "WHERE u.usage_cid=? AND e.subject=?", (usage_cid, commitment(subject)),
             ).fetchone()
         return self.artifacts.get(usage_cid) if row else None
 
@@ -423,13 +327,8 @@ class PaidKitService:
     }
 
     def __init__(
-        self,
-        config: KitPaymentConfig,
-        state_dir: str | Path,
-        facilitator: Any,
-        *,
-        signer: CatalogSigner | None = None,
-        clock_ms: Callable[[], int] | None = None,
+        self, config: KitPaymentConfig, state_dir: str | Path, facilitator: Any, *,
+        signer: CatalogSigner | None = None, clock_ms: Callable[[], int] | None = None,
         control_mode: str | None = None,
     ) -> None:
         self.config = config
@@ -441,61 +340,33 @@ class PaidKitService:
         capabilities = []
         for name, terms in config.operations.items():
             requirement = PaymentRequirement(
-                config.scheme,
-                config.network,
-                config.asset,
-                terms.amount,
-                config.pay_to,
-                extra={
-                    "unit": terms.unit,
-                    "quotaUnits": terms.quota_units,
+                config.scheme, config.network, config.asset, terms.amount, config.pay_to,
+                extra={"unit": terms.unit, "quotaUnits": terms.quota_units,
+                       "retentionSeconds": terms.retention_seconds},
+            )
+            capabilities.append(PaidCapability(
+                f"tool:{name}", (requirement,), metadata={
+                    "ability": f"tool:{name}", "namespaces": list(terms.namespaces),
+                    "unit": terms.unit, "quotaUnits": terms.quota_units,
+                    "maxRequestUnits": terms.max_request_units,
                     "retentionSeconds": terms.retention_seconds,
+                    "maxRetentionSeconds": terms.max_retention_seconds,
+                    "httpRoute": f"/mcp/tools/{name}", "httpMethod": "POST",
                 },
-            )
-            capabilities.append(
-                PaidCapability(
-                    f"tool:{name}",
-                    (requirement,),
-                    metadata={
-                        "ability": f"tool:{name}",
-                        "namespaces": list(terms.namespaces),
-                        "unit": terms.unit,
-                        "quotaUnits": terms.quota_units,
-                        "maxRequestUnits": terms.max_request_units,
-                        "retentionSeconds": terms.retention_seconds,
-                        "maxRetentionSeconds": terms.max_retention_seconds,
-                        "httpRoute": f"/mcp/tools/{name}",
-                        "httpMethod": "POST",
-                    },
-                )
-            )
+            ))
         catalog = CapabilityCatalog(capabilities, version=config.catalog_version)
-        policy = PaymentPolicyEngine(
-            catalog, unlisted=(Decision.FREE if config.unlisted_free else Decision.DENIED)
-        )
+        policy = PaymentPolicyEngine(catalog, unlisted=(Decision.FREE if config.unlisted_free else Decision.DENIED))
         self.runtime = SellerRuntime(
-            policy,
-            DuckDBPaymentLedger(self.state_dir / "payments.duckdb"),
-            facilitator,
-            self.artifacts,
-            seller_did=config.seller_did,
-            descriptor_cid=config.descriptor_cid,
+            policy, DuckDBPaymentLedger(self.state_dir / "payments.duckdb"), facilitator,
+            self.artifacts, seller_did=config.seller_did, descriptor_cid=config.descriptor_cid,
             clock_ms=self.clock_ms,
         )
-        self.entitlements = EntitlementStore(
-            self.state_dir / "entitlements.sqlite3", self.artifacts, self.clock_ms
-        )
+        self.entitlements = EntitlementStore(self.state_dir / "entitlements.sqlite3", self.artifacts, self.clock_ms)
         self._catalog = self._build_catalog()
-        mode = control_mode or (
-            "local-test" if isinstance(facilitator, CallbackFacilitator) else "facilitator"
-        )
+        mode = control_mode or ("local-test" if isinstance(facilitator, CallbackFacilitator) else "facilitator")
         self.control_plane = ProfileHControlPlane(
-            runtime=self.runtime,
-            catalog=self.catalog,
-            bind=self._commercial_binding,
-            reconcile=self.reconcile,
-            evidence=self._control_evidence,
-            mode=mode,
+            runtime=self.runtime, catalog=self.catalog, bind=self._commercial_binding,
+            reconcile=self.reconcile, evidence=self._control_evidence, mode=mode,
             upstream_x402_http_conformance=mode != "local-test",
         )
         self.profile_h_transports = ProfileHTransportAdapter(self.control_plane)
@@ -506,8 +377,7 @@ class PaidKitService:
         try:
             saved = json.loads(saved_path.read_text(encoding="utf-8"))
             if (
-                isinstance(saved, dict)
-                and CatalogSigner.verify(saved)
+                isinstance(saved, dict) and CatalogSigner.verify(saved)
                 and saved.get("catalogCid") == self.runtime.policy.catalog.cid
                 and saved.get("sellerDid") == self.config.seller_did
                 and saved.get("descriptorCid") == self.config.descriptor_cid
@@ -516,23 +386,17 @@ class PaidKitService:
         except (FileNotFoundError, json.JSONDecodeError, OSError):
             pass
         document = {
-            "schema": "mcp++/profile-h/kit-catalog@1.0",
-            "createdAt": self.clock_ms(),
-            "sellerDid": self.config.seller_did,
-            "descriptorCid": self.config.descriptor_cid,
+            "schema": "mcp++/profile-h/kit-catalog@1.0", "createdAt": self.clock_ms(),
+            "sellerDid": self.config.seller_did, "descriptorCid": self.config.descriptor_cid,
             **self.runtime.policy.catalog.public_document(),
         }
         signed = self.signer.sign(document)
         signed["signedCatalogCid"] = cid_for(signed)
         # The self-describing response carries its CID outside the signed bytes.
         # Persist exactly the signed document so that the advertised CID resolves.
-        self.artifacts.put(
-            {key: value for key, value in signed.items() if key != "signedCatalogCid"}
-        )
+        self.artifacts.put({key: value for key, value in signed.items() if key != "signedCatalogCid"})
         temporary = saved_path.with_suffix(".tmp")
-        temporary.write_text(
-            json.dumps(signed, sort_keys=True, separators=(",", ":")), encoding="utf-8"
-        )
+        temporary.write_text(json.dumps(signed, sort_keys=True, separators=(",", ":")), encoding="utf-8")
         os.chmod(temporary, 0o600)
         temporary.replace(saved_path)
         return signed
@@ -540,19 +404,13 @@ class PaidKitService:
     def catalog(self) -> dict[str, Any]:
         return json.loads(json.dumps(self._catalog))
 
-    def _scope(
-        self, operation: str, context: RequestContext, params: Mapping[str, Any]
-    ) -> tuple[KitOperationTerms, str, str | None, int]:
+    def _scope(self, operation: str, context: RequestContext, params: Mapping[str, Any]) -> tuple[KitOperationTerms, str, str | None, int]:
         terms = self.config.operations.get(operation)
         if terms is None:
             raise KitPaymentError("H_PAYMENT_POLICY_DENIED", "operation is not in the kit catalog")
         namespace = str(params.get("namespace", context.attributes.get("namespace", "default")))
         allowed_by_identity = tuple(context.attributes.get("namespaces", terms.namespaces))
-        if (
-            not _NAMESPACE.fullmatch(namespace)
-            or namespace not in terms.namespaces
-            or namespace not in allowed_by_identity
-        ):
+        if not _NAMESPACE.fullmatch(namespace) or namespace not in terms.namespaces or namespace not in allowed_by_identity:
             raise KitPaymentError("H_PAYMENT_POLICY_DENIED", "namespace access denied")
         cid = params.get("cid")
         if cid is not None:
@@ -560,50 +418,28 @@ class PaidKitService:
             if not _CID.fullmatch(cid):
                 raise KitPaymentError("H_REQUEST_MISMATCH", "invalid or non-canonical CID")
         units = params.get("units", params.get("size_mib", 1))
-        if (
-            isinstance(units, bool)
-            or not isinstance(units, int)
-            or not 1 <= units <= terms.max_request_units
-        ):
-            raise KitPaymentError(
-                "H_ENTITLEMENT_EXHAUSTED", "request exceeds configured quota bounds"
-            )
+        if isinstance(units, bool) or not isinstance(units, int) or not 1 <= units <= terms.max_request_units:
+            raise KitPaymentError("H_ENTITLEMENT_EXHAUSTED", "request exceeds configured quota bounds")
         retention = params.get("retention_seconds", terms.retention_seconds)
-        if (
-            isinstance(retention, bool)
-            or not isinstance(retention, int)
-            or not 1 <= retention <= terms.max_retention_seconds
-        ):
+        if isinstance(retention, bool) or not isinstance(retention, int) or not 1 <= retention <= terms.max_retention_seconds:
             raise KitPaymentError("H_ENTITLEMENT_EXHAUSTED", "retention exceeds configured bounds")
         return terms, namespace, cid, units
 
-    def _commercial_binding(
-        self, operation: str, context: RequestContext, params: Mapping[str, Any]
-    ) -> CommercialBinding:
+    def _commercial_binding(self, operation: str, context: RequestContext,
+                            params: Mapping[str, Any]) -> CommercialBinding:
         self._scope(operation, context, params)
-        clean = RequestContext(
-            context.request_cid,
-            context.idempotency_key,
-            context.authorized,
-            context.policy_allowed,
-            None,
-            context.attributes,
-        )
+        clean = RequestContext(context.request_cid, context.idempotency_key, context.authorized,
+                               context.policy_allowed, None, context.attributes)
         return CommercialBinding(f"tool:{operation}", clean)
 
-    def _control_evidence(
-        self, kind: str, cid: str, context: RequestContext
-    ) -> Mapping[str, Any] | None:
+    def _control_evidence(self, kind: str, cid: str, context: RequestContext) -> Mapping[str, Any] | None:
         if kind == "entitlement":
             return self.entitlements.get(cid)
         return self.entitlements.get_usage(
-            cid,
-            subject=str(context.attributes.get("subject", "anonymous")),
+            cid, subject=str(context.attributes.get("subject", "anonymous")),
         )
 
-    async def profile_h(
-        self, method: str, params: Mapping[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def profile_h(self, method: str, params: Mapping[str, Any] | None = None) -> dict[str, Any]:
         """Dispatch one complete Profile H control-plane operation."""
         return await self.control_plane.dispatch(method, params)
 
@@ -612,13 +448,8 @@ class PaidKitService:
         return await self.profile_h_transports.libp2p(request)
 
     async def dispatch(
-        self,
-        operation: str,
-        context: RequestContext,
-        params: Mapping[str, Any],
-        effect: Callable[[], Any | Awaitable[Any]],
-        *,
-        payment: PaymentContext | None = None,
+        self, operation: str, context: RequestContext, params: Mapping[str, Any],
+        effect: Callable[[], Any | Awaitable[Any]], *, payment: PaymentContext | None = None,
     ) -> SellerResult:
         terms, namespace, cid_scope, units = self._scope(operation, context, params)
         capability = self.runtime.policy.catalog.resolve(f"tool:{operation}")
@@ -634,12 +465,8 @@ class PaidKitService:
         # Existing entitlements must be validated by this service, not treated as
         # proof by the shared policy until their scope/quota is atomically consumed.
         runtime_context = RequestContext(
-            context.request_cid,
-            context.idempotency_key,
-            context.authorized,
-            context.policy_allowed,
-            None,
-            context.attributes,
+            context.request_cid, context.idempotency_key, context.authorized,
+            context.policy_allowed, None, context.attributes,
         )
         if context.entitlement_cid:
             # Entitlements are a domain-owned payment proof. Authorization is
@@ -649,45 +476,26 @@ class PaidKitService:
             if decision.decision in (Decision.DENIED, Decision.UNAVAILABLE):
                 return SellerResult(decision)
             paid = PaymentDecision(
-                Decision.PAID,
-                decision.operation,
-                "H_PAYMENT_SATISFIED",
-                capability,
-                evidence_cid=context.entitlement_cid,
+                Decision.PAID, decision.operation, "H_PAYMENT_SATISFIED",
+                capability, evidence_cid=context.entitlement_cid,
             )
             usage_cid, replayed = self.entitlements.consume_once(
-                context.entitlement_cid,
-                subject=str(context.attributes.get("subject", "anonymous")),
-                capability_cid=capability.capability_cid,
-                namespace=namespace,
-                cid_scope=cid_scope,
-                units=units,
-                idempotency_key=context.idempotency_key,
+                context.entitlement_cid, subject=str(context.attributes.get("subject", "anonymous")),
+                capability_cid=capability.capability_cid, namespace=namespace,
+                cid_scope=cid_scope, units=units, idempotency_key=context.idempotency_key,
                 request_cid=context.request_cid,
             )
             if replayed:
                 return SellerResult(paid, receipt_cid=usage_cid, replayed=True)
-            result = SellerResult(
-                paid, value=await guarded_effect(), receipt_cid=context.entitlement_cid
-            )
+            result = SellerResult(paid, value=await guarded_effect(), receipt_cid=context.entitlement_cid)
         else:
-            result = await self.runtime.dispatch(
-                f"tool:{operation}", runtime_context, guarded_effect, payment=payment
-            )
+            result = await self.runtime.dispatch(f"tool:{operation}", runtime_context, guarded_effect, payment=payment)
 
-        if (
-            result.decision.decision == Decision.PAID
-            and result.decision.evidence_cid
-            and not result.replayed
-            and not context.entitlement_cid
-        ):
+        if result.decision.decision == Decision.PAID and result.decision.evidence_cid and not result.replayed and not context.entitlement_cid:
             entitlement_cid = self.entitlements.issue(
                 subject=str(context.attributes.get("subject", "anonymous")),
-                capability_cid=capability.capability_cid,
-                namespace=namespace,
-                cid_scope=cid_scope,
-                quota=terms.quota_units,
-                unit=terms.unit,
+                capability_cid=capability.capability_cid, namespace=namespace, cid_scope=cid_scope,
+                quota=terms.quota_units, unit=terms.unit,
                 expires_at=self.clock_ms() + terms.retention_seconds * 1000,
                 settlement_cid=result.decision.evidence_cid,
             )
@@ -695,36 +503,17 @@ class PaidKitService:
                 value = {**result.value, "entitlementCid": entitlement_cid}
             else:
                 value = {"value": result.value, "entitlementCid": entitlement_cid}
-            result = SellerResult(
-                result.decision,
-                value,
-                result.quote,
-                result.payment_required,
-                result.settlement_response,
-                result.receipt_cid,
-                result.replayed,
-            )
+            result = SellerResult(result.decision, value, result.quote, result.payment_required,
+                                  result.settlement_response, result.receipt_cid, result.replayed)
         elif usage_cid and isinstance(result.value, Mapping):
-            result = SellerResult(
-                result.decision,
-                {**result.value, "usageRecordCid": usage_cid},
-                result.quote,
-                result.payment_required,
-                result.settlement_response,
-                result.receipt_cid,
-                result.replayed,
-            )
+            result = SellerResult(result.decision, {**result.value, "usageRecordCid": usage_cid},
+                                  result.quote, result.payment_required, result.settlement_response,
+                                  result.receipt_cid, result.replayed)
         return result
 
     async def handle_http(
-        self,
-        method: str,
-        path: str,
-        context: RequestContext,
-        params: Mapping[str, Any],
-        effect: Callable[[], Any | Awaitable[Any]] | None = None,
-        *,
-        payment_header: str | None = None,
+        self, method: str, path: str, context: RequestContext, params: Mapping[str, Any],
+        effect: Callable[[], Any | Awaitable[Any]] | None = None, *, payment_header: str | None = None,
     ) -> tuple[int, dict[str, str], Any]:
         if method.upper() == "GET" and path == "/mcp/payments/catalog":
             return 200, {"ETag": self._catalog["signedCatalogCid"]}, self.catalog()
@@ -733,25 +522,17 @@ class PaidKitService:
             if not context.authorized or not context.policy_allowed:
                 return 403, {}, {"error": "H_PAYMENT_POLICY_DENIED"}
             entitlement = self.entitlements.get(path.removeprefix(entitlement_prefix))
-            return (
-                (200, {}, entitlement)
-                if entitlement
-                else (404, {}, {"error": "H_ENTITLEMENT_INVALID"})
-            )
+            return (200, {}, entitlement) if entitlement else (404, {}, {"error": "H_ENTITLEMENT_INVALID"})
         operation = self.ROUTES.get((method.upper(), path))
         if operation is None:
             return 404, {}, {"error": "H_PAYMENT_POLICY_DENIED"}
         if effect is None:
             raise ValueError("a protected HTTP operation requires an effect callback")
         payment = self._decode_payment(payment_header, context) if payment_header else None
-        return http_response(
-            await self.dispatch(operation, context, params, effect, payment=payment)
-        )
+        return http_response(await self.dispatch(operation, context, params, effect, payment=payment))
 
     async def handle_libp2p(
-        self,
-        request: Mapping[str, Any],
-        context: RequestContext,
+        self, request: Mapping[str, Any], context: RequestContext,
         effect: Callable[[], Any | Awaitable[Any]] | None = None,
     ) -> dict[str, Any]:
         operation = str(request.get("operation", ""))
@@ -761,64 +542,36 @@ class PaidKitService:
             if not context.authorized or not context.policy_allowed:
                 return {"error": {"code": "H_PAYMENT_POLICY_DENIED"}}
             entitlement = self.entitlements.get(str(request.get("entitlementCid", "")))
-            return (
-                {"result": entitlement}
-                if entitlement
-                else {"error": {"code": "H_ENTITLEMENT_INVALID"}}
-            )
+            return {"result": entitlement} if entitlement else {"error": {"code": "H_ENTITLEMENT_INVALID"}}
         params = request.get("params", {})
-        if (
-            operation not in self.config.operations
-            or not isinstance(params, Mapping)
-            or effect is None
-        ):
+        if operation not in self.config.operations or not isinstance(params, Mapping) or effect is None:
             return {"error": {"code": "H_PAYMENT_POLICY_DENIED"}}
         raw_payment = request.get("payment_context")
         payment = None
         if isinstance(raw_payment, Mapping):
             payment = PaymentContext(
-                raw_payment.get("payload", {}),
-                str(raw_payment.get("quoteCid", "")),
-                str(raw_payment.get("requestCid", "")),
-                int(raw_payment.get("requirementIndex", 0)),
+                raw_payment.get("payload", {}), str(raw_payment.get("quoteCid", "")),
+                str(raw_payment.get("requestCid", "")), int(raw_payment.get("requirementIndex", 0)),
             )
-        return libp2p_response(
-            await self.dispatch(operation, context, params, effect, payment=payment)
-        )
+        return libp2p_response(await self.dispatch(operation, context, params, effect, payment=payment))
 
     @staticmethod
     def _decode_payment(value: str, context: RequestContext) -> PaymentContext:
         try:
             data = json.loads(base64.b64decode(value, validate=True))
-            return PaymentContext(
-                data["payload"],
-                data["quoteCid"],
-                data["requestCid"],
-                int(data.get("requirementIndex", 0)),
-            )
+            return PaymentContext(data["payload"], data["quoteCid"], data["requestCid"], int(data.get("requirementIndex", 0)))
         except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
-            raise KitPaymentError(
-                "H_INVALID_PAYMENT_MESSAGE", "invalid PAYMENT-SIGNATURE header"
-            ) from exc
+            raise KitPaymentError("H_INVALID_PAYMENT_MESSAGE", "invalid PAYMENT-SIGNATURE header") from exc
 
     async def reconcile(self) -> list[dict[str, Any]]:
         return await self.runtime.reconcile()
 
     async def diagnostics(self) -> dict[str, Any]:
         result = await self.runtime.diagnostics()
-        return {
-            **result,
-            "signedCatalogCid": self._catalog["signedCatalogCid"],
-            "catalogSignatureValid": CatalogSigner.verify(self._catalog),
-        }
+        return {**result, "signedCatalogCid": self._catalog["signedCatalogCid"], "catalogSignatureValid": CatalogSigner.verify(self._catalog)}
 
 
 __all__ = [
-    "CatalogSigner",
-    "EntitlementStore",
-    "KitOperationTerms",
-    "KitPaymentConfig",
-    "KitPaymentError",
-    "PaidKitService",
-    "default_operation_terms",
+    "CatalogSigner", "EntitlementStore", "KitOperationTerms", "KitPaymentConfig",
+    "KitPaymentError", "PaidKitService", "default_operation_terms",
 ]

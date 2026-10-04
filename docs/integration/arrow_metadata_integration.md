@@ -134,8 +134,8 @@ Example metadata record:
         "type": "ml_model",
         "accuracy": "0.95",
         "dataset_size": "10000",
-        "epochs": "50",
-    },
+        "epochs": "50"
+    }
 }
 ```
 
@@ -175,8 +175,8 @@ Example dataset metadata record:
         "num_files": "1",
         "description": "Image classification dataset",
         "stat_size_bytes": "250000000",
-        "stat_num_files": "1",
-    },
+        "stat_num_files": "1"
+    }
 }
 ```
 
@@ -218,8 +218,8 @@ result = model_registry.add_model(
         "f1_score": 0.96,
         "dataset": "mnist",
         "epochs": 100,
-        "tags": ["classification", "digits", "neural-network"],
-    },
+        "tags": ["classification", "digits", "neural-network"]
+    }
 )
 
 # The model is now searchable in the metadata index
@@ -242,8 +242,8 @@ result = dataset_manager.add_dataset(
         "description": "Handwritten digit dataset",
         "source": "http://yann.lecun.com/exdb/mnist/",
         "license": "MIT",
-        "tags": ["classification", "digits", "grayscale"],
-    },
+        "tags": ["classification", "digits", "grayscale"]
+    }
 )
 
 # The dataset is now searchable in the metadata index
@@ -258,24 +258,26 @@ from ipfs_kit_py.arrow_metadata_index import ArrowMetadataIndex
 index = ArrowMetadataIndex()
 
 # Search for PyTorch models with high accuracy
-results = index.query(
-    [
-        ("properties.framework", "==", "pytorch"),
-        ("properties.type", "==", "ml_model"),
-        ("properties.accuracy", ">=", "0.9"),
-    ]
-)
+results = index.query([
+    ("properties.framework", "==", "pytorch"),
+    ("properties.type", "==", "ml_model"),
+    ("properties.accuracy", ">=", "0.9")
+])
 
 # Results is an Arrow Table with matching models
 for row in results.to_pandas().iterrows():
-    print(f"Model: {row['properties']['model_name']}, Accuracy: {row['properties']['accuracy']}")
+    print(f"Model: {row['properties']['model_name']}, "
+          f"Accuracy: {row['properties']['accuracy']}")
 ```
 
 ### Searching for Datasets by Format
 
 ```python
 # Search for CSV datasets with specific tags
-results = index.query([("mime_type", "==", "text/csv"), ("properties.type", "==", "dataset")])
+results = index.query([
+    ("mime_type", "==", "text/csv"),
+    ("properties.type", "==", "dataset")
+])
 
 # Text search across all fields
 results = index.search_text("mnist classification")
@@ -343,7 +345,6 @@ The integration provides detailed logging to help diagnose issues:
 
 ```python
 import logging
-
 logging.basicConfig(level=logging.DEBUG)
 
 # This will enable detailed logging for the metadata index integration

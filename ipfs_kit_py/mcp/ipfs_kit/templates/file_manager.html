@@ -1,0 +1,102 @@
+<div class="file-manager-container">
+    <div class="file-manager-sidebar">
+        <h4>🗂️ Quick Access</h4>
+        <div class="quick-access">
+            <div class="quick-access-item" onclick="fileManager.navigateTo('/')">
+                <span class="icon">🏠</span>
+                <span>Root</span>
+            </div>
+        </div>
+        
+        <h4>📊 File Statistics</h4>
+        <div class="file-stats" id="fileManagerStats">
+            <div class="loading">Loading stats...</div>
+        </div>
+    </div>
+    
+    <div class="file-manager-main">
+        <div class="file-list-header">
+            <div class="breadcrumb" id="fileManagerBreadcrumb"></div>
+            <div class="file-list-controls">
+                <button class="btn btn-sm" onclick="fileManager.showCreateFolderModal()">📁 New Folder</button>
+                <button class="btn btn-sm" onclick="fileManager.triggerUpload()">📤 Upload</button>
+                <input type="file" id="fileUploadInput" multiple style="display:none;" onchange="fileManager.handleFileUpload(this.files)">
+                <input type="text" id="fileSearch" placeholder="Search..." onkeyup="fileManager.filterFiles(this.value)">
+                <button class="btn btn-sm" onclick="fileManager.changeView('grid')" id="gridViewBtn">🔲</button>
+                <button class="btn btn-sm active" onclick="fileManager.changeView('list')" id="listViewBtn">📋</button>
+            </div>
+        </div>
+        
+        <div class="file-list" id="fileManagerList">
+            <div class="loading">Loading files...</div>
+        </div>
+        <div id="dropZone" class="drop-zone">Drop files here to upload</div>
+    </div>
+</div>
+
+<!-- Modals for File Manager -->
+<div id="createFolderModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Create New Folder</h3>
+            <button class="modal-close" onclick="fileManager.closeModal('createFolderModal')">&times;</button>
+        </div>
+        <div class="form-group">
+            <label for="newFolderName">Folder Name</label>
+            <input type="text" id="newFolderName" class="form-control">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="fileManager.closeModal('createFolderModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="fileManager.createNewFolder()">Create</button>
+        </div>
+    </div>
+</div>
+
+<div id="renameModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Rename Item</h3>
+            <button class="modal-close" onclick="fileManager.closeModal('renameModal')">&times;</button>
+        </div>
+        <div class="form-group">
+            <label for="newItemName">New Name</label>
+            <input type="text" id="newItemName" class="form-control">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="fileManager.closeModal('renameModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="fileManager.renameItem()">Rename</button>
+        </div>
+    </div>
+</div>
+
+<div id="moveModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Move Item</h3>
+            <button class="modal-close" onclick="fileManager.closeModal('moveModal')">&times;</button>
+        </div>
+        <div class="form-group">
+            <label for="targetPath">Destination Path</label>
+            <input type="text" id="targetPath" class="form-control">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="fileManager.closeModal('moveModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="fileManager.moveItem()">Move</button>
+        </div>
+    </div>
+</div>
+
+<div id="uploadProgress" class="upload-progress">
+    <h4>Uploads</h4>
+    <div id="uploadProgressList"></div>
+</div>
+
+<ul id="contextMenu" class="context-menu">
+    <li class="context-menu-item" data-action="open">Open</li>
+    <li class="context-menu-item" data-action="download">Download</li>
+    <li class="context-menu-separator"></li>
+    <li class="context-menu-item" data-action="rename">Rename</li>
+    <li class="context-menu-item" data-action="move">Move</li>
+    <li class="context-menu-separator"></li>
+    <li class="context-menu-item danger" data-action="delete">Delete</li>
+</ul>

@@ -14,10 +14,10 @@ import time
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("api_test")
-
 
 def test_api_endpoint(base_url, endpoint, method="get", data=None, expected_status=200):
     """Test an API endpoint and return the response.
@@ -56,7 +56,6 @@ def test_api_endpoint(base_url, endpoint, method="get", data=None, expected_stat
         logger.error(f"  Error: {e}")
         return None
 
-
 def main():
     """Test MCP API endpoints."""
     logger.info("Starting MCP API tests...")
@@ -68,9 +67,7 @@ def main():
     max_retries = 12  # 60 seconds
     retry_interval = 5  # seconds
 
-    logger.info(
-        f"Waiting for MCP server to start (up to {max_retries * retry_interval} seconds)..."
-    )
+    logger.info(f"Waiting for MCP server to start (up to {max_retries * retry_interval} seconds)...")
 
     for i in range(max_retries):
         try:
@@ -81,9 +78,7 @@ def main():
         except:
             pass
 
-        logger.info(
-            f"Attempt {i + 1}/{max_retries}: Server not ready yet, waiting {retry_interval} seconds..."
-        )
+        logger.info(f"Attempt {i+1}/{max_retries}: Server not ready yet, waiting {retry_interval} seconds...")
         time.sleep(retry_interval)
     else:
         logger.error("MCP server not available after multiple attempts")
@@ -130,7 +125,11 @@ def main():
         return False
 
     # Test storage transfer endpoint
-    transfer_data = {"source": "ipfs", "destination": "filecoin", "identifier": cid}
+    transfer_data = {
+        "source": "ipfs",
+        "destination": "filecoin",
+        "identifier": cid
+    }
     transfer_response = test_api_endpoint(
         base_url, "storage/transfer", method="post", data=transfer_data
     )
@@ -140,7 +139,6 @@ def main():
 
     logger.info("All MCP API tests passed!")
     return True
-
 
 if __name__ == "__main__":
     success = main()

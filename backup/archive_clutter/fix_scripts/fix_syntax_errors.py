@@ -9,10 +9,9 @@ import re
 import sys
 from pathlib import Path
 
-
 def fix_syntax_errors_in_file(file_path):
     """Fix common syntax errors in a Python file."""
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
     original_content = content
@@ -20,12 +19,12 @@ def fix_syntax_errors_in_file(file_path):
     # Fix 1: Missing commas in function parameter lists
     # Pattern: "def function_name(\n    self\n    param1: type,"
     # Replace with: "def function_name(\n    self,\n    param1: type,"
-    content = re.sub(r"def\s+(\w+)\s*\(\s*\n\s*self\s*\n\s+", r"def \1(\n    self,\n    ", content)
+    content = re.sub(r'def\s+(\w+)\s*\(\s*\n\s*self\s*\n\s+', r'def \1(\n    self,\n    ', content)
 
     # Fix 2: Trailing commas in if statements
     # Pattern: "if condition:"
     # Replace with: "if condition:"
-    content = re.sub(r"if\s+([^:]+):\s*,", r"if \1:", content)
+    content = re.sub(r'if\s+([^:]+):\s*,', r'if \1:', content)
 
     # Fix 3: Incomplete function definitions
     # This is harder to fix with regex, might need manual intervention
@@ -40,11 +39,10 @@ def fix_syntax_errors_in_file(file_path):
     # Only write back if changes were made
     if content != original_content:
         print(f"Fixing syntax errors in {file_path}")
-        with open(file_path, "w", encoding="utf-8") as f:
+        with open(file_path, 'w', encoding='utf-8') as f:
             f.write(content)
         return True
     return False
-
 
 def find_and_fix_python_files(directory):
     """Find all Python files in directory and fix syntax errors."""
@@ -56,7 +54,6 @@ def find_and_fix_python_files(directory):
                 if fix_syntax_errors_in_file(file_path):
                     fixed_count += 1
     return fixed_count
-
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:

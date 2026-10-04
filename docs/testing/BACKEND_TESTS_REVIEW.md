@@ -622,14 +622,13 @@ import os
 # Control via environment variable
 MOCK_MODE = os.environ.get("IPFS_MOCK_MODE", "true").lower() == "true"
 
-
 class TestIPFSKitMocked(unittest.TestCase):
     def setUp(self):
         if MOCK_MODE:
             self.backend = MockIPFSBackend()
         else:
             self.backend = IPFSBackend()
-
+    
     def test_operations_with_mock(self):
         """Test operations work in mock mode"""
         # Same test code works for both mock and real
@@ -923,33 +922,32 @@ import unittest
 import os
 from pathlib import Path
 
-
 class TestBackendTemplate(unittest.TestCase):
     """
     Template for backend testing following best practices.
     """
-
+    
     # Class-level configuration
     BACKEND_NAME = "example"
     MOCK_MODE = os.environ.get(f"{BACKEND_NAME.upper()}_MOCK_MODE", "true").lower() == "true"
-
+    
     @classmethod
     def setUpClass(cls):
         """One-time setup for all tests"""
         cls.backend_available = cls._check_backend_available()
-
+        
     def setUp(self):
         """Per-test setup"""
         if not self.backend_available:
             self.skipTest(f"{self.BACKEND_NAME} backend not available")
-
+        
         # Initialize backend
         self.backend = self._create_backend()
-
+        
         # Track resources for cleanup
         self.created_resources = []
         self.temp_files = []
-
+        
     def tearDown(self):
         """Per-test cleanup"""
         # Cleanup backend resources
@@ -958,63 +956,62 @@ class TestBackendTemplate(unittest.TestCase):
                 self.backend.delete(resource)
             except Exception as e:
                 print(f"Cleanup warning: {e}")
-
+        
         # Cleanup temp files
         for temp_file in self.temp_files:
             try:
                 Path(temp_file).unlink(missing_ok=True)
             except Exception as e:
                 print(f"File cleanup warning: {e}")
-
+    
     # Base CRUD tests
     def test_01_store_retrieve_string(self):
         """Test storing and retrieving string content"""
         content = "Hello, Backend!"
         identifier = self.backend.store(content, {"type": "string"})
         self.created_resources.append(identifier)
-
+        
         retrieved = self.backend.retrieve(identifier)
         self.assertEqual(content, retrieved)
-
+    
     def test_02_store_retrieve_binary(self):
         """Test storing and retrieving binary content"""
         content = b"\x00\x01\x02\x03\xff\xfe"
         identifier = self.backend.store(content, {"type": "binary"})
         self.created_resources.append(identifier)
-
+        
         retrieved = self.backend.retrieve(identifier)
         self.assertEqual(content, retrieved)
-
+    
     def test_03_store_retrieve_large_file(self):
         """Test storing and retrieving large file (10MB)"""
         import secrets
-
         content = secrets.token_bytes(10 * 1024 * 1024)  # 10MB
-
+        
         identifier = self.backend.store(content, {"type": "large_binary"})
         self.created_resources.append(identifier)
-
+        
         retrieved = self.backend.retrieve(identifier)
         self.assertEqual(len(content), len(retrieved))
         self.assertEqual(content, retrieved)
-
+    
     def test_04_exists(self):
         """Test content existence check"""
         content = "Test content"
         identifier = self.backend.store(content)
         self.created_resources.append(identifier)
-
+        
         self.assertTrue(self.backend.exists(identifier))
-
+        
     def test_05_delete(self):
         """Test content deletion"""
         content = "To be deleted"
         identifier = self.backend.store(content)
-
+        
         self.assertTrue(self.backend.exists(identifier))
         self.backend.delete(identifier)
         self.assertFalse(self.backend.exists(identifier))
-
+    
     def test_06_list(self):
         """Test listing content"""
         identifiers = []
@@ -1022,55 +1019,55 @@ class TestBackendTemplate(unittest.TestCase):
             identifier = self.backend.store(f"Content {i}")
             identifiers.append(identifier)
             self.created_resources.append(identifier)
-
+        
         listed = self.backend.list()
         for identifier in identifiers:
             self.assertIn(identifier, listed)
-
+    
     def test_07_metadata(self):
         """Test metadata operations"""
         content = "Test with metadata"
         metadata = {"author": "test", "version": "1.0"}
-
+        
         identifier = self.backend.store(content, metadata)
         self.created_resources.append(identifier)
-
+        
         retrieved_meta = self.backend.get_metadata(identifier)
         self.assertEqual(metadata["author"], retrieved_meta["author"])
-
+        
         # Update metadata
         new_meta = {"version": "2.0"}
         self.backend.update_metadata(identifier, new_meta)
-
+        
         updated_meta = self.backend.get_metadata(identifier)
         self.assertEqual("2.0", updated_meta["version"])
-
+    
     # Error handling tests
     def test_error_invalid_identifier(self):
         """Test handling of invalid identifier"""
         with self.assertRaises((ValueError, KeyError)):
             self.backend.retrieve("invalid_identifier_12345")
-
+    
     def test_error_network_failure(self):
         """Test handling of network failures"""
         # Test with backend disconnected or unavailable
         pass  # Implementation depends on backend
-
+    
     # Backend-specific tests (override in subclasses)
     def test_backend_specific_feature(self):
         """Override in subclass for backend-specific tests"""
         pass
-
+    
     # Helper methods
     @classmethod
     def _check_backend_available(cls):
         """Check if backend is available for testing"""
         try:
             backend = cls._create_backend()
-            return backend.health_check() if hasattr(backend, "health_check") else True
+            return backend.health_check() if hasattr(backend, 'health_check') else True
         except Exception:
             return False
-
+    
     @staticmethod
     def _create_backend():
         """Create backend instance - override in subclasses"""
@@ -1137,7 +1134,6 @@ import os
 # Environment variable control
 BACKEND_MOCK_MODE = os.environ.get("BACKEND_MOCK_MODE", "true").lower() == "true"
 
-
 class TestBackend(unittest.TestCase):
     def setUp(self):
         if BACKEND_MOCK_MODE:
@@ -1175,22 +1171,21 @@ class TestBackend(unittest.TestCase):
 ```python
 # In conftest.py or test configuration
 MOCK_MODE_ENV_VARS = {
-    "ipfs": "IPFS_MOCK_MODE",
-    "s3": "S3_MOCK_MODE",
-    "storacha": "W3S_MOCK_MODE",
-    "filecoin": "FILECOIN_MOCK_MODE",
-    "lassie": "LASSIE_MOCK_MODE",
-    "huggingface": "HF_MOCK_MODE",
-    "sshfs": "SSHFS_MOCK_MODE",
-    "ftp": "FTP_MOCK_MODE",
+    'ipfs': 'IPFS_MOCK_MODE',
+    's3': 'S3_MOCK_MODE',
+    'storacha': 'W3S_MOCK_MODE',
+    'filecoin': 'FILECOIN_MOCK_MODE',
+    'lassie': 'LASSIE_MOCK_MODE',
+    'huggingface': 'HF_MOCK_MODE',
+    'sshfs': 'SSHFS_MOCK_MODE',
+    'ftp': 'FTP_MOCK_MODE',
 }
-
 
 def get_mock_mode(backend_name):
     """Get mock mode for backend from environment"""
     env_var = MOCK_MODE_ENV_VARS.get(backend_name.lower())
     if env_var:
-        return os.environ.get(env_var, "true").lower() == "true"
+        return os.environ.get(env_var, 'true').lower() == 'true'
     return True  # Default to mock mode
 ```
 
@@ -1231,12 +1226,11 @@ import unittest
 import os
 from ipfs_kit_py.sshfs_kit import SSHFSKit
 
-
 class TestSSHFSKit(unittest.TestCase):
     """Test suite for SSHFSKit"""
-
+    
     MOCK_MODE = os.environ.get("SSHFS_MOCK_MODE", "true").lower() == "true"
-
+    
     def setUp(self):
         """Initialize SSHFSKit for testing"""
         if self.MOCK_MODE:
@@ -1246,23 +1240,23 @@ class TestSSHFSKit(unittest.TestCase):
             self.kit = SSHFSKit(
                 host=os.environ.get("SSHFS_TEST_HOST"),
                 user=os.environ.get("SSHFS_TEST_USER"),
-                key_path=os.environ.get("SSHFS_TEST_KEY_PATH"),
+                key_path=os.environ.get("SSHFS_TEST_KEY_PATH")
             )
-
+    
     def test_connection(self):
         """Test SSH connection establishment"""
         self.assertTrue(self.kit.connect())
-
+    
     def test_file_upload(self):
         """Test file upload to remote"""
         result = self.kit.upload("local.txt", "/remote/path/file.txt")
         self.assertTrue(result)
-
+    
     def test_file_download(self):
         """Test file download from remote"""
         result = self.kit.download("/remote/path/file.txt", "local_copy.txt")
         self.assertTrue(result)
-
+    
     # Add 10+ more tests...
 ```
 
@@ -1382,25 +1376,24 @@ See Section 5.1 for complete template
 import unittest
 from ipfs_kit_py.mcp.storage_manager.backends import get_backend
 
-
 class TestBackendIntegration(unittest.TestCase):
     """Integration test template"""
-
+    
     def setUp(self):
         """Initialize backends for integration testing"""
-        self.backend1 = get_backend("ipfs")
-        self.backend2 = get_backend("s3")
-
+        self.backend1 = get_backend('ipfs')
+        self.backend2 = get_backend('s3')
+    
     def test_cross_backend_transfer(self):
         """Test transferring data between backends"""
         # Store in backend1
         content = b"integration test data"
         id1 = self.backend1.add_content(content)
-
+        
         # Retrieve and store in backend2
         retrieved = self.backend1.get_content(id1)
         id2 = self.backend2.add_content(retrieved)
-
+        
         # Verify integrity
         final = self.backend2.get_content(id2)
         self.assertEqual(content, final)
@@ -1413,23 +1406,22 @@ import unittest
 import time
 import secrets
 
-
 class TestBackendPerformance(unittest.TestCase):
     """Performance test template"""
-
+    
     def test_upload_speed_1mb(self):
         """Measure upload speed for 1MB file"""
         content = secrets.token_bytes(1024 * 1024)  # 1MB
-
+        
         start = time.time()
         identifier = self.backend.store(content)
         duration = time.time() - start
-
+        
         # Speed in MB/s
         speed = 1.0 / duration if duration > 0 else 0
-
+        
         print(f"Upload speed: {speed:.2f} MB/s")
-
+        
         # Assert minimum acceptable speed
         self.assertGreater(speed, 0.1, "Upload too slow")
 ```

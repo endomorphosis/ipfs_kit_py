@@ -22,24 +22,24 @@ try:
         journal_rm,
         journal_mv,
         journal_ls,
-        MCP_TOOLS,
+        MCP_TOOLS
     )
 except ImportError:
     # Fallback for direct execution
     from ipfs_kit_py.mcp.servers.fs_journal_mcp_tools import *
 
 __all__ = [
-    "journal_enable",
-    "journal_status",
-    "journal_list_entries",
-    "journal_checkpoint",
-    "journal_recover",
-    "journal_mount",
-    "journal_mkdir",
-    "journal_write",
-    "journal_read",
-    "journal_rm",
-    "journal_mv",
-    "journal_ls",
-    "MCP_TOOLS",
+    'journal_enable',
+    'journal_status',
+    'journal_list_entries',
+    'journal_checkpoint',
+    'journal_recover',
+    'journal_mount',
+    'journal_mkdir',
+    'journal_write',
+    'journal_read',
+    'journal_rm',
+    'journal_mv',
+    'journal_ls',
+    'MCP_TOOLS'
 ]

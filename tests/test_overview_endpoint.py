@@ -35,13 +35,9 @@ def test_overview_endpoint_warning_logged_once(caplog):
     client = TestClient(inst.app)
     caplog.set_level("WARNING")
     client.get("/api/system/overview")
-    first_count = sum(
-        1 for r in caplog.records if "/api/system/overview is deprecated" in r.message
-    )
+    first_count = sum(1 for r in caplog.records if "/api/system/overview is deprecated" in r.message)
     client.get("/api/system/overview")
-    second_count = sum(
-        1 for r in caplog.records if "/api/system/overview is deprecated" in r.message
-    )
+    second_count = sum(1 for r in caplog.records if "/api/system/overview is deprecated" in r.message)
     # Only one new log expected overall
     assert first_count == 1
     assert second_count == 1

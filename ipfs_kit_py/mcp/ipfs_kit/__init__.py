@@ -13,7 +13,7 @@ from .modular_enhanced_mcp_server import ModularEnhancedMCPServer
 # Define __all__ for explicit imports
 __all__ = [
     "BackendHealthMonitor",
-    "VFSObservabilityManager",
+    "VFSObservabilityManager", 
     "APIRoutes",
     "ModularEnhancedMCPServer",
 ]

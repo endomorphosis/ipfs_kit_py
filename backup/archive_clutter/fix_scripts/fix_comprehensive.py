@@ -8,10 +8,10 @@ import sys
 import json
 
 # Define a path for our new health endpoint implementation
-fix_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "minimal_health_endpoint.py")
+fix_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'minimal_health_endpoint.py')
 
 # Create a minimal health endpoint implementation
-with open(fix_path, "w") as f:
+with open(fix_path, 'w') as f:
     f.write("""
 #!/usr/bin/env python3
 \"\"\"
@@ -159,11 +159,9 @@ os.chmod(fix_path, 0o755)
 print(f"✅ Made {fix_path} executable")
 
 # Create a script to start all necessary components
-start_script_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "start_all_mcp_components.sh"
-)
+start_script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'start_all_mcp_components.sh')
 
-with open(start_script_path, "w") as f:
+with open(start_script_path, 'w') as f:
     f.write("""#!/bin/bash
 # Start all MCP components
 

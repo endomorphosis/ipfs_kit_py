@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/endomorphosis/ipfs_kit_py/schemas/iroh-release-readiness.schema.json",
+  "title": "IPFS Kit Iroh staged release readiness report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "kind", "task_id", "generated_at", "release_bundle", "receipt_resource", "release_decision", "rollout", "slos", "rollback", "compatibility", "migration", "deprecation", "data_portability", "support", "known_promotion_blockers"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "kind": {"const": "ipfs-kit-iroh-release-readiness"},
+    "task_id": {"const": "IROH-027"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "release_bundle": {"type": "string", "minLength": 1},
+    "receipt_resource": {"const": "iroh-release-receipts.json"},
+    "release_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision", "approved_stage", "blockers", "receipt_ids", "statement"],
+      "properties": {
+        "decision": {"enum": ["go", "no_go"]},
+        "approved_stage": {"$ref": "#/$defs/stageName"},
+        "blockers": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "receipt_ids": {"$ref": "#/$defs/nonEmptyStrings"},
+        "statement": {"type": "string", "minLength": 1}
+      }
+    },
+    "rollout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default_enabled", "configuration_key", "promotion_authority", "stages"],
+      "properties": {
+        "default_enabled": {"const": false},
+        "configuration_key": {"const": "iroh.enabled"},
+        "promotion_authority": {"type": "string", "minLength": 1},
+        "stages": {
+          "type": "array",
+          "prefixItems": [
+            {"$ref": "#/$defs/disabledStage"},
+            {"$ref": "#/$defs/experimentalStage"},
+            {"$ref": "#/$defs/canaryStage"},
+            {"$ref": "#/$defs/supportedStage"}
+          ],
+          "items": false
+        }
+      }
+    },
+    "slos": {"type": "array", "minItems": 4, "items": {"$ref": "#/$defs/slo"}},
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["disable_before_rollback", "preserve_blob_data", "preserve_manifests", "preserve_identity_backup", "require_pre_migration_snapshot", "forbid_destructive_uninstall", "procedure", "verification"],
+      "properties": {
+        "disable_before_rollback": {"const": true},
+        "preserve_blob_data": {"const": true},
+        "preserve_manifests": {"const": true},
+        "preserve_identity_backup": {"const": true},
+        "require_pre_migration_snapshot": {"const": true},
+        "forbid_destructive_uninstall": {"const": true},
+        "procedure": {"type": "array", "minItems": 5, "items": {"type": "string", "minLength": 1}},
+        "verification": {"type": "array", "minItems": 3, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "compatibility": {"$ref": "#/$defs/policyObject"},
+    "migration": {"$ref": "#/$defs/policyObject"},
+    "deprecation": {"$ref": "#/$defs/policyObject"},
+    "data_portability": {"$ref": "#/$defs/policyObject"},
+    "support": {"$ref": "#/$defs/policyObject"},
+    "known_promotion_blockers": {"$ref": "#/$defs/nonEmptyStrings"}
+  },
+  "$defs": {
+    "stageName": {"enum": ["disabled", "experimental", "canary", "supported"]},
+    "nonEmptyStrings": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "policyObject": {"type": "object", "minProperties": 2},
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "order", "automatic_promotion", "audience", "entry_criteria", "exit_criteria", "rollback_triggers"],
+      "properties": {
+        "name": {"$ref": "#/$defs/stageName"},
+        "order": {"type": "integer", "minimum": 0, "maximum": 3},
+        "automatic_promotion": {"const": false},
+        "audience": {"type": "string", "minLength": 1},
+        "entry_criteria": {"$ref": "#/$defs/nonEmptyStrings"},
+        "exit_criteria": {"$ref": "#/$defs/nonEmptyStrings"},
+        "rollback_triggers": {"$ref": "#/$defs/nonEmptyStrings"}
+      }
+    },
+    "disabledStage": {"$ref": "#/$defs/stage", "properties": {"name": {"const": "disabled"}, "order": {"const": 0}}},
+    "experimentalStage": {"$ref": "#/$defs/stage", "properties": {"name": {"const": "experimental"}, "order": {"const": 1}}},
+    "canaryStage": {"$ref": "#/$defs/stage", "properties": {"name": {"const": "canary"}, "order": {"const": 2}}},
+    "supportedStage": {"$ref": "#/$defs/stage", "properties": {"name": {"const": "supported"}, "order": {"const": 3}}},
+    "slo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "metric", "operator", "target", "unit", "window", "applies_from"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "metric": {"type": "string", "minLength": 1},
+        "operator": {"enum": ["gte", "lte", "eq"]},
+        "target": {"type": "number"},
+        "unit": {"type": "string", "minLength": 1},
+        "window": {"type": "string", "minLength": 1},
+        "applies_from": {"$ref": "#/$defs/stageName"}
+      }
+    }
+  }
+}

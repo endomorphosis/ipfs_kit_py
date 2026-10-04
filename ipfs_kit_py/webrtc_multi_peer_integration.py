@@ -30,18 +30,16 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Path, Depe
 try:
     import pydantic
     from pydantic import BaseModel, Field
-
+    
     # Check for Pydantic v2
-    PYDANTIC_V2 = pydantic.__version__.startswith("2.")
+    PYDANTIC_V2 = pydantic.__version__.startswith('2.')
 except ImportError:
     PYDANTIC_V2 = False
-
+    
     # Fallback class if Pydantic isn't available
     class BaseModel:
         """Fallback BaseModel when Pydantic is not available."""
-
         pass
-
     Field = lambda *args, **kwargs: None
 
 try:
@@ -49,7 +47,6 @@ try:
     from .webrtc_multi_peer import session_manager, handle_multi_peer_signaling, PeerRole
     from .websocket_notifications import emit_event, NotificationType
     from .high_level_api import IPFSSimpleAPI
-
     HAS_DEPENDENCIES = True
 except ImportError:
     HAS_DEPENDENCIES = False
@@ -57,7 +54,6 @@ except ImportError:
 # Import security if available
 try:
     from .streaming_security import StreamingSecurityManager, SecurityLevel, can_access_stream
-
     HAS_SECURITY = True
 except ImportError:
     HAS_SECURITY = False
@@ -67,326 +63,305 @@ logger = logging.getLogger(__name__)
 
 # Define API models for request/response validation
 
-
 class SessionOptions(BaseModel):
     """Options for creating a new streaming session."""
-
     session_id: Optional[str] = Field(None, description="Optional custom session ID")
     session_type: str = Field("broadcast", description="Session type: broadcast, mesh, or hybrid")
     max_peers: int = Field(20, description="Maximum number of peers allowed in the session")
     public: bool = Field(False, description="Whether this session is publicly discoverable")
     metadata: Dict[str, Any] = Field({}, description="Custom session metadata")
     security_level: Optional[str] = Field(None, description="Security level for the session")
-    access_control: Optional[Dict[str, Any]] = Field(
-        None, description="Access control configuration"
-    )
-
+    access_control: Optional[Dict[str, Any]] = Field(None, description="Access control configuration")
 
 class PeerInfo(BaseModel):
     """Information about a peer joining a session."""
-
     peer_id: Optional[str] = Field(None, description="Optional custom peer ID")
-    role: str = Field(
-        "viewer", description="Peer role: broadcaster, viewer, participant, relay, recorder"
-    )
+    role: str = Field("viewer", description="Peer role: broadcaster, viewer, participant, relay, recorder")
     capabilities: Dict[str, Any] = Field({}, description="Peer capabilities")
     client_info: Dict[str, Any] = Field({}, description="Client information")
     metadata: Dict[str, Any] = Field({}, description="Custom peer metadata")
     auth_token: Optional[str] = Field(None, description="Authentication token if required")
 
-
 class TrackInfo(BaseModel):
     """Information about a media track to add to a session."""
-
     track_id: Optional[str] = Field(None, description="Optional custom track ID")
     kind: str = Field("video", description="Track kind: video or audio")
     source_type: str = Field("live", description="Source type: live or ipfs")
     source: Optional[str] = Field(None, description="Source identifier (CID for IPFS)")
     options: Dict[str, Any] = Field({}, description="Track options like frame_rate, quality, etc.")
 
-
 class SessionResponse(BaseModel):
     """Response model for session operations."""
-
     success: bool = Field(..., description="Whether the operation was successful")
     session_id: str = Field(..., description="Session ID")
     error: Optional[str] = Field(None, description="Error message if not successful")
 
-
 class SessionListResponse(BaseModel):
     """Response model for listing available sessions."""
-
     success: bool = Field(..., description="Whether the operation was successful")
     sessions: List[Dict[str, Any]] = Field(..., description="List of available sessions")
     count: int = Field(..., description="Number of sessions")
 
-
 class SessionInfoResponse(BaseModel):
     """Response model for detailed session information."""
-
     success: bool = Field(..., description="Whether the operation was successful")
     session_info: Optional[Dict[str, Any]] = Field(None, description="Detailed session information")
     error: Optional[str] = Field(None, description="Error message if not successful")
 
-
 # Integration class for high-level operations
-
 
 class MultiPeerStreamingIntegration:
     """
     Integration class for WebRTC multi-peer streaming functionality.
-
+    
     This class provides a high-level interface to the multi-peer streaming
     capabilities and integrates with the IPFS Kit API and security features.
     """
-
+    
     def __init__(self, ipfs_api=None, security_manager=None):
         """
         Initialize the multi-peer streaming integration.
-
+        
         Args:
             ipfs_api: IPFS API instance for content access
             security_manager: Optional security manager for access control
         """
         if not HAS_DEPENDENCIES:
             raise ImportError("WebRTC multi-peer dependencies not available")
-
+        
         self.ipfs_api = ipfs_api
         self.security_manager = security_manager
-
+        
         # Set up the session manager
         if ipfs_api and webrtc_multi_peer.session_manager.ipfs_api is None:
             webrtc_multi_peer.session_manager.ipfs_api = ipfs_api
-
+        
         # Initialize APIRouter for FastAPI integration
         self.router = self._create_api_router()
-
+        
         # Statistics for this integration instance
         self.statistics = {
             "api_requests": 0,
             "websocket_connections": 0,
             "successful_operations": 0,
             "failed_operations": 0,
-            "errors": [],
+            "errors": []
         }
-
+        
         logger.info("WebRTC multi-peer streaming integration initialized")
-
+    
     def _create_api_router(self) -> APIRouter:
         """Create FastAPI router with streaming endpoints."""
         router = APIRouter(prefix="/api/v0/streaming", tags=["streaming"])
-
+        
         # Register API endpoints
-        router.add_api_route(
-            "/sessions",
-            self.create_session,
-            methods=["POST"],
-            response_model=SessionResponse,
-            summary="Create a new streaming session",
-        )
-
-        router.add_api_route(
-            "/sessions",
-            self.get_sessions,
-            methods=["GET"],
-            response_model=SessionListResponse,
-            summary="Get available streaming sessions",
-        )
-
-        router.add_api_route(
-            "/sessions/{session_id}",
-            self.get_session_info,
-            methods=["GET"],
-            response_model=SessionInfoResponse,
-            summary="Get information about a specific session",
-        )
-
-        router.add_api_route(
-            "/sessions/{session_id}",
-            self.close_session,
-            methods=["DELETE"],
-            response_model=SessionResponse,
-            summary="Close a streaming session",
-        )
-
-        router.add_api_route(
-            "/sessions/{session_id}/metrics",
-            self.get_session_metrics,
-            methods=["GET"],
-            response_model=Dict[str, Any],
-            summary="Get session performance metrics",
-        )
-
+        router.add_api_route("/sessions", self.create_session, methods=["POST"], 
+                           response_model=SessionResponse, 
+                           summary="Create a new streaming session")
+        
+        router.add_api_route("/sessions", self.get_sessions, methods=["GET"], 
+                           response_model=SessionListResponse, 
+                           summary="Get available streaming sessions")
+        
+        router.add_api_route("/sessions/{session_id}", self.get_session_info, methods=["GET"], 
+                           response_model=SessionInfoResponse, 
+                           summary="Get information about a specific session")
+        
+        router.add_api_route("/sessions/{session_id}", self.close_session, methods=["DELETE"], 
+                           response_model=SessionResponse, 
+                           summary="Close a streaming session")
+        
+        router.add_api_route("/sessions/{session_id}/metrics", self.get_session_metrics, methods=["GET"], 
+                           response_model=Dict[str, Any], 
+                           summary="Get session performance metrics")
+        
         # Register WebSocket route for signaling
         @router.websocket("/signaling")
         async def websocket_endpoint(websocket: WebSocket):
             self.statistics["websocket_connections"] += 1
             await handle_multi_peer_signaling(websocket, self.ipfs_api)
-
+        
         return router
-
+    
     async def create_session(self, options: SessionOptions) -> Dict[str, Any]:
         """
         Create a new streaming session with the provided options.
-
+        
         Args:
             options: Session configuration options
-
+            
         Returns:
             Dict with session creation results
         """
         self.statistics["api_requests"] += 1
-
+        
         try:
             # Apply security configuration if available
             if HAS_SECURITY and self.security_manager and options.security_level:
                 # Add security configuration to session metadata
                 if "security" not in options.metadata:
                     options.metadata["security"] = {}
-
+                
                 options.metadata["security"]["level"] = options.security_level
                 if options.access_control:
                     options.metadata["security"]["access_control"] = options.access_control
-
+            
             # Create the session
             result = await session_manager.create_session(options.dict(exclude_none=True))
-
+            
             if result["success"]:
                 self.statistics["successful_operations"] += 1
             else:
                 self.statistics["failed_operations"] += 1
-
+            
             return result
-
+            
         except Exception as e:
             self.statistics["failed_operations"] += 1
             error_msg = f"Error creating session: {str(e)}"
             self.statistics["errors"].append(error_msg)
             logger.error(error_msg)
-
+            
             return {
                 "success": False,
                 "error": error_msg,
-                "session_id": options.session_id or "unknown",
+                "session_id": options.session_id or "unknown"
             }
-
+    
     async def get_sessions(self, public_only: bool = True) -> Dict[str, Any]:
         """
         Get a list of available sessions.
-
+        
         Args:
             public_only: If True, only return public sessions
-
+            
         Returns:
             Dict with available sessions information
         """
         self.statistics["api_requests"] += 1
-
+        
         try:
             # Get sessions from session manager
             result = await session_manager.get_sessions(public_only)
-
+            
             if result["success"]:
                 self.statistics["successful_operations"] += 1
             else:
                 self.statistics["failed_operations"] += 1
-
+            
             return result
-
+            
         except Exception as e:
             self.statistics["failed_operations"] += 1
             error_msg = f"Error getting sessions: {str(e)}"
             self.statistics["errors"].append(error_msg)
             logger.error(error_msg)
-
-            return {"success": False, "sessions": [], "count": 0, "error": error_msg}
-
+            
+            return {
+                "success": False,
+                "sessions": [],
+                "count": 0,
+                "error": error_msg
+            }
+    
     async def get_session_info(self, session_id: str) -> Dict[str, Any]:
         """
         Get detailed information about a specific session.
-
+        
         Args:
             session_id: ID of the session to get information for
-
+            
         Returns:
             Dict with session information
         """
         self.statistics["api_requests"] += 1
-
+        
         try:
             # Get session info from session manager
             result = await session_manager.get_session_info(session_id)
-
+            
             if result["success"]:
                 self.statistics["successful_operations"] += 1
             else:
                 self.statistics["failed_operations"] += 1
-
+            
             return result
-
+            
         except Exception as e:
             self.statistics["failed_operations"] += 1
             error_msg = f"Error getting session info: {str(e)}"
             self.statistics["errors"].append(error_msg)
             logger.error(error_msg)
-
-            return {"success": False, "error": error_msg, "session_id": session_id}
-
+            
+            return {
+                "success": False,
+                "error": error_msg,
+                "session_id": session_id
+            }
+    
     async def close_session(self, session_id: str) -> Dict[str, Any]:
         """
         Close a streaming session and clean up all resources.
-
+        
         Args:
             session_id: ID of the session to close
-
+            
         Returns:
             Dict with session closure results
         """
         self.statistics["api_requests"] += 1
-
+        
         try:
             # Close the session
             result = await session_manager.close_session(session_id)
-
+            
             if result["success"]:
                 self.statistics["successful_operations"] += 1
             else:
                 self.statistics["failed_operations"] += 1
-
+            
             return result
-
+            
         except Exception as e:
             self.statistics["failed_operations"] += 1
             error_msg = f"Error closing session: {str(e)}"
             self.statistics["errors"].append(error_msg)
             logger.error(error_msg)
-
-            return {"success": False, "error": error_msg, "session_id": session_id}
-
+            
+            return {
+                "success": False,
+                "error": error_msg,
+                "session_id": session_id
+            }
+    
     async def get_session_metrics(self, session_id: str) -> Dict[str, Any]:
         """
         Get detailed performance metrics for a session.
-
+        
         Args:
             session_id: ID of the session to get metrics for
-
+            
         Returns:
             Dict with session metrics
         """
         self.statistics["api_requests"] += 1
-
+        
         try:
             # Check if session exists
             if session_id not in session_manager.sessions:
                 self.statistics["failed_operations"] += 1
-                return {"success": False, "error": "Session not found", "session_id": session_id}
-
+                return {
+                    "success": False,
+                    "error": "Session not found",
+                    "session_id": session_id
+                }
+            
             # Get session
             session = session_manager.sessions[session_id]
-
+            
             # Collect comprehensive metrics
             session_info = session.get_session_info()
-
+            
             # Extract performance metrics
             metrics = {
                 "success": True,
@@ -394,43 +369,43 @@ class MultiPeerStreamingIntegration:
                 "peers": {
                     "count": len(session_info["peers"]),
                     "by_role": self._count_peers_by_role(session_info["peers"]),
-                    "connection_quality": self._get_peer_connection_quality(session),
+                    "connection_quality": self._get_peer_connection_quality(session)
                 },
                 "tracks": {
                     "count": len(session_info["tracks"]),
                     "by_kind": self._count_tracks_by_kind(session_info["tracks"]),
                     "by_source": self._count_tracks_by_source(session_info["tracks"]),
-                    "subscription_stats": self._get_track_subscription_stats(
-                        session_info["tracks"]
-                    ),
+                    "subscription_stats": self._get_track_subscription_stats(session_info["tracks"])
                 },
                 "connections": {
                     "count": len(session_info["connections"]),
                     "mesh_density": self._calculate_mesh_density(session_info["mesh_topology"]),
-                    "topology_stats": self._get_topology_stats(session),
+                    "topology_stats": self._get_topology_stats(session)
                 },
                 "performance": {
                     "bytes_transferred": session.statistics.get("bytes_transferred", 0),
                     "errors": session.statistics.get("errors", 0),
-                    "optimization_count": len(
-                        session.topology_optimizer.get("optimization_history", [])
-                    ),
-                    "last_optimization": session.topology_optimizer.get("last_optimization", 0),
+                    "optimization_count": len(session.topology_optimizer.get("optimization_history", [])),
+                    "last_optimization": session.topology_optimizer.get("last_optimization", 0)
                 },
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
-
+            
             self.statistics["successful_operations"] += 1
             return metrics
-
+            
         except Exception as e:
             self.statistics["failed_operations"] += 1
             error_msg = f"Error getting session metrics: {str(e)}"
             self.statistics["errors"].append(error_msg)
             logger.error(error_msg)
-
-            return {"success": False, "error": error_msg, "session_id": session_id}
-
+            
+            return {
+                "success": False,
+                "error": error_msg,
+                "session_id": session_id
+            }
+    
     def _count_peers_by_role(self, peers_info: Dict[str, Any]) -> Dict[str, int]:
         """Count peers by role for metrics."""
         role_counts = {}
@@ -438,7 +413,7 @@ class MultiPeerStreamingIntegration:
             role = info.get("role", "unknown")
             role_counts[role] = role_counts.get(role, 0) + 1
         return role_counts
-
+    
     def _count_tracks_by_kind(self, tracks_info: Dict[str, Any]) -> Dict[str, int]:
         """Count tracks by kind (video/audio) for metrics."""
         kind_counts = {}
@@ -446,7 +421,7 @@ class MultiPeerStreamingIntegration:
             kind = info.get("kind", "unknown")
             kind_counts[kind] = kind_counts.get(kind, 0) + 1
         return kind_counts
-
+    
     def _count_tracks_by_source(self, tracks_info: Dict[str, Any]) -> Dict[str, int]:
         """Count tracks by source type for metrics."""
         source_counts = {}
@@ -454,36 +429,36 @@ class MultiPeerStreamingIntegration:
             source_type = info.get("source_type", "unknown")
             source_counts[source_type] = source_counts.get(source_type, 0) + 1
         return source_counts
-
+    
     def _get_track_subscription_stats(self, tracks_info: Dict[str, Any]) -> Dict[str, Any]:
         """Get statistics about track subscriptions."""
         stats = {
             "total_subscriptions": 0,
             "tracks_with_subscribers": 0,
             "max_subscribers": 0,
-            "avg_subscribers": 0,
+            "avg_subscribers": 0
         }
-
+        
         if not tracks_info:
             return stats
-
+        
         subscriber_counts = []
         for track_id, info in tracks_info.items():
             subscribers = info.get("subscribers", [])
             count = len(subscribers)
             subscriber_counts.append(count)
             stats["total_subscriptions"] += count
-
+            
             if count > 0:
                 stats["tracks_with_subscribers"] += 1
-
+            
             stats["max_subscribers"] = max(stats["max_subscribers"], count)
-
+        
         if tracks_info:
             stats["avg_subscribers"] = stats["total_subscriptions"] / len(tracks_info)
-
+        
         return stats
-
+    
     def _get_peer_connection_quality(self, session) -> Dict[str, Any]:
         """Get statistics about peer connection quality."""
         quality_stats = {
@@ -492,24 +467,24 @@ class MultiPeerStreamingIntegration:
             "max": 0,
             "distribution": {
                 "excellent": 0,  # 90-100
-                "good": 0,  # 70-89
-                "fair": 0,  # 50-69
-                "poor": 0,  # 0-49
-            },
+                "good": 0,       # 70-89
+                "fair": 0,       # 50-69
+                "poor": 0        # 0-49
+            }
         }
-
+        
         if not session.peers:
             return quality_stats
-
+        
         total_quality = 0
-
+        
         for peer_id, peer_info in session.peers.items():
             quality = peer_info.get("connection_quality", 0)
             total_quality += quality
-
+            
             quality_stats["min"] = min(quality_stats["min"], quality)
             quality_stats["max"] = max(quality_stats["max"], quality)
-
+            
             # Categorize by quality level
             if quality >= 90:
                 quality_stats["distribution"]["excellent"] += 1
@@ -519,103 +494,104 @@ class MultiPeerStreamingIntegration:
                 quality_stats["distribution"]["fair"] += 1
             else:
                 quality_stats["distribution"]["poor"] += 1
-
+        
         if session.peers:
             quality_stats["average"] = total_quality / len(session.peers)
-
+        
         return quality_stats
-
+    
     def _calculate_mesh_density(self, mesh_topology: Dict[str, Any]) -> float:
         """Calculate the density of the mesh network (0.0-1.0)."""
         if not mesh_topology or len(mesh_topology) <= 1:
             return 0.0
-
+        
         # Count actual connections
         total_connections = sum(len(connections) for peer_id, connections in mesh_topology.items())
-
+        
         # Divide by 2 because each connection is counted twice (once for each peer)
         total_connections = total_connections / 2
-
+        
         # Maximum possible connections in a complete graph: n(n-1)/2
         n = len(mesh_topology)
         max_connections = (n * (n - 1)) / 2
-
+        
         # Density: actual connections / maximum possible connections
         return total_connections / max_connections if max_connections > 0 else 0.0
-
+    
     def _get_topology_stats(self, session) -> Dict[str, Any]:
         """Get statistics about the session topology."""
         stats = {
             "relay_candidates": len(session.topology_optimizer.get("relay_candidates", [])),
             "edge_peers": len(session.topology_optimizer.get("edge_peers", [])),
             "optimizations": len(session.topology_optimizer.get("optimization_history", [])),
-            "fan_out_stats": {"max": 0, "avg": 0},
+            "fan_out_stats": {
+                "max": 0,
+                "avg": 0
+            }
         }
-
+        
         # Calculate fan-out statistics
         if session.peer_mesh:
             fan_outs = [len(connections) for peer_id, connections in session.peer_mesh.items()]
             if fan_outs:
                 stats["fan_out_stats"]["max"] = max(fan_outs)
                 stats["fan_out_stats"]["avg"] = sum(fan_outs) / len(fan_outs)
-
+        
         return stats
-
+    
     async def check_session_access(self, session_id: str, auth_token: Optional[str] = None) -> bool:
         """
         Check if access to a session is allowed.
-
+        
         Args:
             session_id: ID of the session to check
             auth_token: Optional authentication token
-
+            
         Returns:
             True if access is allowed, False otherwise
         """
         # If no security manager, allow access by default
         if not HAS_SECURITY or self.security_manager is None:
             return True
-
+        
         # Check if session exists
         if session_id not in session_manager.sessions:
             return False
-
+        
         # Get session
         session = session_manager.sessions[session_id]
-
+        
         # Check if session has security configuration
         security_config = session.metadata.get("security", {})
         if not security_config:
             return True  # No security configuration means public access
-
+        
         # Get security level
         security_level = security_config.get("level")
         if not security_level:
             return True  # No security level specified means public access
-
+        
         # Check access based on security level and token
         return await self.security_manager.can_access_content(
             content_id=session_id,
             security_level=security_level,
             token=auth_token,
-            content_type="streaming_session",
+            content_type="streaming_session"
         )
-
-    async def create_session_from_ipfs_content(
-        self, cid: str, options: Optional[SessionOptions] = None
-    ) -> Dict[str, Any]:
+    
+    async def create_session_from_ipfs_content(self, cid: str, options: Optional[SessionOptions] = None) -> Dict[str, Any]:
         """
         Create a streaming session for specific IPFS content.
-
+        
         Args:
             cid: Content identifier for the media in IPFS
             options: Optional session configuration options
-
+            
         Returns:
             Dict with session creation results including session ID
         """
         self.statistics["api_requests"] += 1
-
+        
         try:
             # Verify that the CID exists
             if self.ipfs_api:
@@ -625,16 +601,21 @@ class MultiPeerStreamingIntegration:
                     return {
                         "success": False,
                         "error": f"Content with CID {cid} not found",
-                        "cid": cid,
+                        "cid": cid
                     }
-
+            
             # Create session options if not provided
             if options is None:
                 options = SessionOptions(
                     session_type="broadcast",
                     max_peers=20,
                     public=True,
-                    metadata={"content": {"cid": cid, "created_at": time.time()}},
+                    metadata={
+                        "content": {
+                            "cid": cid,
+                            "created_at": time.time()
+                        }
+                    }
                 )
             else:
                 # Add content metadata
@@ -642,28 +623,26 @@ class MultiPeerStreamingIntegration:
                     options.metadata["content"] = {}
                 options.metadata["content"]["cid"] = cid
                 options.metadata["content"]["created_at"] = time.time()
-
+            
             # Create the session
             session_result = await self.create_session(options)
-
+            
             if not session_result["success"]:
                 return session_result
-
+            
             session_id = session_result["session_id"]
-
+            
             # Add the broadcaster peer (system peer for IPFS content)
             system_peer_id = f"ipfs_{int(time.time())}"
             peer_info = PeerInfo(
                 peer_id=system_peer_id,
                 role=PeerRole.BROADCASTER.value,
                 client_info={"type": "ipfs_system"},
-                metadata={"content_source": cid},
+                metadata={"content_source": cid}
             )
-
-            join_result = await session_manager.join_session(
-                session_id, peer_info.dict(exclude_none=True)
-            )
-
+            
+            join_result = await session_manager.join_session(session_id, peer_info.dict(exclude_none=True))
+            
             if not join_result["success"]:
                 # Clean up session if peer couldn't join
                 await session_manager.close_session(session_id)
@@ -672,23 +651,24 @@ class MultiPeerStreamingIntegration:
                     "success": False,
                     "error": f"Error adding system broadcaster: {join_result.get('error')}",
                     "session_id": session_id,
-                    "cid": cid,
+                    "cid": cid
                 }
-
+            
             # Add the track from IPFS content
             session = session_manager.sessions[session_id]
-
+            
             track_info = TrackInfo(
                 kind="video",  # Assume video for now, could be detected from mimetype
                 source_type="ipfs",
                 source=cid,
-                options={"frame_rate": 30, "quality": "auto"},
+                options={
+                    "frame_rate": 30,
+                    "quality": "auto"
+                }
             )
-
-            track_result = await session.add_track(
-                system_peer_id, track_info.dict(exclude_none=True)
-            )
-
+            
+            track_result = await session.add_track(system_peer_id, track_info.dict(exclude_none=True))
+            
             if not track_result["success"]:
                 # Clean up session if track couldn't be added
                 await session_manager.close_session(session_id)
@@ -697,9 +677,9 @@ class MultiPeerStreamingIntegration:
                     "success": False,
                     "error": f"Error adding content track: {track_result.get('error')}",
                     "session_id": session_id,
-                    "cid": cid,
+                    "cid": cid
                 }
-
+            
             self.statistics["successful_operations"] += 1
             return {
                 "success": True,
@@ -709,22 +689,26 @@ class MultiPeerStreamingIntegration:
                 "system_peer_id": system_peer_id,
                 "created_at": session_result["created_at"],
                 "session_type": options.session_type,
-                "public": options.public,
+                "public": options.public
             }
-
+            
         except Exception as e:
             self.statistics["failed_operations"] += 1
             error_msg = f"Error creating session from IPFS content: {str(e)}"
             self.statistics["errors"].append(error_msg)
             logger.error(error_msg)
-
-            return {"success": False, "error": error_msg, "cid": cid}
-
+            
+            return {
+                "success": False,
+                "error": error_msg,
+                "cid": cid
+            }
+    
     async def _check_cid_exists(self, cid: str) -> bool:
         """Check if a CID exists in IPFS."""
         if not self.ipfs_api:
             return True  # Assume it exists if we can't check
-
+        
         try:
             # This is a simple existence check, not retrieving the full content
             result = self.ipfs_api.dag_stat(cid)
@@ -732,115 +716,115 @@ class MultiPeerStreamingIntegration:
         except Exception as e:
             logger.warning(f"Error checking CID existence: {e}")
             return False
-
+    
     def get_integration_stats(self) -> Dict[str, Any]:
         """
         Get statistics about this integration instance.
-
+        
         Returns:
             Dict with integration statistics
         """
         stats = self.statistics.copy()
         stats["timestamp"] = time.time()
-
+        
         # Add session manager stats
         manager_stats = session_manager.get_manager_stats()
         stats["session_manager"] = manager_stats
-
+        
         # Add security stats if available
         if HAS_SECURITY and self.security_manager:
             stats["security"] = self.security_manager.get_security_stats()
-
+        
         return stats
 
-
 # High-level API extension for multi-peer streaming
-
 
 def extend_simple_api(api_instance: IPFSSimpleAPI) -> IPFSSimpleAPI:
     """
     Extend the IPFSSimpleAPI with multi-peer streaming capabilities.
-
+    
     Args:
         api_instance: IPFSSimpleAPI instance to extend
-
+        
     Returns:
         The extended API instance
     """
     if not HAS_DEPENDENCIES:
         # Skip extension if dependencies not available
         return api_instance
-
+    
     # Create integration instance
     integration = MultiPeerStreamingIntegration(api_instance.ipfs)
-
+    
     # Add streaming methods to the API
-    async def create_stream(
-        cid: str, public: bool = True, session_type: str = "broadcast", max_peers: int = 20
-    ) -> Dict[str, Any]:
+    async def create_stream(cid: str, public: bool = True, session_type: str = "broadcast", 
+                           max_peers: int = 20) -> Dict[str, Any]:
         """
         Create a streaming session for IPFS content.
-
+        
         Args:
             cid: Content identifier for the media in IPFS
             public: Whether the session should be public
             session_type: Type of session (broadcast, mesh, hybrid)
             max_peers: Maximum number of peers allowed
-
+            
         Returns:
             Dict with session information including session ID
         """
-        options = SessionOptions(session_type=session_type, max_peers=max_peers, public=public)
-
+        options = SessionOptions(
+            session_type=session_type,
+            max_peers=max_peers,
+            public=public
+        )
+        
         return await integration.create_session_from_ipfs_content(cid, options)
-
+    
     async def get_streams(public_only: bool = True) -> Dict[str, Any]:
         """
         Get available streaming sessions.
-
+        
         Args:
             public_only: Only return public sessions
-
+            
         Returns:
             Dict with available sessions
         """
         return await integration.get_sessions(public_only)
-
+    
     async def get_stream_info(session_id: str) -> Dict[str, Any]:
         """
         Get detailed information about a streaming session.
-
+        
         Args:
             session_id: ID of the session
-
+            
         Returns:
             Dict with session information
         """
         return await integration.get_session_info(session_id)
-
+    
     async def close_stream(session_id: str) -> Dict[str, Any]:
         """
         Close a streaming session.
-
+        
         Args:
             session_id: ID of the session
-
+            
         Returns:
             Dict with closure result
         """
         return await integration.close_session(session_id)
-
+    
     # Add methods to the API instance
     api_instance.create_stream = create_stream
     api_instance.get_streams = get_streams
     api_instance.get_stream_info = get_stream_info
     api_instance.close_stream = close_stream
-
+    
     # Add integration instance to API for reference
     api_instance._streaming_integration = integration
-
+    
     return api_instance
-
 
 # JavaScript client for browser integration
 
@@ -1922,7 +1906,6 @@ if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
   window.IPFSStreamingClient = IPFSStreamingClient;
 }
 """
-
 
 def get_javascript_client():
     """Get the JavaScript client for browser integration."""

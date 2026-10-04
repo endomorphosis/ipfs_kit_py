@@ -20,34 +20,32 @@ import re
 import py_compile
 
 # Define path to IPFS model file
-MODEL_FILE = "ipfs_kit_py/mcp/models/ipfs_model.py"
-
+MODEL_FILE = 'ipfs_kit_py/mcp/models/ipfs_model.py'
 
 def find_method(content):
     """Find the ipfs_name_resolve method in the content."""
     # Find the method definition
-    method_pattern = re.compile(r"(\s*)def\s+ipfs_name_resolve\s*\([^)]*\)\s*-?>?\s*[^:]*:")
+    method_pattern = re.compile(r'(\s*)def\s+ipfs_name_resolve\s*\([^)]*\)\s*-?>?\s*[^:]*:')
     match = method_pattern.search(content)
-
+    
     if not match:
         print(f"ERROR: Could not find ipfs_name_resolve method in {MODEL_FILE}")
         return None, None
-
+    
     # Determine indentation level (needed for proper replacemnet)
     indentation = match.group(1)
     method_start_pos = match.start()
-
+    
     # Find the next method (or end of file)
-    next_method_pattern = re.compile(r"\n\s*def\s+", re.MULTILINE)
+    next_method_pattern = re.compile(r'\n\s*def\s+', re.MULTILINE)
     next_match = next_method_pattern.search(content, match.end())
-
+    
     if next_match:
         method_end_pos = next_match.start()
     else:
         method_end_pos = len(content)
-
+    
     return method_start_pos, method_end_pos, indentation
-
 
 def create_fixed_method(indentation):
     """Create a fixed implementation of the method with the right indentation."""
@@ -55,7 +53,7 @@ def create_fixed_method(indentation):
     base_indent = indentation
     # Method body indentation (one level deeper)
     body_indent = base_indent + "    "
-
+    
     # The fixed method implementation
     return f"""{base_indent}def ipfs_name_resolve(self, name: str, recursive: bool = True, nocache: bool = False, timeout: int = None) -> Dict[str, Any]:
 {body_indent}\"\"\"
@@ -221,41 +219,40 @@ def create_fixed_method(indentation):
 
 {body_indent}return result"""
 
-
 def fix_file():
     """Find and fix the ipfs_name_resolve method in the IPFS model file."""
     # Check if file exists
     if not os.path.exists(MODEL_FILE):
         print(f"ERROR: File not found: {MODEL_FILE}")
         return False
-
+        
     # Read the file content
-    with open(MODEL_FILE, "r") as f:
+    with open(MODEL_FILE, 'r') as f:
         content = f.read()
-
+        
     # Find the method
     method_start_pos, method_end_pos, indentation = find_method(content)
-
+    
     if method_start_pos is None:
         return False
-
+        
     # Create a fixed version of the method
     fixed_method = create_fixed_method(indentation)
-
+    
     # Create new content with the fixed method
     new_content = content[:method_start_pos] + fixed_method + content[method_end_pos:]
-
+    
     # Create a backup of the original file
-    backup_file = MODEL_FILE + ".orig_fix"
+    backup_file = MODEL_FILE + '.orig_fix'
     shutil.copy2(MODEL_FILE, backup_file)
     print(f"Created backup: {backup_file}")
-
+    
     # Write the new content
-    with open(MODEL_FILE, "w") as f:
+    with open(MODEL_FILE, 'w') as f:
         f.write(new_content)
-
+        
     print(f"Updated {MODEL_FILE} with fixed ipfs_name_resolve method")
-
+    
     # Validate the file
     try:
         py_compile.compile(MODEL_FILE, doraise=True)
@@ -268,13 +265,10 @@ def fix_file():
         print(f"Restored original file from backup")
         return False
 
-
 if __name__ == "__main__":
     if fix_file():
         print("Successfully fixed ipfs_name_resolve method")
-        print(
-            "This method now properly handles bytes responses, enhancing the robustness of the MCP server"
-        )
+        print("This method now properly handles bytes responses, enhancing the robustness of the MCP server")
     else:
         print("Failed to fix ipfs_name_resolve method")
         print("Manual intervention may be required")

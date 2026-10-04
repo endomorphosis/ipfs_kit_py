@@ -134,7 +134,9 @@ class BalancedLayout(LayoutEngine[Balanced]):
     def write(self, layout: Balanced, chunks: Sequence[Chunk]) -> WriteResult[Balanced]:
         return write(layout, chunks)
 
-    def close(self, layout: Balanced, metadata: Optional[Metadata] = None) -> CloseResult:
+    def close(
+        self, layout: Balanced, metadata: Optional[Metadata] = None
+    ) -> CloseResult:
         return close(layout, metadata)
 
 

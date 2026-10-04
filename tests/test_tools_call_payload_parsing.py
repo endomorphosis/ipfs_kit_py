@@ -24,10 +24,7 @@ from pathlib import Path
 
 _DASH = (
     Path(__file__).resolve().parents[1]
-    / "ipfs_kit_py"
-    / "mcp"
-    / "dashboard"
-    / "consolidated_mcp_dashboard.py"
+    / "ipfs_kit_py" / "mcp" / "dashboard" / "consolidated_mcp_dashboard.py"
 )
 
 
@@ -65,12 +62,8 @@ def test_args_wins_over_arguments_when_both_present():
 
 def test_jsonrpc_envelope_is_unchanged():
     name, args, rid = _parse(
-        {
-            "jsonrpc": "2.0",
-            "method": "tools/call",
-            "params": {"name": "x.y", "arguments": {"a": 1}},
-            "id": 7,
-        }
+        {"jsonrpc": "2.0", "method": "tools/call",
+         "params": {"name": "x.y", "arguments": {"a": 1}}, "id": 7}
     )
     assert name == "x.y"
     assert args == {"a": 1}
@@ -81,12 +74,8 @@ def test_dict_params_is_the_jsonrpc_branch_not_direct_args():
     """A dict ``params`` is always the JSON-RPC envelope, so a stray top-level
     name/arguments alongside it is ignored in favour of ``params``."""
     name, args, rid = _parse(
-        {
-            "name": "IGNORED",
-            "arguments": {"z": 9},
-            "params": {"name": "real.tool", "arguments": {"a": 1}},
-            "id": 1,
-        }
+        {"name": "IGNORED", "arguments": {"z": 9},
+         "params": {"name": "real.tool", "arguments": {"a": 1}}, "id": 1}
     )
     assert name == "real.tool"
     assert args == {"a": 1}
@@ -104,7 +93,8 @@ def test_tool_alias_for_name():
     assert name == "x.y"
 
 
-TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
+TESTS = [v for k, v in sorted(globals().items())
+         if k.startswith("test_") and callable(v)]
 
 if __name__ == "__main__":
     passed = 0

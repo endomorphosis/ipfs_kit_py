@@ -23,15 +23,15 @@ from sse_starlette.sse import EventSourceResponse
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    filename="ipfs_mcp_proxy.log",
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename='ipfs_mcp_proxy.log'
 )
 logger = logging.getLogger(__name__)
 
 # Add console handler
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 console.setFormatter(formatter)
 logger.addHandler(console)
 
@@ -43,7 +43,6 @@ IPFS_EXTENSIONS_AVAILABLE = False
 FS_TOOLS_AVAILABLE = False
 logger.info("Using only basic filesystem tools for initial testing")
 
-
 # Basic tools that can work without IPFS
 async def list_files(directory=".", recursive=False, include_hidden=False):
     """List files in the specified directory."""
@@ -54,14 +53,18 @@ async def list_files(directory=".", recursive=False, include_hidden=False):
 
         # List files and directories
         for item in os.listdir(directory):
-            if not include_hidden and item.startswith("."):
+            if not include_hidden and item.startswith('.'):
                 continue
 
             path = os.path.join(directory, item)
             is_dir = os.path.isdir(path)
 
             # Get basic item stats
-            item_info = {"name": item, "path": path, "is_directory": is_dir}
+            item_info = {
+                "name": item,
+                "path": path,
+                "is_directory": is_dir
+            }
 
             # Add additional stats
             try:
@@ -79,7 +82,7 @@ async def list_files(directory=".", recursive=False, include_hidden=False):
                 # Check if it's a binary file
                 if not is_dir:
                     try:
-                        with open(path, "r") as f:
+                        with open(path, 'r') as f:
                             f.read(1024)
                         item_info["is_binary"] = False
                     except UnicodeDecodeError:
@@ -117,7 +120,7 @@ async def list_files(directory=".", recursive=False, include_hidden=False):
                     extensions[ext] = {
                         "count": 1,
                         "total_size": item.get("size_bytes", 0),
-                        "human_readable_size": f"{item.get('size_bytes', 0) / 1024:.2f} KB",
+                        "human_readable_size": f"{item.get('size_bytes', 0) / 1024:.2f} KB"
                     }
 
         # Calculate total size
@@ -133,27 +136,34 @@ async def list_files(directory=".", recursive=False, include_hidden=False):
                 "total_directories": len(dirs),
                 "total_size_bytes": total_size,
                 "extensions": extensions,
-                "human_readable_size": f"{total_size / 1024 / 1024:.2f} MB",
-            },
+                "human_readable_size": f"{total_size / 1024 / 1024:.2f} MB"
+            }
         }
     except Exception as e:
         logger.error(f"Error listing files in {directory}: {e}")
-        return {"success": False, "error": str(e), "directory": directory}
-
+        return {
+            "success": False,
+            "error": str(e),
+            "directory": directory
+        }
 
 async def read_file(path):
     """Read a file from the filesystem."""
     try:
         # Check if the file exists
         if not os.path.exists(path):
-            return {"success": False, "error": f"File not found: {path}", "path": path}
+            return {
+                "success": False,
+                "error": f"File not found: {path}",
+                "path": path
+            }
 
         # Check if it's a directory
         if os.path.isdir(path):
             return {
                 "success": False,
                 "error": f"Path is a directory, not a file: {path}",
-                "path": path,
+                "path": path
             }
 
         # Get file stats
@@ -163,16 +173,15 @@ async def read_file(path):
 
         # Read the file
         try:
-            with open(path, "r") as f:
+            with open(path, 'r') as f:
                 content = f.read()
             is_binary = False
         except UnicodeDecodeError:
             # Try reading as binary
-            with open(path, "rb") as f:
+            with open(path, 'rb') as f:
                 content = f.read()
             import base64
-
-            content = base64.b64encode(content).decode("utf-8")
+            content = base64.b64encode(content).decode('utf-8')
             is_binary = True
 
         return {
@@ -181,12 +190,15 @@ async def read_file(path):
             "content": content,
             "size_bytes": file_size,
             "modified_time": modified_time,
-            "is_binary": is_binary,
+            "is_binary": is_binary
         }
     except Exception as e:
         logger.error(f"Error reading file {path}: {e}")
-        return {"success": False, "error": str(e), "path": path}
-
+        return {
+            "success": False,
+            "error": str(e),
+            "path": path
+        }
 
 async def write_file(path, content):
     """Write content to a file."""
@@ -197,15 +209,14 @@ async def write_file(path, content):
             os.makedirs(parent_dir, exist_ok=True)
 
         # Check for binary content (base64 encoded)
-        if isinstance(content, str) and content.startswith("base64:"):
+        if isinstance(content, str) and content.startswith('base64:'):
             import base64
-
             content = base64.b64decode(content[7:])
-            with open(path, "wb") as f:
+            with open(path, 'wb') as f:
                 f.write(content)
         else:
             # Write text content
-            with open(path, "w") as f:
+            with open(path, 'w') as f:
                 f.write(content)
 
         # Get file stats
@@ -217,18 +228,21 @@ async def write_file(path, content):
             "success": True,
             "path": path,
             "size_bytes": file_size,
-            "modified_time": modified_time,
+            "modified_time": modified_time
         }
     except Exception as e:
         logger.error(f"Error writing to file {path}: {e}")
-        return {"success": False, "error": str(e), "path": path}
-
+        return {
+            "success": False,
+            "error": str(e),
+            "path": path
+        }
 
 # Initialize FastAPI
 app = FastAPI(
     title="IPFS MCP Proxy Server with SSE",
     description="Proxy server for IPFS MCP integration with full SSE support",
-    version="1.0.0",
+    version="1.0.0"
 )
 
 # Add CORS middleware
@@ -243,12 +257,10 @@ app.add_middleware(
 # SSE connections and events
 sse_connections = {}
 
-
 # Generate unique connection ID
 def generate_connection_id():
     """Generate a unique connection ID for SSE."""
     return str(uuid.uuid4())
-
 
 # SSE endpoint for MCP protocol
 @app.get("/sse")
@@ -259,15 +271,22 @@ async def sse_endpoint(request: Request):
     # Generator for SSE events
     async def event_generator():
         # Initial connection event
-        connection_event = {"type": "connection", "connection_id": connection_id}
-        yield {"event": "connection", "id": connection_id, "data": json.dumps(connection_event)}
+        connection_event = {
+            "type": "connection",
+            "connection_id": connection_id
+        }
+        yield {
+            "event": "connection",
+            "id": connection_id,
+            "data": json.dumps(connection_event)
+        }
 
         # Store connection information
         send_stream, receive_stream = anyio.create_memory_object_stream(100)
         sse_connections[connection_id] = {
             "send_stream": send_stream,
             "receive_stream": receive_stream,
-            "last_event_time": time.time(),
+            "last_event_time": time.time()
         }
 
         # Send capabilities immediately after connection
@@ -280,19 +299,19 @@ async def sse_endpoint(request: Request):
                     "ipfs://stats",
                     "storage://backends",
                     "file://",
-                    "mfs://root",
-                ],
+                    "mfs://root"
+                ]
             },
             "serverInfo": {
                 "name": "IPFS MCP Proxy Server",
                 "version": "1.0.0",
-                "implementationName": "ipfs-kit-py-proxy",
-            },
+                "implementationName": "ipfs-kit-py-proxy"
+            }
         }
         yield {
             "event": "capabilities",
             "id": f"{connection_id}-capabilities",
-            "data": json.dumps(capabilities),
+            "data": json.dumps(capabilities)
         }
 
         try:
@@ -305,11 +324,14 @@ async def sse_endpoint(request: Request):
                         yield event
                 except TimeoutError:
                     # Send heartbeat if no events for 30 seconds
-                    heartbeat_event = {"type": "heartbeat", "timestamp": time.time()}
+                    heartbeat_event = {
+                        "type": "heartbeat",
+                        "timestamp": time.time()
+                    }
                     yield {
                         "event": "heartbeat",
                         "id": f"{connection_id}-heartbeat-{int(time.time())}",
-                        "data": json.dumps(heartbeat_event),
+                        "data": json.dumps(heartbeat_event)
                     }
                     # Update last event time
                     if connection_id in sse_connections:
@@ -325,7 +347,6 @@ async def sse_endpoint(request: Request):
     # Return SSE response
     return EventSourceResponse(event_generator())
 
-
 # Endpoint to send event to a specific connection
 @app.post("/internal/send_event/{connection_id}")
 async def send_event(connection_id: str, event: Dict[str, Any]):
@@ -335,17 +356,14 @@ async def send_event(connection_id: str, event: Dict[str, Any]):
     """
     if connection_id in sse_connections:
         event_id = f"{connection_id}-{int(time.time())}"
-        await sse_connections[connection_id]["send_stream"].send(
-            {
-                "event": event.get("event", "message"),
-                "id": event_id,
-                "data": json.dumps(event.get("data", {})),
-            }
-        )
+        await sse_connections[connection_id]["send_stream"].send({
+            "event": event.get("event", "message"),
+            "id": event_id,
+            "data": json.dumps(event.get("data", {}))
+        })
         return {"success": True, "event_id": event_id}
     else:
         return {"success": False, "error": "Connection not found"}
-
 
 # MCP messages endpoint for compatibility with VSCode extension
 @app.post("/messages/")
@@ -356,14 +374,19 @@ async def handle_messages(request: Request, background_tasks: BackgroundTasks):
     # Extract session ID from query parameters
     session_id = request.query_params.get("session_id")
     if not session_id:
-        return JSONResponse(status_code=400, content={"error": "Session ID is required"})
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Session ID is required"}
+        )
 
     # Process message in background to allow quick response
     background_tasks.add_task(process_message, session_id, data)
 
     # Return accepted response immediately
-    return JSONResponse(status_code=202, content={"status": "Accepted"})
-
+    return JSONResponse(
+        status_code=202,
+        content={"status": "Accepted"}
+    )
 
 # Process MCP messages
 async def process_message(session_id: str, message: Dict[str, Any]):
@@ -387,9 +410,12 @@ async def process_message(session_id: str, message: Dict[str, Any]):
                     event_data = {
                         "type": "tool_result",
                         "request_id": message.get("request_id", "unknown"),
-                        "result": tool_result,
+                        "result": tool_result
                     }
-                    await send_event(session_id, {"event": "tool_result", "data": event_data})
+                    await send_event(session_id, {
+                        "event": "tool_result",
+                        "data": event_data
+                    })
             else:
                 logger.warning(f"Unknown tool: {tool_name}")
         else:
@@ -397,7 +423,6 @@ async def process_message(session_id: str, message: Dict[str, Any]):
             logger.warning(f"Unknown message type: {message}")
     except Exception as e:
         logger.error(f"Error processing message: {e}")
-
 
 # IPFS mock tool implementations
 async def add_mock_content(content, filename=None, pin=True):
@@ -411,9 +436,8 @@ async def add_mock_content(content, filename=None, pin=True):
         "cid": "QmTestCid",
         "name": filename or "test.txt",
         "size": len(content) if content else 0,
-        "pinned": pin,
+        "pinned": pin
     }
-
 
 async def cat_mock_content(cid):
     """Mock implementation of ipfs_cat."""
@@ -424,16 +448,19 @@ async def cat_mock_content(cid):
         "cid": cid,
         "content": f"Test IPFS content for {cid}",
         "content_encoding": "text",
-        "size": 25,
+        "size": 25
     }
-
 
 async def pin_mock_content(cid, recursive=True):
     """Mock implementation of ipfs_pin."""
     logger.info(f"Mock IPFS pin: cid {cid}, recursive {recursive}")
     await anyio.sleep(0)
-    return {"success": True, "cid": cid, "pins": [cid], "recursive": recursive}
-
+    return {
+        "success": True,
+        "cid": cid,
+        "pins": [cid],
+        "recursive": recursive
+    }
 
 # Map tool names to functions
 TOOL_MAP = {
@@ -441,10 +468,11 @@ TOOL_MAP = {
     "list_files": list_files,
     "read_file": read_file,
     "write_file": write_file,
+
     # Placeholder stubs for IPFS tools (for testing the MCP integration)
     "ipfs_add": add_mock_content,
     "ipfs_cat": cat_mock_content,
-    "ipfs_pin": pin_mock_content,
+    "ipfs_pin": pin_mock_content
 }
 
 # Clean tool map by removing None values
@@ -452,7 +480,6 @@ TOOL_MAP = {k: v for k, v in TOOL_MAP.items() if v is not None}
 
 # Get available tools
 AVAILABLE_TOOLS = list(TOOL_MAP.keys())
-
 
 # Health endpoint
 @app.get("/health")
@@ -463,9 +490,8 @@ async def health():
         "status": "healthy",
         "ipfs_extensions_available": IPFS_EXTENSIONS_AVAILABLE,
         "fs_tools_available": FS_TOOLS_AVAILABLE,
-        "available_tools": AVAILABLE_TOOLS,
+        "available_tools": AVAILABLE_TOOLS
     }
-
 
 # Initialize endpoint
 # Tool schemas with detailed parameters
@@ -476,27 +502,35 @@ TOOL_SCHEMAS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "directory": {"type": "string", "description": "Directory to list files from"},
+                "directory": {
+                    "type": "string",
+                    "description": "Directory to list files from"
+                },
                 "recursive": {
                     "type": "boolean",
-                    "description": "Whether to list files recursively",
+                    "description": "Whether to list files recursively"
                 },
                 "include_hidden": {
                     "type": "boolean",
-                    "description": "Whether to include hidden files",
-                },
+                    "description": "Whether to include hidden files"
+                }
             },
-            "required": [],
-        },
+            "required": []
+        }
     },
     {
         "name": "read_file",
         "description": "Read a file's contents",
         "parameters": {
             "type": "object",
-            "properties": {"path": {"type": "string", "description": "Path to the file to read"}},
-            "required": ["path"],
-        },
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to the file to read"
+                }
+            },
+            "required": ["path"]
+        }
     },
     {
         "name": "write_file",
@@ -504,11 +538,17 @@ TOOL_SCHEMAS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "path": {"type": "string", "description": "Path to the file to write"},
-                "content": {"type": "string", "description": "Content to write to the file"},
+                "path": {
+                    "type": "string",
+                    "description": "Path to the file to write"
+                },
+                "content": {
+                    "type": "string",
+                    "description": "Content to write to the file"
+                }
             },
-            "required": ["path", "content"],
-        },
+            "required": ["path", "content"]
+        }
     },
     {
         "name": "ipfs_add",
@@ -516,12 +556,21 @@ TOOL_SCHEMAS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "content": {"type": "string", "description": "Content to add to IPFS"},
-                "filename": {"type": "string", "description": "Name of the file in IPFS"},
-                "pin": {"type": "boolean", "description": "Whether to pin the content"},
+                "content": {
+                    "type": "string",
+                    "description": "Content to add to IPFS"
+                },
+                "filename": {
+                    "type": "string",
+                    "description": "Name of the file in IPFS"
+                },
+                "pin": {
+                    "type": "boolean",
+                    "description": "Whether to pin the content"
+                }
             },
-            "required": ["content"],
-        },
+            "required": ["content"]
+        }
     },
     {
         "name": "ipfs_cat",
@@ -529,10 +578,13 @@ TOOL_SCHEMAS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "cid": {"type": "string", "description": "CID of the content to retrieve"}
+                "cid": {
+                    "type": "string",
+                    "description": "CID of the content to retrieve"
+                }
             },
-            "required": ["cid"],
-        },
+            "required": ["cid"]
+        }
     },
     {
         "name": "ipfs_pin",
@@ -540,14 +592,19 @@ TOOL_SCHEMAS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "cid": {"type": "string", "description": "CID of the content to pin"},
-                "recursive": {"type": "boolean", "description": "Whether to pin recursively"},
+                "cid": {
+                    "type": "string",
+                    "description": "CID of the content to pin"
+                },
+                "recursive": {
+                    "type": "boolean",
+                    "description": "Whether to pin recursively"
+                }
             },
-            "required": ["cid"],
-        },
-    },
+            "required": ["cid"]
+        }
+    }
 ]
-
 
 @app.get("/initialize")
 async def initialize():
@@ -560,16 +617,15 @@ async def initialize():
                 "ipfs://stats",
                 "storage://backends",
                 "file://",
-                "mfs://root",
-            ],
+                "mfs://root"
+            ]
         },
         "serverInfo": {
             "name": "IPFS MCP Proxy Server",
             "version": "1.0.0",
-            "implementationName": "ipfs-kit-py-proxy",
-        },
+            "implementationName": "ipfs-kit-py-proxy"
+        }
     }
-
 
 # Tool Handler
 @app.post("/mcp/tools")
@@ -583,10 +639,16 @@ async def handle_tool(request: Request):
     logger.info(f"Tool request received: {tool_name} with args: {args}")
 
     if not tool_name:
-        return JSONResponse(status_code=400, content={"error": "Tool name is required"})
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Tool name is required"}
+        )
 
     if tool_name not in TOOL_MAP:
-        return JSONResponse(status_code=404, content={"error": f"Tool '{tool_name}' not found"})
+        return JSONResponse(
+            status_code=404,
+            content={"error": f"Tool '{tool_name}' not found"}
+        )
 
     tool_impl = TOOL_MAP[tool_name]
 
@@ -597,15 +659,14 @@ async def handle_tool(request: Request):
     except Exception as e:
         logger.error(f"Error executing tool '{tool_name}': {e}")
         return JSONResponse(
-            status_code=500, content={"success": False, "error": f"Error executing tool: {str(e)}"}
+            status_code=500,
+            content={"success": False, "error": f"Error executing tool: {str(e)}"}
         )
-
 
 # Initialize services
 async def init_services():
     """Initialize basic services."""
     logger.info("Basic services initialized")
-
 
 @app.on_event("startup")
 async def startup_event():
@@ -613,7 +674,6 @@ async def startup_event():
     await init_services()
     logger.info(f"IPFS MCP Proxy Server started with {len(AVAILABLE_TOOLS)} tools")
     logger.info(f"Available tools: {', '.join(AVAILABLE_TOOLS)}")
-
 
 def main():
     """Main function to run the server."""
@@ -627,7 +687,6 @@ def main():
 
     # Run the server
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
 
 if __name__ == "__main__":
     main()

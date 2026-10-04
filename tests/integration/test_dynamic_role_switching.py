@@ -354,9 +354,7 @@ class TestDynamicRoleDetermination:
                         else (
                             "disk"
                             if disk_pct == capability_pct
-                            else "cpu"
-                            if cpu_pct == capability_pct
-                            else "bandwidth"
+                            else "cpu" if cpu_pct == capability_pct else "bandwidth"
                         )
                     ),
                 }

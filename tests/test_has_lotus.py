@@ -8,7 +8,6 @@ Behavior:
 
 import unittest
 
-
 class TestLotusAvailability(unittest.TestCase):
     def test_lotus_optional_feature(self):
         try:
@@ -16,7 +15,7 @@ class TestLotusAvailability(unittest.TestCase):
         except Exception as e:  # pragma: no cover - import path issue
             self.fail(f"Failed to import ipfs_kit_py.ipfs_kit: {e}")
 
-        has_lotus_flag = getattr(kit_mod, "HAS_LOTUS", False)
+        has_lotus_flag = getattr(kit_mod, 'HAS_LOTUS', False)
         # Instantiate kit guarded; some environments may not have daemons
         try:
             kit = kit_mod.ipfs_kit()  # type: ignore
@@ -24,19 +23,14 @@ class TestLotusAvailability(unittest.TestCase):
             # If lotus flag expected true we should still propagate failure
             if has_lotus_flag:
                 self.fail(f"ipfs_kit instantiation failed while HAS_LOTUS True: {inst_err}")
-            self.skipTest(
-                f"Lotus optional: instantiation failed (HAS_LOTUS={has_lotus_flag}): {inst_err}"
-            )
+            self.skipTest(f"Lotus optional: instantiation failed (HAS_LOTUS={has_lotus_flag}): {inst_err}")
 
         if not has_lotus_flag:
             self.skipTest("Lotus support not present (HAS_LOTUS False)")
 
         # When lotus claimed present but attribute missing, skip (environment mismatch rather than hard failure)
-        if not hasattr(kit, "lotus_kit"):
-            self.skipTest(
-                "HAS_LOTUS True but lotus_kit attribute absent (skipping as optional integration)"
-            )
+        if not hasattr(kit, 'lotus_kit'):
+            self.skipTest("HAS_LOTUS True but lotus_kit attribute absent (skipping as optional integration)")
 
-
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == '__main__':  # pragma: no cover
     unittest.main()

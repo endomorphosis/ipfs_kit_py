@@ -1,5 +1,4 @@
 """Bitswap tool group (Kubo `ipfs bitswap` parity)."""
-
 from __future__ import annotations
 
 import uuid

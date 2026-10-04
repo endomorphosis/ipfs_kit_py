@@ -1,4 +1,4 @@
-# \!/usr/bin/env python3
+#\!/usr/bin/env python3
 """
 Script to enhance AI/ML methods in high_level_api.py with keyword-only parameters,
 type annotations, and better simulation handling.
@@ -10,80 +10,76 @@ import sys
 import time
 from typing import List, Dict, Any, Union, Optional, Tuple, Literal
 
-
 def read_file(path: str) -> str:
     """Read a file and return its content."""
-    with open(path, "r") as f:
+    with open(path, 'r') as f:
         return f.read()
-
 
 def write_file(path: str, content: str) -> None:
     """Write content to a file."""
-    with open(path, "w") as f:
+    with open(path, 'w') as f:
         f.write(content)
-
 
 def find_method(content: str, method_name: str) -> tuple:
     """Find a method in the content and return its start index, end index, and the method text."""
     # Regular expression to find the method definition
-    pattern = rf"def {method_name}\s*\("
+    pattern = rf'def {method_name}\s*\('
     match = re.search(pattern, content)
-
+    
     if not match:
         return -1, -1, ""
-
+    
     start_idx = match.start()
-
+    
     # Find the method body by counting braces
     idx = match.end()
     brace_count = 1  # We've already found the opening parenthesis
-
+    
     # Find the end of the method signature
     while idx < len(content) and brace_count > 0:
-        if content[idx] == "(":
+        if content[idx] == '(':
             brace_count += 1
-        elif content[idx] == ")":
+        elif content[idx] == ')':
             brace_count -= 1
         idx += 1
-
+    
     # Now find the docstring
     while idx < len(content) and content[idx].isspace():
         idx += 1
-
+    
     # Check if there's a docstring
-    if idx < len(content) and content[idx : idx + 3] == '"""':
+    if idx < len(content) and content[idx:idx+3] == '"""':
         # Find the end of the docstring
         idx = content.find('"""', idx + 3)
         if idx != -1:
             idx += 3  # Move past the closing quotes
-
+    
     # Find the method body by tracking indentation
     method_text = content[start_idx:idx]
-    lines = content[idx:].split("\n")
-
+    lines = content[idx:].split('\n')
+    
     method_indent = None
     current_method_text = method_text
     for i, line in enumerate(lines):
         if line.strip() and not line.isspace():
             # Get the indentation of the first non-empty line
             current_indent = len(line) - len(line.lstrip())
-
+            
             if method_indent is None:
                 method_indent = current_indent
-                current_method_text += "\n" + line
-            elif current_indent <= method_indent and not line.strip().startswith(("#", " ", "\t")):
+                current_method_text += '\n' + line
+            elif current_indent <= method_indent and not line.strip().startswith(('#', ' ', '\t')):
                 # Found a line with less or equal indentation, and it's not a comment or continuation
                 # This marks the end of the method
                 break
             else:
-                current_method_text += "\n" + line
+                current_method_text += '\n' + line
         else:
             # Empty line, keep it as part of the method
-            current_method_text += "\n" + line
-
+            current_method_text += '\n' + line
+    
     end_idx = start_idx + len(current_method_text)
     return start_idx, end_idx, current_method_text
-
 
 def enhance_ai_vector_search(method_text: str) -> str:
     """Enhance the ai_vector_search method with keyword-only parameters and type annotations."""
@@ -231,7 +227,6 @@ def enhance_ai_vector_search(method_text: str) -> str:
         }
 '''
     return enhanced_method
-
 
 def enhance_ai_register_dataset(method_text: str) -> str:
     """Enhance the ai_register_dataset method with better simulation handling."""
@@ -452,7 +447,6 @@ def enhance_ai_register_dataset(method_text: str) -> str:
 '''
     return enhanced_method
 
-
 def enhance_ai_list_models(method_text: str) -> str:
     """Enhance the ai_list_models method with better simulation handling."""
     enhanced_method = '''def ai_list_models(
@@ -634,7 +628,6 @@ def enhance_ai_list_models(method_text: str) -> str:
         }
 '''
     return enhanced_method
-
 
 def create_ai_create_knowledge_graph() -> str:
     """Create the ai_create_knowledge_graph method with keyword-only parameters and type annotations."""
@@ -928,7 +921,6 @@ def create_ai_create_knowledge_graph() -> str:
 '''
     return method
 
-
 def create_ai_test_inference() -> str:
     """Create the ai_test_inference method with keyword-only parameters and type annotations."""
     method = '''def ai_test_inference(
@@ -1206,129 +1198,122 @@ def create_ai_test_inference() -> str:
 '''
     return method
 
-
 def find_methods_in_content(content: str) -> Dict[str, Tuple[int, int]]:
     """Find all AI method definitions in the content and return their locations."""
     methods = {}
-    method_pattern = r"def (ai_[a-zA-Z0-9_]+)\s*\("
+    method_pattern = r'def (ai_[a-zA-Z0-9_]+)\s*\('
     for match in re.finditer(method_pattern, content):
         method_name = match.group(1)
         start_idx = match.start()
-
+        
         # Find the method body by tracking its end
         _, end_idx, _ = find_method(content, method_name)
         if end_idx > start_idx:
             methods[method_name] = (start_idx, end_idx)
-
+    
     return methods
-
 
 def get_last_method_end_position(content: str) -> int:
     """Find the end position of the last method in the class."""
     methods = find_methods_in_content(content)
-
+    
     if not methods:
         # If no methods found, return -1
         return -1
-
+    
     # Find the last method by end position
     last_method_name = max(methods.keys(), key=lambda name: methods[name][1])
     _, last_method_end = methods[last_method_name]
-
+    
     return last_method_end
-
 
 def add_new_methods(file_path: str, backup_suffix: str = ".bak.3") -> None:
     """Add new AI/ML methods to high_level_api.py."""
     # Read the file content
     content = read_file(file_path)
-
+    
     # Create a backup
     backup_path = f"{file_path}{backup_suffix}"
     write_file(backup_path, content)
     print(f"Backed up original file to {backup_path}")
-
+    
     # Find existing methods
     existing_methods = find_methods_in_content(content)
-
+    
     # Check if the methods already exist
     if "ai_create_knowledge_graph" in existing_methods:
         print("Method ai_create_knowledge_graph already exists, will enhance it")
     else:
         print("Will add new method: ai_create_knowledge_graph")
-
+        
     if "ai_test_inference" in existing_methods:
         print("Method ai_test_inference already exists, will enhance it")
     else:
         print("Will add new method: ai_test_inference")
-
+    
     # Prepare new methods
     ai_create_knowledge_graph_method = create_ai_create_knowledge_graph()
     ai_test_inference_method = create_ai_test_inference()
-
+    
     # Find where to add the new methods - after the last existing method
     last_method_end = get_last_method_end_position(content)
-
+    
     if last_method_end == -1:
         print("Could not find where to add the new methods, aborting")
         return
-
+    
     # Add the new methods after the last existing method
     updated_content = (
-        content[:last_method_end]
-        + "\n\n"
-        + ai_create_knowledge_graph_method
-        + "\n\n"
-        + ai_test_inference_method
-        + content[last_method_end:]
+        content[:last_method_end] + 
+        "\n\n" + ai_create_knowledge_graph_method + 
+        "\n\n" + ai_test_inference_method + 
+        content[last_method_end:]
     )
-
+    
     # Write the updated content
     write_file(file_path, updated_content)
     print(f"Added new methods to {file_path}")
 
-
 def main():
     """Main function to enhance methods in high_level_api.py."""
-    filepath = "/home/barberb/ipfs_kit_py/ipfs_kit_py/high_level_api.py"
-
+    filepath = '/home/barberb/ipfs_kit_py/ipfs_kit_py/high_level_api.py'
+    
     # Backup and add the new methods
     add_new_methods(filepath)
-
+    
     # Add existing enhancement methods with our new ones
     methods_to_enhance = {
-        "ai_vector_search": enhance_ai_vector_search,
-        "ai_register_dataset": enhance_ai_register_dataset,
-        "ai_list_models": enhance_ai_list_models,
-        "ai_create_knowledge_graph": lambda _: create_ai_create_knowledge_graph(),
-        "ai_test_inference": lambda _: create_ai_test_inference(),
+        'ai_vector_search': enhance_ai_vector_search,
+        'ai_register_dataset': enhance_ai_register_dataset,
+        'ai_list_models': enhance_ai_list_models,
+        'ai_create_knowledge_graph': lambda _: create_ai_create_knowledge_graph(),
+        'ai_test_inference': lambda _: create_ai_test_inference(),
     }
-
+    
     # Read the file again (now with our new methods added)
     content = read_file(filepath)
     backup_filepath = f"{filepath}.bak.enhanced"
     write_file(backup_filepath, content)
-
+    
     # Track methods that were successfully enhanced
     enhanced_methods = []
-
+    
     # Enhance each method
     for method_name, enhance_func in methods_to_enhance.items():
         start_idx, end_idx, method_text = find_method(content, method_name)
-
+        
         if start_idx == -1:
             print(f"Could not find method {method_name}")
             continue
-
+        
         print(f"Enhancing method {method_name} (found at position {start_idx})")
         enhanced_method = enhance_func(method_text)
         content = content[:start_idx] + enhanced_method + content[end_idx:]
         enhanced_methods.append(method_name)
-
+    
     # Write the enhanced content to the original file
     write_file(filepath, content)
     print(f"Enhanced {len(enhanced_methods)} methods in {filepath}: {', '.join(enhanced_methods)}")
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

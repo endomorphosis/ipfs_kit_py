@@ -8,21 +8,22 @@ from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
 
 def main():
     """Main function to demonstrate modular architecture."""
-
+    
     logger.info("=" * 60)
     logger.info("🚀 MODULAR IPFS KIT MCP SERVER DEMONSTRATION")
     logger.info("=" * 60)
-
+    
     # Show the modular structure
     base_path = Path(__file__).parent
-
+    
     logger.info("📁 Modular Structure:")
     logger.info("├── mcp/ipfs_kit/")
     logger.info("│   ├── dashboard/          # Dashboard templates & UI")
@@ -46,7 +47,7 @@ def main():
     logger.info("│       ├── system_tools.py")
     logger.info("│       └── vfs_tools.py")
     logger.info("└── modular_enhanced_mcp_server.py")
-
+    
     logger.info("\n🔧 Features:")
     logger.info("✓ Real backend monitoring (IPFS, Lotus, S3, HuggingFace, etc.)")
     logger.info("✓ Modular dashboard with configuration GUI")
@@ -54,7 +55,7 @@ def main():
     logger.info("✓ MCP tools for AI assistant integration")
     logger.info("✓ WebSocket support for real-time updates")
     logger.info("✓ Configuration management and persistence")
-
+    
     logger.info("\n📊 Backend Clients:")
     logger.info("• IPFSClient - Real IPFS daemon monitoring")
     logger.info("• IPFSClusterClient - IPFS Cluster management")
@@ -64,7 +65,7 @@ def main():
     logger.info("• S3Client - S3-compatible storage monitoring")
     logger.info("• HuggingFaceClient - HuggingFace Hub integration")
     logger.info("• ParquetClient - Parquet file storage monitoring")
-
+    
     logger.info("\n🎯 Key Improvements from Monolithic Version:")
     logger.info("• Separated concerns into focused modules")
     logger.info("• Real backend clients instead of mocked data")
@@ -72,14 +73,14 @@ def main():
     logger.info("• Extensible architecture for new backends")
     logger.info("• Better error handling and logging")
     logger.info("• Clean separation of API, dashboard, and tools")
-
+    
     logger.info("\n🚀 To run the modular server:")
     logger.info("cd /home/barberb/ipfs_kit_py")
     logger.info("python3 -m mcp.ipfs_kit.modular_enhanced_mcp_server --port 8766")
-
+    
     logger.info("\n📱 Dashboard will be available at:")
     logger.info("http://127.0.0.1:8766")
-
+    
     logger.info("\n" + "=" * 60)
 
 

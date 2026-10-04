@@ -246,8 +246,7 @@ if GRAPHQL_AVAILABLE:
                     pinned = True
                     pin_type = pin_result["Keys"][cid]["Type"]
                     pin_info = PinInfo(
-                        type=pin_type,
-                        pinned_at=time.time(),  # IPFS doesn't provide pinning time
+                        type=pin_type, pinned_at=time.time()  # IPFS doesn't provide pinning time
                     )
 
                 # Get metadata

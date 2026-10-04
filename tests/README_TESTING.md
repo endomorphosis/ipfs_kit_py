@@ -112,7 +112,6 @@ class TestSSHFSKitConnection:
     def test_connect_with_key_auth(self): ...
     def test_connect_failure_handling(self): ...
 
-
 class TestSSHFSKitFileOperations:
     def test_upload_file(self): ...
     def test_download_file(self): ...
@@ -266,7 +265,12 @@ from unittest.mock import MagicMock, patch
 from ipfs_kit_py.new_backend import NewBackend
 
 # Import shared fixtures
-from tests.backend_fixtures import temp_dir, temp_file, test_content_string, test_metadata
+from tests.backend_fixtures import (
+    temp_dir,
+    temp_file,
+    test_content_string,
+    test_metadata
+)
 
 # Test configuration
 MOCK_MODE = os.environ.get("NEW_BACKEND_MOCK_MODE", "true").lower() == "true"
@@ -275,7 +279,11 @@ MOCK_MODE = os.environ.get("NEW_BACKEND_MOCK_MODE", "true").lower() == "true"
 @pytest.fixture
 def backend_config():
     """Provide configuration for NewBackend."""
-    return {"host": "test.example.com", "port": 1234, "timeout": 30}
+    return {
+        "host": "test.example.com",
+        "port": 1234,
+        "timeout": 30
+    }
 
 
 @pytest.fixture
@@ -287,11 +295,11 @@ def new_backend(backend_config):
 
 class TestNewBackendInitialization:
     """Test initialization and configuration."""
-
+    
     def test_init_basic(self, backend_config):
         """Test basic initialization."""
         backend = NewBackend(**backend_config)
-
+        
         assert backend is not None
         assert backend.host == backend_config["host"]
         assert backend.port == backend_config["port"]
@@ -299,19 +307,19 @@ class TestNewBackendInitialization:
 
 class TestNewBackendOperations:
     """Test main operations."""
-
+    
     @pytest.mark.skipif(not MOCK_MODE, reason="Requires mock mode")
     def test_store_content(self, new_backend, test_content_string):
         """Test storing content."""
         result = new_backend.store(test_content_string)
-
+        
         assert isinstance(result, dict)
         assert result.get("success") is True
 
 
 class TestNewBackendErrorHandling:
     """Test error handling."""
-
+    
     def test_invalid_input(self, new_backend):
         """Test handling of invalid input."""
         with pytest.raises(ValueError):
@@ -337,8 +345,8 @@ if __name__ == "__main__":
 import pytest
 from tests.backend_fixtures import INVALID_INPUTS
 
-
 class TestInputValidation:
+    
     @pytest.mark.parametrize("name,value", INVALID_INPUTS)
     def test_invalid_inputs(self, backend, name, value):
         """Test various invalid inputs."""
@@ -383,12 +391,12 @@ Located in `tests/backend_fixtures.py`:
 def test_with_shared_fixtures(temp_file, test_content_string, test_metadata):
     """Example using shared fixtures."""
     # temp_file is auto-created and cleaned up
-    with open(temp_file, "r") as f:
+    with open(temp_file, 'r') as f:
         content = f.read()
-
+    
     # test_content_string is ready to use
     assert test_content_string == "Test content for backend storage"
-
+    
     # test_metadata has standard fields
     assert "type" in test_metadata
 ```
@@ -408,11 +416,11 @@ def test_operation(backend, test_content):
     # Arrange
     mock_response = Mock()
     mock_response.status_code = 200
-
+    
     # Act
-    with patch("requests.post", return_value=mock_response):
+    with patch('requests.post', return_value=mock_response):
         result = backend.store(test_content)
-
+    
     # Assert
     assert result["success"] is True
 ```
@@ -427,10 +435,9 @@ def test_success_case(backend):
     result = backend.operation()
     assert result["success"] is True
 
-
 def test_failure_case(backend):
     """Test failed operation."""
-    with patch("external_call", side_effect=Exception("Error")):
+    with patch('external_call', side_effect=Exception("Error")):
         result = backend.operation()
         assert result["success"] is False
         assert "error" in result
@@ -465,7 +472,7 @@ Mock network calls, file system operations, and external APIs:
 @pytest.mark.skipif(not MOCK_MODE, reason="Requires mock mode")
 def test_network_operation(backend):
     """Test operation with mocked network."""
-    with patch("requests.post") as mock_post:
+    with patch('requests.post') as mock_post:
         mock_post.return_value.status_code = 200
         result = backend.fetch_data()
         assert result is not None
@@ -475,11 +482,12 @@ def test_network_operation(backend):
 
 ```python
 # Good
-def test_upload_file_with_invalid_path_raises_error(): ...
-
+def test_upload_file_with_invalid_path_raises_error():
+    ...
 
 # Bad
-def test_upload(): ...
+def test_upload():
+    ...
 ```
 
 ---
@@ -570,11 +578,11 @@ SSHFS_MOCK_MODE=true pytest tests/unit/test_sshfs_kit.py -v
 **Solution**: Patch where the object is used, not where it's defined:
 ```python
 # Wrong
-with patch("paramiko.SSHClient"):
+with patch('paramiko.SSHClient'):
     ...
 
-# Right
-with patch("ipfs_kit_py.sshfs_kit.paramiko.SSHClient"):
+# Right  
+with patch('ipfs_kit_py.sshfs_kit.paramiko.SSHClient'):
     ...
 ```
 

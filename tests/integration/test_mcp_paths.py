@@ -18,12 +18,12 @@ def test_mcp_endpoints():
         "/api/v0/health",
         "/api/v0/webrtc/check",
         "/api/v0/cli/status",
-        "/api/v0/discovery/server",
+        "/api/v0/discovery/server"
     ]
-
+    
     base_url = "http://localhost:8000"
     results = {}
-
+    
     # Test each endpoint
     for endpoint in endpoints:
         url = f"{base_url}{endpoint}"
@@ -31,11 +31,14 @@ def test_mcp_endpoints():
             response = requests.get(url, timeout=5)
             results[endpoint] = {
                 "status_code": response.status_code,
-                "working": response.status_code != 404,
+                "working": response.status_code != 404
             }
         except requests.exceptions.RequestException as e:
-            results[endpoint] = {"error": str(e), "working": False}
-
+            results[endpoint] = {
+                "error": str(e),
+                "working": False
+            }
+    
     # Print results
     print("\nEndpoint Test Results:")
     print("-" * 50)
@@ -43,14 +46,11 @@ def test_mcp_endpoints():
         status = "✅ Working" if result.get("working") else "❌ Not Working"
         code = result.get("status_code", "N/A")
         print(f"{endpoint}: {status} (Status: {code})")
-
+    
     # Determine if test passed
     all_working = all(result.get("working", False) for result in results.values())
-    print(
-        "\nOverall Result:",
-        "✅ All endpoints working" if all_working else "❌ Some endpoints not working",
-    )
-
+    print("\nOverall Result:", "✅ All endpoints working" if all_working else "❌ Some endpoints not working")
+    
     return all_working
 
 

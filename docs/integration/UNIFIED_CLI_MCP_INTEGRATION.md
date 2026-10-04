@@ -345,20 +345,22 @@ MY_FEATURE_MCP_TOOLS = [
         "description": "Do something via MCP",
         "inputSchema": {
             "type": "object",
-            "properties": {"param": {"type": "string", "description": "Parameter"}},
-            "required": ["param"],
-        },
+            "properties": {
+                "param": {"type": "string", "description": "Parameter"}
+            },
+            "required": ["param"]
+        }
     }
 ]
-
 
 async def handle_my_feature_do(arguments):
     manager = get_my_feature_manager()
     result = manager.do_something(arguments["param"])
     return {"success": True, "result": result}
 
-
-MY_FEATURE_TOOL_HANDLERS = {"my_feature_do": handle_my_feature_do}
+MY_FEATURE_TOOL_HANDLERS = {
+    "my_feature_do": handle_my_feature_do
+}
 ```
 
 ### 5. Create Compatibility Shim
@@ -368,7 +370,7 @@ MY_FEATURE_TOOL_HANDLERS = {"my_feature_do": handle_my_feature_do}
 from ipfs_kit_py.mcp.servers.my_feature_mcp_tools import (
     MY_FEATURE_MCP_TOOLS,
     MY_FEATURE_TOOL_HANDLERS,
-    handle_my_feature_do,
+    handle_my_feature_do
 )
 ```
 

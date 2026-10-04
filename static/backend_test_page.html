@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Backend Dashboard Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+        pre { background: #f5f5f5; padding: 10px; overflow: auto; }
+    </style>
+</head>
+<body>
+    <h1>Backend Dashboard Test</h1>
+    
+    <div class="test-section">
+        <h2>API Test Results</h2>
+        <div id="api-results">Loading...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Console Logs</h2>
+        <div id="console-logs"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Backend Simulation</h2>
+        <div id="backend-simulation"></div>
+    </div>
+
+    <script>
+        const logDiv = document.getElementById('console-logs');
+        const originalConsole = {
+            log: console.log,
+            error: console.error,
+            warn: console.warn
+        };
+        
+        // Intercept console logs
+        function addToLog(type, message) {
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = `<strong>[${type.toUpperCase()}]</strong> ${message}`;
+            logDiv.appendChild(div);
+        }
+        
+        console.log = function(...args) {
+            originalConsole.log(...args);
+            addToLog('log', args.join(' '));
+        };
+        
+        console.error = function(...args) {
+            originalConsole.error(...args);
+            addToLog('error', args.join(' '));
+        };
+        
+        console.warn = function(...args) {
+            originalConsole.warn(...args);
+            addToLog('warning', args.join(' '));
+        };
+
+        async function testBackendsAPI() {
+            const resultsDiv = document.getElementById('api-results');
+            
+            try {
+                console.log('Testing /api/state/backends endpoint...');
+                const response = await fetch('/api/state/backends');
+                const data = await response.json();
+                
+                console.log('API Response received:', data);
+                
+                const backends = data.backends || [];
+                
+                let html = `<h3 class="success">✅ API Test Successful</h3>`;
+                html += `<p>Found ${backends.length} backends</p>`;
+                
+                // Simulate the dashboard's JavaScript logic
+                backends.forEach((backend, i) => {
+                    const type = backend.type || (backend.config && backend.config.type) || 'unknown';
+                    const status = backend.status || 'unknown';
+                    const tier = backend.tier || 'standard';
+                    const description = backend.description || `${type} storage backend`;
+                    
+                    const hasUnknown = type === 'unknown' || status === 'unknown';
+                    const className = hasUnknown ? 'error' : 'success';
+                    
+                    html += `<div class="${className}">
+                        <strong>${backend.name}</strong> - 
+                        Type: ${type}, 
+                        Status: ${status}, 
+                        Tier: ${tier}
+                        ${hasUnknown ? ' ⚠️ Has unknown values!' : ' ✅ All good'}
+                    </div>`;
+                    
+                    console.log(`Backend ${i + 1}: ${backend.name}`, {
+                        originalType: backend.type,
+                        originalStatus: backend.status,
+                        processedType: type,
+                        processedStatus: status,
+                        hasUnknown: hasUnknown
+                    });
+                });
+                
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                console.error('API test failed:', error);
+                resultsDiv.innerHTML = `<h3 class="error">❌ API Test Failed</h3><p>${error.message}</p>`;
+            }
+        }
+        
+        function simulateDashboardBackendRendering() {
+            const simDiv = document.getElementById('backend-simulation');
+            
+            // Simulate some test data including problematic cases
+            const testBackends = [
+                { name: 'good_backend', type: 's3', status: 'enabled', tier: 'hot' },
+                { name: 'missing_type', status: 'enabled', tier: 'hot' },
+                { name: 'missing_status', type: 's3', tier: 'hot' },
+                { name: 'null_values', type: null, status: null, tier: 'hot' },
+                { name: 'config_type_only', config: { type: 'ipfs' }, tier: 'hot' }
+            ];
+            
+            let html = '<h3>Simulation of Dashboard Logic</h3>';
+            
+            testBackends.forEach(backend => {
+                const type = backend.type || (backend.config && backend.config.type) || 'unknown';
+                const status = backend.status || 'unknown';
+                const tier = backend.tier || 'standard';
+                
+                const hasIssues = type === 'unknown' || status === 'unknown';
+                const className = hasIssues ? 'error' : 'success';
+                
+                html += `<div class="${className}">
+                    ${backend.name}: type="${type}", status="${status}", tier="${tier}"
+                    ${hasIssues ? ' ⚠️ Would show unknown!' : ' ✅ OK'}
+                </div>`;
+            });
+            
+            simDiv.innerHTML = html;
+        }
+        
+        // Run tests
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Page loaded, starting tests...');
+            testBackendsAPI();
+            simulateDashboardBackendRendering();
+        });
+    </script>
+</body>
+</html>

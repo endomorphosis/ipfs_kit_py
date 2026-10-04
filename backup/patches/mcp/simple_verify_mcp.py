@@ -13,7 +13,6 @@ import json
 import subprocess
 import time
 
-
 def check_endpoint(url, description, expected_status=200):
     """Check if an endpoint is accessible."""
     print(f"Testing {description}...")
@@ -28,7 +27,6 @@ def check_endpoint(url, description, expected_status=200):
     except Exception as e:
         print(f"❌ Failed to connect to {description}: {e}")
         return False
-
 
 def test_mcp_server():
     """Test if the MCP server is running."""
@@ -45,7 +43,6 @@ def test_mcp_server():
         print(f"❌ Failed to connect to MCP server: {e}")
         return False
 
-
 def test_jsonrpc_server():
     """Test if the JSON-RPC server is running."""
     try:
@@ -61,7 +58,6 @@ def test_jsonrpc_server():
         print(f"❌ Failed to connect to JSON-RPC server: {e}")
         return False
 
-
 def test_jsonrpc_initialize():
     """Test if the JSON-RPC server responds to initialize requests."""
     try:
@@ -69,10 +65,18 @@ def test_jsonrpc_initialize():
             "jsonrpc": "2.0",
             "id": 1,
             "method": "initialize",
-            "params": {"processId": 123, "rootUri": None, "capabilities": {}},
+            "params": {
+                "processId": 123,
+                "rootUri": None,
+                "capabilities": {}
+            }
         }
 
-        response = requests.post("http://localhost:9995/jsonrpc", json=payload, timeout=2)
+        response = requests.post(
+            "http://localhost:9995/jsonrpc",
+            json=payload,
+            timeout=2
+        )
 
         if response.status_code == 200:
             data = response.json()
@@ -89,24 +93,16 @@ def test_jsonrpc_initialize():
         print(f"❌ Failed to send JSON-RPC initialize request: {e}")
         return False
 
-
 def check_vs_code_settings():
     """Check VS Code settings."""
     try:
         with open(os.path.expanduser("~/.config/Code - Insiders/User/settings.json"), "r") as f:
             settings = json.load(f)
 
-        mcp_sse_url = (
-            settings.get("mcp", {}).get("servers", {}).get("my-mcp-server-3e65fd06", {}).get("url")
-        )
-        jsonrpc_url = (
-            settings.get("localStorageNetworkingTools", {}).get("lspEndpoint", {}).get("url")
-        )
+        mcp_sse_url = settings.get("mcp", {}).get("servers", {}).get("my-mcp-server-3e65fd06", {}).get("url")
+        jsonrpc_url = settings.get("localStorageNetworkingTools", {}).get("lspEndpoint", {}).get("url")
 
-        if (
-            mcp_sse_url == "http://localhost:9994/api/v0/sse"
-            and jsonrpc_url == "http://localhost:9995/jsonrpc"
-        ):
+        if mcp_sse_url == "http://localhost:9994/api/v0/sse" and jsonrpc_url == "http://localhost:9995/jsonrpc":
             print(f"✅ VS Code settings are correct")
             return True
         else:
@@ -117,7 +113,6 @@ def check_vs_code_settings():
     except Exception as e:
         print(f"❌ Failed to check VS Code settings: {e}")
         return False
-
 
 def main():
     """Run all verification checks."""
@@ -137,11 +132,7 @@ def main():
         ("http://localhost:9994/api/v0/health", "MCP health endpoint"),
         ("http://localhost:9994/api/v0/ipfs/version", "IPFS version endpoint"),
         ("http://localhost:9994/api/v0/sse", "SSE endpoint", 200),  # Just check if it exists
-        (
-            "http://localhost:9995/jsonrpc",
-            "JSON-RPC endpoint",
-            405,
-        ),  # 405 Method Not Allowed is OK for HEAD
+        ("http://localhost:9995/jsonrpc", "JSON-RPC endpoint", 405),  # 405 Method Not Allowed is OK for HEAD
     ]
 
     # Run tests
@@ -164,7 +155,6 @@ def main():
 
     # Try to check VS Code settings if possible
     import os
-
     if os.path.exists(os.path.expanduser("~/.config/Code - Insiders/User/settings.json")):
         if check_vs_code_settings():
             success_count += 1
@@ -183,7 +173,6 @@ def main():
     else:
         print("\n❌ Some tests failed. Please check the issues above.")
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

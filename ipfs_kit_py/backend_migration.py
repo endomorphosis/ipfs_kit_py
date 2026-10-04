@@ -21,9 +21,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=os.path.expanduser("~/.ipfs_kit"),
         help="IPFS Kit state root (default: ~/.ipfs_kit)",
     )
-    parser.add_argument(
-        "--no-backup", action="store_true", help="do not retain pre-v1 YAML backups"
-    )
+    parser.add_argument("--no-backup", action="store_true", help="do not retain pre-v1 YAML backups")
     return parser
 
 
@@ -32,7 +30,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     manager = BackendManager(args.root)
     if args.names:
         results = {
-            name: manager.migrate_backend(name, backup=not args.no_backup) for name in args.names
+            name: manager.migrate_backend(name, backup=not args.no_backup)
+            for name in args.names
         }
         report = {
             "results": results,

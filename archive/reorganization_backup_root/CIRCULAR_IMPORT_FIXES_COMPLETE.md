@@ -99,7 +99,6 @@ def _get_compatible_new_host():
     """Delayed import to avoid circular imports."""
     try:
         from ipfs_kit_py.libp2p import compatible_new_host
-
         return compatible_new_host
     except ImportError:
         # Fallback to basic libp2p

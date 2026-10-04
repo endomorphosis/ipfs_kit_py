@@ -1,0 +1,11 @@
+--- test_cli_interface.py	2025-04-06 21:22:44.000000000 +0000
++++ test_cli_interface_fixed.py	2025-04-06 21:22:44.000000000 +0000
+@@ -1337,7 +1337,7 @@
+             # Verify connect was called with the peer and the additional parameters
+             mock_instance.connect.assert_called_once_with(
+                 "/ip4/127.0.0.1/tcp/4001/p2p/QmTest",
+-                timeout=30,  # This comes from parse_kwargs
++                timeout=60,  # This comes from --param timeout=60 which overrides the default of 30
+                 retry=True   # This comes from the additional --param
+             )
+ 

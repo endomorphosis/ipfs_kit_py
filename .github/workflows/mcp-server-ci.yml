@@ -1,0 +1,28 @@
+name: MCP++ Server CI
+
+on:
+  push:
+    paths:
+      - "ipfs_kit_py/mcp_server/**"
+      - ".github/workflows/mcp-server-ci.yml"
+  pull_request:
+    paths:
+      - "ipfs_kit_py/mcp_server/**"
+
+jobs:
+  mcp-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install minimal deps
+        run: pip install anyio trio hypercorn pytest
+      - name: Run MCP++ interop + drift-guard tests
+        run: pytest ipfs_kit_py/mcp_server/tests_e2e_interop.py -q
+      - name: Fail if generated SDK/manifest are stale
+        run: |
+          python -m ipfs_kit_py.mcp_server.js_sdk.generate
+          git diff --exit-code -- ipfs_kit_py/mcp_server/js_sdk || \
+            (echo "Generated SDK/manifest out of date; run make mcp-sdk" && exit 1)

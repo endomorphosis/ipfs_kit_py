@@ -1,8 +1,7 @@
-# \!/usr/bin/env python3
+#\!/usr/bin/env python3
 """
 Script to directly edit high_level_api.py to add missing methods
 """
-
 import os
 import shutil
 import re
@@ -14,7 +13,7 @@ shutil.copy2(src_file, backup_file)
 print(f"Backup created at {backup_file}")
 
 # Read the file
-with open(src_file, "r") as f:
+with open(src_file, 'r') as f:
     content = f.read()
 
 # Define the methods to add - all hardcoded to avoid string formatting issues
@@ -167,7 +166,7 @@ methods_to_add = """
 """
 
 # Find class IPFSSimpleAPI with a more flexible pattern
-class_match = re.search(r"class\s+IPFSSimpleAPI", content)
+class_match = re.search(r'class\s+IPFSSimpleAPI', content)
 if not class_match:
     print("Error: Could not find IPFSSimpleAPI class definition")
     exit(1)
@@ -178,25 +177,23 @@ print(f"Found class IPFSSimpleAPI at position {class_match.start()}")
 class_start = class_match.start()
 
 # Look for the init method to determine end of class methods
-init_match = re.search(r"def\s+__init__", content[class_start:])
+init_match = re.search(r'def\s+__init__', content[class_start:])
 if init_match:
     init_pos = class_start + init_match.start()
     print(f"Found __init__ method at offset {init_match.start()} from class start")
-
+    
     # Find a method after __init__ to insert our methods after
     # Either search for the next method definition
-    next_method_match = re.search(r"def\s+\w+", content[init_pos + 20 :])
+    next_method_match = re.search(r'def\s+\w+', content[init_pos + 20:])
     if next_method_match:
         insert_pos = init_pos + 20 + next_method_match.start()
         # Find end of this method by looking for the next method or class
-        next_def_match = re.search(r"    def\s+\w+|class\s+\w+", content[insert_pos + 10 :])
+        next_def_match = re.search(r'    def\s+\w+|class\s+\w+', content[insert_pos + 10:])
         if next_def_match:
             insert_pos = insert_pos + 10 + next_def_match.start()
         else:
             # If we can't find a next method, look for singleton comment
-            singleton_match = re.search(
-                r"# Create a singleton instance for easy import", content[insert_pos:]
-            )
+            singleton_match = re.search(r'# Create a singleton instance for easy import', content[insert_pos:])
             if singleton_match:
                 insert_pos = insert_pos + singleton_match.start()
             else:
@@ -204,18 +201,14 @@ if init_match:
                 insert_pos = len(content)
     else:
         # If no next method, use singleton comment or end of file
-        singleton_match = re.search(
-            r"# Create a singleton instance for easy import", content[init_pos:]
-        )
+        singleton_match = re.search(r'# Create a singleton instance for easy import', content[init_pos:])
         if singleton_match:
             insert_pos = init_pos + singleton_match.start()
         else:
             insert_pos = len(content)
 else:
     # If no init method, use singleton comment or end of file
-    singleton_match = re.search(
-        r"# Create a singleton instance for easy import", content[class_start:]
-    )
+    singleton_match = re.search(r'# Create a singleton instance for easy import', content[class_start:])
     if singleton_match:
         insert_pos = class_start + singleton_match.start()
     else:
@@ -227,7 +220,7 @@ print(f"Will insert methods at position {insert_pos}")
 new_content = content[:insert_pos] + methods_to_add + content[insert_pos:]
 
 # Write the updated file
-with open(src_file, "w") as f:
+with open(src_file, 'w') as f:
     f.write(new_content)
 
 print(f"Added missing methods to {src_file}")

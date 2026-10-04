@@ -142,12 +142,8 @@ Added tests for error conditions:
 Proper use of mocks for external dependencies:
 ```python
 mock_ipfs = Mock()
-
-
 async def mock_cat(cid):
     return json.dumps(metadata).encode()
-
-
 mock_ipfs.cat = mock_cat
 ```
 
@@ -247,9 +243,9 @@ async def test_full_export_import_cycle():
     # Requires running IPFS daemon
     exporter = BucketMetadataExporter(ipfs_client=real_ipfs)
     result = await exporter.export_bucket_metadata(bucket)
-
+    
     importer = BucketMetadataImporter(ipfs_client=real_ipfs)
-    await importer.import_bucket_metadata(result["metadata_cid"])
+    await importer.import_bucket_metadata(result['metadata_cid'])
 ```
 
 ### 2. Optional Dependency Tests

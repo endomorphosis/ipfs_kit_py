@@ -324,7 +324,10 @@ Configuration class for auto-healing feature.
 from ipfs_kit_py.auto_heal.config import AutoHealConfig
 
 config = AutoHealConfig(
-    enabled=True, github_token="token", github_repo="owner/repo", max_log_lines=100
+    enabled=True,
+    github_token="token",
+    github_repo="owner/repo",
+    max_log_lines=100
 )
 
 # Check if properly configured
@@ -346,8 +349,12 @@ try:
     # Your code here
     pass
 except Exception as e:
-    captured = error_capture.capture_error(e, command="ipfs-kit test", arguments={"arg": "value"})
-
+    captured = error_capture.capture_error(
+        e,
+        command="ipfs-kit test",
+        arguments={"arg": "value"}
+    )
+    
     # Format for GitHub issue
     issue_body = captured.format_for_issue()
 ```

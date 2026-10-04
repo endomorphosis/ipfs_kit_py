@@ -25,14 +25,13 @@ from ipfs_kit_py.filesystem_journal import (
     FilesystemJournal,
     FilesystemJournalManager,
     JournalOperationType,
-    JournalEntryStatus,
+    JournalEntryStatus
 )
 
 # Check for Arrow availability
 try:
     import pyarrow as pa
     import pyarrow.parquet as pq
-
     ARROW_AVAILABLE = True
 except ImportError:
     ARROW_AVAILABLE = False
@@ -40,10 +39,8 @@ except ImportError:
 # Configure logging
 logger = logging.getLogger(__name__)
 
-
 class StorageBackendType:
     """Enum-like class for storage backend types."""
-
     MEMORY = "memory"
     DISK = "disk"
     IPFS = "ipfs"
@@ -55,7 +52,6 @@ class StorageBackendType:
     LASSIE = "lassie"
     PARQUET = "parquet"
     ARROW = "arrow"
-
 
 class TieredStorageJournalBackend:
     """
@@ -70,12 +66,12 @@ class TieredStorageJournalBackend:
         self,
         tiered_cache_manager,
         journal: Optional[FilesystemJournal] = None,
-        wal=None,
+        wal = None,
         journal_base_path: str = "~/.ipfs_kit/tiered_journal",
         auto_recovery: bool = True,
         sync_interval: int = 5,
         checkpoint_interval: int = 60,
-        max_journal_size: int = 1000,
+        max_journal_size: int = 1000
     ):
         """
         Initialize the tiered storage backend.
@@ -102,7 +98,7 @@ class TieredStorageJournalBackend:
                 checkpoint_interval=checkpoint_interval,
                 max_journal_size=max_journal_size,
                 auto_recovery=auto_recovery,
-                wal=wal,
+                wal=wal
             )
 
         # Additional state for tiered backend tracking
@@ -116,7 +112,7 @@ class TieredStorageJournalBackend:
             StorageBackendType.STORACHA: {"operations": 0, "bytes_stored": 0, "items": 0},
             StorageBackendType.FILECOIN: {"operations": 0, "bytes_stored": 0, "items": 0},
             StorageBackendType.HUGGINGFACE: {"operations": 0, "bytes_stored": 0, "items": 0},
-            StorageBackendType.LASSIE: {"operations": 0, "bytes_stored": 0, "items": 0},
+            StorageBackendType.LASSIE: {"operations": 0, "bytes_stored": 0, "items": 0}
         }
 
         # Load state from journal if auto_recovery is enabled
@@ -145,7 +141,7 @@ class TieredStorageJournalBackend:
                         "tier": tier,
                         "timestamp": state.get("modified_at", time.time()),
                         "path": path,
-                        "metadata": metadata,
+                        "metadata": metadata
                     }
 
                     # Update tier stats
@@ -153,16 +149,14 @@ class TieredStorageJournalBackend:
                         self.tier_stats[tier]["items"] += 1
                         self.tier_stats[tier]["bytes_stored"] += state.get("size", 0)
 
-        logger.info(
-            f"Recovered tier state from journal: {len(self.content_locations)} content items"
-        )
+        logger.info(f"Recovered tier state from journal: {len(self.content_locations)} content items")
 
     def store_content(
         self,
         content: bytes,
         cid: Optional[str] = None,
         target_tier: str = StorageBackendType.MEMORY,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Store content in the specified tier with journaling.
@@ -195,8 +189,8 @@ class TieredStorageJournalBackend:
                     "is_directory": False,
                     "size": len(content),
                     "target_tier": target_tier,
-                    "metadata": metadata,
-                },
+                    "metadata": metadata
+                }
             )
 
             # Integrate with WAL if available
@@ -204,7 +198,10 @@ class TieredStorageJournalBackend:
                 wal_result = self.wal.add_operation(
                     operation_type="store",
                     backend=target_tier,
-                    parameters={"size": len(content), "journal_entry_id": entry["entry_id"]},
+                    parameters={
+                        "size": len(content),
+                        "journal_entry_id": entry["entry_id"]
+                    }
                 )
 
                 # Link the WAL operation ID
@@ -219,14 +216,14 @@ class TieredStorageJournalBackend:
                 self.journal.update_entry_status(
                     entry_id=entry["entry_id"],
                     status=JournalEntryStatus.PENDING,
-                    result={"cid": cid},
+                    result={"cid": cid}
                 )
 
                 # Update path in entry to include actual CID
                 self.journal.add_journal_entry(
                     operation_type=JournalOperationType.RENAME,
                     path=f"cid://pending",
-                    data={"new_path": f"cid://{cid}"},
+                    data={"new_path": f"cid://{cid}"}
                 )
 
             # Update our content location tracking
@@ -234,7 +231,7 @@ class TieredStorageJournalBackend:
                 "tier": target_tier,
                 "timestamp": time.time(),
                 "path": f"cid://{cid}",
-                "metadata": metadata,
+                "metadata": metadata
             }
 
             # Update tier stats
@@ -245,7 +242,9 @@ class TieredStorageJournalBackend:
 
             # Mark entry as completed
             self.journal.update_entry_status(
-                entry_id=entry["entry_id"], status=JournalEntryStatus.COMPLETED, result=result
+                entry_id=entry["entry_id"],
+                status=JournalEntryStatus.COMPLETED,
+                result=result
             )
 
             # Commit the transaction
@@ -258,7 +257,7 @@ class TieredStorageJournalBackend:
                 "size": len(content),
                 "transaction_id": transaction_id,
                 "entry_id": entry["entry_id"],
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
         except Exception as e:
@@ -270,7 +269,7 @@ class TieredStorageJournalBackend:
                 "success": False,
                 "tier": target_tier,
                 "error": str(e),
-                "error_type": type(e).__name__,
+                "error_type": type(e).__name__
             }
 
     def retrieve_content(self, cid: str) -> Dict[str, Any]:
@@ -288,7 +287,7 @@ class TieredStorageJournalBackend:
             entry = self.journal.add_journal_entry(
                 operation_type=JournalOperationType.METADATA,
                 path=f"cid://{cid}",
-                data={"operation": "retrieve"},
+                data={"operation": "retrieve"}
             )
 
             # Retrieve content from tiered cache
@@ -305,7 +304,7 @@ class TieredStorageJournalBackend:
                     "content": content,
                     "size": len(content),
                     "tier": tier,
-                    "timestamp": time.time(),
+                    "timestamp": time.time()
                 }
 
                 # Update tier stats
@@ -316,7 +315,7 @@ class TieredStorageJournalBackend:
                 self.journal.update_entry_status(
                     entry_id=entry["entry_id"],
                     status=JournalEntryStatus.COMPLETED,
-                    result={"size": len(content), "tier": tier},
+                    result={"size": len(content), "tier": tier}
                 )
 
                 return result
@@ -325,21 +324,30 @@ class TieredStorageJournalBackend:
                 self.journal.update_entry_status(
                     entry_id=entry["entry_id"],
                     status=JournalEntryStatus.FAILED,
-                    result={"error": "Content not found"},
+                    result={"error": "Content not found"}
                 )
 
-                return {"success": False, "cid": cid, "error": "Content not found"}
+                return {
+                    "success": False,
+                    "cid": cid,
+                    "error": "Content not found"
+                }
 
         except Exception as e:
             logger.error(f"Error retrieving content {cid}: {e}")
-            return {"success": False, "cid": cid, "error": str(e), "error_type": type(e).__name__}
+            return {
+                "success": False,
+                "cid": cid,
+                "error": str(e),
+                "error_type": type(e).__name__
+            }
 
     def move_content_to_tier(
         self,
         cid: str,
         target_tier: str,
         keep_in_source: bool = True,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Move content between tiers with journaling.
@@ -374,8 +382,8 @@ class TieredStorageJournalBackend:
                     "source_tier": source_tier,
                     "target_tier": target_tier,
                     "keep_in_source": keep_in_source,
-                    "metadata": metadata,
-                },
+                    "metadata": metadata
+                }
             )
 
             # Retrieve content from current tier
@@ -386,13 +394,17 @@ class TieredStorageJournalBackend:
                 self.journal.update_entry_status(
                     entry_id=entry["entry_id"],
                     status=JournalEntryStatus.FAILED,
-                    result={"error": "Content not found"},
+                    result={"error": "Content not found"}
                 )
 
                 # Rollback transaction
                 self.journal.rollback_transaction()
 
-                return {"success": False, "cid": cid, "error": "Content not found"}
+                return {
+                    "success": False,
+                    "cid": cid,
+                    "error": "Content not found"
+                }
 
             # Prepare metadata for target tier
             tier_metadata = source_info.get("metadata", {}).copy()
@@ -440,9 +452,7 @@ class TieredStorageJournalBackend:
                 put_result = self.tiered_cache.put(cid, content, tier_metadata)
 
                 # Try to pin to cluster if method exists
-                if hasattr(self.tiered_cache, "cluster_pin") and callable(
-                    self.tiered_cache.cluster_pin
-                ):
+                if hasattr(self.tiered_cache, "cluster_pin") and callable(self.tiered_cache.cluster_pin):
                     cluster_result = self.tiered_cache.cluster_pin(cid)
                     logger.info(f"Pinned content {cid} to IPFS Cluster: {cluster_result}")
 
@@ -468,13 +478,9 @@ class TieredStorageJournalBackend:
                 # Try to use specialized Storacha storage method if available
                 storacha_result = None
 
-                if hasattr(self.tiered_cache, "storacha_put") and callable(
-                    self.tiered_cache.storacha_put
-                ):
+                if hasattr(self.tiered_cache, "storacha_put") and callable(self.tiered_cache.storacha_put):
                     storacha_result = self.tiered_cache.storacha_put(cid, content, tier_metadata)
-                    logger.info(
-                        f"Stored content {cid} in Storacha using storacha_put: {storacha_result}"
-                    )
+                    logger.info(f"Stored content {cid} in Storacha using storacha_put: {storacha_result}")
                 else:
                     # Use general put method with Storacha tier metadata
                     put_result = self.tiered_cache.put(cid, content, tier_metadata)
@@ -487,13 +493,9 @@ class TieredStorageJournalBackend:
                 # Try to use specialized Filecoin storage method if available
                 filecoin_result = None
 
-                if hasattr(self.tiered_cache, "filecoin_put") and callable(
-                    self.tiered_cache.filecoin_put
-                ):
+                if hasattr(self.tiered_cache, "filecoin_put") and callable(self.tiered_cache.filecoin_put):
                     filecoin_result = self.tiered_cache.filecoin_put(cid, content, tier_metadata)
-                    logger.info(
-                        f"Stored content {cid} in Filecoin using filecoin_put: {filecoin_result}"
-                    )
+                    logger.info(f"Stored content {cid} in Filecoin using filecoin_put: {filecoin_result}")
                 else:
                     # Use general put method with Filecoin tier metadata
                     put_result = self.tiered_cache.put(cid, content, tier_metadata)
@@ -506,13 +508,9 @@ class TieredStorageJournalBackend:
                 # Try to use specialized HuggingFace storage method if available
                 hf_result = None
 
-                if hasattr(self.tiered_cache, "huggingface_put") and callable(
-                    self.tiered_cache.huggingface_put
-                ):
+                if hasattr(self.tiered_cache, "huggingface_put") and callable(self.tiered_cache.huggingface_put):
                     hf_result = self.tiered_cache.huggingface_put(cid, content, tier_metadata)
-                    logger.info(
-                        f"Stored content {cid} in HuggingFace using huggingface_put: {hf_result}"
-                    )
+                    logger.info(f"Stored content {cid} in HuggingFace using huggingface_put: {hf_result}")
                 else:
                     # Use general put method with HuggingFace tier metadata
                     put_result = self.tiered_cache.put(cid, content, tier_metadata)
@@ -531,7 +529,7 @@ class TieredStorageJournalBackend:
                 self.journal.add_journal_entry(
                     operation_type=JournalOperationType.DELETE,
                     path=f"tier://{source_tier}/{cid}",
-                    data={"cid": cid, "tier": source_tier},
+                    data={"cid": cid, "tier": source_tier}
                 )
 
                 # Tier-specific removal logic
@@ -561,41 +559,31 @@ class TieredStorageJournalBackend:
 
                 elif source_tier == StorageBackendType.IPFS:
                     # Unpin from IPFS
-                    if hasattr(self.tiered_cache, "ipfs_unpin") and callable(
-                        self.tiered_cache.ipfs_unpin
-                    ):
+                    if hasattr(self.tiered_cache, "ipfs_unpin") and callable(self.tiered_cache.ipfs_unpin):
                         unpin_result = self.tiered_cache.ipfs_unpin(cid)
                         logger.info(f"Unpinned content {cid} from IPFS: {unpin_result}")
 
                 elif source_tier == StorageBackendType.IPFS_CLUSTER:
                     # Unpin from IPFS Cluster
-                    if hasattr(self.tiered_cache, "cluster_unpin") and callable(
-                        self.tiered_cache.cluster_unpin
-                    ):
+                    if hasattr(self.tiered_cache, "cluster_unpin") and callable(self.tiered_cache.cluster_unpin):
                         cluster_result = self.tiered_cache.cluster_unpin(cid)
                         logger.info(f"Unpinned content {cid} from IPFS Cluster: {cluster_result}")
 
                 elif source_tier == StorageBackendType.S3:
                     # Remove from S3
-                    if hasattr(self.tiered_cache, "s3_delete") and callable(
-                        self.tiered_cache.s3_delete
-                    ):
+                    if hasattr(self.tiered_cache, "s3_delete") and callable(self.tiered_cache.s3_delete):
                         s3_result = self.tiered_cache.s3_delete(cid)
                         logger.info(f"Removed content {cid} from S3: {s3_result}")
 
                 elif source_tier == StorageBackendType.STORACHA:
                     # Remove from Storacha
-                    if hasattr(self.tiered_cache, "storacha_delete") and callable(
-                        self.tiered_cache.storacha_delete
-                    ):
+                    if hasattr(self.tiered_cache, "storacha_delete") and callable(self.tiered_cache.storacha_delete):
                         storacha_result = self.tiered_cache.storacha_delete(cid)
                         logger.info(f"Removed content {cid} from Storacha: {storacha_result}")
 
                 # Update tier stats
                 if source_tier in self.tier_stats:
-                    self.tier_stats[source_tier]["items"] = max(
-                        0, self.tier_stats[source_tier]["items"] - 1
-                    )
+                    self.tier_stats[source_tier]["items"] = max(0, self.tier_stats[source_tier]["items"] - 1)
                     content_size = source_info.get("metadata", {}).get("size", 0)
                     self.tier_stats[source_tier]["bytes_stored"] = max(
                         0, self.tier_stats[source_tier]["bytes_stored"] - content_size
@@ -606,7 +594,7 @@ class TieredStorageJournalBackend:
                 "tier": target_tier,
                 "timestamp": time.time(),
                 "path": f"cid://{cid}",
-                "metadata": tier_metadata,
+                "metadata": tier_metadata
             }
 
             # Update tier stats
@@ -622,8 +610,8 @@ class TieredStorageJournalBackend:
                 result={
                     "source_tier": source_tier,
                     "target_tier": target_tier,
-                    "size": len(content),
-                },
+                    "size": len(content)
+                }
             )
 
             # Commit the transaction
@@ -637,7 +625,7 @@ class TieredStorageJournalBackend:
                 "size": len(content),
                 "transaction_id": transaction_id,
                 "entry_id": entry["entry_id"],
-                "timestamp": time.time(),
+                "timestamp": time.time()
             }
 
         except Exception as e:
@@ -650,7 +638,7 @@ class TieredStorageJournalBackend:
                 "cid": cid,
                 "target_tier": target_tier,
                 "error": str(e),
-                "error_type": type(e).__name__,
+                "error_type": type(e).__name__
             }
 
     def get_content_location(self, cid: str) -> Dict[str, Any]:
@@ -680,13 +668,9 @@ class TieredStorageJournalBackend:
             if content is not None:
                 # We found the content, but didn't have tracking info
                 # Create a new location record based on where we found it
-                if hasattr(
-                    self.tiered_cache, "memory_cache"
-                ) and self.tiered_cache.memory_cache.contains(cid):
+                if hasattr(self.tiered_cache, "memory_cache") and self.tiered_cache.memory_cache.contains(cid):
                     tier = StorageBackendType.MEMORY
-                elif hasattr(
-                    self.tiered_cache, "disk_cache"
-                ) and self.tiered_cache.disk_cache.contains(cid):
+                elif hasattr(self.tiered_cache, "disk_cache") and self.tiered_cache.disk_cache.contains(cid):
                     tier = StorageBackendType.DISK
                 else:
                     # Default to unknown tier
@@ -697,7 +681,10 @@ class TieredStorageJournalBackend:
                     "tier": tier,
                     "timestamp": time.time(),
                     "path": f"cid://{cid}",
-                    "metadata": {"storage_tier": tier, "size": len(content)},
+                    "metadata": {
+                        "storage_tier": tier,
+                        "size": len(content)
+                    }
                 }
 
                 # Update tier stats
@@ -713,11 +700,20 @@ class TieredStorageJournalBackend:
                 return location_info
 
             # Content not found
-            return {"success": False, "cid": cid, "error": "Content not found"}
+            return {
+                "success": False,
+                "cid": cid,
+                "error": "Content not found"
+            }
 
         except Exception as e:
             logger.error(f"Error getting location for content {cid}: {e}")
-            return {"success": False, "cid": cid, "error": str(e), "error_type": type(e).__name__}
+            return {
+                "success": False,
+                "cid": cid,
+                "error": str(e),
+                "error_type": type(e).__name__
+            }
 
     def get_tier_stats(self) -> Dict[str, Dict[str, Any]]:
         """
@@ -727,7 +723,6 @@ class TieredStorageJournalBackend:
             Dictionary with tier statistics
         """
         return self.tier_stats.copy()
-
 
 class TieredJournalManagerFactory:
     """
@@ -743,7 +738,7 @@ class TieredJournalManagerFactory:
         wal=None,
         journal_base_path: str = "~/.ipfs_kit/tiered_journal",
         auto_recovery: bool = True,
-        **kwargs,
+        **kwargs
     ) -> TieredStorageJournalBackend:
         """
         Create a journal backend integrated with a TieredCacheManager.
@@ -763,7 +758,7 @@ class TieredJournalManagerFactory:
             wal=wal,
             journal_base_path=journal_base_path,
             auto_recovery=auto_recovery,
-            **kwargs,
+            **kwargs
         )
 
     @staticmethod
@@ -772,7 +767,7 @@ class TieredJournalManagerFactory:
         wal=None,
         journal_base_path: str = "~/.ipfs_kit/tiered_journal",
         auto_recovery: bool = True,
-        **kwargs,
+        **kwargs
     ) -> TieredStorageJournalBackend:
         """
         Create a journal backend integrated with a high-level API instance.
@@ -811,9 +806,13 @@ class TieredJournalManagerFactory:
             wal=wal,
             journal_base_path=journal_base_path,
             auto_recovery=auto_recovery,
-            **kwargs,
+            **kwargs
         )
 
 
 # Export key classes
-__all__ = ["StorageBackendType", "TieredStorageJournalBackend", "TieredJournalManagerFactory"]
+__all__ = [
+    'StorageBackendType',
+    'TieredStorageJournalBackend',
+    'TieredJournalManagerFactory'
+]

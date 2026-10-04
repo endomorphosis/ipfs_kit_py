@@ -13,17 +13,14 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
-# IMPORTANT: These are example methods to add to test_cli_interface.py
+# IMPORTANT: These are example methods to add to test_cli_interface.py 
 # They are not meant to be run directly
-
 
 @patch("sys.argv")
 @patch("ipfs_kit_py.cli.WAL_CLI_AVAILABLE", True)  # Mock WAL CLI availability
 @patch("ipfs_kit_py.cli.handle_wal_command")  # Mock handle_wal_command function
 @patch("ipfs_kit_py.cli.IPFSSimpleAPI")
-def test_cli_wal_status_command(
-    self, mock_argv, mock_wal_available, mock_handle_wal, mock_api_class
-):
+def test_cli_wal_status_command(self, mock_argv, mock_wal_available, mock_handle_wal, mock_api_class):
     """Test CLI handling of the 'wal status' command."""
     # Mock command-line arguments
     sys.argv = ["ipfs_kit", "wal", "status"]
@@ -42,7 +39,7 @@ def test_cli_wal_status_command(
         "Retrying": 0,
         "Partitions": 3,
         "Archives": 1,
-        "Processing active": True,
+        "Processing active": True
     }
 
     # Capture stdout during execution
@@ -69,7 +66,6 @@ def test_cli_wal_status_command(
         # Reset stdout
         sys.stdout = sys.__stdout__
 
-
 @patch("sys.argv")
 @patch("ipfs_kit_py.cli.IPFSSimpleAPI")
 def test_cli_no_command_help(self, mock_argv, mock_api_class):
@@ -81,10 +77,8 @@ def test_cli_no_command_help(self, mock_argv, mock_api_class):
     with patch("ipfs_kit_py.cli.parse_args") as mock_parse_args:
         # First call returns a namespace with no command
         mock_parse_args.side_effect = [
-            argparse.Namespace(
-                command=None, verbose=False, param=[], format="text", no_color=False, config=None
-            ),
-            None,  # Second call (with --help) doesn't need to return anything
+            argparse.Namespace(command=None, verbose=False, param=[], format="text", no_color=False, config=None),
+            None  # Second call (with --help) doesn't need to return anything
         ]
 
         # Run the CLI
@@ -96,24 +90,14 @@ def test_cli_no_command_help(self, mock_argv, mock_api_class):
         # Check the exit code
         self.assertEqual(exit_code, 0)
 
-
 @patch("sys.argv")
 @patch("ipfs_kit_py.cli.IPFSSimpleAPI")
 def test_cli_key_value_parsing(self, mock_argv, mock_api_class):
     """Test CLI parsing of key-value parameters."""
     # This tests the parse_key_value function indirectly
-    sys.argv = [
-        "ipfs_kit",
-        "--param",
-        "string_value=text",
-        "--param",
-        "number=42",
-        "--param",
-        "boolean=true",
-        "--param",
-        'json_value={"key":"value"}',
-        "version",
-    ]
+    sys.argv = ["ipfs_kit", "--param", "string_value=text", "--param", "number=42", 
+               "--param", "boolean=true", "--param", "json_value={\"key\":\"value\"}", 
+               "version"]
 
     # Mock version function
     with patch("importlib.metadata.version", return_value="0.1.1"):
@@ -126,7 +110,6 @@ def test_cli_key_value_parsing(self, mock_argv, mock_api_class):
         # Testing parse_key_value function effects would require checking the kwargs
         # that were passed to the run_command function, which is not easily accessible
         # in this test. The functionality is tested indirectly in test_cli_with_additional_params.
-
 
 @patch("sys.argv")
 @patch("ipfs_kit_py.cli.IPFSSimpleAPI")
@@ -147,7 +130,6 @@ def test_cli_with_verbose_flag(self, mock_argv, mock_api_class):
 
             # Verify setup_logging was called with verbose=True
             mock_setup_logging.assert_called_once_with(True)
-
 
 @patch("sys.argv")
 @patch("ipfs_kit_py.cli.IPFSSimpleAPI")
@@ -173,7 +155,6 @@ def test_cli_with_no_color_flag(self, mock_argv, mock_api_class):
             args, kwargs = mock_format_output.call_args
             self.assertTrue(kwargs["no_color"])
 
-
 @patch("sys.argv")
 @patch("ipfs_kit_py.cli.IPFSSimpleAPI")
 def test_cli_error_handling_validation_error(self, mock_argv, mock_api_class):
@@ -184,7 +165,7 @@ def test_cli_error_handling_validation_error(self, mock_argv, mock_api_class):
     # Mock API instance
     mock_instance = MagicMock()
     mock_api_class.return_value = mock_instance
-
+    
     # Mock validation function to raise validation error
     with patch("ipfs_kit_py.cli.validate_cid", return_value=False):
         # Capture stderr during execution
@@ -206,7 +187,6 @@ def test_cli_error_handling_validation_error(self, mock_argv, mock_api_class):
             # Reset stderr
             sys.stderr = sys.__stderr__
 
-
 @patch("sys.argv")
 @patch("ipfs_kit_py.cli.WAL_CLI_AVAILABLE", True)
 @patch("ipfs_kit_py.cli.IPFSSimpleAPI")
@@ -223,7 +203,7 @@ def test_cli_wal_list_command(self, mock_argv, mock_wal_available, mock_api_clas
         "operations": [
             {"id": "op1", "type": "add", "status": "pending", "backend": "ipfs"},
             {"id": "op2", "type": "pin", "status": "pending", "backend": "ipfs"},
-        ],
+        ]
     }
     mock_api_class.return_value = mock_instance
 
@@ -254,7 +234,6 @@ def test_cli_wal_list_command(self, mock_argv, mock_wal_available, mock_api_clas
         finally:
             # Reset stdout
             sys.stdout = sys.__stdout__
-
 
 @patch("sys.argv")
 def test_cli_version_ipfs_version_error(self, mock_argv):

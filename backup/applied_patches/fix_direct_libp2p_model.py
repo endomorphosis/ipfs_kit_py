@@ -17,7 +17,6 @@ import sys
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 def apply_direct_fixes():
     """Apply fixes directly to the libp2p_model.py file."""
     try:
@@ -30,62 +29,44 @@ def apply_direct_fixes():
         logger.info(f"Applying fixes directly to {file_path}")
 
         # Read the current file content
-        with open(file_path, "r") as f:
+        with open(file_path, 'r') as f:
             content = f.read()
 
         # Fix for async is_available method
         logger.info("Fixing async is_available method...")
         content = content.replace(
             "async def is_available(self) -> bool:\n"
-            '        """\n'
+            "        \"\"\"\n"
             "        Async version of is_available for use with async controllers.\n"
             "        \n"
             "        Returns:\n"
             "            bool: True if libp2p is available, False otherwise\n"
-            '        """\n'
+            "        \"\"\"\n"
             "        # Use anyio to run the synchronous version in a thread\n"
             "        import anyio\n"
             "        return await anyio.to_thread.run_sync(LibP2PModel._is_available_sync, self)",
+
             "async def is_available(self) -> bool:\n"
-            '        """\n'
+            "        \"\"\"\n"
             "        Async version of is_available for use with async controllers.\n"
             "        \n"
             "        Returns:\n"
             "            bool: True if libp2p is available, False otherwise\n"
-            '        """\n'
+            "        \"\"\"\n"
             "        # Use anyio to run the synchronous version in a thread\n"
             "        import anyio\n"
-            "        return await anyio.to_thread.run_sync(lambda: self._is_available_sync())",
+            "        return await anyio.to_thread.run_sync(lambda: self._is_available_sync())"
         )
 
         # Fix for all other async methods
         for method_name in [
-            "get_health",
-            "discover_peers",
-            "connect_peer",
-            "disconnect_peer",
-            "find_content",
-            "retrieve_content",
-            "get_content",
-            "announce_content",
-            "get_connected_peers",
-            "get_peer_info",
-            "reset",
-            "start",
-            "stop",
-            "dht_find_peer",
-            "dht_provide",
-            "dht_find_providers",
-            "pubsub_publish",
-            "pubsub_subscribe",
-            "pubsub_unsubscribe",
-            "pubsub_get_topics",
-            "pubsub_get_peers",
-            "list_message_handlers",
-            "publish_message",
-            "subscribe_topic",
-            "unsubscribe_topic",
-            "peer_info",
+            'get_health', 'discover_peers', 'connect_peer', 'disconnect_peer',
+            'find_content', 'retrieve_content', 'get_content', 'announce_content',
+            'get_connected_peers', 'get_peer_info', 'reset', 'start', 'stop',
+            'dht_find_peer', 'dht_provide', 'dht_find_providers',
+            'pubsub_publish', 'pubsub_subscribe', 'pubsub_unsubscribe',
+            'pubsub_get_topics', 'pubsub_get_peers', 'list_message_handlers',
+            'publish_message', 'subscribe_topic', 'unsubscribe_topic', 'peer_info'
         ]:
             logger.info(f"Fixing async {method_name} method...")
 
@@ -149,11 +130,11 @@ def apply_direct_fixes():
             # Add after class definition
             content = content.replace(
                 "class LibP2PModel:",
-                "class LibP2PModel:\n    # Class logger\n    logger = logging.getLogger(__name__)",
+                "class LibP2PModel:\n    # Class logger\n    logger = logging.getLogger(__name__)"
             )
 
         # Write the updated content back to the file
-        with open(file_path, "w") as f:
+        with open(file_path, 'w') as f:
             f.write(content)
 
         logger.info("Fixes applied successfully to LibP2PModel class!")
@@ -162,7 +143,6 @@ def apply_direct_fixes():
     except Exception as e:
         logger.error(f"Error applying direct fixes: {e}")
         return False
-
 
 if __name__ == "__main__":
     success = apply_direct_fixes()

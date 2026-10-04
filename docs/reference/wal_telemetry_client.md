@@ -32,14 +32,18 @@ print(f"Success rate: {metrics['success_rate']['value'] * 100:.2f}%")
 
 # Get specific metrics with filtering
 latency_metrics = client.get_metrics(
-    metric_type=TelemetryMetricType.OPERATION_LATENCY, operation_type="append"
+    metric_type=TelemetryMetricType.OPERATION_LATENCY,
+    operation_type="append"
 )
 
 # Generate performance report
 report = client.generate_report(open_browser=True)
 
 # Get visualization
-client.get_visualization(metric_type=TelemetryMetricType.THROUGHPUT, open_browser=True)
+client.get_visualization(
+    metric_type=TelemetryMetricType.THROUGHPUT,
+    open_browser=True
+)
 ```
 
 ## API Reference
@@ -49,9 +53,9 @@ client.get_visualization(metric_type=TelemetryMetricType.THROUGHPUT, open_browse
 ```python
 client = WALTelemetryClient(
     base_url="http://localhost:8000",  # Base URL for API server
-    api_key=None,  # Optional API key for authentication
-    timeout=30,  # Timeout in seconds for requests
-    verify_ssl=True,  # Whether to verify SSL certificates
+    api_key=None,                      # Optional API key for authentication
+    timeout=30,                        # Timeout in seconds for requests
+    verify_ssl=True                    # Whether to verify SSL certificates
 )
 ```
 
@@ -64,11 +68,11 @@ Retrieve telemetry metrics with optional filtering.
 ```python
 metrics = client.get_metrics(
     metric_type="operation_latency",  # Type of metrics to retrieve
-    operation_type="append",  # Filter by operation type
-    backend="json",  # Filter by backend type
-    status="success",  # Filter by operation status
-    time_range=(start_time, end_time),  # Tuple of (start_time, end_time)
-    aggregation="average",  # Type of aggregation to apply
+    operation_type="append",          # Filter by operation type
+    backend="json",                   # Filter by backend type
+    status="success",                 # Filter by operation status
+    time_range=(start_time, end_time), # Tuple of (start_time, end_time)
+    aggregation="average"             # Type of aggregation to apply
 )
 ```
 
@@ -86,9 +90,9 @@ Generate a comprehensive performance report.
 
 ```python
 report = client.generate_report(
-    start_time=None,  # Start time for time range (Unix timestamp)
-    end_time=None,  # End time for time range (Unix timestamp)
-    open_browser=False,  # Whether to open the report in a browser
+    start_time=None,     # Start time for time range (Unix timestamp)
+    end_time=None,       # End time for time range (Unix timestamp)
+    open_browser=False   # Whether to open the report in a browser
 )
 ```
 
@@ -100,7 +104,7 @@ Retrieve a file from a generated report.
 file = client.get_report_file(
     report_id="report_123",  # ID of the report from generate_report()
     file_name="index.html",  # Name of the file to retrieve
-    save_path="report.html",  # Path to save the file (optional)
+    save_path="report.html"  # Path to save the file (optional)
 )
 ```
 
@@ -111,14 +115,14 @@ Generate a visualization for a specific metric type.
 ```python
 viz = client.get_visualization(
     metric_type=TelemetryMetricType.OPERATION_LATENCY,  # Type of metrics to visualize
-    operation_type="append",  # Filter by operation type
-    backend="json",  # Filter by backend type
-    status="success",  # Filter by operation status
-    time_range=(start_time, end_time),  # Tuple of (start_time, end_time)
-    width=12,  # Chart width in inches
-    height=8,  # Chart height in inches
-    save_path="latency.png",  # Path to save the visualization
-    open_browser=False,  # Whether to open in browser
+    operation_type="append",                            # Filter by operation type
+    backend="json",                                     # Filter by backend type
+    status="success",                                   # Filter by operation status
+    time_range=(start_time, end_time),                  # Tuple of (start_time, end_time)
+    width=12,                                           # Chart width in inches
+    height=8,                                           # Chart height in inches
+    save_path="latency.png",                            # Path to save the visualization
+    open_browser=False                                  # Whether to open in browser
 )
 ```
 
@@ -136,12 +140,12 @@ Update the telemetry configuration.
 
 ```python
 result = client.update_config(
-    enabled=True,  # Whether telemetry is enabled
+    enabled=True,                     # Whether telemetry is enabled
     metrics_path="/path/to/metrics",  # Path for metrics storage
-    retention_days=30,  # Number of days to retain metrics
-    sampling_interval=60,  # Interval between samples in seconds
-    enable_detailed_timing=True,  # Whether to collect detailed timing
-    operation_hooks=True,  # Whether to install operation hooks
+    retention_days=30,                # Number of days to retain metrics
+    sampling_interval=60,             # Interval between samples in seconds
+    enable_detailed_timing=True,      # Whether to collect detailed timing
+    operation_hooks=True              # Whether to install operation hooks
 )
 ```
 
@@ -154,12 +158,12 @@ Get metrics for multiple time periods to create a time series.
 ```python
 time_series = client.get_metrics_over_time(
     metric_type=TelemetryMetricType.OPERATION_LATENCY,  # Type of metrics to retrieve
-    operation_type="append",  # Filter by operation type
-    backend="json",  # Filter by backend type
-    status="success",  # Filter by operation status
-    start_time=None,  # Start time (defaults to 24h ago)
-    end_time=None,  # End time (defaults to now)
-    interval="hour",  # Time interval ('hour', 'day', 'week')
+    operation_type="append",                            # Filter by operation type
+    backend="json",                                     # Filter by backend type
+    status="success",                                   # Filter by operation status
+    start_time=None,                                    # Start time (defaults to 24h ago)
+    end_time=None,                                      # End time (defaults to now)
+    interval="hour"                                     # Time interval ('hour', 'day', 'week')
 )
 ```
 
@@ -172,9 +176,12 @@ def print_metrics(metrics, iteration):
     """Print metrics as they arrive."""
     print(f"Iteration {iteration}: Latency = {metrics['operation_latency']['average']} ms")
 
-
 # Monitor for 60 seconds with updates every 5 seconds
-client.monitor_realtime(callback=print_metrics, interval=5, duration=60)
+client.monitor_realtime(
+    callback=print_metrics,
+    interval=5,
+    duration=60
+)
 ```
 
 ## Metric Types

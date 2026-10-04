@@ -10,7 +10,9 @@ class State(Generic[T]):
     buffer: BufferView
     chunks: Sequence[Chunk]
 
-    def __init__(self, chunker: Chunker[T], buffer: BufferView, chunks: Sequence[Chunk]) -> None:
+    def __init__(
+        self, chunker: Chunker[T], buffer: BufferView, chunks: Sequence[Chunk]
+    ) -> None:
         self.buffer = buffer
         self.chunker = chunker
         self.chunks = chunks

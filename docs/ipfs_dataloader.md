@@ -36,13 +36,15 @@ pip install ipfs_kit_py[full]
 from ipfs_kit_py.ipfs_kit import ipfs_kit
 
 # Initialize IPFS Kit with AI/ML integration enabled
-kit = ipfs_kit(metadata={"enable_ai_ml": True})
+kit = ipfs_kit(
+    metadata={"enable_ai_ml": True}
+)
 
 # Get a data loader
 loader = kit.get_data_loader(
     batch_size=32,  # Number of samples per batch
-    shuffle=True,  # Shuffle samples during iteration
-    prefetch=2,  # Number of batches to prefetch
+    shuffle=True,   # Shuffle samples during iteration
+    prefetch=2      # Number of batches to prefetch
 )
 
 # Load a dataset by CID
@@ -51,7 +53,7 @@ if result["success"]:
     print(f"Loaded dataset with {loader.total_samples} samples")
 else:
     print(f"Failed to load dataset: {result.get('error')}")
-
+    
 # Iterate through batches
 for batch in loader:
     # Process each batch
@@ -270,14 +272,16 @@ tf_dataset = loader.to_tensorflow()
 # Use in TensorFlow training
 import tensorflow as tf
 
-model = tf.keras.Sequential(
-    [
-        tf.keras.layers.Dense(128, activation="relu", input_shape=(input_dim,)),
-        tf.keras.layers.Dense(output_dim, activation="softmax"),
-    ]
-)
+model = tf.keras.Sequential([
+    tf.keras.layers.Dense(128, activation='relu', input_shape=(input_dim,)),
+    tf.keras.layers.Dense(output_dim, activation='softmax')
+])
 
-model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+model.compile(
+    optimizer='adam',
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
 
 # Train using the dataset
 model.fit(tf_dataset, epochs=num_epochs)
@@ -298,12 +302,12 @@ def to_tensorflow(self):
         return {
             "success": False,
             "error": "TensorFlow is not available. Please install with 'pip install tensorflow'",
-            "simulation_note": "This is a simulated error, no Dataset was created",
+            "simulation_note": "This is a simulated error, no Dataset was created"
         }
-
+        
     try:
         import tensorflow as tf
-
+        
         # Define generator function
         def generator():
             for batch in self:
@@ -313,17 +317,17 @@ def to_tensorflow(self):
                         yield (sample["features"], sample["labels"])
                     else:
                         yield sample
-
+        
         # Infer output types and shapes by examining first element
         if self.total_samples > 0:
             first_batch = next(iter(self))
             first_sample = first_batch[0]
-
+            
             if "features" in first_sample and "labels" in first_sample:
                 output_types = (tf.float32, tf.int32)
                 output_shapes = (
-                    tf.TensorShape([len(first_sample["features"])]),
-                    tf.TensorShape([]),
+                    tf.TensorShape([len(first_sample["features"])]), 
+                    tf.TensorShape([])
                 )
             else:
                 # Default to flexible types
@@ -333,25 +337,27 @@ def to_tensorflow(self):
             # Default if dataset is empty
             output_types = tf.float32
             output_shapes = tf.TensorShape([None])
-
+        
         # Create dataset
         dataset = tf.data.Dataset.from_generator(
-            generator, output_types=output_types, output_shapes=output_shapes
+            generator,
+            output_types=output_types,
+            output_shapes=output_shapes
         )
-
+        
         # Apply batching
         dataset = dataset.batch(self.batch_size)
-
+        
         # Apply prefetching (TF's own prefetching)
         dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
-
+        
         return dataset
-
+        
     except Exception as e:
         return {
             "success": False,
             "error": str(e),
-            "message": "Failed to convert to TensorFlow Dataset",
+            "message": "Failed to convert to TensorFlow Dataset"
         }
 ```
 
@@ -369,31 +375,33 @@ from ipfs_kit_py.ipfs_kit import ipfs_kit
 # Initialize kit
 kit = ipfs_kit()
 
-
 # Create a dataset with sample references
 def create_reference_dataset(num_samples=100):
     # First create samples
     sample_cids = []
-
+    
     for i in range(num_samples):
         # Create a sample with random features
-        sample = {"features": np.random.rand(10).tolist(), "labels": np.random.randint(0, 2)}
-
+        sample = {
+            "features": np.random.rand(10).tolist(),
+            "labels": np.random.randint(0, 2)
+        }
+        
         # Add to IPFS
         result = kit.ipfs.dag_put(sample)
         if result["success"]:
             sample_cid = result["cid"]
             sample_cids.append(sample_cid)
-
+    
     # Create dataset metadata
     dataset = {
         "name": "random_dataset",
         "description": "Randomly generated dataset for testing",
         "version": "1.0.0",
         "created_at": time.time(),
-        "samples": sample_cids,
+        "samples": sample_cids
     }
-
+    
     # Add dataset to IPFS
     result = kit.ipfs.dag_put(dataset)
     if result["success"]:
@@ -415,38 +423,38 @@ def process_large_dataset(dataset_cid, chunk_size=1000):
     # Initialize kit and data loader
     kit = ipfs_kit()
     loader = kit.get_data_loader(batch_size=32)
-
+    
     # Get dataset metadata
     result = kit.ipfs.dag_get(dataset_cid)
     if not result["success"]:
         print(f"Failed to get dataset: {result.get('error')}")
         return
-
+        
     metadata = result["object"]
     total_samples = len(metadata.get("samples", []))
-
+    
     # Process in chunks
     for chunk_start in range(0, total_samples, chunk_size):
         chunk_end = min(chunk_start + chunk_size, total_samples)
-        print(f"Processing samples {chunk_start} to {chunk_end - 1}")
-
+        print(f"Processing samples {chunk_start} to {chunk_end-1}")
+        
         # Create a temporary dataset with just this chunk
         chunk_dataset = {
             "name": metadata.get("name", "unknown") + f"_chunk_{chunk_start}",
-            "samples": metadata["samples"][chunk_start:chunk_end],
+            "samples": metadata["samples"][chunk_start:chunk_end]
         }
-
+        
         # Add chunk dataset to IPFS
         chunk_result = kit.ipfs.dag_put(chunk_dataset)
         if not chunk_result["success"]:
             print(f"Failed to create chunk dataset: {chunk_result.get('error')}")
             continue
-
+            
         chunk_cid = chunk_result["cid"]
-
+        
         # Load this chunk
         loader.load_dataset(chunk_cid)
-
+        
         # Process the chunk
         for batch in loader:
             # Your processing code here
@@ -463,44 +471,53 @@ Configure for distributed training across a cluster:
 # Master node: Create and distribute dataset
 def master_distribute_dataset(dataset_cid):
     kit = ipfs_kit(role="master")
-
+    
     # Make sure dataset is pinned
     kit.ipfs.pin_add(dataset_cid)
-
+    
     # Create training task for worker nodes
     task_config = {
         "operation": "training",
         "dataset_cid": dataset_cid,
-        "hyperparameters": {"learning_rate": 0.001, "batch_size": 32, "epochs": 5},
+        "hyperparameters": {
+            "learning_rate": 0.001,
+            "batch_size": 32,
+            "epochs": 5
+        }
     }
-
+    
     # Publish task to workers
-    kit.ipfs.pubsub_publish(topic="training_tasks", message=json.dumps(task_config))
-
+    kit.ipfs.pubsub_publish(
+        topic="training_tasks",
+        message=json.dumps(task_config)
+    )
+    
     return "Task published to workers"
-
 
 # Worker node: Receive dataset and train
 def worker_train(pubsub_message):
     kit = ipfs_kit(role="worker")
-
+    
     # Parse task configuration
     task = json.loads(pubsub_message["data"])
     dataset_cid = task["dataset_cid"]
     hyperparams = task["hyperparameters"]
-
+    
     # Get data loader with batch size from task
-    loader = kit.get_data_loader(batch_size=hyperparams["batch_size"], shuffle=True)
-
+    loader = kit.get_data_loader(
+        batch_size=hyperparams["batch_size"],
+        shuffle=True
+    )
+    
     # Load dataset
     loader.load_dataset(dataset_cid)
-
+    
     # Create PyTorch loader
     pytorch_loader = loader.to_pytorch()
-
+    
     # Train model (simplified)
     # ... your training code ...
-
+    
     # Save and publish model back to master
     # ... your model saving code ...
 ```
@@ -693,7 +710,12 @@ from ipfs_kit_py.ai_ml_visualization import create_visualization
 metrics = AIMLMetricsCollector()
 
 # Configure data loader to use metrics
-loader = kit.get_data_loader(batch_size=32, shuffle=True, prefetch=2, metrics=metrics)
+loader = kit.get_data_loader(
+    batch_size=32, 
+    shuffle=True,
+    prefetch=2,
+    metrics=metrics
+)
 
 # Load and process dataset
 loader.load_dataset("QmYourDatasetCID")
@@ -705,10 +727,15 @@ for batch_idx, batch in enumerate(loader):
 viz = create_visualization(metrics, interactive=True)
 
 # Visualize dataset loading performance
-viz.plot_dataset_load_times(figsize=(10, 6), show_plot=True)
+viz.plot_dataset_load_times(
+    figsize=(10, 6),
+    show_plot=True
+)
 
 # Generate a comprehensive dashboard including dataset metrics
-viz.plot_comprehensive_dashboard(output_file="dataloader_performance.html")
+viz.plot_comprehensive_dashboard(
+    output_file="dataloader_performance.html"
+)
 ```
 
 This visualization provides insights into:
@@ -742,24 +769,23 @@ The IPFSDataLoader provides specialized methods for handling different data moda
 def fetch_image(self, image_cid, transform_to_tensor=False, image_transforms=None):
     """
     Fetch an image from IPFS and optionally convert to a tensor.
-
+    
     Args:
         image_cid: CID of the image in IPFS
         transform_to_tensor: Whether to convert to a tensor (requires PyTorch)
         image_transforms: Optional transforms to apply (torchvision.transforms)
-
+        
     Returns:
         PIL Image or tensor depending on transform_to_tensor
     """
     # Fetch image data from IPFS
     image_data = self.ipfs.cat(image_cid)
-
+    
     # Convert to PIL Image
     from PIL import Image
     import io
-
     image = Image.open(io.BytesIO(image_data))
-
+    
     # Apply transforms if requested
     if transform_to_tensor:
         if image_transforms is not None:
@@ -769,10 +795,9 @@ def fetch_image(self, image_cid, transform_to_tensor=False, image_transforms=Non
             # Default transformation to tensor
             import torch
             from torchvision import transforms
-
             to_tensor = transforms.ToTensor()
             return to_tensor(image)
-
+    
     return image
 ```
 
@@ -809,35 +834,36 @@ def process_text(self, text, tokenizer=None, max_length=None):
 def process_audio(self, audio_cid, sample_rate=None, transform_to_tensor=False):
     """
     Process audio data from IPFS.
-
+    
     Args:
         audio_cid: CID of the audio file
         sample_rate: Target sample rate (None for no resampling)
         transform_to_tensor: Whether to convert to tensor
-
+        
     Returns:
         Audio data in the requested format
     """
     # Fetch audio data
     audio_data = self.ipfs.cat(audio_cid)
-
+    
     # Process with torchaudio
     if transform_to_tensor:
         import io
         import torchaudio
-
+        
         audio_file = io.BytesIO(audio_data)
         waveform, original_sample_rate = torchaudio.load(audio_file)
-
+        
         # Resample if needed
         if sample_rate is not None and sample_rate != original_sample_rate:
             resampler = torchaudio.transforms.Resample(
-                orig_freq=original_sample_rate, new_freq=sample_rate
+                orig_freq=original_sample_rate,
+                new_freq=sample_rate
             )
             waveform = resampler(waveform)
-
+            
         return waveform
-
+    
     # Return raw bytes if no tensor conversion
     return audio_data
 ```
@@ -1147,20 +1173,22 @@ class AIMLMetricsCollector:
 ```python
 import contextlib
 
-
 @contextlib.contextmanager
 def ipfs_data_loader(kit, batch_size=32, shuffle=True, prefetch=2):
     """Context manager for proper resource handling with IPFSDataLoader."""
     # Create loader
-    loader = kit.get_data_loader(batch_size=batch_size, shuffle=shuffle, prefetch=prefetch)
-
+    loader = kit.get_data_loader(
+        batch_size=batch_size,
+        shuffle=shuffle,
+        prefetch=prefetch
+    )
+    
     try:
         # Yield the loader for use
         yield loader
     finally:
         # Ensure resources are properly cleaned up
         loader.close()
-
 
 # Usage
 with ipfs_data_loader(kit, batch_size=64) as loader:

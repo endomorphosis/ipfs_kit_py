@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ipfs-kit.dev/schemas/iroh-ipfs-sync-mapping-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "revision", "mappings"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"const": "ipfs-kit/iroh-ipfs-sync-mappings"},
+    "revision": {"type": "integer", "minimum": 0},
+    "mappings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["logical_path", "cid", "iroh_hash", "local_path", "content_sha256", "size_bytes", "deleted", "updated_at", "lineage"],
+        "properties": {
+          "logical_path": {"type": "string", "minLength": 1},
+          "cid": {"type": ["string", "null"]},
+          "iroh_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+          "local_path": {"type": ["string", "null"]},
+          "content_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+          "size_bytes": {"type": ["integer", "null"], "minimum": 0},
+          "deleted": {"type": "boolean"},
+          "updated_at": {"type": "string", "format": "date-time"},
+          "lineage": {"type": "array", "items": {"type": "object"}}
+        }
+      }
+    }
+  }
+}

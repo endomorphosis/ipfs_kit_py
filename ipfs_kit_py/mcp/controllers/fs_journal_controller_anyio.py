@@ -6,11 +6,8 @@ from typing import Dict, Any, Optional
 
 import sys
 import os
-
 # Add the parent directory to sys.path to allow importing mcp_error_handling
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-)
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 import mcp_error_handling
 
 
@@ -138,7 +135,6 @@ class TransactionListRequest(BaseModel):
 
 class TransactionRequest(BaseModel):
     """Request model for creating a journal transaction."""
-
     operation_type: str = Field(..., description="Type of operation (create, delete, etc.)")
     path: str = Field(..., description="Filesystem path for the operation")
     data: Optional[Dict[str, Any]] = Field(None, description="Operation-specific data")
@@ -173,7 +169,6 @@ class JournalDashboardRequest(BaseModel):
 
 class FsJournalControllerAnyIO:
     """Controller for Filesystem Journal operations with AnyIO support."""
-
     def __init__(self, ipfs_model):
         """
         Initialize the Filesystem Journal controller.
@@ -379,11 +374,11 @@ class FsJournalControllerAnyIO:
 
             if not hasattr(api, "enable_filesystem_journaling"):
                 mcp_error_handling.raise_http_exception(
-                    code="EXTENSION_NOT_AVAILABLE",
-                    message_override="Filesystem journaling is not supported in this version",
-                    endpoint="/fs-journal",
-                    doc_category="extensions",
-                )
+        code="EXTENSION_NOT_AVAILABLE",
+        message_override="Filesystem journaling is not supported in this version",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             # Convert request to kwargs
             options = {}
@@ -415,11 +410,11 @@ class FsJournalControllerAnyIO:
         except Exception as e:
             logger.error(f"Error enabling filesystem journaling: {str(e)}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Failed to enable filesystem journaling: {str(e)}",
-                endpoint="/fs-journal",
-                doc_category="extensions",
-            )
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to enable filesystem journaling: {str(e)}",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
     async def get_status(self):
         """
@@ -432,48 +427,43 @@ class FsJournalControllerAnyIO:
             # Try to use fast index first for optimal performance
             try:
                 from fs_journal_fast_index import FastFSJournalReader
-
                 reader = FastFSJournalReader()
                 status = await anyio.to_thread.run_sync(reader.get_status)
-
-                if "error" not in status:
+                
+                if 'error' not in status:
                     # Transform fast index response to match expected format
                     return {
                         "success": True,
                         "enabled": True,
-                        "journal_path": status.get("base_path", "unknown"),
+                        "journal_path": status.get('base_path', 'unknown'),
                         "checkpoint_interval": 50,  # Default value
                         "wal_enabled": True,  # Assume enabled if fast index is available
-                        "transaction_count": status.get("total_operations", 0),
+                        "transaction_count": status.get('total_operations', 0),
                         "last_checkpoint": "fast_index",
                         "filesystem_state": {
-                            "directories": status.get("virtual_filesystem", {})
-                            .get("directory", {})
-                            .get("count", 0),
-                            "files": status.get("virtual_filesystem", {})
-                            .get("file", {})
-                            .get("count", 0),
+                            "directories": status.get('virtual_filesystem', {}).get('directory', {}).get('count', 0),
+                            "files": status.get('virtual_filesystem', {}).get('file', {}).get('count', 0),
                             "mounts": 0,  # Not tracked in fast index
                         },
                         "fast_index": True,
-                        "last_updated": status.get("last_updated", "unknown"),
+                        "last_updated": status.get('last_updated', 'unknown')
                     }
             except ImportError:
                 # Fast index not available, fall back to regular method
                 pass
             except Exception as e:
                 logger.warning(f"Fast index error, falling back to regular method: {e}")
-
+            
             # Fallback to original method if fast index is not available
             api = self.ipfs_model.ipfs_kit
 
             if not hasattr(api, "filesystem_journal"):
                 mcp_error_handling.raise_http_exception(
-                    code="EXTENSION_NOT_AVAILABLE",
-                    message_override="Filesystem journaling is not enabled",
-                    endpoint="/fs-journal",
-                    doc_category="extensions",
-                )
+        code="EXTENSION_NOT_AVAILABLE",
+        message_override="Filesystem journaling is not enabled",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             journal = api.filesystem_journal
 
@@ -499,7 +489,7 @@ class FsJournalControllerAnyIO:
                     "files": len(file_list),
                     "mounts": len(mount_points),
                 },
-                "fast_index": False,
+                "fast_index": False
             }
 
         except HTTPException as e:
@@ -507,11 +497,11 @@ class FsJournalControllerAnyIO:
         except Exception as e:
             logger.error(f"Error getting filesystem journal status: {str(e)}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Failed to get filesystem journal status: {str(e)}",
-                endpoint="/fs-journal",
-                doc_category="extensions",
-            )
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to get filesystem journal status: {str(e)}",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
     async def list_transactions(
         self,
@@ -532,33 +522,33 @@ class FsJournalControllerAnyIO:
             # Try fast index first
             try:
                 from ipfs_kit_py.fs_journal.fast_fs_journal_reader import FastFSJournalReader
-
+                
                 fast_reader = FastFSJournalReader()
                 status_filter = status.upper() if status != "all" else None
-
+                
                 transactions = await anyio.to_thread.run_sync(
                     fast_reader.list_transactions, status=status_filter, limit=limit
                 )
-
+                
                 return {
                     "success": True,
                     "transactions": transactions,
                     "count": len(transactions),
                     "filter": status,
-                    "fast_index": True,
+                    "fast_index": True
                 }
-
+            
             except (ImportError, Exception):
                 # Fall back to original implementation
                 api = self.ipfs_model.ipfs_kit
 
                 if not hasattr(api, "filesystem_journal"):
                     mcp_error_handling.raise_http_exception(
-                        code="EXTENSION_NOT_AVAILABLE",
-                        message_override="Filesystem journaling is not enabled",
-                        endpoint="/fs-journal",
-                        doc_category="extensions",
-                    )
+            code="EXTENSION_NOT_AVAILABLE",
+            message_override="Filesystem journaling is not enabled",
+            endpoint="/fs-journal",
+            doc_category="extensions"
+        )
 
                 journal = api.filesystem_journal
                 status_filter = status.upper() if status != "all" else None
@@ -573,7 +563,7 @@ class FsJournalControllerAnyIO:
                     "transactions": transactions,
                     "count": len(transactions),
                     "filter": status,
-                    "fast_index": False,
+                    "fast_index": False
                 }
 
         except HTTPException as e:
@@ -581,11 +571,11 @@ class FsJournalControllerAnyIO:
         except Exception as e:
             logger.error(f"Error listing transactions: {str(e)}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Failed to list transactions: {str(e)}",
-                endpoint="/fs-journal",
-                doc_category="extensions",
-            )
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to list transactions: {str(e)}",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
     async def add_transaction(self, request: TransactionRequest):
         """
@@ -602,11 +592,11 @@ class FsJournalControllerAnyIO:
 
             if not hasattr(api, "filesystem_journal"):
                 mcp_error_handling.raise_http_exception(
-                    code="EXTENSION_NOT_AVAILABLE",
-                    message_override="Filesystem journaling is not enabled",
-                    endpoint="/fs-journal",
-                    doc_category="extensions",
-                )
+        code="EXTENSION_NOT_AVAILABLE",
+        message_override="Filesystem journaling is not enabled",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             journal = api.filesystem_journal
 
@@ -627,11 +617,11 @@ class FsJournalControllerAnyIO:
 
                 if not found_match:
                     mcp_error_handling.raise_http_exception(
-                        code="INVALID_REQUEST",
-                        message_override=f"Invalid operation type: {request.operation_type}. Must be one of: {', '.join(valid_operations)}",
-                        endpoint="/fs-journal",
-                        doc_category="extensions",
-                    )
+        code="INVALID_REQUEST",
+        message_override=f"Invalid operation type: {request.operation_type}. Must be one of: {', '.join(valid_operations)}",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             # Use anyio for these potentially blocking operations
             async with anyio.create_task_group() as tg:
@@ -682,11 +672,11 @@ class FsJournalControllerAnyIO:
         except Exception as e:
             logger.error(f"Error adding transaction: {str(e)}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Failed to add transaction: {str(e)}",
-                endpoint="/fs-journal",
-                doc_category="extensions",
-            )
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to add transaction: {str(e)}",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
     async def create_checkpoint(self):
         """
@@ -700,11 +690,11 @@ class FsJournalControllerAnyIO:
 
             if not hasattr(api, "filesystem_journal"):
                 mcp_error_handling.raise_http_exception(
-                    code="EXTENSION_NOT_AVAILABLE",
-                    message_override="Filesystem journaling is not enabled",
-                    endpoint="/fs-journal",
-                    doc_category="extensions",
-                )
+        code="EXTENSION_NOT_AVAILABLE",
+        message_override="Filesystem journaling is not enabled",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             journal = api.filesystem_journal
             checkpoint_id = await anyio.to_thread.run_sync(journal.create_checkpoint)
@@ -720,11 +710,11 @@ class FsJournalControllerAnyIO:
         except Exception as e:
             logger.error(f"Error creating checkpoint: {str(e)}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Failed to create checkpoint: {str(e)}",
-                endpoint="/fs-journal",
-                doc_category="extensions",
-            )
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to create checkpoint: {str(e)}",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
     async def recover(self, request: RecoverRequest):
         """
@@ -741,11 +731,11 @@ class FsJournalControllerAnyIO:
 
             if not hasattr(api, "filesystem_journal"):
                 mcp_error_handling.raise_http_exception(
-                    code="EXTENSION_NOT_AVAILABLE",
-                    message_override="Filesystem journaling is not enabled",
-                    endpoint="/fs-journal",
-                    doc_category="extensions",
-                )
+        code="EXTENSION_NOT_AVAILABLE",
+        message_override="Filesystem journaling is not enabled",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             journal = api.filesystem_journal
             result = await anyio.to_thread.run_sync(
@@ -765,11 +755,11 @@ class FsJournalControllerAnyIO:
         except Exception as e:
             logger.error(f"Error recovering filesystem state: {str(e)}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Failed to recover filesystem state: {str(e)}",
-                endpoint="/fs-journal",
-                doc_category="extensions",
-            )
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to recover filesystem state: {str(e)}",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
     async def mount(self, request: MountRequest):
         """
@@ -786,11 +776,11 @@ class FsJournalControllerAnyIO:
 
             if not hasattr(api, "filesystem_journal"):
                 mcp_error_handling.raise_http_exception(
-                    code="EXTENSION_NOT_AVAILABLE",
-                    message_override="Filesystem journaling is not enabled",
-                    endpoint="/fs-journal",
-                    doc_category="extensions",
-                )
+        code="EXTENSION_NOT_AVAILABLE",
+        message_override="Filesystem journaling is not enabled",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             journal = api.filesystem_journal
             result = await anyio.to_thread.run_sync(
@@ -809,11 +799,11 @@ class FsJournalControllerAnyIO:
         except Exception as e:
             logger.error(f"Error mounting CID: {str(e)}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Failed to mount CID: {str(e)}",
-                endpoint="/fs-journal",
-                doc_category="extensions",
-            )
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to mount CID: {str(e)}",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
     async def mkdir(self, request: MkdirRequest):
         """
@@ -830,11 +820,11 @@ class FsJournalControllerAnyIO:
 
             if not hasattr(api, "filesystem_journal"):
                 mcp_error_handling.raise_http_exception(
-                    code="EXTENSION_NOT_AVAILABLE",
-                    message_override="Filesystem journaling is not enabled",
-                    endpoint="/fs-journal",
-                    doc_category="extensions",
-                )
+        code="EXTENSION_NOT_AVAILABLE",
+        message_override="Filesystem journaling is not enabled",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             journal = api.filesystem_journal
             result = await anyio.to_thread.run_sync(
@@ -852,11 +842,11 @@ class FsJournalControllerAnyIO:
         except Exception as e:
             logger.error(f"Error creating directory: {str(e)}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Failed to create directory: {str(e)}",
-                endpoint="/fs-journal",
-                doc_category="extensions",
-            )
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to create directory: {str(e)}",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
     async def write(self, request: WriteRequest):
         """
@@ -873,11 +863,11 @@ class FsJournalControllerAnyIO:
 
             if not hasattr(api, "filesystem_journal"):
                 mcp_error_handling.raise_http_exception(
-                    code="EXTENSION_NOT_AVAILABLE",
-                    message_override="Filesystem journaling is not enabled",
-                    endpoint="/fs-journal",
-                    doc_category="extensions",
-                )
+        code="EXTENSION_NOT_AVAILABLE",
+        message_override="Filesystem journaling is not enabled",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             journal = api.filesystem_journal
 
@@ -894,18 +884,18 @@ class FsJournalControllerAnyIO:
                         content = await f.read()
                 except Exception as e:
                     mcp_error_handling.raise_http_exception(
-                        code="INVALID_REQUEST",
-                        message_override=f"Failed to read content file: {str(e)}",
-                        endpoint="/fs-journal",
-                        doc_category="extensions",
-                    )
+        code="INVALID_REQUEST",
+        message_override=f"Failed to read content file: {str(e)}",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
             else:
                 mcp_error_handling.raise_http_exception(
-                    code="INVALID_REQUEST",
-                    message_override="No content provided",
-                    endpoint="/fs-journal",
-                    doc_category="extensions",
-                )
+        code="INVALID_REQUEST",
+        message_override="No content provided",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             # Write the content
             result = await anyio.to_thread.run_sync(journal.write, request.path, content)
@@ -922,11 +912,11 @@ class FsJournalControllerAnyIO:
         except Exception as e:
             logger.error(f"Error writing to file: {str(e)}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Failed to write to file: {str(e)}",
-                endpoint="/fs-journal",
-                doc_category="extensions",
-            )
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to write to file: {str(e)}",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
     async def read(self, path: str = Query(..., description="Path to read")):
         """
@@ -943,11 +933,11 @@ class FsJournalControllerAnyIO:
 
             if not hasattr(api, "filesystem_journal"):
                 mcp_error_handling.raise_http_exception(
-                    code="EXTENSION_NOT_AVAILABLE",
-                    message_override="Filesystem journaling is not enabled",
-                    endpoint="/fs-journal",
-                    doc_category="extensions",
-                )
+        code="EXTENSION_NOT_AVAILABLE",
+        message_override="Filesystem journaling is not enabled",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             journal = api.filesystem_journal
             content = await anyio.to_thread.run_sync(journal.read, path)
@@ -964,11 +954,11 @@ class FsJournalControllerAnyIO:
         except Exception as e:
             logger.error(f"Error reading file: {str(e)}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Failed to read file: {str(e)}",
-                endpoint="/fs-journal",
-                doc_category="extensions",
-            )
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to read file: {str(e)}",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
     async def remove(self, request: RemoveRequest):
         """
@@ -985,11 +975,11 @@ class FsJournalControllerAnyIO:
 
             if not hasattr(api, "filesystem_journal"):
                 mcp_error_handling.raise_http_exception(
-                    code="EXTENSION_NOT_AVAILABLE",
-                    message_override="Filesystem journaling is not enabled",
-                    endpoint="/fs-journal",
-                    doc_category="extensions",
-                )
+        code="EXTENSION_NOT_AVAILABLE",
+        message_override="Filesystem journaling is not enabled",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             journal = api.filesystem_journal
             result = await anyio.to_thread.run_sync(
@@ -1008,11 +998,11 @@ class FsJournalControllerAnyIO:
         except Exception as e:
             logger.error(f"Error removing file/directory: {str(e)}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Failed to remove file/directory: {str(e)}",
-                endpoint="/fs-journal",
-                doc_category="extensions",
-            )
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to remove file/directory: {str(e)}",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
     async def move(self, request: MoveRequest):
         """
@@ -1029,11 +1019,11 @@ class FsJournalControllerAnyIO:
 
             if not hasattr(api, "filesystem_journal"):
                 mcp_error_handling.raise_http_exception(
-                    code="EXTENSION_NOT_AVAILABLE",
-                    message_override="Filesystem journaling is not enabled",
-                    endpoint="/fs-journal",
-                    doc_category="extensions",
-                )
+        code="EXTENSION_NOT_AVAILABLE",
+        message_override="Filesystem journaling is not enabled",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             journal = api.filesystem_journal
             result = await anyio.to_thread.run_sync(
@@ -1052,11 +1042,11 @@ class FsJournalControllerAnyIO:
         except Exception as e:
             logger.error(f"Error moving file/directory: {str(e)}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Failed to move file/directory: {
-                    str(e, endpoint='/fs-journal', doc_category='extensions')
-                }",
-            )
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to move file/directory: {str(e,
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )}")
 
     async def list_directory(
         self,
@@ -1078,11 +1068,11 @@ class FsJournalControllerAnyIO:
 
             if not hasattr(api, "filesystem_journal"):
                 mcp_error_handling.raise_http_exception(
-                    code="EXTENSION_NOT_AVAILABLE",
-                    message_override="Filesystem journaling is not enabled",
-                    endpoint="/fs-journal",
-                    doc_category="extensions",
-                )
+        code="EXTENSION_NOT_AVAILABLE",
+        message_override="Filesystem journaling is not enabled",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             journal = api.filesystem_journal
             result = await anyio.to_thread.run_sync(
@@ -1096,11 +1086,11 @@ class FsJournalControllerAnyIO:
         except Exception as e:
             logger.error(f"Error listing directory: {str(e)}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Failed to list directory: {
-                    str(e, endpoint='/fs-journal', doc_category='extensions')
-                }",
-            )
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to list directory: {str(e,
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )}")
 
     async def export(self, request: ExportRequest):
         """
@@ -1117,11 +1107,11 @@ class FsJournalControllerAnyIO:
 
             if not hasattr(api, "filesystem_journal"):
                 mcp_error_handling.raise_http_exception(
-                    code="EXTENSION_NOT_AVAILABLE",
-                    message_override="Filesystem journaling is not enabled",
-                    endpoint="/fs-journal",
-                    doc_category="extensions",
-                )
+        code="EXTENSION_NOT_AVAILABLE",
+        message_override="Filesystem journaling is not enabled",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             journal = api.filesystem_journal
             result = await anyio.to_thread.run_sync(journal.export, request.path)
@@ -1138,11 +1128,11 @@ class FsJournalControllerAnyIO:
         except Exception as e:
             logger.error(f"Error exporting filesystem: {str(e)}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Failed to export filesystem: {
-                    str(e, endpoint='/fs-journal', doc_category='extensions')
-                }",
-            )
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to export filesystem: {str(e,
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )}")
 
     async def create_journal_monitor(self, request: JournalMonitorRequest):
         """
@@ -1161,11 +1151,11 @@ class FsJournalControllerAnyIO:
             # Check if the method is available
             if not hasattr(api, "create_journal_monitor"):
                 mcp_error_handling.raise_http_exception(
-                    code="EXTENSION_NOT_AVAILABLE",
-                    message_override="Journal monitoring is not supported in this version",
-                    endpoint="/fs-journal",
-                    doc_category="extensions",
-                )
+        code="EXTENSION_NOT_AVAILABLE",
+        message_override="Journal monitoring is not supported in this version",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             # Convert request to kwargs
             options = {}
@@ -1179,10 +1169,11 @@ class FsJournalControllerAnyIO:
 
             if not result["success"]:
                 mcp_error_handling.raise_http_exception(
-                    code="INTERNAL_ERROR",
-                    message_override=f"Failed to create journal monitor: {
-                        result.get('error', endpoint='/fs-journal', doc_category='extensions')
-                    }",
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to create journal monitor: {result.get('error',
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )}",
                 )
 
             return {
@@ -1196,10 +1187,11 @@ class FsJournalControllerAnyIO:
         except Exception as e:
             logger.error(f"Error creating journal monitor: {str(e)}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Failed to create journal monitor: {
-                    str(e, endpoint='/fs-journal', doc_category='extensions')
-                }",
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to create journal monitor: {str(e,
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )}"
             )
 
     async def get_journal_health_status(self):
@@ -1216,21 +1208,22 @@ class FsJournalControllerAnyIO:
             # Check if the method is available
             if not hasattr(api, "get_journal_health_status"):
                 mcp_error_handling.raise_http_exception(
-                    code="EXTENSION_NOT_AVAILABLE",
-                    message_override="Journal health monitoring is not supported in this version",
-                    endpoint="/fs-journal",
-                    doc_category="extensions",
-                )
+        code="EXTENSION_NOT_AVAILABLE",
+        message_override="Journal health monitoring is not supported in this version",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             # Get health status
             result = await anyio.to_thread.run_sync(api.get_journal_health_status)
 
             if not result["success"]:
                 mcp_error_handling.raise_http_exception(
-                    code="INTERNAL_ERROR",
-                    message_override=f"Failed to get journal health status: {
-                        result.get('error', endpoint='/fs-journal', doc_category='extensions')
-                    }",
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to get journal health status: {result.get('error',
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )}",
                 )
 
             return {
@@ -1246,10 +1239,11 @@ class FsJournalControllerAnyIO:
         except Exception as e:
             logger.error(f"Error getting journal health status: {str(e)}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Failed to get journal health status: {
-                    str(e, endpoint='/fs-journal', doc_category='extensions')
-                }",
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to get journal health status: {str(e,
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )}"
             )
 
     async def create_journal_visualization(self, request: JournalVisualizationRequest):
@@ -1269,11 +1263,11 @@ class FsJournalControllerAnyIO:
             # Check if the method is available
             if not hasattr(api, "create_journal_visualization"):
                 mcp_error_handling.raise_http_exception(
-                    code="EXTENSION_NOT_AVAILABLE",
-                    message_override="Journal visualization is not supported in this version",
-                    endpoint="/fs-journal",
-                    doc_category="extensions",
-                )
+        code="EXTENSION_NOT_AVAILABLE",
+        message_override="Journal visualization is not supported in this version",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             # Convert request to kwargs
             options = {}
@@ -1287,10 +1281,11 @@ class FsJournalControllerAnyIO:
 
             if not result["success"]:
                 mcp_error_handling.raise_http_exception(
-                    code="INTERNAL_ERROR",
-                    message_override=f"Failed to create journal visualization: {
-                        result.get('error', endpoint='/fs-journal', doc_category='extensions')
-                    }",
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to create journal visualization: {result.get('error',
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )}",
                 )
 
             return {
@@ -1304,10 +1299,11 @@ class FsJournalControllerAnyIO:
         except Exception as e:
             logger.error(f"Error creating journal visualization: {str(e)}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Failed to create journal visualization: {
-                    str(e, endpoint='/fs-journal', doc_category='extensions')
-                }",
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to create journal visualization: {str(e,
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )}",
             )
 
     async def generate_journal_dashboard(self, request: JournalDashboardRequest):
@@ -1327,11 +1323,11 @@ class FsJournalControllerAnyIO:
             # Check if the method is available
             if not hasattr(api, "generate_journal_dashboard"):
                 mcp_error_handling.raise_http_exception(
-                    code="EXTENSION_NOT_AVAILABLE",
-                    message_override="Journal dashboard generation is not supported in this version",
-                    endpoint="/fs-journal",
-                    doc_category="extensions",
-                )
+        code="EXTENSION_NOT_AVAILABLE",
+        message_override="Journal dashboard generation is not supported in this version",
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )
 
             # Convert request to kwargs
             options = {}
@@ -1345,10 +1341,11 @@ class FsJournalControllerAnyIO:
 
             if not result["success"]:
                 mcp_error_handling.raise_http_exception(
-                    code="INTERNAL_ERROR",
-                    message_override=f"Failed to generate journal dashboard: {
-                        result.get('error', endpoint='/fs-journal', doc_category='extensions')
-                    }",
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to generate journal dashboard: {result.get('error',
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )}",
                 )
 
             return {
@@ -1363,10 +1360,11 @@ class FsJournalControllerAnyIO:
         except Exception as e:
             logger.error(f"Error generating journal dashboard: {str(e)}")
             mcp_error_handling.raise_http_exception(
-                code="INTERNAL_ERROR",
-                message_override=f"Failed to generate journal dashboard: {
-                    str(e, endpoint='/fs-journal', doc_category='extensions')
-                }",
+        code="INTERNAL_ERROR",
+        message_override=f"Failed to generate journal dashboard: {str(e,
+        endpoint="/fs-journal",
+        doc_category="extensions"
+    )}",
             )
 
     @staticmethod

@@ -6,9 +6,7 @@ from setuptools import setup, find_packages
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:
-        print(
-            "setup-wal-cli.py is a packaging script. Run with a setuptools command (e.g., 'install' or 'sdist')."
-        )
+        print("setup-wal-cli.py is a packaging script. Run with a setuptools command (e.g., 'install' or 'sdist').")
         sys.exit(0)
 
     setup(
@@ -19,8 +17,8 @@ if __name__ == "__main__":
             "ipfs_kit_py",
         ],
         entry_points={
-            "console_scripts": [
-                "wal-cli=ipfs_kit_py.wal_cli:main",
+            'console_scripts': [
+                'wal-cli=ipfs_kit_py.wal_cli:main',
             ],
         },
         description="Command-line interface for the IPFS Kit WAL system",

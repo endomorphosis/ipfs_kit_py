@@ -97,7 +97,6 @@ active_connections = {}
 # Data models
 class CacheConfig(BaseModel):
     """Cache configuration."""
-
     enabled: bool = True
     max_cache_size_mb: int = 1024
     default_ttl_seconds: int = 3600
@@ -105,7 +104,6 @@ class CacheConfig(BaseModel):
 
 class LoadBalancingConfig(BaseModel):
     """Load balancing configuration."""
-
     enabled: bool = True
     strategy: str = "adaptive"
     backend_weights: Dict[str, int] = {}
@@ -113,14 +111,12 @@ class LoadBalancingConfig(BaseModel):
 
 class ConnectionConfig(BaseModel):
     """Connection management configuration."""
-
     enabled: bool = True
     max_connections_per_backend: int = 20
 
 
 class PerformanceStats(BaseModel):
     """Performance statistics."""
-
     cache_hits: int
     cache_misses: int
     cache_hit_ratio: float
@@ -584,9 +580,9 @@ def create_performance_router(api_prefix: str) -> APIRouter:
     async def update_connection_config(conn_config: ConnectionConfig):
         """Update connection management configuration."""
         config["connection_management"]["enabled"] = conn_config.enabled
-        config["connection_management"]["max_connections_per_backend"] = (
-            conn_config.max_connections_per_backend
-        )
+        config["connection_management"][
+            "max_connections_per_backend"
+        ] = conn_config.max_connections_per_backend
 
         save_config()
 
@@ -800,9 +796,7 @@ async def load_balancing_middleware(request: Request, call_next):
                     latency = float(latency_ms)
                     update_backend_stats(backend, latency, success=(response.status_code < 500))
                 except Exception as e:
-                    logger.debug(
-                        f"Could not parse X-Response-Time-MS header value {latency_ms!r}: {e}"
-                    )
+                    logger.debug(f"Could not parse X-Response-Time-MS header value {latency_ms!r}: {e}")
     except Exception as e:
         logger.error(f"Error in load balancing middleware: {e}")
 
@@ -860,7 +854,6 @@ async def periodic_stats_save():
 # Start background tasks
 def start_background_tasks(app):
     """Start background tasks for the performance extension."""
-
     @app.on_event("startup")
     async def startup_event():
         # Start periodic stats save

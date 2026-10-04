@@ -14,19 +14,17 @@ import os
 import tempfile
 from datetime import datetime
 
-
 async def test_ipfs_ls_fix():
     """Test ipfs_ls with an existing CID."""
-
+    
     # Start the server
     process = await anyio.open_process(
-        "python3",
-        "enhanced_mcp_server_phase1.py",
+        "python3", "enhanced_mcp_server_phase1.py",
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stderr=subprocess.PIPE
     )
-
+    
     try:
         # Initialize
         init_request = {
@@ -36,13 +34,13 @@ async def test_ipfs_ls_fix():
             "params": {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {},
-                "clientInfo": {"name": "test-client", "version": "1.0.0"},
-            },
+                "clientInfo": {"name": "test-client", "version": "1.0.0"}
+            }
         }
-
+        
         await process.stdin.send((json.dumps(init_request) + "\n").encode())
         await process.stdout.receive()  # Read response
-
+        
         # First, add a directory structure to IPFS
         # Create a temp directory with files
         temp_dir = tempfile.mkdtemp()
@@ -52,29 +50,35 @@ async def test_ipfs_ls_fix():
                 f.write("Content of file 1")
             with open(os.path.join(temp_dir, "file2.txt"), "w") as f:
                 f.write("Content of file 2")
-
+            
             # Add the directory to IPFS directly
-            result = subprocess.run(
-                ["ipfs", "add", "-r", "-q", temp_dir], capture_output=True, text=True
-            )
-
+            result = subprocess.run([
+                "ipfs", "add", "-r", "-q", temp_dir
+            ], capture_output=True, text=True)
+            
             if result.returncode == 0:
-                lines = result.stdout.strip().split("\n")
+                lines = result.stdout.strip().split('\n')
                 dir_cid = lines[-1]  # Last line is the directory CID
                 print(f"Created directory with CID: {dir_cid}")
-
+                
                 # Now test ipfs_ls with this CID
                 ls_request = {
                     "jsonrpc": "2.0",
                     "id": 2,
                     "method": "tools/call",
-                    "params": {"name": "ipfs_ls", "arguments": {"cid": dir_cid, "headers": True}},
+                    "params": {
+                        "name": "ipfs_ls",
+                        "arguments": {
+                            "cid": dir_cid,
+                            "headers": True
+                        }
+                    }
                 }
-
+                
                 await process.stdin.send((json.dumps(ls_request) + "\n").encode())
                 response_line = await process.stdout.receive()
                 response = json.loads(response_line.decode().strip().splitlines()[0])
-
+                
                 if "error" in response:
                     print(f"✗ ipfs_ls failed: {response['error']}")
                     return False
@@ -92,17 +96,15 @@ async def test_ipfs_ls_fix():
             else:
                 print(f"✗ Failed to create test directory: {result.stderr}")
                 return False
-
+                
         finally:
             # Clean up temp directory
             import shutil
-
             shutil.rmtree(temp_dir)
-
+            
     finally:
         process.terminate()
         await process.wait()
-
 
 async def main():
     print("Testing ipfs_ls fix...")
@@ -111,7 +113,6 @@ async def main():
         print("🎉 ipfs_ls now working!")
     else:
         print("❌ ipfs_ls still has issues")
-
 
 if __name__ == "__main__":
     anyio.run(main)

@@ -20,13 +20,11 @@ import anyio
 # Try to import sniffio for runtime detection
 try:
     import sniffio
-
     HAS_SNIFFIO = True
 except ImportError:
     HAS_SNIFFIO = False
 
 logger = logging.getLogger(__name__)
-
 
 class AnyIOEventLoopHandler:
     """
@@ -94,7 +92,7 @@ class AnyIOEventLoopHandler:
                 fallback_result = {
                     "success": True,
                     "simulated": True,
-                    "note": "Operation scheduled in background due to running in async context",
+                    "note": "Operation scheduled in background due to running in async context"
                 }
 
             # Use AnyIO to create a background task
@@ -122,14 +120,12 @@ class AnyIOEventLoopHandler:
 
                 # Placeholder: Log a warning, as direct scheduling like this is tricky
                 # without a proper task group context.
-                logger.warning(
-                    "Scheduling background task from AnyIOEventLoopHandler - "
-                    "ensure proper task group management in calling context."
-                )
+                logger.warning("Scheduling background task from AnyIOEventLoopHandler - "
+                               "ensure proper task group management in calling context.")
                 # anyio.create_task_group().start_soon(_schedule_background) # This line would need a task group
 
             except Exception as e:
-                logger.error(f"Failed to schedule background task with AnyIO: {e}")
+                 logger.error(f"Failed to schedule background task with AnyIO: {e}")
 
             return fallback_result
         else:
@@ -139,9 +135,7 @@ class AnyIOEventLoopHandler:
             # Use AnyIO to run the coroutine to completion
             return anyio.run(lambda: coro)
 
-
 # Patched methods for the IPFS model
-
 
 def patched_stop_webrtc_streaming(self, server_id: str) -> Dict[str, Any]:
     """
@@ -162,11 +156,11 @@ def patched_stop_webrtc_streaming(self, server_id: str) -> Dict[str, Any]:
         "operation_id": operation_id,
         "operation": "stop_webrtc_streaming",
         "server_id": server_id,
-        "start_time": start_time,
+        "start_time": start_time
     }
 
     # Check WebRTC availability
-    if not hasattr(self, "webrtc_manager") or self.webrtc_manager is None:
+    if not hasattr(self, 'webrtc_manager') or self.webrtc_manager is None:
         result["error"] = "WebRTC manager not available"
         result["error_type"] = "dependency_error"
         result["duration_ms"] = (time.time() - start_time) * 1000
@@ -182,12 +176,13 @@ def patched_stop_webrtc_streaming(self, server_id: str) -> Dict[str, Any]:
         fallback_result = {
             "connections_closed": connection_count,
             "simulated": True,
-            "note": "Operation scheduled in background due to running in async context",
+            "note": "Operation scheduled in background due to running in async context"
         }
 
         # Use AnyIO to run the coroutine safely
         stop_result = AnyIOEventLoopHandler.run_coroutine(
-            self.webrtc_manager.close_all_connections(), fallback_result=fallback_result
+            self.webrtc_manager.close_all_connections(),
+            fallback_result=fallback_result
         )
 
         # Update the result with success
@@ -209,7 +204,6 @@ def patched_stop_webrtc_streaming(self, server_id: str) -> Dict[str, Any]:
 
         return result
 
-
 async def async_stop_webrtc_streaming(self, server_id: str) -> Dict[str, Any]:
     """
     Async version of stop_webrtc_streaming that works in FastAPI context.
@@ -229,11 +223,11 @@ async def async_stop_webrtc_streaming(self, server_id: str) -> Dict[str, Any]:
         "operation_id": operation_id,
         "operation": "stop_webrtc_streaming",
         "server_id": server_id,
-        "start_time": start_time,
+        "start_time": start_time
     }
 
     # Check WebRTC availability
-    if not hasattr(self, "webrtc_manager") or self.webrtc_manager is None:
+    if not hasattr(self, 'webrtc_manager') or self.webrtc_manager is None:
         result["error"] = "WebRTC manager not available"
         result["error_type"] = "dependency_error"
         result["duration_ms"] = (time.time() - start_time) * 1000
@@ -262,7 +256,6 @@ async def async_stop_webrtc_streaming(self, server_id: str) -> Dict[str, Any]:
 
         return result
 
-
 def patched_close_webrtc_connection(self, connection_id: str) -> Dict[str, Any]:
     """
     Patched version of close_webrtc_connection that handles event loops properly using AnyIO.
@@ -282,11 +275,11 @@ def patched_close_webrtc_connection(self, connection_id: str) -> Dict[str, Any]:
         "operation_id": operation_id,
         "operation": "close_webrtc_connection",
         "connection_id": connection_id,
-        "start_time": start_time,
+        "start_time": start_time
     }
 
     # Check WebRTC availability
-    if not hasattr(self, "webrtc_manager") or self.webrtc_manager is None:
+    if not hasattr(self, 'webrtc_manager') or self.webrtc_manager is None:
         result["error"] = "WebRTC manager not available"
         result["error_type"] = "dependency_error"
         result["duration_ms"] = (time.time() - start_time) * 1000
@@ -298,12 +291,13 @@ def patched_close_webrtc_connection(self, connection_id: str) -> Dict[str, Any]:
         fallback_result = {
             "success": True,
             "simulated": True,
-            "note": "Operation scheduled in background due to running in async context",
+            "note": "Operation scheduled in background due to running in async context"
         }
 
         # Use AnyIO to run the coroutine safely
         close_result = AnyIOEventLoopHandler.run_coroutine(
-            self.webrtc_manager.close_connection(connection_id), fallback_result=fallback_result
+            self.webrtc_manager.close_connection(connection_id),
+            fallback_result=fallback_result
         )
 
         if not close_result.get("success", False) and not close_result.get("simulated", False):
@@ -329,7 +323,6 @@ def patched_close_webrtc_connection(self, connection_id: str) -> Dict[str, Any]:
 
         return result
 
-
 async def async_close_webrtc_connection(self, connection_id: str) -> Dict[str, Any]:
     """
     Async version of close_webrtc_connection that works in FastAPI context.
@@ -349,11 +342,11 @@ async def async_close_webrtc_connection(self, connection_id: str) -> Dict[str, A
         "operation_id": operation_id,
         "operation": "close_webrtc_connection",
         "connection_id": connection_id,
-        "start_time": start_time,
+        "start_time": start_time
     }
 
     # Check WebRTC availability
-    if not hasattr(self, "webrtc_manager") or self.webrtc_manager is None:
+    if not hasattr(self, 'webrtc_manager') or self.webrtc_manager is None:
         result["error"] = "WebRTC manager not available"
         result["error_type"] = "dependency_error"
         result["duration_ms"] = (time.time() - start_time) * 1000
@@ -386,7 +379,6 @@ async def async_close_webrtc_connection(self, connection_id: str) -> Dict[str, A
 
         return result
 
-
 def patched_close_all_webrtc_connections(self) -> Dict[str, Any]:
     """
     Patched version of close_all_webrtc_connections that handles event loops properly using AnyIO.
@@ -402,11 +394,11 @@ def patched_close_all_webrtc_connections(self) -> Dict[str, Any]:
         "success": False,
         "operation_id": operation_id,
         "operation": "close_all_webrtc_connections",
-        "start_time": start_time,
+        "start_time": start_time
     }
 
     # Check WebRTC availability
-    if not hasattr(self, "webrtc_manager") or self.webrtc_manager is None:
+    if not hasattr(self, 'webrtc_manager') or self.webrtc_manager is None:
         result["error"] = "WebRTC manager not available"
         result["error_type"] = "dependency_error"
         result["duration_ms"] = (time.time() - start_time) * 1000
@@ -422,12 +414,13 @@ def patched_close_all_webrtc_connections(self) -> Dict[str, Any]:
         fallback_result = {
             "connections_closed": connection_count,
             "simulated": True,
-            "note": "Operation scheduled in background due to running in async context",
+            "note": "Operation scheduled in background due to running in async context"
         }
 
         # Use AnyIO to run the coroutine safely
         close_result = AnyIOEventLoopHandler.run_coroutine(
-            self.webrtc_manager.close_all_connections(), fallback_result=fallback_result
+            self.webrtc_manager.close_all_connections(),
+            fallback_result=fallback_result
         )
 
         # Update the result with success
@@ -448,7 +441,6 @@ def patched_close_all_webrtc_connections(self) -> Dict[str, Any]:
 
         return result
 
-
 async def async_close_all_webrtc_connections(self) -> Dict[str, Any]:
     """
     Async version of close_all_webrtc_connections that works in FastAPI context.
@@ -464,11 +456,11 @@ async def async_close_all_webrtc_connections(self) -> Dict[str, Any]:
         "success": False,
         "operation_id": operation_id,
         "operation": "close_all_webrtc_connections",
-        "start_time": start_time,
+        "start_time": start_time
     }
 
     # Check WebRTC availability
-    if not hasattr(self, "webrtc_manager") or self.webrtc_manager is None:
+    if not hasattr(self, 'webrtc_manager') or self.webrtc_manager is None:
         result["error"] = "WebRTC manager not available"
         result["error_type"] = "dependency_error"
         result["duration_ms"] = (time.time() - start_time) * 1000
@@ -500,7 +492,6 @@ async def async_close_all_webrtc_connections(self) -> Dict[str, Any]:
 
         return result
 
-
 # Integration with WebRTC Controller
 def patch_webrtc_controller_methods(controller):
     """
@@ -524,7 +515,6 @@ def patch_webrtc_controller_methods(controller):
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 from fastapi import HTTPException
-
                 raise HTTPException(status_code=500, detail=error_msg)
 
             return result
@@ -532,7 +522,6 @@ def patch_webrtc_controller_methods(controller):
         except Exception as e:
             logger.error(f"Error stopping streaming: {e}")
             from fastapi import HTTPException
-
             raise HTTPException(status_code=500, detail=str(e))
 
     async def patched_close_connection(connection_id: str) -> Dict[str, Any]:
@@ -544,7 +533,6 @@ def patch_webrtc_controller_methods(controller):
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 from fastapi import HTTPException
-
                 raise HTTPException(status_code=404, detail=error_msg)
 
             return result
@@ -552,7 +540,6 @@ def patch_webrtc_controller_methods(controller):
         except Exception as e:
             logger.error(f"Error closing connection: {e}")
             from fastapi import HTTPException
-
             raise HTTPException(status_code=500, detail=str(e))
 
     async def patched_close_all_connections() -> Dict[str, Any]:
@@ -564,7 +551,6 @@ def patch_webrtc_controller_methods(controller):
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 from fastapi import HTTPException
-
                 raise HTTPException(status_code=500, detail=error_msg)
 
             return result
@@ -572,7 +558,6 @@ def patch_webrtc_controller_methods(controller):
         except Exception as e:
             logger.error(f"Error closing all connections: {e}")
             from fastapi import HTTPException
-
             raise HTTPException(status_code=500, detail=str(e))
 
     # Apply patches
@@ -582,7 +567,6 @@ def patch_webrtc_controller_methods(controller):
 
     logger.info("WebRTC controller methods patched to use async implementations")
     return controller
-
 
 # Integration with IPFS Model
 def patch_ipfs_model_methods(model):
@@ -599,18 +583,12 @@ def patch_ipfs_model_methods(model):
 
     # Replace with patched implementations
     model.stop_webrtc_streaming = lambda server_id: patched_stop_webrtc_streaming(model, server_id)
-    model.close_webrtc_connection = lambda connection_id: patched_close_webrtc_connection(
-        model, connection_id
-    )
+    model.close_webrtc_connection = lambda connection_id: patched_close_webrtc_connection(model, connection_id)
     model.close_all_webrtc_connections = lambda: patched_close_all_webrtc_connections(model)
 
     # Add async methods for use with FastAPI
-    model.async_stop_webrtc_streaming = lambda server_id: async_stop_webrtc_streaming(
-        model, server_id
-    )
-    model.async_close_webrtc_connection = lambda connection_id: async_close_webrtc_connection(
-        model, connection_id
-    )
+    model.async_stop_webrtc_streaming = lambda server_id: async_stop_webrtc_streaming(model, server_id)
+    model.async_close_webrtc_connection = lambda connection_id: async_close_webrtc_connection(model, connection_id)
     model.async_close_all_webrtc_connections = lambda: async_close_all_webrtc_connections(model)
 
     logger.info("IPFS model WebRTC methods patched for proper event loop handling")

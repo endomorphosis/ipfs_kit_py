@@ -21,7 +21,8 @@ from typing import Dict, Any, Optional, List
 
 # Set up logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("mcp_blue_green_runner")
 
@@ -33,7 +34,6 @@ if parent_dir not in sys.path:
 # Try to import necessary components
 try:
     from ipfs_kit_py.mcp_server.blue_green_proxy import AsyncMCPServerProxy, DeploymentMode
-
     PROXY_AVAILABLE = True
 except ImportError as e:
     logger.error(f"Failed to import AsyncMCPServerProxy: {e}")
@@ -41,7 +41,6 @@ except ImportError as e:
 
 try:
     from aiohttp import web
-
     AIOHTTP_AVAILABLE = True
 except ImportError:
     logger.warning("aiohttp not available. Install with: pip install aiohttp")
@@ -51,11 +50,10 @@ except ImportError:
 server_proxy = None
 app_runner = None
 
-
 def load_config(config_path: str) -> Dict[str, Any]:
     """Load configuration from file."""
     try:
-        with open(config_path, "r") as f:
+        with open(config_path, 'r') as f:
             config = json.load(f)
         logger.info(f"Loaded configuration from {config_path}")
         return config
@@ -63,129 +61,114 @@ def load_config(config_path: str) -> Dict[str, Any]:
         logger.error(f"Failed to load configuration: {e}")
         sys.exit(1)
 
-
 def setup_signal_handlers():
     """Set up signal handlers for graceful shutdown."""
-
     def handle_signal(sig, frame):
         logger.info(f"Received signal {sig}, shutting down...")
         try:
             anyio.lowlevel.spawn_system_task(shutdown)
         except Exception:
             anyio.run(shutdown)
-
+    
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
-
 
 async def shutdown():
     """Shut down the server gracefully."""
     global server_proxy, app_runner
-
+    
     # Stop the web dashboard if running
     if app_runner:
         logger.info("Stopping web dashboard...")
         await app_runner.cleanup()
-
+    
     # Stop the server proxy
     if server_proxy:
         logger.info("Stopping server proxy...")
         await server_proxy.stop()
-
+    
     return
-
 
 async def health_monitoring(interval: int = 60):
     """Periodically check server health and log statistics."""
     global server_proxy
-
+    
     while True:
         try:
             if server_proxy and server_proxy.running:
                 health = await server_proxy.check_health()
                 logger.info(f"Health check: {health['status']}")
-
+                
                 # Log traffic split if available
                 if "traffic_split" in health:
                     split = health["traffic_split"]
-                    logger.info(
-                        f"Traffic split: Blue {split['blue_percentage']}%, Green {split['green_percentage']}%"
-                    )
-
+                    logger.info(f"Traffic split: Blue {split['blue_percentage']}%, Green {split['green_percentage']}%")
+                
                 # Log metrics if available
                 if "metrics" in health:
                     metrics = health["metrics"]
                     blue_stats = metrics.get("blue", {})
                     green_stats = metrics.get("green", {})
-
-                    logger.info(
-                        f"Blue: {blue_stats.get('requests', 0)} requests, {blue_stats.get('success_rate', 0):.1f}% success"
-                    )
-                    logger.info(
-                        f"Green: {green_stats.get('requests', 0)} requests, {green_stats.get('success_rate', 0):.1f}% success"
-                    )
-
+                    
+                    logger.info(f"Blue: {blue_stats.get('requests', 0)} requests, {blue_stats.get('success_rate', 0):.1f}% success")
+                    logger.info(f"Green: {green_stats.get('requests', 0)} requests, {green_stats.get('success_rate', 0):.1f}% success")
+                
                 # Log validation stats if available
                 if "validation" in health:
                     validation = health["validation"]
-                    logger.info(
-                        f"Compatibility: {validation.get('compatible_rate', 0):.1f}%, "
-                        f"Identical: {validation.get('identical_rate', 0):.1f}%"
-                    )
-
+                    logger.info(f"Compatibility: {validation.get('compatible_rate', 0):.1f}%, "
+                                f"Identical: {validation.get('identical_rate', 0):.1f}%")
+                    
                     # Log recommendation if available
                     if "recommendations" in validation:
                         recommendation = validation["recommendations"]
-                        logger.info(
-                            f"Recommendation: {recommendation.get('action')} - {recommendation.get('message')}"
-                        )
-
+                        logger.info(f"Recommendation: {recommendation.get('action')} - {recommendation.get('message')}")
+            
             await anyio.sleep(interval)
-
+        
         except anyio.get_cancelled_exc_class():
             break
         except Exception as e:
             logger.error(f"Error in health monitoring: {e}")
             await anyio.sleep(interval)
 
-
 async def setup_web_dashboard(config: Dict[str, Any], host: str = "localhost", port: int = 8090):
     """Set up a web dashboard for monitoring the blue/green deployment."""
     global server_proxy, app_runner
-
+    
     if not AIOHTTP_AVAILABLE:
         logger.warning("Web dashboard not available: aiohttp not installed")
         return None
-
+    
     app = web.Application()
-
+    
     # API routes
     async def health_handler(request):
         """Handler for health check endpoint."""
         if not server_proxy:
             return web.json_response({"error": "Server proxy not running"}, status=503)
-
+        
         health = await server_proxy.check_health()
         return web.json_response(health)
-
+    
     async def set_mode_handler(request):
         """Handler for setting deployment mode."""
         if not server_proxy:
             return web.json_response({"error": "Server proxy not running"}, status=503)
-
+        
         try:
             data = await request.json()
             mode = data.get("mode")
             green_percentage = data.get("green_percentage")
-
+            
             if not mode:
                 return web.json_response({"error": "Mode not specified"}, status=400)
-
+            
             result = server_proxy.set_mode(mode, green_percentage)
             return web.json_response(result)
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)
-
+    
     # Serve static dashboard files
     async def index_handler(request):
         """Handler for the dashboard index page."""
@@ -522,108 +505,103 @@ async def setup_web_dashboard(config: Dict[str, Any], host: str = "localhost", p
         </body>
         </html>
         """
-        return web.Response(text=html, content_type="text/html")
-
+        return web.Response(text=html, content_type='text/html')
+    
     # Set up routes
-    app.router.add_get("/", index_handler)
-    app.router.add_get("/api/health", health_handler)
-    app.router.add_post("/api/set_mode", set_mode_handler)
-
+    app.router.add_get('/', index_handler)
+    app.router.add_get('/api/health', health_handler)
+    app.router.add_post('/api/set_mode', set_mode_handler)
+    
     # Start the web application
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, host, port)
     await site.start()
-
+    
     logger.info(f"Web dashboard available at http://{host}:{port}/")
-
+    
     # Store globally for cleanup
     app_runner = runner
-
+    
     return runner
-
 
 async def run_server(args):
     """Run the MCP server with blue/green deployment."""
     global server_proxy
-
+    
     if not PROXY_AVAILABLE:
         logger.error("AsyncMCPServerProxy not available. Cannot start server.")
         return 1
-
+    
     # Load configuration
     config = load_config(args.config)
-
+    
     # Override deployment mode if specified
     if args.mode:
         logger.info(f"Overriding deployment mode to: {args.mode}")
         if "deployment" not in config:
             config["deployment"] = {}
         config["deployment"]["mode"] = args.mode
-
+    
     # Override green percentage if specified
     if args.green_percentage is not None:
         logger.info(f"Overriding green percentage to: {args.green_percentage}%")
         if "deployment" not in config:
             config["deployment"] = {}
         config["deployment"]["green_percentage"] = args.green_percentage
-
+    
     # Configure logging based on config
     if "monitoring" in config and "logging" in config["monitoring"]:
         log_config = config["monitoring"]["logging"]
         log_level_name = log_config.get("level", "INFO")
         log_level = getattr(logging, log_level_name)
-
+        
         # Set root logger level
         logging.getLogger().setLevel(log_level)
-
+        
         # Configure file logging if specified
         if "file" in log_config:
             os.makedirs(os.path.dirname(log_config["file"]), exist_ok=True)
             file_handler = logging.FileHandler(log_config["file"])
-            file_handler.setFormatter(
-                logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-            )
+            file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
             logging.getLogger().addHandler(file_handler)
-
+    
     # Initialize and start the server proxy
     try:
         # Create server proxy
         server_proxy = AsyncMCPServerProxy(config)
         logger.info("Starting MCP Server Proxy...")
-
+        
         # Start server proxy
         start_result = await server_proxy.start()
         if not start_result["success"]:
             logger.error(f"Failed to start server: {start_result['message']}")
             return 1
-
+        
         logger.info(f"MCP Server Proxy started in {server_proxy.mode.value} mode")
-
+        
         # Start web dashboard if enabled
         web_config = config.get("web_dashboard", {"enabled": False})
         if web_config.get("enabled", False) and not args.no_dashboard:
             web_host = web_config.get("host", "localhost")
             web_port = web_config.get("port", 8090)
             await setup_web_dashboard(config, web_host, web_port)
-
+        
         # Start health monitoring task
         monitor_interval = 60
         if "deployment" in config and "health_check_interval" in config["deployment"]:
             monitor_interval = config["deployment"]["health_check_interval"]
-
+        
         monitor_task_scope = anyio.CancelScope()
-
         async def run_monitor():
             with monitor_task_scope:
                 await health_monitoring(monitor_interval)
-
         anyio.lowlevel.spawn_system_task(run_monitor)
-
+        
         # Keep running until interrupted
         while True:
             await anyio.sleep(1)
-
+    
     except anyio.get_cancelled_exc_class():
         logger.info("Server task cancelled")
     except Exception as e:
@@ -631,53 +609,38 @@ async def run_server(args):
         return 1
     finally:
         # Clean up tasks
-        if "monitor_task_scope" in locals():
+        if 'monitor_task_scope' in locals():
             monitor_task_scope.cancel()
-
+        
         # Stop server if still running
         if server_proxy and server_proxy.running:
             await server_proxy.stop()
-
+    
     return 0
-
 
 def main():
     """Main entry point."""
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Run MCP Server with blue/green deployment")
-    parser.add_argument(
-        "--config", "-c", default="config/blue_green_config.json", help="Path to configuration file"
-    )
-    parser.add_argument(
-        "--mode",
-        "-m",
-        choices=["blue", "green", "gradual", "parallel", "auto"],
-        help="Deployment mode to use (overrides config)",
-    )
-    parser.add_argument(
-        "--green-percentage",
-        "-p",
-        type=int,
-        help="Percentage of traffic to route to green for gradual mode",
-    )
-    parser.add_argument(
-        "--no-dashboard",
-        "-n",
-        action="store_true",
-        help="Disable web dashboard even if enabled in config",
-    )
+    parser.add_argument("--config", "-c", default="config/blue_green_config.json",
+                        help="Path to configuration file")
+    parser.add_argument("--mode", "-m", choices=["blue", "green", "gradual", "parallel", "auto"],
+                        help="Deployment mode to use (overrides config)")
+    parser.add_argument("--green-percentage", "-p", type=int,
+                        help="Percentage of traffic to route to green for gradual mode")
+    parser.add_argument("--no-dashboard", "-n", action="store_true",
+                        help="Disable web dashboard even if enabled in config")
     args = parser.parse_args()
-
+    
     # Set up signal handlers
     setup_signal_handlers()
-
+    
     # Run the server
     try:
         exit_code = anyio.run(run_server, args)
         sys.exit(exit_code)
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
-
 
 if __name__ == "__main__":
     main()

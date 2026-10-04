@@ -179,7 +179,9 @@ class EnhancedMCPServerWithDaemonMgmt:
         return configs
 
     def get_pin_metadata(self) -> List[Dict[str, Any]]:
-        pin_metadata_path = self.ipfs_kit_path / "pin_metadata" / "parquet_storage" / "pins.parquet"
+        pin_metadata_path = (
+            self.ipfs_kit_path / "pin_metadata" / "parquet_storage" / "pins.parquet"
+        )
         return _read_parquet_records(pin_metadata_path)
 
     def get_program_state_data(self) -> Dict[str, Any]:

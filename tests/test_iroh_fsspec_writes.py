@@ -151,7 +151,11 @@ def writable_tree() -> tuple[IrohFileSystem, MemoryManifestStore, MemoryBlobStor
 
 
 def live(store: MemoryManifestStore) -> dict[str, dict[str, Any]]:
-    return {entry["path"]: entry for entry in store.manifest["entries"] if not entry["tombstone"]}
+    return {
+        entry["path"]: entry
+        for entry in store.manifest["entries"]
+        if not entry["tombstone"]
+    }
 
 
 def all_entries(store: MemoryManifestStore) -> dict[str, dict[str, Any]]:
@@ -304,7 +308,9 @@ def test_permissions_blob_mutations_and_unsupported_modes_fail_closed(writable_t
         readonly.pipe_file(url("denied.bin"), b"no")
 
     blob_url = f"iroh+blob://{digest(b'old')}"
-    blob_fs = IrohFileSystem(protocol="iroh+blob", manifest_store=manifests, blob_store=_blobs)
+    blob_fs = IrohFileSystem(
+        protocol="iroh+blob", manifest_store=manifests, blob_store=_blobs
+    )
     with pytest.raises(IrohUnsupportedOperationError):
         blob_fs.pipe_file(blob_url, b"no")
     for mode in ("ab", "r+b", "w+b"):

@@ -71,7 +71,6 @@ retrieved_df = bridge.retrieve_dataframe(cid)
 ```python
 # libp2p peer functionality
 from ipfs_kit_py.libp2p_peer import IPFSLibp2pPeer
-
 peer = IPFSLibp2pPeer()
 # Full networking stack available
 ```

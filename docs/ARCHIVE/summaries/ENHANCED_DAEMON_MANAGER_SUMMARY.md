@@ -43,13 +43,13 @@ def _update_pin_index(self):
     """Update pin index with real IPFS data."""
     if not self._is_ipfs_daemon_running():
         return  # Skip if IPFS not running
-
+    
     # Get real pins from IPFS
     pins_data = self._get_real_ipfs_pins()
     if pins_data:
         # Convert to DataFrame and save to Parquet
         df = pd.DataFrame(pins_data)
-        parquet_file = self.ipfs_kit_path / "pin_metadata" / "parquet_storage" / "pins.parquet"
+        parquet_file = self.ipfs_kit_path / 'pin_metadata' / 'parquet_storage' / 'pins.parquet'
         df.to_parquet(parquet_file, index=False)
 ```
 
@@ -136,7 +136,7 @@ self.index_update_interval = 30  # seconds (configurable)
 ### Enable/Disable Background Updates
 ```python
 daemon_manager.start_background_indexing()  # Enable
-daemon_manager.stop_background_indexing()  # Disable
+daemon_manager.stop_background_indexing()   # Disable
 ```
 
 The Enhanced Daemon Manager now provides a robust foundation for real-time data access while maintaining clear separation of responsibilities between data updates (daemon) and data consumption (CLI).

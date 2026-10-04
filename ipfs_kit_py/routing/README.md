@@ -33,21 +33,28 @@ settings = RoutingManagerSettings(
     enabled=True,
     backends=["ipfs", "filecoin", "s3"],
     default_strategy="hybrid",
-    default_priority="balanced",
+    default_priority="balanced"
 )
 
 routing_manager = await RoutingManager.create(settings)
 
 # Select the best backend for content
 backend_id = await routing_manager.select_backend(
-    content=content_data, metadata={"content_type": "application/pdf", "filename": "document.pdf"}
+    content=content_data,
+    metadata={
+        "content_type": "application/pdf",
+        "filename": "document.pdf"
+    }
 )
 
 # Record the outcome for learning
 await routing_manager.record_routing_outcome(
     backend_id=backend_id,
-    content_info={"content_type": "application/pdf", "size_bytes": len(content_data)},
-    success=True,
+    content_info={
+        "content_type": "application/pdf",
+        "size_bytes": len(content_data)
+    },
+    success=True
 )
 ```
 
@@ -69,7 +76,12 @@ Or programmatically:
 from ipfs_kit_py.routing.dashboard import run_dashboard
 
 # Run the dashboard with custom settings
-run_dashboard({"host": "127.0.0.1", "port": 8050, "theme": "darkly", "debug": True})
+run_dashboard({
+    "host": "127.0.0.1",
+    "port": 8050,
+    "theme": "darkly",
+    "debug": True
+})
 ```
 
 ### Integration with MCP Server
@@ -92,12 +104,14 @@ settings = RoutingManagerSettings(
     backends=["ipfs", "filecoin", "s3"],
     default_strategy="hybrid",
     default_priority="balanced",
+    
     # Advanced settings
     collect_metrics_on_startup=True,
     auto_start_background_tasks=True,
     learning_enabled=True,
     telemetry_interval=300,
     metrics_retention_days=7,
+    
     # Optimization weights
     optimization_weights={
         "network_quality": 0.25,
@@ -106,10 +120,17 @@ settings = RoutingManagerSettings(
         "geographic_proximity": 0.15,
         "load_balancing": 0.05,
         "reliability": 0.1,
-        "historical_success": 0.05,
+        "historical_success": 0.05
     },
+    
     # Geographic location
-    geo_location={"region": "us-east", "coordinates": {"lat": 40.7128, "lon": -74.0060}},
+    geo_location={
+        "region": "us-east",
+        "coordinates": {
+            "lat": 40.7128,
+            "lon": -74.0060
+        }
+    }
 )
 ```
 

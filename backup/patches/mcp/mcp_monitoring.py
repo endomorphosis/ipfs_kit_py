@@ -13,7 +13,7 @@ import threading
 import platform
 import psutil
 import socket
-from typing import Dict, Any, List, Optional, Union, Callable, Tuple  # Added Tuple
+from typing import Dict, Any, List, Optional, Union, Callable, Tuple # Added Tuple
 from datetime import datetime, timedelta
 from collections import deque
 
@@ -24,14 +24,11 @@ logger = logging.getLogger(__name__)
 try:
     import prometheus_client as prom
     from prometheus_client import Counter, Gauge, Histogram, Summary
-
     PROMETHEUS_AVAILABLE = True
     logger.info("Prometheus client library available")
 except ImportError:
     PROMETHEUS_AVAILABLE = False
-    logger.warning(
-        "Prometheus client library not available. Install with: pip install prometheus-client"
-    )
+    logger.warning("Prometheus client library not available. Install with: pip install prometheus-client")
 
 # Default configuration
 DEFAULT_CONFIG = {
@@ -49,7 +46,6 @@ DEFAULT_CONFIG = {
     "enable_api_metrics": True,  # whether to collect API endpoint metrics
 }
 
-
 class MetricsRegistry:
     """Registry for tracking metrics in the application."""
 
@@ -58,13 +54,7 @@ class MetricsRegistry:
         self.metrics = {}
         self.prom_metrics = {}
 
-    def register(
-        self,
-        name: str,
-        description: str,
-        metric_type: str = "gauge",
-        labels: Optional[List[str]] = None,
-    ):
+    def register(self, name: str, description: str, metric_type: str = "gauge", labels: Optional[List[str]] = None):
         """
         Register a new metric.
 
@@ -85,7 +75,7 @@ class MetricsRegistry:
             "labels": labels or [],
             "values": {},
             "history": {},
-            "created_at": time.time(),
+            "created_at": time.time()
         }
 
         # Create Prometheus metric if available
@@ -235,9 +225,7 @@ class MetricsRegistry:
 
         return None
 
-    def get_history(
-        self, name: str, labels: Optional[Dict[str, str]] = None
-    ) -> List[Tuple[float, float]]:
+    def get_history(self, name: str, labels: Optional[Dict[str, str]] = None) -> List[Tuple[float, float]]:
         """
         Get metric history.
 
@@ -275,7 +263,7 @@ class MetricsRegistry:
                 "description": metric["description"],
                 "type": metric["type"],
                 "labels": metric["labels"],
-                "created_at": metric["created_at"],
+                "created_at": metric["created_at"]
             }
 
         return info
@@ -290,7 +278,11 @@ class MetricsRegistry:
         snapshot = {}
 
         for name, metric in self.metrics.items():
-            snapshot[name] = {"type": metric["type"], "values": {}, "latest_update": time.time()}
+            snapshot[name] = {
+                "type": metric["type"],
+                "values": {},
+                "latest_update": time.time()
+            }
 
             for labels_key, value in metric["values"].items():
                 if labels_key == "()":  # No labels
@@ -307,7 +299,6 @@ class MetricsRegistry:
 
         sorted_items = sorted(labels.items())
         return str(tuple(sorted_items))
-
 
 class MonitoringSystem:
     """Comprehensive monitoring system for MCP server."""
@@ -345,96 +336,40 @@ class MonitoringSystem:
         self.registry.register("system.uptime", "System uptime in seconds", "gauge")
         self.registry.register("system.cpu_usage", "System CPU usage percentage", "gauge")
         self.registry.register("system.memory_usage", "System memory usage percentage", "gauge")
-        self.registry.register(
-            "system.memory_available", "System memory available in bytes", "gauge"
-        )
+        self.registry.register("system.memory_available", "System memory available in bytes", "gauge")
         self.registry.register("system.memory_total", "System total memory in bytes", "gauge")
         self.registry.register("system.disk_usage", "Disk usage percentage", "gauge", ["path"])
         self.registry.register("system.disk_free", "Disk free space in bytes", "gauge", ["path"])
         self.registry.register("system.disk_total", "Disk total space in bytes", "gauge", ["path"])
-        self.registry.register(
-            "system.network_sent", "Network bytes sent", "counter", ["interface"]
-        )
-        self.registry.register(
-            "system.network_received", "Network bytes received", "counter", ["interface"]
-        )
+        self.registry.register("system.network_sent", "Network bytes sent", "counter", ["interface"])
+        self.registry.register("system.network_received", "Network bytes received", "counter", ["interface"])
 
         # Process metrics
         self.registry.register("process.cpu_usage", "Process CPU usage percentage", "gauge")
         self.registry.register("process.memory_usage", "Process memory usage in bytes", "gauge")
         self.registry.register("process.threads", "Number of threads in the process", "gauge")
         self.registry.register("process.open_files", "Number of open files by the process", "gauge")
-        self.registry.register(
-            "process.connections", "Number of network connections by the process", "gauge"
-        )
+        self.registry.register("process.connections", "Number of network connections by the process", "gauge")
 
         # API metrics
-        self.registry.register(
-            "api.requests_total",
-            "Total number of API requests",
-            "counter",
-            ["endpoint", "method", "status"],
-        )
-        self.registry.register(
-            "api.request_duration_seconds",
-            "API request duration in seconds",
-            "histogram",
-            ["endpoint", "method"],
-        )
-        self.registry.register(
-            "api.request_size_bytes",
-            "API request size in bytes",
-            "histogram",
-            ["endpoint", "method"],
-        )
-        self.registry.register(
-            "api.response_size_bytes",
-            "API response size in bytes",
-            "histogram",
-            ["endpoint", "method"],
-        )
-        self.registry.register(
-            "api.errors_total",
-            "Total number of API errors",
-            "counter",
-            ["endpoint", "method", "error_code"],
-        )
+        self.registry.register("api.requests_total", "Total number of API requests", "counter", ["endpoint", "method", "status"])
+        self.registry.register("api.request_duration_seconds", "API request duration in seconds", "histogram", ["endpoint", "method"])
+        self.registry.register("api.request_size_bytes", "API request size in bytes", "histogram", ["endpoint", "method"])
+        self.registry.register("api.response_size_bytes", "API response size in bytes", "histogram", ["endpoint", "method"])
+        self.registry.register("api.errors_total", "Total number of API errors", "counter", ["endpoint", "method", "error_code"])
 
         # Storage metrics
-        self.registry.register(
-            "storage.operations_total",
-            "Total number of storage operations",
-            "counter",
-            ["backend", "operation"],
-        )
-        self.registry.register(
-            "storage.operation_errors_total",
-            "Total number of storage operation errors",
-            "counter",
-            ["backend", "operation"],
-        )
-        self.registry.register(
-            "storage.operation_duration_seconds",
-            "Storage operation duration in seconds",
-            "histogram",
-            ["backend", "operation"],
-        )
-        self.registry.register(
-            "storage.stored_items", "Number of items stored in backend", "gauge", ["backend"]
-        )
-        self.registry.register(
-            "storage.stored_bytes", "Total bytes stored in backend", "gauge", ["backend"]
-        )
+        self.registry.register("storage.operations_total", "Total number of storage operations", "counter", ["backend", "operation"])
+        self.registry.register("storage.operation_errors_total", "Total number of storage operation errors", "counter", ["backend", "operation"])
+        self.registry.register("storage.operation_duration_seconds", "Storage operation duration in seconds", "histogram", ["backend", "operation"])
+        self.registry.register("storage.stored_items", "Number of items stored in backend", "gauge", ["backend"])
+        self.registry.register("storage.stored_bytes", "Total bytes stored in backend", "gauge", ["backend"])
 
         # IPFS metrics
         self.registry.register("ipfs.repo_size", "IPFS repository size in bytes", "gauge")
         self.registry.register("ipfs.repo_objects", "Number of objects in IPFS repository", "gauge")
-        self.registry.register(
-            "ipfs.bandwidth_total_in", "Total incoming bandwidth in bytes", "counter"
-        )
-        self.registry.register(
-            "ipfs.bandwidth_total_out", "Total outgoing bandwidth in bytes", "counter"
-        )
+        self.registry.register("ipfs.bandwidth_total_in", "Total incoming bandwidth in bytes", "counter")
+        self.registry.register("ipfs.bandwidth_total_out", "Total outgoing bandwidth in bytes", "counter")
         self.registry.register("ipfs.peers", "Number of connected IPFS peers", "gauge")
 
     def start_collection(self):
@@ -444,7 +379,10 @@ class MonitoringSystem:
             return
 
         self.running = True
-        self.collection_thread = threading.Thread(target=self._collection_loop, daemon=True)
+        self.collection_thread = threading.Thread(
+            target=self._collection_loop,
+            daemon=True
+        )
         self.collection_thread.start()
         logger.info("Started metrics collection thread")
 
@@ -533,9 +471,7 @@ class MonitoringSystem:
                 # These are cumulative counters, so we'd normally calculate the delta
                 # but for our registry we'll just set the latest value
                 self.registry.set("system.network_sent", stats.bytes_sent, {"interface": interface})
-                self.registry.set(
-                    "system.network_received", stats.bytes_recv, {"interface": interface}
-                )
+                self.registry.set("system.network_received", stats.bytes_recv, {"interface": interface})
 
     def _collect_process_metrics(self):
         """Collect process-specific metrics."""
@@ -586,7 +522,7 @@ class MonitoringSystem:
                     ["ipfs", "repo", "stat", "--human=false", "--size-only"],
                     capture_output=True,
                     text=True,
-                    timeout=5,
+                    timeout=5
                 )
 
                 if result.returncode == 0:
@@ -604,7 +540,10 @@ class MonitoringSystem:
             # Get bandwidth stats
             try:
                 result = subprocess.run(
-                    ["ipfs", "stats", "bw", "--json"], capture_output=True, text=True, timeout=5
+                    ["ipfs", "stats", "bw", "--json"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
                 )
 
                 if result.returncode == 0:
@@ -622,7 +561,10 @@ class MonitoringSystem:
             # Get peer count
             try:
                 result = subprocess.run(
-                    ["ipfs", "swarm", "peers", "--count"], capture_output=True, text=True, timeout=5
+                    ["ipfs", "swarm", "peers", "--count"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
                 )
 
                 if result.returncode == 0:
@@ -660,14 +602,10 @@ class MonitoringSystem:
                 stats = backend_info["statistics"]
 
                 if "total_items" in stats:
-                    self.registry.set(
-                        "storage.stored_items", stats["total_items"], {"backend": backend_name}
-                    )
+                    self.registry.set("storage.stored_items", stats["total_items"], {"backend": backend_name})
 
                 if "total_bytes" in stats:
-                    self.registry.set(
-                        "storage.stored_bytes", stats["total_bytes"], {"backend": backend_name}
-                    )
+                    self.registry.set("storage.stored_bytes", stats["total_bytes"], {"backend": backend_name})
 
     def track_api_request(
         self,
@@ -678,7 +616,7 @@ class MonitoringSystem:
         status_code: int,
         request_size: int,
         response_size: int,
-        error_code: Optional[str] = None,
+        error_code: Optional[str] = None
     ):
         """
         Track an API request.
@@ -697,31 +635,36 @@ class MonitoringSystem:
         status = str(status_code)
 
         # Increment request counter
-        self.registry.increment(
-            "api.requests_total", 1, {"endpoint": endpoint, "method": method, "status": status}
-        )
+        self.registry.increment("api.requests_total", 1, {
+            "endpoint": endpoint,
+            "method": method,
+            "status": status
+        })
 
         # Observe request duration
-        self.registry.observe(
-            "api.request_duration_seconds", duration, {"endpoint": endpoint, "method": method}
-        )
+        self.registry.observe("api.request_duration_seconds", duration, {
+            "endpoint": endpoint,
+            "method": method
+        })
 
         # Observe request and response sizes
-        self.registry.observe(
-            "api.request_size_bytes", request_size, {"endpoint": endpoint, "method": method}
-        )
+        self.registry.observe("api.request_size_bytes", request_size, {
+            "endpoint": endpoint,
+            "method": method
+        })
 
-        self.registry.observe(
-            "api.response_size_bytes", response_size, {"endpoint": endpoint, "method": method}
-        )
+        self.registry.observe("api.response_size_bytes", response_size, {
+            "endpoint": endpoint,
+            "method": method
+        })
 
         # Track errors if applicable
         if error_code:
-            self.registry.increment(
-                "api.errors_total",
-                1,
-                {"endpoint": endpoint, "method": method, "error_code": error_code},
-            )
+            self.registry.increment("api.errors_total", 1, {
+                "endpoint": endpoint,
+                "method": method,
+                "error_code": error_code
+            })
 
     def track_storage_operation(
         self,
@@ -730,7 +673,7 @@ class MonitoringSystem:
         start_time: float,
         end_time: float,
         success: bool,
-        error_code: Optional[str] = None,
+        error_code: Optional[str] = None
     ):
         """
         Track a storage operation.
@@ -746,24 +689,24 @@ class MonitoringSystem:
         duration = end_time - start_time
 
         # Increment operation counter
-        self.registry.increment(
-            "storage.operations_total", 1, {"backend": backend, "operation": operation}
-        )
+        self.registry.increment("storage.operations_total", 1, {
+            "backend": backend,
+            "operation": operation
+        })
 
         # Observe operation duration
-        self.registry.observe(
-            "storage.operation_duration_seconds",
-            duration,
-            {"backend": backend, "operation": operation},
-        )
+        self.registry.observe("storage.operation_duration_seconds", duration, {
+            "backend": backend,
+            "operation": operation
+        })
 
         # Track errors if applicable
         if not success:
-            self.registry.increment(
-                "storage.operation_errors_total",
-                1,
-                {"backend": backend, "operation": operation, "error_code": error_code or "unknown"},
-            )
+            self.registry.increment("storage.operation_errors_total", 1, {
+                "backend": backend,
+                "operation": operation,
+                "error_code": error_code or "unknown"
+            })
 
     def get_system_info(self) -> Dict[str, Any]:
         """
@@ -781,7 +724,7 @@ class MonitoringSystem:
             "uptime": time.time() - self.start_time,
             "start_time": self.start_time,
             "current_time": time.time(),
-            "disk_info": {},
+            "disk_info": {}
         }
 
         # Add disk info
@@ -792,7 +735,7 @@ class MonitoringSystem:
                     "total": disk.total,
                     "used": disk.used,
                     "free": disk.free,
-                    "percent": disk.percent,
+                    "percent": disk.percent
                 }
             except Exception:
                 pass
@@ -813,9 +756,7 @@ class MonitoringSystem:
             "storage_backends": self.storage_backends,
             "config": self.config,
             "prometheus_enabled": PROMETHEUS_AVAILABLE and self.config["prometheus_enabled"],
-            "prometheus_port": self.config["prometheus_port"]
-            if PROMETHEUS_AVAILABLE and self.config["prometheus_enabled"]
-            else None,
+            "prometheus_port": self.config["prometheus_port"] if PROMETHEUS_AVAILABLE and self.config["prometheus_enabled"] else None
         }
 
     def get_dashboard_data(self) -> Dict[str, Any]:
@@ -872,39 +813,33 @@ class MonitoringSystem:
                 "cpu": system_cpu,
                 "memory": system_memory,
                 "uptime": uptime_str,
-                "uptime_seconds": system_uptime,
+                "uptime_seconds": system_uptime
             },
             "process": {
                 "cpu": process_cpu,
                 "memory": process_memory,
                 "memory_mb": process_memory / (1024 * 1024),
-                "threads": process_threads,
+                "threads": process_threads
             },
             "api": {
                 "requests": api_requests,
                 "errors": api_errors,
-                "error_rate": (api_errors / api_requests * 100) if api_requests > 0 else 0,
+                "error_rate": (api_errors / api_requests * 100) if api_requests > 0 else 0
             },
             "storage": {
                 "operations": storage_operations,
                 "errors": storage_errors,
-                "error_rate": (storage_errors / storage_operations * 100)
-                if storage_operations > 0
-                else 0,
+                "error_rate": (storage_errors / storage_operations * 100) if storage_operations > 0 else 0,
                 "backends": len(self.storage_backends),
-                "active_backends": sum(
-                    1
-                    for backend in self.storage_backends.values()
-                    if backend.get("available", False)
-                ),
+                "active_backends": sum(1 for backend in self.storage_backends.values() if backend.get("available", False))
             },
             "ipfs": {
                 "repo_size": ipfs_repo_size,
                 "repo_size_mb": ipfs_repo_size / (1024 * 1024),
                 "objects": ipfs_repo_objects,
-                "peers": ipfs_peers,
+                "peers": ipfs_peers
             },
-            "timestamp": time.time(),
+            "timestamp": time.time()
         }
 
     def shutdown(self):

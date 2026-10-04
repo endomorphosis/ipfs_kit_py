@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ipfs-kit.dev/schemas/iroh-security-vectors-v1.json",
+  "title": "IPFS Kit Iroh security test vectors",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "release_bundle", "vectors"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"const": "ipfs-kit-iroh-security-vectors"},
+    "release_bundle": {"const": "iroh-1.0.2-ipfs-kit.1"},
+    "vectors": {
+      "type": "array",
+      "minItems": 15,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "threat", "surface", "input", "expected"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^IROH-SEC-[0-9]{3}$"},
+          "threat": {
+            "type": "string",
+            "enum": [
+              "malicious-ticket", "malicious-peer", "malicious-manifest",
+              "path-traversal", "symlink", "archive", "key-theft",
+              "replay", "rollback", "resource-exhaustion", "rpc-exposure",
+              "relay-metadata", "supply-chain"
+            ]
+          },
+          "surface": {"type": "string", "minLength": 1},
+          "input": {"type": "object"},
+          "expected": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["outcome", "control", "signal"],
+            "properties": {
+              "outcome": {"enum": ["reject", "redact", "bound", "fail-closed"]},
+              "control": {"type": "string", "minLength": 1},
+              "signal": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -13,9 +13,7 @@ from ipfs_kit_py.vfs_readiness_benchmark import run_vfs_readiness_benchmark, wri
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run VFS readiness throughput benchmark")
-    parser.add_argument(
-        "--samples", type=int, default=int(os.environ.get("IPFS_KIT_VFS_BENCH_SAMPLES", "20"))
-    )
+    parser.add_argument("--samples", type=int, default=int(os.environ.get("IPFS_KIT_VFS_BENCH_SAMPLES", "20")))
     parser.add_argument(
         "--mutation-p95-ms",
         type=float,

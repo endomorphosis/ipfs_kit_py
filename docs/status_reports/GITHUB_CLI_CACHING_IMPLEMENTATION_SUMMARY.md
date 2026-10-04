@@ -232,12 +232,18 @@ from ipfs_kit_py.gh_cache import GHCache
 import json
 
 # Initialize with IPFS support
-cache = GHCache(enable_ipfs=True, enable_p2p=True)
+cache = GHCache(
+    enable_ipfs=True,
+    enable_p2p=True
+)
 
 # Query workflows (cached)
-code, output, err = cache.run(
-    ["gh", "run", "list", "--status", "failure", "--limit", "10", "--json", "databaseId,name"]
-)
+code, output, err = cache.run([
+    'gh', 'run', 'list',
+    '--status', 'failure',
+    '--limit', '10',
+    '--json', 'databaseId,name'
+])
 
 if code == 0:
     runs = json.loads(output)
@@ -305,14 +311,14 @@ from ipfs_kit_py.gh_cache import GHCache
 
 cache = GHCache(
     cache_dir="/custom/cache/path",
-    enable_ipfs=True,  # Enable IPFS caching
-    enable_p2p=True,  # Enable P2P sharing
-    max_cache_size=2 * 1024 * 1024 * 1024,  # 2GB max
+    enable_ipfs=True,              # Enable IPFS caching
+    enable_p2p=True,               # Enable P2P sharing
+    max_cache_size=2*1024*1024*1024  # 2GB max
 )
 
 # Customize TTLs (advanced)
-cache.TTL_CONFIG["workflow"]["ttl"] = 600  # 10 minutes
-cache.TTL_CONFIG["pr"]["ttl"] = 300  # 5 minutes
+cache.TTL_CONFIG['workflow']['ttl'] = 600  # 10 minutes
+cache.TTL_CONFIG['pr']['ttl'] = 300        # 5 minutes
 ```
 
 ---
@@ -440,22 +446,20 @@ gh repo view  # Should be miss again
 import pytest
 from ipfs_kit_py.gh_cache import GHCache
 
-
 def test_cache_hit():
     cache = GHCache()
     # First call - miss
-    cache.run(["gh", "repo", "view"])
+    cache.run(['gh', 'repo', 'view'])
     # Second call - hit
-    cache.run(["gh", "repo", "view"])
+    cache.run(['gh', 'repo', 'view'])
     stats = cache.get_stats()
-    assert stats["hits"] >= 1
-
+    assert stats['hits'] >= 1
 
 def test_write_bypass():
     cache = GHCache()
-    code, _, _ = cache.run(["gh", "pr", "create", "..."])
+    code, _, _ = cache.run(['gh', 'pr', 'create', '...'])
     stats = cache.get_stats()
-    assert stats["bypassed"] >= 1
+    assert stats['bypassed'] >= 1
 ```
 
 ---
