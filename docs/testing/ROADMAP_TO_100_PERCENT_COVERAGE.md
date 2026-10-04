@@ -344,6 +344,7 @@ def test_condition_true():
     """Test when condition is True"""
     pass
 
+
 def test_condition_false():
     """Test when condition is False"""
     pass

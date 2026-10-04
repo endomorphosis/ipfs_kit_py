@@ -108,12 +108,15 @@ result = await ctx.use_tool("ipfs_files_mkdir", {"path": "/my_directory", "paren
 ### Example 3: Writing a File to IPFS MFS
 
 ```python
-result = await ctx.use_tool("ipfs_files_write", {
-    "path": "/my_directory/hello.txt",
-    "content": "Hello, IPFS!",
-    "create": True,
-    "truncate": True
-})
+result = await ctx.use_tool(
+    "ipfs_files_write",
+    {
+        "path": "/my_directory/hello.txt",
+        "content": "Hello, IPFS!",
+        "create": True,
+        "truncate": True,
+    },
+)
 ```
 
 ### Example 4: Reading a File from IPFS MFS

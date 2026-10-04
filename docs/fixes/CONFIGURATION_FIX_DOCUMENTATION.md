@@ -58,12 +58,12 @@ Added complete frontend implementation:
 Implemented fully functional API endpoints:
 
 ```python
-GET    /api/backend_configs              # List all configurations
-GET    /api/backend_configs/{name}       # Get specific configuration
-POST   /api/backend_configs              # Create new configuration
-PUT    /api/backend_configs/{name}       # Update configuration
-DELETE /api/backend_configs/{name}       # Delete configuration
-POST   /api/backend_configs/{name}/test  # Test configuration
+GET / api / backend_configs  # List all configurations
+GET / api / backend_configs / {name}  # Get specific configuration
+POST / api / backend_configs  # Create new configuration
+PUT / api / backend_configs / {name}  # Update configuration
+DELETE / api / backend_configs / {name}  # Delete configuration
+POST / api / backend_configs / {name} / test  # Test configuration
 ```
 
 ### 5. Configuration Persistence

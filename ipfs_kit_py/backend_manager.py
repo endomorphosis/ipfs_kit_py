@@ -5,6 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class BackendManager:
     def __init__(self, ipfs_kit_path=None):
         self.ipfs_kit_path = Path(ipfs_kit_path or os.path.expanduser("~/.ipfs_kit"))
@@ -18,7 +19,7 @@ class BackendManager:
         backends = []
         for config_file in self.backends_path.glob("*.yaml"):
             try:
-                with open(config_file, 'r') as f:
+                with open(config_file, "r") as f:
                     config = yaml.safe_load(f)
                     backends.append(config)
             except Exception as e:
@@ -29,7 +30,7 @@ class BackendManager:
         config_path = self._get_backend_config_path(name)
         if config_path.exists():
             try:
-                with open(config_path, 'r') as f:
+                with open(config_path, "r") as f:
                     return yaml.safe_load(f)
             except Exception as e:
                 logger.error(f"Error loading backend config {config_path}: {e}")
@@ -40,10 +41,10 @@ class BackendManager:
         config_path = self._get_backend_config_path(name)
         if config_path.exists():
             return {"error": "Backend with this name already exists"}
-        
+
         config = {"name": name, "type": type, **kwargs}
         try:
-            with open(config_path, 'w') as f:
+            with open(config_path, "w") as f:
                 yaml.safe_dump(config, f)
             return {"status": "Backend created", "backend": config}
         except Exception as e:
@@ -54,12 +55,12 @@ class BackendManager:
         config_path = self._get_backend_config_path(name)
         if not config_path.exists():
             return {"error": "Backend not found"}
-        
+
         try:
-            with open(config_path, 'r') as f:
+            with open(config_path, "r") as f:
                 config = yaml.safe_load(f)
             config.update(kwargs)
-            with open(config_path, 'w') as f:
+            with open(config_path, "w") as f:
                 yaml.safe_dump(config, f)
             return {"status": "Backend updated", "backend": config}
         except Exception as e:
@@ -70,7 +71,7 @@ class BackendManager:
         config_path = self._get_backend_config_path(name)
         if not config_path.exists():
             return {"error": "Backend not found"}
-        
+
         try:
             os.remove(config_path)
             return {"status": "Backend removed"}

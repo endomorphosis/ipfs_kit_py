@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Fix syntax error in IPFS controller file."""
+
 import logging
 
 # Set up logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("fix_controller_syntax")
+
 
 def fix_syntax_error():
     """Fix syntax error in IPFSController."""
@@ -36,7 +37,7 @@ def fix_syntax_error():
         logger.info("Found try without except - adding except block")
         # Add the missing except block
         fixed_content = content.replace(
-            "                result[\"status_code\"] = 200 if result.get(\"success\", False) else 500",
+            '                result["status_code"] = 200 if result.get("success", False) else 500',
             """                result["status_code"] = 200 if result.get("success", False) else 500
 
                 return result
@@ -51,7 +52,7 @@ def fix_syntax_error():
                 "daemon_status": {"overall": "unknown"},
                 "status_code": 500
             }
-            return result"""
+            return result""",
         )
 
         # Write the fixed content back to the file
@@ -63,6 +64,7 @@ def fix_syntax_error():
     else:
         logger.warning("Could not identify the syntax issue")
         return False
+
 
 if __name__ == "__main__":
     logger.info("Starting controller syntax fix...")

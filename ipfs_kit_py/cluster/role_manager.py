@@ -32,7 +32,7 @@ class NodeRole(Enum):
     WORKER = "worker"
     LEECHER = "leecher"
     MODULAR = "modular"  # Full-featured role for testing and development
-    LOCAL = "local"      # Local-only role with all networking disabled
+    LOCAL = "local"  # Local-only role with all networking disabled
     GATEWAY = "gateway"  # New role for gateway-only nodes
     OBSERVER = "observer"  # New role for monitoring-only nodes
 
@@ -223,7 +223,7 @@ role_capabilities = {
     NodeRole.LOCAL: {
         "description": "Local-only mode with all networking capabilities disabled",
         "required_resources": {
-            "min_memory_mb": 512,   # 512MB
+            "min_memory_mb": 512,  # 512MB
             "min_storage_gb": 5,
             "min_bandwidth_mbps": 0,  # No bandwidth required
             "min_uptime_hours": 0,
@@ -234,7 +234,7 @@ role_capabilities = {
             "dht_server": False,
             "content_routing": False,
             "task_distribution": False,
-            "metadata_indexing": True,   # Local indexing only
+            "metadata_indexing": True,  # Local indexing only
             "persistent_storage": True,  # Local storage only
             "high_replication": False,
             "monitoring": False,
@@ -504,7 +504,9 @@ class RoleManager:
             score += min(100, storage_ratio * 33)
 
             # CPU score (0-100)
-            cpu_ratio = min(self.resources.get("cpu_count", 1) / max(required["preferred_cpu_cores"], 1), 3)
+            cpu_ratio = min(
+                self.resources.get("cpu_count", 1) / max(required["preferred_cpu_cores"], 1), 3
+            )
             score += min(100, cpu_ratio * 33)
 
             # Network score if available (0-100)
@@ -1117,50 +1119,50 @@ class RoleManager:
     def _optimize_for_modular(self):
         """Optimize for modular development/testing role with all features enabled."""
         self.logger.debug("Optimizing for modular development mode")
-        
+
         # Enable all features for testing
         self._adjust_connection_limits(150, 800)
         self._enable_metadata_indexing()
         self._configure_task_distribution()
-        
+
         # Enable development-specific features
         self.logger.info("Development mode enabled - all features available")
-        
+
         # Configure for comprehensive functionality
         self.metrics["modular_features"] = {
             "dht_server": True,
             "gateway": True,
             "cluster_management": True,
             "monitoring": True,
-            "development_mode": True
+            "development_mode": True,
         }
 
     def _optimize_for_local(self):
         """Optimize for local-only mode with networking disabled."""
         self.logger.debug("Optimizing for local-only mode")
-        
+
         # Disable all network connections
         self._adjust_connection_limits(0, 0)
-        
+
         # Enable only local features
         self.logger.info("Local mode enabled - networking disabled")
-        
+
         # Configure local-only features
         self.metrics["local_features"] = {
             "networking_disabled": True,
             "local_storage": True,
             "local_indexing": True,
             "bootstrap_disabled": True,
-            "dht_disabled": True
+            "dht_disabled": True,
         }
-        
+
         # Ensure no network operations
         self._disable_network_components()
 
     def _disable_network_components(self):
         """Disable all networking components for local mode."""
         self.logger.debug("Disabling all network components")
-        
+
         # In a real implementation, this would:
         # - Stop DHT participation
         # - Close all network connections
@@ -1168,7 +1170,7 @@ class RoleManager:
         # - Stop advertising on the network
         # - Disable relay services
         # - Stop AutoNAT service
-        
+
         self.metrics["network_status"] = "disabled"
 
     def _register_with_master(self):

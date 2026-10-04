@@ -16,13 +16,14 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
+
 async def test_integrated_server():
     """Test the integrated MCP server with dashboard."""
     print("🧪 Testing Integrated MCP Server with Dashboard")
     print("=" * 60)
-    
+
     server_url = "http://127.0.0.1:8765"
-    
+
     async with aiohttp.ClientSession() as session:
         print("\n1. Testing Server Health...")
         try:
@@ -37,7 +38,7 @@ async def test_integrated_server():
                     print(f"❌ Health check failed: {response.status}")
         except Exception as e:
             print(f"❌ Health check error: {e}")
-        
+
         print("\n2. Testing Prometheus Metrics...")
         try:
             async with session.get(f"{server_url}/metrics") as response:
@@ -46,15 +47,15 @@ async def test_integrated_server():
                     print(f"✅ Metrics endpoint accessible")
                     print(f"   Response length: {len(metrics_text)} bytes")
                     # Show first few lines
-                    lines = metrics_text.split('\n')[:5]
+                    lines = metrics_text.split("\n")[:5]
                     for line in lines:
-                        if line.strip() and not line.startswith('#'):
+                        if line.strip() and not line.startswith("#"):
                             print(f"   {line}")
                 else:
                     print(f"❌ Metrics failed: {response.status}")
         except Exception as e:
             print(f"❌ Metrics error: {e}")
-        
+
         print("\n3. Testing MCP Status...")
         try:
             async with session.get(f"{server_url}/mcp/status") as response:
@@ -69,7 +70,7 @@ async def test_integrated_server():
                     print(f"❌ MCP status failed: {response.status}")
         except Exception as e:
             print(f"❌ MCP status error: {e}")
-        
+
         print("\n4. Testing MCP JSON-RPC...")
         try:
             # Test MCP initialize request
@@ -80,36 +81,33 @@ async def test_integrated_server():
                 "params": {
                     "protocolVersion": "2024-11-05",
                     "capabilities": {},
-                    "clientInfo": {
-                        "name": "test-client",
-                        "version": "1.0.0"
-                    }
-                }
+                    "clientInfo": {"name": "test-client", "version": "1.0.0"},
+                },
             }
-            
+
             async with session.post(f"{server_url}/mcp", json=mcp_request) as response:
                 if response.status == 200:
                     mcp_response = await response.json()
                     print(f"✅ MCP JSON-RPC accessible")
                     print(f"   Response ID: {mcp_response.get('id')}")
                     print(f"   Method: initialize")
-                    if 'result' in mcp_response:
+                    if "result" in mcp_response:
                         print(f"   Result keys: {list(mcp_response['result'].keys())}")
-                    elif 'error' in mcp_response:
+                    elif "error" in mcp_response:
                         print(f"   Error: {mcp_response['error']}")
                 else:
                     print(f"❌ MCP JSON-RPC failed: {response.status}")
         except Exception as e:
             print(f"❌ MCP JSON-RPC error: {e}")
-        
+
         print("\n5. Testing Dashboard Pages...")
         dashboard_pages = [
             ("/dashboard", "Main Dashboard"),
             ("/dashboard/metrics", "Metrics"),
             ("/dashboard/health", "Health"),
-            ("/dashboard/vfs", "VFS Analytics")
+            ("/dashboard/vfs", "VFS Analytics"),
         ]
-        
+
         for path, name in dashboard_pages:
             try:
                 async with session.get(f"{server_url}{path}") as response:
@@ -120,15 +118,15 @@ async def test_integrated_server():
                         print(f"❌ {name} page failed: {response.status}")
             except Exception as e:
                 print(f"❌ {name} page error: {e}")
-        
+
         print("\n6. Testing Dashboard API...")
         api_endpoints = [
             ("/dashboard/api/summary", "Summary"),
             ("/dashboard/api/metrics", "Metrics Data"),
             ("/dashboard/api/health", "Health Data"),
-            ("/dashboard/api/analytics", "Analytics")
+            ("/dashboard/api/analytics", "Analytics"),
         ]
-        
+
         for path, name in api_endpoints:
             try:
                 async with session.get(f"{server_url}{path}") as response:
@@ -141,7 +139,7 @@ async def test_integrated_server():
                         print(f"❌ {name} API failed: {response.status}")
             except Exception as e:
                 print(f"❌ {name} API error: {e}")
-        
+
         print("\n7. Testing Root Endpoint...")
         try:
             async with session.get(f"{server_url}/") as response:
@@ -155,7 +153,7 @@ async def test_integrated_server():
                     print(f"❌ Root endpoint failed: {response.status}")
         except Exception as e:
             print(f"❌ Root endpoint error: {e}")
-    
+
     print("\n" + "=" * 60)
     print("🎯 Test Summary:")
     print("   The integrated server provides unified access to:")
@@ -170,9 +168,9 @@ async def test_integrated_server():
 async def test_websocket_connection():
     """Test WebSocket connections."""
     print("\n🔌 Testing WebSocket Connections...")
-    
+
     import websockets
-    
+
     # Test MCP WebSocket
     try:
         uri = "ws://127.0.0.1:8765/mcp/ws"
@@ -185,20 +183,20 @@ async def test_websocket_connection():
                 "params": {
                     "protocolVersion": "2024-11-05",
                     "capabilities": {},
-                    "clientInfo": {"name": "test-ws-client", "version": "1.0.0"}
-                }
+                    "clientInfo": {"name": "test-ws-client", "version": "1.0.0"},
+                },
             }
-            
+
             await websocket.send(json.dumps(mcp_request))
             response = await websocket.recv()
             response_data = json.loads(response)
-            
+
             print(f"✅ MCP WebSocket connection successful")
             print(f"   Response ID: {response_data.get('id')}")
-            
+
     except Exception as e:
         print(f"❌ MCP WebSocket error: {e}")
-    
+
     # Test Dashboard WebSocket
     try:
         uri = "ws://127.0.0.1:8765/dashboard/ws"
@@ -207,10 +205,10 @@ async def test_websocket_connection():
             with anyio.fail_after(5.0):
                 response = await websocket.recv()
             response_data = json.loads(response)
-            
+
             print(f"✅ Dashboard WebSocket connection successful")
             print(f"   Data keys: {list(response_data.keys())}")
-            
+
     except Exception as e:
         print(f"❌ Dashboard WebSocket error: {e}")
 
@@ -221,25 +219,26 @@ def main():
     print("Make sure the server is running with:")
     print("python mcp/integrated_mcp_server_with_dashboard.py")
     print()
-    
+
     # Give user a chance to start the server
     try:
         input("Press Enter when the server is running (or Ctrl+C to exit)...")
     except KeyboardInterrupt:
         print("\nTest cancelled by user")
         return
-    
+
     try:
         anyio.run(test_integrated_server)
-        
+
         # Test WebSockets if websockets package is available
         try:
             import websockets
+
             anyio.run(test_websocket_connection)
         except ImportError:
             print("\n📦 Install 'websockets' package to test WebSocket connections:")
             print("   pip install websockets")
-        
+
     except KeyboardInterrupt:
         print("\nTests interrupted by user")
     except Exception as e:

@@ -39,13 +39,14 @@ except Exception:  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 
+
 class PerformanceMetrics:
     """Track and report performance metrics for IPFS operations."""
-    
+
     def __init__(self, enable_metrics=True):
         """
         Initialize metrics counters.
-        
+
         Args:
             enable_metrics: Whether to enable metrics collection
         """
@@ -58,78 +59,79 @@ class PerformanceMetrics:
         self.write_time = 0.0
         self.operation_times: Dict[str, float] = {}
         self.operation_counts: Dict[str, int] = {}
-        
+
         # Cache metrics
-        self.cache_stats = {
-            "memory_hits": 0,
-            "disk_hits": 0,
-            "misses": 0
-        }
-    
+        self.cache_stats = {"memory_hits": 0, "disk_hits": 0, "misses": 0}
+
     def track_operation(self, operation_name: str) -> Callable:
         """
         Create a decorator to track operation timing.
-        
+
         Args:
             operation_name: Name of the operation to track
-            
+
         Returns:
             Decorator function
         """
+
         def decorator(func):
             def wrapper(*args, **kwargs):
                 if not self.enable_metrics:
                     return func(*args, **kwargs)
-                    
+
                 start_time = time.time()
                 result = func(*args, **kwargs)
                 elapsed = time.time() - start_time
-                
+
                 if operation_name not in self.operation_times:
                     self.operation_times[operation_name] = 0.0
                     self.operation_counts[operation_name] = 0
-                    
+
                 self.operation_times[operation_name] += elapsed
                 self.operation_counts[operation_name] += 1
-                
+
                 return result
+
             return wrapper
+
         return decorator
-    
+
     def record_read(self, size: int, elapsed: float) -> None:
         """
         Record a read operation.
-        
+
         Args:
             size: Number of bytes read
             elapsed: Time taken in seconds
         """
         if not self.enable_metrics:
             return
-            
+
         self.read_count += 1
         self.read_bytes += size
         self.read_time += elapsed
-    
+
     def record_write(self, size: int, elapsed: float) -> None:
         """
         Record a write operation.
-        
+
         Args:
             size: Number of bytes written
             elapsed: Time taken in seconds
         """
         if not self.enable_metrics:
             return
-            
+
         self.write_count += 1
         self.write_bytes += size
         self.write_time += elapsed
-    
-    def record_operation_time(self, operation_name: str, elapsed_time: float, size: int = 0) -> None:
+
+    def record_operation_time(
+        self, operation_name: str, elapsed_time: float, size: int = 0
+    ) -> None:
         """
         Record time taken for a specific operation.
-        
+
         Args:
             operation_name: Name of the operation
             elapsed_time: Time taken in seconds
@@ -137,105 +139,97 @@ class PerformanceMetrics:
         """
         if not self.enable_metrics:
             return
-            
+
         if operation_name not in self.operation_times:
             self.operation_times[operation_name] = 0.0
             self.operation_counts[operation_name] = 0
-            
+
         self.operation_times[operation_name] += elapsed_time
         self.operation_counts[operation_name] += 1
-        
+
         # Also update read/write counters if applicable
         if operation_name == "read":
             self.record_read(size, elapsed_time)
         elif operation_name == "write":
             self.record_write(size, elapsed_time)
-    
+
     def get_operation_stats(self, operation_name=None) -> Dict[str, Any]:
         """
         Get statistics for operations.
-        
+
         Args:
             operation_name: Optional name of specific operation to get stats for
                             If None, returns stats for all operations
-        
+
         Returns:
             Dictionary of operation statistics
         """
         if not self.enable_metrics:
             return {"metrics_disabled": True}
-            
+
         if operation_name is not None:
             if operation_name not in self.operation_counts:
                 return {"count": 0, "total_time": 0.0, "mean": 0.0}
-                
+
             count = self.operation_counts[operation_name]
             total_time = self.operation_times[operation_name]
             mean = total_time / count if count > 0 else 0.0
-            
-            return {
-                "count": count,
-                "total_time": total_time,
-                "mean": mean
-            }
-        
+
+            return {"count": count, "total_time": total_time, "mean": mean}
+
         # Get stats for all operations
         result = {"total_operations": sum(self.operation_counts.values())}
-        
+
         for op_name in self.operation_counts:
             count = self.operation_counts[op_name]
             total_time = self.operation_times[op_name]
             mean = total_time / count if count > 0 else 0.0
-            
-            result[op_name] = {
-                "count": count,
-                "total_time": total_time,
-                "average_time": mean
-            }
-        
+
+            result[op_name] = {"count": count, "total_time": total_time, "average_time": mean}
+
         return result
-    
+
     # Cache-related methods
-    
+
     def record_cache_access(self, access_type: str) -> None:
         """
         Record a cache access event.
-        
+
         Args:
             access_type: Type of access ("memory_hit", "disk_hit", or "miss")
         """
         if not self.enable_metrics:
             return
-            
+
         if access_type == "memory_hit":
             self.cache_stats["memory_hits"] += 1
         elif access_type == "disk_hit":
             self.cache_stats["disk_hits"] += 1
         elif access_type == "miss":
             self.cache_stats["misses"] += 1
-    
+
     def get_cache_stats(self) -> Dict[str, Any]:
         """
         Get cache access statistics.
-        
+
         Returns:
             Dictionary of cache statistics
         """
         if not self.enable_metrics:
             return {"metrics_disabled": True}
-            
+
         memory_hits = self.cache_stats["memory_hits"]
         disk_hits = self.cache_stats["disk_hits"]
         misses = self.cache_stats["misses"]
         total = memory_hits + disk_hits + misses
-        
+
         stats = {
             "memory_hits": memory_hits,
             "disk_hits": disk_hits,
             "misses": misses,
-            "total": total
+            "total": total,
         }
-        
+
         # Calculate rates if there are any accesses
         if total > 0:
             stats["memory_hit_rate"] = float(memory_hits) / total
@@ -247,9 +241,9 @@ class PerformanceMetrics:
             stats["disk_hit_rate"] = 0.0
             stats["overall_hit_rate"] = 0.0
             stats["miss_rate"] = 0.0
-            
+
         return stats
-    
+
     def reset(self) -> None:
         """Reset all metrics to zero."""
         self.read_count = 0
@@ -260,26 +254,22 @@ class PerformanceMetrics:
         self.write_time = 0.0
         self.operation_times = {}
         self.operation_counts = {}
-        self.cache_stats = {
-            "memory_hits": 0,
-            "disk_hits": 0,
-            "misses": 0
-        }
-    
+        self.cache_stats = {"memory_hits": 0, "disk_hits": 0, "misses": 0}
+
     def reset_metrics(self) -> None:
         """Reset all metrics to zero."""
         self.reset()  # Reuse existing reset method
-    
+
     def get_metrics(self) -> Dict[str, Any]:
         """
         Get all collected metrics.
-        
+
         Returns:
             Dictionary of metrics
         """
         if not self.enable_metrics:
             return {"metrics_enabled": False}
-            
+
         metrics = {
             "metrics_enabled": True,
             "read_count": self.read_count,
@@ -289,30 +279,33 @@ class PerformanceMetrics:
             "read_time": self.read_time,
             "write_time": self.write_time,
             "operations": {},
-            "cache": self.get_cache_stats()
+            "cache": self.get_cache_stats(),
         }
-        
+
         for op_name in self.operation_counts:
             count = self.operation_counts[op_name]
             total_time = self.operation_times[op_name]
             avg_time = total_time / count if count > 0 else 0.0
-            
+
             metrics["operations"][op_name] = {
                 "count": count,
                 "total_time": total_time,
-                "average_time": avg_time
+                "average_time": avg_time,
             }
-        
+
         return metrics
+
 
 # Create an alias for backward compatibility
 performance_metrics = PerformanceMetrics
 
+
 def _strip_protocol(path: str) -> str:
     """Remove the 'ipfs://' protocol prefix if present."""
     if path.startswith("ipfs://"):
-        return path[len("ipfs://"):]
+        return path[len("ipfs://") :]
     return path
+
 
 def _full_path(path: str) -> str:
     """Ensure the path has the 'ipfs://' protocol prefix."""
@@ -320,32 +313,33 @@ def _full_path(path: str) -> str:
         return f"ipfs://{path}"
     return path
 
+
 class IPFSFSSpecFileSystem(AbstractFileSystem):
     """
     FSSpec-compatible filesystem for IPFS.
-    
+
     This implementation integrates with the ipfs_kit_py library's core IPFS client
     and tiered caching mechanisms to provide a unified interface to IPFS content.
     """
-    
+
     protocol = "ipfs"
-    
+
     def __init__(
-        self, 
-        ipfs_client: Any, # This will be an instance of ipfs_kit.ipfs_py or similar
-        tiered_cache_manager: Any, # This will be an instance of TieredCacheManager
+        self,
+        ipfs_client: Any,  # This will be an instance of ipfs_kit.ipfs_py or similar
+        tiered_cache_manager: Any,  # This will be an instance of TieredCacheManager
         api_addr: str = "/ip4/127.0.0.1/tcp/5001",
         role: str = "leecher",
         gateway_urls: Optional[List[str]] = None,
         gateway_only: bool = False,
         use_gateway_fallback: bool = True,
-        cache_options: Optional[Dict[str, Any]] = None, # Renamed to cache_options
+        cache_options: Optional[Dict[str, Any]] = None,  # Renamed to cache_options
         enable_metrics: bool = False,
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize the IPFS filesystem.
-        
+
         Args:
             ipfs_client: An initialized instance of the IPFS client from ipfs_kit_py.
             tiered_cache_manager: An initialized instance of TieredCacheManager.
@@ -368,14 +362,14 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
         self.gateway_urls = gateway_urls or ["https://ipfs.io", "https://cloudflare-ipfs.com"]
         self.gateway_only = gateway_only
         self.use_gateway_fallback = use_gateway_fallback
-        self.cache_options = cache_options or {} # Renamed to cache_options
+        self.cache_options = cache_options or {}  # Renamed to cache_options
         self.enable_metrics = enable_metrics
         self.backend = backend
         self.metadata = metadata or {}
-        
+
         # Initialize performance metrics
         self.metrics = PerformanceMetrics(enable_metrics=enable_metrics)
-        
+
         # Track open files
         self.open_files = {}
 
@@ -388,104 +382,105 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
                 self.synapse_storage = synapse_storage(metadata=self.metadata)
             except Exception as e:
                 logger.warning(f"Failed to initialize Synapse storage: {e}")
-        
+
         logger.info(f"Initialized IPFS FSSpec filesystem with role: {role}")
-    
+
     def _get_cid_from_path(self, path: str) -> str:
         """Extract CID from an IPFS path."""
         stripped_path = _strip_protocol(path)
         # Assuming path format like /ipfs/CID or CID/filename
-        parts = stripped_path.split('/')
+        parts = stripped_path.split("/")
         if parts[0] == "ipfs":
             return parts[1]
-        return parts[0] # Assume it's just a CID if no /ipfs/ prefix
+        return parts[0]  # Assume it's just a CID if no /ipfs/ prefix
 
-    def ls(self, path: str, detail: bool = True, **kwargs) -> Union[List[Dict[str, Any]], List[str]]:
+    def ls(
+        self, path: str, detail: bool = True, **kwargs
+    ) -> Union[List[Dict[str, Any]], List[str]]:
         """
         List directory contents.
-        
+
         Args:
             path: IPFS path to list (can be a CID or a path like /ipfs/CID/dir)
             detail: Whether to return detailed information
-            
+
         Returns:
             List of dictionaries with file info if detail=True,
             otherwise list of path strings
         """
         full_path = _strip_protocol(path)
-        
+
         start_time = time.time()
-        
+
         # Use ipfs_client.ipfs_ls_path
         ls_result = self.ipfs_client.ipfs_ls_path(full_path)
-        
+
         if not ls_result.get("success", False):
             logger.error(f"Failed to list path {path}: {ls_result.get('error', 'Unknown error')}")
-            return [] # Return empty list on failure
-        
+            return []  # Return empty list on failure
+
         items = []
         for item in ls_result.get("items", []):
             name = item.get("name")
             cid = item.get("hash")
             size = item.get("size")
-            type_str = "directory" if item.get("type") == 1 else "file" # 0 for file, 1 for directory
-            
+            type_str = (
+                "directory" if item.get("type") == 1 else "file"
+            )  # 0 for file, 1 for directory
+
             # Construct full path for the item
             item_path = os.path.join(path, name)
-            
+
             if detail:
-                items.append({
-                    "name": _full_path(item_path),
-                    "size": size,
-                    "type": type_str,
-                    "cid": cid
-                })
+                items.append(
+                    {"name": _full_path(item_path), "size": size, "type": type_str, "cid": cid}
+                )
             else:
                 items.append(_full_path(item_path))
-        
+
         elapsed = time.time() - start_time
         self.metrics.record_operation_time("ls", elapsed)
-        
+
         return items
-    
+
     def info(self, path: str, **kwargs) -> Dict[str, Any]:
         """
         Get info about a file/directory.
-        
+
         Args:
             path: IPFS path
-            
+
         Returns:
             Dictionary with file/directory info
         """
         stripped_path = _strip_protocol(path)
-        
+
         start_time = time.time()
-        
+
         # Use ipfs_client.files_stat for MFS paths or ipfs_client.ipfs_ls_path for DAG paths
         # For simplicity, let's assume it's a CID or a path under a CID for now,
         # and use ipfs_ls_path to get info about the specific item.
         # A more robust solution would differentiate between MFS and DAG paths.
-        
+
         # Try to get info using ipfs_ls_path on the parent directory if it's a file within a CID
         parent_path = os.path.dirname(stripped_path)
-        if not parent_path or parent_path == ".": # If it's just a CID or a file at root
+        if not parent_path or parent_path == ".":  # If it's just a CID or a file at root
             cid = self._get_cid_from_path(stripped_path)
-            ls_result = self.ipfs_client.ipfs_ls_path(cid) # List the CID itself
+            ls_result = self.ipfs_client.ipfs_ls_path(cid)  # List the CID itself
             if ls_result.get("success", False) and ls_result.get("items"):
                 # If it's a directory, the info should be about the directory itself
                 # If it's a file, ipfs_ls_path on the CID will return the file's info
-                item = ls_result["items"][0] # Assuming the first item is the one we want info for
+                item = ls_result["items"][0]  # Assuming the first item is the one we want info for
                 name = item.get("name")
                 cid = item.get("hash")
                 size = item.get("size")
                 type_str = "directory" if item.get("type") == 1 else "file"
-                
+
                 result = {
                     "name": _full_path(stripped_path),
                     "size": size,
                     "type": type_str,
-                    "cid": cid
+                    "cid": cid,
                 }
             else:
                 # Fallback for direct CID info if ls_path doesn't work as expected for single files
@@ -493,9 +488,9 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
                 # For now, return a basic file info
                 result = {
                     "name": _full_path(stripped_path),
-                    "size": 0, # Unknown size
+                    "size": 0,  # Unknown size
                     "type": "file",
-                    "cid": self._get_cid_from_path(stripped_path)
+                    "cid": self._get_cid_from_path(stripped_path),
                 }
         else:
             # If it's a path like /ipfs/CID/dir/file.txt, we need to list the parent and find the item
@@ -506,40 +501,40 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
                 if item.get("name") == target_name:
                     found_item = item
                     break
-            
+
             if found_item:
                 name = found_item.get("name")
                 cid = found_item.get("hash")
                 size = found_item.get("size")
                 type_str = "directory" if found_item.get("type") == 1 else "file"
-                
+
                 result = {
                     "name": _full_path(stripped_path),
                     "size": size,
                     "type": type_str,
-                    "cid": cid
+                    "cid": cid,
                 }
             else:
                 logger.warning(f"Could not find info for path: {path}")
                 raise FileNotFoundError(f"Path not found: {path}")
-        
+
         elapsed = time.time() - start_time
         self.metrics.record_operation_time("info", elapsed)
-        
+
         return result
-    
+
     def open(
-        self, 
-        path: str, 
-        mode: str = "rb", 
-        block_size: Optional[int] = None, 
-        cache_options: Optional[Dict[str, Any]] = None, # Added cache_options
-        compression: Optional[str] = None, # Added compression parameter
-        **kwargs # Simplified signature to match fsspec.AbstractFileSystem.open
+        self,
+        path: str,
+        mode: str = "rb",
+        block_size: Optional[int] = None,
+        cache_options: Optional[Dict[str, Any]] = None,  # Added cache_options
+        compression: Optional[str] = None,  # Added compression parameter
+        **kwargs,  # Simplified signature to match fsspec.AbstractFileSystem.open
     ) -> "IPFSFSSpecFile":
         """
         Open a file.
-        
+
         Args:
             path: IPFS path
             mode: File mode (rb, wb, etc.)
@@ -547,112 +542,136 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
             cache_options: Options for caching
             compression: Compression type (e.g., 'gzip', 'lz4')
             **kwargs: Additional arguments passed to the file-like object
-            
+
         Returns:
             File-like object
         """
         stripped_path = _strip_protocol(path)
-        
+
         start_time = time.time()
         # Pass all relevant kwargs to the file-like object
-        file = IPFSFSSpecFile(self, stripped_path, mode, block_size, compression=compression, cache_options=cache_options, **kwargs) # Pass compression, autocommit, cache_options
+        file = IPFSFSSpecFile(
+            self,
+            stripped_path,
+            mode,
+            block_size,
+            compression=compression,
+            cache_options=cache_options,
+            **kwargs,
+        )  # Pass compression, autocommit, cache_options
         self.open_files[id(file)] = file
         elapsed = time.time() - start_time
         self.metrics.record_operation_time("open", elapsed)
-        
+
         return file
-    
-    def cat(self, path: str, recursive: bool = False, on_error: str = "raise", **kwargs) -> bytes: # Added on_error parameter
+
+    def cat(
+        self, path: str, recursive: bool = False, on_error: str = "raise", **kwargs
+    ) -> bytes:  # Added on_error parameter
         """
         Get file contents.
-        
+
         Args:
             path: IPFS path (can be a CID or a path like /ipfs/CID/file.txt)
             recursive: Whether to retrieve directory contents recursively (ignored for files)
             on_error: How to handle errors ('raise', 'omit', 'return')
-            
+
         Returns:
             File contents as bytes
         """
         stripped_path = _strip_protocol(path)
         cid = self._get_cid_from_path(stripped_path)
-        
+
         # Try to get from cache first
         cached_content = self.tiered_cache_manager.get(cid)
         if cached_content:
-            self.metrics.record_cache_access("memory_hit") # Assuming tiered_cache_manager handles memory/disk distinction
+            self.metrics.record_cache_access(
+                "memory_hit"
+            )  # Assuming tiered_cache_manager handles memory/disk distinction
             return cached_content
-        
+
         # Not in cache, fetch from IPFS
         self.metrics.record_cache_access("miss")
         start_time = time.time()
-        
+
         # Use ipfs_client.ipfs_cat
         cat_result = self.ipfs_client.ipfs_cat(cid)
-        
+
         if not cat_result.get("success", False):
-            logger.error(f"Failed to cat content for {cid}: {cat_result.get('error', 'Unknown error')}")
+            logger.error(
+                f"Failed to cat content for {cid}: {cat_result.get('error', 'Unknown error')}"
+            )
             if on_error == "raise":
                 raise FileNotFoundError(f"Content not found for CID: {cid}")
             elif on_error == "return":
-                return cat_result.get("error", b"") # Return error message as bytes
-            else: # omit
-                return b"" # Return empty bytes
-        
-        content = cat_result.get("data", b"") # Assuming data is returned as bytes
-        
+                return cat_result.get("error", b"")  # Return error message as bytes
+            else:  # omit
+                return b""  # Return empty bytes
+
+        content = cat_result.get("data", b"")  # Assuming data is returned as bytes
+
         elapsed = time.time() - start_time
         self.metrics.record_operation_time("read", elapsed, len(content))
-        
+
         # Cache the content
         self.tiered_cache_manager.put(cid, content)
-        
+
         return content
-    
-    def put(self, lpath: str, rpath: str, recursive: bool = False, callback: Optional[Any] = DEFAULT_CALLBACK, maxdepth: Optional[int] = None, **kwargs) -> None: # Added maxdepth parameter
+
+    def put(
+        self,
+        lpath: str,
+        rpath: str,
+        recursive: bool = False,
+        callback: Optional[Any] = DEFAULT_CALLBACK,
+        maxdepth: Optional[int] = None,
+        **kwargs,
+    ) -> None:  # Added maxdepth parameter
         """
         Upload a local file to IPFS.
-        
+
         Args:
             lpath: Local filename to upload
             rpath: Remote IPFS path to create (can be a target CID or a path like /ipfs/CID/new_file.txt)
             recursive: Whether to upload directory contents recursively
             callback: Callback for progress reporting
             maxdepth: Maximum depth for recursion (ignored for now)
-            
+
         Returns:
             None
         """
         stripped_rpath = _strip_protocol(rpath)
-        
+
         start_time = time.time()
-        
+
         # Use ipfs_client.ipfs_add_path
-        add_result = self.ipfs_client.ipfs_add_path(lpath, recursive=recursive) # Pass recursive
-        
+        add_result = self.ipfs_client.ipfs_add_path(lpath, recursive=recursive)  # Pass recursive
+
         if not add_result.get("success", False):
-            logger.error(f"Failed to add file {lpath} to IPFS: {add_result.get('error', 'Unknown error')}")
+            logger.error(
+                f"Failed to add file {lpath} to IPFS: {add_result.get('error', 'Unknown error')}"
+            )
             raise IOError(f"Failed to upload file to IPFS: {lpath}")
-        
+
         # The CID of the added file/directory is in add_result["cid"] or add_result["files"][0].get("hash")
         # For simplicity, assume it's a single file and get the CID
         uploaded_cid = add_result.get("cid")
         if not uploaded_cid and add_result.get("files"):
             uploaded_cid = add_result["files"][0].get("hash")
-            
+
         if not uploaded_cid:
             logger.error(f"Failed to get CID after adding file {lpath} to IPFS.")
             raise IOError(f"Failed to get CID for uploaded file: {lpath}")
-            
+
         # If the path specified was a target path within an existing CID,
         # this would involve `ipfs files cp` or similar MFS operations.
         # For now, we assume `rpath` is just a placeholder or the target CID.
-        
+
         # Record metrics for the operation
         size = os.path.getsize(lpath) if os.path.exists(lpath) else 0
         elapsed = time.time() - start_time
         self.metrics.record_operation_time("write", elapsed, size)
-        
+
         # Cache the content if it was a file
         try:
             with open(lpath, "rb") as f:
@@ -660,55 +679,59 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
             self.tiered_cache_manager.put(uploaded_cid, content)
         except Exception as e:
             logger.warning(f"Failed to cache uploaded file {lpath} with CID {uploaded_cid}: {e}")
-            
+
         # fsspec.put returns None
         return None
-    
-    def rm(self, path: str, recursive: bool = False, maxdepth: Optional[int] = None) -> None: # Added maxdepth parameter
+
+    def rm(
+        self, path: str, recursive: bool = False, maxdepth: Optional[int] = None
+    ) -> None:  # Added maxdepth parameter
         """
         Remove a file/directory from IPFS.
-        
+
         Args:
             path: IPFS path to remove (can be a CID or a path like /ipfs/CID/dir)
             recursive: Whether to remove recursively
             maxdepth: Maximum depth for recursion (ignored for now)
         """
         stripped_path = _strip_protocol(path)
-        cid_or_path = stripped_path # Can be a CID or an MFS path
-        
+        cid_or_path = stripped_path  # Can be a CID or an MFS path
+
         start_time = time.time()
-        
+
         # Use ipfs_client.ipfs_remove_path or ipfs_client.ipfs_pin_rm
         # If it's a CID, we assume it means unpinning.
         # If it's an MFS path, we use ipfs_remove_path.
-        
+
         # Simple heuristic: if it looks like a CID, try unpinning. Otherwise, try removing path.
         # A more robust solution would check if it's an MFS path vs a DAG path.
-        if cid_or_path.startswith("Qm") or cid_or_path.startswith("ba"): # Basic CID check
+        if cid_or_path.startswith("Qm") or cid_or_path.startswith("ba"):  # Basic CID check
             rm_result = self.ipfs_client.ipfs_pin_rm(cid_or_path, recursive=recursive)
         else:
             rm_result = self.ipfs_client.ipfs_remove_path(cid_or_path)
-            
+
         if not rm_result.get("success", False):
-            logger.error(f"Failed to remove {path} from IPFS: {rm_result.get('error', 'Unknown error')}")
+            logger.error(
+                f"Failed to remove {path} from IPFS: {rm_result.get('error', 'Unknown error')}"
+            )
             raise IOError(f"Failed to remove {path} from IPFS.")
-            
+
         elapsed = time.time() - start_time
         self.metrics.record_operation_time("remove", elapsed)
-        
+
         # Invalidate cache for the removed item
         self.tiered_cache_manager.delete(self._get_cid_from_path(path))
-    
+
     def close(self) -> None:
         """Close the filesystem and release resources."""
         for file_id, file in list(self.open_files.items()):
             file.close()
             del self.open_files[id(file)]
-    
+
     def get_performance_metrics(self) -> Dict[str, Any]:
         """
         Get performance metrics for this filesystem.
-        
+
         Returns:
             Dictionary of performance metrics
         """
@@ -717,13 +740,13 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
     def _verify_content_integrity(self, cid):
         """
         Verify content integrity across storage tiers.
-        
+
         This method checks that the content stored in different tiers is identical
         and matches the expected hash.
-        
+
         Args:
             cid: Content identifier to verify
-            
+
         Returns:
             Dictionary with verification results
         """
@@ -733,16 +756,16 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
             "cid": cid,
             "timestamp": time.time(),
             "verified_tiers": 0,
-            "corrupted_tiers": []
+            "corrupted_tiers": [],
         }
-        
+
         # Get tiers that should contain this content
         tiers = self._get_content_tiers(cid)
         if not tiers:
             result["success"] = False
             result["error"] = f"Content {cid} not found in any tier"
             return result
-        
+
         # Get content from first tier as reference
         reference_tier = tiers[0]
         try:
@@ -752,79 +775,77 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
             result["success"] = False
             result["error"] = f"Failed to get reference content from {reference_tier}: {str(e)}"
             return result
-        
+
         # Check content in each tier
         result["verified_tiers"] = 1  # Count reference tier
-        
+
         for tier in tiers[1:]:
             try:
                 tier_content = self._get_from_tier(cid, tier)
                 tier_hash = self._compute_hash(tier_content)
-                
+
                 if tier_hash != reference_hash:
                     # Content mismatch detected
-                    result["corrupted_tiers"].append({
-                        "tier": tier,
-                        "expected_hash": reference_hash,
-                        "actual_hash": tier_hash
-                    })
+                    result["corrupted_tiers"].append(
+                        {"tier": tier, "expected_hash": reference_hash, "actual_hash": tier_hash}
+                    )
                     result["success"] = False
                 else:
                     result["verified_tiers"] += 1
-                    
+
             except Exception as e:
                 logger.warning(f"Failed to verify content in tier {tier}: {e}")
                 # Don't count this as corruption, just a retrieval failure
                 result["retrieval_errors"] = result.get("retrieval_errors", [])
-                result["retrieval_errors"].append({
-                    "tier": tier,
-                    "error": str(e)
-                })
-        
+                result["retrieval_errors"].append({"tier": tier, "error": str(e)})
+
         # Log the verification result
         if result["success"]:
             logger.info(f"Content {cid} integrity verified across {result['verified_tiers']} tiers")
         else:
-            logger.warning(f"Content {cid} integrity check failed: {len(result['corrupted_tiers'])} corrupted tiers")
-        
+            logger.warning(
+                f"Content {cid} integrity check failed: {len(result['corrupted_tiers'])} corrupted tiers"
+            )
+
         return result
 
     def _compute_hash(self, content):
         """
         Compute hash for content integrity verification.
-        
+
         Args:
             content: Binary content to hash
-            
+
         Returns:
             Content hash as string
         """
         import hashlib
+
         return hashlib.sha256(content).hexdigest()
 
     def _get_content_tiers(self, cid):
         """
         Get the tiers that should contain a given content.
-        
+
         Args:
             cid: Content identifier
-            
+
         Returns:
             List of tier names
         """
         # Check each tier to see if it contains the content
         tiers = []
-        
+
         # Check memory cache
-        if hasattr(self, 'cache') and hasattr(self.cache, 'memory_cache'):
+        if hasattr(self, "cache") and hasattr(self.cache, "memory_cache"):
             if cid in self.cache.memory_cache:
                 tiers.append("memory")
-        
+
         # Check disk cache
-        if hasattr(self, 'cache') and hasattr(self.cache, 'disk_cache'):
+        if hasattr(self, "cache") and hasattr(self.cache, "disk_cache"):
             if cid in self.cache.disk_cache.index:
                 tiers.append("disk")
-        
+
         # Check IPFS
         try:
             # Just check if content exists without downloading
@@ -832,9 +853,9 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
             tiers.append("ipfs_local")
         except Exception:
             pass
-        
+
         # Check IPFS cluster if available
-        if hasattr(self, 'ipfs_cluster') and self.ipfs_cluster:
+        if hasattr(self, "ipfs_cluster") and self.ipfs_cluster:
             try:
                 # Check if content is pinned in cluster
                 pin_info = self.ipfs_cluster.pin_ls(cid)
@@ -842,20 +863,20 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
                     tiers.append("ipfs_cluster")
             except Exception:
                 pass
-        
+
         return tiers
 
     def _check_replication_policy(self, cid, content=None):
         """
         Check and apply content replication policy across tiers.
-        
+
         Content with high value or importance (as determined by heat score)
         is replicated across multiple tiers for redundancy.
-        
+
         Args:
             cid: Content identifier
             content: Content data (optional, to avoid re-fetching)
-            
+
         Returns:
             Dictionary with replication results
         """
@@ -864,24 +885,24 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
             "operation": "check_replication_policy",
             "cid": cid,
             "timestamp": time.time(),
-            "replicated_to": []
+            "replicated_to": [],
         }
-        
+
         # Get current tiers that have this content
         current_tiers = self._get_content_tiers(cid)
         result["current_tiers"] = current_tiers
-        
+
         # Skip if no replication policy is defined
-        if not hasattr(self, 'cache_config') or not self.cache_config.get('replication_policy'):
+        if not hasattr(self, "cache_config") or not self.cache_config.get("replication_policy"):
             return result
-        
+
         # Get heat score to determine content value
         heat_score = 0
-        if hasattr(self, 'cache') and hasattr(self.cache, 'get_heat_score'):
+        if hasattr(self, "cache") and hasattr(self.cache, "get_heat_score"):
             heat_score = self.cache.get_heat_score(cid)
-        elif hasattr(self, 'cache') and hasattr(self.cache, 'access_stats'):
-            heat_score = self.cache.access_stats.get(cid, {}).get('heat_score', 0)
-        
+        elif hasattr(self, "cache") and hasattr(self.cache, "access_stats"):
+            heat_score = self.cache.access_stats.get(cid, {}).get("heat_score", 0)
+
         # Get content if not provided
         if content is None:
             try:
@@ -890,14 +911,14 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
                 result["success"] = False
                 result["error"] = f"Failed to retrieve content: {str(e)}"
                 return result
-        
+
         # Apply replication policy based on heat score
-        policy = self.cache_config.get('replication_policy', 'high_value')
-        
-        if policy == 'high_value' and heat_score > 5.0:
+        policy = self.cache_config.get("replication_policy", "high_value")
+
+        if policy == "high_value" and heat_score > 5.0:
             # Highly valued content should be replicated to multiple tiers
-            target_tiers = ['ipfs_local', 'ipfs_cluster']
-            
+            target_tiers = ["ipfs_local", "ipfs_cluster"]
+
             for tier in target_tiers:
                 if tier not in current_tiers:
                     try:
@@ -905,11 +926,11 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
                         result["replicated_to"].append(tier)
                     except Exception as e:
                         logger.warning(f"Failed to replicate {cid} to {tier}: {e}")
-        
-        elif policy == 'all':
+
+        elif policy == "all":
             # Replicate everything to all tiers
-            target_tiers = ['memory', 'disk', 'ipfs_local', 'ipfs_cluster']
-            
+            target_tiers = ["memory", "disk", "ipfs_local", "ipfs_cluster"]
+
             for tier in target_tiers:
                 if tier not in current_tiers:
                     try:
@@ -917,33 +938,33 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
                         result["replicated_to"].append(tier)
                     except Exception as e:
                         logger.warning(f"Failed to replicate {cid} to {tier}: {e}")
-        
+
         # Log replication results
         if result["replicated_to"]:
             logger.info(f"Replicated content {cid} to additional tiers: {result['replicated_to']}")
-        
+
         return result
 
     def _put_in_tier(self, cid, content, tier):
         """
         Put content in a specific storage tier.
-        
+
         Args:
             cid: Content identifier
             content: Content data
             tier: Target tier name
-            
+
         Returns:
             True if successful, False otherwise
         """
         if tier == "memory":
-            if hasattr(self, 'cache') and hasattr(self.cache, 'memory_cache'):
+            if hasattr(self, "cache") and hasattr(self.cache, "memory_cache"):
                 return self.cache.memory_cache.put(cid, content)
-        
+
         elif tier == "disk":
-            if hasattr(self, 'cache') and hasattr(self.cache, 'disk_cache'):
+            if hasattr(self, "cache") and hasattr(self.cache, "disk_cache"):
                 return self.cache.disk_cache.put(cid, content)
-        
+
         elif tier == "ipfs_local":
             # Add to local IPFS
             result = self.ipfs_client.add(content)
@@ -951,61 +972,61 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
                 # Pin to ensure persistence
                 self.ipfs_client.pin_add(cid)
                 return True
-        
+
         elif tier == "ipfs_cluster":
-            if hasattr(self, 'ipfs_cluster') and self.ipfs_cluster:
+            if hasattr(self, "ipfs_cluster") and self.ipfs_cluster:
                 # Make sure content is in IPFS first
                 if "ipfs_local" not in self._get_content_tiers(cid):
                     self._put_in_tier(cid, content, "ipfs_local")
-                
+
                 # Pin to cluster
                 result = self.ipfs_cluster.pin_add(cid)
                 return result.get("success", False)
-        
+
         return False
 
     def _get_from_tier(self, cid, tier):
         """
         Get content from a specific storage tier.
-        
+
         Args:
             cid: Content identifier
             tier: Source tier name
-            
+
         Returns:
             Content data if found, None otherwise
         """
         if tier == "memory":
-            if hasattr(self, 'cache') and hasattr(self.cache, 'memory_cache'):
+            if hasattr(self, "cache") and hasattr(self.cache, "memory_cache"):
                 return self.cache.memory_cache.get(cid)
-        
+
         elif tier == "disk":
-            if hasattr(self, 'cache') and hasattr(self.cache, 'disk_cache'):
+            if hasattr(self, "cache") and hasattr(self.cache, "disk_cache"):
                 return self.cache.disk_cache.get(cid)
-        
+
         elif tier == "ipfs_local":
             # Get from local IPFS
             try:
                 return self.ipfs_client.cat(cid)
             except Exception:
                 return None
-        
+
         elif tier == "ipfs_cluster":
-            if hasattr(self, 'ipfs_cluster') and self.ipfs_cluster:
+            if hasattr(self, "ipfs_cluster") and self.ipfs_cluster:
                 # Redirect to ipfs local since cluster doesn't directly serve content
                 return self._get_from_tier(cid, "ipfs_local")
-        
+
         return None
 
     def _migrate_to_tier(self, cid, source_tier, target_tier):
         """
         Migrate content from one tier to another.
-        
+
         Args:
             cid: Content identifier
             source_tier: Source tier name
             target_tier: Target tier name
-            
+
         Returns:
             Dictionary with migration results
         """
@@ -1015,27 +1036,27 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
             "cid": cid,
             "source_tier": source_tier,
             "target_tier": target_tier,
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
-        
+
         # Get content from source tier
         content = self._get_from_tier(cid, source_tier)
         if content is None:
             result["error"] = f"Content not found in source tier {source_tier}"
             return result
-        
+
         # Put content in target tier
         target_result = self._put_in_tier(cid, content, target_tier)
         if not target_result:
             result["error"] = f"Failed to put content in target tier {target_tier}"
             return result
-        
+
         # For demotion (moving to lower tier), we can remove from higher tier to save space
         if self._get_tier_priority(source_tier) < self._get_tier_priority(target_tier):
             # This is a demotion (e.g., memory->disk), we can remove from source
             self._remove_from_tier(cid, source_tier)
             result["removed_from_source"] = True
-        
+
         result["success"] = True
         logger.info(f"Migrated content {cid} from {source_tier} to {target_tier}")
         return result
@@ -1043,25 +1064,25 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
     def _remove_from_tier(self, cid, tier):
         """
         Remove content from a specific tier.
-        
+
         Args:
             cid: Content identifier
             tier: Tier to remove from
-            
+
         Returns:
             True if successful, False otherwise
         """
         if tier == "memory":
-            if hasattr(self, 'cache') and hasattr(self.cache, 'memory_cache'):
+            if hasattr(self, "cache") and hasattr(self.cache, "memory_cache"):
                 # Just access the key to trigger AR cache management
                 self.cache.memory_cache.evict(cid)
                 return True
-        
+
         elif tier == "disk":
-            if hasattr(self, 'cache') and hasattr(self.cache, 'disk_cache'):
+            if hasattr(self, "cache") and hasattr(self.cache, "disk_cache"):
                 # TODO: Implement disk cache removal method
                 return False
-        
+
         elif tier == "ipfs_local":
             # Unpin from local IPFS
             try:
@@ -1069,70 +1090,67 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
                 return result.get("success", False)
             except Exception:
                 return False
-        
+
         elif tier == "ipfs_cluster":
-            if hasattr(self, 'ipfs_cluster') and self.ipfs_cluster:
+            if hasattr(self, "ipfs_cluster") and self.ipfs_cluster:
                 try:
                     result = self.ipfs_cluster.pin_rm(cid)
                     return result.get("success", False)
                 except Exception:
                     return False
-        
+
         return False
 
     def _get_tier_priority(self, tier):
         """
         Get numeric priority value for a tier (lower is faster/higher priority).
-        
+
         Args:
             tier: Tier name
-            
+
         Returns:
             Priority value (lower is higher priority)
         """
-        tier_priorities = {
-            "memory": 1,
-            "disk": 2,
-            "ipfs_local": 3,
-            "ipfs_cluster": 4
-        }
-        
+        tier_priorities = {"memory": 1, "disk": 2, "ipfs_local": 3, "ipfs_cluster": 4}
+
         # Handle custom tier configuration if available
-        if hasattr(self, 'cache_config') and 'tiers' in self.cache_config:
-            tier_config = self.cache_config['tiers']
-            if tier in tier_config and 'priority' in tier_config[tier]:
-                return tier_config[tier]['priority']
-        
+        if hasattr(self, "cache_config") and "tiers" in self.cache_config:
+            tier_config = self.cache_config["tiers"]
+            if tier in tier_config and "priority" in tier_config[tier]:
+                return tier_config[tier]["priority"]
+
         # Return default priority or very low priority if unknown
         return tier_priorities.get(tier, 999)
 
     def _check_tier_health(self, tier):
         """
         Check the health of a storage tier.
-        
+
         Args:
             tier: Tier name to check
-            
+
         Returns:
             True if tier is healthy, False otherwise
         """
         if tier == "memory":
             # Memory is always considered healthy unless critically low on system memory
             import psutil
+
             mem = psutil.virtual_memory()
             return mem.available > 100 * 1024 * 1024  # At least 100MB available
-        
+
         elif tier == "disk":
-            if hasattr(self, 'cache') and hasattr(self.cache, 'disk_cache'):
+            if hasattr(self, "cache") and hasattr(self.cache, "disk_cache"):
                 # Check if disk has enough free space
                 try:
                     import shutil
+
                     cache_dir = self.cache.disk_cache.directory
                     disk_usage = shutil.disk_usage(cache_dir)
                     return disk_usage.free > 100 * 1024 * 1024  # At least 100MB available
                 except Exception:
                     return False
-        
+
         elif tier == "ipfs_local":
             # Check if IPFS daemon is responsive
             try:
@@ -1140,9 +1158,9 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
                 return version.get("success", False)
             except Exception:
                 return False
-        
+
         elif tier == "ipfs_cluster":
-            if hasattr(self, 'ipfs_cluster') and self.ipfs_cluster:
+            if hasattr(self, "ipfs_cluster") and self.ipfs_cluster:
                 try:
                     # Check if cluster is responsive
                     version = self.ipfs_cluster.version()
@@ -1150,18 +1168,18 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
                 except Exception:
                     return False
             return False
-        
+
         # Unknown tier
         return False
 
     def _check_for_demotions(self):
         """
         Check content for potential demotion to lower tiers.
-        
+
         This method identifies content that hasn't been accessed recently
         and can be moved to lower-priority tiers to free up space in
         higher-priority tiers.
-        
+
         Returns:
             Dictionary with demotion results
         """
@@ -1170,87 +1188,88 @@ class IPFSFSSpecFileSystem(AbstractFileSystem):
             "operation": "check_for_demotions",
             "timestamp": time.time(),
             "demoted_items": [],
-            "errors": []
+            "errors": [],
         }
-        
+
         # Skip if no demotion parameters defined
-        if not hasattr(self, 'cache_config') or 'demotion_threshold' not in self.cache_config:
+        if not hasattr(self, "cache_config") or "demotion_threshold" not in self.cache_config:
             return result
-        
+
         # Threshold in days for demotion
-        demotion_days = self.cache_config.get('demotion_threshold', 30)
+        demotion_days = self.cache_config.get("demotion_threshold", 30)
         demotion_seconds = demotion_days * 24 * 3600
-        
+
         current_time = time.time()
-        
+
         # Go through memory cache
-        if hasattr(self, 'cache') and hasattr(self.cache, 'memory_cache'):
+        if hasattr(self, "cache") and hasattr(self.cache, "memory_cache"):
             # Look at access stats
             for cid, stats in self.cache.access_stats.items():
                 if cid in self.cache.memory_cache:
-                    last_access = stats.get('last_access', 0)
-                    
+                    last_access = stats.get("last_access", 0)
+
                     # Check if item hasn't been accessed recently
                     if current_time - last_access > demotion_seconds:
                         try:
                             # Migrate from memory to disk
                             migrate_result = self._migrate_to_tier(cid, "memory", "disk")
                             if migrate_result.get("success", False):
-                                result["demoted_items"].append({
-                                    "cid": cid,
-                                    "from_tier": "memory",
-                                    "to_tier": "disk",
-                                    "last_access_days": (current_time - last_access) / 86400
-                                })
+                                result["demoted_items"].append(
+                                    {
+                                        "cid": cid,
+                                        "from_tier": "memory",
+                                        "to_tier": "disk",
+                                        "last_access_days": (current_time - last_access) / 86400,
+                                    }
+                                )
                         except Exception as e:
-                            result["errors"].append({
-                                "cid": cid,
-                                "error": str(e)
-                            })
-        
+                            result["errors"].append({"cid": cid, "error": str(e)})
+
         # Go through disk cache for potential demotion to IPFS
-        if hasattr(self, 'cache') and hasattr(self.cache, 'disk_cache'):
+        if hasattr(self, "cache") and hasattr(self.cache, "disk_cache"):
             for cid, entry in self.cache.disk_cache.index.items():
-                last_access = entry.get('last_access', 0)
-                
+                last_access = entry.get("last_access", 0)
+
                 # Check if item hasn't been accessed recently
-                if current_time - last_access > demotion_seconds * 2:  # More conservative for disk->IPFS
+                if (
+                    current_time - last_access > demotion_seconds * 2
+                ):  # More conservative for disk->IPFS
                     try:
                         # Migrate from disk to IPFS local
                         migrate_result = self._migrate_to_tier(cid, "disk", "ipfs_local")
                         if migrate_result.get("success", False):
-                            result["demoted_items"].append({
-                                "cid": cid,
-                                "from_tier": "disk",
-                                "to_tier": "ipfs_local",
-                                "last_access_days": (current_time - last_access) / 86400
-                            })
+                            result["demoted_items"].append(
+                                {
+                                    "cid": cid,
+                                    "from_tier": "disk",
+                                    "to_tier": "ipfs_local",
+                                    "last_access_days": (current_time - last_access) / 86400,
+                                }
+                            )
                     except Exception as e:
-                        result["errors"].append({
-                            "cid": cid,
-                            "error": str(e)
-                        })
-        
+                        result["errors"].append({"cid": cid, "error": str(e)})
+
         # Log demotion results
         if result["demoted_items"]:
             logger.info(f"Demoted {len(result['demoted_items'])} items to lower tiers")
-        
+
         return result
+
 
 class IPFSFSSpecFile(fsspec.spec.AbstractBufferedFile):
     """FSSpec-compatible file-like object for IPFS content."""
-    
+
     def __init__(
-        self, 
-        fs: IPFSFSSpecFileSystem, 
-        path: str, 
-        mode: str = "rb", 
-        block_size: Union[int, str] = "default", # Changed type hint to Union[int, str]
-        **kwargs # Simplified signature to match fsspec.spec.AbstractBufferedFile
+        self,
+        fs: IPFSFSSpecFileSystem,
+        path: str,
+        mode: str = "rb",
+        block_size: Union[int, str] = "default",  # Changed type hint to Union[int, str]
+        **kwargs,  # Simplified signature to match fsspec.spec.AbstractBufferedFile
     ):
         """
         Initialize the file.
-        
+
         Args:
             fs: Parent filesystem
             path: IPFS path (stripped of protocol)
@@ -1261,25 +1280,25 @@ class IPFSFSSpecFile(fsspec.spec.AbstractBufferedFile):
         # Handle block_size being None
         if block_size is None:
             block_size = "default"
-            
-        super().__init__(fs, path, mode, block_size, **kwargs) # type: ignore # Pass block_size directly
+
+        super().__init__(fs, path, mode, block_size, **kwargs)  # type: ignore # Pass block_size directly
         self.cid = self.fs._get_cid_from_path(path)
-        self._content_buffer = io.BytesIO() # Buffer for read/write operations
-        self._current_pos = 0 # Current position in the logical file
-        
+        self._content_buffer = io.BytesIO()  # Buffer for read/write operations
+        self._current_pos = 0  # Current position in the logical file
+
         if "r" in mode:
             # For read mode, fetch content and load into buffer
             try:
                 content = self.fs.cat(self.path)
                 self._content_buffer.write(content)
-                self._content_buffer.seek(0) # Reset to beginning for reading
+                self._content_buffer.seek(0)  # Reset to beginning for reading
             except FileNotFoundError:
                 logger.error(f"File not found for reading: {self.path}")
                 raise
         elif "w" in mode or "a" in mode:
             # For write/append mode, buffer writes locally
-            pass # Buffer is empty initially
-        
+            pass  # Buffer is empty initially
+
         logger.debug(f"Opened IPFSFSSpecFile: {self.path} in mode {self.mode}")
 
     def _fetch_range(self, start: int, end: int) -> bytes:
@@ -1299,8 +1318,8 @@ class IPFSFSSpecFile(fsspec.spec.AbstractBufferedFile):
         This method is called by fsspec's AbstractBufferedFile.
         """
         # Determine the size of the chunk to read
-        chunk_size = int(self.blocksize) # Access block_size from superclass and cast to int
-        
+        chunk_size = int(self.blocksize)  # Access block_size from superclass and cast to int
+
         # Fetch the content from IPFS (or cache)
         # For simplicity, we'll re-cat the whole file and slice.
         # In a real scenario, for large files, you'd want to implement
@@ -1314,31 +1333,33 @@ class IPFSFSSpecFile(fsspec.spec.AbstractBufferedFile):
             logger.error(f"Error reading chunk from {self.path} at offset {offset}: {e}")
             raise IOError(f"Error reading data from IPFS: {e}")
 
-    def _upload_chunk(self, final: bool = False) -> None: # Corrected signature to match fsspec.AbstractBufferedFile
+    def _upload_chunk(
+        self, final: bool = False
+    ) -> None:  # Corrected signature to match fsspec.AbstractBufferedFile
         """
         Upload a chunk of data to the file.
         This method is called by fsspec's AbstractBufferedFile when writing.
         """
         if not self.buffer.tell():
-            return # Nothing to write
-            
+            return  # Nothing to write
+
         self.buffer.seek(0)
         data_to_write = self.buffer.read()
-        self.buffer.seek(0) # Reset buffer for next write
+        self.buffer.seek(0)  # Reset buffer for next write
         self.buffer.truncate(0)
-        
+
         # In a real IPFS write, you'd typically add the whole file at once
         # or use MFS operations to append/modify.
         # For simplicity, this mock assumes we're writing the whole file on final commit.
         # For chunked writes, a more complex MFS or DAG-building strategy would be needed.
-        
+
         # For now, we'll just store the data in the _content_buffer
         # and only commit to IPFS on close/flush.
-        self._content_buffer.write(data_to_write) # Write the data from self.buffer
+        self._content_buffer.write(data_to_write)  # Write the data from self.buffer
         logger.debug(f"Buffered {len(data_to_write)} bytes for {self.path}. Final: {final}")
-        
+
         if final:
-            self.flush() # Force flush on final chunk
+            self.flush()  # Force flush on final chunk
 
     def flush(self, force: bool = False) -> None:
         """
@@ -1348,51 +1369,53 @@ class IPFSFSSpecFile(fsspec.spec.AbstractBufferedFile):
         if self.closed:
             raise ValueError("Stream is closed")
         if "w" not in self.mode and "a" not in self.mode:
-            return # Not in write mode
-            
+            return  # Not in write mode
+
         if not force and not self.autocommit:
-            return # Only flush on explicit force or autocommit
-            
+            return  # Only flush on explicit force or autocommit
+
         self._content_buffer.seek(0)
         content_to_upload = self._content_buffer.read()
-        
+
         if not content_to_upload:
             logger.debug(f"No content to flush for {self.path}")
             return
-            
+
         logger.debug(f"Flushing {len(content_to_upload)} bytes to IPFS for {self.path}")
-        
+
         # Create a temporary file to pass to ipfs_add_path
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_file.write(content_to_upload)
             tmp_file_path = tmp_file.name
-        
+
         try:
             # Use ipfs_client.ipfs_add_path to add the content
             # This will return a new CID for the content
             add_result = self.fs.ipfs_client.ipfs_add_path(tmp_file_path)
-            
+
             if not add_result.get("success", False):
-                logger.error(f"Failed to flush content for {self.path}: {add_result.get('error', 'Unknown error')}")
+                logger.error(
+                    f"Failed to flush content for {self.path}: {add_result.get('error', 'Unknown error')}"
+                )
                 raise IOError(f"Failed to write data to IPFS: {self.path}")
-            
+
             new_cid = add_result.get("cid")
             if not new_cid and add_result.get("files"):
                 new_cid = add_result["files"][0].get("hash")
-            
+
             if not new_cid:
                 logger.error(f"Failed to get CID after flushing content for {self.path}.")
                 raise IOError(f"Failed to get CID for flushed content: {self.path}")
-            
+
             logger.info(f"Flushed {self.path} to IPFS with new CID: {new_cid}")
-            self.cid = new_cid # Update CID if content changed
-            
+            self.cid = new_cid  # Update CID if content changed
+
             # Update cache
             self.fs.tiered_cache_manager.put(new_cid, content_to_upload)
-            
+
         finally:
-            os.unlink(tmp_file_path) # Clean up temporary file
-            
+            os.unlink(tmp_file_path)  # Clean up temporary file
+
         # Reset buffer after flush
         self._content_buffer = io.BytesIO()
         self._current_pos = 0
@@ -1401,35 +1424,35 @@ class IPFSFSSpecFile(fsspec.spec.AbstractBufferedFile):
         """Close the file."""
         if self.closed:
             return
-            
+
         if "w" in self.mode or "a" in self.mode:
-            self.flush(force=True) # Ensure all buffered data is written
-            
+            self.flush(force=True)  # Ensure all buffered data is written
+
         super().close()
         logger.debug(f"Closed IPFSFSSpecFile: {self.path}")
-        
+
         if id(self) in self.fs.open_files:
             del self.fs.open_files[id(self)]
 
     def seek(self, loc: int, whence: int = 0) -> int:
         """
         Seek to a file location.
-        
+
         Args:
             loc: Target location
             whence: Seek reference (0: start, 1: current, 2: end)
-            
+
         Returns:
             New file position
         """
         if self.closed:
             raise ValueError("I/O operation on closed file.")
-            
+
         # For read mode, seek within the buffered content
         if "r" in self.mode:
             self._current_pos = self._content_buffer.seek(loc, whence)
             return self._current_pos
-        
+
         # For write mode, seeking might imply modifying parts of the file,
         # which is complex for IPFS. For simplicity, we'll just update
         # the internal position, assuming writes are mostly sequential or
@@ -1445,22 +1468,22 @@ class IPFSFSSpecFile(fsspec.spec.AbstractBufferedFile):
             self._current_pos = len(self._content_buffer.getvalue()) + loc
         else:
             raise ValueError("Invalid whence value")
-            
+
         return self._current_pos
-    
+
     def tell(self) -> int:
         """
         Get current file position.
-        
+
         Returns:
             Current position
         """
         if self.closed:
             raise ValueError("I/O operation on closed file.")
-            
+
         if "r" in self.mode:
             return self._content_buffer.tell()
-        
+
         return self._current_pos
 
 
@@ -1469,33 +1492,35 @@ class IPFSFSSpecFile(fsspec.spec.AbstractBufferedFile):
 def IPFSFileSystem(*args, **kwargs):
     """
     Convenience alias for IPFSFSSpecFileSystem with smart parameter detection.
-    
+
     This function automatically provides required parameters if not supplied:
     - ipfs_client: Uses get_filesystem() to obtain a properly configured client
     - tiered_cache_manager: Uses mock implementation for development
-    
+
     Args:
         *args: Positional arguments passed to IPFSFSSpecFileSystem
         **kwargs: Keyword arguments passed to IPFSFSSpecFileSystem
-        
+
     Returns:
         IPFSFSSpecFileSystem: Configured filesystem instance
     """
     # If no arguments provided, use get_filesystem()
     if not args and not kwargs:
         return get_filesystem()
-    
+
     # If ipfs_client not provided, get one from get_filesystem()
-    if 'ipfs_client' not in kwargs and len(args) < 1:
+    if "ipfs_client" not in kwargs and len(args) < 1:
         temp_fs = get_filesystem()
-        kwargs['ipfs_client'] = temp_fs.ipfs_client
-    
+        kwargs["ipfs_client"] = temp_fs.ipfs_client
+
     # If tiered_cache_manager not provided, use the one from get_filesystem()
-    if 'tiered_cache_manager' not in kwargs and len(args) < 2:
+    if "tiered_cache_manager" not in kwargs and len(args) < 2:
         temp_fs = get_filesystem()
-        kwargs['tiered_cache_manager'] = temp_fs.tiered_cache_manager
-    
+        kwargs["tiered_cache_manager"] = temp_fs.tiered_cache_manager
+
     return IPFSFSSpecFileSystem(*args, **kwargs)
+
+
 IPFSFile = IPFSFSSpecFile  # Alias for compatibility
 
 # Register the filesystem with fsspec
@@ -1509,45 +1534,50 @@ except Exception as e:
 def get_filesystem(return_mock: bool = False, **kwargs):
     """
     Get an IPFS filesystem instance.
-    
+
     Args:
         return_mock: If True, return a mock filesystem for testing
         **kwargs: Additional arguments passed to filesystem constructor
-        
+
     Returns:
         IPFSFSSpecFileSystem instance or mock
     """
     if return_mock:
         # Return a mock filesystem for testing
         from unittest.mock import MagicMock
+
         mock_fs = MagicMock()
         mock_fs.__class__.__name__ = "MockIPFSFileSystem"
         return mock_fs
-    
+
     try:
         # Provide default arguments if not specified
-        if 'ipfs_client' not in kwargs:
+        if "ipfs_client" not in kwargs:
             # Try to get from ipfs_kit if available
             try:
                 from .ipfs_kit import ipfs_kit
+
                 kit_instance = ipfs_kit()
-                if hasattr(kit_instance, 'ipfs'):
-                    kwargs['ipfs_client'] = kit_instance.ipfs
+                if hasattr(kit_instance, "ipfs"):
+                    kwargs["ipfs_client"] = kit_instance.ipfs
                     logger.debug("Using ipfs_kit client for filesystem")
                 else:
                     raise AttributeError("No ipfs client available")
             except Exception:
                 # Create a mock ipfs_client for compatibility
                 from unittest.mock import MagicMock
-                kwargs['ipfs_client'] = MagicMock()
-                kwargs['ipfs_client'].__class__.__name__ = "MockIPFSClient"
+
+                kwargs["ipfs_client"] = MagicMock()
+                kwargs["ipfs_client"].__class__.__name__ = "MockIPFSClient"
                 logger.warning("Using mock ipfs_client - IPFS operations may be limited")
-            
-        if 'tiered_cache_manager' not in kwargs:
+
+        if "tiered_cache_manager" not in kwargs:
             # Try to get from ipfs_kit if available
             try:
-                if 'ipfs_client' in kwargs and hasattr(kwargs['ipfs_client'], 'tiered_cache_manager'):
-                    kwargs['tiered_cache_manager'] = kwargs['ipfs_client'].tiered_cache_manager
+                if "ipfs_client" in kwargs and hasattr(
+                    kwargs["ipfs_client"], "tiered_cache_manager"
+                ):
+                    kwargs["tiered_cache_manager"] = kwargs["ipfs_client"].tiered_cache_manager
                     logger.debug("Using ipfs_kit cache manager for filesystem")
                 else:
                     raise AttributeError("No cache manager available")
@@ -1555,22 +1585,24 @@ def get_filesystem(return_mock: bool = False, **kwargs):
                 try:
                     from .tiered_cache_manager import TieredCacheManager
 
-                    kwargs['tiered_cache_manager'] = TieredCacheManager()
+                    kwargs["tiered_cache_manager"] = TieredCacheManager()
                     logger.info("Using TieredCacheManager for filesystem cache")
                 except Exception:
                     # Create a mock cache manager for compatibility
                     from unittest.mock import MagicMock
-                    kwargs['tiered_cache_manager'] = MagicMock()
-                    kwargs['tiered_cache_manager'].__class__.__name__ = "MockCacheManager"
+
+                    kwargs["tiered_cache_manager"] = MagicMock()
+                    kwargs["tiered_cache_manager"].__class__.__name__ = "MockCacheManager"
                     logger.warning("Using mock tiered_cache_manager - caching may be limited")
-        
+
         return IPFSFSSpecFileSystem(**kwargs)
     except Exception as e:
         logger.error(f"Could not create IPFS filesystem: {e}")
         # Return mock on failure
         from unittest.mock import MagicMock
+
         mock_fs = MagicMock()
-        mock_fs.__class__.__name__ = "MockIPFSFileSystem" 
+        mock_fs.__class__.__name__ = "MockIPFSFileSystem"
         logger.warning("Returning mock filesystem due to initialization failure")
         return mock_fs
 
@@ -1705,7 +1737,9 @@ class VFSReplicationManager:
         self.vfs = vfs_core
         self._policies: List[Dict[str, Any]] = []
 
-    def add_replication_policy(self, pattern: str, backends: List[str], min_replicas: int = 1) -> Dict[str, Any]:
+    def add_replication_policy(
+        self, pattern: str, backends: List[str], min_replicas: int = 1
+    ) -> Dict[str, Any]:
         if not backends:
             return {"success": False, "error": "No backends provided"}
         policy = {
@@ -1757,7 +1791,9 @@ class VFSReplicationManager:
             if target_path is None:
                 continue
             write_result = self.vfs.write(target_path, content, auto_replicate=False)
-            replicas.append({"mount": mount["mount_point"], "path": target_path, "result": write_result})
+            replicas.append(
+                {"mount": mount["mount_point"], "path": target_path, "result": write_result}
+            )
             if write_result.get("success", True):
                 replicated += 1
 
@@ -1885,18 +1921,30 @@ class VFSCore:
         self._datasets_manager_checked = False
         self._accelerate_module: Optional[Any] = None
         self._accelerate_module_checked = False
-        self._accelerate_timeout_sec = float(os.environ.get("IPFS_KIT_ACCELERATE_TIMEOUT_SEC", "1.5"))
-        self._vfs_accelerate_mode = os.environ.get("IPFS_KIT_VFS_ACCELERATE_MODE", "metadata").strip().lower()
+        self._accelerate_timeout_sec = float(
+            os.environ.get("IPFS_KIT_ACCELERATE_TIMEOUT_SEC", "1.5")
+        )
+        self._vfs_accelerate_mode = (
+            os.environ.get("IPFS_KIT_VFS_ACCELERATE_MODE", "metadata").strip().lower()
+        )
         self._sync_snapshots: Dict[str, Dict[str, Any]] = {}
         self._sync_state_by_path: Dict[str, Dict[str, Any]] = {}
-        self._sync_transport_mode = os.environ.get("IPFS_KIT_SYNC_TRANSPORT", "auto").strip().lower()
+        self._sync_transport_mode = (
+            os.environ.get("IPFS_KIT_SYNC_TRANSPORT", "auto").strip().lower()
+        )
         self._sync_conflict_policy = self._validate_sync_conflict_policy(
             os.environ.get("IPFS_KIT_SYNC_CONFLICT_POLICY", "overwrite")
         )
-        self._sync_snapshot_max_count = int(os.environ.get("IPFS_KIT_VFS_SYNC_SNAPSHOT_MAX_COUNT", "256"))
-        self._sync_snapshot_max_age_sec = float(os.environ.get("IPFS_KIT_VFS_SYNC_SNAPSHOT_MAX_AGE_SEC", "604800"))
+        self._sync_snapshot_max_count = int(
+            os.environ.get("IPFS_KIT_VFS_SYNC_SNAPSHOT_MAX_COUNT", "256")
+        )
+        self._sync_snapshot_max_age_sec = float(
+            os.environ.get("IPFS_KIT_VFS_SYNC_SNAPSHOT_MAX_AGE_SEC", "604800")
+        )
         state_path_default = Path.home() / ".ipfs_kit" / "vfs_sync_state.json"
-        self._sync_state_path = Path(os.environ.get("IPFS_KIT_VFS_SYNC_STATE_PATH", str(state_path_default)))
+        self._sync_state_path = Path(
+            os.environ.get("IPFS_KIT_VFS_SYNC_STATE_PATH", str(state_path_default))
+        )
         self._sync_state_lock = threading.RLock()
         self._load_sync_state_from_disk()
 
@@ -1925,7 +1973,9 @@ class VFSCore:
     def _prune_sync_snapshots(self) -> None:
         # Age-based pruning.
         if self._sync_snapshot_max_age_sec > 0:
-            cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=self._sync_snapshot_max_age_sec)
+            cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+                seconds=self._sync_snapshot_max_age_sec
+            )
             stale_cids = [
                 cid
                 for cid, snapshot in self._sync_snapshots.items()
@@ -1937,11 +1987,16 @@ class VFSCore:
                 self._sync_snapshots.pop(cid, None)
 
         # Count-based pruning keeps most recent snapshots.
-        if self._sync_snapshot_max_count > 0 and len(self._sync_snapshots) > self._sync_snapshot_max_count:
+        if (
+            self._sync_snapshot_max_count > 0
+            and len(self._sync_snapshots) > self._sync_snapshot_max_count
+        ):
             ordered = sorted(
                 self._sync_snapshots.items(),
-                key=lambda item: self._parse_snapshot_time(item[1] if isinstance(item[1], dict) else {})
-                or datetime.datetime.min.replace(tzinfo=datetime.timezone.utc),
+                key=lambda item: (
+                    self._parse_snapshot_time(item[1] if isinstance(item[1], dict) else {})
+                    or datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+                ),
                 reverse=True,
             )
             keep = {cid for cid, _ in ordered[: self._sync_snapshot_max_count]}
@@ -2130,27 +2185,30 @@ class VFSCore:
         capabilities: Dict[str, Callable[[Dict[str, Any]], None]] = {}
 
         if hasattr(manager, "record_ipfs_operation") and callable(manager.record_ipfs_operation):
-            capabilities["record_ipfs_operation"] = lambda payload: manager.record_ipfs_operation(payload)
+            capabilities["record_ipfs_operation"] = lambda payload: manager.record_ipfs_operation(
+                payload
+            )
 
         if hasattr(manager, "refresh_metadata_index") and callable(manager.refresh_metadata_index):
-            capabilities["refresh_metadata_index"] = (
-                lambda payload: manager.refresh_metadata_index(
-                    path=payload.get("path"),
-                    operation=payload.get("operation"),
-                    metadata=payload,
-                )
+            capabilities["refresh_metadata_index"] = lambda payload: manager.refresh_metadata_index(
+                path=payload.get("path"),
+                operation=payload.get("operation"),
+                metadata=payload,
             )
 
         if hasattr(manager, "update_metadata_index") and callable(manager.update_metadata_index):
-            capabilities["update_metadata_index"] = (
-                lambda payload: manager.update_metadata_index(
-                    path=payload.get("path"),
-                    operation=payload.get("operation"),
-                    metadata=payload,
-                )
+            capabilities["update_metadata_index"] = lambda payload: manager.update_metadata_index(
+                path=payload.get("path"),
+                operation=payload.get("operation"),
+                metadata=payload,
             )
 
-        if local_path and os.path.exists(local_path) and hasattr(manager, "store") and callable(manager.store):
+        if (
+            local_path
+            and os.path.exists(local_path)
+            and hasattr(manager, "store")
+            and callable(manager.store)
+        ):
             capabilities["store"] = lambda payload: manager.store(local_path, metadata=payload)
 
         event_log = getattr(manager, "event_log", None)
@@ -2176,8 +2234,15 @@ class VFSCore:
             "AccelerateCompute.list_models",
         ]
 
-        if hasattr(accelerate, "discover_embedding_models") and callable(accelerate.discover_embedding_models):
-            return "discover_embedding_models", accelerate.discover_embedding_models, tuple(), fallback_order
+        if hasattr(accelerate, "discover_embedding_models") and callable(
+            accelerate.discover_embedding_models
+        ):
+            return (
+                "discover_embedding_models",
+                accelerate.discover_embedding_models,
+                tuple(),
+                fallback_order,
+            )
 
         if hasattr(accelerate, "search_models") and callable(accelerate.search_models):
             return "search_models", accelerate.search_models, ("embedding",), fallback_order
@@ -2274,7 +2339,9 @@ class VFSCore:
             }
 
     def _validate_mutation_envelope(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        missing = sorted([field for field in self._MUTATION_REQUIRED_FIELDS if payload.get(field) is None])
+        missing = sorted(
+            [field for field in self._MUTATION_REQUIRED_FIELDS if payload.get(field) is None]
+        )
         return {
             "valid": len(missing) == 0,
             "missing_fields": missing,
@@ -2284,10 +2351,14 @@ class VFSCore:
         normalized = str(policy or "overwrite").strip().lower()
         if normalized not in self._ALLOWED_SYNC_CONFLICT_POLICIES:
             allowed = ", ".join(sorted(self._ALLOWED_SYNC_CONFLICT_POLICIES))
-            raise ValueError(f"invalid IPFS_KIT_SYNC_CONFLICT_POLICY '{policy}'; allowed: {allowed}")
+            raise ValueError(
+                f"invalid IPFS_KIT_SYNC_CONFLICT_POLICY '{policy}'; allowed: {allowed}"
+            )
         return normalized
 
-    def _compute_snapshot_manifest_hash(self, *, path: str, backend: str, blobs: Dict[str, bytes]) -> Optional[str]:
+    def _compute_snapshot_manifest_hash(
+        self, *, path: str, backend: str, blobs: Dict[str, bytes]
+    ) -> Optional[str]:
         if not isinstance(blobs, dict) or not blobs:
             return None
 
@@ -2360,7 +2431,10 @@ class VFSCore:
                 "mode": self._vfs_accelerate_mode,
             }
 
-        if self._vfs_accelerate_mode in {"metadata", "auto"} and self._datasets_async_enrichment_enabled():
+        if (
+            self._vfs_accelerate_mode in {"metadata", "auto"}
+            and self._datasets_async_enrichment_enabled()
+        ):
             return {
                 "attempted": False,
                 "success": False,
@@ -2371,7 +2445,9 @@ class VFSCore:
 
         accelerate = self._get_accelerate_module()
         if accelerate is None:
-            _, _, _, fallback_order = self._resolve_accelerate_discovery_adapter(accelerate=object())
+            _, _, _, fallback_order = self._resolve_accelerate_discovery_adapter(
+                accelerate=object()
+            )
             return {
                 "attempted": False,
                 "success": False,
@@ -2381,8 +2457,10 @@ class VFSCore:
             }
 
         try:
-            mode, resolver, resolver_args, fallback_order = self._resolve_accelerate_discovery_adapter(
-                accelerate=accelerate,
+            mode, resolver, resolver_args, fallback_order = (
+                self._resolve_accelerate_discovery_adapter(
+                    accelerate=accelerate,
+                )
             )
 
             if resolver is not None:
@@ -2457,7 +2535,9 @@ class VFSCore:
         payload_extra.setdefault("schema_version", "2")
         payload_extra.setdefault("backend", (mount or {}).get("backend"))
         payload_extra.setdefault("mount_point", (mount or {}).get("mount_point"))
-        payload_extra.setdefault("timestamp", datetime.datetime.now(datetime.timezone.utc).isoformat())
+        payload_extra.setdefault(
+            "timestamp", datetime.datetime.now(datetime.timezone.utc).isoformat()
+        )
         payload_extra["operation_id"] = operation_id
         payload_extra.setdefault("cid", None)
         payload_extra.setdefault("source_operation_id", None)
@@ -2476,7 +2556,9 @@ class VFSCore:
             "metadata": metadata,
         }
 
-    def _should_overwrite_content(self, existing: bytes, incoming: bytes, policy: str) -> Tuple[bool, Optional[str]]:
+    def _should_overwrite_content(
+        self, existing: bytes, incoming: bytes, policy: str
+    ) -> Tuple[bool, Optional[str]]:
         if existing == incoming:
             return True, None
         normalized_policy = self._validate_sync_conflict_policy(policy)
@@ -2532,7 +2614,9 @@ class VFSCore:
 
         return None
 
-    def _restore_snapshot_from_transport(self, *, cid: str, normalized_path: str, backend: str) -> bool:
+    def _restore_snapshot_from_transport(
+        self, *, cid: str, normalized_path: str, backend: str
+    ) -> bool:
         manager = self._get_datasets_manager()
         if manager is None or not hasattr(manager, "load"):
             return False
@@ -2557,7 +2641,9 @@ class VFSCore:
                     data = source.read_bytes()
                     digest = hashlib.sha256(data).hexdigest()
                     blobs[""] = data
-                    entries.append({"path": "", "size": len(data), "sha256": digest, "type": "file"})
+                    entries.append(
+                        {"path": "", "size": len(data), "sha256": digest, "type": "file"}
+                    )
                 else:
                     for root, _, files in os.walk(str(source)):
                         for name in sorted(files):
@@ -2566,7 +2652,9 @@ class VFSCore:
                             data = full_path.read_bytes()
                             digest = hashlib.sha256(data).hexdigest()
                             blobs[rel] = data
-                            entries.append({"path": rel, "size": len(data), "sha256": digest, "type": "file"})
+                            entries.append(
+                                {"path": rel, "size": len(data), "sha256": digest, "type": "file"}
+                            )
 
                 if not entries:
                     return False
@@ -2577,7 +2665,9 @@ class VFSCore:
                     "entry_count": len(entries),
                     "entries": entries,
                 }
-                manifest_bytes = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                manifest_bytes = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode(
+                    "utf-8"
+                )
                 manifest_hash = hashlib.sha256(manifest_bytes).hexdigest()
 
                 self._sync_snapshots[cid] = {
@@ -2589,13 +2679,18 @@ class VFSCore:
                     "blobs": blobs,
                     "synced_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 }
-                self._sync_state_by_path[normalized_path] = {"cid": cid, "manifest_hash": manifest_hash}
+                self._sync_state_by_path[normalized_path] = {
+                    "cid": cid,
+                    "manifest_hash": manifest_hash,
+                }
                 self._save_sync_state_to_disk()
                 return True
         except Exception:
             return False
 
-    def mount(self, mount_point: str, backend: str, target: str, read_only: bool = False) -> Dict[str, Any]:
+    def mount(
+        self, mount_point: str, backend: str, target: str, read_only: bool = False
+    ) -> Dict[str, Any]:
         if not mount_point:
             self._record_metric("mount", error="mount_point_required")
             return {"success": False, "error": "mount_point is required"}
@@ -2625,7 +2720,12 @@ class VFSCore:
             "read_only": bool(read_only),
         }
         self._record_metric("mount")
-        return {"success": True, "mount_point": mount_point, "backend": backend_name, "mounted": True}
+        return {
+            "success": True,
+            "mount_point": mount_point,
+            "backend": backend_name,
+            "mounted": True,
+        }
 
     def unmount(self, mount_point: str) -> Dict[str, Any]:
         if not mount_point:
@@ -2787,7 +2887,9 @@ class VFSCore:
             return {"success": True, "path": path, "integration": integration}
         return {"success": False, "error": f"backend not supported: {mount['backend']}"}
 
-    def write(self, path: str, content: Union[str, bytes], auto_replicate: bool = False) -> Dict[str, Any]:
+    def write(
+        self, path: str, content: Union[str, bytes], auto_replicate: bool = False
+    ) -> Dict[str, Any]:
         path = _norm_path(path)
         mount = self._find_mount_for_path(path)
         if not mount:
@@ -2871,7 +2973,10 @@ class VFSCore:
                 return {"success": False, "exists": False, "error": "local mapping failed"}
             return {"success": True, "exists": os.path.exists(local_path)}
         if mount["backend"] == "memory":
-            return {"success": True, "exists": (path in self._memory.files or path in self._memory.dirs)}
+            return {
+                "success": True,
+                "exists": (path in self._memory.files or path in self._memory.dirs),
+            }
         return {"success": False, "exists": False, "error": "unsupported backend"}
 
     def ls(self, path: str) -> Dict[str, Any]:
@@ -2940,7 +3045,9 @@ class VFSCore:
         if not write_result.get("success", True):
             return write_result
         dst_mount = self._find_mount_for_path(dst)
-        dst_local = self._to_local_path(dst) if dst_mount and dst_mount.get("backend") == "local" else None
+        dst_local = (
+            self._to_local_path(dst) if dst_mount and dst_mount.get("backend") == "local" else None
+        )
         write_result["copy_integration"] = self._run_content_mutation_integrations(
             operation="copy",
             path=dst,
@@ -2968,7 +3075,9 @@ class VFSCore:
         if mount and mount["backend"] == "memory":
             self._memory.files.pop(src, None)
         dst_mount = self._find_mount_for_path(dst)
-        dst_local = self._to_local_path(dst) if dst_mount and dst_mount.get("backend") == "local" else None
+        dst_local = (
+            self._to_local_path(dst) if dst_mount and dst_mount.get("backend") == "local" else None
+        )
         integration = self._run_content_mutation_integrations(
             operation="move",
             path=dst,
@@ -2988,7 +3097,12 @@ class VFSCore:
         normalized = _norm_path(path)
         mount = self._find_mount_for_path(normalized)
         if not mount:
-            return {"success": False, "path": normalized, "error": "no mount for path", "code": "mount_not_found"}
+            return {
+                "success": False,
+                "path": normalized,
+                "error": "no mount for path",
+                "code": "mount_not_found",
+            }
 
         backend = str(mount.get("backend") or "")
         entries: List[Dict[str, Any]] = []
@@ -3018,7 +3132,9 @@ class VFSCore:
                         with open(full_path, "rb") as f:
                             data = f.read()
                         digest = hashlib.sha256(data).hexdigest()
-                        entries.append({"path": rel, "size": len(data), "sha256": digest, "type": "file"})
+                        entries.append(
+                            {"path": rel, "size": len(data), "sha256": digest, "type": "file"}
+                        )
                         blobs[rel] = data
         elif backend == "memory":
             prefix = normalized.rstrip("/") + "/"
@@ -3033,7 +3149,9 @@ class VFSCore:
                         rel = candidate_path[len(prefix) :]
                         data = self._memory.files[candidate_path]
                         digest = hashlib.sha256(data).hexdigest()
-                        entries.append({"path": rel, "size": len(data), "sha256": digest, "type": "file"})
+                        entries.append(
+                            {"path": rel, "size": len(data), "sha256": digest, "type": "file"}
+                        )
                         blobs[rel] = data
                 if not entries:
                     return {
@@ -3068,7 +3186,12 @@ class VFSCore:
                 operation="sync_to_ipfs",
                 path=normalized,
                 mount=mount,
-                extra={"cid": cid, "entry_count": 1, "already_ipfs": True, "transport_mode": self._sync_transport_mode},
+                extra={
+                    "cid": cid,
+                    "entry_count": 1,
+                    "already_ipfs": True,
+                    "transport_mode": self._sync_transport_mode,
+                },
             )
             return {
                 "success": True,
@@ -3154,7 +3277,12 @@ class VFSCore:
         normalized = _norm_path(path)
         mount = self._find_mount_for_path(normalized)
         if not mount:
-            return {"success": False, "path": normalized, "error": "no mount for path", "code": "mount_not_found"}
+            return {
+                "success": False,
+                "path": normalized,
+                "error": "no mount for path",
+                "code": "mount_not_found",
+            }
 
         backend = str(mount.get("backend") or "")
         state = self._sync_state_by_path.get(normalized)
@@ -3169,7 +3297,9 @@ class VFSCore:
         cid = str(state.get("cid") or "")
         snapshot = self._sync_snapshots.get(cid)
         if snapshot is None:
-            if self._restore_snapshot_from_transport(cid=cid, normalized_path=normalized, backend=backend):
+            if self._restore_snapshot_from_transport(
+                cid=cid, normalized_path=normalized, backend=backend
+            ):
                 snapshot = self._sync_snapshots.get(cid)
 
         if snapshot is None:
@@ -3206,7 +3336,12 @@ class VFSCore:
         if backend == "local":
             local_root = self._to_local_path(normalized)
             if local_root is None:
-                return {"success": False, "path": normalized, "error": "local mapping failed", "code": "mapping_failed"}
+                return {
+                    "success": False,
+                    "path": normalized,
+                    "error": "local mapping failed",
+                    "code": "mapping_failed",
+                }
 
             is_single_file = "" in blobs and len(blobs) == 1
             if is_single_file:
@@ -3214,7 +3349,9 @@ class VFSCore:
                 if os.path.exists(local_root):
                     with open(local_root, "rb") as f:
                         existing = f.read()
-                    should_write, conflict_error = self._should_overwrite_content(existing, incoming, conflict_policy)
+                    should_write, conflict_error = self._should_overwrite_content(
+                        existing, incoming, conflict_policy
+                    )
                     if conflict_error is not None:
                         return {
                             "success": False,
@@ -3246,7 +3383,9 @@ class VFSCore:
                     if os.path.exists(full_path):
                         with open(full_path, "rb") as f:
                             existing = f.read()
-                        should_write, conflict_error = self._should_overwrite_content(existing, data, conflict_policy)
+                        should_write, conflict_error = self._should_overwrite_content(
+                            existing, data, conflict_policy
+                        )
                         if conflict_error is not None:
                             return {
                                 "success": False,
@@ -3275,7 +3414,9 @@ class VFSCore:
                 incoming = blobs[""]
                 existing = self._memory.files.get(normalized)
                 if isinstance(existing, (bytes, bytearray)):
-                    should_write, conflict_error = self._should_overwrite_content(bytes(existing), incoming, conflict_policy)
+                    should_write, conflict_error = self._should_overwrite_content(
+                        bytes(existing), incoming, conflict_policy
+                    )
                     if conflict_error is not None:
                         return {
                             "success": False,
@@ -3297,7 +3438,9 @@ class VFSCore:
                     incoming = data
                     existing = self._memory.files.get(key)
                     if isinstance(existing, (bytes, bytearray)):
-                        should_write, conflict_error = self._should_overwrite_content(bytes(existing), data, conflict_policy)
+                        should_write, conflict_error = self._should_overwrite_content(
+                            bytes(existing), data, conflict_policy
+                        )
                         if conflict_error is not None:
                             return {
                                 "success": False,
@@ -3328,7 +3471,12 @@ class VFSCore:
             path=normalized,
             mount=mount,
             local_path=self._to_local_path(normalized) if backend == "local" else None,
-            extra={"cid": cid, "restored_count": restored, "skipped_count": skipped, "policy": conflict_policy},
+            extra={
+                "cid": cid,
+                "restored_count": restored,
+                "skipped_count": skipped,
+                "policy": conflict_policy,
+            },
         )
 
         return {
@@ -3415,7 +3563,9 @@ def _vfs_dual(async_fn, /, *args, **kwargs):
     return anyio.run(_runner)
 
 
-async def _vfs_mount_async(source: str, mount_point: str, *, read_only: bool = False) -> Dict[str, Any]:
+async def _vfs_mount_async(
+    source: str, mount_point: str, *, read_only: bool = False
+) -> Dict[str, Any]:
     # Heuristic backend selection (test-friendly):
     # - memory:// -> memory
     # - existing path -> local (target=source)
@@ -3475,7 +3625,9 @@ def vfs_read(path: str):
     return _vfs_dual(_vfs_read_async, path)
 
 
-async def _vfs_write_async(path: str, content: Union[str, bytes], *, auto_replicate: bool = False) -> Dict[str, Any]:
+async def _vfs_write_async(
+    path: str, content: Union[str, bytes], *, auto_replicate: bool = False
+) -> Dict[str, Any]:
     return get_vfs().write(path, content, auto_replicate=auto_replicate)
 
 

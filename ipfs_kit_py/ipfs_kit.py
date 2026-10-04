@@ -35,6 +35,7 @@ from .error import (
 )
 from .performance_metrics import PerformanceMetrics
 from .observability_api import observability_router
+
 # Avoid importing cluster monitoring at module import time.
 # It can pull in large portions of the stack and has historically triggered
 # circular imports / side effects during test collection.
@@ -46,7 +47,8 @@ except Exception:
 from .program_state import get_program_state_manager
 
 # Define a generic type variable for the return type
-RT = TypeVar('RT')
+RT = TypeVar("RT")
+
 
 def auto_retry_on_daemon_failure(daemon_type: str = "ipfs", max_retries: int = 3):
     """
@@ -64,6 +66,7 @@ def auto_retry_on_daemon_failure(daemon_type: str = "ipfs", max_retries: int = 3
     Returns:
         Decorated function with automatic daemon startup and retry capability
     """
+
     def decorator(func: Callable[..., RT]) -> Callable[..., RT]:
         @functools.wraps(func)
         def wrapper(self, *args: Any, **kwargs: Any) -> RT:
@@ -74,37 +77,44 @@ def auto_retry_on_daemon_failure(daemon_type: str = "ipfs", max_retries: int = 3
                 result = func(self, *args, **kwargs)
 
                 # Check if operation failed due to daemon not running
-                if (not result.get("success", False) and # type: ignore
-                    isinstance(result.get("error"), str) and # Ensure error is a string before calling lower() # type: ignore
-                    result.get("error", "").lower().find("daemon") >= 0 and # type: ignore
-                    "not running" in result.get("error", "").lower()): # type: ignore
-
+                if (
+                    not result.get("success", False)  # type: ignore
+                    and isinstance(
+                        result.get("error"), str
+                    )  # Ensure error is a string before calling lower() # type: ignore
+                    and result.get("error", "").lower().find("daemon") >= 0  # type: ignore
+                    and "not running" in result.get("error", "").lower()
+                ):  # type: ignore
                     # Only retry if automatic daemon startup is enabled
                     if not getattr(self, "auto_start_daemons", False):
                         # Add note that automatic retry is disabled
-                        result["daemon_retry_disabled"] = True # type: ignore
+                        result["daemon_retry_disabled"] = True  # type: ignore
                         return result
 
                     # Increment retry counter
                     retry_count += 1
 
                     # Log the retry attempt
-                    self.logger.info(f"Operation failed due to {daemon_type} daemon not running. "
-                                     f"Attempt {retry_count}/{max_retries} to start daemon and retry.")
+                    self.logger.info(
+                        f"Operation failed due to {daemon_type} daemon not running. "
+                        f"Attempt {retry_count}/{max_retries} to start daemon and retry."
+                    )
 
                     # Try to start the daemon
                     daemon_result = self._ensure_daemon_running(daemon_type)
 
-                    if not daemon_result.get("success", False): # type: ignore
+                    if not daemon_result.get("success", False):  # type: ignore
                         # Failed to start daemon, add details and return
-                        result["daemon_start_attempted"] = True # type: ignore
-                        result["daemon_start_failed"] = True # type: ignore
-                        result["daemon_start_error"] = daemon_result.get("error") # type: ignore
+                        result["daemon_start_attempted"] = True  # type: ignore
+                        result["daemon_start_failed"] = True  # type: ignore
+                        result["daemon_start_error"] = daemon_result.get("error")  # type: ignore
                         return result
 
                     # Daemon started successfully, retry operation
-                    self.logger.info(f"Successfully started {daemon_type} daemon, retrying operation.")
-                    result["daemon_restarted"] = True # type: ignore
+                    self.logger.info(
+                        f"Successfully started {daemon_type} daemon, retrying operation."
+                    )
+                    result["daemon_restarted"] = True  # type: ignore
 
                     # If this is the last retry, break to avoid exceeding max_retries
                     if retry_count >= max_retries:
@@ -120,14 +130,15 @@ def auto_retry_on_daemon_failure(daemon_type: str = "ipfs", max_retries: int = 3
                 return result
 
             # If we get here, we've used all our retries
-            if not result.get("success", False): # type: ignore
-                result["max_retries_exceeded"] = True # type: ignore
+            if not result.get("success", False):  # type: ignore
+                result["max_retries_exceeded"] = True  # type: ignore
 
             return result
 
         return wrapper
 
     return decorator
+
 
 parent_dir = os.path.dirname(os.path.dirname(__file__))
 ipfs_lib_dir = os.path.join(parent_dir, "ipfs_kit_py")
@@ -150,6 +161,7 @@ from .test_fio import test_fio
 # Try to import synapse_storage
 try:
     from .synapse_storage import synapse_storage
+
     HAS_SYNAPSE = True
 except ImportError:
     HAS_SYNAPSE = False
@@ -157,16 +169,18 @@ except ImportError:
 # Try to import lotus_kit
 try:
     from .lotus_kit import lotus_kit
+
     HAS_LOTUS = True
 except ImportError:
     HAS_LOTUS = False
 
 # Make HAS_LOTUS available globally
-globals()['HAS_LOTUS'] = HAS_LOTUS
+globals()["HAS_LOTUS"] = HAS_LOTUS
 
 # Try to import huggingface_kit
 try:
     from .huggingface_kit import huggingface_kit
+
     HAS_HUGGINGFACE = True
 except ImportError:
     HAS_HUGGINGFACE = False
@@ -176,17 +190,18 @@ try:
     # DISABLED: from .libp2p_peer import IPFSLibp2pPeer
     # LibP2P peer functionality disabled to avoid protobuf conflicts
     raise ImportError("LibP2P disabled due to protobuf conflicts")
-    
+
     HAS_LIBP2P = True
 except ImportError:
     HAS_LIBP2P = False
 
 # Make HAS_LIBP2P and HAS_LOTUS global variables
-__all__ = ['HAS_LIBP2P', 'HAS_LOTUS', 'ipfs_kit', 'IPFSKit']
+__all__ = ["HAS_LIBP2P", "HAS_LOTUS", "ipfs_kit", "IPFSKit"]
 
 # Try to import IPLD extension
 try:
     from .ipld_extension import IPLDExtension
+
     HAS_IPLD_EXTENSION = True
 except ImportError:
     HAS_IPLD_EXTENSION = False
@@ -241,25 +256,35 @@ except ImportError:
 
 # Import FSSpec integration (with fallback for when fsspec isn't installed)
 try:
-    from .ipfs_fsspec import IPFSFSSpecFileSystem # Changed import to IPFSFSSpecFileSystem
+    from .ipfs_fsspec import IPFSFSSpecFileSystem  # Changed import to IPFSFSSpecFileSystem
     from .tiered_cache_manager import TieredCacheManager
+
     FSSPEC_AVAILABLE = True
-    HAS_TIERED_CACHE_MANAGER = True # Added flag for tiered cache manager
+    HAS_TIERED_CACHE_MANAGER = True  # Added flag for tiered cache manager
 except ImportError:
     FSSPEC_AVAILABLE = False
-    HAS_TIERED_CACHE_MANAGER = False # Added flag for tiered cache manager
+    HAS_TIERED_CACHE_MANAGER = False  # Added flag for tiered cache manager
 
 # Import WebSocket peer discovery components (with fallback if not available)
 #
 # Note: this import can trigger noisy stdout from optional third-party deps
 # (e.g. libp2p_kit_py) at import time. Keep it opt-in so core imports remain
 # side-effect free and tests don't hang waiting on network-ish initialization.
-_ENABLE_WS = os.environ.get("IPFS_KIT_ENABLE_WEBSOCKET_PEER_DISCOVERY", "").strip().lower() in {"1", "true", "yes", "on"}
+_ENABLE_WS = os.environ.get("IPFS_KIT_ENABLE_WEBSOCKET_PEER_DISCOVERY", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 if _ENABLE_WS:
     try:
         from .peer_websocket import (
-            PeerInfo, PeerWebSocketServer, PeerWebSocketClient,
-            create_peer_info_from_ipfs_kit, PeerRole, WEBSOCKET_AVAILABLE
+            PeerInfo,
+            PeerWebSocketServer,
+            PeerWebSocketClient,
+            create_peer_info_from_ipfs_kit,
+            PeerRole,
+            WEBSOCKET_AVAILABLE,
         )
 
         HAS_WEBSOCKET_PEER_DISCOVERY = True
@@ -321,9 +346,10 @@ class ipfs_kit:
         # Initialize and start daemons if requested
         if auto_start_daemons:
             init_result = instance.initialize(start_daemons=auto_start_daemons)
-            if not init_result.get("success", False): # type: ignore
+            if not init_result.get("success", False):  # type: ignore
                 from .error import IPFSError
-                error_msg = init_result.get("error", "Unknown initialization error") # type: ignore
+
+                error_msg = init_result.get("error", "Unknown initialization error")  # type: ignore
                 raise IPFSError(f"Failed to initialize IPFS Kit: {error_msg}")
 
             # Set initialization state
@@ -346,11 +372,11 @@ class ipfs_kit:
 
         # Check daemon status
         daemon_status = self.check_daemon_status()
-        if not daemon_status.get("success", False): # type: ignore
+        if not daemon_status.get("success", False):  # type: ignore
             return False
 
         # Check if required daemons are running
-        daemons = daemon_status.get("daemons", {}) # type: ignore
+        daemons = daemon_status.get("daemons", {})  # type: ignore
         if not daemons.get("ipfs", {}).get("running", False):
             return False
 
@@ -413,11 +439,17 @@ class ipfs_kit:
         metadata = self.metadata
 
         # Dependency injection container and optional injected cross-package modules.
-        self.deps = deps or (resources.get("deps") if isinstance(resources, dict) else None) or self.metadata.get("deps")
+        self.deps = (
+            deps
+            or (resources.get("deps") if isinstance(resources, dict) else None)
+            or self.metadata.get("deps")
+        )
         self.ipfs_accelerate_py = ipfs_accelerate or (
             resources.get("ipfs_accelerate_py") if isinstance(resources, dict) else None
         )
-        self.ipfs_datasets_py = ipfs_datasets or (resources.get("ipfs_datasets_py") if isinstance(resources, dict) else None)
+        self.ipfs_datasets_py = ipfs_datasets or (
+            resources.get("ipfs_datasets_py") if isinstance(resources, dict) else None
+        )
 
         # Best-effort: cache injected modules on deps for other packages to reuse.
         setter = getattr(self.deps, "set_cached", None)
@@ -444,7 +476,7 @@ class ipfs_kit:
 
         # FSSpec filesystem instance (initialized on first use)
         self._filesystem = None
-        self._tiered_cache_manager = None # Initialize tiered cache manager
+        self._tiered_cache_manager = None  # Initialize tiered cache manager
 
         # Ensure optional kits are always present as attributes
         self.lotus_kit = None
@@ -452,7 +484,7 @@ class ipfs_kit:
         # Metadata index and sync handler (initialized on demand)
         self._metadata_index = None
         self._metadata_sync_handler = None
-        
+
         # Daemon management (initialized when needed)
         self.daemon_manager = None
 
@@ -529,50 +561,56 @@ class ipfs_kit:
             if self.role == "leecher":
                 # Check for disabled components
                 disabled_components = metadata.get("disabled_components", [])
-                
+
                 # Leecher only needs IPFS daemon
-                self.ipfs = ipfs_py(metadata={"role": self.role, "testing": False}) # Explicitly set testing to False
+                self.ipfs = ipfs_py(
+                    metadata={"role": self.role, "testing": False}
+                )  # Explicitly set testing to False
                 # Add storage kit for S3 connectivity
                 self.s3_kit = s3_kit(resources=resources)
                 self.storacha_kit = storacha_kit(resources=resources, metadata=metadata)
                 self.gdrive_kit = gdrive_kit(resources=resources, metadata=metadata)
-                
+
                 # Initialize Synapse storage if available and not disabled
                 if HAS_SYNAPSE and "synapse" not in disabled_components:
                     self.synapse_storage = synapse_storage(resources=resources, metadata=metadata)
                     self.logger.info("Initialized Synapse storage for Filecoin PDP integration")
                 else:
-                    self.synapse_storage = None # Initialize to None
+                    self.synapse_storage = None  # Initialize to None
                     if "synapse" in disabled_components:
                         self.logger.info("Synapse storage disabled for leecher role")
-                        
+
                 # Initialize HuggingFace Hub integration if available
                 if HAS_HUGGINGFACE:
                     self.huggingface_kit = huggingface_kit(resources=resources, metadata=metadata)
                 else:
-                    self.huggingface_kit = None # Initialize to None
+                    self.huggingface_kit = None  # Initialize to None
 
                 # Initialize ipget component
-                
+
                 # Initialize Lotus Kit if available and not disabled
                 if HAS_LOTUS and "lotus" not in disabled_components:
                     # Auto-start is opted into based on metadata, default to True for leecher role too
                     lotus_metadata = self.metadata.copy()
-                    lotus_metadata["auto_start_daemon"] = lotus_metadata.get("auto_start_lotus_daemon", True)
+                    lotus_metadata["auto_start_daemon"] = lotus_metadata.get(
+                        "auto_start_lotus_daemon", True
+                    )
                     self.lotus_kit = lotus_kit(resources=resources, metadata=lotus_metadata)
                     self.logger.info("Initialized Lotus Kit for Filecoin integration")
                 else:
-                    self.lotus_kit = None # Initialize to None
+                    self.lotus_kit = None  # Initialize to None
                     if "lotus" in disabled_components:
                         self.logger.info("Lotus Kit disabled for leecher role")
 
             elif self.role == "worker":
                 # Check for disabled components
                 disabled_components = metadata.get("disabled_components", [])
-                
+
                 # Worker needs IPFS daemon and cluster-follow
-                self.ipfs = ipfs_py(metadata={"role": self.role, "testing": False}) # Explicitly set testing to False
-                
+                self.ipfs = ipfs_py(
+                    metadata={"role": self.role, "testing": False}
+                )  # Explicitly set testing to False
+
                 # Initialize cluster-follow if not disabled
                 if "ipfs_cluster_follow" not in disabled_components:
                     self.ipfs_cluster_follow = ipfs_cluster_follow(
@@ -582,49 +620,53 @@ class ipfs_kit:
                 else:
                     self.ipfs_cluster_follow = None
                     self.logger.info("IPFS Cluster Follow disabled for worker role")
-                    
+
                 # Add storage kit for S3 connectivity
                 self.s3_kit = s3_kit(resources=resources)
                 self.storacha_kit = storacha_kit(resources=resources, metadata=metadata)
                 self.gdrive_kit = gdrive_kit(resources=resources, metadata=metadata)
-                
+
                 # Initialize Synapse storage if available and not disabled
                 if HAS_SYNAPSE and "synapse" not in disabled_components:
                     self.synapse_storage = synapse_storage(resources=resources, metadata=metadata)
                     self.logger.info("Initialized Synapse storage for Filecoin PDP integration")
                 else:
-                    self.synapse_storage = None # Initialize to None
+                    self.synapse_storage = None  # Initialize to None
                     if "synapse" in disabled_components:
                         self.logger.info("Synapse storage disabled for worker role")
-                        
+
                 # Initialize HuggingFace Hub integration if available
                 if HAS_HUGGINGFACE:
                     self.huggingface_kit = huggingface_kit(resources=resources, metadata=metadata)
                 else:
-                    self.huggingface_kit = None # Initialize to None
-                    
+                    self.huggingface_kit = None  # Initialize to None
+
                 # Initialize ipget component
                 self.ipget = ipget(resources=resources, metadata={"role": self.role})
-                
+
                 # Initialize Lotus Kit if available and not disabled
                 if HAS_LOTUS and "lotus" not in disabled_components:
                     # Auto-start is opted into based on metadata, default to True for worker role too
                     lotus_metadata = self.metadata.copy()
-                    lotus_metadata["auto_start_daemon"] = lotus_metadata.get("auto_start_lotus_daemon", True)
+                    lotus_metadata["auto_start_daemon"] = lotus_metadata.get(
+                        "auto_start_lotus_daemon", True
+                    )
                     self.lotus_kit = lotus_kit(resources=resources, metadata=lotus_metadata)
                     self.logger.info("Initialized Lotus Kit for Filecoin integration")
                 else:
-                    self.lotus_kit = None # Initialize to None
+                    self.lotus_kit = None  # Initialize to None
                     if "lotus" in disabled_components:
                         self.logger.info("Lotus Kit disabled for worker role")
 
             elif self.role == "master":
                 # Check for disabled components
                 disabled_components = metadata.get("disabled_components", [])
-                
+
                 # Master needs IPFS daemon, cluster-service, and cluster-ctl
-                self.ipfs = ipfs_py(metadata={"role": self.role, "testing": False}) # Explicitly set testing to False
-                
+                self.ipfs = ipfs_py(
+                    metadata={"role": self.role, "testing": False}
+                )  # Explicitly set testing to False
+
                 # Initialize cluster service if not disabled
                 if "ipfs_cluster" not in disabled_components:
                     self.ipfs_cluster_service = ipfs_cluster_service(
@@ -637,47 +679,49 @@ class ipfs_kit:
                     self.ipfs_cluster_service = None
                     self.ipfs_cluster_ctl = None
                     self.logger.info("IPFS Cluster service and ctl disabled for master role")
-                    
+
                 # Add storage kit for S3 connectivity
                 self.s3_kit = s3_kit(resources=resources)
                 self.storacha_kit = storacha_kit(resources=resources, metadata=metadata)
                 self.gdrive_kit = gdrive_kit(resources=resources, metadata=metadata)
-                
+
                 # Initialize Synapse storage if available and not disabled
                 if HAS_SYNAPSE and "synapse" not in disabled_components:
                     self.synapse_storage = synapse_storage(resources=resources, metadata=metadata)
                     self.logger.info("Initialized Synapse storage for Filecoin PDP integration")
                 else:
-                    self.synapse_storage = None # Initialize to None
+                    self.synapse_storage = None  # Initialize to None
                     if "synapse" in disabled_components:
                         self.logger.info("Synapse storage disabled for master role")
-                        
+
                 # Initialize HuggingFace Hub integration if available
                 if HAS_HUGGINGFACE:
                     self.huggingface_kit = huggingface_kit(resources=resources, metadata=metadata)
                 else:
-                    self.huggingface_kit = None # Initialize to None
-                    
+                    self.huggingface_kit = None  # Initialize to None
+
                 # Initialize ipget component
                 self.ipget = ipget(resources=resources, metadata={"role": self.role})
-                
+
                 # Initialize Lotus Kit if available and not disabled
                 if HAS_LOTUS and "lotus" not in disabled_components:
                     # Auto-start is opted into based on metadata, but default to true for master role
                     lotus_metadata = self.metadata.copy()
-                    lotus_metadata["auto_start_daemon"] = lotus_metadata.get("auto_start_lotus_daemon", True)
+                    lotus_metadata["auto_start_daemon"] = lotus_metadata.get(
+                        "auto_start_lotus_daemon", True
+                    )
                     self.lotus_kit = lotus_kit(resources=resources, metadata=lotus_metadata)
                     self.logger.info("Initialized Lotus Kit for Filecoin integration")
                 else:
-                    self.lotus_kit = None # Initialize to None
+                    self.lotus_kit = None  # Initialize to None
                     if "lotus" in disabled_components:
                         self.logger.info("Lotus Kit disabled for master role")
 
         # Initialize monitoring components
         self.monitoring = None
         self.dashboard = None
-        self.observability = None # Initialize observability API
-        self.performance_metrics = None # Initialize performance metrics tracker
+        self.observability = None  # Initialize observability API
+        self.performance_metrics = None  # Initialize performance metrics tracker
         enable_monitoring = metadata.get("enable_monitoring", False) if metadata else False
 
         # Initialize knowledge graph components
@@ -702,16 +746,17 @@ class ipfs_kit:
 
         # Initialize libp2p peer if enabled
         self.libp2p = None
-        
+
         # Check if libp2p is enabled and try to initialize it if so
         if enable_libp2p:
             # Try to import libp2p directly to check availability
             try:
                 import libp2p
+
                 libp2p_installed = True
             except ImportError:
                 libp2p_installed = False
-                
+
             # Only attempt setup if it's actually installed
             if libp2p_installed:
                 self._setup_libp2p(resources, metadata)
@@ -774,11 +819,10 @@ class ipfs_kit:
         try:
             self.program_state = get_program_state_manager()
             self.logger.info("Program state manager initialized")
-            
+
             # Initialize state with basic information
             self.program_state.update_system_state(
-                ipfs_version=getattr(self.ipfs, 'version', ''),
-                last_updated=time.time()
+                ipfs_version=getattr(self.ipfs, "version", ""), last_updated=time.time()
             )
         except Exception as e:
             self.logger.warning(f"Failed to initialize program state manager: {e}")
@@ -803,7 +847,7 @@ class ipfs_kit:
                     self.logger.warning(f"Failed to get peer ID from libp2p: {str(e)}")
             if not peer_id and hasattr(self, "ipfs"):
                 try:
-                    id_result = self.ipfs.ipfs_id() # type: ignore
+                    id_result = self.ipfs.ipfs_id()  # type: ignore
                     if id_result.get("success", False) and "ID" in id_result:
                         peer_id = id_result["ID"]
                 except Exception as e:
@@ -857,7 +901,7 @@ class ipfs_kit:
             except Exception as e:
                 self.logger.warning(f"Error getting system resources: {str(e)}")
 
-            self.cluster_manager = ClusterManager( # type: ignore
+            self.cluster_manager = ClusterManager(  # type: ignore
                 node_id=node_id,
                 role=self.role,
                 peer_id=peer_id,
@@ -867,7 +911,7 @@ class ipfs_kit:
                 enable_libp2p=hasattr(self, "libp2p") and self.libp2p is not None,
             )
             result = self.cluster_manager.start()
-            if not result.get("success", False): # type: ignore
+            if not result.get("success", False):  # type: ignore
                 self.logger.error(f"Failed to start cluster manager: {result}")
                 return False
             self.logger.info("Cluster management setup complete")
@@ -884,21 +928,23 @@ class ipfs_kit:
         try:
             index_dir = self.metadata.get("metadata_index_dir") if self.metadata else None
             partition_size = self.metadata.get("metadata_partition_size") if self.metadata else None
-            sync_interval = self.metadata.get("metadata_sync_interval", 300) if self.metadata else 300
+            sync_interval = (
+                self.metadata.get("metadata_sync_interval", 300) if self.metadata else 300
+            )
             auto_sync = self.metadata.get("metadata_auto_sync", True) if self.metadata else True
             cluster_id = self.metadata.get("cluster_name") if self.metadata else None
             if not cluster_id and hasattr(self, "config") and "cluster_id" in self.config:
                 cluster_id = self.config["cluster_id"]
 
-            self._metadata_index = ArrowMetadataIndex( # type: ignore
+            self._metadata_index = ArrowMetadataIndex(  # type: ignore
                 index_dir=index_dir,
                 role=self.role,
                 partition_size=partition_size,
                 ipfs_client=self.ipfs,
             )
             if self.role in ("master", "worker"):
-                node_id = self.ipfs.get_node_id() if hasattr(self.ipfs, "get_node_id") else None # type: ignore
-                self._metadata_sync_handler = MetadataSyncHandler( # type: ignore
+                node_id = self.ipfs.get_node_id() if hasattr(self.ipfs, "get_node_id") else None  # type: ignore
+                self._metadata_sync_handler = MetadataSyncHandler(  # type: ignore
                     index=self._metadata_index,
                     ipfs_client=self.ipfs,
                     cluster_id=cluster_id,
@@ -906,9 +952,9 @@ class ipfs_kit:
                 )
                 if auto_sync:
                     self._metadata_sync_handler.start(sync_interval=sync_interval)
-            result["success"] = True # type: ignore
-            result["metadata_index_enabled"] = True # type: ignore
-            result["auto_sync"] = auto_sync # type: ignore
+            result["success"] = True  # type: ignore
+            result["metadata_index_enabled"] = True  # type: ignore
+            result["auto_sync"] = auto_sync  # type: ignore
             self.logger.info(f"Arrow metadata index enabled. Auto-sync: {auto_sync}")
         except Exception as e:
             handle_error(result, e, "Failed to initialize Arrow metadata index")
@@ -929,93 +975,131 @@ class ipfs_kit:
         # Ensure all daemons are properly configured before starting
         try:
             from .daemon_config_manager import DaemonConfigManager
+
             self.daemon_manager = DaemonConfigManager(self)
             config_result = self.daemon_manager.check_and_configure_all_daemons()
-            if not config_result.get('success', False): # type: ignore
-                self.logger.warning('Some daemon configurations failed, but continuing...')
+            if not config_result.get("success", False):  # type: ignore
+                self.logger.warning("Some daemon configurations failed, but continuing...")
                 error_summary = []
-                if 'errors' in config_result:
-                    error_summary.extend(config_result['errors'])
-                if 'daemon_results' in config_result:
-                    for daemon, result in config_result['daemon_results'].items():
-                        if not result.get('success', False):
-                            error_summary.append(f"{daemon}: {result.get('message', 'Unknown error')}")
-                summary = '; '.join(error_summary) if error_summary else 'Configuration issues detected'
-                self.logger.warning(f'Config summary: {summary}')
+                if "errors" in config_result:
+                    error_summary.extend(config_result["errors"])
+                if "daemon_results" in config_result:
+                    for daemon, result in config_result["daemon_results"].items():
+                        if not result.get("success", False):
+                            error_summary.append(
+                                f"{daemon}: {result.get('message', 'Unknown error')}"
+                            )
+                summary = (
+                    "; ".join(error_summary) if error_summary else "Configuration issues detected"
+                )
+                self.logger.warning(f"Config summary: {summary}")
             else:
-                self.logger.info('All daemon configurations validated successfully')
-                if config_result.get('all_configured', False):
-                    self.logger.info('All required daemons are properly configured')
+                self.logger.info("All daemon configurations validated successfully")
+                if config_result.get("all_configured", False):
+                    self.logger.info("All required daemons are properly configured")
         except Exception as config_error:
-            self.logger.warning(f'Daemon configuration check failed: {config_error}')
-            self.logger.warning('Continuing with daemon startup...')
-
+            self.logger.warning(f"Daemon configuration check failed: {config_error}")
+            self.logger.warning("Continuing with daemon startup...")
 
         try:
             # All roles need the IPFS daemon
-            if hasattr(self, 'ipfs'):
+            if hasattr(self, "ipfs"):
                 # Use the appropriate method based on what's available
-                if hasattr(self.ipfs, 'daemon_start'):
-                    ipfs_result = self.ipfs.daemon_start() # type: ignore
+                if hasattr(self.ipfs, "daemon_start"):
+                    ipfs_result = self.ipfs.daemon_start()  # type: ignore
                 else:
                     # If daemon_start is not available, try using add() as a test to ensure daemon is running
-                    self.logger.warning("daemon_start method not found on ipfs object, attempting alternate checks")
+                    self.logger.warning(
+                        "daemon_start method not found on ipfs object, attempting alternate checks"
+                    )
                     ipfs_result = {"success": False, "error": "No daemon start method available"}
                     # Try to run a simple command to see if daemon is running or start it with system commands
                     try:
                         # First check if daemon is already running
-                        if hasattr(self.ipfs, 'run_ipfs_command'):
+                        if hasattr(self.ipfs, "run_ipfs_command"):
                             test_result = self.ipfs.run_ipfs_command(["ipfs", "id"])
-                            if test_result.get("success", False): # type: ignore
+                            if test_result.get("success", False):  # type: ignore
                                 ipfs_result = {"success": True, "status": "already_running"}
                         else:
                             # Try enhanced daemon manager
                             from .enhanced_daemon_manager import EnhancedDaemonManager
-                            manager = EnhancedDaemonManager(ipfs_path=getattr(self, "ipfs_path", None))
+
+                            manager = EnhancedDaemonManager(
+                                ipfs_path=getattr(self, "ipfs_path", None)
+                            )
                             start_result = manager.start_daemon(detach=True, init_if_needed=True)
                             status = start_result.get("status")
                             if status in ("started", "already_running"):
                                 ipfs_result = {"success": True, "status": status}
                             else:
-                                ipfs_result = {"success": False, "error": start_result.get("message", "Failed to start IPFS daemon")}
+                                ipfs_result = {
+                                    "success": False,
+                                    "error": start_result.get(
+                                        "message", "Failed to start IPFS daemon"
+                                    ),
+                                }
                     except Exception as e:
                         self.logger.error(f"Alternate daemon check failed: {str(e)}")
-                    
-                if not ipfs_result.get("success", False): # type: ignore
-                    self.logger.error(f"Failed to start IPFS daemon: {ipfs_result.get('error', 'Unknown error')}") # type: ignore
+
+                if not ipfs_result.get("success", False):  # type: ignore
+                    self.logger.error(
+                        f"Failed to start IPFS daemon: {ipfs_result.get('error', 'Unknown error')}"
+                    )  # type: ignore
                 else:
-                    self.logger.info(f"IPFS daemon started successfully: {ipfs_result.get('status', 'running')}") # type: ignore
-                    
+                    self.logger.info(
+                        f"IPFS daemon started successfully: {ipfs_result.get('status', 'running')}"
+                    )  # type: ignore
+
             # Start Lotus daemon if available and auto-start is configured and not disabled
             disabled_components = self.metadata.get("disabled_components", [])
-            
-            if hasattr(self, 'lotus_kit') and self.lotus_kit is not None and "lotus" not in disabled_components:
+
+            if (
+                hasattr(self, "lotus_kit")
+                and self.lotus_kit is not None
+                and "lotus" not in disabled_components
+            ):
                 # Check if auto-start is enabled for lotus daemon
                 should_start_lotus = False
-                if hasattr(self.lotus_kit, 'auto_start_daemon'):
-                    should_start_lotus = self.lotus_kit.auto_start_daemon # type: ignore
-                
+                if hasattr(self.lotus_kit, "auto_start_daemon"):
+                    should_start_lotus = self.lotus_kit.auto_start_daemon  # type: ignore
+
                 if should_start_lotus:
-                    lotus_result = self.lotus_kit.daemon_start() # type: ignore
-                    if not lotus_result.get("success", False): # type: ignore
-                        self.logger.error(f"Failed to start Lotus daemon: {lotus_result.get('error', 'Unknown error')}") # type: ignore
+                    lotus_result = self.lotus_kit.daemon_start()  # type: ignore
+                    if not lotus_result.get("success", False):  # type: ignore
+                        self.logger.error(
+                            f"Failed to start Lotus daemon: {lotus_result.get('error', 'Unknown error')}"
+                        )  # type: ignore
                     else:
-                        self.logger.info(f"Lotus daemon started successfully: {lotus_result.get('status', 'running')}") # type: ignore
+                        self.logger.info(
+                            f"Lotus daemon started successfully: {lotus_result.get('status', 'running')}"
+                        )  # type: ignore
             elif "lotus" in disabled_components:
                 self.logger.info("Lotus daemon startup skipped - disabled for this role")
 
             # Master role needs IPFS Cluster Service (if not disabled)
-            if self.role == "master" and hasattr(self, 'ipfs_cluster_service') and self.ipfs_cluster_service is not None and "ipfs_cluster" not in disabled_components:
-                cluster_service_result = self.ipfs_cluster_service.ipfs_cluster_service_start() # type: ignore
-                if not cluster_service_result.get("success", False): # type: ignore
-                    self.logger.error(f"Failed to start IPFS Cluster Service: {cluster_service_result.get('error', 'Unknown error')}") # type: ignore
+            if (
+                self.role == "master"
+                and hasattr(self, "ipfs_cluster_service")
+                and self.ipfs_cluster_service is not None
+                and "ipfs_cluster" not in disabled_components
+            ):
+                cluster_service_result = self.ipfs_cluster_service.ipfs_cluster_service_start()  # type: ignore
+                if not cluster_service_result.get("success", False):  # type: ignore
+                    self.logger.error(
+                        f"Failed to start IPFS Cluster Service: {cluster_service_result.get('error', 'Unknown error')}"
+                    )  # type: ignore
                 else:
                     self.logger.info("IPFS Cluster Service started successfully")
             elif self.role == "master" and "ipfs_cluster" in disabled_components:
                 self.logger.info("IPFS Cluster Service startup skipped - disabled for this role")
 
             # Worker role needs IPFS Cluster Follow (if not disabled)
-            if self.role == "worker" and hasattr(self, 'ipfs_cluster_follow') and self.ipfs_cluster_follow is not None and "ipfs_cluster_follow" not in disabled_components:
+            if (
+                self.role == "worker"
+                and hasattr(self, "ipfs_cluster_follow")
+                and self.ipfs_cluster_follow is not None
+                and "ipfs_cluster_follow" not in disabled_components
+            ):
                 # Get cluster name from metadata
                 cluster_name = None
                 if hasattr(self, "cluster_name"):
@@ -1024,9 +1108,13 @@ class ipfs_kit:
                     cluster_name = self.metadata["cluster_name"]
 
                 if cluster_name:
-                    cluster_follow_result = self.ipfs_cluster_follow.ipfs_follow_start(cluster_name=cluster_name) # type: ignore
-                    if not cluster_follow_result.get("success", False): # type: ignore
-                        self.logger.error(f"Failed to start IPFS Cluster Follow: {cluster_follow_result.get('error', 'Unknown error')}") # type: ignore
+                    cluster_follow_result = self.ipfs_cluster_follow.ipfs_follow_start(
+                        cluster_name=cluster_name
+                    )  # type: ignore
+                    if not cluster_follow_result.get("success", False):  # type: ignore
+                        self.logger.error(
+                            f"Failed to start IPFS Cluster Follow: {cluster_follow_result.get('error', 'Unknown error')}"
+                        )  # type: ignore
                     else:
                         self.logger.info("IPFS Cluster Follow started successfully")
                 else:
@@ -1036,46 +1124,52 @@ class ipfs_kit:
 
             # Verify daemon status
             status = self.check_daemon_status()
-            if status.get("success", False): # type: ignore
-                daemon_status = status.get("daemons", {}) # type: ignore
+            if status.get("success", False):  # type: ignore
+                daemon_status = status.get("daemons", {})  # type: ignore
                 all_running = all(daemon.get("running", False) for daemon in daemon_status.values())
                 if all_running:
                     self.logger.info("All required daemons are running")
-                    
+
                     # Start background state updates if program state is available
-                    if hasattr(self, 'program_state') and self.program_state is not None:
+                    if hasattr(self, "program_state") and self.program_state is not None:
                         self._start_background_state_updates()
-                    
+
                     return {
-                        'success': True,
-                        'message': 'All required daemons are running',
-                        'status': self.daemon_manager.get_detailed_status_report() if self.daemon_manager else {}
+                        "success": True,
+                        "message": "All required daemons are running",
+                        "status": self.daemon_manager.get_detailed_status_report()
+                        if self.daemon_manager
+                        else {},
                     }
                 else:
                     # List daemons that aren't running
-                    not_running = [name for name, info in daemon_status.items() if not info.get("running", False)]
-                    self.logger.warning(f"Not all daemons are running. Non-running daemons: {', '.join(not_running)}")
+                    not_running = [
+                        name
+                        for name, info in daemon_status.items()
+                        if not info.get("running", False)
+                    ]
+                    self.logger.warning(
+                        f"Not all daemons are running. Non-running daemons: {', '.join(not_running)}"
+                    )
                     return {
-                        'success': False,
-                        'message': f"Not all daemons are running: {', '.join(not_running)}",
-                        'not_running': not_running,
-                        'status': self.daemon_manager.get_detailed_status_report() if self.daemon_manager else {}
+                        "success": False,
+                        "message": f"Not all daemons are running: {', '.join(not_running)}",
+                        "not_running": not_running,
+                        "status": self.daemon_manager.get_detailed_status_report()
+                        if self.daemon_manager
+                        else {},
                     }
             else:
                 self.logger.warning("Could not verify daemon status")
-                return {
-                    'success': False,
-                    'message': 'Could not verify daemon status',
-                    'status': {}
-                }
+                return {"success": False, "message": "Could not verify daemon status", "status": {}}
 
         except Exception as e:
             self.logger.error(f"Error starting daemons: {str(e)}")
             return {
-                'success': False,
-                'message': f'Error starting daemons: {str(e)}',
-                'error': str(e),
-                'status': {}
+                "success": False,
+                "message": f"Error starting daemons: {str(e)}",
+                "error": str(e),
+                "status": {},
             }
 
     def check_daemon_status(self):
@@ -1091,123 +1185,132 @@ class ipfs_kit:
 
         try:
             # Check IPFS daemon
-            if hasattr(self, 'ipfs'):
+            if hasattr(self, "ipfs"):
                 ipfs_running = False
-                
+
                 # First attempt: try ipfs id as a direct check
                 try:
-                    id_result = self.ipfs.run_ipfs_command(["id"]) # type: ignore
-                    if id_result.get("success", False): # type: ignore
+                    id_result = self.ipfs.run_ipfs_command(["id"])  # type: ignore
+                    if id_result.get("success", False):  # type: ignore
                         ipfs_running = True
                         self.logger.debug("IPFS daemon detected as running using 'ipfs id' command")
                 except Exception as e:
                     self.logger.debug(f"Error checking IPFS daemon with 'ipfs id': {str(e)}")
-                
+
                 # Second attempt: use ps command if the first attempt fails
                 if not ipfs_running:
                     try:
-                        ps_result = self.ipfs.run_ipfs_command(["ps", "-ef"]) # type: ignore
-                        if ps_result.get("success", False) and "stdout" in ps_result: # type: ignore
+                        ps_result = self.ipfs.run_ipfs_command(["ps", "-ef"])  # type: ignore
+                        if ps_result.get("success", False) and "stdout" in ps_result:  # type: ignore
                             # Look for ipfs daemon process
-                            for line in ps_result["stdout"].splitlines(): # type: ignore
+                            for line in ps_result["stdout"].splitlines():  # type: ignore
                                 if "ipfs daemon" in line and "grep" not in line:
                                     ipfs_running = True
-                                    self.logger.debug("IPFS daemon detected as running using 'ps' command")
+                                    self.logger.debug(
+                                        "IPFS daemon detected as running using 'ps' command"
+                                    )
                                     break
                     except Exception as e:
                         self.logger.debug(f"Error checking IPFS daemon with 'ps': {str(e)}")
-                
+
                 # Third attempt: direct process check
                 if not ipfs_running:
                     try:
                         import subprocess
+
                         if os.name == "nt":
                             try:
                                 import psutil
+
                                 for proc in psutil.process_iter(["name", "cmdline"]):
                                     name = (proc.info.get("name") or "").lower()
                                     cmdline = " ".join(proc.info.get("cmdline") or []).lower()
                                     if "ipfs" in name and "daemon" in cmdline:
                                         ipfs_running = True
-                                        self.logger.debug("IPFS daemon detected as running using psutil")
+                                        self.logger.debug(
+                                            "IPFS daemon detected as running using psutil"
+                                        )
                                         break
                             except Exception as e:
-                                self.logger.debug(f"Error checking IPFS daemon with psutil: {str(e)}")
+                                self.logger.debug(
+                                    f"Error checking IPFS daemon with psutil: {str(e)}"
+                                )
                         else:
                             # Try using 'pgrep' to find daemon on Unix-like systems
                             pgrep_result = subprocess.run(
                                 ["pgrep", "-f", "ipfs daemon"],
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
-                                check=False
+                                check=False,
                             )
                             if pgrep_result.returncode == 0 and pgrep_result.stdout.strip():
                                 ipfs_running = True
-                                self.logger.debug("IPFS daemon detected as running using 'pgrep' command")
+                                self.logger.debug(
+                                    "IPFS daemon detected as running using 'pgrep' command"
+                                )
                     except Exception as e:
-                        self.logger.debug(f"Error checking IPFS daemon with direct process check: {str(e)}")
+                        self.logger.debug(
+                            f"Error checking IPFS daemon with direct process check: {str(e)}"
+                        )
 
-                result["daemons"]["ipfs"] = {
-                    "running": ipfs_running,
-                    "type": "ipfs_daemon"
-                }
+                result["daemons"]["ipfs"] = {"running": ipfs_running, "type": "ipfs_daemon"}
 
             # Check IPFS Cluster Service (master only)
-            if self.role == "master" and hasattr(self, 'ipfs_cluster_service'):
-                ps_result = self.ipfs_cluster_service.run_cluster_service_command(["ps", "-ef"]) # type: ignore
+            if self.role == "master" and hasattr(self, "ipfs_cluster_service"):
+                ps_result = self.ipfs_cluster_service.run_cluster_service_command(["ps", "-ef"])  # type: ignore
                 cluster_running = False
 
-                if ps_result.get("success", False) and "stdout" in ps_result: # type: ignore
+                if ps_result.get("success", False) and "stdout" in ps_result:  # type: ignore
                     # Look for ipfs-cluster-service daemon process
-                    for line in ps_result["stdout"].splitlines(): # type: ignore
+                    for line in ps_result["stdout"].splitlines():  # type: ignore
                         if "ipfs-cluster-service daemon" in line and "grep" not in line:
                             cluster_running = True
                             break
 
                 result["daemons"]["ipfs_cluster_service"] = {
                     "running": cluster_running,
-                    "type": "cluster_service"
+                    "type": "cluster_service",
                 }
 
             # Check IPFS Cluster Follow (worker only)
-            if self.role == "worker" and hasattr(self, 'ipfs_cluster_follow'):
-                ps_result = self.ipfs_cluster_follow.run_cluster_follow_command(["ps", "-ef"]) # type: ignore
+            if self.role == "worker" and hasattr(self, "ipfs_cluster_follow"):
+                ps_result = self.ipfs_cluster_follow.run_cluster_follow_command(["ps", "-ef"])  # type: ignore
                 follow_running = False
 
-                if ps_result.get("success", False) and "stdout" in ps_result: # type: ignore
+                if ps_result.get("success", False) and "stdout" in ps_result:  # type: ignore
                     # Look for ipfs-cluster-follow process
-                    for line in ps_result["stdout"].splitlines(): # type: ignore
+                    for line in ps_result["stdout"].splitlines():  # type: ignore
                         if "ipfs-cluster-follow" in line and "grep" not in line:
                             follow_running = True
                             break
 
                 result["daemons"]["ipfs_cluster_follow"] = {
                     "running": follow_running,
-                    "type": "cluster_follow"
+                    "type": "cluster_follow",
                 }
-                
+
             # Check Lotus daemon if available
-            if hasattr(self, 'lotus_kit'):
-                lotus_status = self.lotus_kit.daemon_status() # type: ignore
-                
+            if hasattr(self, "lotus_kit"):
+                lotus_status = self.lotus_kit.daemon_status()  # type: ignore
+
                 # Extract information from the lotus daemon status
                 lotus_running = lotus_status.get("process_running", False)
                 lotus_pid = lotus_status.get("pid", None)
                 lotus_api_ready = lotus_status.get("api_ready", False)
-                
+
                 result["daemons"]["lotus"] = {
                     "running": lotus_running,
                     "type": "lotus_daemon",
                     "pid": lotus_pid,
-                    "api_ready": lotus_api_ready
+                    "api_ready": lotus_api_ready,
                 }
 
-            result["success"] = True # type: ignore
+            result["success"] = True  # type: ignore
             return result
         except Exception as e:
-            result["success"] = False # type: ignore
-            result["error"] = str(e) # type: ignore
-            result["error_type"] = type(e).__name__ # type: ignore
+            result["success"] = False  # type: ignore
+            result["error"] = str(e)  # type: ignore
+            result["error_type"] = type(e).__name__  # type: ignore
             self.logger.error(f"Error checking daemon status: {str(e)}")
             return result
 
@@ -1226,7 +1329,7 @@ class ipfs_kit:
             # Stop in reverse order of starting
 
             # Stop IPFS Cluster Follow (worker only)
-            if self.role == "worker" and hasattr(self, 'ipfs_cluster_follow'):
+            if self.role == "worker" and hasattr(self, "ipfs_cluster_follow"):
                 cluster_name = None
                 if hasattr(self, "cluster_name"):
                     cluster_name = self.cluster_name
@@ -1234,34 +1337,40 @@ class ipfs_kit:
                     cluster_name = self.metadata["cluster_name"]
 
                 if cluster_name:
-                    follow_stopped = self.ipfs_cluster_follow.ipfs_follow_stop(cluster_name=cluster_name) # type: ignore
-                    result["stopped"]["ipfs_cluster_follow"] = follow_stopped # type: ignore
-                    self.logger.info(f"IPFS Cluster Follow stopped: {follow_stopped.get('success', False)}") # type: ignore
+                    follow_stopped = self.ipfs_cluster_follow.ipfs_follow_stop(
+                        cluster_name=cluster_name
+                    )  # type: ignore
+                    result["stopped"]["ipfs_cluster_follow"] = follow_stopped  # type: ignore
+                    self.logger.info(
+                        f"IPFS Cluster Follow stopped: {follow_stopped.get('success', False)}"
+                    )  # type: ignore
 
             # Stop IPFS Cluster Service (master only)
-            if self.role == "master" and hasattr(self, 'ipfs_cluster_service'):
-                service_stopped = self.ipfs_cluster_service.ipfs_cluster_service_stop() # type: ignore
-                result["stopped"]["ipfs_cluster_service"] = service_stopped # type: ignore
-                self.logger.info(f"IPFS Cluster Service stopped: {service_stopped.get('success', False)}") # type: ignore
-                
+            if self.role == "master" and hasattr(self, "ipfs_cluster_service"):
+                service_stopped = self.ipfs_cluster_service.ipfs_cluster_service_stop()  # type: ignore
+                result["stopped"]["ipfs_cluster_service"] = service_stopped  # type: ignore
+                self.logger.info(
+                    f"IPFS Cluster Service stopped: {service_stopped.get('success', False)}"
+                )  # type: ignore
+
             # Stop Lotus daemon if available (lotus should be stopped before IPFS)
-            if hasattr(self, 'lotus_kit'):
-                lotus_stopped = self.lotus_kit.daemon_stop() # type: ignore
-                result["stopped"]["lotus"] = lotus_stopped # type: ignore
-                self.logger.info(f"Lotus daemon stopped: {lotus_stopped.get('success', False)}") # type: ignore
+            if hasattr(self, "lotus_kit"):
+                lotus_stopped = self.lotus_kit.daemon_stop()  # type: ignore
+                result["stopped"]["lotus"] = lotus_stopped  # type: ignore
+                self.logger.info(f"Lotus daemon stopped: {lotus_stopped.get('success', False)}")  # type: ignore
 
             # Stop IPFS daemon (all roles)
-            if hasattr(self, 'ipfs'):
-                ipfs_stopped = self.ipfs.daemon_stop() # type: ignore
-                result["stopped"]["ipfs"] = ipfs_stopped # type: ignore
-                self.logger.info(f"IPFS daemon stopped: {ipfs_stopped.get('success', False)}") # type: ignore
+            if hasattr(self, "ipfs"):
+                ipfs_stopped = self.ipfs.daemon_stop()  # type: ignore
+                result["stopped"]["ipfs"] = ipfs_stopped  # type: ignore
+                self.logger.info(f"IPFS daemon stopped: {ipfs_stopped.get('success', False)}")  # type: ignore
 
-            result["success"] = True # type: ignore
+            result["success"] = True  # type: ignore
             return result
         except Exception as e:
-            result["success"] = False # type: ignore
-            result["error"] = str(e) # type: ignore
-            result["error_type"] = type(e).__name__ # type: ignore
+            result["success"] = False  # type: ignore
+            result["error"] = str(e)  # type: ignore
+            result["error_type"] = type(e).__name__  # type: ignore
             self.logger.error(f"Error stopping daemons: {str(e)}")
             return result
 
@@ -1281,35 +1390,37 @@ class ipfs_kit:
         from .error import create_result_dict
 
         result = create_result_dict("initialize")
-        result["daemons_started"] = [] # type: ignore
-        result["daemons_status"] = {} # type: ignore
+        result["daemons_started"] = []  # type: ignore
+        result["daemons_status"] = {}  # type: ignore
 
         try:
             # If auto-start is enabled, start required daemons
             if start_daemons:
                 self.auto_start_daemons = True
                 daemon_result = self._start_required_daemons()
-                result["daemons_started_result"] = daemon_result # type: ignore
+                result["daemons_started_result"] = daemon_result  # type: ignore
 
             # Check status of all daemons
             status_result = self.check_daemon_status()
-            result["daemons_status"] = status_result.get("daemons", {}) # type: ignore
+            result["daemons_status"] = status_result.get("daemons", {})  # type: ignore
 
             # Overall success if all required daemons are running or if we're not starting daemons
-            all_running = all(daemon.get("running", False) for daemon in result["daemons_status"].values()) # type: ignore
-            result["all_daemons_running"] = all_running # type: ignore
+            all_running = all(
+                daemon.get("running", False) for daemon in result["daemons_status"].values()
+            )  # type: ignore
+            result["all_daemons_running"] = all_running  # type: ignore
 
             if start_daemons and not all_running:
-                result["success"] = False # type: ignore
-                result["error"] = "Not all required daemons are running after initialization" # type: ignore
+                result["success"] = False  # type: ignore
+                result["error"] = "Not all required daemons are running after initialization"  # type: ignore
             else:
-                result["success"] = True # type: ignore
+                result["success"] = True  # type: ignore
 
             return result
         except Exception as e:
-            result["success"] = False # type: ignore
-            result["error"] = str(e) # type: ignore
-            result["error_type"] = type(e).__name__ # type: ignore
+            result["success"] = False  # type: ignore
+            result["error"] = str(e)  # type: ignore
+            result["error_type"] = type(e).__name__  # type: ignore
             self.logger.error(f"Error initializing SDK: {str(e)}")
             return result
 
@@ -1330,25 +1441,27 @@ class ipfs_kit:
         try:
             # Check current daemon status
             daemon_status = self.check_daemon_status()
-            if not daemon_status.get("success", False): # type: ignore
-                result["success"] = False # type: ignore
-                result["error"] = "Failed to check daemon status" # type: ignore
-                result["original_error"] = daemon_status.get("error") # type: ignore
+            if not daemon_status.get("success", False):  # type: ignore
+                result["success"] = False  # type: ignore
+                result["error"] = "Failed to check daemon status"  # type: ignore
+                result["original_error"] = daemon_status.get("error")  # type: ignore
                 return result
 
             # Check if the requested daemon is running
-            is_running = daemon_status.get("daemons", {}).get(daemon_type, {}).get("running", False) # type: ignore
-            result["was_running"] = is_running # type: ignore
+            is_running = daemon_status.get("daemons", {}).get(daemon_type, {}).get("running", False)  # type: ignore
+            result["was_running"] = is_running  # type: ignore
 
             if is_running:
-                result["success"] = True # type: ignore
-                result["message"] = f"{daemon_type} daemon already running" # type: ignore
+                result["success"] = True  # type: ignore
+                result["message"] = f"{daemon_type} daemon already running"  # type: ignore
                 return result
 
             # Daemon is not running, check if we should auto-start it
             if not self.auto_start_daemons:
-                result["success"] = False # type: ignore
-                result["error"] = f"{daemon_type} daemon is not running and auto_start_daemons is disabled" # type: ignore
+                result["success"] = False  # type: ignore
+                result["error"] = (
+                    f"{daemon_type} daemon is not running and auto_start_daemons is disabled"  # type: ignore
+                )
                 return result
 
             # Check if the daemon type is disabled
@@ -1357,24 +1470,30 @@ class ipfs_kit:
                 # Map daemon types to component names
                 daemon_to_component = {
                     "ipfs_cluster_service": "ipfs_cluster",
-                    "ipfs_cluster_follow": "ipfs_cluster_follow", 
-                    "lotus": "lotus"
+                    "ipfs_cluster_follow": "ipfs_cluster_follow",
+                    "lotus": "lotus",
                 }
-                
+
                 component_name = daemon_to_component.get(daemon_type)
                 if component_name and component_name in disabled_components:
-                    result["success"] = False # type: ignore
-                    result["error"] = f"{daemon_type} daemon startup disabled - component '{component_name}' is disabled for this role" # type: ignore
-                    self.logger.info(f"Skipping {daemon_type} daemon startup - disabled for this role")
+                    result["success"] = False  # type: ignore
+                    result["error"] = (
+                        f"{daemon_type} daemon startup disabled - component '{component_name}' is disabled for this role"  # type: ignore
+                    )
+                    self.logger.info(
+                        f"Skipping {daemon_type} daemon startup - disabled for this role"
+                    )
                     return result
 
             # Start the requested daemon
-            self.logger.info(f"{daemon_type} daemon not running, attempting to start it automatically")
+            self.logger.info(
+                f"{daemon_type} daemon not running, attempting to start it automatically"
+            )
 
             if daemon_type == "ipfs" and hasattr(self, "ipfs"):
-                start_result = self.ipfs.daemon_start() # type: ignore
+                start_result = self.ipfs.daemon_start()  # type: ignore
             elif daemon_type == "ipfs_cluster_service" and hasattr(self, "ipfs_cluster_service"):
-                start_result = self.ipfs_cluster_service.ipfs_cluster_service_start() # type: ignore
+                start_result = self.ipfs_cluster_service.ipfs_cluster_service_start()  # type: ignore
             elif daemon_type == "ipfs_cluster_follow" and hasattr(self, "ipfs_cluster_follow"):
                 # Need cluster name for this one
                 cluster_name = None
@@ -1384,35 +1503,37 @@ class ipfs_kit:
                     cluster_name = self.metadata["cluster_name"]
 
                 if not cluster_name:
-                    result["success"] = False # type: ignore
-                    result["error"] = "Cannot start IPFS Cluster Follow: No cluster name provided" # type: ignore
+                    result["success"] = False  # type: ignore
+                    result["error"] = "Cannot start IPFS Cluster Follow: No cluster name provided"  # type: ignore
                     return result
 
-                start_result = self.ipfs_cluster_follow.ipfs_follow_start(cluster_name=cluster_name) # type: ignore
+                start_result = self.ipfs_cluster_follow.ipfs_follow_start(cluster_name=cluster_name)  # type: ignore
             elif daemon_type == "lotus" and hasattr(self, "lotus_kit"):
                 # Start Lotus daemon
-                start_result = self.lotus_kit.daemon_start() # type: ignore
+                start_result = self.lotus_kit.daemon_start()  # type: ignore
             else:
-                result["success"] = False # type: ignore
-                result["error"] = f"Unknown daemon type '{daemon_type}' or component not initialized" # type: ignore
+                result["success"] = False  # type: ignore
+                result["error"] = (
+                    f"Unknown daemon type '{daemon_type}' or component not initialized"  # type: ignore
+                )
                 return result
 
-            if not start_result.get("success", False): # type: ignore
-                result["success"] = False # type: ignore
-                result["error"] = f"Failed to start {daemon_type} daemon" # type: ignore
-                result["start_result"] = start_result # type: ignore
+            if not start_result.get("success", False):  # type: ignore
+                result["success"] = False  # type: ignore
+                result["error"] = f"Failed to start {daemon_type} daemon"  # type: ignore
+                result["start_result"] = start_result  # type: ignore
                 return result
 
             # Daemon started successfully
-            result["success"] = True # type: ignore
-            result["message"] = f"{daemon_type} daemon started automatically" # type: ignore
-            result["start_result"] = start_result # type: ignore
+            result["success"] = True  # type: ignore
+            result["message"] = f"{daemon_type} daemon started automatically"  # type: ignore
+            result["start_result"] = start_result  # type: ignore
             return result
 
         except Exception as e:
-            result["success"] = False # type: ignore
-            result["error"] = str(e) # type: ignore
-            result["error_type"] = type(e).__name__ # type: ignore
+            result["success"] = False  # type: ignore
+            result["error"] = str(e)  # type: ignore
+            result["error_type"] = type(e).__name__  # type: ignore
             self.logger.error(f"Error ensuring {daemon_type} daemon is running: {str(e)}")
             return result
 
@@ -1432,21 +1553,23 @@ class ipfs_kit:
         try:
             index_dir = self.metadata.get("metadata_index_dir") if self.metadata else None
             partition_size = self.metadata.get("metadata_partition_size") if self.metadata else None
-            sync_interval = self.metadata.get("metadata_sync_interval", 300) if self.metadata else 300
+            sync_interval = (
+                self.metadata.get("metadata_sync_interval", 300) if self.metadata else 300
+            )
             auto_sync = self.metadata.get("metadata_auto_sync", True) if self.metadata else True
             cluster_id = self.metadata.get("cluster_name") if self.metadata else None
             if not cluster_id and hasattr(self, "config") and "cluster_id" in self.config:
                 cluster_id = self.config["cluster_id"]
 
-            self._metadata_index = ArrowMetadataIndex( # type: ignore
+            self._metadata_index = ArrowMetadataIndex(  # type: ignore
                 index_dir=index_dir,
                 role=self.role,
                 partition_size=partition_size,
                 ipfs_client=self.ipfs,
             )
             if self.role in ("master", "worker"):
-                node_id = self.ipfs.get_node_id() if hasattr(self.ipfs, "get_node_id") else None # type: ignore
-                self._metadata_sync_handler = MetadataSyncHandler( # type: ignore
+                node_id = self.ipfs.get_node_id() if hasattr(self.ipfs, "get_node_id") else None  # type: ignore
+                self._metadata_sync_handler = MetadataSyncHandler(  # type: ignore
                     index=self._metadata_index,
                     ipfs_client=self.ipfs,
                     cluster_id=cluster_id,
@@ -1454,9 +1577,9 @@ class ipfs_kit:
                 )
                 if auto_sync:
                     self._metadata_sync_handler.start(sync_interval=sync_interval)
-            result["success"] = True # type: ignore
-            result["metadata_index_enabled"] = True # type: ignore
-            result["auto_sync"] = auto_sync # type: ignore
+            result["success"] = True  # type: ignore
+            result["metadata_index_enabled"] = True  # type: ignore
+            result["auto_sync"] = auto_sync  # type: ignore
             self.logger.info(f"Arrow metadata index enabled. Auto-sync: {auto_sync}")
         except Exception as e:
             handle_error(result, e, "Failed to initialize Arrow metadata index")
@@ -1483,13 +1606,13 @@ class ipfs_kit:
 
             # Ensure sync handler is available
             if self._metadata_sync_handler is None:
-                result["success"] = False # type: ignore
-                result["error"] = "Metadata sync handler not initialized" # type: ignore
+                result["success"] = False  # type: ignore
+                result["error"] = "Metadata sync handler not initialized"  # type: ignore
                 return result
 
             # Perform synchronization
-            sync_result = self._metadata_sync_handler.sync_with_all_peers() # type: ignore
-            result.update(sync_result) # type: ignore
+            sync_result = self._metadata_sync_handler.sync_with_all_peers()  # type: ignore
+            result.update(sync_result)  # type: ignore
             return result
 
         except Exception as e:
@@ -1516,8 +1639,8 @@ class ipfs_kit:
                 self.get_metadata_index(**kwargs)
 
             # Publish the index
-            publish_result = self._metadata_index.publish_index_dag() # type: ignore
-            result.update(publish_result) # Corrected from `publish`
+            publish_result = self._metadata_index.publish_index_dag()  # type: ignore
+            result.update(publish_result)  # Corrected from `publish`
             return result
 
         except Exception as e:
@@ -1533,9 +1656,9 @@ class ipfs_kit:
         try:
             if not hasattr(self, "cluster_manager") or self.cluster_manager is None:
                 return handle_error(result, IPFSError("Cluster management is not enabled"))
-            status = self.cluster_manager.get_cluster_status() # type: ignore
-            result.update(status) # type: ignore
-            result["success"] = status.get("success", False) # type: ignore
+            status = self.cluster_manager.get_cluster_status()  # type: ignore
+            result.update(status)  # type: ignore
+            result["success"] = status.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -1552,11 +1675,11 @@ class ipfs_kit:
                 return handle_error(result, IPFSValidationError("Task type must be specified"))
             if not isinstance(payload, dict):
                 return handle_error(result, IPFSValidationError("Payload must be a dictionary"))
-            task_result = self.cluster_manager.submit_task( # type: ignore
+            task_result = self.cluster_manager.submit_task(  # type: ignore
                 task_type=task_type, payload=payload, priority=priority, timeout=timeout
             )
-            result.update(task_result) # type: ignore
-            result["success"] = task_result.get("success", False) # type: ignore
+            result.update(task_result)  # type: ignore
+            result["success"] = task_result.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -1571,10 +1694,10 @@ class ipfs_kit:
                 return handle_error(result, IPFSError("Cluster management is not enabled"))
             if not task_id:
                 return handle_error(result, IPFSValidationError("Task ID must be specified"))
-            status_result = self.cluster_manager.get_task_status(task_id) # type: ignore
-            result.update(status_result) # type: ignore
-            result["success"] = True # type: ignore
-            result["task_id"] = task_id # type: ignore
+            status_result = self.cluster_manager.get_task_status(task_id)  # type: ignore
+            result.update(status_result)  # type: ignore
+            result["success"] = True  # type: ignore
+            result["task_id"] = task_id  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -1586,42 +1709,47 @@ class ipfs_kit:
             # This prevents circular imports and provides better error messages
             try:
                 import libp2p
+
                 libp2p_installed = True
             except ImportError:
                 libp2p_installed = False
-                
+
             # Only attempt setup if it's actually installed
             if libp2p_installed:
                 try:
-                    self.libp2p = IPFSLibp2pPeer( # type: ignore
-                        identity_path=libp2p_config.get("identity_path"), # type: ignore
-                        bootstrap_peers=libp2p_config.get("bootstrap_peers", []), # type: ignore
-                        listen_addrs=libp2p_config.get("listen_addrs"), # type: ignore
+                    self.libp2p = IPFSLibp2pPeer(  # type: ignore
+                        identity_path=libp2p_config.get("identity_path"),  # type: ignore
+                        bootstrap_peers=libp2p_config.get("bootstrap_peers", []),  # type: ignore
+                        listen_addrs=libp2p_config.get("listen_addrs"),  # type: ignore
                         role=self.role,
-                        enable_mdns=libp2p_config.get("enable_mdns", True), # type: ignore
-                        enable_hole_punching=libp2p_config.get("enable_hole_punching", False), # type: ignore
-                        enable_relay=libp2p_config.get("enable_relay", False), # type: ignore
-                        tiered_storage_manager=tiered_storage_manager, # type: ignore
+                        enable_mdns=libp2p_config.get("enable_mdns", True),  # type: ignore
+                        enable_hole_punching=libp2p_config.get("enable_hole_punching", False),  # type: ignore
+                        enable_relay=libp2p_config.get("enable_relay", False),  # type: ignore
+                        tiered_storage_manager=tiered_storage_manager,  # type: ignore
                     )
-                    
+
                     # Start discovery if configured
-                    if libp2p_config.get("auto_start_discovery", True): # type: ignore
+                    if libp2p_config.get("auto_start_discovery", True):  # type: ignore
                         cluster_name = (
-                            metadata.get("cluster_name", "ipfs-kit-cluster") # type: ignore
+                            metadata.get("cluster_name", "ipfs-kit-cluster")  # type: ignore
                             if metadata
                             else "ipfs-kit-cluster"
                         )
-                        self.libp2p.start_discovery(rendezvous_string=cluster_name) # type: ignore
-                        
+                        self.libp2p.start_discovery(rendezvous_string=cluster_name)  # type: ignore
+
                     # Enable relay if configured
-                    if libp2p_config.get("enable_relay", False): # type: ignore
-                        self.libp2p.enable_relay() # type: ignore
-                        
-                    self.logger.info(f"libp2p peer initialized with ID: {self.libp2p.get_peer_id()}") # type: ignore
+                    if libp2p_config.get("enable_relay", False):  # type: ignore
+                        self.libp2p.enable_relay()  # type: ignore
+
+                    self.logger.info(
+                        f"libp2p peer initialized with ID: {self.libp2p.get_peer_id()}"
+                    )  # type: ignore
                     return True
-                    
+
                 except ImportError as e:
-                    self.logger.error(f"Failed to create libp2p peer due to missing dependencies: {str(e)}")
+                    self.logger.error(
+                        f"Failed to create libp2p peer due to missing dependencies: {str(e)}"
+                    )
                     self.logger.info("Make sure all required libp2p dependencies are installed")
                     return False
         except Exception as e:
@@ -1632,16 +1760,16 @@ class ipfs_kit:
         """Set up the IPLD knowledge graph component."""
         try:
             self.logger.info("Setting up IPLD knowledge graph...")
-            kg_config = metadata.get("knowledge_graph_config", {}) if metadata else {} # type: ignore
+            kg_config = metadata.get("knowledge_graph_config", {}) if metadata else {}  # type: ignore
             base_path = kg_config.get("base_path", "~/.ipfs_graph")
-            self.knowledge_graph = IPLDGraphDB( # type: ignore
+            self.knowledge_graph = IPLDGraphDB(  # type: ignore
                 ipfs_client=self.ipfs,
                 base_path=base_path,
                 schema_version=kg_config.get("schema_version", "1.0.0"),
             )
-            self.graph_query = KnowledgeGraphQuery(self.knowledge_graph) # type: ignore
+            self.graph_query = KnowledgeGraphQuery(self.knowledge_graph)  # type: ignore
             embedding_model = kg_config.get("embedding_model")
-            self.graph_rag = GraphRAG( # type: ignore
+            self.graph_rag = GraphRAG(  # type: ignore
                 graph_db=self.knowledge_graph, embedding_model=embedding_model
             )
             if embedding_model:
@@ -1659,14 +1787,15 @@ class ipfs_kit:
         operation = f"libp2p_{method_name}"
         correlation_id = kwargs.pop("correlation_id", None)
         result = create_result_dict(operation, correlation_id)
-        
+
         # Check if libp2p is installed
         try:
             import libp2p
+
             libp2p_installed = True
         except ImportError:
             libp2p_installed = False
-        
+
         if not libp2p_installed:
             return handle_error(
                 result,
@@ -1686,8 +1815,8 @@ class ipfs_kit:
                     result, IPFSError(f"Method {method_name} not found in libp2p peer")
                 )
             method_result = method(*args, **kwargs)
-            result["success"] = True # type: ignore
-            result["data"] = method_result # type: ignore
+            result["success"] = True  # type: ignore
+            result["data"] = method_result  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -1752,9 +1881,9 @@ class ipfs_kit:
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
 
             # Call the ipfs module's implementation
-            add_result = self.ipfs.add(file_path, recursive=recursive) # type: ignore
-            result.update(add_result) # type: ignore
-            result["success"] = add_result.get("success", False) # type: ignore
+            add_result = self.ipfs.add(file_path, recursive=recursive)  # type: ignore
+            result.update(add_result)  # type: ignore
+            result["success"] = add_result.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -1784,9 +1913,9 @@ class ipfs_kit:
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
 
             # Call the ipfs module's implementation
-            cat_result = self.ipfs.cat(cid) # type: ignore
-            result.update(cat_result) # type: ignore
-            result["success"] = cat_result.get("success", False) # type: ignore
+            cat_result = self.ipfs.cat(cid)  # type: ignore
+            result.update(cat_result)  # type: ignore
+            result["success"] = cat_result.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -1817,9 +1946,9 @@ class ipfs_kit:
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
 
             # Call the ipfs module's implementation
-            pin_result = self.ipfs.pin_add(cid, recursive=recursive) # type: ignore
-            result.update(pin_result) # type: ignore
-            result["success"] = pin_result.get("success", False) # type: ignore
+            pin_result = self.ipfs.pin_add(cid, recursive=recursive)  # type: ignore
+            result.update(pin_result)  # type: ignore
+            result["success"] = pin_result.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -1848,9 +1977,9 @@ class ipfs_kit:
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
 
             # Call the ipfs module's implementation
-            pin_ls_result = self.ipfs.pin_ls() # type: ignore
-            result.update(pin_ls_result) # type: ignore
-            result["success"] = pin_ls_result.get("success", False) # type: ignore
+            pin_ls_result = self.ipfs.pin_ls()  # type: ignore
+            result.update(pin_ls_result)  # type: ignore
+            result["success"] = pin_ls_result.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -1881,9 +2010,9 @@ class ipfs_kit:
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
 
             # Call the ipfs module's implementation
-            pin_rm_result = self.ipfs.pin_rm(cid, recursive=recursive) # type: ignore
-            result.update(pin_rm_result) # type: ignore
-            result["success"] = pin_rm_result.get("success", False) # type: ignore
+            pin_rm_result = self.ipfs.pin_rm(cid, recursive=recursive)  # type: ignore
+            result.update(pin_rm_result)  # type: ignore
+            result["success"] = pin_rm_result.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -1912,9 +2041,9 @@ class ipfs_kit:
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
 
             # Call the ipfs module's implementation
-            peers_result = self.ipfs.swarm_peers() # type: ignore
-            result.update(peers_result) # type: ignore
-            result["success"] = peers_result.get("success", False) # type: ignore
+            peers_result = self.ipfs.swarm_peers()  # type: ignore
+            result.update(peers_result)  # type: ignore
+            result["success"] = peers_result.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -1925,18 +2054,18 @@ class ipfs_kit:
             self.logger.info("Setting up IPLD extension...")
 
             # Create IPLD extension with the IPFS client
-            self.ipld_extension = IPLDExtension(self.ipfs) # type: ignore
+            self.ipld_extension = IPLDExtension(self.ipfs)  # type: ignore
 
             # Check component availability
-            if not self.ipld_extension.car_handler.available: # type: ignore
+            if not self.ipld_extension.car_handler.available:  # type: ignore
                 self.logger.warning("CAR file operations are not available.")
                 self.logger.info("To enable CAR file operations, install py-ipld-car package.")
 
-            if not self.ipld_extension.dag_pb_handler.available: # type: ignore
+            if not self.ipld_extension.dag_pb_handler.available:  # type: ignore
                 self.logger.warning("DAG-PB operations are not available.")
                 self.logger.info("To enable DAG-PB operations, install py-ipld-dag-pb package.")
 
-            if not self.ipld_extension.unixfs_handler.available: # type: ignore
+            if not self.ipld_extension.unixfs_handler.available:  # type: ignore
                 self.logger.warning("UnixFS operations are not available.")
                 self.logger.info("To enable UnixFS operations, install py-ipld-unixfs package.")
 
@@ -1967,12 +2096,12 @@ class ipfs_kit:
             if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
                 return handle_error(result, IPFSError("IPLD extension not initialized"))
 
-            if not self.ipld_extension.car_handler.available: # type: ignore
+            if not self.ipld_extension.car_handler.available:  # type: ignore
                 return handle_error(result, IPFSError("CAR file operations not available"))
 
-            car_result = self.ipld_extension.create_car(roots, blocks) # type: ignore
-            result.update(car_result) # type: ignore
-            result["success"] = car_result.get("success", False) # type: ignore
+            car_result = self.ipld_extension.create_car(roots, blocks)  # type: ignore
+            result.update(car_result)  # type: ignore
+            result["success"] = car_result.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -1995,12 +2124,12 @@ class ipfs_kit:
             if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
                 return handle_error(result, IPFSError("IPLD extension not initialized"))
 
-            if not self.ipld_extension.car_handler.available: # type: ignore
+            if not self.ipld_extension.car_handler.available:  # type: ignore
                 return handle_error(result, IPFSError("CAR file operations not available"))
 
-            extract_result = self.ipld_extension.extract_car(car_data) # type: ignore
-            result.update(extract_result) # type: ignore
-            result["success"] = extract_result.get("success", False) # type: ignore
+            extract_result = self.ipld_extension.extract_car(car_data)  # type: ignore
+            result.update(extract_result)  # type: ignore
+            result["success"] = extract_result.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -2024,17 +2153,17 @@ class ipfs_kit:
             if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
                 return handle_error(result, IPFSError("IPLD extension not initialized"))
 
-            if not self.ipld_extension.car_handler.available: # type: ignore
+            if not self.ipld_extension.car_handler.available:  # type: ignore
                 return handle_error(result, IPFSError("CAR file operations not available"))
 
             # Call the extension
-            save_result = self.ipld_extension.save_car(car_data, file_path) # type: ignore
+            save_result = self.ipld_extension.save_car(car_data, file_path)  # type: ignore
 
             # Copy all results
-            for key, value in save_result.items(): # type: ignore
-                result[key] = value # type: ignore
+            for key, value in save_result.items():  # type: ignore
+                result[key] = value  # type: ignore
 
-            result["success"] = save_result.get("success", False) # type: ignore
+            result["success"] = save_result.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -2057,17 +2186,17 @@ class ipfs_kit:
             if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
                 return handle_error(result, IPFSError("IPLD extension not initialized"))
 
-            if not self.ipld_extension.car_handler.available: # type: ignore
+            if not self.ipld_extension.car_handler.available:  # type: ignore
                 return handle_error(result, IPFSError("CAR file operations not available"))
 
             # Call the extension
-            load_result = self.ipld_extension.load_car(file_path) # type: ignore
+            load_result = self.ipld_extension.load_car(file_path)  # type: ignore
 
             # Copy all results
-            for key, value in load_result.items(): # type: ignore
-                result[key] = value # type: ignore
+            for key, value in load_result.items():  # type: ignore
+                result[key] = value  # type: ignore
 
-            result["success"] = load_result.get("success", False) # type: ignore
+            result["success"] = load_result.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -2090,12 +2219,12 @@ class ipfs_kit:
             if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
                 return handle_error(result, IPFSError("IPLD extension not initialized"))
 
-            if not self.ipld_extension.car_handler.available: # type: ignore
+            if not self.ipld_extension.car_handler.available:  # type: ignore
                 return handle_error(result, IPFSError("CAR file operations not available"))
 
-            add_car_result = self.ipld_extension.add_car_to_ipfs(car_data) # type: ignore
-            result.update(add_car_result) # type: ignore
-            result["success"] = add_car_result.get("success", False) # type: ignore
+            add_car_result = self.ipld_extension.add_car_to_ipfs(car_data)  # type: ignore
+            result.update(add_car_result)  # type: ignore
+            result["success"] = add_car_result.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -2119,12 +2248,12 @@ class ipfs_kit:
             if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
                 return handle_error(result, IPFSError("IPLD extension not initialized"))
 
-            if not self.ipld_extension.dag_pb_handler.available: # type: ignore
+            if not self.ipld_extension.dag_pb_handler.available:  # type: ignore
                 return handle_error(result, IPFSError("DAG-PB operations not available"))
 
-            node_result = self.ipld_extension.create_node(data, links) # type: ignore
-            result.update(node_result) # type: ignore
-            result["success"] = node_result.get("success", False) # type: ignore
+            node_result = self.ipld_extension.create_node(data, links)  # type: ignore
+            result.update(node_result)  # type: ignore
+            result["success"] = node_result.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -2148,12 +2277,12 @@ class ipfs_kit:
             if not hasattr(self, "ipld_extension") or self.ipld_extension is None:
                 return handle_error(result, IPFSError("IPLD extension not initialized"))
 
-            if not self.ipld_extension.unixfs_handler.available: # type: ignore
+            if not self.ipld_extension.unixfs_handler.available:  # type: ignore
                 return handle_error(result, IPFSError("UnixFS operations not available"))
 
-            chunk_result = self.ipld_extension.chunk_file(file_path, chunk_size) # type: ignore
-            result.update(chunk_result) # type: ignore
-            result["success"] = chunk_result.get("success", False) # type: ignore
+            chunk_result = self.ipld_extension.chunk_file(file_path, chunk_size)  # type: ignore
+            result.update(chunk_result)  # type: ignore
+            result["success"] = chunk_result.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -2169,9 +2298,9 @@ class ipfs_kit:
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
 
-            dag_result = self.ipfs.dag_get(cid, **kwargs) # type: ignore
-            result.update(dag_result) # type: ignore
-            result["success"] = dag_result.get("success", False) # type: ignore
+            dag_result = self.ipfs.dag_get(cid, **kwargs)  # type: ignore
+            result.update(dag_result)  # type: ignore
+            result["success"] = dag_result.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -2187,9 +2316,9 @@ class ipfs_kit:
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
 
-            dag_result = self.ipfs.dag_put(data, **kwargs) # type: ignore
-            result.update(dag_result) # type: ignore
-            result["success"] = dag_result.get("success", False) # type: ignore
+            dag_result = self.ipfs.dag_put(data, **kwargs)  # type: ignore
+            result.update(dag_result)  # type: ignore
+            result["success"] = dag_result.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -2213,9 +2342,9 @@ class ipfs_kit:
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
 
             # Call the ipfs module's implementation
-            id_result = self.ipfs.id() # type: ignore
-            result.update(id_result) # type: ignore
-            result["success"] = id_result.get("success", False) # type: ignore
+            id_result = self.ipfs.id()  # type: ignore
+            result.update(id_result)  # type: ignore
+            result["success"] = id_result.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -2240,12 +2369,12 @@ class ipfs_kit:
             method = getattr(self.knowledge_graph, method_name)
             method_result = method(*args, **kwargs)
             if isinstance(method_result, dict):
-                result.update(method_result) # type: ignore
-                if "success" not in result: # type: ignore
-                    result["success"] = True # type: ignore
+                result.update(method_result)  # type: ignore
+                if "success" not in result:  # type: ignore
+                    result["success"] = True  # type: ignore
             else:
-                result["success"] = True # type: ignore
-                result["result"] = method_result # type: ignore
+                result["success"] = True  # type: ignore
+                result["result"] = method_result  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -2267,12 +2396,12 @@ class ipfs_kit:
             method = getattr(self.graph_query, method_name)
             method_result = method(*args, **kwargs)
             if isinstance(method_result, dict):
-                result.update(method_result) # type: ignore
-                if "success" not in result: # type: ignore
-                    result["success"] = True # type: ignore
+                result.update(method_result)  # type: ignore
+                if "success" not in result:  # type: ignore
+                    result["success"] = True  # type: ignore
             else:
-                result["success"] = True # type: ignore
-                result["result"] = method_result # type: ignore
+                result["success"] = True  # type: ignore
+                result["result"] = method_result  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -2294,12 +2423,12 @@ class ipfs_kit:
             method = getattr(self.graph_rag, method_name)
             method_result = method(*args, **kwargs)
             if isinstance(method_result, dict):
-                result.update(method_result) # type: ignore
-                if "success" not in result: # type: ignore
-                    result["success"] = True # type: ignore
+                result.update(method_result)  # type: ignore
+                if "success" not in result:  # type: ignore
+                    result["success"] = True  # type: ignore
             else:
-                result["success"] = True # type: ignore
-                result["result"] = method_result # type: ignore
+                result["success"] = True  # type: ignore
+                result["result"] = method_result  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -2308,27 +2437,27 @@ class ipfs_kit:
         """Set up the AI/ML integration components."""
         try:
             self.logger.info("Setting up AI/ML integration...")
-            ai_ml_config = metadata.get("ai_ml_config", {}) if metadata else {} # type: ignore
+            ai_ml_config = metadata.get("ai_ml_config", {}) if metadata else {}  # type: ignore
             model_registry_path = ai_ml_config.get("model_registry_path", "~/.ipfs_models")
-            self.model_registry = ModelRegistry( # type: ignore
+            self.model_registry = ModelRegistry(  # type: ignore
                 ipfs_client=self.ipfs, base_path=model_registry_path
             )
             self.logger.info(f"Model registry initialized at {model_registry_path}")
             dataset_manager_path = ai_ml_config.get("dataset_manager_path", "~/.ipfs_datasets")
-            self.dataset_manager = DatasetManager( # type: ignore
+            self.dataset_manager = DatasetManager(  # type: ignore
                 ipfs_client=self.ipfs, base_path=dataset_manager_path
             )
             self.logger.info(f"Dataset manager initialized at {dataset_manager_path}")
-            self.langchain_integration = LangchainIntegration(ipfs_client=self.ipfs) # type: ignore
+            self.langchain_integration = LangchainIntegration(ipfs_client=self.ipfs)  # type: ignore
             self.logger.info("Langchain integration initialized")
-            self.llama_index_integration = LlamaIndexIntegration(ipfs_client=self.ipfs) # type: ignore
+            self.llama_index_integration = LlamaIndexIntegration(ipfs_client=self.ipfs)  # type: ignore
             self.logger.info("LlamaIndex integration initialized")
             cluster_manager = (
                 self.cluster_manager
                 if hasattr(self, "cluster_manager") and self.cluster_manager is not None
                 else None
             )
-            self.distributed_training = DistributedTraining( # type: ignore
+            self.distributed_training = DistributedTraining(  # type: ignore
                 ipfs_client=self.ipfs, cluster_manager=cluster_manager
             )
             if cluster_manager:
@@ -2354,14 +2483,14 @@ class ipfs_kit:
                 metrics_dir=metrics_dir,
                 collection_interval=collection_interval,
                 retention_days=retention_days,
-                track_system_resources=True # Always track system resources for dashboard
+                track_system_resources=True,  # Always track system resources for dashboard
             )
 
             self.metrics_collector = MetricsCollector(
                 node_id=node_id,
                 metrics_dir=metrics_dir,
                 collection_interval=collection_interval,
-                retention_days=retention_days
+                retention_days=retention_days,
             )
 
             # Register performance_metrics as a source for metrics_collector
@@ -2373,14 +2502,14 @@ class ipfs_kit:
             self.observability = ObservabilityAPI(
                 metrics_collector=self.metrics_collector,
                 performance_metrics=self.performance_metrics,
-                ipfs_api_instance=self # Pass self to allow ObservabilityAPI to access IPFSKit methods
+                ipfs_api_instance=self,  # Pass self to allow ObservabilityAPI to access IPFSKit methods
             )
 
             self.monitoring = ClusterMonitor(
                 node_id=node_id,
                 metrics_collector=self.metrics_collector,
                 check_interval=collection_interval,
-                alert_callback=self.observability.record_alert # Use observability's alert recorder
+                alert_callback=self.observability.record_alert,  # Use observability's alert recorder
             )
 
             self.logger.info("Monitoring setup complete")
@@ -2396,6 +2525,7 @@ class ipfs_kit:
 
     def get_filesystem(self, **kwargs):
         from .ipfs_fsspec import IPFSFileSystem
+
         """Get or initialize the FSSpec filesystem interface for IPFS.
 
         Args:
@@ -2413,17 +2543,19 @@ class ipfs_kit:
             return None
 
         # Initialize TieredCacheManager if not already done
-        if not hasattr(self, '_tiered_cache_manager') or self._tiered_cache_manager is None:
+        if not hasattr(self, "_tiered_cache_manager") or self._tiered_cache_manager is None:
             if HAS_TIERED_CACHE_MANAGER:
                 self._tiered_cache_manager = TieredCacheManager(
                     cache_dir=kwargs.pop("cache_dir", None),
                     max_memory_size=kwargs.pop("max_memory_size", None),
                     max_disk_size=kwargs.pop("max_disk_size", None),
-                    logger=self.logger
+                    logger=self.logger,
                 )
             else:
-                self.logger.warning("TieredCacheManager not available. FSSpec will operate without caching.")
-                self._tiered_cache_manager = MagicMock() # Provide a mock if not available
+                self.logger.warning(
+                    "TieredCacheManager not available. FSSpec will operate without caching."
+                )
+                self._tiered_cache_manager = MagicMock()  # Provide a mock if not available
 
         # Create the filesystem instance
         fs = IPFSFSSpecFileSystem(
@@ -2436,7 +2568,7 @@ class ipfs_kit:
             use_gateway_fallback=kwargs.pop("use_gateway_fallback", True),
             cache_options=kwargs.pop("cache_options", None),
             enable_metrics=kwargs.pop("enable_metrics", False),
-            **kwargs
+            **kwargs,
         )
 
         # Store the instance for future reference
@@ -2459,19 +2591,19 @@ class ipfs_kit:
                 return handle_error(
                     result, IPFSError(f"AI/ML component '{component_name}' is not initialized")
                 )
-            if not hasattr(getattr(self, component_name), method_name): # type: ignore
+            if not hasattr(getattr(self, component_name), method_name):  # type: ignore
                 return handle_error(
                     result, IPFSError(f"Method '{method_name}' not found in {component_name}")
                 )
-            method = getattr(getattr(self, component_name), method_name) # type: ignore
+            method = getattr(getattr(self, component_name), method_name)  # type: ignore
             method_result = method(*args, **kwargs)
             if isinstance(method_result, dict):
-                result.update(method_result) # type: ignore
-                if "success" not in result: # type: ignore
-                    result["success"] = True # type: ignore
+                result.update(method_result)  # type: ignore
+                if "success" not in result:  # type: ignore
+                    result["success"] = True  # type: ignore
             else:
-                result["success"] = True # type: ignore
-                result["result"] = method_result # type: ignore
+                result["success"] = True  # type: ignore
+                result["result"] = method_result  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -2483,24 +2615,26 @@ class ipfs_kit:
         result = create_result_dict(operation, correlation_id)
         try:
             if not HAS_HUGGINGFACE:
-                return handle_error(result, IPFSError("Hugging Face Hub integration is not available"))
+                return handle_error(
+                    result, IPFSError("Hugging Face Hub integration is not available")
+                )
             if not hasattr(self, "huggingface_kit") or self.huggingface_kit is None:
                 return handle_error(
                     result, IPFSError("Hugging Face Hub component is not initialized")
                 )
-            if not hasattr(self.huggingface_kit, method_name): # type: ignore
+            if not hasattr(self.huggingface_kit, method_name):  # type: ignore
                 return handle_error(
                     result, IPFSError(f"Method '{method_name}' not found in huggingface_kit")
                 )
-            method = getattr(self.huggingface_kit, method_name) # type: ignore
+            method = getattr(self.huggingface_kit, method_name)  # type: ignore
             method_result = method(*args, **kwargs)
             if isinstance(method_result, dict):
-                result.update(method_result) # type: ignore
-                if "success" not in result: # type: ignore
-                    result["success"] = True # type: ignore
+                result.update(method_result)  # type: ignore
+                if "success" not in result:  # type: ignore
+                    result["success"] = True  # type: ignore
             else:
-                result["success"] = True # type: ignore
-                result["result"] = method_result # type: ignore
+                result["success"] = True  # type: ignore
+                result["result"] = method_result  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -2525,14 +2659,14 @@ class ipfs_kit:
         # IPFS Cluster operations (role-specific)
         if method == "ipfs_follow_list":
             if self.role == "master" and hasattr(self, "ipfs_cluster_ctl"):
-                return self.ipfs_cluster_ctl.ipfs_follow_list(**kwargs) # type: ignore
+                return self.ipfs_cluster_ctl.ipfs_follow_list(**kwargs)  # type: ignore
             elif self.role == "master":
                 raise AttributeError("ipfs_cluster_ctl component not initialized for master role")
             else:
                 raise PermissionError("Method 'ipfs_follow_list' requires master role")
         if method == "ipfs_follow_ls":
             if self.role != "master" and hasattr(self, "ipfs_cluster_follow"):
-                return self.ipfs_cluster_follow.ipfs_follow_ls(**kwargs) # type: ignore
+                return self.ipfs_cluster_follow.ipfs_follow_ls(**kwargs)  # type: ignore
             elif self.role != "master":
                 raise AttributeError(
                     "ipfs_cluster_follow component not initialized for non-master role"
@@ -2541,7 +2675,7 @@ class ipfs_kit:
                 raise PermissionError("Method 'ipfs_follow_ls' cannot be called by master role")
         if method == "ipfs_follow_info":
             if self.role != "master" and hasattr(self, "ipfs_cluster_follow"):
-                return self.ipfs_cluster_follow.ipfs_follow_info(**kwargs) # type: ignore
+                return self.ipfs_cluster_follow.ipfs_follow_info(**kwargs)  # type: ignore
             elif self.role != "master":
                 raise AttributeError(
                     "ipfs_cluster_follow component not initialized for non-master role"
@@ -2551,10 +2685,10 @@ class ipfs_kit:
         if method == "ipfs_cluster_get_pinset":
             # Delegate based on role if the method isn't directly on ipfs_kit
             if self.role == "master" and hasattr(self, "ipfs_cluster_ctl"):
-                return self.ipfs_cluster_ctl.ipfs_cluster_get_pinset(**kwargs) # type: ignore
+                return self.ipfs_cluster_ctl.ipfs_cluster_get_pinset(**kwargs)  # type: ignore
             elif self.role == "worker" and hasattr(self, "ipfs_cluster_follow"):
                 # Assuming worker needs to list pins via follow list
-                return self.ipfs_cluster_follow.ipfs_follow_list(**kwargs) # type: ignore
+                return self.ipfs_cluster_follow.ipfs_follow_list(**kwargs)  # type: ignore
             elif hasattr(
                 self, "ipfs_get_pinset"
             ):  # Check if it's a method on self (unlikely based on code)
@@ -2563,14 +2697,14 @@ class ipfs_kit:
                 raise AttributeError("Cannot get cluster pinset in current role/state")
         if method == "ipfs_cluster_ctl_add_pin":
             if self.role == "master" and hasattr(self, "ipfs_cluster_ctl"):
-                return self.ipfs_cluster_ctl.ipfs_cluster_ctl_add_pin(**kwargs) # type: ignore
+                return self.ipfs_cluster_ctl.ipfs_cluster_ctl_add_pin(**kwargs)  # type: ignore
             elif self.role == "master":
                 raise AttributeError("ipfs_cluster_ctl component not initialized for master role")
             else:
                 raise PermissionError("Method 'ipfs_cluster_ctl_add_pin' requires master role")
         if method == "ipfs_cluster_ctl_rm_pin":
             if self.role == "master" and hasattr(self, "ipfs_cluster_ctl"):
-                return self.ipfs_cluster_ctl.ipfs_cluster_ctl_rm_pin(**kwargs) # type: ignore
+                return self.ipfs_cluster_ctl.ipfs_cluster_ctl_rm_pin(**kwargs)  # type: ignore
             elif self.role == "master":
                 raise AttributeError("ipfs_cluster_ctl component not initialized for master role")
             else:
@@ -2595,7 +2729,7 @@ class ipfs_kit:
             return self._check_libp2p_and_call(method.replace("libp2p_", ""), **kwargs)
         if method == "close_libp2p":
             if self.libp2p:
-                return self.libp2p.close() # type: ignore
+                return self.libp2p.close()  # type: ignore
             else:
                 return {"success": True, "message": "libp2p not initialized"}  # Or raise error?
 
@@ -2614,7 +2748,7 @@ class ipfs_kit:
             return self._check_cluster_manager_and_call(method, **kwargs)
         if method == "stop_cluster_manager":
             if hasattr(self, "cluster_manager") and self.cluster_manager:
-                return self.cluster_manager.stop() # type: ignore
+                return self.cluster_manager.stop()  # type: ignore
             else:
                 return {"success": True, "message": "Cluster manager not initialized"}
         if method == "access_state_from_external_process":
@@ -2622,7 +2756,7 @@ class ipfs_kit:
                 raise ValueError("Missing required parameter: state_path")
             # Assuming _call_static_cluster_manager exists or needs implementation
             if hasattr(self, "_call_static_cluster_manager"):
-                return self._call_static_cluster_manager( # type: ignore
+                return self._call_static_cluster_manager(  # type: ignore
                     "access_state_from_external_process", **kwargs
                 )
             else:
@@ -2745,12 +2879,10 @@ class ipfs_kit:
                 cmd = ["pgrep", "-f", "ipfs daemon"]
                 env = os.environ.copy()
                 if hasattr(self.ipfs, "run_ipfs_command"):
-                    ps_result = self.ipfs.run_ipfs_command(
-                        cmd, correlation_id=correlation_id
-                    )
+                    ps_result = self.ipfs.run_ipfs_command(cmd, correlation_id=correlation_id)
                     ipfs_ready = (
-                        ps_result.get("success", False) # type: ignore
-                        and ps_result.get("stdout", "").strip() != "" # type: ignore
+                        ps_result.get("success", False)  # type: ignore
+                        and ps_result.get("stdout", "").strip() != ""  # type: ignore
                     )
                 else:
                     process = subprocess.run(
@@ -2761,16 +2893,16 @@ class ipfs_kit:
                 self.logger.warning(f"Error checking IPFS daemon status: {str(e)}")
 
             if self.role == "master" and hasattr(self, "ipfs_cluster_service"):
-                cluster_result = self.ipfs_cluster_service.ipfs_cluster_service_ready() # type: ignore
-                result["success"] = True # type: ignore
-                result["ipfs_ready"] = ipfs_ready # type: ignore
-                result["cluster_ready"] = cluster_result.get("success", False) # type: ignore
-                result["ready"] = ipfs_ready and result["cluster_ready"] # type: ignore
-                result["cluster_status"] = cluster_result # type: ignore
+                cluster_result = self.ipfs_cluster_service.ipfs_cluster_service_ready()  # type: ignore
+                result["success"] = True  # type: ignore
+                result["ipfs_ready"] = ipfs_ready  # type: ignore
+                result["cluster_ready"] = cluster_result.get("success", False)  # type: ignore
+                result["ready"] = ipfs_ready and result["cluster_ready"]  # type: ignore
+                result["cluster_status"] = cluster_result  # type: ignore
                 return result
             elif self.role == "worker" and hasattr(self, "ipfs_cluster_follow"):
                 try:
-                    follow_result = self.ipfs_cluster_follow.ipfs_follow_info() # type: ignore
+                    follow_result = self.ipfs_cluster_follow.ipfs_follow_info()  # type: ignore
                     if (
                         isinstance(follow_result, dict)
                         and follow_result.get("cluster_peer_online") == "true"
@@ -2788,34 +2920,34 @@ class ipfs_kit:
             libp2p_ready = False
             if hasattr(self, "libp2p") and self.libp2p is not None:
                 try:
-                    libp2p_ready = self.libp2p.get_peer_id() is not None # type: ignore
+                    libp2p_ready = self.libp2p.get_peer_id() is not None  # type: ignore
                 except Exception as e:
                     self.logger.warning(f"Error checking libp2p status: {str(e)}")
 
             cluster_manager_ready = False
             if hasattr(self, "cluster_manager") and self.cluster_manager is not None:
                 try:
-                    cluster_status = self.cluster_manager.get_cluster_status() # type: ignore
-                    cluster_manager_ready = cluster_status.get("success", False) # type: ignore
-                    result["cluster_manager_status"] = cluster_status # type: ignore
+                    cluster_status = self.cluster_manager.get_cluster_status()  # type: ignore
+                    cluster_manager_ready = cluster_status.get("success", False)  # type: ignore
+                    result["cluster_manager_status"] = cluster_status  # type: ignore
                 except Exception as e:
                     self.logger.warning(f"Error checking cluster manager status: {str(e)}")
-                    result["cluster_manager_error"] = str(e) # type: ignore
+                    result["cluster_manager_error"] = str(e)  # type: ignore
 
             if self.role == "leecher":
                 ready = ipfs_ready or (hasattr(self, "libp2p") and libp2p_ready)
             else:
                 ready = ipfs_ready and (ipfs_cluster_ready or cluster_manager_ready)
 
-            result["success"] = True # type: ignore
-            result["ready"] = ready # type: ignore
-            result["ipfs_ready"] = ipfs_ready # type: ignore
+            result["success"] = True  # type: ignore
+            result["ready"] = ready  # type: ignore
+            result["ipfs_ready"] = ipfs_ready  # type: ignore
             if self.role != "leecher":
-                result["cluster_ready"] = ipfs_cluster_ready # type: ignore
+                result["cluster_ready"] = ipfs_cluster_ready  # type: ignore
             if hasattr(self, "libp2p"):
-                result["libp2p_ready"] = libp2p_ready # type: ignore
+                result["libp2p_ready"] = libp2p_ready  # type: ignore
             if hasattr(self, "cluster_manager"):
-                result["cluster_manager_ready"] = cluster_manager_ready # type: ignore
+                result["cluster_manager_ready"] = cluster_manager_ready  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -2877,7 +3009,7 @@ class ipfs_kit:
                     return handle_error(
                         result, IPFSError(f"Failed to download collection: {error_msg}")
                     )
-                result["download"] = download_result # type: ignore
+                result["download"] = download_result  # type: ignore
             except Exception as e:
                 return handle_error(result, IPFSError(f"Failed to download collection: {str(e)}"))
 
@@ -2889,7 +3021,7 @@ class ipfs_kit:
 
             try:
                 collection_data = json.loads(collection_str)
-                result["success"], result["cid"], result["collection"], result["format"] = ( # type: ignore
+                result["success"], result["cid"], result["collection"], result["format"] = (  # type: ignore
                     True,
                     cid,
                     collection_data,
@@ -2897,11 +3029,11 @@ class ipfs_kit:
                 )
             except json.JSONDecodeError:
                 (
-                    result["success"], # type: ignore
-                    result["cid"], # type: ignore
-                    result["collection"], # type: ignore
-                    result["format"], # type: ignore
-                    result["warning"], # type: ignore
+                    result["success"],  # type: ignore
+                    result["cid"],  # type: ignore
+                    result["collection"],  # type: ignore
+                    result["format"],  # type: ignore
+                    result["warning"],  # type: ignore
                 ) = (True, cid, collection_str, "text", "Collection could not be parsed as JSON")
             return result
         except Exception as e:
@@ -2928,25 +3060,25 @@ class ipfs_kit:
                 # else: pass # Continue if validation module not found
 
             kwargs["correlation_id"] = correlation_id  # Ensure propagation
-            result1, result2 = None, None # Initialize result1 and result2
+            result1, result2 = None, None  # Initialize result1 and result2
 
             if self.role == "master" and hasattr(self, "ipfs_cluster_ctl"):
                 try:
-                    result1 = self.ipfs_cluster_ctl.ipfs_cluster_ctl_add_pin(dst_path, **kwargs) # type: ignore
+                    result1 = self.ipfs_cluster_ctl.ipfs_cluster_ctl_add_pin(dst_path, **kwargs)  # type: ignore
                 except Exception as e:
                     self.logger.error(f"Cluster pin operation failed: {str(e)}")
-                    result["cluster_error"] = str(e) # type: ignore
+                    result["cluster_error"] = str(e)  # type: ignore
                 try:
-                    result2 = self.ipfs.ipfs_add_pin(pin, **kwargs) # type: ignore
+                    result2 = self.ipfs.ipfs_add_pin(pin, **kwargs)  # type: ignore
                 except Exception as e:
                     self.logger.error(f"IPFS pin operation failed: {str(e)}")
-                    result["ipfs_error"] = str(e) # type: ignore
+                    result["ipfs_error"] = str(e)  # type: ignore
             elif (self.role == "worker" or self.role == "leecher") and hasattr(self, "ipfs"):
                 try:
-                    result2 = self.ipfs.ipfs_add_pin(pin, **kwargs) # type: ignore
+                    result2 = self.ipfs.ipfs_add_pin(pin, **kwargs)  # type: ignore
                 except Exception as e:
                     self.logger.error(f"IPFS pin operation failed: {str(e)}")
-                    result["ipfs_error"] = str(e) # type: ignore
+                    result["ipfs_error"] = str(e)  # type: ignore
 
             cluster_success = (
                 isinstance(result1, dict) and result1.get("success", False)
@@ -2959,16 +3091,16 @@ class ipfs_kit:
                 else False
             )
 
-            result["success"] = ( # type: ignore
+            result["success"] = (  # type: ignore
                 (cluster_success and ipfs_success) if self.role == "master" else ipfs_success
             )
-            result["cid"] = pin # type: ignore
+            result["cid"] = pin  # type: ignore
 
             # Only include ipfs_cluster key for master role
             if self.role == "master":
-                result["ipfs_cluster"] = result1 # type: ignore
+                result["ipfs_cluster"] = result1  # type: ignore
 
-            result["ipfs"] = result2 # type: ignore
+            result["ipfs"] = result2  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -3003,27 +3135,27 @@ class ipfs_kit:
                 and hasattr(self, "ipfs_cluster_ctl")
             ):
                 try:
-                    result2 = self.ipfs.ipfs_add_path(path, **kwargs) # type: ignore
+                    result2 = self.ipfs.ipfs_add_path(path, **kwargs)  # type: ignore
                     if isinstance(result2, dict) and result2.get("success", False):
                         try:
-                            result1 = self.ipfs_cluster_ctl.ipfs_cluster_ctl_add_path( # type: ignore
+                            result1 = self.ipfs_cluster_ctl.ipfs_cluster_ctl_add_path(  # type: ignore
                                 path, **kwargs
                             )
                         except Exception as e:
                             self.logger.error(f"Cluster add operation failed: {str(e)}")
-                            result["cluster_add_error"] = str(e) # type: ignore
+                            result["cluster_add_error"] = str(e)  # type: ignore
                     else:
                         self.logger.error("IPFS add operation failed, skipping cluster add")
-                        result["ipfs_add_error"] = "IPFS add operation failed, skipping cluster add" # type: ignore
+                        result["ipfs_add_error"] = "IPFS add operation failed, skipping cluster add"  # type: ignore
                 except Exception as e:
                     self.logger.error(f"IPFS add operation failed: {str(e)}")
-                    result["ipfs_add_error"] = str(e) # type: ignore
+                    result["ipfs_add_error"] = str(e)  # type: ignore
             elif (self.role == "worker" or self.role == "leecher") and hasattr(self, "ipfs"):
                 try:
-                    result2 = self.ipfs.ipfs_add_path(path, **kwargs) # type: ignore
+                    result2 = self.ipfs.ipfs_add_path(path, **kwargs)  # type: ignore
                 except Exception as e:
                     self.logger.error(f"IPFS add operation failed: {str(e)}")
-                    result["ipfs_add_error"] = str(e) # type: ignore
+                    result["ipfs_add_error"] = str(e)  # type: ignore
 
             cluster_success = (
                 isinstance(result1, dict) and result1.get("success", False)
@@ -3038,14 +3170,14 @@ class ipfs_kit:
 
             result["success"] = ipfs_success  # Base success on IPFS add # type: ignore
             if self.role == "master":
-                result["fully_successful"] = ipfs_success and cluster_success # type: ignore
-            result["path"] = path # type: ignore
-            result["ipfs_cluster"] = result1 # type: ignore
-            result["ipfs"] = result2 # type: ignore
-            if ipfs_success and "files" in result2: # type: ignore
-                result["files"] = result2["files"] # type: ignore
-            if ipfs_success and os.path.isfile(path) and "cid" in result2: # type: ignore
-                result["cid"] = result2["cid"] # type: ignore
+                result["fully_successful"] = ipfs_success and cluster_success  # type: ignore
+            result["path"] = path  # type: ignore
+            result["ipfs_cluster"] = result1  # type: ignore
+            result["ipfs"] = result2  # type: ignore
+            if ipfs_success and "files" in result2:  # type: ignore
+                result["files"] = result2["files"]  # type: ignore
+            if ipfs_success and os.path.isfile(path) and "cid" in result2:  # type: ignore
+                result["cid"] = result2["cid"]  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -3068,24 +3200,24 @@ class ipfs_kit:
                     return handle_error(result, e)
 
             kwargs["correlation_id"] = correlation_id  # Ensure propagation
-            ls_result = self.ipfs.ipfs_ls_path(path, **kwargs) # type: ignore
+            ls_result = self.ipfs.ipfs_ls_path(path, **kwargs)  # type: ignore
 
             if not isinstance(ls_result, dict):
-                result["success"], result["path"] = True, path # type: ignore
+                result["success"], result["path"] = True, path  # type: ignore
                 items = (
                     [item for item in ls_result if item != ""]
                     if isinstance(ls_result, list)
                     else []
                 )
-                result["items"], result["count"] = items, len(items) # type: ignore
-            elif ls_result.get("success", False): # type: ignore
-                result["success"], result["path"] = True, path # type: ignore
-                result["items"] = ls_result.get("items", []) # type: ignore
-                result["count"] = ls_result.get("count", 0) # type: ignore
+                result["items"], result["count"] = items, len(items)  # type: ignore
+            elif ls_result.get("success", False):  # type: ignore
+                result["success"], result["path"] = True, path  # type: ignore
+                result["items"] = ls_result.get("items", [])  # type: ignore
+                result["count"] = ls_result.get("count", 0)  # type: ignore
             else:
                 return handle_error(
                     result,
-                    IPFSError(f"Failed to list path: {ls_result.get('error', 'Unknown error')}"), # type: ignore
+                    IPFSError(f"Failed to list path: {ls_result.get('error', 'Unknown error')}"),  # type: ignore
                     {"ipfs_result": ls_result},
                 )
             return result
@@ -3125,21 +3257,21 @@ class ipfs_kit:
                     return handle_error(result, e)
 
             kwargs["correlation_id"] = correlation_id  # Ensure propagation
-            resolve_result = self.ipfs.ipfs_name_resolve(**kwargs) # type: ignore
+            resolve_result = self.ipfs.ipfs_name_resolve(**kwargs)  # type: ignore
 
             if isinstance(resolve_result, dict) and resolve_result.get("success", False):
-                result["success"] = True # type: ignore
-                result["ipns_name"] = resolve_result.get("ipns_name") # type: ignore
-                result["resolved_cid"] = resolve_result.get("resolved_cid") # type: ignore
+                result["success"] = True  # type: ignore
+                result["ipns_name"] = resolve_result.get("ipns_name")  # type: ignore
+                result["resolved_cid"] = resolve_result.get("resolved_cid")  # type: ignore
             elif isinstance(resolve_result, str):
-                result["success"], result["resolved_cid"] = True, resolve_result # type: ignore
+                result["success"], result["resolved_cid"] = True, resolve_result  # type: ignore
                 if path:
-                    result["ipns_name"] = path # type: ignore
+                    result["ipns_name"] = path  # type: ignore
             else:
                 return handle_error(
                     result,
                     IPFSError(
-                        f"Failed to resolve IPNS name: {resolve_result.get('error', 'Unknown error')}" # type: ignore
+                        f"Failed to resolve IPNS name: {resolve_result.get('error', 'Unknown error')}"  # type: ignore
                     ),
                     {"ipfs_result": resolve_result},
                 )
@@ -3165,27 +3297,27 @@ class ipfs_kit:
                     return handle_error(result, e)
 
             kwargs["correlation_id"] = correlation_id  # Ensure propagation
-            publish_result = self.ipfs.ipfs_name_publish(path, **kwargs) # type: ignore
+            publish_result = self.ipfs.ipfs_name_publish(path, **kwargs)  # type: ignore
 
             if isinstance(publish_result, dict):
                 if publish_result.get("success", False):
-                    result["success"], result["path"] = True, path # type: ignore
+                    result["success"], result["path"] = True, path  # type: ignore
                     if "add" in publish_result:
-                        result["add"] = publish_result["add"] # type: ignore
+                        result["add"] = publish_result["add"]  # type: ignore
                     if "publish" in publish_result:
-                        result["publish"] = publish_result["publish"] # type: ignore
+                        result["publish"] = publish_result["publish"]  # type: ignore
                         if "ipns_name" in publish_result["publish"]:
-                            result["ipns_name"] = publish_result["publish"]["ipns_name"] # type: ignore
+                            result["ipns_name"] = publish_result["publish"]["ipns_name"]  # type: ignore
                         if "cid" in publish_result["publish"]:
-                            result["cid"] = publish_result["publish"]["cid"] # type: ignore
+                            result["cid"] = publish_result["publish"]["cid"]  # type: ignore
                 else:
-                    error_msg = publish_result.get("error", "Unknown error") # type: ignore
-                    extra_data = {"add": publish_result["add"]} if "add" in publish_result else {} # type: ignore
+                    error_msg = publish_result.get("error", "Unknown error")  # type: ignore
+                    extra_data = {"add": publish_result["add"]} if "add" in publish_result else {}  # type: ignore
                     return handle_error(
                         result, IPFSError(f"Failed to publish to IPNS: {error_msg}"), extra_data
                     )
             else:
-                result["success"], result["path"], result["legacy_result"], result["warning"] = ( # type: ignore
+                result["success"], result["path"], result["legacy_result"], result["warning"] = (  # type: ignore
                     True,
                     path,
                     publish_result,
@@ -3217,23 +3349,23 @@ class ipfs_kit:
 
             if self.role == "master" and hasattr(self, "ipfs_cluster_ctl"):
                 try:
-                    cluster_result = self.ipfs_cluster_ctl.ipfs_cluster_ctl_remove_path( # type: ignore
+                    cluster_result = self.ipfs_cluster_ctl.ipfs_cluster_ctl_remove_path(  # type: ignore
                         path, **kwargs
                     )
                 except Exception as e:
                     self.logger.error(f"Error removing from IPFS cluster: {str(e)}")
-                    result["cluster_error"] = str(e) # type: ignore
+                    result["cluster_error"] = str(e)  # type: ignore
                 try:
-                    ipfs_result = self.ipfs.ipfs_remove_path(path, **kwargs) # type: ignore
+                    ipfs_result = self.ipfs.ipfs_remove_path(path, **kwargs)  # type: ignore
                 except Exception as e:
                     self.logger.error(f"Error removing from IPFS: {str(e)}")
-                    result["ipfs_error"] = str(e) # type: ignore
+                    result["ipfs_error"] = str(e)  # type: ignore
             elif (self.role == "worker" or self.role == "leecher") and hasattr(self, "ipfs"):
                 try:
-                    ipfs_result = self.ipfs.ipfs_remove_path(path, **kwargs) # type: ignore
+                    ipfs_result = self.ipfs.ipfs_remove_path(path, **kwargs)  # type: ignore
                 except Exception as e:
                     self.logger.error(f"Error removing from IPFS: {str(e)}")
-                    result["ipfs_error"] = str(e) # type: ignore
+                    result["ipfs_error"] = str(e)  # type: ignore
 
             ipfs_success = (
                 isinstance(ipfs_result, dict) and ipfs_result.get("success", False)
@@ -3241,10 +3373,10 @@ class ipfs_kit:
                 else False
             )
             result["success"] = ipfs_success  # Base success on IPFS operation # type: ignore
-            result["path"] = path # type: ignore
+            result["path"] = path  # type: ignore
             if cluster_result is not None:
-                result["ipfs_cluster"] = cluster_result # type: ignore
-            result["ipfs"] = ipfs_result # type: ignore
+                result["ipfs_cluster"] = cluster_result  # type: ignore
+            result["ipfs"] = ipfs_result  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -3274,23 +3406,23 @@ class ipfs_kit:
 
             if self.role == "master" and hasattr(self, "ipfs_cluster_ctl"):
                 try:
-                    cluster_result = self.ipfs_cluster_ctl.ipfs_cluster_ctl_remove_pin( # type: ignore
+                    cluster_result = self.ipfs_cluster_ctl.ipfs_cluster_ctl_remove_pin(  # type: ignore
                         pin, **kwargs
                     )
                 except Exception as e:
                     self.logger.error(f"Error removing pin from IPFS cluster: {str(e)}")
-                    result["cluster_error"] = str(e) # type: ignore
+                    result["cluster_error"] = str(e)  # type: ignore
                 try:
-                    ipfs_result = self.ipfs.ipfs_remove_pin(pin, **kwargs) # type: ignore
+                    ipfs_result = self.ipfs.ipfs_remove_pin(pin, **kwargs)  # type: ignore
                 except Exception as e:
                     self.logger.error(f"Error removing pin from IPFS: {str(e)}")
-                    result["ipfs_error"] = str(e) # type: ignore
+                    result["ipfs_error"] = str(e)  # type: ignore
             elif (self.role == "worker" or self.role == "leecher") and hasattr(self, "ipfs"):
                 try:
-                    ipfs_result = self.ipfs.ipfs_remove_pin(pin, **kwargs) # type: ignore
+                    ipfs_result = self.ipfs.ipfs_remove_pin(pin, **kwargs)  # type: ignore
                 except Exception as e:
                     self.logger.error(f"Error removing pin from IPFS: {str(e)}")
-                    result["ipfs_error"] = str(e) # type: ignore
+                    result["ipfs_error"] = str(e)  # type: ignore
 
             ipfs_success = (
                 isinstance(ipfs_result, dict) and ipfs_result.get("success", False)
@@ -3305,14 +3437,14 @@ class ipfs_kit:
 
             result["success"] = ipfs_success  # Base success on IPFS operation # type: ignore
             if self.role == "master":
-                result["fully_successful"] = ipfs_success and cluster_success # type: ignore
-            result["cid"] = pin # type: ignore
+                result["fully_successful"] = ipfs_success and cluster_success  # type: ignore
+            result["cid"] = pin  # type: ignore
 
             # Only include ipfs_cluster key for master role
             if self.role == "master":
-                result["ipfs_cluster"] = result1 # type: ignore
+                result["ipfs_cluster"] = result1  # type: ignore
 
-            result["ipfs"] = result2 # type: ignore
+            result["ipfs"] = result2  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -3330,85 +3462,85 @@ class ipfs_kit:
 
         if self.role == "master":
             return {
-                "ipfs_cluster_service": self.install_ipfs.ipfs_cluster_service_test_install(), # type: ignore
-                "ipfs_cluster_ctl": self.install_ipfs.ipfs_cluster_ctl_test_install(), # type: ignore
-                "ipfs": self.install_ipfs.ipfs_test_install(), # type: ignore
+                "ipfs_cluster_service": self.install_ipfs.ipfs_cluster_service_test_install(),  # type: ignore
+                "ipfs_cluster_ctl": self.install_ipfs.ipfs_cluster_ctl_test_install(),  # type: ignore
+                "ipfs": self.install_ipfs.ipfs_test_install(),  # type: ignore
             }
         elif self.role == "worker":
             return {
-                "ipfs_cluster_follow": self.install_ipfs.ipfs_cluster_follow_test_install(), # type: ignore
-                "ipfs": self.install_ipfs.ipfs_test_install(), # type: ignore
+                "ipfs_cluster_follow": self.install_ipfs.ipfs_cluster_follow_test_install(),  # type: ignore
+                "ipfs": self.install_ipfs.ipfs_test_install(),  # type: ignore
             }
         elif self.role == "leecher":
-            return self.install_ipfs.ipfs_test_install() # type: ignore
+            return self.install_ipfs.ipfs_test_install()  # type: ignore
         else:
             raise ValueError("role is not master, worker, or leecher")
 
     def ipfs_get_pinset(self, **kwargs):
         """Get pinset from IPFS and potentially cluster."""
-        ipfs_pinset = self.ipfs.ipfs_get_pinset(**kwargs) if hasattr(self, "ipfs") else None # type: ignore
+        ipfs_pinset = self.ipfs.ipfs_get_pinset(**kwargs) if hasattr(self, "ipfs") else None  # type: ignore
         ipfs_cluster = None
         if self.role == "master" and hasattr(self, "ipfs_cluster_ctl"):
-            ipfs_cluster = self.ipfs_cluster_ctl.ipfs_cluster_get_pinset(**kwargs) # type: ignore
+            ipfs_cluster = self.ipfs_cluster_ctl.ipfs_cluster_get_pinset(**kwargs)  # type: ignore
         elif self.role == "worker" and hasattr(self, "ipfs_cluster_follow"):
-            ipfs_cluster = self.ipfs_cluster_follow.ipfs_follow_list( # type: ignore
+            ipfs_cluster = self.ipfs_cluster_follow.ipfs_follow_list(  # type: ignore
                 **kwargs
             )  # Assuming list gives pinset for worker
         return {"ipfs_cluster": ipfs_cluster, "ipfs": ipfs_pinset}
-        
+
     def dht_findpeer(self, peer_id, **kwargs):
         """Find a specific peer via the DHT and retrieve addresses.
-        
+
         Args:
             peer_id: The ID of the peer to find
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dict with operation result containing peer multiaddresses
         """
         operation = "dht_findpeer"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
-            response = self.ipfs.dht_findpeer(peer_id) # type: ignore
-            result.update(response) # type: ignore
-            result["success"] = response.get("success", False) # type: ignore
+            response = self.ipfs.dht_findpeer(peer_id)  # type: ignore
+            result.update(response)  # type: ignore
+            result["success"] = response.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
 
     def dht_findprovs(self, cid, num_providers=None, **kwargs):
         """Find providers for a CID via the DHT.
-        
+
         Args:
             cid: The Content ID to find providers for
             num_providers: Maximum number of providers to find
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dict with operation result containing provider information
         """
         from .error import create_result_dict, handle_error, IPFSError
-        
+
         operation = "dht_findprovs"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
-            response = self.ipfs.dht_findprovs(cid, num_providers=num_providers) # type: ignore
-            result.update(response) # type: ignore
-            result["success"] = response.get("success", False) # type: ignore
+            response = self.ipfs.dht_findprovs(cid, num_providers=num_providers)  # type: ignore
+            result.update(response)  # type: ignore
+            result["success"] = response.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
@@ -3416,156 +3548,156 @@ class ipfs_kit:
     # IPFS MFS (Mutable File System) Methods
     def files_mkdir(self, path, parents=False, **kwargs):
         """Create a directory in the MFS.
-        
+
         Args:
             path: Path to create in the MFS
             parents: Whether to create parent directories if they don't exist
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dict with operation result
         """
         from .error import create_result_dict, handle_error, IPFSError
-        
+
         operation = "files_mkdir"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
-            response = self.ipfs.files_mkdir(path, parents) # type: ignore
-            result.update(response) # type: ignore
-            result["success"] = response.get("success", False) # type: ignore
+            response = self.ipfs.files_mkdir(path, parents)  # type: ignore
+            result.update(response)  # type: ignore
+            result["success"] = response.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
-            
+
     def files_ls(self, path="/", long=False):
         """List directory contents in the MFS.
-        
+
         Args:
             path: Directory path in the MFS to list
             long: Whether to use a long listing format with details
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dict with operation result containing directory entries
         """
         from .error import create_result_dict, handle_error, IPFSError
-        
+
         operation = "files_ls"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
-            response = self.ipfs.files_ls(path, long) # type: ignore
-            result.update(response) # type: ignore
-            result["success"] = response.get("success", False) # type: ignore
+            response = self.ipfs.files_ls(path, long)  # type: ignore
+            result.update(response)  # type: ignore
+            result["success"] = response.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
-            
+
     def files_stat(self, path, **kwargs):
         """Get file or directory information in the MFS (Mutable File System).
-        
+
         Args:
             path: Path to stat in MFS
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dict with operation result containing file/directory information
         """
         from .error import create_result_dict, handle_error, IPFSError
-        
+
         operation = "files_stat"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
-            response = self.ipfs.files_stat(path, **kwargs) # type: ignore
-            result.update(response) # type: ignore
-            result["success"] = response.get("success", False) # type: ignore
+            response = self.ipfs.files_stat(path, **kwargs)  # type: ignore
+            result.update(response)  # type: ignore
+            result["success"] = response.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
 
     def files_cp(self, src, dst, **kwargs):
         """Copy a file or directory in the MFS.
-        
+
         Args:
             src: Source path in the MFS to copy from
             dst: Destination path in the MFS to copy to
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dict with operation result indicating success or failure
         """
         from .error import create_result_dict, handle_error, IPFSError
-        
+
         operation = "files_cp"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
-            response = self.ipfs.files_cp(src, dst, **kwargs) # type: ignore
-            result.update(response) # type: ignore
-            result["success"] = response.get("success", False) # type: ignore
+            response = self.ipfs.files_cp(src, dst, **kwargs)  # type: ignore
+            result.update(response)  # type: ignore
+            result["success"] = response.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
-        
+
     def files_mv(self, src, dst, **kwargs):
         """Move a file or directory in the MFS.
-        
+
         Args:
             src: Source path in the MFS to move from
             dst: Destination path in the MFS to move to
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dict with operation result indicating success or failure
         """
         from .error import create_result_dict, handle_error, IPFSError
-        
+
         operation = "files_mv"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
-            response = self.ipfs.files_mv(src, dst, **kwargs) # type: ignore
-            result.update(response) # type: ignore
-            result["success"] = response.get("success", False) # type: ignore
+            response = self.ipfs.files_mv(src, dst, **kwargs)  # type: ignore
+            result.update(response)  # type: ignore
+            result["success"] = response.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
-        
+
     def files_rm(self, path, **kwargs):
         """Remove a file or directory from the MFS.
-        
+
         Args:
             path: Path to remove in the MFS
             **kwargs: Additional parameters for the operation
@@ -3573,27 +3705,27 @@ class ipfs_kit:
             Dict with operation result indicating success or failure
         """
         from .error import create_result_dict, handle_error, IPFSError
-        
+
         operation = "files_rm"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
-            response = self.ipfs.files_rm(path, **kwargs) # type: ignore
-            result.update(response) # type: ignore
-            result["success"] = response.get("success", False) # type: ignore
+            response = self.ipfs.files_rm(path, **kwargs)  # type: ignore
+            result.update(response)  # type: ignore
+            result["success"] = response.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
-        
+
     def files_read(self, path, **kwargs):
         """Read a file from the MFS.
-        
+
         Args:
             path: Path to the file in the MFS to read
             **kwargs: Additional parameters for the operation
@@ -3601,161 +3733,165 @@ class ipfs_kit:
             Dict with operation result containing file content or error
         """
         from .error import create_result_dict, handle_error, IPFSError
-        
+
         operation = "files_read"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
-            response = self.ipfs.files_read(path, **kwargs) # type: ignore
-            result.update(response) # type: ignore
-            result["success"] = response.get("success", False) # type: ignore
+            response = self.ipfs.files_read(path, **kwargs)  # type: ignore
+            result.update(response)  # type: ignore
+            result["success"] = response.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
-        
+
     def files_write(self, path, content, **kwargs):
         """Write content to a file in the MFS.
-        
+
         Args:
             path: Path to the file in the MFS to write to
             content: Content to write to the file
-            **kwargs: Additional parameters for the operation   
+            **kwargs: Additional parameters for the operation
         Returns:
             Dict with operation result indicating success or failure
         """
         from .error import create_result_dict, handle_error, IPFSError
-        
+
         operation = "files_write"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
-            response = self.ipfs.files_write(path, content, **kwargs) # type: ignore
-            result.update(response) # type: ignore
-            result["success"] = response.get("success", False) # type: ignore
+            response = self.ipfs.files_write(path, content, **kwargs)  # type: ignore
+            result.update(response)  # type: ignore
+            result["success"] = response.get("success", False)  # type: ignore
             return result
         except Exception as e:
             return handle_error(result, e)
 
     def update_program_state(self):
         """Update the program state with current system information"""
-        if not hasattr(self, 'program_state') or self.program_state is None:
+        if not hasattr(self, "program_state") or self.program_state is None:
             return
-        
+
         try:
             # Update system state
             system_updates = {}
-            
+
             # Get bandwidth information if available
             try:
-                if hasattr(self, 'ipfs') and self.ipfs:
+                if hasattr(self, "ipfs") and self.ipfs:
                     # Try to get stats
-                    stats_result = self.ipfs.get_stats() if hasattr(self.ipfs, 'get_stats') else None
-                    if stats_result and stats_result.get('success'):
-                        stats = stats_result.get('data', {})
-                        system_updates['bandwidth_in'] = stats.get('bandwidth_in', 0)
-                        system_updates['bandwidth_out'] = stats.get('bandwidth_out', 0)
-                        system_updates['repo_size'] = stats.get('repo_size', 0)
+                    stats_result = (
+                        self.ipfs.get_stats() if hasattr(self.ipfs, "get_stats") else None
+                    )
+                    if stats_result and stats_result.get("success"):
+                        stats = stats_result.get("data", {})
+                        system_updates["bandwidth_in"] = stats.get("bandwidth_in", 0)
+                        system_updates["bandwidth_out"] = stats.get("bandwidth_out", 0)
+                        system_updates["repo_size"] = stats.get("repo_size", 0)
             except Exception:
                 pass  # Skip if stats not available
-            
+
             # Get peer count
             try:
-                if hasattr(self, 'ipfs') and self.ipfs:
-                    peers_result = self.ipfs.get_peers() if hasattr(self.ipfs, 'get_peers') else None
-                    if peers_result and peers_result.get('success'):
-                        peers = peers_result.get('data', [])
-                        system_updates['peer_count'] = len(peers) if isinstance(peers, list) else 0
+                if hasattr(self, "ipfs") and self.ipfs:
+                    peers_result = (
+                        self.ipfs.get_peers() if hasattr(self.ipfs, "get_peers") else None
+                    )
+                    if peers_result and peers_result.get("success"):
+                        peers = peers_result.get("data", [])
+                        system_updates["peer_count"] = len(peers) if isinstance(peers, list) else 0
             except Exception:
                 pass  # Skip if peers not available
-            
+
             # Get IPFS version
             try:
-                if hasattr(self, 'ipfs') and self.ipfs:
-                    version_result = self.ipfs.version() if hasattr(self.ipfs, 'version') else None
-                    if version_result and version_result.get('success'):
-                        system_updates['ipfs_version'] = version_result.get('version', '')
+                if hasattr(self, "ipfs") and self.ipfs:
+                    version_result = self.ipfs.version() if hasattr(self.ipfs, "version") else None
+                    if version_result and version_result.get("success"):
+                        system_updates["ipfs_version"] = version_result.get("version", "")
             except Exception:
                 pass  # Skip if version not available
-            
+
             if system_updates:
                 self.program_state.update_system_state(**system_updates)
-            
+
             # Update storage state
             storage_updates = {}
             backends_active = []
             backends_healthy = []
-            
+
             # Check storage backends
-            if hasattr(self, 's3_kit') and self.s3_kit:
-                backends_active.append('s3')
+            if hasattr(self, "s3_kit") and self.s3_kit:
+                backends_active.append("s3")
                 # Could add health check here
-                backends_healthy.append('s3')
-            
-            if hasattr(self, 'storacha_kit') and self.storacha_kit:
-                backends_active.append('storacha')
-                backends_healthy.append('storacha')
-            
-            if hasattr(self, 'gdrive_kit') and self.gdrive_kit:
-                backends_active.append('gdrive') 
-                backends_healthy.append('gdrive')
-            
-            if hasattr(self, 'synapse_storage') and self.synapse_storage:
-                backends_active.append('synapse')
-                backends_healthy.append('synapse')
-            
-            if hasattr(self, 'huggingface_kit') and self.huggingface_kit:
-                backends_active.append('huggingface')
-                backends_healthy.append('huggingface')
-            
-            storage_updates['backends_active'] = backends_active
-            storage_updates['backends_healthy'] = backends_healthy
-            
+                backends_healthy.append("s3")
+
+            if hasattr(self, "storacha_kit") and self.storacha_kit:
+                backends_active.append("storacha")
+                backends_healthy.append("storacha")
+
+            if hasattr(self, "gdrive_kit") and self.gdrive_kit:
+                backends_active.append("gdrive")
+                backends_healthy.append("gdrive")
+
+            if hasattr(self, "synapse_storage") and self.synapse_storage:
+                backends_active.append("synapse")
+                backends_healthy.append("synapse")
+
+            if hasattr(self, "huggingface_kit") and self.huggingface_kit:
+                backends_active.append("huggingface")
+                backends_healthy.append("huggingface")
+
+            storage_updates["backends_active"] = backends_active
+            storage_updates["backends_healthy"] = backends_healthy
+
             if storage_updates:
                 self.program_state.update_storage_state(**storage_updates)
-            
+
             # Update network state
             network_updates = {}
-            
+
             # Determine network health based on daemon status
             daemon_status = self.check_daemon_status()
-            if daemon_status.get('success'):
-                daemons = daemon_status.get('daemons', {})
-                ipfs_running = daemons.get('ipfs', {}).get('running', False)
-                network_updates['network_health'] = 'healthy' if ipfs_running else 'degraded'
-                
+            if daemon_status.get("success"):
+                daemons = daemon_status.get("daemons", {})
+                ipfs_running = daemons.get("ipfs", {}).get("running", False)
+                network_updates["network_health"] = "healthy" if ipfs_running else "degraded"
+
                 # Check cluster status
-                cluster_running = daemons.get('ipfs_cluster_service', {}).get('running', False)
-                network_updates['cluster_status'] = 'running' if cluster_running else 'stopped'
+                cluster_running = daemons.get("ipfs_cluster_service", {}).get("running", False)
+                network_updates["cluster_status"] = "running" if cluster_running else "stopped"
             else:
-                network_updates['network_health'] = 'unknown'
-                network_updates['cluster_status'] = 'unknown'
-            
+                network_updates["network_health"] = "unknown"
+                network_updates["cluster_status"] = "unknown"
+
             if network_updates:
                 self.program_state.update_network_state(**network_updates)
-            
+
             # Export to Parquet for external access
             self.program_state.export_to_parquet()
-            
+
         except Exception as e:
             self.logger.warning(f"Failed to update program state: {e}")
 
     def get_program_state_summary(self):
         """Get a summary of the current program state"""
-        if not hasattr(self, 'program_state') or self.program_state is None:
+        if not hasattr(self, "program_state") or self.program_state is None:
             return {"error": "Program state not initialized"}
-        
+
         try:
             return self.program_state.get_state_summary()
         except Exception as e:
@@ -3763,21 +3899,21 @@ class ipfs_kit:
 
     def _start_background_state_updates(self):
         """Start a background thread to periodically update program state"""
-        if hasattr(self, '_state_update_thread') and self._state_update_thread.is_alive():
+        if hasattr(self, "_state_update_thread") and self._state_update_thread.is_alive():
             return  # Already running
-        
+
         import threading
-        
+
         def state_update_loop():
             """Background loop to update program state every 30 seconds"""
-            while getattr(self, '_state_update_running', True):
+            while getattr(self, "_state_update_running", True):
                 try:
                     self.update_program_state()
                     time.sleep(30)  # Update every 30 seconds
                 except Exception as e:
                     self.logger.warning(f"Background state update failed: {e}")
                     time.sleep(60)  # Wait longer on error
-        
+
         self._state_update_running = True
         self._state_update_thread = threading.Thread(target=state_update_loop, daemon=True)
         self._state_update_thread.start()
@@ -3786,7 +3922,7 @@ class ipfs_kit:
     def stop_background_state_updates(self):
         """Stop the background state update thread"""
         self._state_update_running = False
-        if hasattr(self, '_state_update_thread'):
+        if hasattr(self, "_state_update_thread"):
             try:
                 self._state_update_thread.join(timeout=5)
             except Exception:
@@ -3795,25 +3931,25 @@ class ipfs_kit:
     # IPFS DHT Methods
     def dht_findpeer(self, peer_id, **kwargs):
         """Find a specific peer via the DHT and retrieve addresses.
-        
+
         Args:
             peer_id: The ID of the peer to find
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dict with operation result containing peer multiaddresses
         """
         from .error import create_result_dict, handle_error, IPFSError
-        
+
         operation = "dht_findpeer"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
             response = self.ipfs.dht_findpeer(peer_id)
             result.update(response)
@@ -3824,31 +3960,31 @@ class ipfs_kit:
 
     def dht_findprovs(self, cid, num_providers=None, **kwargs):
         """Find providers for a CID via the DHT.
-        
+
         Args:
             cid: The Content ID to find providers for
             num_providers: Maximum number of providers to find
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dict with operation result containing provider information
         """
         from .error import create_result_dict, handle_error, IPFSError
-        
+
         operation = "dht_findprovs"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Build kwargs to pass to ipfs
             ipfs_kwargs = {}
             if num_providers is not None:
                 ipfs_kwargs["num_providers"] = num_providers
-                
+
             # Call the ipfs module's implementation
             response = self.ipfs.dht_findprovs(cid, **ipfs_kwargs)
             result.update(response)
@@ -3856,30 +3992,30 @@ class ipfs_kit:
             return result
         except Exception as e:
             return handle_error(result, e)
-            
+
     # IPFS MFS (Mutable File System) Methods
     def files_mkdir(self, path, parents=False, **kwargs):
         """Create a directory in the MFS.
-        
+
         Args:
             path: Path to create in the MFS
             parents: Whether to create parent directories if they don't exist
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dict with operation result
         """
         from .error import create_result_dict, handle_error, IPFSError
-        
+
         operation = "files_mkdir"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
             response = self.ipfs.files_mkdir(path, parents)
             result.update(response)
@@ -3887,28 +4023,28 @@ class ipfs_kit:
             return result
         except Exception as e:
             return handle_error(result, e)
-            
+
     def files_ls(self, path="/", **kwargs):
         """List directory contents in the MFS.
-        
+
         Args:
             path: Directory path in the MFS to list
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dict with operation result containing directory entries
         """
         from .error import create_result_dict, handle_error, IPFSError
-        
+
         operation = "files_ls"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
             response = self.ipfs.files_ls(path)
             result.update(response)
@@ -3916,28 +4052,28 @@ class ipfs_kit:
             return result
         except Exception as e:
             return handle_error(result, e)
-            
+
     def files_stat(self, path, **kwargs):
         """Get file information from the MFS.
-        
+
         Args:
             path: Path to file or directory in the MFS
             **kwargs: Additional parameters for the operation
-            
+
         Returns:
             Dict with operation result containing file statistics
         """
         from .error import create_result_dict, handle_error, IPFSError
-        
+
         operation = "files_stat"
         correlation_id = kwargs.get("correlation_id")
         result = create_result_dict(operation, correlation_id)
-        
+
         try:
             # Delegate to the ipfs instance
             if not hasattr(self, "ipfs"):
                 return handle_error(result, IPFSError("IPFS instance not initialized"))
-                
+
             # Call the ipfs module's implementation
             response = self.ipfs.files_stat(path)
             result.update(response)
@@ -3946,9 +4082,10 @@ class ipfs_kit:
         except Exception as e:
             return handle_error(result, e)
 
+
 # Create CamelCase alias for compatibility
 IPFSKit = ipfs_kit
-        
+
 if __name__ == "__main__":
     print("🚀 IPFS Kit Py Module Loaded")
     print("=" * 50)

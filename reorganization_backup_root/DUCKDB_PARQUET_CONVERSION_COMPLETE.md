@@ -65,7 +65,7 @@ from ipfs_kit_py.pins import IPFSPinMetadataIndex
 # Initialize with DuckDB + Parquet
 index = IPFSPinMetadataIndex(
     data_dir="/path/to/storage",  # Changed from cache_file
-    update_interval=300
+    update_interval=300,
 )
 
 # Same API, better performance
