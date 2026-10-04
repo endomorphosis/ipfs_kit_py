@@ -14,7 +14,13 @@ from collections.abc import Mapping
 from typing import Any
 
 from .iroh.errors import IrohInvalidPathError, IrohPermissionDeniedError
-from .iroh_fsspec import IROH_BLOB_PROTOCOL, IROH_PROTOCOL, IrohFileSystem, IrohPath, parse_iroh_path
+from .iroh_fsspec import (
+    IROH_BLOB_PROTOCOL,
+    IROH_PROTOCOL,
+    IrohFileSystem,
+    IrohPath,
+    parse_iroh_path,
+)
 
 
 def _relative_path(value: str) -> str:
@@ -29,9 +35,7 @@ def _relative_path(value: str) -> str:
     if normalized in {"", "."}:
         return ""
     if normalized == ".." or normalized.startswith("../"):
-        raise IrohInvalidPathError(
-            "VFS path escapes its Iroh mount", operation="vfs.resolve"
-        )
+        raise IrohInvalidPathError("VFS path escapes its Iroh mount", operation="vfs.resolve")
     return normalized
 
 
@@ -155,9 +159,7 @@ class IrohVFSAdapter:
 
     def _require_writable(self) -> None:
         if self.read_only:
-            raise IrohPermissionDeniedError(
-                "Iroh VFS mount is read-only", operation="vfs.mutate"
-            )
+            raise IrohPermissionDeniedError("Iroh VFS mount is read-only", operation="vfs.mutate")
 
     def read_bytes(self, relative_path: str) -> bytes:
         return self.filesystem.cat_file(self.resolve(relative_path))

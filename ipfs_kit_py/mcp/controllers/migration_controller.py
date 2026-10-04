@@ -22,7 +22,7 @@ from typing import Dict, Any, Optional, Tuple
 from ipfs_kit_py.mcp.models.migration import (
     MigrationPolicy,
     MigrationRequest,
-    MigrationBatchRequest
+    MigrationBatchRequest,
 )
 from ipfs_kit_py.mcp.persistence.migration_store import MigrationStore
 from ipfs_kit_py.mcp.persistence.policy_store import PolicyStore
@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 class MigrationController:
     """Controller for managing cross-backend migrations."""
+
     def __init__(self, backend_registry, storage_service):
         """
         Initialize the migration controller.
@@ -465,7 +466,9 @@ class MigrationController:
                 "transfer_cost": transfer_cost,
                 "time_estimate_seconds": time_estimate_seconds,
                 "theoretical_bandwidth": "5 MB/s",
-                "reliability": "high" if size_bytes < 1073741824 else "medium",  # Less reliable for files over 1GB
+                "reliability": "high"
+                if size_bytes < 1073741824
+                else "medium",  # Less reliable for files over 1GB
             }
 
             return {

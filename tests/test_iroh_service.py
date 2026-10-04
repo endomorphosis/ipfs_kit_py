@@ -16,9 +16,7 @@ from ipfs_kit_py.iroh.errors import IrohConflictError, IrohUnavailableError
 from ipfs_kit_py.iroh.service import IrohService
 
 
-def _config(
-    tmp_path: Path, *, binds: tuple[str, ...] = ("127.0.0.1:0",)
-) -> IrohServiceConfig:
+def _config(tmp_path: Path, *, binds: tuple[str, ...] = ("127.0.0.1:0",)) -> IrohServiceConfig:
     base = IrohServiceConfig.default("test", state_root=tmp_path, enabled=True)
     return IrohServiceConfig(
         instance=base.instance,

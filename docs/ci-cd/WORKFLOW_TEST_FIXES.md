@@ -71,9 +71,9 @@ Add skip decorators to problematic tests:
 ```python
 import pytest
 
+
 @pytest.mark.skip(reason="Module no longer exists - needs refactoring")
-def test_unified_dashboard():
-    ...
+def test_unified_dashboard(): ...
 ```
 
 ### 2. Update Workflow Test Commands
@@ -106,13 +106,14 @@ import pytest
 
 try:
     import websockets
+
     HAS_WEBSOCKETS = True
 except ImportError:
     HAS_WEBSOCKETS = False
 
+
 @pytest.mark.skipif(not HAS_WEBSOCKETS, reason="websockets not installed")
-def test_websocket_connection():
-    ...
+def test_websocket_connection(): ...
 ```
 
 ---

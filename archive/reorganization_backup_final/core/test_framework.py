@@ -28,24 +28,30 @@ import subprocess
 # Setup logging
 logger = logging.getLogger(__name__)
 
+
 class TestStatus(Enum):
     """Test execution status"""
+
     PASSED = "passed"
     FAILED = "failed"
     SKIPPED = "skipped"
     ERROR = "error"
 
+
 class TestCategory(Enum):
     """Test category classification"""
+
     UNIT = "unit"
     INTEGRATION = "integration"
     PERFORMANCE = "performance"
     SMOKE = "smoke"
     STRESS = "stress"
 
+
 @dataclass
 class TestResult:
     """Test execution result"""
+
     name: str
     category: TestCategory
     status: TestStatus
@@ -56,25 +62,28 @@ class TestResult:
     setup_time: float = 0.0
     teardown_time: float = 0.0
 
+
 @dataclass
 class TestSuite:
     """Test suite definition"""
+
     name: str
     tests: List[Callable]
     setup: Optional[Callable] = None
     teardown: Optional[Callable] = None
     category: TestCategory = TestCategory.UNIT
 
+
 class TestFramework:
     """Comprehensive testing framework"""
-    
+
     def __init__(self):
         self.test_suites: Dict[str, TestSuite] = {}
         self.test_results: List[TestResult] = []
         self.test_modules: List[str] = []
         self.setup_functions: List[Callable] = []
         self.teardown_functions: List[Callable] = []
-        
+
     def register_test_suite(self, suite: TestSuite) -> bool:
         """Register a test suite"""
         try:
@@ -84,55 +93,55 @@ class TestFramework:
         except Exception as e:
             logger.error(f"Failed to register test suite {suite.name}: {e}")
             return False
-    
+
     def discover_tests(self, test_path: Path) -> int:
         """Automatically discover test modules and functions"""
         discovered_count = 0
-        
+
         try:
             for py_file in test_path.rglob("test_*.py"):
                 module_name = py_file.stem
                 spec = importlib.util.spec_from_file_location(module_name, py_file)
-                
+
                 if spec and spec.loader:
                     module = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(module)
-                    
+
                     # Extract test functions
                     tests = []
                     for name, obj in module.__dict__.items():
-                        if name.startswith('test_') and callable(obj):
+                        if name.startswith("test_") and callable(obj):
                             tests.append(obj)
-                    
+
                     if tests:
                         # Create test suite
                         suite = TestSuite(
                             name=module_name,
                             tests=tests,
-                            setup=getattr(module, 'setUp', None),
-                            teardown=getattr(module, 'tearDown', None)
+                            setup=getattr(module, "setUp", None),
+                            teardown=getattr(module, "tearDown", None),
                         )
-                        
+
                         if self.register_test_suite(suite):
                             discovered_count += len(tests)
-                            
+
         except Exception as e:
             logger.error(f"Error discovering tests from {test_path}: {e}")
-        
+
         logger.info(f"Discovered {discovered_count} tests")
         return discovered_count
-    
+
     def run_test_suite(self, suite_name: str) -> List[TestResult]:
         """Run a specific test suite"""
         if suite_name not in self.test_suites:
             logger.error(f"Test suite {suite_name} not found")
             return []
-        
+
         suite = self.test_suites[suite_name]
         results = []
-        
+
         logger.info(f"Running test suite: {suite_name}")
-        
+
         # Run suite setup
         setup_time = 0.0
         if suite.setup:
@@ -143,13 +152,13 @@ class TestFramework:
             except Exception as e:
                 logger.error(f"Suite setup failed for {suite_name}: {e}")
                 return results
-        
+
         # Run individual tests
         for test_func in suite.tests:
             result = self._run_single_test(test_func, suite.category, setup_time)
             results.append(result)
             self.test_results.append(result)
-        
+
         # Run suite teardown
         teardown_time = 0.0
         if suite.teardown:
@@ -159,49 +168,51 @@ class TestFramework:
                 teardown_time = time.time() - start_time
             except Exception as e:
                 logger.error(f"Suite teardown failed for {suite_name}: {e}")
-        
+
         # Update teardown time for all tests
         for result in results:
             result.teardown_time = teardown_time
-        
+
         return results
-    
+
     def run_all_tests(self, category_filter: Optional[TestCategory] = None) -> List[TestResult]:
         """Run all registered test suites"""
         all_results = []
-        
+
         for suite_name, suite in self.test_suites.items():
             if category_filter and suite.category != category_filter:
                 continue
-                
+
             results = self.run_test_suite(suite_name)
             all_results.extend(results)
-        
+
         return all_results
-    
-    def _run_single_test(self, test_func: Callable, category: TestCategory, setup_time: float) -> TestResult:
+
+    def _run_single_test(
+        self, test_func: Callable, category: TestCategory, setup_time: float
+    ) -> TestResult:
         """Run a single test function"""
         test_name = test_func.__name__
         start_time = time.time()
-        
+
         try:
             # Execute test
             if inspect.iscoroutinefunction(test_func):
                 anyio.run(test_func)
             else:
                 test_func()
-            
+
             duration = time.time() - start_time
-            
+
             return TestResult(
                 name=test_name,
                 category=category,
                 status=TestStatus.PASSED,
                 duration=duration,
                 setup_time=setup_time,
-                message="Test passed successfully"
+                message="Test passed successfully",
             )
-            
+
         except AssertionError as e:
             duration = time.time() - start_time
             return TestResult(
@@ -211,9 +222,9 @@ class TestFramework:
                 duration=duration,
                 setup_time=setup_time,
                 message=str(e),
-                error=traceback.format_exc()
+                error=traceback.format_exc(),
             )
-            
+
         except Exception as e:
             duration = time.time() - start_time
             return TestResult(
@@ -223,9 +234,9 @@ class TestFramework:
                 duration=duration,
                 setup_time=setup_time,
                 message=str(e),
-                error=traceback.format_exc()
+                error=traceback.format_exc(),
             )
-    
+
     def generate_report(self, format: str = "json") -> str:
         """Generate test report"""
         if format == "json":
@@ -234,11 +245,11 @@ class TestFramework:
             return self._generate_html_report()
         else:
             return self._generate_text_report()
-    
+
     def _generate_json_report(self) -> str:
         """Generate JSON test report"""
         stats = self.get_test_statistics()
-        
+
         report = {
             "summary": stats,
             "results": [
@@ -250,18 +261,18 @@ class TestFramework:
                     "message": result.message,
                     "error": result.error,
                     "setup_time": result.setup_time,
-                    "teardown_time": result.teardown_time
+                    "teardown_time": result.teardown_time,
                 }
                 for result in self.test_results
-            ]
+            ],
         }
-        
+
         return json.dumps(report, indent=2)
-    
+
     def _generate_text_report(self) -> str:
         """Generate text test report"""
         stats = self.get_test_statistics()
-        
+
         report = []
         report.append("=" * 60)
         report.append("TEST EXECUTION REPORT")
@@ -273,7 +284,7 @@ class TestFramework:
         report.append(f"Success Rate: {stats['success_rate']:.1f}%")
         report.append(f"Total Duration: {stats['total_duration']:.2f}s")
         report.append("")
-        
+
         # Group by status
         for status in TestStatus:
             status_results = [r for r in self.test_results if r.status == status]
@@ -285,13 +296,13 @@ class TestFramework:
                     if result.message:
                         report.append(f"    {result.message}")
                 report.append("")
-        
+
         return "\n".join(report)
-    
+
     def _generate_html_report(self) -> str:
         """Generate HTML test report"""
         stats = self.get_test_statistics()
-        
+
         html = f"""
         <!DOCTYPE html>
         <html>
@@ -312,12 +323,12 @@ class TestFramework:
             <h1>Test Execution Report</h1>
             <div class="summary">
                 <h2>Summary</h2>
-                <p>Total Tests: {stats['total_tests']}</p>
-                <p class="passed">Passed: {stats['passed']}</p>
-                <p class="failed">Failed: {stats['failed']}</p>
-                <p class="error">Errors: {stats['errors']}</p>
-                <p>Success Rate: {stats['success_rate']:.1f}%</p>
-                <p>Total Duration: {stats['total_duration']:.2f}s</p>
+                <p>Total Tests: {stats["total_tests"]}</p>
+                <p class="passed">Passed: {stats["passed"]}</p>
+                <p class="failed">Failed: {stats["failed"]}</p>
+                <p class="error">Errors: {stats["errors"]}</p>
+                <p>Success Rate: {stats["success_rate"]:.1f}%</p>
+                <p>Total Duration: {stats["total_duration"]:.2f}s</p>
             </div>
             
             <h2>Test Results</h2>
@@ -330,7 +341,7 @@ class TestFramework:
                     <th>Message</th>
                 </tr>
         """
-        
+
         for result in self.test_results:
             status_class = result.status.value
             html += f"""
@@ -342,15 +353,15 @@ class TestFramework:
                     <td>{result.message}</td>
                 </tr>
             """
-        
+
         html += """
             </table>
         </body>
         </html>
         """
-        
+
         return html
-    
+
     def get_test_statistics(self) -> Dict[str, Any]:
         """Get test execution statistics"""
         total = len(self.test_results)
@@ -358,10 +369,10 @@ class TestFramework:
         failed = len([r for r in self.test_results if r.status == TestStatus.FAILED])
         errors = len([r for r in self.test_results if r.status == TestStatus.ERROR])
         skipped = len([r for r in self.test_results if r.status == TestStatus.SKIPPED])
-        
+
         success_rate = (passed / total * 100) if total > 0 else 0
         total_duration = sum(r.duration for r in self.test_results)
-        
+
         return {
             "total_tests": total,
             "passed": passed,
@@ -370,34 +381,35 @@ class TestFramework:
             "skipped": skipped,
             "success_rate": success_rate,
             "total_duration": total_duration,
-            "average_duration": total_duration / total if total > 0 else 0
+            "average_duration": total_duration / total if total > 0 else 0,
         }
-    
+
     def clear_results(self):
         """Clear all test results"""
         self.test_results.clear()
 
+
 # Core infrastructure tests
 class CoreInfrastructureTests:
     """Test suite for core infrastructure components"""
-    
+
     @staticmethod
     def test_tool_registry_creation():
         """Test tool registry initialization"""
         from .tool_registry import ToolRegistry, ToolCategory, ToolSchema
-        
+
         registry = ToolRegistry()
         assert registry is not None
         assert len(registry.tools) == 0
         logger.info("Tool registry creation test passed")
-    
+
     @staticmethod
     def test_tool_registration():
         """Test tool registration functionality"""
         from .tool_registry import ToolRegistry, ToolCategory, ToolSchema, ToolStatus
-        
+
         registry = ToolRegistry()
-        
+
         # Create test tool
         tool = ToolSchema(
             name="test_tool",
@@ -406,74 +418,75 @@ class CoreInfrastructureTests:
             parameters={"param1": {"type": "string"}},
             returns={"result": {"type": "string"}},
             version="1.0.0",
-            dependencies=[]
+            dependencies=[],
         )
-        
+
         # Register tool
         success = registry.register_tool(tool)
         assert success is True
         assert "test_tool" in registry.tools
         assert registry.tools["test_tool"].status == ToolStatus.REGISTERED
-        
+
         logger.info("Tool registration test passed")
-    
+
     @staticmethod
     def test_service_manager_creation():
         """Test service manager initialization"""
         from .service_manager import ServiceManager
-        
+
         manager = ServiceManager()
         assert manager is not None
         assert len(manager.services) == 0
-        
+
         logger.info("Service manager creation test passed")
-    
+
     @staticmethod
     def test_error_handler_creation():
         """Test error handler initialization"""
         from .error_handler import ErrorHandler, ErrorCode, create_success_response
-        
+
         handler = ErrorHandler()
         assert handler is not None
-        
+
         # Test success response
         response = create_success_response("test data")
         assert response["status"] == "success"
         assert response["data"] == "test data"
-        
+
         # Test error creation
         error = handler.create_error(ErrorCode.INVALID_PARAMETER, "Test error")
         assert error.status == "error"
         assert error.error_code == ErrorCode.INVALID_PARAMETER.value
-        
+
         logger.info("Error handler creation test passed")
-    
+
     @staticmethod
     def test_port_availability():
         """Test port availability checking"""
         from .service_manager import ServiceManager
-        
+
         manager = ServiceManager()
-        
+
         # Test port finding
         port = manager.find_available_port(9000, 10)
         assert port is not None
         assert 9000 <= port < 9010
-        
+
         logger.info("Port availability test passed")
+
 
 # Performance tests
 class PerformanceTests:
     """Performance testing suite"""
-    
+
     @staticmethod
     def test_tool_registry_performance():
         """Test tool registry performance with many tools"""
         from .tool_registry import ToolRegistry, ToolCategory, ToolSchema
-        
+
         registry = ToolRegistry()
         start_time = time.time()
-        
+
         # Register 100 tools
         for i in range(100):
             tool = ToolSchema(
@@ -483,48 +496,47 @@ class PerformanceTests:
                 parameters={},
                 returns={},
                 version="1.0.0",
-                dependencies=[]
+                dependencies=[],
             )
             registry.register_tool(tool)
-        
+
         duration = time.time() - start_time
         assert duration < 1.0  # Should complete in under 1 second
         assert len(registry.tools) == 100
-        
+
         logger.info(f"Tool registry performance test passed ({duration:.3f}s)")
+
 
 # Integration tests
 class IntegrationTests:
     """Integration testing suite"""
-    
+
     @staticmethod
     def test_service_error_integration():
         """Test integration between service manager and error handler"""
         from .service_manager import ServiceManager, ServiceConfig
         from .error_handler import ErrorHandler, ErrorCode
-        
+
         manager = ServiceManager()
         handler = ErrorHandler()
-        
+
         # Try to start non-existent service
-        config = ServiceConfig(
-            name="fake_service",
-            command=["fake_command_that_does_not_exist"]
-        )
-        
+        config = ServiceConfig(name="fake_service", command=["fake_command_that_does_not_exist"])
+
         manager.register_service(config)
         success = manager.start_service("fake_service")
-        
+
         # Should fail gracefully
         assert success is False
-        
+
         logger.info("Service-error integration test passed")
+
 
 # Create test suites
 def create_test_suites() -> List[TestSuite]:
     """Create all test suites"""
     suites = []
-    
+
     # Core infrastructure tests
     core_tests = TestSuite(
         name="core_infrastructure",
@@ -533,33 +545,30 @@ def create_test_suites() -> List[TestSuite]:
             CoreInfrastructureTests.test_tool_registration,
             CoreInfrastructureTests.test_service_manager_creation,
             CoreInfrastructureTests.test_error_handler_creation,
-            CoreInfrastructureTests.test_port_availability
+            CoreInfrastructureTests.test_port_availability,
         ],
-        category=TestCategory.UNIT
+        category=TestCategory.UNIT,
     )
     suites.append(core_tests)
-    
+
     # Performance tests
     perf_tests = TestSuite(
         name="performance",
-        tests=[
-            PerformanceTests.test_tool_registry_performance
-        ],
-        category=TestCategory.PERFORMANCE
+        tests=[PerformanceTests.test_tool_registry_performance],
+        category=TestCategory.PERFORMANCE,
     )
     suites.append(perf_tests)
-    
+
     # Integration tests
     integration_tests = TestSuite(
         name="integration",
-        tests=[
-            IntegrationTests.test_service_error_integration
-        ],
-        category=TestCategory.INTEGRATION
+        tests=[IntegrationTests.test_service_error_integration],
+        category=TestCategory.INTEGRATION,
     )
     suites.append(integration_tests)
-    
+
     return suites
+
 
 # Global test framework instance
 test_framework = TestFramework()

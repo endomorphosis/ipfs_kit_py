@@ -145,7 +145,9 @@ def _read_json(path: Path) -> dict[str, Any] | None:
     if value.get("schema_version") != RECEIPT_SCHEMA_VERSION or any(
         not isinstance(value.get(field), str) or not value[field] for field in required_strings
     ):
-        raise IrohLifecycleError(f"invalid Iroh install receipt {path}: required fields are missing")
+        raise IrohLifecycleError(
+            f"invalid Iroh install receipt {path}: required fields are missing"
+        )
     for field in ("digest", "binary_digest"):
         digest = value[field]
         if not re.fullmatch(r"[0-9a-f]{64}", digest):
@@ -184,9 +186,7 @@ class IrohInstallManager:
         self.binary_path = self.bin_dir / self.binary_name
         self.receipt_path = self.bin_dir / RECEIPT_FILENAME
         self.previous_binary_path = self.bin_dir / (self.binary_name + PREVIOUS_BINARY_SUFFIX)
-        self.previous_receipt_path = self.bin_dir / (
-            RECEIPT_FILENAME + PREVIOUS_RECEIPT_SUFFIX
-        )
+        self.previous_receipt_path = self.bin_dir / (RECEIPT_FILENAME + PREVIOUS_RECEIPT_SUFFIX)
         self.lock_path = self.bin_dir / LOCK_FILENAME
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._run = command_runner or subprocess.run
@@ -219,7 +219,9 @@ class IrohInstallManager:
             self.bin_dir.mkdir(mode=0o755, parents=True, exist_ok=True)
             stream = self.lock_path.open("a+")
         except OSError as exc:
-            raise IrohLifecycleError(f"cannot open Iroh update lock {self.lock_path}: {exc}") from exc
+            raise IrohLifecycleError(
+                f"cannot open Iroh update lock {self.lock_path}: {exc}"
+            ) from exc
         locked = False
         try:
             try:
@@ -576,7 +578,9 @@ def build_parser() -> argparse.ArgumentParser:
                 action="store_true",
                 help="explicitly permit a prerelease",
             )
-        command.add_argument("--dry-run", action="store_true", help="describe without changing files")
+        command.add_argument(
+            "--dry-run", action="store_true", help="describe without changing files"
+        )
         command.add_argument("--check", action="store_true", help="verify the resulting state")
 
     mutation("install", "install the pinned verified sidecar", version=True)

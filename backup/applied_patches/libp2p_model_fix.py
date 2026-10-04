@@ -34,7 +34,7 @@ duplicate_funcs = [
     "register_message_handler",
     "unregister_message_handler",
     "list_message_handlers",
-    "peer_info"
+    "peer_info",
 ]
 
 # For each duplicate function, keep only the first occurrence
