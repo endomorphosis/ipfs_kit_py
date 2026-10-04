@@ -43,6 +43,7 @@ from ipfs_kit_py.mcp.controllers.ipfs_controller import (
 # Define new request models for MFS operations
 class WriteFileRequest(BaseModel):
     """Request model for writing to a file in MFS."""
+
     path: str = Field(..., description="Path in MFS to write to")
     content: str = Field(..., description="Content to write to the file")
     offset: int = Field(0, description="Offset to write at")
@@ -53,6 +54,7 @@ class WriteFileRequest(BaseModel):
 
 class ReadFileRequest(BaseModel):
     """Request model for reading from a file in MFS."""
+
     path: str = Field(..., description="Path in MFS to read from")
     offset: int = Field(0, description="Offset to read from")
     count: int = Field(-1, description="Number of bytes to read (-1 for all)")
@@ -60,6 +62,7 @@ class ReadFileRequest(BaseModel):
 
 class RemoveFileRequest(BaseModel):
     """Request model for removing a file or directory from MFS."""
+
     path: str = Field(..., description="Path in MFS to remove")
     recursive: bool = Field(False, description="Remove directories recursively")
     force: bool = Field(False, description="Force removal")
@@ -67,6 +70,7 @@ class RemoveFileRequest(BaseModel):
 
 class CopyFileRequest(BaseModel):
     """Request model for copying files in MFS."""
+
     source: str = Field(..., description="Source path in MFS")
     destination: str = Field(..., description="Destination path in MFS")
     parents: bool = Field(False, description="Create parent directories if they don't exist")
@@ -74,6 +78,7 @@ class CopyFileRequest(BaseModel):
 
 class MoveFileRequest(BaseModel):
     """Request model for moving files in MFS."""
+
     source: str = Field(..., description="Source path in MFS")
     destination: str = Field(..., description="Destination path in MFS")
     parents: bool = Field(False, description="Create parent directories if they don't exist")
@@ -81,6 +86,7 @@ class MoveFileRequest(BaseModel):
 
 class FlushFilesRequest(BaseModel):
     """Request model for flushing MFS changes."""
+
     path: str = Field("/", description="Path in MFS to flush")
 
 
@@ -96,6 +102,7 @@ class IPFSControllerAnyIO:
     the business logic to the IPFS model.
     This implementation uses AnyIO for backend-agnostic async operations.
     """
+
     def __init__(self, ipfs_model):
         """
         Initialize the IPFS controller.
@@ -635,8 +642,8 @@ class IPFSControllerAnyIO:
             }
 
     async def publish_name(
-    self,
-    request: Request = None,
+        self,
+        request: Request = None,
         path: str = Body(None, embed=True),
         key: str = Body("self", embed=True),
         ttl: str = Body("24h", embed=True),
@@ -743,8 +750,8 @@ class IPFSControllerAnyIO:
             }
 
     async def put_dag_node(
-    self,
-    request: Request = None,
+        self,
+        request: Request = None,
         data: Dict[str, Any] = None,
         format: str = "dag-cbor",
     ) -> Dict[str, Any]:
@@ -1676,10 +1683,14 @@ class IPFSControllerAnyIO:
                         num_providers = form.get("num-providers") or form.get("numProviders")
                     except (ValueError, TypeError) as e2:
                         # Expected: body is not form data either
-                        logger.debug("Could not parse request as form data for num_providers: %s", e2)
+                        logger.debug(
+                            "Could not parse request as form data for num_providers: %s", e2
+                        )
                     except Exception as e2:
                         # Unexpected error reading form data - surface it
-                        logger.warning("Unexpected error reading form data for num_providers: %s", e2)
+                        logger.warning(
+                            "Unexpected error reading form data for num_providers: %s", e2
+                        )
                 except Exception as e:
                     # Unexpected error reading request body - surface it
                     logger.warning("Unexpected error reading request body for num_providers: %s", e)
@@ -2005,8 +2016,8 @@ class IPFSControllerAnyIO:
         return result
 
     async def add_file(
-    self,
-    file: UploadFile = File(...),
+        self,
+        file: UploadFile = File(...),
         pin: bool = Form(False),
         wrap_with_directory: bool = Form(False),
     ) -> Dict[str, Any]:
@@ -3551,7 +3562,7 @@ class IPFSControllerAnyIO:
                 logger.warning(f"Error listing peers: {result.get('error', 'Unknown error')}")
 
                 # Generate simulated peer list
-                
+
                 import uuid
 
                 peers = []
@@ -3846,8 +3857,8 @@ class IPFSControllerAnyIO:
             }
 
     async def read_file(
-    self,
-    path: str = None,
+        self,
+        path: str = None,
         offset: int = 0,
         count: int = -1,
         request: ReadFileRequest = None,
@@ -4462,7 +4473,7 @@ class IPFSControllerAnyIO:
                 "duration_ms": (time.time() - start_time) * 1000,
             }
 
-    # DISABLED REDEFINITION
+        # DISABLED REDEFINITION
         """
         Get IPFS node identity information.
 

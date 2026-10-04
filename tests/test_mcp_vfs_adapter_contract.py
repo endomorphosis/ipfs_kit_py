@@ -43,7 +43,12 @@ def test_enhanced_adapter_delegates_canonical_mount_ops(monkeypatch):
         }
 
     async def fake_resolve(local_path):
-        return {"success": True, "resolved": True, "local_path": local_path, "resolved_path": "/ipfs/QmTest/file.txt"}
+        return {
+            "success": True,
+            "resolved": True,
+            "local_path": local_path,
+            "resolved_path": "/ipfs/QmTest/file.txt",
+        }
 
     monkeypatch.setattr(enhanced_server, "contract_vfs_mount", fake_mount)
     monkeypatch.setattr(enhanced_server, "contract_vfs_unmount", fake_unmount)
@@ -89,7 +94,9 @@ def test_enhanced_dispatch_routes_new_vfs_operations(monkeypatch):
     adapter._vfs_list_mounts = fake_list_mounts
     adapter._vfs_resolve_path = fake_resolve
 
-    unmount_result = anyio.run(lambda: adapter.execute_vfs_operation("vfs_unmount", mount_point="/m"))
+    unmount_result = anyio.run(
+        lambda: adapter.execute_vfs_operation("vfs_unmount", mount_point="/m")
+    )
     assert unmount_result["success"] is True
     assert unmount_result["operation"] == "vfs_unmount"
 
@@ -97,7 +104,9 @@ def test_enhanced_dispatch_routes_new_vfs_operations(monkeypatch):
     assert list_result["success"] is True
     assert list_result["operation"] == "vfs_list_mounts"
 
-    resolve_result = anyio.run(lambda: adapter.execute_vfs_operation("vfs_resolve_path", local_path="/m/a.txt"))
+    resolve_result = anyio.run(
+        lambda: adapter.execute_vfs_operation("vfs_resolve_path", local_path="/m/a.txt")
+    )
     assert resolve_result["success"] is True
     assert resolve_result["operation"] == "vfs_resolve_path"
 
@@ -124,7 +133,12 @@ def test_standalone_adapter_delegates_canonical_mount_ops(monkeypatch):
         }
 
     async def fake_resolve(local_path):
-        return {"success": True, "resolved": True, "local_path": local_path, "resolved_path": "/ipfs/QmTest/file.txt"}
+        return {
+            "success": True,
+            "resolved": True,
+            "local_path": local_path,
+            "resolved_path": "/ipfs/QmTest/file.txt",
+        }
 
     monkeypatch.setattr(standalone_server, "contract_vfs_mount", fake_mount)
     monkeypatch.setattr(standalone_server, "contract_vfs_unmount", fake_unmount)
@@ -203,7 +217,9 @@ def test_legacy_mcp_tool_schemas_expose_new_vfs_operations():
 def test_unified_mcp_dispatches_vfs_tools_and_exposes_resolve_path(monkeypatch):
     monkeypatch.setattr(unified_server, "HAS_CANONICAL_VFS", True)
 
-    monkeypatch.setattr(unified_server, "vfs_list_mounts", lambda: {"success": True, "count": 0, "mounts": []})
+    monkeypatch.setattr(
+        unified_server, "vfs_list_mounts", lambda: {"success": True, "count": 0, "mounts": []}
+    )
     monkeypatch.setattr(
         unified_server,
         "vfs_resolve_path",
@@ -218,10 +234,14 @@ def test_unified_mcp_dispatches_vfs_tools_and_exposes_resolve_path(monkeypatch):
     server = unified_server.create_mcp_server(register_all_tools=False)
 
     listed_tools = anyio.run(server.handle_tools_list)
-    tool_names = {tool["name"] for tool in listed_tools["tools"] if isinstance(tool, dict) and "name" in tool}
+    tool_names = {
+        tool["name"] for tool in listed_tools["tools"] if isinstance(tool, dict) and "name" in tool
+    }
     assert "vfs_resolve_path" in tool_names
 
-    mounts_result = anyio.run(lambda: server.handle_tools_call({"name": "vfs_list_mounts", "arguments": {}}))
+    mounts_result = anyio.run(
+        lambda: server.handle_tools_call({"name": "vfs_list_mounts", "arguments": {}})
+    )
     assert mounts_result["isError"] is False
 
     payload_mounts = json.loads(mounts_result["content"][0]["text"])
@@ -229,7 +249,9 @@ def test_unified_mcp_dispatches_vfs_tools_and_exposes_resolve_path(monkeypatch):
     assert payload_mounts["count"] == 0
 
     resolve_result = anyio.run(
-        lambda: server.handle_tools_call({"name": "vfs_resolve_path", "arguments": {"local_path": "/m/a.txt"}})
+        lambda: server.handle_tools_call(
+            {"name": "vfs_resolve_path", "arguments": {"local_path": "/m/a.txt"}}
+        )
     )
     assert resolve_result["isError"] is False
 
@@ -240,9 +262,13 @@ def test_unified_mcp_dispatches_vfs_tools_and_exposes_resolve_path(monkeypatch):
 
 def test_daemon_mgmt_server_dispatches_vfs_tools(monkeypatch):
     monkeypatch.setattr(daemon_mgmt_server, "HAS_CANONICAL_VFS", True)
-    monkeypatch.setattr(daemon_mgmt_server, "vfs_list_mounts", lambda: {"success": True, "count": 2, "mounts": []})
+    monkeypatch.setattr(
+        daemon_mgmt_server, "vfs_list_mounts", lambda: {"success": True, "count": 2, "mounts": []}
+    )
 
-    server = daemon_mgmt_server.EnhancedMCPServerWithDaemonMgmt.__new__(daemon_mgmt_server.EnhancedMCPServerWithDaemonMgmt)
+    server = daemon_mgmt_server.EnhancedMCPServerWithDaemonMgmt.__new__(
+        daemon_mgmt_server.EnhancedMCPServerWithDaemonMgmt
+    )
 
     result = anyio.run(
         lambda: server.handle_tools_call({"name": "vfs_list_mounts", "arguments": {}})

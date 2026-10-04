@@ -17,8 +17,11 @@ import json
 from pathlib import Path
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def count_tools():
     """Count the number of tools in the registry"""
@@ -33,6 +36,7 @@ def count_tools():
         logger.error(f"Error counting tools: {e}")
         return 0
 
+
 def stop_running_servers():
     """Stop any running MCP servers"""
     try:
@@ -40,12 +44,12 @@ def stop_running_servers():
         pid_files = [
             "direct_mcp_server.pid",
             "direct_mcp_server_blue.pid",
-            "direct_mcp_server_green.pid"
+            "direct_mcp_server_green.pid",
         ]
 
         for pid_file in pid_files:
             if os.path.exists(pid_file):
-                with open(pid_file, 'r') as f:
+                with open(pid_file, "r") as f:
                     pid = int(f.read().strip())
 
                     try:
@@ -63,6 +67,7 @@ def stop_running_servers():
     except Exception as e:
         logger.error(f"Error stopping running servers: {e}")
 
+
 def start_mcp_server(host="127.0.0.1", port=3000, log_level="INFO"):
     """Start the MCP server with the updated tools"""
     try:
@@ -71,18 +76,14 @@ def start_mcp_server(host="127.0.0.1", port=3000, log_level="INFO"):
             "direct_mcp_server.py",
             f"--host={host}",
             f"--port={port}",
-            f"--log-level={log_level}"
+            f"--log-level={log_level}",
         ]
 
         logger.info(f"Starting MCP server: {' '.join(command)}")
 
         # Start the server as a background process
         process = subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1
+            command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
         )
 
         # Wait a bit for the server to start up
@@ -99,6 +100,7 @@ def start_mcp_server(host="127.0.0.1", port=3000, log_level="INFO"):
     except Exception as e:
         logger.error(f"Error starting MCP server: {e}")
         return False
+
 
 def verify_ipfs_mcp_tools_integration():
     """Verify and ensure the IPFS MCP tools integration is set up"""
@@ -141,13 +143,18 @@ def verify_ipfs_mcp_tools_integration():
                     inserted = False
                     for i in range(server_line + 1, len(lines)):
                         if lines[i].strip() and not lines[i].strip().startswith("#"):
-                            lines.insert(i, "    # Register IPFS tools\n    register_ipfs_tools(server)")
+                            lines.insert(
+                                i, "    # Register IPFS tools\n    register_ipfs_tools(server)"
+                            )
                             inserted = True
                             break
 
                     # If we couldn't find a good place, insert right after server initialization
                     if not inserted:
-                        lines.insert(server_line + 1, "    # Register IPFS tools\n    register_ipfs_tools(server)")
+                        lines.insert(
+                            server_line + 1,
+                            "    # Register IPFS tools\n    register_ipfs_tools(server)",
+                        )
                 else:
                     logger.warning("Could not find server initialization in direct_mcp_server.py")
 
@@ -204,6 +211,7 @@ def register_ipfs_tools(mcp_server):
         logger.error(f"Error setting up IPFS MCP tools integration: {e}")
         return False
 
+
 def main():
     """Main function"""
     # Count the tools in the registry
@@ -226,6 +234,7 @@ def main():
     logger.info("✅ MCP server started with enhanced IPFS tools")
     logger.info("ℹ️ You can now use all the IPFS tools via the MCP server")
     return True
+
 
 if __name__ == "__main__":
     main()

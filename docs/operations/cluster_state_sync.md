@@ -33,13 +33,13 @@ Synchronization behavior can be tuned via configuration:
 ```python
 # Example configuration snippet
 config = {
-    'cluster': {
-        'state_sync': {
-            'enabled': True,
-            'sync_interval_seconds': 30, # How often to gossip/check for updates
-            'conflict_resolution': 'lww', # 'lww' (Last-Write-Wins) or potentially 'custom'
-            'pubsub_topic_prefix': '/ipfs-kit/cluster-state/', # Base topic for gossip
-            'use_state_patching': True # Send patches instead of full state
+    "cluster": {
+        "state_sync": {
+            "enabled": True,
+            "sync_interval_seconds": 30,  # How often to gossip/check for updates
+            "conflict_resolution": "lww",  # 'lww' (Last-Write-Wins) or potentially 'custom'
+            "pubsub_topic_prefix": "/ipfs-kit/cluster-state/",  # Base topic for gossip
+            "use_state_patching": True,  # Send patches instead of full state
         }
         # ... other cluster config
     }
