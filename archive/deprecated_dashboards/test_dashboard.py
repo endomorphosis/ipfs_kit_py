@@ -1,4 +1,3 @@
-
 import pytest
 import subprocess
 import time
@@ -13,15 +12,16 @@ import re
 # Add the project root to sys.path to ensure modules are found
 sys.path.insert(0, os.getcwd())
 
-    # Define the path to your MCP server script
+# Define the path to your MCP server script
 MCP_SERVER_PATH = "mcp/ipfs_kit/modular_enhanced_mcp_server.py"
 BASE_URL = "http://127.0.0.1:8000"  # Default port for FastAPI/Uvicorn
+
 
 @pytest.fixture(scope="module")
 def mcp_server():
     """Starts and stops the MCP server for tests."""
     print(f"Starting MCP server...")
-    port = 8000 # You can make this dynamic later if needed
+    port = 8000  # You can make this dynamic later if needed
     process = None
     server_script_content = f"""
 import os
@@ -39,7 +39,7 @@ server_instance._setup_web_server() # Ensure the app is set up
 if __name__ == "__main__":
     uvicorn.run(server_instance.app, host="127.0.0.1", port={port}, log_level="info", access_log=False)
 """
-    
+
     # Create a temporary script file
     temp_script_path = "temp_mcp_server_runner.py"
     with open(temp_script_path, "w") as f:
@@ -51,12 +51,12 @@ if __name__ == "__main__":
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            env=dict(os.environ, PYTHONPATH=os.getcwd())
+            env=dict(os.environ, PYTHONPATH=os.getcwd()),
         )
-        
+
         # Wait for the server to start, allowing at least 15 seconds
         health_check_url = f"{BASE_URL}/api/health"
-        retries = 10 # Increased retries
+        retries = 10  # Increased retries
         for i in range(retries):
             try:
                 response = requests.get(health_check_url, timeout=5)
@@ -64,7 +64,7 @@ if __name__ == "__main__":
                     print("MCP server is up and running (health check passed).")
                     break
             except requests.exceptions.ConnectionError:
-                print(f"Waiting for MCP server... (Attempt {i+1}/{retries})")
+                print(f"Waiting for MCP server... (Attempt {i + 1}/{retries})")
                 time.sleep(5)  # Increased sleep time
         else:
             stdout, stderr = process.communicate()
@@ -86,6 +86,7 @@ if __name__ == "__main__":
         # Clean up the temporary script
         if os.path.exists(temp_script_path):
             os.remove(temp_script_path)
+
 
 def test_dashboard_loads_correctly(page: Page, mcp_server):
     """
@@ -111,6 +112,7 @@ def test_dashboard_loads_correctly(page: Page, mcp_server):
     expect(page.locator(".tab-button.active")).to_have_text("📊 Overview")
     print("Dashboard loaded correctly and basic elements are present.")
 
+
 def test_dynamic_data_loading(page: Page, mcp_server):
     """
     Tests that the dashboard dynamically loads and displays data from the API.
@@ -134,19 +136,25 @@ def test_dynamic_data_loading(page: Page, mcp_server):
 
     # Assert System Status
     system_status_text = page.locator("#systemStatus").text_content()
-    expect(page.locator("#systemStatus")).to_contain_text(f"Status: {data.get("status", "running")}")
+    expect(page.locator("#systemStatus")).to_contain_text(
+        f"Status: {data.get('status', 'running')}"
+    )
     expect(page.locator("#systemStatus")).to_contain_text("Uptime:")
 
     # Assert Backend Summary
     backend_summary_text = page.locator("#backendSummary").text_content()
     # Extract healthy_count and total_count from the displayed text
-    match = re.search(r'(\d+)/(\d+)', backend_summary_text)
+    match = re.search(r"(\d+)/(\d+)", backend_summary_text)
     if match:
         healthy_count_displayed = int(match.group(1))
         total_count_displayed = int(match.group(2))
-        expect(page.locator("#backendSummary")).to_contain_text(f"{healthy_count_displayed}/{total_count_displayed}")
+        expect(page.locator("#backendSummary")).to_contain_text(
+            f"{healthy_count_displayed}/{total_count_displayed}"
+        )
     else:
-        raise AssertionError(f"Could not extract healthy/total count from backend summary: {backend_summary_text}")
+        raise AssertionError(
+            f"Could not extract healthy/total count from backend summary: {backend_summary_text}"
+        )
     expect(page.locator("#backendSummary")).to_contain_text("Backends Healthy")
 
     # Assert Performance Metrics
@@ -158,5 +166,3 @@ def test_dynamic_data_loading(page: Page, mcp_server):
     page.screenshot(path="dashboard_dynamic_data.png")
     print("Screenshot 'dashboard_dynamic_data.png' taken.")
     print("Dynamic data loaded and displayed correctly.")
-
-

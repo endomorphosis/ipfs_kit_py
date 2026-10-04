@@ -35,7 +35,7 @@ dataset = dataset_manager.create_dataset(
     name="my-dataset",
     description="Sample dataset for image classification",
     domain="computer_vision",
-    tags=["images", "classification"]
+    tags=["images", "classification"],
 )
 
 # Add a version to the dataset
@@ -49,10 +49,10 @@ version = dataset_manager.create_dataset_version(
             "path": "/path/to/train.csv",
             "format": "csv",
             "split": "train",
-            "size_bytes": 1024000
+            "size_bytes": 1024000,
         }
     ],
-    schema={"features": ["image_path", "label"]}
+    schema={"features": ["image_path", "label"]},
 )
 
 # List all datasets

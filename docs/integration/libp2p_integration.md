@@ -240,10 +240,7 @@ For more direct control over peer-to-peer communication:
 from ipfs_kit_py.libp2p_peer import IPFSLibp2pPeer
 
 # Initialize a libp2p peer with default settings
-peer = IPFSLibp2pPeer(
-    role="worker",
-    listen_addrs=["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/udp/0/quic"]
-)
+peer = IPFSLibp2pPeer(role="worker", listen_addrs=["/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/udp/0/quic"])
 
 # Connect to a remote peer
 peer.connect_peer("/ip4/192.168.1.10/tcp/4001/p2p/QmRemotePeerId")
@@ -265,17 +262,17 @@ from ipfs_kit_py.libp2p_peer import IPFSLibp2pPeer
 from ipfs_kit_py.tiered_cache import TieredCacheManager
 
 # Initialize tiered storage manager
-storage_manager = TieredCacheManager({
-    'memory_cache_size': 100 * 1024 * 1024,  # 100MB
-    'local_cache_size': 1 * 1024 * 1024 * 1024,  # 1GB
-    'local_cache_path': '/tmp/ipfs_cache'
-})
+storage_manager = TieredCacheManager(
+    {
+        "memory_cache_size": 100 * 1024 * 1024,  # 100MB
+        "local_cache_size": 1 * 1024 * 1024 * 1024,  # 1GB
+        "local_cache_path": "/tmp/ipfs_cache",
+    }
+)
 
 # Create a peer with tiered storage integration
 peer = IPFSLibp2pPeer(
-    role="worker",
-    listen_addrs=["/ip4/0.0.0.0/tcp/4001"],
-    tiered_storage_manager=storage_manager
+    role="worker", listen_addrs=["/ip4/0.0.0.0/tcp/4001"], tiered_storage_manager=storage_manager
 )
 
 # Store content in local store and announce to network
@@ -300,19 +297,17 @@ import anyio
 peer = IPFSLibp2pPeer(
     role="master",
     identity_path="~/.ipfs/libp2p_identity",
-    listen_addrs=[
-        "/ip4/0.0.0.0/tcp/4001",
-        "/ip4/0.0.0.0/udp/4001/quic"
-    ],
+    listen_addrs=["/ip4/0.0.0.0/tcp/4001", "/ip4/0.0.0.0/udp/4001/quic"],
     bootstrap_peers=[
         "/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN",
-        "/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa"
+        "/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa",
     ],
     enable_mdns=True,
     enable_hole_punching=True,
     enable_relay=True,
-    tiered_storage_manager=storage_manager
+    tiered_storage_manager=storage_manager,
 )
+
 
 # Register a custom protocol handler
 async def handle_custom_protocol(stream):
@@ -320,6 +315,7 @@ async def handle_custom_protocol(stream):
     # Process the request
     await stream.write(b"Response data")
     await stream.close()
+
 
 peer.register_protocol_handler("/my/custom/protocol/1.0.0", handle_custom_protocol)
 ```
@@ -341,7 +337,7 @@ discovery = EnhancedDHTDiscovery(
     role="worker",
     bootstrap_peers=[
         "/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN"
-    ]
+    ],
 )
 discovery.start()
 
@@ -355,16 +351,19 @@ print(f"Found {len(providers)} providers for the content")
 # Get optimal providers based on metrics
 optimal_providers = discovery.get_optimal_providers(
     "QmContentHash",
-    content_size=1024*1024,  # 1MB
-    count=3
+    content_size=1024 * 1024,  # 1MB
+    count=3,
 )
 print(f"Best providers: {optimal_providers}")
 
 # Retrieve content using the router
-future = router.retrieve_content("QmContentHash", {
-    'timeout': 30,
-    'max_size': 10 * 1024 * 1024  # 10MB
-})
+future = router.retrieve_content(
+    "QmContentHash",
+    {
+        "timeout": 30,
+        "max_size": 10 * 1024 * 1024,  # 10MB
+    },
+)
 content = future.result(timeout=30)
 ```
 
@@ -384,9 +383,7 @@ libp2p_peer = IPFSLibp2pPeer(
     bootstrap_peers=[
         "/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN"
     ],
-    listen_addrs=[
-        "/ip4/0.0.0.0/tcp/4001"
-    ]
+    listen_addrs=["/ip4/0.0.0.0/tcp/4001"],
 )
 
 # Register the peer with the kit
@@ -494,46 +491,49 @@ The implementation includes several key performance optimizations:
 ```python
 def handle_cache_miss(cid):
     """Handle a cache miss by attempting to retrieve content via libp2p."""
-    self.stats['cache_misses'] += 1
-    
+    self.stats["cache_misses"] += 1
+
     try:
         self.logger.debug(f"Handling cache miss for {cid} via libp2p")
-        
+
         # Create a future for content retrieval
-        future = self.content_router.retrieve_content(cid, {
-            'timeout': 30,  # 30 second timeout
-            'max_size': 50 * 1024 * 1024  # 50MB size limit
-        })
-        
+        future = self.content_router.retrieve_content(
+            cid,
+            {
+                "timeout": 30,  # 30 second timeout
+                "max_size": 50 * 1024 * 1024,  # 50MB size limit
+            },
+        )
+
         # Get result from future
         start_time = time.time()
         content = future.result(timeout=30)
         retrieve_time = time.time() - start_time
-        
+
         if content:
             # Successfully retrieved content
-            self.stats['cache_misses_handled'] += 1
-            self.stats['total_bytes_retrieved'] += len(content)
-            self.stats['retrieve_times'].append(retrieve_time)
-            
+            self.stats["cache_misses_handled"] += 1
+            self.stats["total_bytes_retrieved"] += len(content)
+            self.stats["retrieve_times"].append(retrieve_time)
+
             # Update the cache with the retrieved content
             if self.cache_manager:
                 self.cache_manager.put(cid, content)
-            
+
             self.logger.info(
                 f"Successfully retrieved {cid} via libp2p "
                 f"({len(content)} bytes in {retrieve_time:.2f}s)"
             )
-            
+
             return content
         else:
             # Failed to retrieve
-            self.stats['cache_misses_failed'] += 1
+            self.stats["cache_misses_failed"] += 1
             self.logger.warning(f"Failed to retrieve {cid} via libp2p")
             return None
-            
+
     except Exception as e:
-        self.stats['cache_misses_failed'] += 1
+        self.stats["cache_misses_failed"] += 1
         self.logger.error(f"Error handling cache miss for {cid}: {e}")
         return None
 ```
@@ -544,27 +544,25 @@ def handle_cache_miss(cid):
 async def find_providers_async(self, cid, count=5):
     """Find providers for content using enhanced DHT discovery."""
     providers = []
-    
+
     # Try to find providers in the DHT
     try:
         # Use our enhanced discovery with reputation tracking
         provider_info = await self.dht.get_providers(cid, count * 2)
-        
+
         # Sort providers by reputation
         sorted_providers = sorted(
-            provider_info,
-            key=lambda p: p.get('reputation', 0.5),
-            reverse=True
+            provider_info, key=lambda p: p.get("reputation", 0.5), reverse=True
         )
-        
+
         # Take the best providers up to count
         providers = sorted_providers[:count]
-        
+
         self.logger.debug(f"Found {len(providers)} providers for {cid}")
-        
+
     except Exception as e:
         self.logger.warning(f"Error finding providers for {cid}: {e}")
-    
+
     return providers
 ```
 
@@ -588,12 +586,10 @@ def _setup_connection_manager(self):
         low_water = 20
         high_water = 100
         grace_period = "10s"
-    
+
     # Apply configuration to the connection manager
     self.host.get_network().get_connection_manager().set_connection_limits(
-        low_water=low_water,
-        high_water=high_water,
-        grace_period=grace_period
+        low_water=low_water, high_water=high_water, grace_period=grace_period
     )
 ```
 
@@ -632,7 +628,7 @@ print(f"Average retrieval time: {stats.get('average_retrieve_time', 0):.2f}s")
 print(f"Total bytes retrieved: {stats.get('total_bytes_retrieved', 0)}")
 
 # Discovery metrics
-discovery_metrics = stats.get('discovery_metrics', {})
+discovery_metrics = stats.get("discovery_metrics", {})
 print(f"Providers found: {discovery_metrics.get('providers_found', 0)}")
 print(f"Failed discoveries: {discovery_metrics.get('failed_discoveries', 0)}")
 ```

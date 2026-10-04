@@ -14,11 +14,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 # Import error handling
-from ipfs_kit_py.mcp.mcp_error_handling import (
-    StorageError,
-    ValidationError,
-    handle_exception
-)
+from ipfs_kit_py.mcp.mcp_error_handling import StorageError, ValidationError, handle_exception
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -27,16 +23,19 @@ logger = logging.getLogger(__name__)
 # Define Pydantic models for requests and responses
 class StorachaSpaceCreationRequest(BaseModel):
     """Request model for Storacha space creation."""
+
     name: Optional[str] = Field(None, description="Optional name for the space")
 
 
 class StorachaSetSpaceRequest(BaseModel):
     """Request model for setting the current Storacha space."""
+
     space_did: str = Field(..., description="Space DID to use")
 
 
 class StorachaUploadRequest(BaseModel):
     """Request model for Storacha upload operations."""
+
     file_path: str = Field(..., description="Local file path to upload")
     space_did: Optional[str] = Field(None, description="Optional space DID to use")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Optional metadata for the file")
@@ -44,18 +43,21 @@ class StorachaUploadRequest(BaseModel):
 
 class StorachaUploadCarRequest(BaseModel):
     """Request model for Storacha CAR upload operations."""
+
     car_path: str = Field(..., description="Local path to CAR file")
     space_did: Optional[str] = Field(None, description="Optional space DID to use")
 
 
 class StorachaDeleteRequest(BaseModel):
     """Request model for Storacha delete operations."""
+
     cid: str = Field(..., description="Content identifier to delete")
     space_did: Optional[str] = Field(None, description="Optional space DID to use")
 
 
 class IPFSStorachaRequest(BaseModel):
     """Request model for IPFS to Storacha operations."""
+
     cid: str = Field(..., description="Content Identifier (CID)")
     space_did: Optional[str] = Field(None, description="Optional space DID to use")
     pin: bool = Field(True, description="Whether to pin the content in IPFS")
@@ -64,6 +66,7 @@ class IPFSStorachaRequest(BaseModel):
 
 class StorachaIPFSRequest(BaseModel):
     """Request model for Storacha to IPFS operations."""
+
     cid: str = Field(..., description="Content Identifier (CID)")
     space_did: Optional[str] = Field(None, description="Optional space DID to use")
     pin: bool = Field(True, description="Whether to pin the content in IPFS")
@@ -71,6 +74,7 @@ class StorachaIPFSRequest(BaseModel):
 
 class OperationResponse(BaseModel):
     """Base response model for operations."""
+
     success: bool = Field(..., description="Whether the operation was successful")
     operation_id: Optional[str] = Field(None, description="Unique identifier for this operation")
     duration_ms: Optional[float] = Field(
@@ -82,6 +86,7 @@ class OperationResponse(BaseModel):
 
 class StorachaSpaceCreationResponse(OperationResponse):
     """Response model for Storacha space creation."""
+
     space_did: Optional[str] = Field(None, description="DID of the created space")
     name: Optional[str] = Field(None, description="Name of the space")
     email: Optional[str] = Field(None, description="Email associated with the space")
@@ -91,18 +96,21 @@ class StorachaSpaceCreationResponse(OperationResponse):
 
 class StorachaListSpacesResponse(OperationResponse):
     """Response model for listing Storacha spaces."""
+
     spaces: Optional[List[Dict[str, Any]]] = Field(None, description="List of spaces")
     count: Optional[int] = Field(None, description="Number of spaces")
 
 
 class StorachaSetSpaceResponse(OperationResponse):
     """Response model for setting the current Storacha space."""
+
     space_did: Optional[str] = Field(None, description="DID of the space")
     space_info: Optional[Dict[str, Any]] = Field(None, description="Additional space information")
 
 
 class StorachaUploadResponse(OperationResponse):
     """Response model for Storacha upload operations."""
+
     cid: Optional[str] = Field(None, description="Content Identifier (CID)")
     size_bytes: Optional[int] = Field(None, description="Size of the uploaded file in bytes")
     root_cid: Optional[str] = Field(None, description="Root CID of the upload")
@@ -113,6 +121,7 @@ class StorachaUploadResponse(OperationResponse):
 
 class StorachaUploadCarResponse(OperationResponse):
     """Response model for Storacha CAR upload operations."""
+
     cid: Optional[str] = Field(None, description="Content Identifier (CID)")
     car_cid: Optional[str] = Field(None, description="CAR file CID")
     size_bytes: Optional[int] = Field(None, description="Size of the uploaded CAR file in bytes")
@@ -124,6 +133,7 @@ class StorachaUploadCarResponse(OperationResponse):
 
 class StorachaListUploadsResponse(OperationResponse):
     """Response model for listing Storacha uploads."""
+
     uploads: Optional[List[Dict[str, Any]]] = Field(None, description="List of uploads")
     count: Optional[int] = Field(None, description="Number of uploads")
     total: Optional[int] = Field(None, description="Total number of uploads")
@@ -132,12 +142,14 @@ class StorachaListUploadsResponse(OperationResponse):
 
 class StorachaDeleteResponse(OperationResponse):
     """Response model for Storacha delete operations."""
+
     cid: Optional[str] = Field(None, description="Content Identifier (CID)")
     space_did: Optional[str] = Field(None, description="DID of the space")
 
 
 class IPFSStorachaResponse(OperationResponse):
     """Response model for IPFS to Storacha operations."""
+
     ipfs_cid: Optional[str] = Field(None, description="Content Identifier (CID) in IPFS")
     storacha_cid: Optional[str] = Field(None, description="Content Identifier (CID) in Storacha")
     size_bytes: Optional[int] = Field(None, description="Size of the file in bytes")
@@ -148,6 +160,7 @@ class IPFSStorachaResponse(OperationResponse):
 
 class StorachaIPFSResponse(OperationResponse):
     """Response model for Storacha to IPFS operations."""
+
     storacha_cid: Optional[str] = Field(None, description="Content Identifier (CID) in Storacha")
     ipfs_cid: Optional[str] = Field(None, description="Content Identifier (CID) in IPFS")
     size_bytes: Optional[int] = Field(None, description="Size of the file in bytes")
@@ -156,9 +169,12 @@ class StorachaIPFSResponse(OperationResponse):
 
 class StorachaStatusResponse(OperationResponse):
     """Response model for Storacha status."""
+
     is_available: bool = Field(..., description="Whether the Storacha service is available")
     backend: str = Field("storacha", description="Backend name")
-    connection_status: Optional[Dict[str, Any]] = Field(None, description="Connection status details")
+    connection_status: Optional[Dict[str, Any]] = Field(
+        None, description="Connection status details"
+    )
     timestamp: float = Field(..., description="Current timestamp")
 
 
@@ -169,6 +185,7 @@ class StorachaController:
     Handles HTTP requests related to Storacha operations and delegates
     the business logic to the Storacha model.
     """
+
     def __init__(self, storacha_model):
         """
         Initialize the Storacha controller.
@@ -317,12 +334,12 @@ class StorachaController:
             if not result.get("success", False):
                 error_detail = {
                     "error": result.get("error", "Failed to create space"),
-                    "error_type": result.get("error_type", "SpaceCreationError")
+                    "error_type": result.get("error_type", "SpaceCreationError"),
                 }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail=f"Space creation failed: {error_detail.get('error')}" # Added context
-                ) # Removed extra parenthesis
+                    detail=f"Space creation failed: {error_detail.get('error')}",  # Added context
+                )  # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -351,12 +368,12 @@ class StorachaController:
             if not result.get("success", False):
                 error_detail = {
                     "error": result.get("error", "Failed to list spaces"),
-                    "error_type": result.get("error_type", "ListSpacesError")
+                    "error_type": result.get("error_type", "ListSpacesError"),
                 }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail=f"Listing spaces failed: {error_detail.get('error')}" # Added context
-                ) # Removed extra parenthesis
+                    detail=f"Listing spaces failed: {error_detail.get('error')}",  # Added context
+                )  # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -388,12 +405,12 @@ class StorachaController:
             if not result.get("success", False):
                 error_detail = {
                     "error": result.get("error", "Failed to set space"),
-                    "error_type": result.get("error_type", "SetSpaceError")
+                    "error_type": result.get("error_type", "SetSpaceError"),
                 }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail=f"Setting space failed: {error_detail.get('error')}" # Added context
-                ) # Removed extra parenthesis
+                    detail=f"Setting space failed: {error_detail.get('error')}",  # Added context
+                )  # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -404,7 +421,9 @@ class StorachaController:
 
         except Exception as e:
             # Handle unexpected errors
-            error_response, status_code = handle_exception(e, "Failed to set current Storacha space")
+            error_response, status_code = handle_exception(
+                e, "Failed to set current Storacha space"
+            )
             raise HTTPException(status_code=status_code, detail=error_response)
 
     async def handle_upload_request(self, request: StorachaUploadRequest):
@@ -420,21 +439,19 @@ class StorachaController:
         try:
             # Delegate to Storacha model
             result = self.storacha_model.upload_file(
-                file_path=request.file_path, 
-                space_did=request.space_did,
-                metadata=request.metadata
+                file_path=request.file_path, space_did=request.space_did, metadata=request.metadata
             )
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
                 error_detail = {
                     "error": result.get("error", "Failed to upload file"),
-                    "error_type": result.get("error_type", "UploadError")
+                    "error_type": result.get("error_type", "UploadError"),
                 }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail=f"File upload failed: {error_detail.get('error')}" # Added context
-                ) # Removed extra parenthesis
+                    detail=f"File upload failed: {error_detail.get('error')}",  # Added context
+                )  # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -449,10 +466,10 @@ class StorachaController:
             raise HTTPException(status_code=status_code, detail=error_response)
 
     async def handle_form_upload_request(
-        self, 
+        self,
         file: UploadFile = File(...),
         space_did: Optional[str] = Form(None),
-        metadata_json: Optional[str] = Form(None)
+        metadata_json: Optional[str] = Form(None),
     ):
         """
         Handle direct file upload via multipart form.
@@ -468,7 +485,7 @@ class StorachaController:
         import tempfile
         import os
         import json
-        
+
         try:
             # Parse metadata if provided
             metadata = None
@@ -477,48 +494,46 @@ class StorachaController:
                     metadata = json.loads(metadata_json)
                 except json.JSONDecodeError:
                     raise ValidationError("Invalid metadata JSON format")
-            
+
             # Create a temporary file to store the upload
             with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{file.filename}") as temp_file:
                 temp_path = temp_file.name
-                
+
                 try:
                     # Write uploaded file to temporary file
                     contents = await file.read()
                     temp_file.write(contents)
                     temp_file.flush()
-                    
+
                     # Upload using the model
                     result = self.storacha_model.upload_file(
-                        file_path=temp_path,
-                        space_did=space_did,
-                        metadata=metadata
+                        file_path=temp_path, space_did=space_did, metadata=metadata
                     )
-                    
+
                     # If operation failed, raise HTTP exception
                     if not result.get("success", False):
                         error_detail = {
                             "error": result.get("error", "Failed to upload file"),
-                            "error_type": result.get("error_type", "UploadError")
+                            "error_type": result.get("error_type", "UploadError"),
                         }
                         raise HTTPException(
                             status_code=result.get("status_code", 500),
-                            detail=f"Form file upload failed: {error_detail.get('error')}" # Added context
-                        ) # Removed extra parenthesis
-                    
+                            detail=f"Form file upload failed: {error_detail.get('error')}",  # Added context
+                        )  # Removed extra parenthesis
+
                     # Generate operation ID if not present
                     if "operation_id" not in result:
                         result["operation_id"] = f"upload_form_{uuid.uuid4()}"
-                    
+
                     return result
-                    
+
                 finally:
                     # Clean up temporary file
                     try:
                         os.unlink(temp_path)
                     except Exception as e:
                         logger.warning(f"Failed to delete temporary file {temp_path}: {e}")
-            
+
         except Exception as e:
             # Handle unexpected errors
             error_response, status_code = handle_exception(e, "Failed to upload file to Storacha")
@@ -544,12 +559,12 @@ class StorachaController:
             if not result.get("success", False):
                 error_detail = {
                     "error": result.get("error", "Failed to upload CAR file"),
-                    "error_type": result.get("error_type", "UploadCarError")
+                    "error_type": result.get("error_type", "UploadCarError"),
                 }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail=f"CAR file upload failed: {error_detail.get('error')}" # Added context
-                ) # Removed extra parenthesis
+                    detail=f"CAR file upload failed: {error_detail.get('error')}",  # Added context
+                )  # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -560,14 +575,16 @@ class StorachaController:
 
         except Exception as e:
             # Handle unexpected errors
-            error_response, status_code = handle_exception(e, "Failed to upload CAR file to Storacha")
+            error_response, status_code = handle_exception(
+                e, "Failed to upload CAR file to Storacha"
+            )
             raise HTTPException(status_code=status_code, detail=error_response)
 
     async def handle_list_uploads_request(
-        self, 
+        self,
         space_did: Optional[str] = None,
         limit: int = Query(100, ge=1, le=1000),
-        offset: int = Query(0, ge=0)
+        offset: int = Query(0, ge=0),
     ):
         """
         Handle list uploads request in Storacha.
@@ -583,21 +600,19 @@ class StorachaController:
         try:
             # Delegate to Storacha model
             result = self.storacha_model.list_uploads(
-                space_did=space_did,
-                limit=limit,
-                offset=offset
+                space_did=space_did, limit=limit, offset=offset
             )
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
                 error_detail = {
                     "error": result.get("error", "Failed to list uploads"),
-                    "error_type": result.get("error_type", "ListUploadsError")
+                    "error_type": result.get("error_type", "ListUploadsError"),
                 }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail=f"Listing uploads failed: {error_detail.get('error')}" # Added context
-                ) # Removed extra parenthesis
+                    detail=f"Listing uploads failed: {error_detail.get('error')}",  # Added context
+                )  # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -629,12 +644,12 @@ class StorachaController:
             if not result.get("success", False):
                 error_detail = {
                     "error": result.get("error", "Failed to delete upload"),
-                    "error_type": result.get("error_type", "DeleteUploadError")
+                    "error_type": result.get("error_type", "DeleteUploadError"),
                 }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail=f"Deleting upload failed: {error_detail.get('error')}" # Added context
-                ) # Removed extra parenthesis
+                    detail=f"Deleting upload failed: {error_detail.get('error')}",  # Added context
+                )  # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -645,7 +660,9 @@ class StorachaController:
 
         except Exception as e:
             # Handle unexpected errors
-            error_response, status_code = handle_exception(e, "Failed to delete upload from Storacha")
+            error_response, status_code = handle_exception(
+                e, "Failed to delete upload from Storacha"
+            )
             raise HTTPException(status_code=status_code, detail=error_response)
 
     async def handle_ipfs_to_storacha_request(self, request: IPFSStorachaRequest):
@@ -661,22 +678,22 @@ class StorachaController:
         try:
             # Delegate to Storacha model
             result = self.storacha_model.ipfs_to_storacha(
-                cid=request.cid, 
-                space_did=request.space_did, 
+                cid=request.cid,
+                space_did=request.space_did,
                 pin=request.pin,
-                metadata=request.metadata
+                metadata=request.metadata,
             )
 
             # If operation failed, raise HTTP exception
             if not result.get("success", False):
                 error_detail = {
                     "error": result.get("error", "Failed to transfer from IPFS to Storacha"),
-                    "error_type": result.get("error_type", "IPFSToStorachaError")
+                    "error_type": result.get("error_type", "IPFSToStorachaError"),
                 }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail=f"IPFS to Storacha transfer failed: {error_detail.get('error')}" # Added context
-                ) # Removed extra parenthesis
+                    detail=f"IPFS to Storacha transfer failed: {error_detail.get('error')}",  # Added context
+                )  # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -687,7 +704,9 @@ class StorachaController:
 
         except Exception as e:
             # Handle unexpected errors
-            error_response, status_code = handle_exception(e, "Failed to transfer from IPFS to Storacha")
+            error_response, status_code = handle_exception(
+                e, "Failed to transfer from IPFS to Storacha"
+            )
             raise HTTPException(status_code=status_code, detail=error_response)
 
     async def handle_storacha_to_ipfs_request(self, request: StorachaIPFSRequest):
@@ -710,12 +729,12 @@ class StorachaController:
             if not result.get("success", False):
                 error_detail = {
                     "error": result.get("error", "Failed to transfer from Storacha to IPFS"),
-                    "error_type": result.get("error_type", "StorachaToIPFSError")
+                    "error_type": result.get("error_type", "StorachaToIPFSError"),
                 }
                 raise HTTPException(
                     status_code=result.get("status_code", 500),
-                    detail=f"Storacha to IPFS transfer failed: {error_detail.get('error')}" # Added context
-                ) # Removed extra parenthesis
+                    detail=f"Storacha to IPFS transfer failed: {error_detail.get('error')}",  # Added context
+                )  # Removed extra parenthesis
 
             # Generate operation ID if not present
             if "operation_id" not in result:
@@ -726,7 +745,9 @@ class StorachaController:
 
         except Exception as e:
             # Handle unexpected errors
-            error_response, status_code = handle_exception(e, "Failed to transfer from Storacha to IPFS")
+            error_response, status_code = handle_exception(
+                e, "Failed to transfer from Storacha to IPFS"
+            )
             raise HTTPException(status_code=status_code, detail=error_response)
 
     async def handle_status_request(self):
@@ -739,10 +760,10 @@ class StorachaController:
         try:
             # Check if the service is available
             is_available = self.storacha_model.is_available()
-            
+
             # Get connection status if available
             connection_status = self.storacha_model.get_connection_status()
-            
+
             # Create response
             return {
                 "success": True,
@@ -753,7 +774,7 @@ class StorachaController:
                 "connection_status": connection_status,
                 "timestamp": time.time(),
             }
-            
+
         except Exception as e:
             # Handle unexpected errors
             error_response, status_code = handle_exception(e, "Failed to get Storacha status")

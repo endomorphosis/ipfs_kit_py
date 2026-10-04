@@ -3,7 +3,7 @@
 Migration Script: Convert all WAL systems from Parquet to CAR format
 
 This script identifies all WAL implementations in the ipfs_kit_py project
-and creates the necessary updates to migrate from Parquet-based WAL to 
+and creates the necessary updates to migrate from Parquet-based WAL to
 CAR-based WAL using dag-cbor and multiformats libraries.
 """
 
@@ -19,47 +19,43 @@ from datetime import datetime
 # Import our CAR WAL manager
 from ipfs_kit_py.car_wal_manager import get_car_wal_manager
 
+
 class WALMigrationManager:
     """Manages migration from Parquet WAL to CAR WAL across the entire project."""
-    
+
     def __init__(self, project_root: Path):
         self.project_root = project_root
         self.ipfs_kit_dir = project_root / "ipfs_kit_py"
         self.backup_dir = project_root / "wal_migration_backup"
         self.migration_results = []
-        
+
     def analyze_wal_usage(self) -> Dict[str, List[str]]:
         """Analyze all WAL usage in the project."""
-        
+
         wal_files = {
             "bucket_managers": [],
             "daemon_components": [],
             "cli_handlers": [],
-            "other_wal": []
+            "other_wal": [],
         }
-        
+
         # Files that contain WAL implementations
         key_files = [
             # Main bucket manager (already updated)
             "ipfs_kit_py/simple_bucket_manager.py",
-            
             # Other bucket managers
             "ipfs_kit_py/bucket_vfs_manager.py",
-            
             # PIN WAL system
             "ipfs_kit_py/pin_wal.py",
-            
             # Enhanced WAL managers
             "tools/enhanced_wal_manager.py",
             "reorganization_backup_root/enhanced_wal_manager.py",
-            
             # CLI components
             "ipfs_kit_py/cli.py",
-            
             # Daemon components (if any exist)
             "ipfs_kit_py/libp2p_peer.py",
         ]
-        
+
         for file_path in key_files:
             full_path = self.project_root / file_path
             if full_path.exists():
@@ -72,50 +68,50 @@ class WALMigrationManager:
                     wal_files["cli_handlers"].append(str(full_path))
                 else:
                     wal_files["other_wal"].append(str(full_path))
-        
+
         return wal_files
-    
+
     async def create_backup(self):
         """Create backup of existing WAL systems."""
         print(f"🔄 Creating backup at {self.backup_dir}")
-        
+
         if self.backup_dir.exists():
             shutil.rmtree(self.backup_dir)
-        
+
         self.backup_dir.mkdir(parents=True)
-        
+
         # Backup user WAL data if it exists
         wal_data_paths = [
             Path.home() / ".ipfs_kit" / "wal",
             Path("/tmp/ipfs_kit_wal"),
-            self.project_root / "data" / "wal"
+            self.project_root / "data" / "wal",
         ]
-        
+
         for wal_path in wal_data_paths:
             if wal_path.exists():
                 backup_target = self.backup_dir / f"wal_data_{wal_path.name}"
                 shutil.copytree(wal_path, backup_target)
                 print(f"  ✅ Backed up WAL data: {wal_path} → {backup_target}")
-    
+
     async def migrate_pin_wal(self):
         """Migrate the PIN WAL system to use CAR format."""
         print("🔄 Migrating PIN WAL system...")
-        
+
         pin_wal_file = self.ipfs_kit_dir / "pin_wal.py"
-        
+
         if not pin_wal_file.exists():
             print("  ⚠️ pin_wal.py not found, skipping")
             return
-        
+
         # Read current content
-        with open(pin_wal_file, 'r') as f:
+        with open(pin_wal_file, "r") as f:
             content = f.read()
-        
+
         # Check if it already uses CAR
         if "car_wal_manager" in content:
             print("  ✅ PIN WAL already uses CAR format")
             return
-        
+
         # Create enhanced PIN WAL with CAR support
         enhanced_pin_wal = '''#!/usr/bin/env python3
 """
@@ -426,184 +422,188 @@ async def remove_pin_from_wal(
         priority=priority
     )
 '''
-        
+
         # Write the enhanced PIN WAL
-        with open(pin_wal_file, 'w') as f:
+        with open(pin_wal_file, "w") as f:
             f.write(enhanced_pin_wal)
-        
+
         print("  ✅ Enhanced PIN WAL with CAR support")
-        self.migration_results.append({
-            "component": "PIN WAL",
-            "file": str(pin_wal_file),
-            "status": "migrated",
-            "format": "CAR with JSON fallback"
-        })
-    
+        self.migration_results.append(
+            {
+                "component": "PIN WAL",
+                "file": str(pin_wal_file),
+                "status": "migrated",
+                "format": "CAR with JSON fallback",
+            }
+        )
+
     async def migrate_enhanced_wal_manager(self):
         """Migrate enhanced WAL manager to support CAR format."""
         print("🔄 Migrating Enhanced WAL Manager...")
-        
+
         enhanced_wal_file = self.project_root / "tools" / "enhanced_wal_manager.py"
-        
+
         if not enhanced_wal_file.exists():
             print("  ⚠️ Enhanced WAL manager not found, skipping")
             return
-        
+
         # Read current content
-        with open(enhanced_wal_file, 'r') as f:
+        with open(enhanced_wal_file, "r") as f:
             content = f.read()
-        
+
         # Check if it already supports CAR
         if "car_wal_manager" in content:
             print("  ✅ Enhanced WAL Manager already supports CAR format")
             return
-        
+
         # Add CAR support to the enhanced WAL manager
         # We'll add CAR import and modify the WALOperation class
-        car_import = '''
+        car_import = """
 # Import CAR WAL manager
 try:
     from ipfs_kit_py.car_wal_manager import get_car_wal_manager
     CAR_WAL_AVAILABLE = True
 except ImportError:
     CAR_WAL_AVAILABLE = False
-'''
-        
+"""
+
         # Insert the import after the existing imports
-        import_insertion_point = content.find('logger = logging.getLogger(__name__)')
+        import_insertion_point = content.find("logger = logging.getLogger(__name__)")
         if import_insertion_point != -1:
             new_content = (
-                content[:import_insertion_point] +
-                car_import + '\n' +
-                content[import_insertion_point:]
+                content[:import_insertion_point]
+                + car_import
+                + "\n"
+                + content[import_insertion_point:]
             )
-            
-            with open(enhanced_wal_file, 'w') as f:
+
+            with open(enhanced_wal_file, "w") as f:
                 f.write(new_content)
-            
+
             print("  ✅ Added CAR WAL support to Enhanced WAL Manager")
-            self.migration_results.append({
-                "component": "Enhanced WAL Manager",
-                "file": str(enhanced_wal_file),
-                "status": "enhanced",
-                "format": "Hybrid Parquet+CAR"
-            })
+            self.migration_results.append(
+                {
+                    "component": "Enhanced WAL Manager",
+                    "file": str(enhanced_wal_file),
+                    "status": "enhanced",
+                    "format": "Hybrid Parquet+CAR",
+                }
+            )
         else:
             print("  ⚠️ Could not find insertion point in Enhanced WAL Manager")
-    
+
     async def update_bucket_vfs_manager(self):
         """Update bucket VFS manager to use CAR WAL."""
         print("🔄 Updating Bucket VFS Manager...")
-        
+
         bucket_vfs_file = self.ipfs_kit_dir / "bucket_vfs_manager.py"
-        
+
         if not bucket_vfs_file.exists():
             print("  ⚠️ Bucket VFS manager not found, skipping")
             return
-        
+
         # Read current content
-        with open(bucket_vfs_file, 'r') as f:
+        with open(bucket_vfs_file, "r") as f:
             content = f.read()
-        
+
         # Check if it already uses CAR WAL
         if "car_wal_manager" in content:
             print("  ✅ Bucket VFS Manager already uses CAR WAL")
             return
-        
+
         # Add CAR WAL import
-        car_import = '''
+        car_import = """
 # Import CAR WAL Manager
 try:
     from .car_wal_manager import get_car_wal_manager
     CAR_WAL_AVAILABLE = True
 except ImportError:
     CAR_WAL_AVAILABLE = False
-'''
-        
+"""
+
         # Find the import section and add our import
-        import_insertion = content.find('from .error import create_result_dict, handle_error')
+        import_insertion = content.find("from .error import create_result_dict, handle_error")
         if import_insertion != -1:
-            insertion_end = content.find('\n', import_insertion) + 1
-            new_content = (
-                content[:insertion_end] +
-                car_import + '\n' +
-                content[insertion_end:]
-            )
-            
-            with open(bucket_vfs_file, 'w') as f:
+            insertion_end = content.find("\n", import_insertion) + 1
+            new_content = content[:insertion_end] + car_import + "\n" + content[insertion_end:]
+
+            with open(bucket_vfs_file, "w") as f:
                 f.write(new_content)
-            
+
             print("  ✅ Added CAR WAL import to Bucket VFS Manager")
-            self.migration_results.append({
-                "component": "Bucket VFS Manager",
-                "file": str(bucket_vfs_file),
-                "status": "import_added",
-                "format": "Ready for CAR WAL integration"
-            })
+            self.migration_results.append(
+                {
+                    "component": "Bucket VFS Manager",
+                    "file": str(bucket_vfs_file),
+                    "status": "import_added",
+                    "format": "Ready for CAR WAL integration",
+                }
+            )
         else:
             print("  ⚠️ Could not find import section in Bucket VFS Manager")
-    
+
     async def verify_migration(self):
         """Verify that the migration was successful."""
         print("🔍 Verifying CAR WAL migration...")
-        
+
         # Test that our CAR WAL manager can be imported and used
         try:
             from ipfs_kit_py.car_wal_manager import get_car_wal_manager
-            
+
             # Create a test CAR WAL manager
             test_wal_dir = Path("/tmp/car_wal_migration_test")
             car_wal = get_car_wal_manager(test_wal_dir)
-            
+
             # Test basic functionality
             test_result = await car_wal.store_content_to_wal(
                 file_cid="test-migration-cid",
                 content=b"test migration content",
                 file_path="/test/migration.txt",
-                metadata={"test": "migration"}
+                metadata={"test": "migration"},
             )
-            
+
             if test_result.get("success"):
                 print("  ✅ CAR WAL manager working correctly")
-                
+
                 # Clean up test
                 import shutil
+
                 if test_wal_dir.exists():
                     shutil.rmtree(test_wal_dir)
-                
+
                 return True
             else:
                 print(f"  ❌ CAR WAL test failed: {test_result.get('error')}")
                 return False
-                
+
         except Exception as e:
             print(f"  ❌ CAR WAL verification failed: {e}")
             return False
-    
+
     async def run_migration(self):
         """Run the complete migration process."""
         print("🚀 Starting CAR WAL Migration...")
         print("=" * 60)
-        
+
         try:
             # Step 1: Create backup
             await self.create_backup()
-            
+
             # Step 2: Migrate PIN WAL
             await self.migrate_pin_wal()
-            
+
             # Step 3: Migrate Enhanced WAL Manager
             await self.migrate_enhanced_wal_manager()
-            
+
             # Step 4: Update Bucket VFS Manager
             await self.update_bucket_vfs_manager()
-            
+
             # Step 5: Verify migration
             migration_successful = await self.verify_migration()
-            
+
             # Step 6: Generate migration report
             await self.generate_migration_report(migration_successful)
-            
+
             print("=" * 60)
             if migration_successful:
                 print("✅ CAR WAL Migration completed successfully!")
@@ -611,14 +611,14 @@ except ImportError:
             else:
                 print("❌ CAR WAL Migration completed with errors")
                 print("Check the migration report for details")
-                
+
         except Exception as e:
             print(f"❌ Migration failed: {e}")
             raise
-    
+
     async def generate_migration_report(self, successful: bool):
         """Generate a detailed migration report."""
-        
+
         report = {
             "migration_date": datetime.now().isoformat(),
             "successful": successful,
@@ -633,14 +633,14 @@ except ImportError:
                 "pin_wal.py enhanced with CAR support and JSON fallback",
                 "CAR WAL uses dag-cbor encoding for IPLD compatibility",
                 "All WAL operations now support both CAR and legacy formats",
-                "Daemon processing updated to handle CAR files"
-            ]
+                "Daemon processing updated to handle CAR files",
+            ],
         }
-        
+
         report_file = self.backup_dir / "migration_report.json"
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             json.dump(report, f, indent=2)
-        
+
         print(f"\n📋 Migration Summary:")
         print(f"   - Components migrated: {len(self.migration_results)}")
         print(f"   - Backup created: {self.backup_dir}")
@@ -651,24 +651,24 @@ except ImportError:
 
 async def main():
     """Run the CAR WAL migration."""
-    
+
     # Get project root
     project_root = Path(__file__).parent
-    
+
     # Create migration manager
     migration_manager = WALMigrationManager(project_root)
-    
+
     # Analyze current WAL usage
     print("🔍 Analyzing current WAL usage...")
     wal_usage = migration_manager.analyze_wal_usage()
-    
+
     print("Current WAL implementations found:")
     for category, files in wal_usage.items():
         if files:
             print(f"  {category}: {len(files)} files")
             for file in files:
                 print(f"    - {file}")
-    
+
     # Run migration
     await migration_manager.run_migration()
 

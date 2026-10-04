@@ -16,6 +16,7 @@ import sniffio
 try:
     import anyio
     import anyio.from_thread
+
     HAS_ANYIO = True
 except ImportError:
     HAS_ANYIO = False
@@ -29,10 +30,11 @@ except ImportError:
         def __init__(self, **kwargs):
             for key, value in kwargs.items():
                 setattr(self, key, value)
-            
+
     # Add Field as a no-op function
     def Field(**kwargs):
         return None
+
 
 # Import WebRTC dependencies and status flags
 try:
@@ -43,7 +45,8 @@ try:
         HAVE_NUMPY,
         HAVE_AIORTC,
         WebRTCStreamingManager,
-        check_webrtc_dependencies)
+        check_webrtc_dependencies,
+    )
 except ImportError:
     # Set flags to False if the module is not available
     HAVE_WEBRTC = False
@@ -113,19 +116,21 @@ def _run_async_from_sync(async_fn, *args, **kwargs):
 # Define Pydantic models for requests and responses
 class WebRTCResponse(BaseModel):
     """
-import sys
-import os
-# Add the parent directory to sys.path to allow importing mcp_error_handling
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-import mcp_error_handling
+    import sys
+    import os
+    # Add the parent directory to sys.path to allow importing mcp_error_handling
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+    import mcp_error_handling
 
-Base response model for WebRTC operations."""
+    Base response model for WebRTC operations."""
+
     success: bool = Field(..., description="Whether the operation was successful")
     operation_id: str = Field(None, description="Unique identifier for this operation")
 
 
 class ResourceStatsResponse(WebRTCResponse):
     """Response model for resource statistics."""
+
     servers: Dict[str, Any] = Field(None, description="Streaming server statistics")
     connections: Dict[str, Any] = Field(None, description="Connection statistics")
     timestamp: float = Field(None, description="Timestamp of the statistics")
@@ -135,6 +140,7 @@ class ResourceStatsResponse(WebRTCResponse):
 
 class StreamRequest(BaseModel):
     """Request model for starting a WebRTC stream."""
+
     cid: str = Field(..., description="Content Identifier (CID) of the media to stream")
     address: str = Field("127.0.0.1", description="Address to bind the WebRTC signaling server")
     port: int = Field(8080, description="Port for the WebRTC signaling server")
@@ -155,17 +161,20 @@ class StreamRequest(BaseModel):
 
 class StreamResponse(WebRTCResponse):
     """Response model for starting a WebRTC stream."""
+
     server_id: Optional[str] = Field(None, description="ID of the WebRTC streaming server")
     url: Optional[str] = Field(None, description="URL to access the WebRTC stream")
 
 
 class ConnectionResponse(WebRTCResponse):
     """Response model for WebRTC connection operations."""
+
     connection_id: Optional[str] = Field(None, description="ID of the WebRTC connection")
 
 
 class ConnectionsListResponse(WebRTCResponse):
     """Response model for listing WebRTC connections."""
+
     connections: Optional[List[Dict[str, Any]]] = Field(
         None, description="List of active WebRTC connections"
     )
@@ -173,6 +182,7 @@ class ConnectionsListResponse(WebRTCResponse):
 
 class ConnectionStatsResponse(WebRTCResponse):
     """Response model for WebRTC connection statistics."""
+
     stats: Optional[Dict[str, Any]] = Field(
         None, description="Statistics for the WebRTC connection"
     )
@@ -180,6 +190,7 @@ class ConnectionStatsResponse(WebRTCResponse):
 
 class DependencyResponse(WebRTCResponse):
     """Response model for WebRTC dependency check."""
+
     dependencies: Optional[Dict[str, bool]] = Field(None, description="WebRTC dependencies status")
     webrtc_available: bool = Field(False, description="Whether WebRTC is available")
     installation_command: Optional[str] = Field(None, description="Command to install dependencies")
@@ -187,6 +198,7 @@ class DependencyResponse(WebRTCResponse):
 
 class BenchmarkRequest(BaseModel):
     """Request model for running a WebRTC benchmark."""
+
     cid: str = Field(..., description="Content Identifier (CID) of the media to benchmark")
     duration: int = Field(60, description="Benchmark duration in seconds")
     format: str = Field("json", description="Report output format (json, html, csv)")
@@ -195,6 +207,7 @@ class BenchmarkRequest(BaseModel):
 
 class BenchmarkResponse(WebRTCResponse):
     """Response model for WebRTC benchmark results."""
+
     benchmark_id: Optional[str] = Field(None, description="ID of the benchmark run")
     report_path: Optional[str] = Field(None, description="Path to the benchmark report file")
     summary: Optional[Dict[str, Any]] = Field(None, description="Summary of benchmark results")
@@ -202,6 +215,7 @@ class BenchmarkResponse(WebRTCResponse):
 
 class QualityRequest(BaseModel):
     """Request model for changing WebRTC quality."""
+
     connection_id: str = Field(..., description="ID of the WebRTC connection")
     quality: str = Field(..., description="Quality preset to use (low, medium, high, auto)")
 
@@ -213,6 +227,7 @@ class WebRTCController:
     Handles HTTP requests related to WebRTC operations and delegates
     the business logic to the IPFS model.
     """
+
     def __init__(self, ipfs_model):
         """
         Initialize the WebRTC controller.
@@ -240,6 +255,7 @@ class WebRTCController:
 
     def _start_cleanup_task(self):
         """Start a periodic background task to clean up stale resources."""
+
         async def periodic_cleanup():
             with anyio.CancelScope() as cs:
                 self.cleanup_task = cs
@@ -1083,11 +1099,11 @@ class WebRTCController:
                 if "dependencies" in result:
                     error_msg = "WebRTC dependencies not available"
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/webrtc",
-        doc_category="api"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override=error_msg,
+                    endpoint="/api/v0/webrtc",
+                    doc_category="api",
+                )
 
             # Track the streaming server for cleanup
             server_id = result.get("server_id")
@@ -1109,7 +1125,7 @@ class WebRTCController:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/webrtc",
-                doc_category="api"
+                doc_category="api",
             )
 
     async def stop_streaming(self, server_id: str) -> Dict[str, Any]:
@@ -1137,11 +1153,11 @@ class WebRTCController:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/webrtc",
-        doc_category="api"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override=error_msg,
+                    endpoint="/api/v0/webrtc",
+                    doc_category="api",
+                )
 
             # Remove from active servers tracking
             if server_id in self.active_streaming_servers:
@@ -1160,7 +1176,7 @@ class WebRTCController:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/webrtc",
-                doc_category="api"
+                doc_category="api",
             )
 
     async def list_connections(self) -> Dict[str, Any]:
@@ -1183,11 +1199,11 @@ class WebRTCController:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/webrtc",
-        doc_category="api"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override=error_msg,
+                    endpoint="/api/v0/webrtc",
+                    doc_category="api",
+                )
 
             # Update connection tracking
             connections = result.get("connections", [])
@@ -1222,7 +1238,7 @@ class WebRTCController:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/webrtc",
-                doc_category="api"
+                doc_category="api",
             )
 
     async def get_connection_stats(self, connection_id: str) -> Dict[str, Any]:
@@ -1258,11 +1274,11 @@ class WebRTCController:
                     del self.active_connections[connection_id]
 
                 mcp_error_handling.raise_http_exception(
-        code="CONTENT_NOT_FOUND",
-        message_override=error_msg,
-        endpoint="/api/v0/webrtc",
-        doc_category="api"
-    )
+                    code="CONTENT_NOT_FOUND",
+                    message_override=error_msg,
+                    endpoint="/api/v0/webrtc",
+                    doc_category="api",
+                )
 
             # Update our tracking with latest stats
             stats = result.get("stats", {})
@@ -1297,7 +1313,7 @@ class WebRTCController:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/webrtc",
-                doc_category="api"
+                doc_category="api",
             )
 
     async def close_connection(self, connection_id: str) -> Dict[str, Any]:
@@ -1327,11 +1343,11 @@ class WebRTCController:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 mcp_error_handling.raise_http_exception(
-        code="CONTENT_NOT_FOUND",
-        message_override=error_msg,
-        endpoint="/api/v0/webrtc",
-        doc_category="api"
-    )
+                    code="CONTENT_NOT_FOUND",
+                    message_override=error_msg,
+                    endpoint="/api/v0/webrtc",
+                    doc_category="api",
+                )
 
             # Remove from active connections tracking
             if connection_id in self.active_connections:
@@ -1350,7 +1366,7 @@ class WebRTCController:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/webrtc",
-                doc_category="api"
+                doc_category="api",
             )
 
     async def close_all_connections(self) -> Dict[str, Any]:
@@ -1375,11 +1391,11 @@ class WebRTCController:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/webrtc",
-        doc_category="api"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override=error_msg,
+                    endpoint="/api/v0/webrtc",
+                    doc_category="api",
+                )
 
             # Clear all connection tracking
             count = len(self.active_connections)
@@ -1397,7 +1413,7 @@ class WebRTCController:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/webrtc",
-                doc_category="api"
+                doc_category="api",
             )
 
     async def set_quality(self, request: QualityRequest) -> Dict[str, Any]:
@@ -1431,11 +1447,11 @@ class WebRTCController:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 mcp_error_handling.raise_http_exception(
-        code="CONTENT_NOT_FOUND",
-        message_override=error_msg,
-        endpoint="/api/v0/webrtc",
-        doc_category="api"
-    )
+                    code="CONTENT_NOT_FOUND",
+                    message_override=error_msg,
+                    endpoint="/api/v0/webrtc",
+                    doc_category="api",
+                )
 
             # Update connection tracking with new quality setting
             if request.connection_id in self.active_connections:
@@ -1459,7 +1475,7 @@ class WebRTCController:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/webrtc",
-                doc_category="api"
+                doc_category="api",
             )
 
     async def get_resources_endpoint(self) -> Dict[str, Any]:
@@ -1527,11 +1543,11 @@ class WebRTCController:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error")
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=error_msg,
-        endpoint="/api/v0/webrtc",
-        doc_category="api"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override=error_msg,
+                    endpoint="/api/v0/webrtc",
+                    doc_category="api",
+                )
 
             # Track benchmarks for potential cleanup
             benchmark_id = result.get("benchmark_id")
@@ -1588,5 +1604,5 @@ class WebRTCController:
                 code="INTERNAL_ERROR",
                 message_override=str(e),
                 endpoint="/api/v0/webrtc",
-                doc_category="api"
+                doc_category="api",
             )

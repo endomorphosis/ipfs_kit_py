@@ -10,12 +10,13 @@ import sys
 import re
 import ast
 
+
 def check_syntax(file_path):
     """Check a file for syntax errors."""
     print(f"Checking syntax of {file_path}")
 
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             source = f.read()
 
         # Try to compile the source code to check for syntax errors
@@ -26,9 +27,10 @@ def check_syntax(file_path):
         print(f"Syntax error at line {e.lineno}, column {e.offset}: {e.msg}")
         return False, e
 
+
 def fix_try_except_block(file_path, error_line):
     """Fix a try block that's missing an except or finally clause."""
-    with open(file_path, 'r') as f:
+    with open(file_path, "r") as f:
         lines = f.readlines()
 
     # Find the try block at the error line
@@ -49,14 +51,16 @@ def fix_try_except_block(file_path, error_line):
         indent = len(line) - len(line.lstrip())
 
         # Check for block endings
-        if re.match(r'^\s*\)\s*:\s*$', line):  # End of a complex condition block
+        if re.match(r"^\s*\)\s*:\s*$", line):  # End of a complex condition block
             open_blocks += 1
-        elif re.match(r'^\s*\S+.*:\s*$', line) and not line.strip().startswith('#'):  # Start of a new block
+        elif re.match(r"^\s*\S+.*:\s*$", line) and not line.strip().startswith(
+            "#"
+        ):  # Start of a new block
             if open_blocks > 0:
                 open_blocks -= 1
             else:
                 # This might be the try statement
-                if re.match(r'^\s*try\s*:\s*$', line):
+                if re.match(r"^\s*try\s*:\s*$", line):
                     try_line = line_idx
                     break
 
@@ -79,22 +83,23 @@ def fix_try_except_block(file_path, error_line):
         line_idx += 1
 
     # Insert a basic except block at this position
-    except_block = ' ' * try_indent + 'except Exception as e:\n'
-    except_block += ' ' * (try_indent + 4) + 'logger.error(f"Error: {e}")\n'
-    except_block += ' ' * (try_indent + 4) + 'return {"success": False, "error": str(e)}\n'
+    except_block = " " * try_indent + "except Exception as e:\n"
+    except_block += " " * (try_indent + 4) + 'logger.error(f"Error: {e}")\n'
+    except_block += " " * (try_indent + 4) + 'return {"success": False, "error": str(e)}\n'
 
     lines.insert(line_idx, except_block)
 
     # Write back the fixed file
-    with open(file_path, 'w') as f:
+    with open(file_path, "w") as f:
         f.writelines(lines)
 
     print(f"Fixed try-except block at line {try_line + 1}")
     return True
 
+
 def main():
     """Main function."""
-    controller_path = '/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller.py'
+    controller_path = "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/ipfs_controller.py"
 
     # Check for syntax errors
     syntax_ok, error = check_syntax(controller_path)
@@ -119,6 +124,7 @@ def main():
         return 1
 
     return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

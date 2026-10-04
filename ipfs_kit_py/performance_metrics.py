@@ -775,7 +775,7 @@ class PerformanceMetrics:
         self.record_bandwidth_usage(
             direction, size_bytes, source=endpoint, correlation_id=correlation_id
         )
-        
+
     def track_streaming_operation(
         self,
         stream_type: str,
@@ -789,11 +789,11 @@ class PerformanceMetrics:
     ):
         """
         Track metrics for a streaming operation.
-        
+
         This method records comprehensive metrics for content streaming operations,
         including throughput calculations, bandwidth usage, and detailed metadata
         about the stream characteristics.
-        
+
         Args:
             stream_type: Type of stream ('http', 'websocket', 'p2p', etc.)
             direction: 'inbound' (downloading) or 'outbound' (uploading)
@@ -803,39 +803,45 @@ class PerformanceMetrics:
             chunk_count: Optional count of chunks transferred
             chunk_size: Optional size of chunks in bytes
             correlation_id: Optional ID to correlate related operations
-            
+
         Returns:
             Dictionary with operation metrics including calculated throughput
         """
         # Record operation latency
         operation = f"stream_{stream_type}_{direction}"
         self.record_operation_time(operation, duration_seconds, correlation_id=correlation_id)
-        
+
         # Record bandwidth usage
-        self.record_bandwidth_usage(direction, size_bytes, source=stream_type, correlation_id=correlation_id)
-        
+        self.record_bandwidth_usage(
+            direction, size_bytes, source=stream_type, correlation_id=correlation_id
+        )
+
         # Calculate throughput (bytes per second)
         throughput = size_bytes / duration_seconds if duration_seconds > 0 else 0
-        
+
         # Add to throughput metrics
         now = time.time()
         if direction == "inbound":
-            self.throughput["bytes_per_second"].append({
-                "timestamp": now,
-                "inbound": throughput,
-                "outbound": 0,
-                "total": throughput,
-                "source": stream_type
-            })
+            self.throughput["bytes_per_second"].append(
+                {
+                    "timestamp": now,
+                    "inbound": throughput,
+                    "outbound": 0,
+                    "total": throughput,
+                    "source": stream_type,
+                }
+            )
         else:
-            self.throughput["bytes_per_second"].append({
-                "timestamp": now,
-                "inbound": 0,
-                "outbound": throughput,
-                "total": throughput,
-                "source": stream_type
-            })
-            
+            self.throughput["bytes_per_second"].append(
+                {
+                    "timestamp": now,
+                    "inbound": 0,
+                    "outbound": throughput,
+                    "total": throughput,
+                    "source": stream_type,
+                }
+            )
+
         # Track correlation with additional metadata if provided
         if correlation_id:
             metadata = {
@@ -845,18 +851,18 @@ class PerformanceMetrics:
                 "duration_seconds": duration_seconds,
                 "throughput_bps": throughput,
                 "timestamp": now,
-                "stream_type": stream_type
+                "stream_type": stream_type,
             }
-            
+
             if path:
                 metadata["path"] = path
             if chunk_count:
                 metadata["chunk_count"] = chunk_count
             if chunk_size:
                 metadata["chunk_size"] = chunk_size
-                
+
             self.correlated_operations[correlation_id].append(metadata)
-            
+
         # Log significant streaming events
         if size_bytes > 10 * 1024 * 1024:  # Over 10MB
             logger.info(
@@ -864,14 +870,14 @@ class PerformanceMetrics:
                 f"{self._format_size(size_bytes)} in {duration_seconds:.2f}s, "
                 f"throughput: {self._format_size(throughput)}/s"
             )
-            
+
         return {
             "operation": operation,
             "size_bytes": size_bytes,
             "duration_seconds": duration_seconds,
             "throughput_bps": throughput,
             "direction": direction,
-            "stream_type": stream_type
+            "stream_type": stream_type,
         }
 
     def track_cache_access(self, hit: bool, tier: str = None, correlation_id: Optional[str] = None):
@@ -1131,7 +1137,7 @@ class PerformanceMetrics:
                     "",
                     f"- **Total accesses**: {total_accesses}",
                     f"- **Cache hits**: {cache_hits} ({hit_rate:.2%})",
-                    f"- **Cache misses**: {cache_misses} ({1-hit_rate:.2%})",
+                    f"- **Cache misses**: {cache_misses} ({1 - hit_rate:.2%})",
                     "",
                     "### Cache Tier Statistics",
                     "",
@@ -1242,7 +1248,7 @@ class PerformanceMetrics:
                     "CACHE PERFORMANCE:",
                     f"- Total accesses: {total_accesses}",
                     f"- Cache hits: {cache_hits} ({hit_rate:.2%})",
-                    f"- Cache misses: {cache_misses} ({1-hit_rate:.2%})",
+                    f"- Cache misses: {cache_misses} ({1 - hit_rate:.2%})",
                     "",
                     "CACHE TIER STATISTICS:",
                     f"{'Tier':<15} {'Hits':<8} {'Misses':<8} {'Hit Rate':<10}",
