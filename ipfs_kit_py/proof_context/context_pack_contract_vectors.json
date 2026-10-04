@@ -1,0 +1,216 @@
+{
+  "schema": "ipfs-kit.proof-context.context-pack-store-vectors@1",
+  "interface": "KitContextPackStore@1",
+  "namespace": "ContextPack",
+  "closed_fields": [
+    "schema",
+    "interface",
+    "namespace",
+    "role",
+    "cid",
+    "kind",
+    "generation",
+    "parent_cid",
+    "cache_key",
+    "byte_length"
+  ],
+  "allowed_kinds": [
+    "checkpoint_seal",
+    "delta_seal",
+    "proof_manifest",
+    "proof_receipt",
+    "merkle_node",
+    "tombstone",
+    "invalidation_record"
+  ],
+  "forbidden_kinds": ["proof_object", "proving_key", "witness"],
+  "roles": ["candidate", "admitted", "current"],
+  "cases": [
+    {
+      "id": "valid-admitted-seal",
+      "expect": "accept",
+      "record": {
+        "schema": "ipfs-kit.proof-context.context-pack-store@1",
+        "interface": "KitContextPackStore@1",
+        "namespace": "ContextPack",
+        "role": "admitted",
+        "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        "kind": "checkpoint_seal",
+        "generation": 0,
+        "parent_cid": "",
+        "cache_key": "pack:valid-admitted",
+        "byte_length": 32
+      }
+    },
+    {
+      "id": "valid-candidate-delta",
+      "expect": "accept",
+      "record": {
+        "schema": "ipfs-kit.proof-context.context-pack-store@1",
+        "interface": "KitContextPackStore@1",
+        "namespace": "ContextPack",
+        "role": "candidate",
+        "cid": "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku",
+        "kind": "delta_seal",
+        "generation": 1,
+        "parent_cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        "cache_key": "pack:valid-candidate",
+        "byte_length": 48
+      }
+    },
+    {
+      "id": "valid-current-seal",
+      "expect": "accept",
+      "record": {
+        "schema": "ipfs-kit.proof-context.context-pack-store@1",
+        "interface": "KitContextPackStore@1",
+        "namespace": "ContextPack",
+        "role": "current",
+        "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        "kind": "checkpoint_seal",
+        "generation": 0,
+        "parent_cid": "",
+        "cache_key": "pack:valid-current",
+        "byte_length": 32
+      }
+    },
+    {
+      "id": "valid-receipt",
+      "expect": "accept",
+      "record": {
+        "schema": "ipfs-kit.proof-context.context-pack-store@1",
+        "interface": "KitContextPackStore@1",
+        "namespace": "ContextPack",
+        "role": "admitted",
+        "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        "kind": "proof_receipt",
+        "generation": 2,
+        "parent_cid": "",
+        "cache_key": "receipt:valid",
+        "byte_length": 16
+      }
+    },
+    {
+      "id": "unknown-field-top-level",
+      "expect": "reject",
+      "reason": "unknown_field",
+      "record": {
+        "schema": "ipfs-kit.proof-context.context-pack-store@1",
+        "interface": "KitContextPackStore@1",
+        "namespace": "ContextPack",
+        "role": "admitted",
+        "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        "kind": "checkpoint_seal",
+        "generation": 0,
+        "parent_cid": "",
+        "cache_key": "pack:unknown",
+        "byte_length": 32,
+        "unexpected": true
+      }
+    },
+    {
+      "id": "unknown-field-semantic-claim",
+      "expect": "reject",
+      "reason": "unknown_field",
+      "record": {
+        "schema": "ipfs-kit.proof-context.context-pack-store@1",
+        "interface": "KitContextPackStore@1",
+        "namespace": "ContextPack",
+        "role": "current",
+        "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        "kind": "checkpoint_seal",
+        "generation": 0,
+        "parent_cid": "",
+        "cache_key": "pack:semantic",
+        "byte_length": 32,
+        "semantic_valid": true
+      }
+    },
+    {
+      "id": "unknown-field-reuse-admission",
+      "expect": "reject",
+      "reason": "unknown_field",
+      "record": {
+        "schema": "ipfs-kit.proof-context.context-pack-store@1",
+        "interface": "KitContextPackStore@1",
+        "namespace": "ContextPack",
+        "role": "candidate",
+        "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        "kind": "checkpoint_seal",
+        "generation": 0,
+        "parent_cid": "",
+        "cache_key": "pack:reuse",
+        "byte_length": 32,
+        "reuse_admitted": true
+      }
+    },
+    {
+      "id": "proof-object-masquerade-current",
+      "expect": "reject",
+      "reason": "masquerade",
+      "record": {
+        "schema": "ipfs-kit.proof-context.context-pack-store@1",
+        "interface": "KitContextPackStore@1",
+        "namespace": "ContextPack",
+        "role": "current",
+        "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        "kind": "proof_object",
+        "generation": 0,
+        "parent_cid": "",
+        "cache_key": "pack:masquerade",
+        "byte_length": 32
+      }
+    },
+    {
+      "id": "proof-object-masquerade-admitted",
+      "expect": "reject",
+      "reason": "masquerade",
+      "record": {
+        "schema": "ipfs-kit.proof-context.context-pack-store@1",
+        "interface": "KitContextPackStore@1",
+        "namespace": "ContextPack",
+        "role": "admitted",
+        "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        "kind": "proof_object",
+        "generation": 0,
+        "parent_cid": "",
+        "cache_key": "pack:masquerade-admitted",
+        "byte_length": 32
+      }
+    },
+    {
+      "id": "proving-key-forbidden",
+      "expect": "reject",
+      "reason": "masquerade",
+      "record": {
+        "schema": "ipfs-kit.proof-context.context-pack-store@1",
+        "interface": "KitContextPackStore@1",
+        "namespace": "ContextPack",
+        "role": "admitted",
+        "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        "kind": "proving_key",
+        "generation": 0,
+        "parent_cid": "",
+        "cache_key": "pack:key",
+        "byte_length": 32
+      }
+    },
+    {
+      "id": "current-manifest-not-seal",
+      "expect": "reject",
+      "reason": "masquerade",
+      "record": {
+        "schema": "ipfs-kit.proof-context.context-pack-store@1",
+        "interface": "KitContextPackStore@1",
+        "namespace": "ContextPack",
+        "role": "current",
+        "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        "kind": "proof_manifest",
+        "generation": 0,
+        "parent_cid": "",
+        "cache_key": "pack:manifest-current",
+        "byte_length": 32
+      }
+    }
+  ]
+}
