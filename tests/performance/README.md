@@ -1,3 +1,0 @@
-# tests/performance
-
-Performance tests

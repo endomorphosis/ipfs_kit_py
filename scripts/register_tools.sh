@@ -1,1 +1,0 @@
-scripts/dev/register_and_integrate_all_tools.sh

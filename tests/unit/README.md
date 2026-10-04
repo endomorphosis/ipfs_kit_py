@@ -1,3 +1,0 @@
-# tests/unit
-
-Unit tests

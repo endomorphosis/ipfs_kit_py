@@ -1,3 +1,0 @@
-# examples/integration
-
-Integration examples
