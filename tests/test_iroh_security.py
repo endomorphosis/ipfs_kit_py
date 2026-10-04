@@ -154,9 +154,9 @@ def test_security_document_links_resolve() -> None:
         for target in markdown_link.findall(document):
             if "://" in target or target.startswith("#"):
                 continue
-            assert (
-                ((DOCS / name).parent / target).resolve().is_file()
-            ), f"broken local link in {name}: {target}"
+            assert ((DOCS / name).parent / target).resolve().is_file(), (
+                f"broken local link in {name}: {target}"
+            )
 
 
 def test_state_permission_audit_passes_private_tree_and_redacts_locations(tmp_path: Path) -> None:

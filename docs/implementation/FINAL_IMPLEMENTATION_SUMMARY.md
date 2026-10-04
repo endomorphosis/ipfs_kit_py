@@ -164,10 +164,7 @@
 from ipfs_kit_py.mcp.storage_manager.pinning import UnifiedPinService
 
 service = UnifiedPinService()
-await service.pin(
-    cid="bafybeib...",
-    backends=["ipfs", "filecoin_pin", "saturn"]
-)
+await service.pin(cid="bafybeib...", backends=["ipfs", "filecoin_pin", "saturn"])
 ```
 
 ### Intelligent Retrieval
@@ -196,8 +193,7 @@ from ipfs_kit_py.mcp.storage_manager.routing import SmartRouter
 
 router = SmartRouter()
 backend = router.select_backend_for_storage(
-    content_size=1024*1024,
-    metadata={"access_frequency": "high"}
+    content_size=1024 * 1024, metadata={"access_frequency": "high"}
 )
 ```
 

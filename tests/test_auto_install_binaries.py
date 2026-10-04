@@ -18,6 +18,7 @@ def test_auto_install_ipfs_opt_in(monkeypatch, tmp_path):
 
 def test_auto_install_ipfs_attempts_once(monkeypatch, tmp_path):
     from ipfs_kit_py.daemon_config_manager import DaemonConfigManager
+
     install_ipfs_mod = importlib.import_module("ipfs_kit_py.install_ipfs")
 
     manager = DaemonConfigManager()
@@ -50,6 +51,7 @@ def test_auto_install_ipfs_attempts_once(monkeypatch, tmp_path):
 
 def test_auto_install_lotus_retry_on_missing_binary(monkeypatch, tmp_path):
     from ipfs_kit_py.daemon_config_manager import DaemonConfigManager
+
     install_lotus_mod = importlib.import_module("ipfs_kit_py.install_lotus")
 
     manager = DaemonConfigManager()

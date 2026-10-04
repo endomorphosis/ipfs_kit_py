@@ -40,14 +40,14 @@ from pydantic import BaseModel
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 
 class ServiceStatus(BaseModel):
     """Model for service status information."""
+
     name: str
     type: str  # 'daemon' or 'backend'
     status: str  # 'running', 'stopped', 'error', 'unknown'
@@ -63,6 +63,7 @@ class ServiceStatus(BaseModel):
 
 class ServiceAction(BaseModel):
     """Model for service action requests."""
+
     service_name: str
     action: str
     parameters: Optional[Dict[str, Any]] = None
@@ -71,14 +72,14 @@ class ServiceAction(BaseModel):
 class EnhancedMCPDashboard:
     """
     Enhanced MCP Server Dashboard with comprehensive service management.
-    
+
     This dashboard provides:
     1. Complete identification of all storage backends and daemons
     2. Real-time status monitoring and health checks
     3. Service management operations (start/stop/restart/configure)
     4. Modern web interface with live updates
     """
-    
+
     def __init__(self, host: str = "127.0.0.1", port: int = 8080):
         """Initialize the enhanced MCP dashboard."""
         self.host = host
@@ -86,40 +87,44 @@ class EnhancedMCPDashboard:
         self.app = FastAPI(
             title="Enhanced MCP Server Dashboard",
             description="Comprehensive MCP server and storage backend management",
-            version="1.0.0"
+            version="1.0.0",
         )
-        
+
         # Service tracking
         self.services: Dict[str, ServiceStatus] = {}
         self.websocket_connections: Set[WebSocket] = set()
-        
+
         # Known storage backends
         self.storage_backends = {
-            'ipfs': {'type': 'backend', 'port': 5001, 'daemon_required': True},
-            's3': {'type': 'backend', 'port': None, 'daemon_required': False},
-            'filecoin': {'type': 'backend', 'port': 1234, 'daemon_required': True},
-            'storacha': {'type': 'backend', 'port': None, 'daemon_required': False},
-            'huggingface': {'type': 'backend', 'port': None, 'daemon_required': False},
-            'lassie': {'type': 'backend', 'port': 7777, 'daemon_required': True},
-            'local': {'type': 'backend', 'port': None, 'daemon_required': False},
+            "ipfs": {"type": "backend", "port": 5001, "daemon_required": True},
+            "s3": {"type": "backend", "port": None, "daemon_required": False},
+            "filecoin": {"type": "backend", "port": 1234, "daemon_required": True},
+            "storacha": {"type": "backend", "port": None, "daemon_required": False},
+            "huggingface": {"type": "backend", "port": None, "daemon_required": False},
+            "lassie": {"type": "backend", "port": 7777, "daemon_required": True},
+            "local": {"type": "backend", "port": None, "daemon_required": False},
         }
-        
+
         # Known daemons
         self.daemons = {
-            'ipfs': {'type': 'daemon', 'port': 5001, 'process_name': 'ipfs'},
-            'lotus': {'type': 'daemon', 'port': 1234, 'process_name': 'lotus'},
-            'aria2': {'type': 'daemon', 'port': 6800, 'process_name': 'aria2c'},
-            'ipfs_cluster': {'type': 'daemon', 'port': 9094, 'process_name': 'ipfs-cluster-service'},
+            "ipfs": {"type": "daemon", "port": 5001, "process_name": "ipfs"},
+            "lotus": {"type": "daemon", "port": 1234, "process_name": "lotus"},
+            "aria2": {"type": "daemon", "port": 6800, "process_name": "aria2c"},
+            "ipfs_cluster": {
+                "type": "daemon",
+                "port": 9094,
+                "process_name": "ipfs-cluster-service",
+            },
         }
-        
+
         # Setup FastAPI app
         self._setup_middleware()
         self._setup_routes()
         self._setup_templates()
-        
+
         # Start background monitoring
         self.monitoring_task = None
-        
+
     def _setup_middleware(self):
         """Setup CORS and other middleware."""
         self.app.add_middleware(
@@ -129,21 +134,23 @@ class EnhancedMCPDashboard:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-    
+
     def _setup_routes(self):
         """Setup FastAPI routes."""
-        
+
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard_home(request: Request):
             """Serve the main dashboard page."""
             return self._get_dashboard_html()
-        
+
         @self.app.get("/api/services")
         async def get_services():
             """Get all service statuses."""
             await self._update_all_services()
-            return {"services": {name: service.model_dump() for name, service in self.services.items()}}
-        
+            return {
+                "services": {name: service.model_dump() for name, service in self.services.items()}
+            }
+
         @self.app.get("/api/services/{service_name}")
         async def get_service(service_name: str):
             """Get specific service status."""
@@ -151,270 +158,279 @@ class EnhancedMCPDashboard:
                 raise HTTPException(status_code=404, detail="Service not found")
             await self._update_service_status(service_name)
             return self.services[service_name].model_dump()
-        
+
         @self.app.post("/api/services/{service_name}/action")
         async def service_action(service_name: str, action: ServiceAction):
             """Perform action on service."""
             if service_name not in self.services:
                 raise HTTPException(status_code=404, detail="Service not found")
-            
-            result = await self._perform_service_action(service_name, action.action, action.parameters)
+
+            result = await self._perform_service_action(
+                service_name, action.action, action.parameters
+            )
             await self._update_service_status(service_name)
             await self._broadcast_service_update(service_name)
-            
+
             return result
-        
+
         @self.app.get("/api/health")
         async def health_check():
             """Overall system health check."""
             await self._update_all_services()
-            
+
             total_services = len(self.services)
-            running_services = sum(1 for s in self.services.values() if s.status == 'running')
-            error_services = sum(1 for s in self.services.values() if s.status == 'error')
-            
+            running_services = sum(1 for s in self.services.values() if s.status == "running")
+            error_services = sum(1 for s in self.services.values() if s.status == "error")
+
             return {
                 "status": "healthy" if error_services == 0 else "degraded",
                 "timestamp": datetime.now().isoformat(),
                 "services": {
                     "total": total_services,
                     "running": running_services,
-                    "error": error_services
+                    "error": error_services,
                 },
-                "uptime": time.time() - self.start_time if hasattr(self, 'start_time') else 0
+                "uptime": time.time() - self.start_time if hasattr(self, "start_time") else 0,
             }
-        
+
         @self.app.websocket("/ws")
         async def websocket_endpoint(websocket: WebSocket):
             """WebSocket endpoint for real-time updates."""
             await websocket.accept()
             self.websocket_connections.add(websocket)
-            
+
             try:
                 # Send initial data
-                await websocket.send_json({
-                    "type": "services_update",
-                    "data": {name: service.model_dump() for name, service in self.services.items()}
-                })
-                
+                await websocket.send_json(
+                    {
+                        "type": "services_update",
+                        "data": {
+                            name: service.model_dump() for name, service in self.services.items()
+                        },
+                    }
+                )
+
                 # Keep connection alive
                 while True:
                     await websocket.receive_text()
             except WebSocketDisconnect:
                 self.websocket_connections.discard(websocket)
-    
+
     def _setup_templates(self):
         """Setup Jinja2 templates."""
         # We'll embed the template in the code for simplicity
         pass
-    
+
     async def _update_all_services(self):
         """Update status of all services."""
         # Discover and update storage backends
         for backend_name, backend_info in self.storage_backends.items():
             await self._update_storage_backend_status(backend_name, backend_info)
-        
+
         # Discover and update daemons
         for daemon_name, daemon_info in self.daemons.items():
             await self._update_daemon_status(daemon_name, daemon_info)
-        
+
         # Also check for any running processes that might be relevant
         await self._discover_additional_services()
-    
+
     async def _update_service_status(self, service_name: str):
         """Update status of a specific service."""
         if service_name in self.storage_backends:
-            await self._update_storage_backend_status(service_name, self.storage_backends[service_name])
+            await self._update_storage_backend_status(
+                service_name, self.storage_backends[service_name]
+            )
         elif service_name in self.daemons:
             await self._update_daemon_status(service_name, self.daemons[service_name])
-    
+
     async def _update_storage_backend_status(self, backend_name: str, backend_info: Dict[str, Any]):
         """Update status of a storage backend."""
-        status = 'unknown'
+        status = "unknown"
         details = {}
         pid = None
         cpu_percent = None
         memory_mb = None
         uptime = None
-        
-        actions = ['configure']
-        
+
+        actions = ["configure"]
+
         try:
             # Check if backend requires a daemon
-            if backend_info.get('daemon_required', False):
+            if backend_info.get("daemon_required", False):
                 # Look for the daemon process
                 daemon_process = self._find_daemon_process(backend_name)
                 if daemon_process:
-                    status = 'running'
+                    status = "running"
                     pid = daemon_process.pid
                     cpu_percent = daemon_process.cpu_percent()
                     memory_mb = daemon_process.memory_info().rss / (1024 * 1024)
                     uptime = time.time() - daemon_process.create_time()
-                    actions.extend(['stop', 'restart'])
+                    actions.extend(["stop", "restart"])
                 else:
-                    status = 'stopped'
-                    actions.append('start')
-                
+                    status = "stopped"
+                    actions.append("start")
+
                 # Check port connectivity if applicable
-                if backend_info.get('port'):
-                    if self._check_port_connectivity('localhost', backend_info['port']):
-                        details['port_accessible'] = True
-                        if status == 'unknown':
-                            status = 'running'
+                if backend_info.get("port"):
+                    if self._check_port_connectivity("localhost", backend_info["port"]):
+                        details["port_accessible"] = True
+                        if status == "unknown":
+                            status = "running"
                     else:
-                        details['port_accessible'] = False
-                        if status == 'running':
-                            status = 'error'
+                        details["port_accessible"] = False
+                        if status == "running":
+                            status = "error"
             else:
                 # For backends that don't require daemons, check availability differently
                 status = await self._check_backend_availability(backend_name)
-                actions.append('test')
-                
+                actions.append("test")
+
         except Exception as e:
             logger.error(f"Error updating {backend_name} backend status: {e}")
-            status = 'error'
-            details['error'] = str(e)
-        
+            status = "error"
+            details["error"] = str(e)
+
         self.services[backend_name] = ServiceStatus(
             name=backend_name,
-            type='backend',
+            type="backend",
             status=status,
             pid=pid,
-            port=backend_info.get('port'),
+            port=backend_info.get("port"),
             uptime=uptime,
             cpu_percent=cpu_percent,
             memory_mb=memory_mb,
             last_check=datetime.now(),
             details=details,
-            actions=actions
+            actions=actions,
         )
-    
+
     async def _update_daemon_status(self, daemon_name: str, daemon_info: Dict[str, Any]):
         """Update status of a daemon."""
-        status = 'stopped'
+        status = "stopped"
         details = {}
         pid = None
         cpu_percent = None
         memory_mb = None
         uptime = None
-        
-        actions = ['configure']
-        
+
+        actions = ["configure"]
+
         try:
             # Look for the daemon process
             daemon_process = self._find_daemon_process(daemon_name)
             if daemon_process:
-                status = 'running'
+                status = "running"
                 pid = daemon_process.pid
                 cpu_percent = daemon_process.cpu_percent()
                 memory_mb = daemon_process.memory_info().rss / (1024 * 1024)
                 uptime = time.time() - daemon_process.create_time()
-                actions.extend(['stop', 'restart'])
-                
+                actions.extend(["stop", "restart"])
+
                 # Additional daemon-specific checks
-                if daemon_name == 'ipfs':
+                if daemon_name == "ipfs":
                     details.update(await self._get_ipfs_details())
-                elif daemon_name == 'lotus':
+                elif daemon_name == "lotus":
                     details.update(await self._get_lotus_details())
-                elif daemon_name == 'aria2':
+                elif daemon_name == "aria2":
                     details.update(await self._get_aria2_details())
             else:
-                actions.append('start')
-                
+                actions.append("start")
+
             # Check port connectivity
-            if daemon_info.get('port'):
-                if self._check_port_connectivity('localhost', daemon_info['port']):
-                    details['port_accessible'] = True
+            if daemon_info.get("port"):
+                if self._check_port_connectivity("localhost", daemon_info["port"]):
+                    details["port_accessible"] = True
                 else:
-                    details['port_accessible'] = False
-                    if status == 'running':
-                        status = 'error'
-                        
+                    details["port_accessible"] = False
+                    if status == "running":
+                        status = "error"
+
         except Exception as e:
             logger.error(f"Error updating {daemon_name} daemon status: {e}")
-            status = 'error'
-            details['error'] = str(e)
-        
+            status = "error"
+            details["error"] = str(e)
+
         self.services[daemon_name] = ServiceStatus(
             name=daemon_name,
-            type='daemon',
+            type="daemon",
             status=status,
             pid=pid,
-            port=daemon_info.get('port'),
+            port=daemon_info.get("port"),
             uptime=uptime,
             cpu_percent=cpu_percent,
             memory_mb=memory_mb,
             last_check=datetime.now(),
             details=details,
-            actions=actions
+            actions=actions,
         )
-    
+
     async def _discover_additional_services(self):
         """Discover additional services that might be running."""
         # Look for additional IPFS-related processes
-        for process in psutil.process_iter(['pid', 'name', 'cmdline']):
+        for process in psutil.process_iter(["pid", "name", "cmdline"]):
             try:
                 if not process.cmdline():
                     continue
-                    
-                cmdline = ' '.join(process.cmdline()).lower()
-                
+
+                cmdline = " ".join(process.cmdline()).lower()
+
                 # Look for additional storage-related processes
-                if 'ipfs-cluster' in cmdline and 'ipfs_cluster' not in self.services:
-                    self.services['ipfs_cluster_dynamic'] = ServiceStatus(
-                        name='ipfs_cluster_dynamic',
-                        type='daemon',
-                        status='running',
+                if "ipfs-cluster" in cmdline and "ipfs_cluster" not in self.services:
+                    self.services["ipfs_cluster_dynamic"] = ServiceStatus(
+                        name="ipfs_cluster_dynamic",
+                        type="daemon",
+                        status="running",
                         pid=process.pid,
                         last_check=datetime.now(),
-                        details={'discovered': True, 'cmdline': ' '.join(process.cmdline())},
-                        actions=['stop', 'restart']
+                        details={"discovered": True, "cmdline": " ".join(process.cmdline())},
+                        actions=["stop", "restart"],
                     )
-                
+
                 # Look for other storage backends
-                for backend in ['web3.storage', 'estuary', 'pinata']:
-                    if backend in cmdline and f'{backend}_dynamic' not in self.services:
-                        self.services[f'{backend}_dynamic'] = ServiceStatus(
-                            name=f'{backend}_dynamic',
-                            type='backend',
-                            status='running',
+                for backend in ["web3.storage", "estuary", "pinata"]:
+                    if backend in cmdline and f"{backend}_dynamic" not in self.services:
+                        self.services[f"{backend}_dynamic"] = ServiceStatus(
+                            name=f"{backend}_dynamic",
+                            type="backend",
+                            status="running",
                             pid=process.pid,
                             last_check=datetime.now(),
-                            details={'discovered': True, 'cmdline': ' '.join(process.cmdline())},
-                            actions=['stop', 'restart']
+                            details={"discovered": True, "cmdline": " ".join(process.cmdline())},
+                            actions=["stop", "restart"],
                         )
-                        
+
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
-    
+
     def _find_daemon_process(self, daemon_name: str) -> Optional[psutil.Process]:
         """Find a daemon process by name."""
         daemon_info = self.daemons.get(daemon_name, {})
-        process_name = daemon_info.get('process_name', daemon_name)
-        
-        for process in psutil.process_iter(['pid', 'name', 'cmdline']):
+        process_name = daemon_info.get("process_name", daemon_name)
+
+        for process in psutil.process_iter(["pid", "name", "cmdline"]):
             try:
                 if not process.cmdline():
                     continue
-                    
+
                 # Check process name
                 if process.name() == process_name:
                     return process
-                
+
                 # Check command line
-                cmdline = ' '.join(process.cmdline()).lower()
+                cmdline = " ".join(process.cmdline()).lower()
                 if process_name in cmdline or daemon_name in cmdline:
                     return process
-                    
+
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
-        
+
         return None
-    
+
     def _check_port_connectivity(self, host: str, port: int) -> bool:
         """Check if a port is accessible."""
         try:
             import socket
+
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(2)
             result = sock.connect_ex((host, port))
@@ -422,112 +438,122 @@ class EnhancedMCPDashboard:
             return result == 0
         except:
             return False
-    
+
     async def _check_backend_availability(self, backend_name: str) -> str:
         """Check availability of a storage backend that doesn't require a daemon."""
         try:
-            if backend_name == 's3':
+            if backend_name == "s3":
                 # Try to import boto3 or check for AWS credentials
                 try:
                     import boto3
+
                     # Try to create a client to test credentials
-                    s3_client = boto3.client('s3')
-                    return 'running'
+                    s3_client = boto3.client("s3")
+                    return "running"
                 except ImportError:
-                    return 'error'  # boto3 not installed
+                    return "error"  # boto3 not installed
                 except Exception:
-                    return 'stopped'  # credentials not configured
-            
-            elif backend_name == 'huggingface':
+                    return "stopped"  # credentials not configured
+
+            elif backend_name == "huggingface":
                 try:
                     import huggingface_hub
+
                     # Check if logged in
                     token = huggingface_hub.get_token()
-                    return 'running' if token else 'stopped'
+                    return "running" if token else "stopped"
                 except ImportError:
-                    return 'error'
-            
-            elif backend_name == 'storacha':
+                    return "error"
+
+            elif backend_name == "storacha":
                 # Check for web3.storage configuration
-                return 'stopped'  # Default to stopped, would need specific checks
-            
-            elif backend_name == 'local':
-                return 'running'  # Local storage is always available
-            
+                return "stopped"  # Default to stopped, would need specific checks
+
+            elif backend_name == "local":
+                return "running"  # Local storage is always available
+
             else:
-                return 'unknown'
-                
+                return "unknown"
+
         except Exception as e:
             logger.error(f"Error checking {backend_name} availability: {e}")
-            return 'error'
-    
+            return "error"
+
     async def _get_ipfs_details(self) -> Dict[str, Any]:
         """Get IPFS daemon details."""
         details = {}
         try:
             # Try to get IPFS version and peer ID
-            result = subprocess.run(['ipfs', 'version'], capture_output=True, text=True, timeout=5)
+            result = subprocess.run(["ipfs", "version"], capture_output=True, text=True, timeout=5)
             if result.returncode == 0:
-                details['version'] = result.stdout.strip()
-            
-            result = subprocess.run(['ipfs', 'id', '--format=<id>'], capture_output=True, text=True, timeout=5)
+                details["version"] = result.stdout.strip()
+
+            result = subprocess.run(
+                ["ipfs", "id", "--format=<id>"], capture_output=True, text=True, timeout=5
+            )
             if result.returncode == 0:
-                details['peer_id'] = result.stdout.strip()
-                
+                details["peer_id"] = result.stdout.strip()
+
         except Exception as e:
-            details['error'] = str(e)
-        
+            details["error"] = str(e)
+
         return details
-    
+
     async def _get_lotus_details(self) -> Dict[str, Any]:
         """Get Lotus daemon details."""
         details = {}
         try:
-            result = subprocess.run(['lotus', 'version'], capture_output=True, text=True, timeout=5)
+            result = subprocess.run(["lotus", "version"], capture_output=True, text=True, timeout=5)
             if result.returncode == 0:
-                details['version'] = result.stdout.strip()
-                
+                details["version"] = result.stdout.strip()
+
         except Exception as e:
-            details['error'] = str(e)
-        
+            details["error"] = str(e)
+
         return details
-    
+
     async def _get_aria2_details(self) -> Dict[str, Any]:
         """Get Aria2 daemon details."""
         details = {}
         try:
-            result = subprocess.run(['aria2c', '--version'], capture_output=True, text=True, timeout=5)
+            result = subprocess.run(
+                ["aria2c", "--version"], capture_output=True, text=True, timeout=5
+            )
             if result.returncode == 0:
-                details['version'] = result.stdout.split('\n')[0]
-                
+                details["version"] = result.stdout.split("\n")[0]
+
         except Exception as e:
-            details['error'] = str(e)
-        
+            details["error"] = str(e)
+
         return details
-    
-    async def _perform_service_action(self, service_name: str, action: str, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+
+    async def _perform_service_action(
+        self, service_name: str, action: str, parameters: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Perform an action on a service."""
         logger.info(f"Performing action '{action}' on service '{service_name}'")
-        
+
         try:
-            if action == 'start':
+            if action == "start":
                 return await self._start_service(service_name, parameters)
-            elif action == 'stop':
+            elif action == "stop":
                 return await self._stop_service(service_name, parameters)
-            elif action == 'restart':
+            elif action == "restart":
                 return await self._restart_service(service_name, parameters)
-            elif action == 'configure':
+            elif action == "configure":
                 return await self._configure_service(service_name, parameters)
-            elif action == 'test':
+            elif action == "test":
                 return await self._test_service(service_name, parameters)
             else:
                 return {"success": False, "error": f"Unknown action: {action}"}
-                
+
         except Exception as e:
             logger.error(f"Error performing action '{action}' on '{service_name}': {e}")
             return {"success": False, "error": str(e)}
-    
-    async def _start_service(self, service_name: str, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+
+    async def _start_service(
+        self, service_name: str, parameters: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Start a service."""
         if service_name in self.daemons:
             return await self._start_daemon(service_name, parameters)
@@ -535,120 +561,141 @@ class EnhancedMCPDashboard:
             return await self._start_backend(service_name, parameters)
         else:
             return {"success": False, "error": f"Unknown service: {service_name}"}
-    
-    async def _stop_service(self, service_name: str, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+
+    async def _stop_service(
+        self, service_name: str, parameters: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Stop a service."""
         service = self.services.get(service_name)
         if not service or not service.pid:
             return {"success": False, "error": "Service not running"}
-        
+
         try:
             process = psutil.Process(service.pid)
             process.terminate()
-            
+
             # Wait for graceful shutdown
             try:
                 process.wait(timeout=10)
             except psutil.TimeoutExpired:
                 process.kill()
-            
+
             return {"success": True, "message": f"Service {service_name} stopped"}
-            
+
         except psutil.NoSuchProcess:
             return {"success": True, "message": f"Service {service_name} was already stopped"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
-    async def _restart_service(self, service_name: str, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+
+    async def _restart_service(
+        self, service_name: str, parameters: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Restart a service."""
         stop_result = await self._stop_service(service_name, parameters)
         if not stop_result["success"]:
             return stop_result
-        
+
         # Wait a moment before restarting
         await anyio.sleep(2)
-        
+
         return await self._start_service(service_name, parameters)
-    
-    async def _start_daemon(self, daemon_name: str, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+
+    async def _start_daemon(
+        self, daemon_name: str, parameters: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Start a daemon."""
         try:
-            if daemon_name == 'ipfs':
-                result = subprocess.run(['ipfs', 'daemon'], 
-                                      stdout=subprocess.DEVNULL, 
-                                      stderr=subprocess.DEVNULL)
+            if daemon_name == "ipfs":
+                result = subprocess.run(
+                    ["ipfs", "daemon"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
                 return {"success": True, "message": "IPFS daemon start initiated"}
-            
-            elif daemon_name == 'lotus':
-                result = subprocess.run(['lotus', 'daemon'], 
-                                      stdout=subprocess.DEVNULL, 
-                                      stderr=subprocess.DEVNULL)
+
+            elif daemon_name == "lotus":
+                result = subprocess.run(
+                    ["lotus", "daemon"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
                 return {"success": True, "message": "Lotus daemon start initiated"}
-            
-            elif daemon_name == 'aria2':
-                result = subprocess.run(['aria2c', '--enable-rpc'], 
-                                      stdout=subprocess.DEVNULL, 
-                                      stderr=subprocess.DEVNULL)
+
+            elif daemon_name == "aria2":
+                result = subprocess.run(
+                    ["aria2c", "--enable-rpc"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
                 return {"success": True, "message": "Aria2 daemon start initiated"}
-            
+
             else:
                 return {"success": False, "error": f"Don't know how to start daemon: {daemon_name}"}
-                
+
         except FileNotFoundError:
             return {"success": False, "error": f"Daemon executable not found: {daemon_name}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
-    async def _start_backend(self, backend_name: str, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+
+    async def _start_backend(
+        self, backend_name: str, parameters: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Start a storage backend."""
         backend_info = self.storage_backends[backend_name]
-        
-        if backend_info.get('daemon_required'):
+
+        if backend_info.get("daemon_required"):
             return await self._start_daemon(backend_name, parameters)
         else:
             # For backends that don't require daemons, just test configuration
             return await self._test_service(backend_name, parameters)
-    
-    async def _configure_service(self, service_name: str, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+
+    async def _configure_service(
+        self, service_name: str, parameters: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Configure a service."""
         # This would open configuration interface or apply configuration
-        return {"success": True, "message": f"Configuration interface for {service_name} (not implemented)"}
-    
-    async def _test_service(self, service_name: str, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        return {
+            "success": True,
+            "message": f"Configuration interface for {service_name} (not implemented)",
+        }
+
+    async def _test_service(
+        self, service_name: str, parameters: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Test a service."""
         # Perform a basic test of service functionality
-        if service_name == 'ipfs':
+        if service_name == "ipfs":
             try:
-                result = subprocess.run(['ipfs', 'version'], capture_output=True, text=True, timeout=5)
+                result = subprocess.run(
+                    ["ipfs", "version"], capture_output=True, text=True, timeout=5
+                )
                 if result.returncode == 0:
-                    return {"success": True, "message": "IPFS test successful", "version": result.stdout.strip()}
+                    return {
+                        "success": True,
+                        "message": "IPFS test successful",
+                        "version": result.stdout.strip(),
+                    }
                 else:
                     return {"success": False, "error": "IPFS test failed"}
             except Exception as e:
                 return {"success": False, "error": str(e)}
-        
+
         # Add more service-specific tests as needed
         return {"success": True, "message": f"Test for {service_name} (basic check passed)"}
-    
+
     async def _broadcast_service_update(self, service_name: str):
         """Broadcast service update to all WebSocket connections."""
         if service_name in self.services:
             message = {
                 "type": "service_update",
                 "service_name": service_name,
-                "data": self.services[service_name].model_dump()
+                "data": self.services[service_name].model_dump(),
             }
-            
+
             disconnected = set()
             for websocket in self.websocket_connections:
                 try:
                     await websocket.send_json(message)
                 except:
                     disconnected.add(websocket)
-            
+
             # Remove disconnected clients
             self.websocket_connections -= disconnected
-    
+
     def _get_dashboard_html(self) -> str:
         """Get the dashboard HTML."""
         return """
@@ -1187,11 +1234,11 @@ class EnhancedMCPDashboard:
 </body>
 </html>
         """
-    
+
     async def start_monitoring(self):
         """Start background monitoring task."""
         self.start_time = time.time()
-        
+
         async def monitor():
             while True:
                 try:
@@ -1200,23 +1247,18 @@ class EnhancedMCPDashboard:
                 except Exception as e:
                     logger.error(f"Error in monitoring task: {e}")
                     await anyio.sleep(30)  # Wait longer on error
-        
+
         self.monitoring_task = anyio.lowlevel.spawn_system_task(monitor)
-    
+
     async def start(self):
         """Start the dashboard server."""
         logger.info(f"Starting Enhanced MCP Dashboard on {self.host}:{self.port}")
-        
+
         # Start background monitoring
         await self.start_monitoring()
-        
+
         # Start the FastAPI server
-        config = uvicorn.Config(
-            self.app,
-            host=self.host,
-            port=self.port,
-            log_level="info"
-        )
+        config = uvicorn.Config(self.app, host=self.host, port=self.port, log_level="info")
         server = uvicorn.Server(config)
         await server.serve()
 
@@ -1224,12 +1266,12 @@ class EnhancedMCPDashboard:
 async def main():
     """Main function to run the dashboard."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Enhanced MCP Server Dashboard")
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
     parser.add_argument("--port", type=int, default=8080, help="Port to bind to")
     args = parser.parse_args()
-    
+
     dashboard = EnhancedMCPDashboard(host=args.host, port=args.port)
     await dashboard.start()
 

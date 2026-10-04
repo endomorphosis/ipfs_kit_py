@@ -395,14 +395,17 @@ class TestArrowMetadataIndex(unittest.TestCase):
         )
 
         # Test with pubsub - but we need to mock the implementation to return expected data
-        with patch.object(self.index, "node_id", "test-node"), patch.object(
-            self.index,
-            "_get_peer_partitions_via_dag",
-            return_value={
-                "1": {"cid": "QmTest1", "mtime": time.time(), "size": 1024},
-                "2": {"cid": "QmTest2", "mtime": time.time(), "size": 2048},
-                "3": {"cid": "QmTest3", "mtime": time.time(), "size": 3072},
-            },
+        with (
+            patch.object(self.index, "node_id", "test-node"),
+            patch.object(
+                self.index,
+                "_get_peer_partitions_via_dag",
+                return_value={
+                    "1": {"cid": "QmTest1", "mtime": time.time(), "size": 1024},
+                    "2": {"cid": "QmTest2", "mtime": time.time(), "size": 2048},
+                    "3": {"cid": "QmTest3", "mtime": time.time(), "size": 3072},
+                },
+            ),
         ):
             partitions = self.index._get_peer_partitions("peer1")
 

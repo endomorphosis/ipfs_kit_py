@@ -41,9 +41,7 @@ RESOURCE_LIMIT_MAXIMUMS = {
 }
 
 _INSTANCE_RE = re.compile(r"^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$")
-_CREDENTIAL_RE = re.compile(
-    r"^credential://iroh/[a-z0-9](?:[a-z0-9._/-]{0,126}[a-z0-9])?$"
-)
+_CREDENTIAL_RE = re.compile(r"^credential://iroh/[a-z0-9](?:[a-z0-9._/-]{0,126}[a-z0-9])?$")
 _SENSITIVE_KEY_RE = re.compile(
     r"(?:^|_)(?:secret|token|ticket|password|passwd|private_key|node_key|"
     r"author_key|write_capability|identity_key)(?:$|_)",
@@ -135,7 +133,9 @@ def _reject_inline_secrets(value: Any, path: str = "config") -> None:
                 if key_text.endswith("_ref"):
                     _credential_ref(item, child)
                 else:
-                    raise _invalid(f"{path} contains forbidden inline credential field {key_text!r}")
+                    raise _invalid(
+                        f"{path} contains forbidden inline credential field {key_text!r}"
+                    )
             else:
                 _reject_inline_secrets(item, child)
     elif isinstance(value, (list, tuple)):
@@ -150,7 +150,11 @@ def default_state_root() -> Path:
     if override:
         return _absolute_path(override, "IPFS_KIT_IROH_STATE_DIR")
     xdg_state = os.environ.get("XDG_STATE_HOME")
-    base = _absolute_path(xdg_state, "XDG_STATE_HOME") if xdg_state else Path.home() / ".local" / "state"
+    base = (
+        _absolute_path(xdg_state, "XDG_STATE_HOME")
+        if xdg_state
+        else Path.home() / ".local" / "state"
+    )
     return base / "ipfs-kit" / "iroh"
 
 
@@ -191,7 +195,11 @@ class IrohStateLayout:
         state_root: str | os.PathLike[str] | None = None,
     ) -> "IrohStateLayout":
         name = validate_instance_name(instance)
-        base = _absolute_path(state_root, "state_root") if state_root is not None else default_state_root()
+        base = (
+            _absolute_path(state_root, "state_root")
+            if state_root is not None
+            else default_state_root()
+        )
         root = base / "instances" / name
         runtime = root / "run"
         logs = root / "logs"
@@ -306,7 +314,9 @@ class OwnershipPolicy:
         return cls(
             uid=uid,
             gid=gid,
-            directory_mode=_mode(value.get("directory_mode", "0700"), "ownership.directory_mode", DIRECTORY_MODE),
+            directory_mode=_mode(
+                value.get("directory_mode", "0700"), "ownership.directory_mode", DIRECTORY_MODE
+            ),
             file_mode=_mode(value.get("file_mode", "0600"), "ownership.file_mode", FILE_MODE),
         )
 
@@ -395,9 +405,19 @@ class IrohServiceConfig:
         _only(
             value,
             {
-                "schema_version", "kind", "instance", "enabled",
-                "release_bundle", "protocol_version", "state_root", "rpc",
-                "network", "identity", "resources", "logging", "ownership",
+                "schema_version",
+                "kind",
+                "instance",
+                "enabled",
+                "release_bundle",
+                "protocol_version",
+                "state_root",
+                "rpc",
+                "network",
+                "identity",
+                "resources",
+                "logging",
+                "ownership",
             },
             "configuration",
         )
@@ -408,7 +428,11 @@ class IrohServiceConfig:
             or not isinstance(version, int)
             or version != CONFIG_SCHEMA_VERSION
         ):
-            if isinstance(version, int) and not isinstance(version, bool) and version > CONFIG_SCHEMA_VERSION:
+            if (
+                isinstance(version, int)
+                and not isinstance(version, bool)
+                and version > CONFIG_SCHEMA_VERSION
+            ):
                 raise IrohUnsupportedVersionError(
                     "Iroh service configuration version is newer than this package",
                     operation="config",
@@ -429,7 +453,9 @@ class IrohServiceConfig:
             or not isinstance(protocol_version, int)
             or protocol_version != DEFAULT_PROTOCOL_VERSION
         ):
-            raise IrohUnsupportedVersionError("unsupported Iroh RPC protocol version", operation="config")
+            raise IrohUnsupportedVersionError(
+                "unsupported Iroh RPC protocol version", operation="config"
+            )
 
         configured_root = _absolute_path(value.get("state_root"), "state_root")
         if state_root is not None and configured_root != _absolute_path(state_root, "state_root"):
@@ -446,7 +472,9 @@ class IrohServiceConfig:
 
         identity = _expect_mapping(value.get("identity"), "identity")
         _only(identity, {"node_identity_ref"}, "identity")
-        identity_ref = _credential_ref(identity.get("node_identity_ref"), "identity.node_identity_ref")
+        identity_ref = _credential_ref(
+            identity.get("node_identity_ref"), "identity.node_identity_ref"
+        )
 
         network = _expect_mapping(value.get("network"), "network")
         _only(network, {"endpoint_bind", "relay", "discovery"}, "network")
@@ -619,7 +647,9 @@ def load_config(
 
 
 def _json_bytes(document: Mapping[str, Any]) -> bytes:
-    return (json.dumps(document, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")
+    return (json.dumps(document, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode(
+        "utf-8"
+    )
 
 
 def _fsync_directory(path: Path) -> None:
@@ -853,7 +883,9 @@ def validate_instance_isolation(configs: Iterable[IrohServiceConfig]) -> None:
 
         rpc = config.rpc_endpoint
         if rpc in seen_rpc:
-            raise IrohConflictError("enabled Iroh instances share an RPC endpoint", operation="config")
+            raise IrohConflictError(
+                "enabled Iroh instances share an RPC endpoint", operation="config"
+            )
         seen_rpc[rpc] = config.instance
         for bind in config.endpoint_bind:
             if bind.endswith(":0"):
@@ -888,10 +920,22 @@ def migrate_config(
     _only(
         source,
         {
-            "schema_version", "version", "instance", "name", "state_dir",
-            "enabled", "node_identity_ref", "node_key_ref", "endpoint_bind",
-            "bind", "relay_mode", "relay_url", "discovery", "resource_limits",
-            "uid", "gid",
+            "schema_version",
+            "version",
+            "instance",
+            "name",
+            "state_dir",
+            "enabled",
+            "node_identity_ref",
+            "node_key_ref",
+            "endpoint_bind",
+            "bind",
+            "relay_mode",
+            "relay_url",
+            "discovery",
+            "resource_limits",
+            "uid",
+            "gid",
         },
         "legacy configuration",
     )
@@ -913,16 +957,16 @@ def migrate_config(
     relay_url = source.get("relay_url")
     document["network"]["relay"] = {
         "policy": source.get("relay_mode", "default"),
-        "urls": [] if relay_url is None else ([relay_url] if isinstance(relay_url, str) else relay_url),
+        "urls": []
+        if relay_url is None
+        else ([relay_url] if isinstance(relay_url, str) else relay_url),
     }
     discovery = source.get("discovery", "local")
     if isinstance(discovery, bool):
         discovery = "local" if discovery else "disabled"
     document["network"]["discovery"] = {"policy": discovery}
     if "resource_limits" in source:
-        document["resources"].update(
-            _expect_mapping(source["resource_limits"], "resource_limits")
-        )
+        document["resources"].update(_expect_mapping(source["resource_limits"], "resource_limits"))
     document["ownership"]["uid"] = source.get("uid")
     document["ownership"]["gid"] = source.get("gid")
     return IrohServiceConfig.from_dict(document).to_dict()
@@ -979,12 +1023,31 @@ save_config = atomic_write_config
 migrate_service_config = migrate_config
 
 __all__ = [
-    "CONFIG_SCHEMA_VERSION", "DEFAULT_RELEASE_BUNDLE", "DEFAULT_PROTOCOL_VERSION",
-    "DEFAULT_INSTANCE", "DIRECTORY_MODE", "FILE_MODE", "RESOURCE_LIMIT_MAXIMUMS", "IrohStateLayout",
-    "IrohServiceConfig", "ResourceLimits", "OwnershipPolicy", "ServiceConfig",
-    "StateLayout", "default_state_root", "validate_instance_name", "default_config",
-    "parse_config", "loads_config", "load_config", "load_service_config",
-    "atomic_write_config", "save_config", "ensure_state_layout",
-    "validate_instance_isolation", "migrate_config", "migrate_service_config",
+    "CONFIG_SCHEMA_VERSION",
+    "DEFAULT_RELEASE_BUNDLE",
+    "DEFAULT_PROTOCOL_VERSION",
+    "DEFAULT_INSTANCE",
+    "DIRECTORY_MODE",
+    "FILE_MODE",
+    "RESOURCE_LIMIT_MAXIMUMS",
+    "IrohStateLayout",
+    "IrohServiceConfig",
+    "ResourceLimits",
+    "OwnershipPolicy",
+    "ServiceConfig",
+    "StateLayout",
+    "default_state_root",
+    "validate_instance_name",
+    "default_config",
+    "parse_config",
+    "loads_config",
+    "load_config",
+    "load_service_config",
+    "atomic_write_config",
+    "save_config",
+    "ensure_state_layout",
+    "validate_instance_isolation",
+    "migrate_config",
+    "migrate_service_config",
     "migrate_config_file",
 ]

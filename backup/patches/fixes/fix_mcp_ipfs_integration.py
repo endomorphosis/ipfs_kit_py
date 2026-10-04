@@ -15,12 +15,10 @@ from pathlib import Path
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler("ipfs_integration_fix.log")
-    ]
+    handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler("ipfs_integration_fix.log")],
 )
 logger = logging.getLogger("ipfs-integration-fix")
+
 
 def fix_direct_mcp_server():
     """Fix direct_mcp_server.py to properly integrate with IPFS and FS tools"""
@@ -34,7 +32,7 @@ def fix_direct_mcp_server():
         return False
 
     # Read the original file
-    with open(server_path, 'r') as f:
+    with open(server_path, "r") as f:
         content = f.read()
 
     # Add necessary imports if they don't exist
@@ -84,16 +82,23 @@ except ImportError:
     # Check if imports exist and add if they don't
     if "from ipfs_kit_py.mcp.ipfs_extensions import register_ipfs_tools" not in content:
         # Find the import section
-        import_match = re.search(r'import .*?(?=\n\n)', content, re.DOTALL)
+        import_match = re.search(r"import .*?(?=\n\n)", content, re.DOTALL)
         if import_match:
             # Add our imports after the existing imports
-            new_content = content[:import_match.end()] + import_block + content[import_match.end():]
+            new_content = (
+                content[: import_match.end()] + import_block + content[import_match.end() :]
+            )
             content = new_content
         else:
             # Prepend our imports at the top (after any shebang or docstring)
             docstring_match = re.search(r'""".*?"""', content, re.DOTALL)
             if docstring_match:
-                new_content = content[:docstring_match.end()] + "\n" + import_block + content[docstring_match.end():]
+                new_content = (
+                    content[: docstring_match.end()]
+                    + "\n"
+                    + import_block
+                    + content[docstring_match.end() :]
+                )
                 content = new_content
             else:
                 content = import_block + "\n" + content
@@ -149,10 +154,15 @@ def register_all_tools(mcp_server):
     # Check if registration function exists and add if it doesn't
     if "def register_all_tools" not in content:
         # Find a good insertion point (before the main function or at the end)
-        main_match = re.search(r'def main\(\):', content)
+        main_match = re.search(r"def main\(\):", content)
         if main_match:
             # Add our function before the main function
-            new_content = content[:main_match.start()] + register_function + "\n" + content[main_match.start():]
+            new_content = (
+                content[: main_match.start()]
+                + register_function
+                + "\n"
+                + content[main_match.start() :]
+            )
             content = new_content
         else:
             # Add at the end
@@ -161,22 +171,27 @@ def register_all_tools(mcp_server):
     # Update the main function to call our registration function
     if "register_all_tools(server)" not in content:
         # Find the server instantiation
-        server_match = re.search(r'server\s*=\s*FastMCP\(\)', content)
+        server_match = re.search(r"server\s*=\s*FastMCP\(\)", content)
         if server_match:
             # Add our function call after server instantiation
             insert_pos = server_match.end()
             # Find the end of the line
             line_end = content.find("\n", insert_pos)
             if line_end > 0:
-                new_content = content[:line_end] + "\n    \n    # Register all tools\n    register_all_tools(server)" + content[line_end:]
+                new_content = (
+                    content[:line_end]
+                    + "\n    \n    # Register all tools\n    register_all_tools(server)"
+                    + content[line_end:]
+                )
                 content = new_content
 
     # Write the updated file
-    with open(server_path, 'w') as f:
+    with open(server_path, "w") as f:
         f.write(content)
 
     logger.info(f"✅ Successfully fixed {server_path} for IPFS and FS integration")
     return True
+
 
 def create_fs_journal_tools():
     """Create simple FS Journal tools module if it doesn't exist"""
@@ -242,11 +257,12 @@ def register_fs_journal_tools(mcp_server):
 
     logger.info("✅ Successfully registered minimal FS Journal tools with MCP server")
 """
-        with open("fs_journal_tools.py", 'w') as f:
+        with open("fs_journal_tools.py", "w") as f:
             f.write(fs_journal_content)
         logger.info("✅ Created minimal fs_journal_tools.py")
         return True
     return False
+
 
 def create_ipfs_fs_integration():
     """Create simple IPFS-FS Bridge module if it doesn't exist"""
@@ -290,30 +306,35 @@ def register_integration_tools(mcp_server):
 
     logger.info("✅ Successfully registered minimal IPFS-FS integration tools")
 """
-        with open("ipfs_mcp_fs_integration.py", 'w') as f:
+        with open("ipfs_mcp_fs_integration.py", "w") as f:
             f.write(ipfs_fs_integration_content)
         logger.info("✅ Created minimal ipfs_mcp_fs_integration.py")
         return True
     return False
 
+
 def fix_run_direct_mcp_server():
     """Fix run_direct_mcp_server.py imports if it exists"""
     if os.path.exists("run_direct_mcp_server.py"):
         logger.info("Fixing run_direct_mcp_server.py...")
-        with open("run_direct_mcp_server.py", 'r') as f:
+        with open("run_direct_mcp_server.py", "r") as f:
             content = f.read()
 
         # Fix the imports if needed
-        if "register_ipfs_tools" in content and "from ipfs_kit_py.mcp.ipfs_extensions import register_ipfs_tools" not in content:
+        if (
+            "register_ipfs_tools" in content
+            and "from ipfs_kit_py.mcp.ipfs_extensions import register_ipfs_tools" not in content
+        ):
             content = content.replace(
                 "from ipfs_kit_py.mcp.controllers.ipfs_controller import IPFSController",
-                "from ipfs_kit_py.mcp.ipfs_extensions import register_ipfs_tools\nfrom ipfs_kit_py.mcp.controllers.ipfs_controller import IPFSController"
+                "from ipfs_kit_py.mcp.ipfs_extensions import register_ipfs_tools\nfrom ipfs_kit_py.mcp.controllers.ipfs_controller import IPFSController",
             )
-            with open("run_direct_mcp_server.py", 'w') as f:
+            with open("run_direct_mcp_server.py", "w") as f:
                 f.write(content)
             logger.info("✅ Fixed run_direct_mcp_server.py imports")
             return True
     return False
+
 
 def fix_all_files():
     """Fix all necessary files for comprehensive IPFS tool coverage"""
@@ -335,12 +356,15 @@ def fix_all_files():
     logger.info("All files fixed successfully for comprehensive IPFS tool coverage")
     return True
 
+
 if __name__ == "__main__":
     logger.info("Starting comprehensive IPFS integration fix...")
     if fix_all_files():
         logger.info("✅ All fixes applied successfully!")
         print("\n✅ IPFS integration fixes applied successfully!")
-        print("Run './start_ipfs_mcp_with_tools.sh' to start the MCP server with comprehensive IPFS tool coverage.")
+        print(
+            "Run './start_ipfs_mcp_with_tools.sh' to start the MCP server with comprehensive IPFS tool coverage."
+        )
     else:
         logger.error("❌ Failed to apply all fixes")
         print("\n❌ Failed to apply all IPFS integration fixes.")

@@ -42,12 +42,13 @@ logging.basicConfig(level=logging.INFO)
 # Ensure IPFS daemon is running or API is configured
 # Ensure OPENAI_API_KEY environment variable is set for embeddings/LLM
 try:
-    kit = IPFSSimpleAPI() # Assumes default IPFS connection works
-    llama_integration = kit.ai_llama_index # Access via high-level API attribute
+    kit = IPFSSimpleAPI()  # Assumes default IPFS connection works
+    llama_integration = kit.ai_llama_index  # Access via high-level API attribute
     if not llama_integration:
-         # Fallback if direct attribute access isn't the way
-         from ipfs_kit_py.ai_ml_integration import LlamaIndexIntegration
-         llama_integration = LlamaIndexIntegration(ipfs_client=kit)
+        # Fallback if direct attribute access isn't the way
+        from ipfs_kit_py.ai_ml_integration import LlamaIndexIntegration
+
+        llama_integration = LlamaIndexIntegration(ipfs_client=kit)
 
 except Exception as e:
     logging.error(f"Failed to initialize IPFS Kit or LlamaIndexIntegration: {e}")
@@ -55,15 +56,16 @@ except Exception as e:
 
 # --- 1. Add and Load Documents ---
 # Re-use the document adding logic from Langchain example or assume doc_cid exists
-doc_cid = "Qm..." # Replace with actual CID from previous step or a known CID
+doc_cid = "Qm..."  # Replace with actual CID from previous step or a known CID
 if not doc_cid or doc_cid == "Qm...":
-     try:
+    try:
         doc_content = "IPFS is a distributed system for storing and accessing files, websites, applications, and data."
         add_result = kit.add_bytes(doc_content.encode())
-        doc_cid = add_result.get('Hash') if isinstance(add_result, dict) else None
-        if not doc_cid: raise ValueError("Failed to add dummy document.")
+        doc_cid = add_result.get("Hash") if isinstance(add_result, dict) else None
+        if not doc_cid:
+            raise ValueError("Failed to add dummy document.")
         logging.info(f"Using dummy document CID: {doc_cid}")
-     except Exception as add_e:
+    except Exception as add_e:
         logging.error(f"Failed to add dummy document for LlamaIndex example: {add_e}")
         exit()
 
@@ -73,7 +75,9 @@ try:
     # Note: The exact return type might differ slightly from Langchain's loader
     documents = llama_integration.load_documents(cid_or_path=doc_cid)
     # Assuming it returns a list of LlamaIndex Document objects
-    logging.info(f"Loaded {len(documents)} document(s). Content snippet: '{documents[0].get_content()[:50]}...'")
+    logging.info(
+        f"Loaded {len(documents)} document(s). Content snippet: '{documents[0].get_content()[:50]}...'"
+    )
 
 except Exception as e:
     logging.error(f"Error loading documents: {e}")
@@ -84,7 +88,7 @@ try:
     logging.info("Creating LlamaIndex Index (VectorStoreIndex)...")
     # LlamaIndex often uses a ServiceContext for configuration (LLM, embeddings)
     # By default, it might try to use OpenAI if available
-    from llama_index import ServiceContext #, VectorStoreIndex (might be created internally)
+    from llama_index import ServiceContext  # , VectorStoreIndex (might be created internally)
     # service_context = ServiceContext.from_defaults(chunk_size=512) # Example customization
 
     # The integration method likely handles index creation internally
@@ -94,11 +98,11 @@ try:
     )
 
     if not index_result.get("success"):
-         logging.error(f"Failed to create index: {index_result.get('error')}")
-         exit()
+        logging.error(f"Failed to create index: {index_result.get('error')}")
+        exit()
 
-    index = index_result.get("index") # Get the LlamaIndex Index object
-    index_cid = index_result.get("cid") # CID where the index data is stored on IPFS
+    index = index_result.get("index")  # Get the LlamaIndex Index object
+    index_cid = index_result.get("cid")  # CID where the index data is stored on IPFS
     logging.info(f"LlamaIndex Index created. Storage CID: {index_cid}")
 
     # --- 3. Create Query Engine and Query ---
@@ -126,21 +130,21 @@ try:
         index=index,
         name=index_name,
         version=index_version,
-        metadata={"description": "Index for IPFS documents"}
+        metadata={"description": "Index for IPFS documents"},
     )
 
     if not store_result.get("success"):
         logging.error(f"Failed to store index: {store_result.get('error')}")
         exit()
 
-    stored_index_cid = store_result.get("cid") # May differ from creation CID if re-saved
+    stored_index_cid = store_result.get("cid")  # May differ from creation CID if re-saved
     logging.info(f"Index stored successfully. Storage CID: {stored_index_cid}")
 
     # Load the index back from IPFS
     logging.info(f"Loading index '{index_name}' v{index_version} from IPFS...")
     load_result = llama_integration.load_index(
         name=index_name,
-        version=index_version
+        version=index_version,
         # service_context=service_context # Pass context if needed for loading
     )
 

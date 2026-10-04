@@ -32,20 +32,20 @@ Authentication settings are configured under the `cluster.authentication` key:
 ```python
 # Example configuration snippet
 config = {
-    'cluster': {
-        'authentication': {
-            'enabled': True,
-            'mode': 'mtls_ucan', # e.g., 'mtls', 'ucan', 'mtls_ucan'
-            'ca_cert_path': '~/.ipfs_kit/cluster/ca.crt',
-            'node_cert_path': '~/.ipfs_kit/cluster/node.crt',
-            'node_key_path': '~/.ipfs_kit/cluster/node.key',
-            'ucan_key_path': '~/.ipfs_kit/cluster/ucan.key',
-            'generate_certs_if_missing': True, # Auto-generate certs on first run
-            'token_secret': 'LOAD_FROM_ENV_OR_SECURE_STORE', # For cluster auth tokens if used
-            'required_capabilities': { # Example access control
-                 'pin_content': ['Master', 'Worker'],
-                 'execute_gpu_task': ['Worker[gpu=true]'] # Role/capability check
-            }
+    "cluster": {
+        "authentication": {
+            "enabled": True,
+            "mode": "mtls_ucan",  # e.g., 'mtls', 'ucan', 'mtls_ucan'
+            "ca_cert_path": "~/.ipfs_kit/cluster/ca.crt",
+            "node_cert_path": "~/.ipfs_kit/cluster/node.crt",
+            "node_key_path": "~/.ipfs_kit/cluster/node.key",
+            "ucan_key_path": "~/.ipfs_kit/cluster/ucan.key",
+            "generate_certs_if_missing": True,  # Auto-generate certs on first run
+            "token_secret": "LOAD_FROM_ENV_OR_SECURE_STORE",  # For cluster auth tokens if used
+            "required_capabilities": {  # Example access control
+                "pin_content": ["Master", "Worker"],
+                "execute_gpu_task": ["Worker[gpu=true]"],  # Role/capability check
+            },
         }
         # ... other cluster config
     }
