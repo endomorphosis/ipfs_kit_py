@@ -41,29 +41,29 @@ Advanced prefetching features are typically configured under `cache.prefetching`
 ```python
 # Example configuration snippet
 config = {
-    'cache': {
+    "cache": {
         # ... other cache settings (tiered cache sizes etc.)
-        'prefetching': {
-            'enabled': True,
-            'strategy': 'hybrid', # 'content_aware', 'predictive', 'hybrid'
-            'max_concurrent_prefetches': 5,
-            'max_queue_size': 100,
-            'resource_aware': True, # Consider system load before prefetching
-            'content_aware': {
-                'enable_magic_detection': True,
-                'default_strategies': { # Example strategies per type
-                    'video/mp4': {'type': 'sequential_chunking', 'ahead': 3},
-                    'application/zip': {'type': 'load_related', 'max_size_mb': 50},
-                    'text/html': {'type': 'load_linked_assets', 'depth': 1},
-                    'default': {'type': 'none'}
-                }
+        "prefetching": {
+            "enabled": True,
+            "strategy": "hybrid",  # 'content_aware', 'predictive', 'hybrid'
+            "max_concurrent_prefetches": 5,
+            "max_queue_size": 100,
+            "resource_aware": True,  # Consider system load before prefetching
+            "content_aware": {
+                "enable_magic_detection": True,
+                "default_strategies": {  # Example strategies per type
+                    "video/mp4": {"type": "sequential_chunking", "ahead": 3},
+                    "application/zip": {"type": "load_related", "max_size_mb": 50},
+                    "text/html": {"type": "load_linked_assets", "depth": 1},
+                    "default": {"type": "none"},
+                },
             },
-            'predictive': {
-                'markov_order': 2,
-                'graph_decay_factor': 0.1,
-                'model_persist_path': '~/.ipfs_kit/prefetch_models',
-                'min_confidence_threshold': 0.3 # Minimum prediction confidence to prefetch
-            }
+            "predictive": {
+                "markov_order": 2,
+                "graph_decay_factor": 0.1,
+                "model_persist_path": "~/.ipfs_kit/prefetch_models",
+                "min_confidence_threshold": 0.3,  # Minimum prediction confidence to prefetch
+            },
         }
     }
     # ... other ipfs-kit-py config

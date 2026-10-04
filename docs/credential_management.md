@@ -28,8 +28,8 @@ The credential manager itself might have minimal configuration, primarily the st
 ```python
 # Example configuration snippet within main config
 config = {
-    'credentials': {
-        'storage_path': '~/.ipfs_kit/credentials.json', # Default path
+    "credentials": {
+        "storage_path": "~/.ipfs_kit/credentials.json",  # Default path
         # 'storage_backend': 'file' # Future: 'keyring', 'env_vars'
     }
     # ... other ipfs-kit-py config
@@ -48,6 +48,7 @@ Credentials are typically managed via the `CredentialManager` instance, which mi
 
 ```python
 from ipfs_kit_py.credential_manager import CredentialManager
+
 # Assuming direct usage or access via kit.credentials
 cred_manager = CredentialManager()
 
@@ -55,10 +56,10 @@ cred_manager = CredentialManager()
 
 # Add default S3 credentials
 cred_manager.add_s3_credentials(
-    name="default", # Optional, defaults to 'default'
+    name="default",  # Optional, defaults to 'default'
     aws_access_key_id="YOUR_AWS_ACCESS_KEY_ID",
     aws_secret_access_key="YOUR_AWS_SECRET_ACCESS_KEY",
-    region_name="us-west-2" # Optional
+    region_name="us-west-2",  # Optional
 )
 print("Added default S3 credentials.")
 
@@ -66,7 +67,7 @@ print("Added default S3 credentials.")
 cred_manager.add_storacha_credentials(
     name="my_research_space",
     api_token="YOUR_STORACHA_API_TOKEN",
-    space_did="did:web:your-space.storacha.com" # Optional
+    space_did="did:web:your-space.storacha.com",  # Optional
 )
 print("Added 'my_research_space' Storacha credentials.")
 
@@ -81,7 +82,7 @@ print("Added 'main_filecoin' Filecoin credentials.")
 # --- Retrieving Credentials ---
 
 # Get default S3 credentials
-s3_creds = cred_manager.get_s3_credentials() # Gets 'default'
+s3_creds = cred_manager.get_s3_credentials()  # Gets 'default'
 if s3_creds:
     print(f"Retrieved default S3 Key ID: {s3_creds.get('aws_access_key_id')[:5]}...")
     # Use these credentials with boto3 or other S3 clients
@@ -92,7 +93,9 @@ if s3_creds:
 # Get specific Storacha credentials
 storacha_creds = cred_manager.get_storacha_credentials(name="my_research_space")
 if storacha_creds:
-    print(f"Retrieved Storacha token for 'my_research_space': {storacha_creds.get('api_token')[:5]}...")
+    print(
+        f"Retrieved Storacha token for 'my_research_space': {storacha_creds.get('api_token')[:5]}..."
+    )
     # Use with Storacha client library
 
 # --- Listing Credentials ---
@@ -113,7 +116,6 @@ if removed:
     print("\nRemoved 'main_filecoin' Filecoin credentials.")
 else:
     print("\nFailed to remove 'main_filecoin' Filecoin credentials (maybe not found).")
-
 ```
 
 ## Integration

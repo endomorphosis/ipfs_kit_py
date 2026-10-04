@@ -36,7 +36,7 @@ try:
             os.path.expanduser("~/.local/bin/lotus"),
             # Check if we have a local lotus binary in the project
             os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin/lotus"),
-            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin/lotus")
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin/lotus"),
         ]
 
         for path in common_paths:
@@ -68,10 +68,14 @@ except Exception as e:
 FILECOIN_LIBRARIES_AVAILABLE = False
 try:
     import requests
+
     FILECOIN_LIBRARIES_AVAILABLE = True
     logger.info("Required libraries for Filecoin integration available")
 except ImportError:
-    logger.warning("Required libraries for Filecoin integration not available. Install with: pip install requests")
+    logger.warning(
+        "Required libraries for Filecoin integration not available. Install with: pip install requests"
+    )
+
 
 class FilecoinStorage:
     """
@@ -94,20 +98,33 @@ class FilecoinStorage:
         self.api_endpoint = api_endpoint or os.environ.get("LOTUS_API_ENDPOINT")
         self.api_token = api_token or os.environ.get("LOTUS_API_TOKEN")
         self.mock_mode = os.environ.get("MCP_USE_FILECOIN_MOCK", "").lower() in ["true", "1", "yes"]
-        self.gateway_mode = LOTUS_GATEWAY_MODE or os.environ.get("LOTUS_GATEWAY_MODE", "").lower() in ["true", "1", "yes"]
+        self.gateway_mode = LOTUS_GATEWAY_MODE or os.environ.get(
+            "LOTUS_GATEWAY_MODE", ""
+        ).lower() in ["true", "1", "yes"]
 
         # Set simulation mode based on availability
-        self.simulation_mode = not (LOTUS_AVAILABLE and FILECOIN_LIBRARIES_AVAILABLE) and not self.mock_mode and not self.gateway_mode
+        self.simulation_mode = (
+            not (LOTUS_AVAILABLE and FILECOIN_LIBRARIES_AVAILABLE)
+            and not self.mock_mode
+            and not self.gateway_mode
+        )
 
         # Try to get API endpoint and token from Lotus config if not provided and not in mock mode
-        if LOTUS_AVAILABLE and not self.mock_mode and not self.gateway_mode and (not self.api_endpoint or not self.api_token):
+        if (
+            LOTUS_AVAILABLE
+            and not self.mock_mode
+            and not self.gateway_mode
+            and (not self.api_endpoint or not self.api_token)
+        ):
             try:
                 self._load_lotus_config()
             except Exception as e:
                 logger.warning(f"Failed to load Lotus config: {e}")
 
         # If dependencies are available but credentials are missing, use mock mode
-        if (self.simulation_mode or not self.api_endpoint or not self.api_token) and FILECOIN_LIBRARIES_AVAILABLE:
+        if (
+            self.simulation_mode or not self.api_endpoint or not self.api_token
+        ) and FILECOIN_LIBRARIES_AVAILABLE:
             logger.info("Using Filecoin mock mode (functional without real credentials)")
             self.simulation_mode = False
             self.mock_mode = True
@@ -137,7 +154,7 @@ class FilecoinStorage:
             result = subprocess.run(
                 [self.lotus_path, "auth", "api-info", "--perm", "admin"],
                 capture_output=True,
-                text=True
+                text=True,
             )
 
             if result.returncode == 0:
@@ -189,7 +206,7 @@ class FilecoinStorage:
             try:
                 # Convert method to lotus command structure
                 # e.g. "Filecoin.ChainHead" -> ["chain", "head"]
-                cmd_parts = method.split('.')
+                cmd_parts = method.split(".")
                 if len(cmd_parts) != 2 or not cmd_parts[0] == "Filecoin":
                     logger.error(f"Invalid method format: {method}")
                     return None
@@ -210,10 +227,10 @@ class FilecoinStorage:
                     cmd_arr.extend(["chain", "head"])
                 elif cmd.startswith("client"):
                     cmd_arr.append("client")
-                    cmd_arr.append(cmd[len("client"):].lstrip("-"))
+                    cmd_arr.append(cmd[len("client") :].lstrip("-"))
                 elif cmd.startswith("net"):
                     cmd_arr.append("net")
-                    cmd_arr.append(cmd[len("net"):].lstrip("-"))
+                    cmd_arr.append(cmd[len("net") :].lstrip("-"))
                 else:
                     # General fallback
                     cmd_arr.append(cmd)
@@ -223,11 +240,7 @@ class FilecoinStorage:
                     cmd_arr.extend([str(p) for p in params])
 
                 # Run the command
-                result = subprocess.run(
-                    cmd_arr,
-                    capture_output=True,
-                    text=True
-                )
+                result = subprocess.run(cmd_arr, capture_output=True, text=True)
 
                 if result.returncode == 0:
                     # Try to parse JSON output
@@ -250,26 +263,14 @@ class FilecoinStorage:
             return None
 
         try:
-            headers = {
-                "Content-Type": "application/json"
-            }
+            headers = {"Content-Type": "application/json"}
 
             if self.api_token:
                 headers["Authorization"] = f"Bearer {self.api_token}"
 
-            payload = {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": method,
-                "params": params or []
-            }
+            payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}
 
-            response = requests.post(
-                self.api_endpoint,
-                headers=headers,
-                json=payload,
-                timeout=30
-            )
+            response = requests.post(self.api_endpoint, headers=headers, json=payload, timeout=30)
 
             if response.status_code == 200:
                 result = response.json()
@@ -299,7 +300,7 @@ class FilecoinStorage:
             "simulation": self.simulation_mode,
             "mock": self.mock_mode,
             "gateway": self.gateway_mode,
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
 
         if self.simulation_mode:
@@ -310,7 +311,9 @@ class FilecoinStorage:
                 status_info["error"] = "Required libraries not installed"
         elif self.mock_mode:
             status_info["message"] = "Running in mock mode"
-            status_info["warning"] = "Using local mock implementation (functional but not connected to Filecoin network)"
+            status_info["warning"] = (
+                "Using local mock implementation (functional but not connected to Filecoin network)"
+            )
 
             # Create mock directory if it doesn't exist
             mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_filecoin")
@@ -356,7 +359,9 @@ class FilecoinStorage:
 
         return status_info
 
-    def from_ipfs(self, cid: str, miner: Optional[str] = None, duration: int = 518400) -> Dict[str, Any]:
+    def from_ipfs(
+        self, cid: str, miner: Optional[str] = None, duration: int = 518400
+    ) -> Dict[str, Any]:
         """
         Store IPFS content on Filecoin.
 
@@ -372,7 +377,7 @@ class FilecoinStorage:
             return {
                 "success": False,
                 "simulation": True,
-                "error": "Filecoin backend is in simulation mode"
+                "error": "Filecoin backend is in simulation mode",
             }
 
         # If in mock mode, simulate storing content with local files
@@ -380,9 +385,7 @@ class FilecoinStorage:
             try:
                 # Verify CID exists on IPFS
                 result = subprocess.run(
-                    ["ipfs", "block", "stat", cid],
-                    capture_output=True,
-                    text=True
+                    ["ipfs", "block", "stat", cid], capture_output=True, text=True
                 )
 
                 if result.returncode != 0:
@@ -390,11 +393,13 @@ class FilecoinStorage:
                         "success": False,
                         "mock": self.mock_mode,
                         "gateway": self.gateway_mode,
-                        "error": f"CID {cid} not found on IPFS: {result.stderr}"
+                        "error": f"CID {cid} not found on IPFS: {result.stderr}",
                     }
 
                 # Create a mock deals directory if it doesn't exist
-                mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_filecoin", "deals")
+                mock_dir = os.path.join(
+                    os.path.expanduser("~"), ".ipfs_kit", "mock_filecoin", "deals"
+                )
                 os.makedirs(mock_dir, exist_ok=True)
 
                 # Use default miner if not specified
@@ -414,7 +419,7 @@ class FilecoinStorage:
                     "status": "active",
                     "created_at": time.time(),
                     "mock": self.mock_mode,
-                    "gateway": self.gateway_mode
+                    "gateway": self.gateway_mode,
                 }
 
                 # Store the deal information
@@ -425,13 +430,14 @@ class FilecoinStorage:
                     "success": True,
                     "mock": self.mock_mode,
                     "gateway": self.gateway_mode,
-                    "message": "Storage deal created" + (" via gateway" if self.gateway_mode else " in mock storage"),
+                    "message": "Storage deal created"
+                    + (" via gateway" if self.gateway_mode else " in mock storage"),
                     "deal_id": deal_id,
                     "cid": cid,
                     "miner": miner,
                     "duration": duration,
                     "status": "active",
-                    "mock_file": deal_file
+                    "mock_file": deal_file,
                 }
 
             except Exception as e:
@@ -440,22 +446,15 @@ class FilecoinStorage:
                     "success": False,
                     "mock": self.mock_mode,
                     "gateway": self.gateway_mode,
-                    "error": str(e)
+                    "error": str(e),
                 }
 
         try:
             # Verify CID exists on IPFS
-            result = subprocess.run(
-                ["ipfs", "block", "stat", cid],
-                capture_output=True,
-                text=True
-            )
+            result = subprocess.run(["ipfs", "block", "stat", cid], capture_output=True, text=True)
 
             if result.returncode != 0:
-                return {
-                    "success": False,
-                    "error": f"CID {cid} not found on IPFS: {result.stderr}"
-                }
+                return {"success": False, "error": f"CID {cid} not found on IPFS: {result.stderr}"}
 
             # If no miner specified, get one with reasonable price
             if not miner:
@@ -470,7 +469,7 @@ class FilecoinStorage:
                 "miner": miner,
                 "duration": duration,
                 "timestamp": time.time(),
-                "deal_id": deal_id
+                "deal_id": deal_id,
             }
 
             # In a real implementation, we would make a storage deal here
@@ -486,15 +485,12 @@ class FilecoinStorage:
                 "miner": miner,
                 "duration": duration,
                 "status": "proposed",
-                "note": "Note: This is a simulated deal for demo purposes"
+                "note": "Note: This is a simulated deal for demo purposes",
             }
 
         except Exception as e:
             logger.error(f"Error storing IPFS content on Filecoin: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
 
     def to_ipfs(self, deal_id: str) -> Dict[str, Any]:
         """
@@ -510,14 +506,16 @@ class FilecoinStorage:
             return {
                 "success": False,
                 "simulation": True,
-                "error": "Filecoin backend is in simulation mode"
+                "error": "Filecoin backend is in simulation mode",
             }
 
         # If in mock mode or gateway mode, retrieve content from mock storage
         if self.mock_mode or self.gateway_mode:
             try:
                 # Find the deal in mock storage
-                mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_filecoin", "deals")
+                mock_dir = os.path.join(
+                    os.path.expanduser("~"), ".ipfs_kit", "mock_filecoin", "deals"
+                )
                 deal_file = os.path.join(mock_dir, f"{deal_id}.json")
 
                 if not os.path.exists(deal_file):
@@ -525,7 +523,7 @@ class FilecoinStorage:
                         "success": False,
                         "mock": self.mock_mode,
                         "gateway": self.gateway_mode,
-                        "error": f"Deal {deal_id} not found in storage"
+                        "error": f"Deal {deal_id} not found in storage",
                     }
 
                 # Read the deal information
@@ -538,14 +536,12 @@ class FilecoinStorage:
                         "success": False,
                         "mock": self.mock_mode,
                         "gateway": self.gateway_mode,
-                        "error": "Deal information does not contain a CID"
+                        "error": "Deal information does not contain a CID",
                     }
 
                 # Check if content is already in IPFS
                 ipfs_check = subprocess.run(
-                    ["ipfs", "block", "stat", cid],
-                    capture_output=True,
-                    text=True
+                    ["ipfs", "block", "stat", cid], capture_output=True, text=True
                 )
 
                 if ipfs_check.returncode == 0:
@@ -557,7 +553,7 @@ class FilecoinStorage:
                         "message": "Content already available in IPFS",
                         "deal_id": deal_id,
                         "cid": cid,
-                        "status": "retrieved"
+                        "status": "retrieved",
                     }
 
                 # In a real implementation, we would actually retrieve the content
@@ -569,7 +565,7 @@ class FilecoinStorage:
                     "message": f"Retrieval from Filecoin {' via gateway' if self.gateway_mode else ' (mock)'}",
                     "deal_id": deal_id,
                     "cid": cid,
-                    "status": "retrieval_simulated"
+                    "status": "retrieval_simulated",
                 }
 
             except Exception as e:
@@ -578,7 +574,7 @@ class FilecoinStorage:
                     "success": False,
                     "mock": self.mock_mode,
                     "gateway": self.gateway_mode,
-                    "error": str(e)
+                    "error": str(e),
                 }
 
         try:
@@ -591,15 +587,12 @@ class FilecoinStorage:
                 "message": "Content retrieved from Filecoin",
                 "deal_id": deal_id,
                 "status": "retrieved",
-                "note": "Note: This is a simulated retrieval for demo purposes"
+                "note": "Note: This is a simulated retrieval for demo purposes",
             }
 
         except Exception as e:
             logger.error(f"Error retrieving content from Filecoin: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
 
     def check_deal_status(self, deal_id: str) -> Dict[str, Any]:
         """
@@ -615,14 +608,16 @@ class FilecoinStorage:
             return {
                 "success": False,
                 "simulation": True,
-                "error": "Filecoin backend is in simulation mode"
+                "error": "Filecoin backend is in simulation mode",
             }
 
         # If in mock mode or gateway mode, check status from mock storage
         if self.mock_mode or self.gateway_mode:
             try:
                 # Find the deal in mock storage
-                mock_dir = os.path.join(os.path.expanduser("~"), ".ipfs_kit", "mock_filecoin", "deals")
+                mock_dir = os.path.join(
+                    os.path.expanduser("~"), ".ipfs_kit", "mock_filecoin", "deals"
+                )
                 deal_file = os.path.join(mock_dir, f"{deal_id}.json")
 
                 if not os.path.exists(deal_file):
@@ -630,7 +625,7 @@ class FilecoinStorage:
                         "success": False,
                         "mock": self.mock_mode,
                         "gateway": self.gateway_mode,
-                        "error": f"Deal {deal_id} not found in storage"
+                        "error": f"Deal {deal_id} not found in storage",
                     }
 
                 # Read the deal information
@@ -641,7 +636,9 @@ class FilecoinStorage:
                 deal_info["mock"] = self.mock_mode
                 deal_info["gateway"] = self.gateway_mode
                 deal_info["success"] = True
-                deal_info["message"] = f"Deal status retrieved{' via gateway' if self.gateway_mode else ' from mock storage'}"
+                deal_info["message"] = (
+                    f"Deal status retrieved{' via gateway' if self.gateway_mode else ' from mock storage'}"
+                )
 
                 return deal_info
 
@@ -651,7 +648,7 @@ class FilecoinStorage:
                     "success": False,
                     "mock": self.mock_mode,
                     "gateway": self.gateway_mode,
-                    "error": str(e)
+                    "error": str(e),
                 }
 
         try:
@@ -664,12 +661,9 @@ class FilecoinStorage:
                 "deal_id": deal_id,
                 "status": "active",
                 "message": "Deal is active",
-                "note": "Note: This is a simulated status check for demo purposes"
+                "note": "Note: This is a simulated status check for demo purposes",
             }
 
         except Exception as e:
             logger.error(f"Error checking deal status: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}

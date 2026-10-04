@@ -7,10 +7,13 @@ import os
 import re
 import logging
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 MCP_SERVER_PATH = "direct_mcp_server.py"
+
 
 def add_ipfs_tools_to_mcp():
     """Directly modify the direct_mcp_server.py file to add IPFS tools"""
@@ -20,7 +23,7 @@ def add_ipfs_tools_to_mcp():
 
     try:
         # Read the file
-        with open(MCP_SERVER_PATH, 'r') as f:
+        with open(MCP_SERVER_PATH, "r") as f:
             content = f.read()
 
         # Add the import statement
@@ -50,7 +53,9 @@ def add_ipfs_tools_to_mcp():
                 # Insert after the server creation
                 pos = server_match.end()
                 # Add a newline and indentation
-                content = content[:pos] + "\n\n# Register IPFS tools\n" + register_call + content[pos:]
+                content = (
+                    content[:pos] + "\n\n# Register IPFS tools\n" + register_call + content[pos:]
+                )
                 logger.info("✅ Added call to register IPFS tools")
             else:
                 # Try a different approach - find where the server variable is first used
@@ -61,14 +66,23 @@ def add_ipfs_tools_to_mcp():
                     # Insert before the first use of server
                     indentation = server_use_match.group(1).replace("server.", "")
                     pos = server_use_match.start()
-                    content = content[:pos] + "\n" + indentation + "# Register IPFS tools\n" + indentation + register_call + "\n" + content[pos:]
+                    content = (
+                        content[:pos]
+                        + "\n"
+                        + indentation
+                        + "# Register IPFS tools\n"
+                        + indentation
+                        + register_call
+                        + "\n"
+                        + content[pos:]
+                    )
                     logger.info("✅ Added call to register IPFS tools")
                 else:
                     logger.error("❌ Could not find a suitable location to add register call")
                     return False
 
         # Write the updated content back to the file
-        with open(MCP_SERVER_PATH, 'w') as f:
+        with open(MCP_SERVER_PATH, "w") as f:
             f.write(content)
 
         logger.info(f"✅ Successfully modified {MCP_SERVER_PATH} to add IPFS tools")
@@ -76,6 +90,7 @@ def add_ipfs_tools_to_mcp():
     except Exception as e:
         logger.error(f"❌ Error updating MCP server file: {e}")
         return False
+
 
 if __name__ == "__main__":
     add_ipfs_tools_to_mcp()

@@ -4,6 +4,7 @@ import time
 # Configure logger
 logger = logging.getLogger(__name__)
 
+
 async def stat_file(self, path: str):
     """
     Get information about a file or directory in MFS.
@@ -44,8 +45,9 @@ async def stat_file(self, path: str):
             "duration_ms": (time.time() - start_time) * 1000,
             "error": str(e),
             "error_type": type(e).__name__,
-            "path": path
+            "path": path,
         }
+
 
 async def make_directory(self, path: str, parents: bool = False):
     """
@@ -89,8 +91,9 @@ async def make_directory(self, path: str, parents: bool = False):
             "error": str(e),
             "error_type": type(e).__name__,
             "path": path,
-            "parents": parents
+            "parents": parents,
         }
+
 
 async def read_file(self, path: str, offset: int = 0, count: int = None):
     """
@@ -136,11 +139,19 @@ async def read_file(self, path: str, offset: int = 0, count: int = None):
             "error_type": type(e).__name__,
             "path": path,
             "offset": offset,
-            "count": count
+            "count": count,
         }
 
-async def write_file(self, path: str, content: str, create: bool = True, truncate: bool = True, 
-                    offset: int = 0, flush: bool = True):
+
+async def write_file(
+    self,
+    path: str,
+    content: str,
+    create: bool = True,
+    truncate: bool = True,
+    offset: int = 0,
+    flush: bool = True,
+):
     """
     Write content to a file in the MFS.
 
@@ -155,7 +166,9 @@ async def write_file(self, path: str, content: str, create: bool = True, truncat
     Returns:
         Dictionary with operation results
     """
-    logger.debug(f"Writing file to MFS: {path}, create: {create}, truncate: {truncate}, offset: {offset}")
+    logger.debug(
+        f"Writing file to MFS: {path}, create: {create}, truncate: {truncate}, offset: {offset}"
+    )
 
     # Start timing for operation metrics
     start_time = time.time()
@@ -164,12 +177,7 @@ async def write_file(self, path: str, content: str, create: bool = True, truncat
     try:
         # Call IPFS model to write file
         result = self.ipfs_model.files_write(
-            path=path, 
-            content=content, 
-            create=create, 
-            truncate=truncate, 
-            offset=offset, 
-            flush=flush
+            path=path, content=content, create=create, truncate=truncate, offset=offset, flush=flush
         )
 
         # Add operation tracking fields for consistency
@@ -196,8 +204,9 @@ async def write_file(self, path: str, content: str, create: bool = True, truncat
             "create": create,
             "truncate": truncate,
             "offset": offset,
-            "flush": flush
+            "flush": flush,
         }
+
 
 async def remove_file(self, path: str, recursive: bool = False, force: bool = False):
     """
@@ -243,10 +252,13 @@ async def remove_file(self, path: str, recursive: bool = False, force: bool = Fa
             "error_type": type(e).__name__,
             "path": path,
             "recursive": recursive,
-            "force": force
+            "force": force,
         }
 
-async def publish_name(self, path: str, key: str = "self", resolve: bool = True, lifetime: str = "24h"):
+
+async def publish_name(
+    self, path: str, key: str = "self", resolve: bool = True, lifetime: str = "24h"
+):
     """
     Publish an IPFS path to IPNS.
 
@@ -259,7 +271,9 @@ async def publish_name(self, path: str, key: str = "self", resolve: bool = True,
     Returns:
         Dictionary with operation results
     """
-    logger.debug(f"Publishing to IPNS: {path}, key: {key}, resolve: {resolve}, lifetime: {lifetime}")
+    logger.debug(
+        f"Publishing to IPNS: {path}, key: {key}, resolve: {resolve}, lifetime: {lifetime}"
+    )
 
     # Start timing for operation metrics
     start_time = time.time()
@@ -267,7 +281,9 @@ async def publish_name(self, path: str, key: str = "self", resolve: bool = True,
 
     try:
         # Call IPFS model to publish name
-        result = self.ipfs_model.name_publish(path=path, key=key, resolve=resolve, lifetime=lifetime)
+        result = self.ipfs_model.name_publish(
+            path=path, key=key, resolve=resolve, lifetime=lifetime
+        )
 
         # Add operation tracking fields for consistency
         if "operation_id" not in result:
@@ -292,8 +308,9 @@ async def publish_name(self, path: str, key: str = "self", resolve: bool = True,
             "path": path,
             "key": key,
             "resolve": resolve,
-            "lifetime": lifetime
+            "lifetime": lifetime,
         }
+
 
 async def resolve_name(self, name: str, recursive: bool = True, nocache: bool = False):
     """
@@ -339,8 +356,9 @@ async def resolve_name(self, name: str, recursive: bool = True, nocache: bool = 
             "error_type": type(e).__name__,
             "name": name,
             "recursive": recursive,
-            "nocache": nocache
+            "nocache": nocache,
         }
+
 
 async def get_dag_node(self, cid: str, path: str = None):
     """
@@ -384,8 +402,9 @@ async def get_dag_node(self, cid: str, path: str = None):
             "error": str(e),
             "error_type": type(e).__name__,
             "cid": cid,
-            "path": path
+            "path": path,
         }
+
 
 async def put_dag_node(self, object: dict, format: str = "json", pin: bool = True):
     """
@@ -430,8 +449,9 @@ async def put_dag_node(self, object: dict, format: str = "json", pin: bool = Tru
             "error": str(e),
             "error_type": type(e).__name__,
             "format": format,
-            "pin": pin
+            "pin": pin,
         }
+
 
 async def get_block_json(self, cid: str):
     """
@@ -473,8 +493,9 @@ async def get_block_json(self, cid: str):
             "duration_ms": (time.time() - start_time) * 1000,
             "error": str(e),
             "error_type": type(e).__name__,
-            "cid": cid
+            "cid": cid,
         }
+
 
 async def stat_block(self, cid: str):
     """
@@ -516,5 +537,5 @@ async def stat_block(self, cid: str):
             "duration_ms": (time.time() - start_time) * 1000,
             "error": str(e),
             "error_type": type(e).__name__,
-            "cid": cid
+            "cid": cid,
         }

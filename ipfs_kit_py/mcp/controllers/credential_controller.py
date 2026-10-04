@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 # Import anyio with fallback
 try:
     import anyio
+
     HAS_ANYIO = True
 except ImportError:
     HAS_ANYIO = False
@@ -69,13 +70,13 @@ def _run_async_from_sync(async_fn, *args, **kwargs):
 # Define Pydantic models for requests and responses
 class CredentialBaseRequest(BaseModel):
     """
-import sys
-import os
-# Add the parent directory to sys.path to allow importing mcp_error_handling
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-import mcp_error_handling
+    import sys
+    import os
+    # Add the parent directory to sys.path to allow importing mcp_error_handling
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+    import mcp_error_handling
 
-Base request model for credential operations."""
+    Base request model for credential operations."""
 
     name: str = Field(
         ..., description="Name for this credential set (e.g., 'default', 'production')"
@@ -357,11 +358,11 @@ class CredentialController:
             valid_services = ["ipfs", "s3", "storacha", "filecoin", "ipfs_cluster"]
             if credential_request.service not in valid_services:
                 mcp_error_handling.raise_http_exception(
-        code="INVALID_REQUEST",
-        message_override=f"Invalid service: {credential_request.service}",
-        endpoint="/api/v0/credential",
-        doc_category="api"
-    )
+                    code="INVALID_REQUEST",
+                    message_override=f"Invalid service: {credential_request.service}",
+                    endpoint="/api/v0/credential",
+                    doc_category="api",
+                )
 
             # Add credential using the generic method
             success = self.credential_manager.add_credential(
@@ -372,11 +373,11 @@ class CredentialController:
 
             if not success:
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override="Failed to add credentials",
-        endpoint="/api/v0/credential",
-        doc_category="api"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override="Failed to add credentials",
+                    endpoint="/api/v0/credential",
+                    doc_category="api",
+                )
 
             return {
                 "success": True,
@@ -390,11 +391,11 @@ class CredentialController:
         except Exception as e:
             logger.error(f"Error adding generic credentials: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=f"Failed to add credentials: {str(e,
-        endpoint="/api/v0/credential",
-        doc_category="api"
-    )}")
+                code="INTERNAL_ERROR",
+                message_override=f"Failed to add credentials: {
+                    str(e, endpoint='/api/v0/credential', doc_category='api')
+                }",
+            )
 
     async def list_credentials(self, service: Optional[str] = None):
         """
@@ -420,11 +421,11 @@ class CredentialController:
         except Exception as e:
             logger.error(f"Error listing credentials: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=f"Failed to list credentials: {str(e,
-        endpoint="/api/v0/credential",
-        doc_category="api"
-    )}")
+                code="INTERNAL_ERROR",
+                message_override=f"Failed to list credentials: {
+                    str(e, endpoint='/api/v0/credential', doc_category='api')
+                }",
+            )
 
     async def add_s3_credentials(self, credential_request: S3CredentialRequest):
         """
@@ -449,11 +450,11 @@ class CredentialController:
 
             if not success:
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override="Failed to add S3 credentials",
-        endpoint="/api/v0/credential",
-        doc_category="storage"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override="Failed to add S3 credentials",
+                    endpoint="/api/v0/credential",
+                    doc_category="storage",
+                )
 
             return {
                 "success": True,
@@ -467,11 +468,11 @@ class CredentialController:
         except Exception as e:
             logger.error(f"Error adding S3 credentials: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=f"Failed to add S3 credentials: {str(e,
-        endpoint="/api/v0/credential",
-        doc_category="storage"
-    )}")
+                code="INTERNAL_ERROR",
+                message_override=f"Failed to add S3 credentials: {
+                    str(e, endpoint='/api/v0/credential', doc_category='storage')
+                }",
+            )
 
     async def add_storacha_credentials(self, credential_request: StorachaCredentialRequest):
         """
@@ -494,11 +495,11 @@ class CredentialController:
 
             if not success:
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override="Failed to add Storacha credentials",
-        endpoint="/api/v0/credential",
-        doc_category="storage"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override="Failed to add Storacha credentials",
+                    endpoint="/api/v0/credential",
+                    doc_category="storage",
+                )
 
             return {
                 "success": True,
@@ -512,11 +513,10 @@ class CredentialController:
         except Exception as e:
             logger.error(f"Error adding Storacha credentials: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=f"Failed to add Storacha credentials: {str(e,
-        endpoint="/api/v0/credential",
-        doc_category="storage"
-    )}"
+                code="INTERNAL_ERROR",
+                message_override=f"Failed to add Storacha credentials: {
+                    str(e, endpoint='/api/v0/credential', doc_category='storage')
+                }",
             )
 
     async def add_filecoin_credentials(self, credential_request: FilecoinCredentialRequest):
@@ -542,11 +542,11 @@ class CredentialController:
 
             if not success:
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override="Failed to add Filecoin credentials",
-        endpoint="/api/v0/credential",
-        doc_category="storage"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override="Failed to add Filecoin credentials",
+                    endpoint="/api/v0/credential",
+                    doc_category="storage",
+                )
 
             return {
                 "success": True,
@@ -560,11 +560,10 @@ class CredentialController:
         except Exception as e:
             logger.error(f"Error adding Filecoin credentials: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=f"Failed to add Filecoin credentials: {str(e,
-        endpoint="/api/v0/credential",
-        doc_category="storage"
-    )}"
+                code="INTERNAL_ERROR",
+                message_override=f"Failed to add Filecoin credentials: {
+                    str(e, endpoint='/api/v0/credential', doc_category='storage')
+                }",
             )
 
     async def add_ipfs_credentials(self, credential_request: IPFSCredentialRequest):
@@ -605,11 +604,11 @@ class CredentialController:
             # Skip if no credential data was provided
             if len(credentials) <= 1:  # Just has "type"
                 mcp_error_handling.raise_http_exception(
-        code="INVALID_REQUEST",
-        message_override="No credential data provided",
-        endpoint="/api/v0/credential",
-        doc_category="api"
-    )
+                    code="INVALID_REQUEST",
+                    message_override="No credential data provided",
+                    endpoint="/api/v0/credential",
+                    doc_category="api",
+                )
 
             success = self.credential_manager.add_credential(
                 "ipfs", credential_request.name, credentials
@@ -617,11 +616,11 @@ class CredentialController:
 
             if not success:
                 mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override="Failed to add IPFS credentials",
-        endpoint="/api/v0/credential",
-        doc_category="api"
-    )
+                    code="INTERNAL_ERROR",
+                    message_override="Failed to add IPFS credentials",
+                    endpoint="/api/v0/credential",
+                    doc_category="api",
+                )
 
             return {
                 "success": True,
@@ -635,11 +634,11 @@ class CredentialController:
         except Exception as e:
             logger.error(f"Error adding IPFS credentials: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=f"Failed to add IPFS credentials: {str(e,
-        endpoint="/api/v0/credential",
-        doc_category="api"
-    )}")
+                code="INTERNAL_ERROR",
+                message_override=f"Failed to add IPFS credentials: {
+                    str(e, endpoint='/api/v0/credential', doc_category='api')
+                }",
+            )
 
     async def remove_credential(self, service: str, name: str):
         """
@@ -659,21 +658,21 @@ class CredentialController:
             valid_services = ["ipfs", "s3", "storacha", "filecoin", "ipfs_cluster"]
             if service not in valid_services:
                 mcp_error_handling.raise_http_exception(
-        code="INVALID_REQUEST",
-        message_override=f"Invalid service: {service}",
-        endpoint="/api/v0/credential",
-        doc_category="api"
-    )
+                    code="INVALID_REQUEST",
+                    message_override=f"Invalid service: {service}",
+                    endpoint="/api/v0/credential",
+                    doc_category="api",
+                )
 
             success = self.credential_manager.remove_credential(service, name)
 
             if not success:
                 mcp_error_handling.raise_http_exception(
-        code="CONTENT_NOT_FOUND",
-        message_override=f"Credentials not found for {service}/{name}",
-        endpoint="/api/v0/credential",
-        doc_category="api"
-    )
+                    code="CONTENT_NOT_FOUND",
+                    message_override=f"Credentials not found for {service}/{name}",
+                    endpoint="/api/v0/credential",
+                    doc_category="api",
+                )
 
             return {
                 "success": True,
@@ -687,8 +686,8 @@ class CredentialController:
         except Exception as e:
             logger.error(f"Error removing credentials: {e}")
             mcp_error_handling.raise_http_exception(
-        code="INTERNAL_ERROR",
-        message_override=f"Failed to remove credentials: {str(e,
-        endpoint="/api/v0/credential",
-        doc_category="api"
-    )}")
+                code="INTERNAL_ERROR",
+                message_override=f"Failed to remove credentials: {
+                    str(e, endpoint='/api/v0/credential', doc_category='api')
+                }",
+            )

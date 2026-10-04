@@ -58,6 +58,7 @@ except ImportError as e:
 __all__ = ['MCPServer', 'AsyncMCPServer']
 '''
 
+
 def fix_server_bridge():
     """Apply fixes to the server bridge file."""
     print(f"Updating server bridge at {SERVER_BRIDGE_PATH}...")
@@ -65,18 +66,19 @@ def fix_server_bridge():
     # Backup the original file
     backup_path = SERVER_BRIDGE_PATH.with_suffix(".py.bak")
     if SERVER_BRIDGE_PATH.exists():
-        with open(SERVER_BRIDGE_PATH, 'r') as f:
+        with open(SERVER_BRIDGE_PATH, "r") as f:
             original_content = f.read()
 
-        with open(backup_path, 'w') as f:
+        with open(backup_path, "w") as f:
             f.write(original_content)
             print(f"Created backup at {backup_path}")
 
     # Write the updated content
-    with open(SERVER_BRIDGE_PATH, 'w') as f:
+    with open(SERVER_BRIDGE_PATH, "w") as f:
         f.write(UPDATED_CONTENT)
 
     print("Server bridge updated successfully")
+
 
 if __name__ == "__main__":
     try:

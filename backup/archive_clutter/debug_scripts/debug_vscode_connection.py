@@ -10,6 +10,7 @@ import json
 import time
 import sys
 
+
 def simulate_initialize_request():
     """Simulate the initialize request that VS Code sends."""
     print("Simulating VS Code initialize request...")
@@ -27,10 +28,7 @@ def simulate_initialize_request():
         "method": "initialize",
         "params": {
             "processId": 12345,  # Process ID of the client
-            "clientInfo": {
-                "name": "Visual Studio Code",
-                "version": "1.82.0"
-            },
+            "clientInfo": {"name": "Visual Studio Code", "version": "1.82.0"},
             "rootPath": None,
             "rootUri": None,
             "capabilities": {
@@ -39,15 +37,15 @@ def simulate_initialize_request():
                     "workspaceEdit": {
                         "documentChanges": True,
                         "resourceOperations": ["create", "rename", "delete"],
-                        "failureHandling": "textOnlyTransactional"
-                    }
+                        "failureHandling": "textOnlyTransactional",
+                    },
                 },
                 "textDocument": {
                     "synchronization": {
                         "dynamicRegistration": True,
                         "willSave": True,
                         "willSaveWaitUntil": True,
-                        "didSave": True
+                        "didSave": True,
                     },
                     "completion": {
                         "dynamicRegistration": True,
@@ -56,14 +54,14 @@ def simulate_initialize_request():
                             "commitCharactersSupport": True,
                             "documentationFormat": ["markdown", "plaintext"],
                             "deprecatedSupport": True,
-                            "preselectSupport": True
+                            "preselectSupport": True,
                         },
-                        "contextSupport": True
-                    }
-                }
+                        "contextSupport": True,
+                    },
+                },
             },
-            "trace": "off"
-        }
+            "trace": "off",
+        },
     }
 
     try:
@@ -103,6 +101,7 @@ def simulate_initialize_request():
         print(f"\n❌ ERROR: Unexpected error: {e}")
         return False
 
+
 def check_sse_connection():
     """Check if we can connect to the SSE endpoint."""
     print("\nChecking SSE endpoint connection...")
@@ -138,6 +137,7 @@ def check_sse_connection():
         print(f"\n❌ ERROR: An error occurred while connecting to SSE endpoint: {e}")
         return False
 
+
 def main():
     """Main entry point."""
     print("=== VS Code JSON-RPC Communication Debug Tool ===\n")
@@ -156,6 +156,7 @@ def main():
     else:
         print("\n❌ ERROR: One or more connections failed. See above for details.")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())
