@@ -41,7 +41,9 @@ def create_app(state: InMemoryClusterState) -> FastAPI:
 
     @app.exception_handler(RequestValidationError)
     async def validation_handler(_: Request, exc: RequestValidationError) -> JSONResponse:  # noqa: ANN001
-        return JSONResponse(status_code=400, content={"success": False, "message": f"validation error: {exc}"})
+        return JSONResponse(
+            status_code=400, content={"success": False, "message": f"validation error: {exc}"}
+        )
 
     @app.get("/health")
     async def health() -> Dict[str, Any]:
@@ -111,7 +113,9 @@ def create_app(state: InMemoryClusterState) -> FastAPI:
         key = payload.get("key")
         data = payload.get("data")
         if index_type != "embeddings" or not key or data is None:
-            return JSONResponse(status_code=400, content={"success": False, "message": "validation error"})
+            return JSONResponse(
+                status_code=400, content={"success": False, "message": "validation error"}
+            )
         state.index_data.setdefault(index_type, {})[key] = data
         return {"success": True, "key": key}
 
@@ -135,12 +139,12 @@ def create_app(state: InMemoryClusterState) -> FastAPI:
     @app.post("/indexing/search/{index_type}")
     async def search_index(index_type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         if index_type != "embeddings":
-            return JSONResponse(status_code=400, content={"success": False, "message": "validation error"})
+            return JSONResponse(
+                status_code=400, content={"success": False, "message": "validation error"}
+            )
         top_k = int(payload.get("top_k", 5))
         entries = list(state.index_data.get(index_type, {}).items())
-        results = [
-            {"key": key, "score": 1.0, "data": data} for key, data in entries[:top_k]
-        ]
+        results = [{"key": key, "score": 1.0, "data": data} for key, data in entries[:top_k]]
         return {"success": True, "results": results}
 
     @app.get("/indexing/stats")

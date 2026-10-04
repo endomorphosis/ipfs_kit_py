@@ -19,6 +19,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def patch_api_imports():
     """
     Fix API import mechanisms to work with the refactored directory structure.
@@ -33,7 +34,7 @@ def patch_api_imports():
             return False
 
         # Read the file
-        with open(api_file, 'r') as f:
+        with open(api_file, "r") as f:
             content = f.read()
 
         # Update the import mechanism to handle both package and direct imports
@@ -89,7 +90,7 @@ def patch_api_imports():
         new_content = new_content.replace(original_fallback, fixed_fallback)
 
         # Write the patched content back to the file
-        with open(api_file, 'w') as f:
+        with open(api_file, "w") as f:
             f.write(new_content)
 
         logger.info(f"Successfully patched {api_file}")
@@ -132,7 +133,7 @@ IPFSSimpleAPI = high_level_api.IPFSSimpleAPI
 """
 
             # Write the proxy module
-            with open(package_path, 'w') as f:
+            with open(package_path, "w") as f:
                 f.write(init_content)
 
             logger.info(f"Created proxy module at {package_path}")
@@ -144,6 +145,7 @@ IPFSSimpleAPI = high_level_api.IPFSSimpleAPI
     except Exception as e:
         logger.error(f"Error applying patch: {e}")
         return False
+
 
 def patch_init_file():
     """
@@ -159,7 +161,7 @@ def patch_init_file():
             return False
 
         # Read the file
-        with open(init_file, 'r') as f:
+        with open(init_file, "r") as f:
             content = f.read()
 
         # Update the test_fio import to handle both locations
@@ -176,7 +178,7 @@ def patch_init_file():
         new_content = content.replace(original_import, fixed_import)
 
         # Write the patched content back to the file
-        with open(init_file, 'w') as f:
+        with open(init_file, "w") as f:
             f.write(new_content)
 
         logger.info(f"Successfully patched {init_file}")
@@ -185,6 +187,7 @@ def patch_init_file():
     except Exception as e:
         logger.error(f"Error patching __init__.py: {e}")
         return False
+
 
 if __name__ == "__main__":
     logger.info("Applying patches to fix import path issues...")

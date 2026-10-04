@@ -22,66 +22,90 @@ The ipfs_kit_py project implements a distributed cluster state management system
 The cluster state is represented using a columnar schema with the following structure:
 
 ```python
-schema = pa.schema([
-    # Cluster metadata
-    pa.field('cluster_id', pa.string()),
-    pa.field('master_id', pa.string()),
-    pa.field('updated_at', pa.timestamp('ms')),
-    
-    # Nodes in the cluster (array of structs)
-    pa.field('nodes', pa.list_(
-        pa.struct([
-            pa.field('id', pa.string()),
-            pa.field('role', pa.string()),
-            pa.field('status', pa.string()),
-            pa.field('peers', pa.list_(pa.string())),
-            pa.field('capabilities', pa.list_(pa.string())),
-            pa.field('resources', pa.struct([
-                pa.field('cpu_count', pa.int32()),
-                pa.field('cpu_load', pa.float32()),
-                pa.field('gpu_count', pa.int32()),
-                pa.field('gpu_available', pa.bool_()),
-                pa.field('memory_total', pa.int64()),
-                pa.field('memory_available', pa.int64()),
-                pa.field('disk_total', pa.int64()),
-                pa.field('disk_available', pa.int64())
-            ]))
-        ])
-    )),
-    
-    # Tasks in the cluster (array of structs)
-    pa.field('tasks', pa.list_(
-        pa.struct([
-            pa.field('id', pa.string()),
-            pa.field('type', pa.string()),
-            pa.field('status', pa.string()),
-            pa.field('created_at', pa.timestamp('ms')),
-            pa.field('updated_at', pa.timestamp('ms')),
-            pa.field('assigned_to', pa.string()),
-            pa.field('resources', pa.struct([
-                pa.field('cpu_cores', pa.int32()),
-                pa.field('gpu_cores', pa.int32()),
-                pa.field('memory_mb', pa.int32())
-            ])),
-            pa.field('input_cid', pa.string()),
-            pa.field('output_cid', pa.string()),
-            pa.field('input_cids', pa.list_(pa.string())),
-            pa.field('output_cids', pa.list_(pa.string()))
-        ])
-    )),
-    
-    # Content in the cluster (array of structs)
-    pa.field('content', pa.list_(
-        pa.struct([
-            pa.field('cid', pa.string()),
-            pa.field('size', pa.int64()),
-            pa.field('created_at', pa.timestamp('ms')),
-            pa.field('providers', pa.list_(pa.string())),
-            pa.field('pinned', pa.bool_()),
-            pa.field('replication', pa.int32())
-        ])
-    ))
-])
+schema = pa.schema(
+    [
+        # Cluster metadata
+        pa.field("cluster_id", pa.string()),
+        pa.field("master_id", pa.string()),
+        pa.field("updated_at", pa.timestamp("ms")),
+        # Nodes in the cluster (array of structs)
+        pa.field(
+            "nodes",
+            pa.list_(
+                pa.struct(
+                    [
+                        pa.field("id", pa.string()),
+                        pa.field("role", pa.string()),
+                        pa.field("status", pa.string()),
+                        pa.field("peers", pa.list_(pa.string())),
+                        pa.field("capabilities", pa.list_(pa.string())),
+                        pa.field(
+                            "resources",
+                            pa.struct(
+                                [
+                                    pa.field("cpu_count", pa.int32()),
+                                    pa.field("cpu_load", pa.float32()),
+                                    pa.field("gpu_count", pa.int32()),
+                                    pa.field("gpu_available", pa.bool_()),
+                                    pa.field("memory_total", pa.int64()),
+                                    pa.field("memory_available", pa.int64()),
+                                    pa.field("disk_total", pa.int64()),
+                                    pa.field("disk_available", pa.int64()),
+                                ]
+                            ),
+                        ),
+                    ]
+                )
+            ),
+        ),
+        # Tasks in the cluster (array of structs)
+        pa.field(
+            "tasks",
+            pa.list_(
+                pa.struct(
+                    [
+                        pa.field("id", pa.string()),
+                        pa.field("type", pa.string()),
+                        pa.field("status", pa.string()),
+                        pa.field("created_at", pa.timestamp("ms")),
+                        pa.field("updated_at", pa.timestamp("ms")),
+                        pa.field("assigned_to", pa.string()),
+                        pa.field(
+                            "resources",
+                            pa.struct(
+                                [
+                                    pa.field("cpu_cores", pa.int32()),
+                                    pa.field("gpu_cores", pa.int32()),
+                                    pa.field("memory_mb", pa.int32()),
+                                ]
+                            ),
+                        ),
+                        pa.field("input_cid", pa.string()),
+                        pa.field("output_cid", pa.string()),
+                        pa.field("input_cids", pa.list_(pa.string())),
+                        pa.field("output_cids", pa.list_(pa.string())),
+                    ]
+                )
+            ),
+        ),
+        # Content in the cluster (array of structs)
+        pa.field(
+            "content",
+            pa.list_(
+                pa.struct(
+                    [
+                        pa.field("cid", pa.string()),
+                        pa.field("size", pa.int64()),
+                        pa.field("created_at", pa.timestamp("ms")),
+                        pa.field("providers", pa.list_(pa.string())),
+                        pa.field("pinned", pa.bool_()),
+                        pa.field("replication", pa.int32()),
+                    ]
+                )
+            ),
+        ),
+    ]
+)
 ```
 
 ### Helper Functions
@@ -151,10 +175,7 @@ if state:
 ### Finding Suitable Nodes for Tasks
 
 ```python
-from ipfs_kit_py.cluster_state_helpers import (
-    find_tasks_by_status,
-    find_available_node_for_task
-)
+from ipfs_kit_py.cluster_state_helpers import find_tasks_by_status, find_available_node_for_task
 
 # Get state path
 state_path = get_state_path_from_metadata()
@@ -166,13 +187,13 @@ pending_tasks = find_tasks_by_status(state_path, "pending")
 for task in pending_tasks:
     task_id = task["id"]
     print(f"Finding node for task {task_id}")
-    
+
     node = find_available_node_for_task(state_path, task_id)
     if node:
         print(f"  → Best node: {node['id']}")
         print(f"    CPU: {node['resources']['cpu_count']} cores")
-        print(f"    Memory: {node['resources']['memory_available'] / (1024*1024*1024):.1f} GB")
-        if node['resources'].get('gpu_count', 0) > 0:
+        print(f"    Memory: {node['resources']['memory_available'] / (1024 * 1024 * 1024):.1f} GB")
+        if node["resources"].get("gpu_count", 0) > 0:
             print(f"    GPU: {node['resources']['gpu_count']} GPUs")
     else:
         print("  → No suitable node found")
@@ -181,10 +202,7 @@ for task in pending_tasks:
 ### Resource Utilization Monitoring
 
 ```python
-from ipfs_kit_py.cluster_state_helpers import (
-    get_all_nodes,
-    get_node_resource_utilization
-)
+from ipfs_kit_py.cluster_state_helpers import get_all_nodes, get_node_resource_utilization
 
 # Get state path
 state_path = get_state_path_from_metadata()
@@ -206,7 +224,7 @@ for node in nodes:
         print(f"  CPU: {util['cpu_utilization']:.1%}")
         print(f"  Memory: {util['memory_utilization']:.1%}")
         print(f"  Disk: {util['disk_utilization']:.1%}")
-        if util['gpu_utilization'] is not None:
+        if util["gpu_utilization"] is not None:
             print(f"  GPU: {util['gpu_utilization']:.1%}")
         print(f"  Active tasks: {util['active_tasks']}")
         print(f"  Success rate: {util['success_rate']:.1%}")
@@ -287,28 +305,29 @@ You can easily extend the helper functions for your specific needs:
 ```python
 from ipfs_kit_py.cluster_state_helpers import get_all_nodes, get_all_tasks
 
+
 def find_optimal_task_distribution(state_path):
     """
     Find the optimal distribution of tasks across worker nodes.
-    
+
     Args:
         state_path: Path to the cluster state directory
-        
+
     Returns:
         Dictionary mapping task IDs to node IDs
     """
     nodes = get_all_nodes(state_path)
     tasks = get_all_tasks(state_path)
-    
+
     worker_nodes = [n for n in nodes if n.get("role") == "worker" and n.get("status") == "online"]
     pending_tasks = [t for t in tasks if t.get("status") == "pending"]
-    
+
     # Simple round-robin assignment for this example
     assignments = {}
     for i, task in enumerate(pending_tasks):
         node_idx = i % len(worker_nodes)
         assignments[task["id"]] = worker_nodes[node_idx]["id"]
-    
+
     return assignments
 ```
 
@@ -335,7 +354,8 @@ def patch_arrow_schema(monkeypatch):
     """Patch PyArrow Schema to handle MagicMock objects."""
     try:
         import pyarrow as pa
-        if hasattr(pa, '_patch_schema_equals'):
+
+        if hasattr(pa, "_patch_schema_equals"):
             pa._patch_schema_equals(monkeypatch)
     except (ImportError, AttributeError):
         pass
@@ -351,15 +371,17 @@ def patched_save_to_disk(self):
     """Patched _save_to_disk method to handle MagicMock schema objects."""
     if not self.enable_persistence:
         return
-        
+
     try:
         # First try original method
         return original_save_to_disk(self)
     except Exception as e:
         # Handle schema type mismatches
         error_msg = str(e)
-        if ("expected pyarrow.lib.Schema, got MagicMock" in error_msg or 
-            "Argument 'schema' has incorrect type" in error_msg):
+        if (
+            "expected pyarrow.lib.Schema, got MagicMock" in error_msg
+            or "Argument 'schema' has incorrect type" in error_msg
+        ):
             # Create a real schema based on column names and write with that
             # ...implementation details...
             return True
@@ -375,12 +397,14 @@ For testing, we create real Arrow Tables with mock data but proper schemas:
 
 ```python
 # Create a real PyArrow schema for testing
-schema = pa.schema([
-    pa.field('cluster_id', pa.string()),
-    pa.field('master_id', pa.string()),
-    pa.field('updated_at', pa.timestamp('ms')),
-    # ...other fields...
-])
+schema = pa.schema(
+    [
+        pa.field("cluster_id", pa.string()),
+        pa.field("master_id", pa.string()),
+        pa.field("updated_at", pa.timestamp("ms")),
+        # ...other fields...
+    ]
+)
 
 # Create valid PyArrow arrays
 cluster_id_array = pa.array(["test-cluster"], type=pa.string())
@@ -388,10 +412,7 @@ master_id_array = pa.array(["QmTestMaster"], type=pa.string())
 # ...other arrays...
 
 # Create a real table with test data
-test_table = pa.Table.from_arrays(
-    [cluster_id_array, master_id_array, ...],
-    schema=schema
-)
+test_table = pa.Table.from_arrays([cluster_id_array, master_id_array, ...], schema=schema)
 ```
 
 ### Testing Output Suppression
@@ -402,7 +423,7 @@ To prevent error messages during testing, we use context managers to temporarily
 @contextlib.contextmanager
 def suppress_logging(logger_name=None, level=logging.ERROR):
     """Temporarily increase the logging level to suppress messages."""
-    logger = logging.getLogger(logger_name or '')
+    logger = logging.getLogger(logger_name or "")
     old_level = logger.level
     logger.setLevel(level)
     try:

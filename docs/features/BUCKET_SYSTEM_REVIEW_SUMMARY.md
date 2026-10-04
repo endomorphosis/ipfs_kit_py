@@ -160,22 +160,22 @@ from ipfs_kit_py.connection_pool import get_global_pool_manager
 from ipfs_kit_py.circuit_breaker import get_global_circuit_breaker_manager
 from ipfs_kit_py.retry_strategy import get_retry_policy
 
+
 class ResilientBackend:
     def __init__(self, backend_name):
         # Get connection pool
         pool_mgr = get_global_pool_manager()
         self.pool = pool_mgr.get_or_create_pool(
-            backend_name, self._create_connection,
-            min_size=2, max_size=10
+            backend_name, self._create_connection, min_size=2, max_size=10
         )
-        
+
         # Get circuit breaker
         cb_mgr = get_global_circuit_breaker_manager()
         self.breaker = cb_mgr.get_or_create(backend_name)
-        
+
         # Get retry policy
         self.retry = get_retry_policy()
-    
+
     def pin_content(self, cid):
         def _pin():
             conn = self.pool.acquire(timeout=5.0)
@@ -183,8 +183,8 @@ class ResilientBackend:
                 return self.breaker.call(conn.pin.add, cid)
             finally:
                 self.pool.release(conn)
-        
-        return self.retry.execute_with_policy('pin', _pin)
+
+        return self.retry.execute_with_policy("pin", _pin)
 ```
 
 ### Pattern 2: Durable Cache with WAL
@@ -192,31 +192,26 @@ class ResilientBackend:
 ```python
 from ipfs_kit_py.enhanced_wal_durability import DurableWAL
 
+
 class DurableCache:
     def __init__(self):
         self.cache = {}
         self.wal = DurableWAL(
-            base_path="~/.cache_wal",
-            fsync_mode="batch",
-            checkpoint_interval=1000
+            base_path="~/.cache_wal", fsync_mode="batch", checkpoint_interval=1000
         )
-    
+
     def put(self, key, value):
         # Log first (durability)
-        self.wal.append({
-            'op': 'put',
-            'key': key,
-            'timestamp': time.time()
-        })
-        
+        self.wal.append({"op": "put", "key": key, "timestamp": time.time()})
+
         # Then update cache
         self.cache[key] = value
-    
+
     def recover(self):
         for op in self.wal.recover():
-            if op['op'] == 'put':
+            if op["op"] == "put":
                 # Replay operation
-                self._fetch_and_cache(op['key'])
+                self._fetch_and_cache(op["key"])
 ```
 
 ## Monitoring and Observability
@@ -227,9 +222,9 @@ class DurableCache:
    ```python
    stats = pool.get_stats()
    metrics = {
-       'utilization': stats['in_use'] / stats['total_size'],
-       'wait_rate': stats['total_timeouts'] / stats['total_requests'],
-       'health_failures': stats['total_health_check_failures'],
+       "utilization": stats["in_use"] / stats["total_size"],
+       "wait_rate": stats["total_timeouts"] / stats["total_requests"],
+       "health_failures": stats["total_health_check_failures"],
    }
    ```
 
@@ -237,9 +232,9 @@ class DurableCache:
    ```python
    stats = wal.get_stats()
    metrics = {
-       'fsync_per_op': stats['total_fsyncs'] / stats['total_operations'],
-       'checkpoint_frequency': stats['sequence_number'] / stats['total_checkpoints'],
-       'corruption_rate': stats['corruption_detections'] / stats['total_checkpoints'],
+       "fsync_per_op": stats["total_fsyncs"] / stats["total_operations"],
+       "checkpoint_frequency": stats["sequence_number"] / stats["total_checkpoints"],
+       "corruption_rate": stats["corruption_detections"] / stats["total_checkpoints"],
    }
    ```
 
@@ -247,9 +242,9 @@ class DurableCache:
    ```python
    state = breaker.get_state()
    alerts = []
-   if state['state'] == 'open':
+   if state["state"] == "open":
        alerts.append(f"Circuit {breaker.name} is OPEN!")
-   if state['failure_rate'] > 0.3:
+   if state["failure_rate"] > 0.3:
        alerts.append(f"High failure rate: {state['failure_rate']:.1%}")
    ```
 

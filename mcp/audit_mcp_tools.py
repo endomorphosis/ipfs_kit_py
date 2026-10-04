@@ -24,5 +24,5 @@ __all__ = [
     "audit_track_vfs",
     "audit_integrity_check",
     "audit_retention_policy",
-    "AUDIT_MCP_TOOLS"
+    "AUDIT_MCP_TOOLS",
 ]

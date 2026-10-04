@@ -121,7 +121,7 @@ class VirtualFilesystemRequest(BaseModel):
     action: str  # "list", "get", "convert_to_car", "query"
     dataset_id: Optional[str] = None
     include_car: bool = False
-    include_vector_index: bool = True  
+    include_vector_index: bool = True
     include_knowledge_graph: bool = True
 ```
 

@@ -96,17 +96,17 @@ def _patch_schema_equals(monkeypatch):
     """Helper function to patch Schema.equals during tests using monkeypatch."""
     # We can't directly patch Schema.equals in Python 3.12 as it's immutable
     # Instead we create a wrapper function for comparison
-    
+
     def mock_schema_equals(schema1, schema2):
         """Compare schemas safely, including handling MagicMock objects."""
-        if type(schema2).__name__ == 'MagicMock' or type(schema1).__name__ == 'MagicMock':
+        if type(schema2).__name__ == "MagicMock" or type(schema1).__name__ == "MagicMock":
             # Consider MagicMock schemas to be equal to allow tests to pass
             return True
         # Use the original implementation for real schemas
         return schema1.equals(schema2)
-    
+
     # Add the mock comparison function to the module
-    monkeypatch.setattr(pa, 'mock_schema_equals', mock_schema_equals)
+    monkeypatch.setattr(pa, "mock_schema_equals", mock_schema_equals)
 ```
 
 Tests can then use this function to safely compare schemas:
@@ -114,9 +114,9 @@ Tests can then use this function to safely compare schemas:
 ```python
 def test_with_schema(monkeypatch):
     # The patch_arrow_schema fixture will handle this automatically
-    real_schema = pa.schema([pa.field('test', pa.string())])
+    real_schema = pa.schema([pa.field("test", pa.string())])
     mock_schema = MagicMock()
-    
+
     # This will work in both Python 3.12+ and earlier versions
     assert pa.mock_schema_equals(real_schema, mock_schema)
 ```
@@ -153,21 +153,21 @@ def test_node_initialization(master_node, worker_node, leecher_node):
     assert master_node.role == "master"
     assert worker_node.role == "worker"
     assert leecher_node.role == "leecher"
-    
+
     # Verify master has cluster service and control components
-    assert hasattr(master_node, 'ipfs_cluster_service')
-    assert hasattr(master_node, 'ipfs_cluster_ctl')
-    assert not hasattr(master_node, 'ipfs_cluster_follow')
-    
+    assert hasattr(master_node, "ipfs_cluster_service")
+    assert hasattr(master_node, "ipfs_cluster_ctl")
+    assert not hasattr(master_node, "ipfs_cluster_follow")
+
     # Verify worker has cluster follow component
-    assert hasattr(worker_node, 'ipfs_cluster_follow')
-    assert not hasattr(worker_node, 'ipfs_cluster_service')
-    assert not hasattr(worker_node, 'ipfs_cluster_ctl')
-    
+    assert hasattr(worker_node, "ipfs_cluster_follow")
+    assert not hasattr(worker_node, "ipfs_cluster_service")
+    assert not hasattr(worker_node, "ipfs_cluster_ctl")
+
     # Verify leecher has minimal components
-    assert not hasattr(leecher_node, 'ipfs_cluster_follow')
-    assert not hasattr(leecher_node, 'ipfs_cluster_service')
-    assert not hasattr(leecher_node, 'ipfs_cluster_ctl')
+    assert not hasattr(leecher_node, "ipfs_cluster_follow")
+    assert not hasattr(leecher_node, "ipfs_cluster_service")
+    assert not hasattr(leecher_node, "ipfs_cluster_ctl")
 ```
 
 ## Mocking Complex Dependencies
@@ -178,11 +178,11 @@ def test_node_initialization(master_node, worker_node, leecher_node):
 @pytest.fixture
 def mock_ipfs_daemon():
     """Mock an IPFS daemon response."""
-    with patch('subprocess.Popen') as mock_popen:
+    with patch("subprocess.Popen") as mock_popen:
         mock_process = MagicMock()
         mock_process.communicate.return_value = (
             b'{"ID": "QmTest123", "Addresses": ["/ip4/127.0.0.1/tcp/4001"]}',
-            b''
+            b"",
         )
         mock_process.returncode = 0
         mock_popen.return_value = mock_process
@@ -195,7 +195,7 @@ def mock_ipfs_daemon():
 @pytest.fixture
 def mock_ipfs_cluster():
     """Mock an IPFS cluster response."""
-    with patch('ipfs_kit_py.ipfs_cluster_service.ipfs_cluster_service') as mock:
+    with patch("ipfs_kit_py.ipfs_cluster_service.ipfs_cluster_service") as mock:
         mock.return_value.start_service.return_value = {"success": True}
         mock.return_value.stop_service.return_value = {"success": True}
         yield mock
@@ -216,12 +216,13 @@ def test_with_real_ipfs():
         ipfs_available = result.returncode == 0
     except FileNotFoundError:
         pass
-    
+
     if not ipfs_available:
         pytest.skip("IPFS not available for integration test")
-    
+
     # Test with real IPFS
     from ipfs_kit_py.ipfs import ipfs_py
+
     ipfs = ipfs_py()
     result = ipfs.add("test/test_data/small_file.txt")
     assert result["success"] is True
@@ -252,18 +253,14 @@ For platform-specific tests:
 import sys
 import platform
 
-@pytest.mark.skipif(
-    sys.platform != "linux", 
-    reason="Test only runs on Linux"
-)
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Test only runs on Linux")
 def test_linux_specific():
     # Linux-specific test code
     pass
 
-@pytest.mark.skipif(
-    platform.system() != "Darwin",
-    reason="Test only runs on macOS"
-)
+
+@pytest.mark.skipif(platform.system() != "Darwin", reason="Test only runs on macOS")
 def test_macos_specific():
     # macOS-specific test code
     pass

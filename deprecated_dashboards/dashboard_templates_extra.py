@@ -5,7 +5,7 @@ This file contains the remaining dashboard templates for complete functionality.
 """
 
 # Backend Management Template
-BACKEND_MANAGEMENT_TEMPLATE = '''{% extends "base.html" %}
+BACKEND_MANAGEMENT_TEMPLATE = """{% extends "base.html" %}
 
 {% block content %}
 <div class="backend-management">
@@ -139,10 +139,10 @@ function hideBackendDetails() {
     document.getElementById('backend-details').style.display = 'none';
 }
 </script>
-{% endblock %}'''
+{% endblock %}"""
 
 # Service Monitoring Template
-SERVICE_MONITORING_TEMPLATE = '''{% extends "base.html" %}
+SERVICE_MONITORING_TEMPLATE = """{% extends "base.html" %}
 
 {% block content %}
 <div class="service-monitoring">
@@ -275,10 +275,10 @@ setInterval(() => {
     });
 }, 30000); // Check every 30 seconds
 </script>
-{% endblock %}'''
+{% endblock %}"""
 
 # Log Viewer Template
-LOG_VIEWER_TEMPLATE = '''{% extends "base.html" %}
+LOG_VIEWER_TEMPLATE = """{% extends "base.html" %}
 
 {% block content %}
 <div class="log-viewer">
@@ -552,22 +552,23 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('limit-filter').addEventListener('change', refreshLogs);
 });
 </script>
-{% endblock %}'''
+{% endblock %}"""
+
 
 def create_additional_templates(templates_dir):
     """Create additional dashboard templates."""
-    
+
     # Backend Management
     (templates_dir / "backend_management.html").write_text(BACKEND_MANAGEMENT_TEMPLATE)
-    
-    # Service Monitoring  
+
+    # Service Monitoring
     (templates_dir / "service_monitoring.html").write_text(SERVICE_MONITORING_TEMPLATE)
-    
+
     # Log Viewer
     (templates_dir / "log_viewer.html").write_text(LOG_VIEWER_TEMPLATE)
-    
+
     # Configuration Template
-    config_template = '''{% extends "base.html" %}
+    config_template = """{% extends "base.html" %}
 
 {% block content %}
 <div class="configuration">
@@ -643,12 +644,12 @@ async function refreshConfig() {
     }
 }
 </script>
-{% endblock %}'''
-    
+{% endblock %}"""
+
     (templates_dir / "configuration.html").write_text(config_template)
-    
+
     # Metrics Dashboard Template
-    metrics_template = '''{% extends "base.html" %}
+    metrics_template = """{% extends "base.html" %}
 
 {% block content %}
 <div class="metrics-dashboard">
@@ -694,12 +695,14 @@ async function refreshConfig() {
 // Chart.js would be used here for visualization
 // This is a placeholder for the actual metrics dashboard implementation
 </script>
-{% endblock %}'''
-    
+{% endblock %}"""
+
     (templates_dir / "metrics_dashboard.html").write_text(metrics_template)
+
 
 if __name__ == "__main__":
     from pathlib import Path
+
     templates_dir = Path("dashboard_templates")
     templates_dir.mkdir(exist_ok=True)
     create_additional_templates(templates_dir)

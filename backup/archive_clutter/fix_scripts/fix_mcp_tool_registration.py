@@ -22,30 +22,40 @@ import requests
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename='mcp_tool_fix.log'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    filename="mcp_tool_fix.log",
 )
 logger = logging.getLogger(__name__)
 
 # Add console handler for immediate feedback
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 console.setFormatter(formatter)
 logger.addHandler(console)
+
 
 def parse_args():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Fix MCP tool registration for IPFS Kit")
-    parser.add_argument("--port", type=int, default=int(os.environ.get("MCP_PORT", "9994")),
-                      help="Port where the MCP server is running (default: 9994)")
-    parser.add_argument("--host", type=str, default="localhost",
-                      help="Host where the MCP server is running (default: localhost)")
-    parser.add_argument("--debug", action="store_true", default=False,
-                      help="Enable debug mode")
-    parser.add_argument("--apply", action="store_true", default=False,
-                      help="Apply fixes to the server")
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.environ.get("MCP_PORT", "9994")),
+        help="Port where the MCP server is running (default: 9994)",
+    )
+    parser.add_argument(
+        "--host",
+        type=str,
+        default="localhost",
+        help="Host where the MCP server is running (default: localhost)",
+    )
+    parser.add_argument("--debug", action="store_true", default=False, help="Enable debug mode")
+    parser.add_argument(
+        "--apply", action="store_true", default=False, help="Apply fixes to the server"
+    )
     return parser.parse_args()
+
 
 def patch_mcp_initialize_endpoint(host="localhost", port=9994):
     """
@@ -66,32 +76,58 @@ def patch_mcp_initialize_endpoint(host="localhost", port=9994):
             return False
 
         data = response.json()
-        logger.info(f"Current MCP server capabilities: {json.dumps(data.get('capabilities', {}), indent=2)}")
+        logger.info(
+            f"Current MCP server capabilities: {json.dumps(data.get('capabilities', {}), indent=2)}"
+        )
 
         # Define enhanced capabilities
         enhanced_capabilities = {
             "tools": [
                 # Filesystem operations
-                "list_files", "file_exists", "get_file_stats", "copy_file", "move_file",
-
+                "list_files",
+                "file_exists",
+                "get_file_stats",
+                "copy_file",
+                "move_file",
                 # Core IPFS operations
-                "ipfs_add", "ipfs_cat", "ipfs_pin", "ipfs_unpin", "ipfs_list_pins",
-                "ipfs_get", "ipfs_version", "ipfs_id", "ipfs_stat",
-
+                "ipfs_add",
+                "ipfs_cat",
+                "ipfs_pin",
+                "ipfs_unpin",
+                "ipfs_list_pins",
+                "ipfs_get",
+                "ipfs_version",
+                "ipfs_id",
+                "ipfs_stat",
                 # Virtual filesystem (MFS) operations
-                "ipfs_files_ls", "ipfs_files_stat", "ipfs_files_mkdir",
-                "ipfs_files_read", "ipfs_files_write", "ipfs_files_rm",
-                "ipfs_files_cp", "ipfs_files_mv", "ipfs_files_flush",
-
+                "ipfs_files_ls",
+                "ipfs_files_stat",
+                "ipfs_files_mkdir",
+                "ipfs_files_read",
+                "ipfs_files_write",
+                "ipfs_files_rm",
+                "ipfs_files_cp",
+                "ipfs_files_mv",
+                "ipfs_files_flush",
                 # IPNS operations
-                "ipfs_name_publish", "ipfs_name_resolve", "ipfs_name_list"
+                "ipfs_name_publish",
+                "ipfs_name_resolve",
+                "ipfs_name_list",
             ],
             "resources": [
-                "ipfs://info", "ipfs://stats", "ipfs://peers",
-                "storage://backends", "storage://status", "storage://capabilities",
-                "file://ls", "file://system", "file://links",
-                "mfs://info", "mfs://root", "mfs://stats"
-            ]
+                "ipfs://info",
+                "ipfs://stats",
+                "ipfs://peers",
+                "storage://backends",
+                "storage://status",
+                "storage://capabilities",
+                "file://ls",
+                "file://system",
+                "file://links",
+                "mfs://info",
+                "mfs://root",
+                "mfs://stats",
+            ],
         }
 
         logger.info(f"Enhanced capabilities: {json.dumps(enhanced_capabilities, indent=2)}")
@@ -106,6 +142,7 @@ def patch_mcp_initialize_endpoint(host="localhost", port=9994):
         logger.error(traceback.format_exc())
         return False
 
+
 def patch_mcp_server_runtime():
     """Try to find and patch a running MCP server in-memory."""
     # Attempt to access the MCP server via various methods
@@ -115,6 +152,7 @@ def patch_mcp_server_runtime():
         # Method 1: Try importing from ipfs_kit_py
         try:
             from ipfs_kit_py.mcp.server import get_initialized_app
+
             logger.info("Found MCP server via ipfs_kit_py.mcp.server module")
 
             app = get_initialized_app()
@@ -127,8 +165,11 @@ def patch_mcp_server_runtime():
         # Method 2: Try to locate a running server with psutil
         try:
             import psutil
-            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-                if any('mcp' in cmd.lower() for cmd in proc.info['cmdline'] if isinstance(cmd, str)):
+
+            for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+                if any(
+                    "mcp" in cmd.lower() for cmd in proc.info["cmdline"] if isinstance(cmd, str)
+                ):
                     logger.info(f"Found running MCP server: PID {proc.info['pid']}")
                     # We found a process but can't modify it directly
                     # In a real implementation, we would need to use IPC or another mechanism
@@ -138,16 +179,18 @@ def patch_mcp_server_runtime():
 
         # Method 3: Update tools.json configuration if it exists
         mcp_config_paths = [
-            os.path.expanduser('~/.config/mcp/tools.json'),
-            os.path.expanduser('~/.mcp/tools.json'),
-            os.path.expanduser('~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json')
+            os.path.expanduser("~/.config/mcp/tools.json"),
+            os.path.expanduser("~/.mcp/tools.json"),
+            os.path.expanduser(
+                "~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"
+            ),
         ]
 
         for config_path in mcp_config_paths:
             if os.path.exists(config_path):
                 logger.info(f"Found MCP configuration at {config_path}")
                 try:
-                    with open(config_path, 'r') as f:
+                    with open(config_path, "r") as f:
                         config_data = json.load(f)
 
                     # Just log what we found for now
@@ -163,6 +206,7 @@ def patch_mcp_server_runtime():
         logger.error(f"Error patching MCP server runtime: {e}")
         logger.error(traceback.format_exc())
         return False
+
 
 def check_mcp_server_health(host="localhost", port=9994):
     """Check if the MCP server is healthy and running."""
@@ -180,6 +224,7 @@ def check_mcp_server_health(host="localhost", port=9994):
     except Exception as e:
         logger.error(f"Error checking MCP server health: {e}")
         return False
+
 
 def main():
     """Main function to run the script."""
@@ -217,6 +262,7 @@ def main():
     logger.info("MCP tool registration fix completed")
     logger.info("You can now confirm the enhanced tools are available in the MCP server")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

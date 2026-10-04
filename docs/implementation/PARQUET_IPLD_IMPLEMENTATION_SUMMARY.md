@@ -147,13 +147,13 @@ ipfs_kit_py/
 ```python
 # Via MCP tool
 {
-  "tool": "parquet_store_dataframe",
-  "arguments": {
-    "data": "[{\"id\": 1, \"name\": \"Alice\"}, {\"id\": 2, \"name\": \"Bob\"}]",
-    "format": "json",
-    "name": "users",
-    "metadata": {"source": "user_db"}
-  }
+    "tool": "parquet_store_dataframe",
+    "arguments": {
+        "data": '[{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]',
+        "format": "json",
+        "name": "users",
+        "metadata": {"source": "user_db"},
+    },
 }
 # Returns: {"success": true, "cid": "bafkreie..."}
 ```
@@ -162,27 +162,18 @@ ipfs_kit_py/
 ```python
 # Via MCP tool
 {
-  "tool": "parquet_query_datasets",
-  "arguments": {
-    "sql": "SELECT name, COUNT(*) FROM datasets GROUP BY name",
-    "format": "json"
-  }
+    "tool": "parquet_query_datasets",
+    "arguments": {"sql": "SELECT name, COUNT(*) FROM datasets GROUP BY name", "format": "json"},
 }
 ```
 
 ### VFS Operations
 ```python
 # List datasets
-{
-  "tool": "vfs_ls",
-  "arguments": {"path": "/datasets", "detail": true}
-}
+{"tool": "vfs_ls", "arguments": {"path": "/datasets", "detail": true}}
 
 # Read metadata
-{
-  "tool": "vfs_cat",
-  "arguments": {"path": "/metadata/bafkreie....json"}
-}
+{"tool": "vfs_cat", "arguments": {"path": "/metadata/bafkreie....json"}}
 ```
 
 ## ⚠️ Current Status

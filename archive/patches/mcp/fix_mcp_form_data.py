@@ -11,21 +11,24 @@ import os
 import sys
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def fix_ipfs_controller_anyio():
     """Fix the form data handling issues in the MCP IPFS controller (AnyIO version)."""
-    
+
     file_path = "ipfs_kit_py/mcp/controllers/ipfs_controller_anyio.py"
-    
+
     if not os.path.exists(file_path):
         logger.error(f"File not found: {file_path}")
         return False
-    
-    with open(file_path, 'r') as f:
+
+    with open(file_path, "r") as f:
         content = f.read()
-    
+
     # Fix handle_add_request method
     old_handle_add_request = """async def handle_add_request(self, request: Request) -> Dict[str, Any]:
     \"\"\"
@@ -105,7 +108,7 @@ def fix_ipfs_controller_anyio():
             status_code=400, 
             detail="Unsupported content type. Use application/json or multipart/form-data"
         )"""
-    
+
     new_handle_add_request = """async def handle_add_request(
     self, 
     request: Request, 
@@ -223,7 +226,7 @@ def fix_ipfs_controller_anyio():
             "error": str(e),
             "error_type": type(e).__name__
         }"""
-    
+
     # Fix add_file method
     old_add_file = """async def add_file(self, file: UploadFile = File(...)) -> Dict[str, Any]:
     \"\"\"
@@ -248,7 +251,7 @@ def fix_ipfs_controller_anyio():
     if result.get("success", False) and "Hash" in result and "cid" not in result:
         result["cid"] = result["Hash"]
     return result"""
-    
+
     new_add_file = """async def add_file(
     self, 
     file: UploadFile = File(...),
@@ -292,22 +295,25 @@ def fix_ipfs_controller_anyio():
             status_code=500,
             detail=f"Error adding file: {str(e)}"
         )"""
-    
+
     # Replace the methods in the file content
     updated_content = content.replace(old_handle_add_request, new_handle_add_request)
     updated_content = updated_content.replace(old_add_file, new_add_file)
-    
+
     # Check if any changes were made
     if content == updated_content:
-        logger.warning("No changes were made to the file. Make sure the target methods exist with exact patterns.")
+        logger.warning(
+            "No changes were made to the file. Make sure the target methods exist with exact patterns."
+        )
         return False
-    
+
     # Write the updated content back to the file
-    with open(file_path, 'w') as f:
+    with open(file_path, "w") as f:
         f.write(updated_content)
-    
+
     logger.info(f"Successfully updated {file_path}")
     return True
+
 
 if __name__ == "__main__":
     logger.info("Starting to fix form data handling in MCP IPFS controller")
