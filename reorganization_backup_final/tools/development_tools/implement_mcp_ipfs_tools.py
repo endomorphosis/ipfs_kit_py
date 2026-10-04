@@ -17,15 +17,15 @@ from pathlib import Path
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename='implement_mcp_ipfs_tools.log'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    filename="implement_mcp_ipfs_tools.log",
 )
 logger = logging.getLogger(__name__)
 
 # Add console handler
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 console.setFormatter(formatter)
 logger.addHandler(console)
 
@@ -47,28 +47,29 @@ MISSING_METHODS = [
     "swarm_connect",
     "swarm_disconnect",
     "storage_transfer",
-    "get_version"
+    "get_version",
 ]
+
 
 def fix_server_bridge():
     """Fix server_bridge.py to properly handle tool requests."""
     server_bridge_path = os.path.join(MCP_PATH, "server_bridge.py")
-    
+
     if not os.path.exists(server_bridge_path):
         logger.error(f"Server bridge file not found at {server_bridge_path}")
         return False
-    
+
     try:
         # Read the current file
-        with open(server_bridge_path, 'r') as f:
+        with open(server_bridge_path, "r") as f:
             content = f.read()
-        
+
         # Check if the file already has tool handling
         if "tool_handler" in content and "/mcp/tools" in content:
             logger.info("Server bridge already has tool handling")
-            
+
             # Make sure the route is properly registered
-            if "app.add_api_route(\"/mcp/tools\"" not in content:
+            if 'app.add_api_route("/mcp/tools"' not in content:
                 # Add the route if it's missing
                 route_code = """
     # Add MCP tool handling route
@@ -85,8 +86,7 @@ def fix_server_bridge():
                 if "def register_with_app(app" in content:
                     # Add after the register_with_app function definition
                     content = content.replace(
-                        "def register_with_app(app",
-                        f"def register_with_app(app{route_code}"
+                        "def register_with_app(app", f"def register_with_app(app{route_code}"
                     )
                     logger.info("Added MCP tools route to server_bridge.py")
                 else:
@@ -156,7 +156,7 @@ async def tool_handler(request: Request):
             # Add the tool handler code
             content += tool_code
             logger.info("Added tool handler code to server_bridge.py")
-            
+
             # Add the route
             route_code = """
     # Add MCP tool handling route
@@ -173,17 +173,16 @@ async def tool_handler(request: Request):
             if "def register_with_app(app" in content:
                 # Add after the register_with_app function definition
                 content = content.replace(
-                    "def register_with_app(app",
-                    f"def register_with_app(app{route_code}"
+                    "def register_with_app(app", f"def register_with_app(app{route_code}"
                 )
                 logger.info("Added MCP tools route to server_bridge.py")
             else:
                 logger.warning("Could not find a place to add the MCP tools route")
-        
+
         # Write the updated content
-        with open(server_bridge_path, 'w') as f:
+        with open(server_bridge_path, "w") as f:
             f.write(content)
-        
+
         logger.info(f"Updated server bridge file at {server_bridge_path}")
         return True
     except Exception as e:
@@ -191,10 +190,11 @@ async def tool_handler(request: Request):
         logger.error(traceback.format_exc())
         return False
 
+
 def create_ipfs_extensions():
     """Create a file with IPFS extension methods."""
     extensions_path = os.path.join(MCP_PATH, "ipfs_extensions.py")
-    
+
     extensions_code = """#!/usr/bin/env python3
 \"\"\"
 IPFS Extensions for MCP
@@ -965,12 +965,12 @@ async def main():
 if __name__ == "__main__":
     anyio.run(main)
 """
-    
+
     try:
         # Write the file
-        with open(extensions_path, 'w') as f:
+        with open(extensions_path, "w") as f:
             f.write(extensions_code)
-        
+
         logger.info(f"Created IPFS extensions file at {extensions_path}")
         return True
     except Exception as e:
@@ -978,19 +978,20 @@ if __name__ == "__main__":
         logger.error(traceback.format_exc())
         return False
 
+
 def update_ipfs_controller():
     """Update IPFS controller to use the extensions."""
     controller_path = os.path.join(CONTROLLERS_PATH, "ipfs_controller.py")
-    
+
     if not os.path.exists(controller_path):
         logger.error(f"IPFS controller file not found at {controller_path}")
         return False
-    
+
     try:
         # Read the current file
-        with open(controller_path, 'r') as f:
+        with open(controller_path, "r") as f:
             content = f.read()
-        
+
         # Check if the file already imports the extensions
         if "from ipfs_kit_py.mcp.ipfs_extensions import" in content:
             logger.info("IPFS controller already imports extensions")
@@ -1012,9 +1013,13 @@ except ImportError as e:
             if "import " in content:
                 last_import_index = content.rfind("import ")
                 last_import_line_end = content.find("\n", last_import_index)
-                
+
                 if last_import_line_end > 0:
-                    content = content[:last_import_line_end + 1] + import_code + content[last_import_line_end + 1:]
+                    content = (
+                        content[: last_import_line_end + 1]
+                        + import_code
+                        + content[last_import_line_end + 1 :]
+                    )
                     logger.info("Added IPFS extensions import to IPFS controller")
                 else:
                     logger.warning("Could not find a place to add the IPFS extensions import")
@@ -1022,14 +1027,14 @@ except ImportError as e:
                 # Add at the beginning of the file
                 content = import_code + content
                 logger.info("Added IPFS extensions import to IPFS controller")
-        
+
         # Add the tool methods if not already present
         for method_name in MISSING_METHODS:
             # Check if the method is already defined
             if f"async def {method_name}" in content:
                 logger.info(f"Method {method_name} already defined in IPFS controller")
                 continue
-            
+
             # Add the method
             method_code = f"""
     async def {method_name}(self, **kwargs):
@@ -1054,22 +1059,22 @@ except ImportError as e:
             if "class IPFSController" in content:
                 class_end_index = content.find("class IPFSController")
                 next_class_index = content.find("class ", class_end_index + 1)
-                
+
                 if next_class_index > 0:
                     # Insert before the next class
                     content = content[:next_class_index] + method_code + content[next_class_index:]
                 else:
                     # Add at the end of the file
                     content += method_code
-                
+
                 logger.info(f"Added method {method_name} to IPFS controller")
             else:
                 logger.warning(f"Could not find IPFSController class to add method {method_name}")
-        
+
         # Write the updated content
-        with open(controller_path, 'w') as f:
+        with open(controller_path, "w") as f:
             f.write(content)
-        
+
         logger.info(f"Updated IPFS controller file at {controller_path}")
         return True
     except Exception as e:
@@ -1077,33 +1082,34 @@ except ImportError as e:
         logger.error(traceback.format_exc())
         return False
 
+
 def main():
     """Main function."""
     logger.info("Starting IPFS MCP tool implementation")
-    
+
     # Fix server bridge
     logger.info("Fixing server bridge...")
     if fix_server_bridge():
         logger.info("Server bridge fixed successfully")
     else:
         logger.warning("Failed to fix server bridge")
-    
+
     # Create IPFS extensions
     logger.info("Creating IPFS extensions...")
     if create_ipfs_extensions():
         logger.info("IPFS extensions created successfully")
     else:
         logger.warning("Failed to create IPFS extensions")
-    
+
     # Update IPFS controller
     logger.info("Updating IPFS controller...")
     if update_ipfs_controller():
         logger.info("IPFS controller updated successfully")
     else:
         logger.warning("Failed to update IPFS controller")
-    
+
     logger.info("IPFS MCP tool implementation complete")
-    
+
     print("\n=== IPFS MCP Tool Implementation ===")
     print("The script has created and updated the necessary files to implement IPFS MCP tools.")
     print("To apply these changes, you need to:")
@@ -1111,8 +1117,9 @@ def main():
     print("2. Restart VS Code to apply the new settings")
     print("3. Test the tools using the working_example.py script")
     print("\nSee the log file for details: implement_mcp_ipfs_tools.log")
-    
+
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

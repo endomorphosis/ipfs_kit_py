@@ -15,7 +15,7 @@ print(f"Current directory: {os.getcwd()}")
 dependencies = [
     ("fastapi", "pip install fastapi"),
     ("uvicorn", "pip install uvicorn[standard]"),
-    ("jsonrpcserver", "pip install jsonrpcserver")
+    ("jsonrpcserver", "pip install jsonrpcserver"),
 ]
 
 for module_name, install_cmd in dependencies:
@@ -44,7 +44,7 @@ if os.path.exists(pid_file):
     try:
         with open(pid_file, "r") as f:
             pid = int(f.read().strip())
-        
+
         try:
             os.kill(pid, 0)  # This doesn't kill the process, just checks if it exists
             print(f"✅ Server process with PID {pid} is running")

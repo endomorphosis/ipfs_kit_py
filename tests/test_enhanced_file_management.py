@@ -15,48 +15,51 @@ from ipfs_kit_py.mcp.metadata_first_tools import get_metadata_tools
 
 pytestmark = pytest.mark.anyio
 
+
 async def test_metadata_first_tools():
     """Test the metadata-first MCP tools functionality."""
     print("Testing metadata-first MCP tools...")
-    
+
     tools = get_metadata_tools()
-    
+
     # Test files list (should return needs_library_call first time)
     print("\n1. Testing files_list_enhanced with cache miss:")
     result = await tools.files_list_metadata_first(".", "test_bucket")
     print(f"Result: {json.dumps(result, indent=2)}")
-    
+
     # Test file stats
     print("\n2. Testing files_stats_enhanced:")
     result = await tools.files_stats_metadata_first("bucket_file.txt", "test_bucket")
     print(f"Result: {json.dumps(result, indent=2)}")
-    
+
     # Update VFS index to simulate caching
     print("\n3. Updating VFS index cache:")
     items = [
         {"name": "bucket_file.txt", "type": "file", "size": 20, "is_dir": False},
-        {"name": "demo_file.txt", "type": "file", "size": 0, "is_dir": False}
+        {"name": "demo_file.txt", "type": "file", "size": 0, "is_dir": False},
     ]
     success = tools.update_vfs_index("test_bucket", ".", items)
     print(f"VFS index updated: {success}")
-    
+
     # Test files list again (should use cache this time)
     print("\n4. Testing files_list_enhanced with cache hit:")
     result = await tools.files_list_metadata_first(".", "test_bucket")
     print(f"Result: {json.dumps(result, indent=2)}")
-    
+
     # Test file metadata update
     print("\n5. Testing file metadata update:")
-    success = tools.update_file_metadata("demo_file.txt", "test_bucket", "create", 
-                                        size=0, content_type="text/plain")
+    success = tools.update_file_metadata(
+        "demo_file.txt", "test_bucket", "create", size=0, content_type="text/plain"
+    )
     print(f"File metadata updated: {success}")
-    
+
     # Test file stats again (should use cached metadata)
     print("\n6. Testing files_stats_enhanced with cached metadata:")
     result = await tools.files_stats_metadata_first("demo_file.txt", "test_bucket")
     print(f"Result: {json.dumps(result, indent=2)}")
-    
+
     print("\n✅ Metadata-first tools test completed successfully!")
+
 
 def test_dashboard_api():
     """Test the enhanced dashboard API endpoints."""
@@ -98,17 +101,20 @@ def test_dashboard_api():
         assert any(b.get("name") == "test_bucket" for b in buckets)
 
         # /api/files/stats
-        resp = client.get("/api/files/stats", params={"path": "demo_file.txt", "bucket": "test_bucket"})
+        resp = client.get(
+            "/api/files/stats", params={"path": "demo_file.txt", "bucket": "test_bucket"}
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data.get("path") == "demo_file.txt"
         assert data.get("bucket") == "test_bucket"
         assert data.get("is_file") is True
 
+
 def verify_file_features():
     """Verify all the implemented file management features."""
     print("\n\nVerifying enhanced file management features:")
-    
+
     features = [
         "✅ Bucket selection dropdown with file counts",
         "✅ Enhanced file listing with size, modification time, and permissions",
@@ -121,24 +127,25 @@ def verify_file_features():
         "✅ Bucket-aware file operations and storage",
         "✅ Real-time file statistics and monitoring",
         "✅ Dashboard using unified JavaScript instead of direct MCP calls",
-        "✅ Enhanced virtual filesystem navigation"
+        "✅ Enhanced virtual filesystem navigation",
     ]
-    
+
     for feature in features:
         print(f"  {feature}")
-    
+
     print("\n🎉 All requested features have been implemented successfully!")
+
 
 if __name__ == "__main__":
     print("=== Enhanced File Management Test Suite ===")
-    
+
     # Test the metadata-first tools
     anyio.run(test_metadata_first_tools)
-    
+
     # Test the dashboard API
     test_dashboard_api()
-    
+
     # Verify all features
     verify_file_features()
-    
+
     print("\n=== Test Suite Completed ===")

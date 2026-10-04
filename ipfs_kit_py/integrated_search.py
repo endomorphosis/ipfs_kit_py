@@ -100,7 +100,7 @@ class MetadataEnhancedGraphRAG:
 
         if query_optimizer is not None:
             self.query_optimizer = query_optimizer
-        elif enable_distributed and 'DistributedQueryOptimizer' in globals():
+        elif enable_distributed and "DistributedQueryOptimizer" in globals():
             self.query_optimizer = DistributedQueryOptimizer(
                 ipfs_client=ipfs_client, cluster_manager=cluster_manager
             )
@@ -1633,7 +1633,7 @@ class SearchBenchmark:
 
                     # Add test case details
                     for i, run in enumerate(results[search_type]["runs"]):
-                        report += f"### Test Case {i+1}\n\n"
+                        report += f"### Test Case {i + 1}\n\n"
 
                         # Format test case parameters
                         if "filters" in run:
@@ -1644,7 +1644,7 @@ class SearchBenchmark:
                         elif "case" in run:
                             case_str = ""
                             if "query_text" in run["case"]:
-                                case_str += f"Query: \"{run['case']['query_text']}\"\n\n"
+                                case_str += f'Query: "{run["case"]["query_text"]}"\n\n'
                             if "query_vector" in run["case"]:
                                 case_str += (
                                     f"Vector dimensions: {len(run['case']['query_vector'])}\n\n"

@@ -1,4 +1,4 @@
-#\!/usr/bin/env python3
+# \!/usr/bin/env python3
 """
 Script to replace the ipfs_name_resolve method in the IPFS model.
 """
@@ -8,7 +8,7 @@ import os
 import sys
 
 # Define the file path
-file_path = '/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/models/ipfs_model.py'
+file_path = "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/models/ipfs_model.py"
 
 # Check if file exists
 if not os.path.exists(file_path):
@@ -16,12 +16,12 @@ if not os.path.exists(file_path):
     sys.exit(1)
 
 # Read the current file content
-with open(file_path, 'r') as f:
+with open(file_path, "r") as f:
     content = f.read()
 
 # Create a backup of the original file
-backup_path = file_path + '.bak'
-with open(backup_path, 'w') as f:
+backup_path = file_path + ".bak"
+with open(backup_path, "w") as f:
     f.write(content)
 print(f"Created backup: {backup_path}")
 
@@ -196,17 +196,17 @@ if "def ipfs_name_resolve" in content:
     sys.exit(0)
 
 # Find a good place to add the method - after the dag_resolve method
-pattern = r'def dag_resolve.*?return result'
+pattern = r"def dag_resolve.*?return result"
 match = re.search(pattern, content, re.DOTALL)
 
 if not match:
     # If dag_resolve doesn't exist, find another good insertion point
-    pattern = r'def get_version\(\).*?return result'
+    pattern = r"def get_version\(\).*?return result"
     match = re.search(pattern, content, re.DOTALL)
 
 if not match:
     # Last resort: insert after the class definition
-    pattern = r'class IPFSModel:.*?def '
+    pattern = r"class IPFSModel:.*?def "
     match = re.search(pattern, content, re.DOTALL)
     if match:
         insertion_point = match.end() - 4  # Back up the "def " part
@@ -217,10 +217,12 @@ else:
     insertion_point = match.end()
 
 # Add the new method at the insertion point
-new_content = content[:insertion_point] + "\n    " + replacement_method + "\n" + content[insertion_point:]
+new_content = (
+    content[:insertion_point] + "\n    " + replacement_method + "\n" + content[insertion_point:]
+)
 
 # Write the modified content back to the file
-with open(file_path, 'w') as f:
+with open(file_path, "w") as f:
     f.write(new_content)
 
 print(f"Successfully replaced ipfs_name_resolve method in {file_path}")

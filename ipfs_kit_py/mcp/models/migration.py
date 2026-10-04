@@ -11,6 +11,7 @@ from typing import Dict, List, Any, Optional
 
 class MigrationPolicy(BaseModel):
     """Migration policy definition."""
+
     name: str = Field(..., description="Name of the migration policy")
     description: Optional[str] = Field(None, description="Description of the policy")
     source_backend: str = Field(..., description="Source storage backend")
@@ -21,12 +22,14 @@ class MigrationPolicy(BaseModel):
     metadata_sync: bool = Field(True, description="Synchronize metadata")
     auto_clean: bool = Field(False, description="Remove from source after migration")
     schedule: Optional[str] = Field(
-        None, description="Cron-style schedule for recurring migrations")
+        None, description="Cron-style schedule for recurring migrations"
+    )
     retention_days: Optional[int] = Field(None, description="Days to retain migration records")
 
 
 class MigrationRequest(BaseModel):
     """Migration request definition."""
+
     source_backend: str = Field(..., description="Source storage backend")
     target_backend: str = Field(..., description="Target storage backend")
     cid: str = Field(..., description="Content identifier to migrate")
@@ -39,6 +42,7 @@ class MigrationRequest(BaseModel):
 
 class MigrationBatchRequest(BaseModel):
     """Batch migration request definition."""
+
     source_backend: str = Field(..., description="Source storage backend")
     target_backend: str = Field(..., description="Target storage backend")
     cids: List[str] = Field(..., description="Content identifiers to migrate")
@@ -52,6 +56,7 @@ class MigrationBatchRequest(BaseModel):
 
 class MigrationStatus(BaseModel):
     """Migration status information."""
+
     id: str = Field(..., description="Migration job ID")
     batch_id: Optional[str] = Field(None, description="Batch ID if part of batch migration")
     source_backend: str = Field(..., description="Source storage backend")
@@ -72,6 +77,7 @@ class MigrationStatus(BaseModel):
 
 class MigrationEstimate(BaseModel):
     """Migration cost and resource estimation."""
+
     estimated_cost: float = Field(..., description="Estimated total cost in USD")
     currency: str = Field("USD", description="Currency for cost estimation")
     size_bytes: int = Field(..., description="Content size in bytes")
@@ -85,6 +91,7 @@ class MigrationEstimate(BaseModel):
 
 class MigrationSummary(BaseModel):
     """Summary of migration operations."""
+
     total_migrations: int = Field(..., description="Total number of migrations")
     active_migrations: int = Field(..., description="Number of active migrations")
     completed_migrations: int = Field(..., description="Number of completed migrations")
@@ -99,11 +106,13 @@ class MigrationSummary(BaseModel):
 
 class BackendMigrationCapabilities(BaseModel):
     """Capabilities of a backend for migration operations."""
+
     backend_id: str = Field(..., description="Backend identifier")
     supports_metadata: bool = Field(False, description="Whether backend supports metadata")
     supports_removal: bool = Field(False, description="Whether backend supports content removal")
     supports_bulk_operations: bool = Field(
-        False, description="Whether backend supports bulk operations")
+        False, description="Whether backend supports bulk operations"
+    )
     cost_per_gb: float = Field(0.0, description="Cost per GB for storage")
     retrieval_cost_per_gb: float = Field(0.0, description="Cost per GB for retrieval")
     max_file_size: Optional[int] = Field(None, description="Maximum file size in bytes")
