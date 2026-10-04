@@ -434,6 +434,13 @@ class DurableCoordinationStore:
         directory.mkdir(parents=True, exist_ok=True)
         return directory / f"{cid}.json"
 
+    def _raw_block_path(self, cid: str) -> Path:
+        if _codec_from_cid(cid) != "raw":
+            raise ValueError("raw block CID required")
+        directory = self.root / "raw-blocks" / cid[1:3]
+        directory.mkdir(parents=True, exist_ok=True)
+        return directory / cid
+
     def _has_local_state_root_transition(self) -> bool:
         """Return whether immutable storage contains a root transition.
 
@@ -543,6 +550,45 @@ class DurableCoordinationStore:
             "durable": True,
         }
 
+    def put_raw_bytes(self, data: bytes) -> str:
+        """Store immutable raw bytes and return their raw CIDv1.
+
+        Raw bytes live beside the JSON artifact blocks so recovery keeps
+        treating ``blocks/`` as canonical JSON. The CID is the datasets
+        source-byte identity. A second put of the same bytes is a no-op.
+        """
+
+        if type(data) is not bytes:
+            raise ValueError("raw bytes are required")
+        cid = cid_for_bytes(data, "raw")
+        path = self._raw_block_path(cid)
+        with self._lock:
+            if path.exists():
+                existing = path.read_bytes()
+                if existing != data:
+                    raise ArtifactIntegrityError(f"immutable raw block collision for {cid}")
+                return cid
+            temporary = path.with_name(
+                f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+            )
+            try:
+                with temporary.open("xb") as stream:
+                    stream.write(data)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.link(temporary, path)
+                directory_fd = os.open(path.parent, os.O_RDONLY)
+                try:
+                    os.fsync(directory_fd)
+                finally:
+                    os.close(directory_fd)
+            except FileExistsError:
+                if path.read_bytes() != data:
+                    raise ArtifactIntegrityError(f"immutable raw block collision for {cid}")
+            finally:
+                temporary.unlink(missing_ok=True)
+        return cid
+
     def put_profile_g(self, kind: str, artifact: Mapping[str, Any], *, expected_cid: Optional[str] = None) -> Dict[str, Any]:
         """Store a canonical Profile G artifact and verify its declared kind."""
 
@@ -553,6 +599,15 @@ class DurableCoordinationStore:
 
     def get_bytes(self, cid: str) -> bytes:
         codec = _codec_from_cid(cid)
+        if codec == "raw":
+            path = self._raw_block_path(cid)
+            try:
+                data = path.read_bytes()
+            except FileNotFoundError as exc:
+                raise ArtifactNotFound(cid) from exc
+            if cid_for_bytes(data, "raw") != cid:
+                raise ArtifactIntegrityError(f"local bytes do not match {cid}")
+            return data
         path = self._block_path(cid)
         try:
             data = path.read_bytes()
