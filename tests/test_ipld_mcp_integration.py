@@ -8,12 +8,12 @@ from __future__ import annotations
 
 
 def test_unified_server_exposes_ipld_tools():
-	from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
+    from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
 
-	server = create_mcp_server(auto_start_daemons=False, auto_start_lotus_daemon=False)
-	tool_names = set(server.tools.keys())
+    server = create_mcp_server(auto_start_daemons=False, auto_start_lotus_daemon=False)
+    tool_names = set(server.tools.keys())
 
-	# IPLD-ish operations should be present even if execution requires a daemon.
-	assert "ipfs_dag_get" in tool_names
-	assert "ipfs_dag_put" in tool_names
-	assert "ipfs_block_get" in tool_names
+    # IPLD-ish operations should be present even if execution requires a daemon.
+    assert "ipfs_dag_get" in tool_names
+    assert "ipfs_dag_put" in tool_names
+    assert "ipfs_block_get" in tool_names

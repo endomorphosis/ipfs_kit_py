@@ -70,11 +70,11 @@ This guide provides step-by-step instructions for migrating from the legacy XOR 
 1. **Enable AES encryption** (default in new installations)
    ```python
    from ipfs_kit_py.enhanced_secrets_manager import EnhancedSecretManager
-   
+
    # Initialize with AES encryption (default)
    manager = EnhancedSecretManager(
        storage_path="~/.ipfs_kit/secrets",
-       encryption_method="aes-gcm"  # Default, can be omitted
+       encryption_method="aes-gcm",  # Default, can be omitted
    )
    ```
 
@@ -82,14 +82,14 @@ This guide provides step-by-step instructions for migrating from the legacy XOR 
    ```python
    # Migrate all XOR-encrypted secrets to AES
    result = manager.migrate_all_secrets()
-   
+
    print(f"Migration complete:")
    print(f"  Migrated: {result['migrated']}")
    print(f"  Already current: {result['already_current']}")
    print(f"  Errors: {len(result['errors'])}")
-   
-   if result['errors']:
-       for error in result['errors']:
+
+   if result["errors"]:
+       for error in result["errors"]:
            print(f"  Error: {error}")
    ```
 
@@ -121,7 +121,7 @@ This guide provides step-by-step instructions for migrating from the legacy XOR 
    # Check which secrets need migration
    for secret_id in manager.secrets.keys():
        info = manager.get_encryption_info(secret_id)
-       if info['needs_migration']:
+       if info["needs_migration"]:
            print(f"Secret {secret_id} needs migration")
    ```
 
@@ -143,12 +143,12 @@ This guide provides step-by-step instructions for migrating from the legacy XOR 
 1. **Identify secrets to migrate**
    ```python
    secrets_to_migrate = []
-   
+
    for secret_id in manager.secrets.keys():
        info = manager.get_encryption_info(secret_id)
-       if info and info['needs_migration']:
+       if info and info["needs_migration"]:
            secrets_to_migrate.append(secret_id)
-   
+
    print(f"Found {len(secrets_to_migrate)} secrets to migrate")
    ```
 
@@ -178,85 +178,88 @@ import sys
 from pathlib import Path
 from ipfs_kit_py.enhanced_secrets_manager import EnhancedSecretManager
 
+
 def migrate_secrets(storage_path="~/.ipfs_kit/secrets", dry_run=False):
     """
     Migrate all secrets to AES-256-GCM.
-    
+
     Args:
         storage_path: Path to secrets storage
         dry_run: If True, only report what would be migrated
     """
     print("=== Secret Migration: XOR → AES-256-GCM ===\n")
-    
+
     # Initialize manager with AES encryption
     print("1. Initializing secrets manager...")
-    manager = EnhancedSecretManager(
-        storage_path=storage_path,
-        encryption_method="aes-gcm"
-    )
-    
+    manager = EnhancedSecretManager(storage_path=storage_path, encryption_method="aes-gcm")
+
     # Get current statistics
     stats_before = manager.get_statistics()
     print(f"   Total secrets: {stats_before['total_secrets']}")
     print(f"   Encryption method: {stats_before['encryption_method']}")
     print(f"   AES available: {stats_before['aes_available']}")
-    
+
     # Check encryption versions
-    versions = stats_before.get('encryption_versions', {})
-    xor_count = versions.get('v1', 0)
-    aes_count = versions.get('v2', 0)
-    
+    versions = stats_before.get("encryption_versions", {})
+    xor_count = versions.get("v1", 0)
+    aes_count = versions.get("v2", 0)
+
     print(f"\n2. Current encryption status:")
     print(f"   XOR (v1): {xor_count} secrets")
     print(f"   AES (v2): {aes_count} secrets")
-    
+
     if xor_count == 0:
         print("\n✓ No migration needed - all secrets already use AES-256-GCM")
         return True
-    
+
     if dry_run:
         print(f"\n[DRY RUN] Would migrate {xor_count} secrets")
         return True
-    
+
     # Perform migration
     print(f"\n3. Migrating {xor_count} secrets to AES-256-GCM...")
     result = manager.migrate_all_secrets()
-    
+
     print(f"   Migrated: {result['migrated']}")
     print(f"   Already current: {result['already_current']}")
     print(f"   Errors: {len(result['errors'])}")
-    
-    if result['errors']:
+
+    if result["errors"]:
         print("\n⚠ Migration errors:")
-        for error in result['errors']:
+        for error in result["errors"]:
             print(f"   - {error}")
-    
+
     # Verify migration
     stats_after = manager.get_statistics()
-    versions_after = stats_after.get('encryption_versions', {})
-    
+    versions_after = stats_after.get("encryption_versions", {})
+
     print(f"\n4. Post-migration status:")
     print(f"   XOR (v1): {versions_after.get('v1', 0)} secrets")
     print(f"   AES (v2): {versions_after.get('v2', 0)} secrets")
-    
-    if versions_after.get('v1', 0) == 0:
+
+    if versions_after.get("v1", 0) == 0:
         print("\n✓ Migration successful - all secrets now use AES-256-GCM")
         return True
     else:
         print("\n⚠ Some secrets still use XOR encryption")
         return False
 
+
 if __name__ == "__main__":
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Migrate secrets to AES-256-GCM")
-    parser.add_argument("--storage-path", default="~/.ipfs_kit/secrets",
-                        help="Path to secrets storage")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Show what would be migrated without changing anything")
-    
+    parser.add_argument(
+        "--storage-path", default="~/.ipfs_kit/secrets", help="Path to secrets storage"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be migrated without changing anything",
+    )
+
     args = parser.parse_args()
-    
+
     success = migrate_secrets(args.storage_path, args.dry_run)
     sys.exit(0 if success else 1)
 ```
@@ -323,15 +326,16 @@ stats = manager.get_statistics()
 
 # Monitor these metrics:
 metrics = {
-    'total_secrets': stats['total_secrets'],
-    'aes_secrets': stats['encryption_versions'].get('v2', 0),
-    'xor_secrets': stats['encryption_versions'].get('v1', 0),
-    'migration_progress': (
-        stats['encryption_versions'].get('v2', 0) / stats['total_secrets'] * 100
-        if stats['total_secrets'] > 0 else 0
+    "total_secrets": stats["total_secrets"],
+    "aes_secrets": stats["encryption_versions"].get("v2", 0),
+    "xor_secrets": stats["encryption_versions"].get("v1", 0),
+    "migration_progress": (
+        stats["encryption_versions"].get("v2", 0) / stats["total_secrets"] * 100
+        if stats["total_secrets"] > 0
+        else 0
     ),
-    'expired_secrets': stats['expired_secrets'],
-    'needs_rotation': stats['secrets_needing_rotation'],
+    "expired_secrets": stats["expired_secrets"],
+    "needs_rotation": stats["secrets_needing_rotation"],
 }
 
 print(f"Migration Progress: {metrics['migration_progress']:.1f}%")
@@ -450,7 +454,7 @@ If migration causes issues:
    ```python
    recent = manager.audit_log.get_recent_accesses(limit=100)
    for entry in recent:
-       if not entry['success']:
+       if not entry["success"]:
            print(f"Failed access: {entry}")
    ```
 

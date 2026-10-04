@@ -15,6 +15,7 @@ import ipfs_dag_operations
 # Configure logger
 logger = logging.getLogger(__name__)
 
+
 class DAGController:
     """
     Controller for DAG operations.
@@ -192,13 +193,9 @@ class DAGController:
             return result
         except Exception as e:
             logger.error(f"Error putting data in DAG: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail=f"Error putting data in DAG: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Error putting data in DAG: {str(e)}")
 
-    async def get_data(
-        self, cid: str, output_format: str = Query("json")
-    ) -> Dict[str, Any]:
+    async def get_data(self, cid: str, output_format: str = Query("json")) -> Dict[str, Any]:
         """
         Retrieve a DAG node.
 
@@ -215,9 +212,7 @@ class DAGController:
             return result
         except Exception as e:
             logger.error(f"Error getting data from DAG: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail=f"Error getting data from DAG: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Error getting data from DAG: {str(e)}")
 
     async def get_data_with_path(
         self, cid: str, path: str, output_format: str = Query("json")
@@ -237,9 +232,7 @@ class DAGController:
             f"Getting data from DAG with CID: {cid}, path: {path}, format: {output_format}"
         )
         try:
-            result = self.dag_operations.get(
-                cid=cid, path=path, output_format=output_format
-            )
+            result = self.dag_operations.get(cid=cid, path=path, output_format=output_format)
             return result
         except Exception as e:
             logger.error(f"Error getting data from DAG with path: {str(e)}")
@@ -264,9 +257,7 @@ class DAGController:
             return result
         except Exception as e:
             logger.error(f"Error resolving DAG path: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail=f"Error resolving DAG path: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Error resolving DAG path: {str(e)}")
 
     async def get_stats(self, cid: str) -> Dict[str, Any]:
         """
@@ -284,9 +275,7 @@ class DAGController:
             return result
         except Exception as e:
             logger.error(f"Error getting DAG stats: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail=f"Error getting DAG stats: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Error getting DAG stats: {str(e)}")
 
     async def import_data(
         self,
@@ -323,9 +312,7 @@ class DAGController:
             return result
         except Exception as e:
             logger.error(f"Error importing data into DAG: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail=f"Error importing data into DAG: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Error importing data into DAG: {str(e)}")
 
     async def export_data(self, cid: str, progress: bool = Query(False)) -> Response:
         """
@@ -341,33 +328,32 @@ class DAGController:
         logger.debug(f"Exporting DAG with CID: {cid}")
         try:
             result = self.dag_operations.export_data(cid=cid, output_file=None, progress=progress)
-            
+
             if not result.get("success", False):
                 raise HTTPException(
-                    status_code=500, detail=f"Error exporting DAG: {result.get('error', 'Unknown error')}"
+                    status_code=500,
+                    detail=f"Error exporting DAG: {result.get('error', 'Unknown error')}",
                 )
-                
+
             data = result.get("data")
             if not data:
                 raise HTTPException(
                     status_code=500, detail="No data returned from export operation"
                 )
-                
+
             # Return the data as a downloadable file
             headers = {
                 "Content-Disposition": f'attachment; filename="{cid}.car"',
                 "Content-Type": "application/vnd.ipld.car",
             }
-            
+
             return Response(content=data, headers=headers)
-            
+
         except HTTPException:
             raise
         except Exception as e:
             logger.error(f"Error exporting DAG: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail=f"Error exporting DAG: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Error exporting DAG: {str(e)}")
 
     async def create_tree(
         self,
@@ -388,19 +374,13 @@ class DAGController:
         """
         logger.debug(f"Creating tree in DAG, format: {format_type}, pin: {pin}")
         try:
-            result = self.dag_operations.create_tree(
-                data=data, format_type=format_type, pin=pin
-            )
+            result = self.dag_operations.create_tree(data=data, format_type=format_type, pin=pin)
             return result
         except Exception as e:
             logger.error(f"Error creating DAG tree: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail=f"Error creating DAG tree: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Error creating DAG tree: {str(e)}")
 
-    async def get_tree(
-        self, cid: str, max_depth: int = Query(-1)
-    ) -> Dict[str, Any]:
+    async def get_tree(self, cid: str, max_depth: int = Query(-1)) -> Dict[str, Any]:
         """
         Retrieve a complete tree structure from the DAG.
 
@@ -417,9 +397,7 @@ class DAGController:
             return result
         except Exception as e:
             logger.error(f"Error getting DAG tree: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail=f"Error getting DAG tree: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Error getting DAG tree: {str(e)}")
 
     async def update_node(
         self,
@@ -448,9 +426,7 @@ class DAGController:
             return result
         except Exception as e:
             logger.error(f"Error updating DAG node: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail=f"Error updating DAG node: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Error updating DAG node: {str(e)}")
 
     async def add_link(
         self,
@@ -473,9 +449,7 @@ class DAGController:
         Returns:
             Dictionary with operation results
         """
-        logger.debug(
-            f"Adding link from parent {parent_cid} to child {child_cid} with name {name}"
-        )
+        logger.debug(f"Adding link from parent {parent_cid} to child {child_cid} with name {name}")
         try:
             result = self.dag_operations.add_link(
                 parent_cid=parent_cid,
@@ -487,9 +461,7 @@ class DAGController:
             return result
         except Exception as e:
             logger.error(f"Error adding link to DAG node: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail=f"Error adding link to DAG node: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Error adding link to DAG node: {str(e)}")
 
     async def remove_link(
         self,
@@ -535,6 +507,4 @@ class DAGController:
             return result
         except Exception as e:
             logger.error(f"Error getting DAG metrics: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail=f"Error getting DAG metrics: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Error getting DAG metrics: {str(e)}")

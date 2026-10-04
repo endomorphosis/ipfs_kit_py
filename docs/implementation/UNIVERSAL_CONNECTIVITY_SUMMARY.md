@@ -124,7 +124,7 @@ ipfs_kit_py/libp2p/
 ```python
 from ipfs_kit_py.libp2p.universal_connectivity import (
     UniversalConnectivityManager,
-    ConnectivityConfig
+    ConnectivityConfig,
 )
 
 config = ConnectivityConfig(
@@ -132,30 +132,25 @@ config = ConnectivityConfig(
     enable_mdns=True,
     enable_pubsub_discovery=True,
     enable_dht_discovery=True,
-    
     # NAT traversal
     enable_autonat=True,
     enable_relay_client=True,
     enable_relay_server=False,
     enable_dcutr=True,
-    
     # Limits
     max_connections=1000,
     max_relay_reservations=3,
     max_relay_circuits=256,
-    
     # Intervals
     mdns_query_interval=60.0,
     pubsub_announce_interval=10.0,
     autonat_query_interval=300.0,
-    
     # Bootstrap
     connect_to_bootstrap=True,
     bootstrap_peers=DEFAULT_BOOTSTRAP_PEERS,
-    
     # Callbacks
     on_peer_discovered=lambda peer: print(f"Found: {peer.peer_id}"),
-    on_connection_established=lambda peer_id, addr: print(f"Connected: {peer_id}")
+    on_connection_established=lambda peer_id, addr: print(f"Connected: {peer_id}"),
 )
 
 manager = UniversalConnectivityManager(host, config)
@@ -171,7 +166,7 @@ config = ConnectivityConfig(
     enable_pubsub_discovery=True,  # Essential
     enable_relay_client=True,  # Essential
     enable_dcutr=True,  # Upgrade relays to direct
-    enable_relay_server=False  # Can't act as relay
+    enable_relay_server=False,  # Can't act as relay
 )
 ```
 
@@ -183,7 +178,7 @@ config = ConnectivityConfig(
     enable_relay_client=True,
     enable_relay_server=True,  # Provide relay service
     enable_dcutr=True,
-    max_relay_circuits=256  # Higher limits
+    max_relay_circuits=256,  # Higher limits
 )
 ```
 
@@ -192,9 +187,7 @@ config = ConnectivityConfig(
 config = ConnectivityConfig(
     enable_mdns=True,  # Fast local discovery
     connect_to_bootstrap=False,  # No public bootstrap
-    bootstrap_peers=[
-        "/ip4/10.0.0.1/tcp/4001/p2p/QmPrivateBootstrap..."
-    ]
+    bootstrap_peers=["/ip4/10.0.0.1/tcp/4001/p2p/QmPrivateBootstrap..."],
 )
 ```
 
@@ -258,7 +251,7 @@ from ipfs_kit_py.libp2p.pubsub_peer_discovery import PubsubPeerDiscovery
 from ipfs_kit_py.libp2p.mdns_discovery import MDNSService
 from ipfs_kit_py.libp2p.universal_connectivity import (
     UniversalConnectivityManager,
-    ConnectivityConfig
+    ConnectivityConfig,
 )
 ```
 

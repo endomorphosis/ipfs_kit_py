@@ -10,8 +10,11 @@ import logging
 import re
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def find_main_block(content):
     # Find the main entry point/execution block of the script
@@ -19,6 +22,7 @@ def find_main_block(content):
     if main_match:
         return main_match.start()
     return None
+
 
 def fix_server_startup(filepath):
     """Fix the server startup in direct_mcp_server_with_tools.py"""
@@ -28,18 +32,22 @@ def fix_server_startup(filepath):
         return False
 
     # Read the current server code
-    with open(filepath, 'r') as f:
+    with open(filepath, "r") as f:
         content = f.read()
 
     # Fix the uvicorn.run call to ensure proper indentation and formatting
-    content = re.sub(r'uvicorn\.run\(\s*app,\s*host=args\.host,\s*port=args\.port,\s*log_level="debug" if args\.debug else "info"\s*\)\s*\n# Removed unmatched parenthesis',
-                    'uvicorn.run(\n        app,\n        host=args.host,\n        port=args.port,\n        log_level="debug" if args.debug else "info"\n    )',
-                    content)
+    content = re.sub(
+        r'uvicorn\.run\(\s*app,\s*host=args\.host,\s*port=args\.port,\s*log_level="debug" if args\.debug else "info"\s*\)\s*\n# Removed unmatched parenthesis',
+        'uvicorn.run(\n        app,\n        host=args.host,\n        port=args.port,\n        log_level="debug" if args.debug else "info"\n    )',
+        content,
+    )
 
     # Fix middleware with unmatched parenthesis
-    content = re.sub(r'app.add_middleware\(CORSMiddleware,\s*allow_origins=\["\\*"\],\s*allow_credentials=True,\s*allow_methods=\["\\*"\],\s*allow_headers=\["\\*"\],\s*\)\s*\n# Removed unmatched parenthesis',
-                    'app.add_middleware(CORSMiddleware,\n        allow_origins=["*"],\n        allow_credentials=True,\n        allow_methods=["*"],\n        allow_headers=["*"]\n    )',
-                    content)
+    content = re.sub(
+        r'app.add_middleware\(CORSMiddleware,\s*allow_origins=\["\\*"\],\s*allow_credentials=True,\s*allow_methods=\["\\*"\],\s*allow_headers=\["\\*"\],\s*\)\s*\n# Removed unmatched parenthesis',
+        'app.add_middleware(CORSMiddleware,\n        allow_origins=["*"],\n        allow_credentials=True,\n        allow_methods=["*"],\n        allow_headers=["*"]\n    )',
+        content,
+    )
 
     # Looking at the log output, tool registration works, so we need to make sure the server starts
     # Let's find the main function or main code section and make sure it contains the server startup code
@@ -49,11 +57,12 @@ def fix_server_startup(filepath):
     new_content = content
 
     # Write the fixed content back to the file
-    with open(filepath, 'w') as f:
+    with open(filepath, "w") as f:
         f.write(new_content)
 
     logger.info(f"✅ Fixed server startup code in {filepath}")
     return True
+
 
 def create_enhanced_mcp_server():
     """Create enhanced MCP server script with integrated IPFS tools"""
@@ -97,7 +106,7 @@ if __name__ == "__main__":
 
         # Write the wrapper script
         wrapper_file = "start_enhanced_mcp_server.py"
-        with open(wrapper_file, 'w') as f:
+        with open(wrapper_file, "w") as f:
             f.write(wrapper_content)
 
         os.chmod(wrapper_file, 0o755)  # Make executable
@@ -106,7 +115,7 @@ if __name__ == "__main__":
         logger.info("You can now run the server with './start_enhanced_mcp_server.py'")
 
         # Create startup script
-        startup_script = '''#!/bin/bash
+        startup_script = """#!/bin/bash
 # Start the enhanced MCP server with IPFS tools and FS integration
 
 echo "Stopping any running MCP servers..."
@@ -123,10 +132,10 @@ sleep 5
 echo "✅ Enhanced MCP server is now running at http://127.0.0.1:3001"
 echo "JSON-RPC endpoint is available at http://127.0.0.1:3001/jsonrpc"
 echo "To test, try using the IPFS tools with the MCP interface"
-'''
+"""
 
         startup_file = "start_enhanced_mcp.sh"
-        with open(startup_file, 'w') as f:
+        with open(startup_file, "w") as f:
             f.write(startup_script)
 
         os.chmod(startup_file, 0o755)  # Make executable
@@ -138,6 +147,7 @@ echo "To test, try using the IPFS tools with the MCP interface"
     else:
         logger.error("❌ Failed to fix server startup code")
         return False
+
 
 if __name__ == "__main__":
     logger.info("Starting to enhance MCP server with IPFS tool coverage...")

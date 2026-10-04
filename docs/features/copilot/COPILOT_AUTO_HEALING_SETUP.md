@@ -202,7 +202,7 @@ Edit the Python script in `copilot-agent-autofix.yml`:
 
 ```python
 # Add new pattern
-if 'your_error_pattern' in error_details.lower():
+if "your_error_pattern" in error_details.lower():
     print("🔧 Detected: Your custom error")
     # Apply custom fix
     fixes.append("Your custom fix")

@@ -20,8 +20,7 @@ from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -29,6 +28,7 @@ logger = logging.getLogger(__name__)
 PORT = 7777
 API_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJyZWFkIiwid3JpdGUiLCJzaWduIiwiYWRtaW4iXX0.hW17uVyqi0eCEpOGNQQ5Go5noTjdZxGYlnJ7Ka_SM_8"
 DATA_DIR = os.path.expanduser("~/.ipfs_kit/filecoin_mock")
+
 
 class FilecoinMockHandler(http.server.BaseHTTPRequestHandler):
     """HTTP request handler for Filecoin mock server."""
@@ -54,11 +54,15 @@ class FilecoinMockHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(401)
             self.send_header("Content-type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({
-                "jsonrpc": "2.0",
-                "error": {"code": -32001, "message": "Unauthorized"},
-                "id": None
-            }).encode())
+            self.wfile.write(
+                json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "error": {"code": -32001, "message": "Unauthorized"},
+                        "id": None,
+                    }
+                ).encode()
+            )
             return
 
         # Parse request
@@ -76,7 +80,7 @@ class FilecoinMockHandler(http.server.BaseHTTPRequestHandler):
                     result = {
                         "Version": "1.21.0-dev+mock",
                         "APIVersion": "v1.10.0",
-                        "BlockDelay": 30
+                        "BlockDelay": 30,
                     }
                 elif method == "Filecoin.ID":
                     result = "12D3KooWMockFilecoinNodeID"
@@ -84,20 +88,13 @@ class FilecoinMockHandler(http.server.BaseHTTPRequestHandler):
                     result = {
                         "Height": 12345,
                         "Blocks": [
-                            {
-                                "Miner": "f0100",
-                                "Timestamp": int(time.time()),
-                                "Height": 12345
-                            }
-                        ]
+                            {"Miner": "f0100", "Timestamp": int(time.time()), "Height": 12345}
+                        ],
                     }
                 elif method == "Filecoin.ClientImport":
                     # Create a mock import result
                     cid = f"bafy2bzace{uuid.uuid4().hex[:32]}"
-                    result = {
-                        "Root": {"/": cid},
-                        "ImportID": uuid.uuid4().int & ((1 << 64) - 1)
-                    }
+                    result = {"Root": {"/": cid}, "ImportID": uuid.uuid4().int & ((1 << 64) - 1)}
                 elif method == "Filecoin.ClientStartDeal":
                     # Create a mock deal
                     deal_cid = f"bafyrei{uuid.uuid4().hex[:32]}"
@@ -112,14 +109,14 @@ class FilecoinMockHandler(http.server.BaseHTTPRequestHandler):
                             "Provider": "f0100",
                             "DataRef": {
                                 "TransferType": "graphsync",
-                                "Root": {"/": f"bafy2bzace{uuid.uuid4().hex[:32]}"}
+                                "Root": {"/": f"bafy2bzace{uuid.uuid4().hex[:32]}"},
                             },
                             "PieceCID": {"/": f"baga6ea4sea{uuid.uuid4().hex[:24]}"},
                             "Size": 1048576,  # 1 MiB
                             "PricePerEpoch": "1000",
                             "Duration": 518400,  # 180 days
                             "DealID": 12345,
-                            "CreationTime": time.time() - 3600  # 1 hour ago
+                            "CreationTime": time.time() - 3600,  # 1 hour ago
                         }
                     ]
                 else:
@@ -130,34 +127,41 @@ class FilecoinMockHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({
-                    "jsonrpc": "2.0",
-                    "result": result,
-                    "id": request_id
-                }).encode())
+                self.wfile.write(
+                    json.dumps({"jsonrpc": "2.0", "result": result, "id": request_id}).encode()
+                )
 
             except json.JSONDecodeError:
                 self.send_response(400)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({
-                    "jsonrpc": "2.0",
-                    "error": {"code": -32700, "message": "Parse error"},
-                    "id": None
-                }).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "error": {"code": -32700, "message": "Parse error"},
+                            "id": None,
+                        }
+                    ).encode()
+                )
         else:
             self.send_response(400)
             self.send_header("Content-type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({
-                "jsonrpc": "2.0",
-                "error": {"code": -32700, "message": "Empty request"},
-                "id": None
-            }).encode())
+            self.wfile.write(
+                json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "error": {"code": -32700, "message": "Empty request"},
+                        "id": None,
+                    }
+                ).encode()
+            )
 
     def log_message(self, format, *args):
         """Override to use our logger."""
         logger.debug(f"{self.client_address[0]} - {format % args}")
+
 
 def main():
     """Main function to start the server."""
@@ -182,6 +186,7 @@ def main():
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt received, shutting down server")
         server.shutdown()
+
 
 if __name__ == "__main__":
     main()

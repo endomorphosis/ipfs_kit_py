@@ -92,9 +92,9 @@ $ python3 -m py_compile ipfs_kit_py/libp2p/peer_manager.py
 Key migrated modules can be imported without errors:
 
 ```python
-from ipfs_kit_py import car_wal_manager           # ✓ Works
-from ipfs_kit_py.libp2p import peer_manager       # ✓ Works
-from ipfs_kit_py import vfs_manager               # ✓ Works (after fix)
+from ipfs_kit_py import car_wal_manager  # ✓ Works
+from ipfs_kit_py.libp2p import peer_manager  # ✓ Works
+from ipfs_kit_py import vfs_manager  # ✓ Works (after fix)
 from ipfs_kit_py import unified_bucket_interface  # ✓ Works (after fix)
 ```
 
@@ -106,10 +106,10 @@ Direct backend testing confirms both backends work:
 
 ```python
 # async-io backend
-anyio.run(test_function, backend='async-io')  # ✓ Works
+anyio.run(test_function, backend="async-io")  # ✓ Works
 
 # trio backend
-anyio.run(test_function, backend='trio')     # ✓ Works
+anyio.run(test_function, backend="trio")  # ✓ Works
 ```
 
 ## Bug Fixes Applied

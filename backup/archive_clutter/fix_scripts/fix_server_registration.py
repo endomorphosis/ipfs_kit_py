@@ -7,10 +7,13 @@ import os
 import re
 import logging
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 MCP_SERVER_PATH = "direct_mcp_server.py"
+
 
 def fix_server_registration():
     """Fix the ordering of server registration in direct_mcp_server.py"""
@@ -20,7 +23,7 @@ def fix_server_registration():
 
     try:
         # Read the file
-        with open(MCP_SERVER_PATH, 'r') as f:
+        with open(MCP_SERVER_PATH, "r") as f:
             content = f.read()
 
         # Remove the incorrectly placed registration call
@@ -42,7 +45,7 @@ def fix_server_registration():
         content = content[:pos] + register_call + content[pos:]
 
         # Write the updated content back to the file
-        with open(MCP_SERVER_PATH, 'w') as f:
+        with open(MCP_SERVER_PATH, "w") as f:
             f.write(content)
 
         logger.info(f"✅ Successfully fixed server registration ordering in {MCP_SERVER_PATH}")
@@ -50,6 +53,7 @@ def fix_server_registration():
     except Exception as e:
         logger.error(f"❌ Error fixing server registration: {e}")
         return False
+
 
 if __name__ == "__main__":
     fix_server_registration()

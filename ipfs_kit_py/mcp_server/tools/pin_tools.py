@@ -1,4 +1,5 @@
 """Pin management tool group (add / list)."""
+
 from __future__ import annotations
 
 import uuid

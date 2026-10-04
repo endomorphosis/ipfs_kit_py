@@ -40,7 +40,7 @@ def create_auth_router(auth_service: AuthenticationService) -> APIRouter:
             if not success:
                 return JSONResponse(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    content={"success": False, "message": message}
+                    content={"success": False, "message": message},
                 )
 
             return {
@@ -50,17 +50,14 @@ def create_auth_router(auth_service: AuthenticationService) -> APIRouter:
                     "id": user.id,
                     "username": user.username,
                     "email": user.email,
-                    "full_name": user.full_name
-                }
+                    "full_name": user.full_name,
+                },
             }
         except Exception as e:
             logger.error(f"Error registering user: {e}")
             return JSONResponse(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content={
-                    "success": False,
-                    "message": f"Internal server error: {str(e)}"
-                }
+                content={"success": False, "message": f"Internal server error: {str(e)}"},
             )
 
     @router.post("/login")
@@ -70,13 +67,13 @@ def create_auth_router(auth_service: AuthenticationService) -> APIRouter:
             success, tokens, message = await auth_service.login(
                 login_request,
                 ip_address=request.client.host if request.client else None,
-                user_agent=request.headers.get("user-agent")
+                user_agent=request.headers.get("user-agent"),
             )
 
             if not success:
                 return JSONResponse(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    content={"success": False, "message": message}
+                    content={"success": False, "message": message},
                 )
 
             # Set access token as cookie if running in browser context
@@ -92,7 +89,7 @@ def create_auth_router(auth_service: AuthenticationService) -> APIRouter:
                     max_age=cookie_max_age,
                     path="/",
                     secure=request.url.scheme == "https",
-                    samesite="lax"
+                    samesite="lax",
                 )
 
             return {
@@ -102,16 +99,13 @@ def create_auth_router(auth_service: AuthenticationService) -> APIRouter:
                 "refresh_token": tokens["refresh_token"],
                 "token_type": tokens["token_type"],
                 "expires_in": tokens["expires_in"],
-                "user": tokens["user"]
+                "user": tokens["user"],
             }
         except Exception as e:
             logger.error(f"Error logging in: {e}")
             return JSONResponse(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content={
-                    "success": False,
-                    "message": f"Internal server error: {str(e)}"
-                }
+                content={"success": False, "message": f"Internal server error: {str(e)}"},
             )
 
     @router.post("/token")
@@ -123,23 +117,20 @@ def create_auth_router(auth_service: AuthenticationService) -> APIRouter:
             if not success:
                 return JSONResponse(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    content={"success": False, "message": message}
+                    content={"success": False, "message": message},
                 )
 
             return {
                 "success": True,
                 "access_token": access_token,
                 "token_type": "bearer",
-                "expires_in": auth_service.token_expire_minutes * 60
+                "expires_in": auth_service.token_expire_minutes * 60,
             }
         except Exception as e:
             logger.error(f"Error refreshing token: {e}")
             return JSONResponse(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content={
-                    "success": False,
-                    "message": f"Internal server error: {str(e)}"
-                }
+                content={"success": False, "message": f"Internal server error: {str(e)}"},
             )
 
     @router.post("/logout")
@@ -147,7 +138,7 @@ def create_auth_router(auth_service: AuthenticationService) -> APIRouter:
         request: Request,
         response: Response,
         user_id: str = Depends(get_current_user),
-        access_token: Optional[str] = Cookie(None, alias="access_token")
+        access_token: Optional[str] = Cookie(None, alias="access_token"),
     ):
         """Logout a user."""
         try:
@@ -160,7 +151,7 @@ def create_auth_router(auth_service: AuthenticationService) -> APIRouter:
             if not success:
                 return JSONResponse(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    content={"success": False, "message": message}
+                    content={"success": False, "message": message},
                 )
 
             return {"success": True, "message": "Logged out successfully"}
@@ -168,10 +159,7 @@ def create_auth_router(auth_service: AuthenticationService) -> APIRouter:
             logger.error(f"Error logging out: {e}")
             return JSONResponse(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content={
-                    "success": False,
-                    "message": f"Internal server error: {str(e)}"
-                }
+                content={"success": False, "message": f"Internal server error: {str(e)}"},
             )
 
     return router
