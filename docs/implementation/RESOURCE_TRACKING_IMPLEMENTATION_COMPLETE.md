@@ -35,9 +35,9 @@ I've successfully implemented a comprehensive resource tracking system that uses
 # Fast tracking functions
 from ipfs_kit_py.resource_tracker import (
     track_bandwidth_upload,
-    track_bandwidth_download, 
+    track_bandwidth_download,
     track_storage_usage,
-    track_api_call
+    track_api_call,
 )
 
 # Track 50MB upload to S3
@@ -48,7 +48,8 @@ track_bandwidth_upload("s3_primary", BackendType.S3, 50 * 1024 * 1024)
 ```python
 from ipfs_kit_py.resource_tracking_decorators import track_upload, track_download
 
-@track_upload('my_backend', BackendType.S3)
+
+@track_upload("my_backend", BackendType.S3)
 async def upload_file(data: bytes) -> dict:
     # Your upload logic here
     return {"success": True, "size": len(data)}
@@ -58,7 +59,7 @@ async def upload_file(data: bytes) -> dict:
 ```python
 from ipfs_kit_py.resource_tracking_decorators import track_operation
 
-with track_operation('s3_backend', BackendType.S3, 'bulk_upload') as tracker:
+with track_operation("s3_backend", BackendType.S3, "bulk_upload") as tracker:
     for file_data in files:
         tracker.add_bandwidth_upload(len(file_data))
         tracker.add_storage_usage(len(file_data))
@@ -90,7 +91,7 @@ api = IPFSSimpleAPI()
 summary = api.resource_get_usage_summary(backend_name="s3_primary", period="day")
 
 # Track new operation
-api.resource_track_bandwidth_upload("s3_primary", "s3", 1024*1024, "op_123")
+api.resource_track_bandwidth_upload("s3_primary", "s3", 1024 * 1024, "op_123")
 
 # Get backend status
 status = api.resource_get_backend_status()
@@ -158,7 +159,7 @@ operations = tracker.get_resource_usage(
     backend_type=BackendType.S3,
     resource_type=ResourceType.BANDWIDTH_UPLOAD,
     hours_back=24,
-    limit=100
+    limit=100,
 )
 
 # Backend health monitoring
@@ -174,16 +175,16 @@ class S3BackendWithTracking:
     def __init__(self):
         self.backend_name = "s3_primary"
         self.backend_type = BackendType.S3
-    
-    @track_upload('s3_primary', BackendType.S3)
+
+    @track_upload("s3_primary", BackendType.S3)
     async def put_object(self, key: str, data: bytes) -> dict:
         # S3 upload logic
         result = await s3_client.put_object(Bucket=bucket, Key=key, Body=data)
-        
+
         # Additional tracking
         track_storage_usage(self.backend_name, self.backend_type, len(data))
         track_api_call(self.backend_name, self.backend_type, metadata={"operation": "put_object"})
-        
+
         return {"success": True, "size": len(data)}
 ```
 

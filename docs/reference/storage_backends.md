@@ -57,10 +57,12 @@ The `storacha_kit.py` module provides a comprehensive interface to Storacha (als
 from ipfs_kit_py.ipfs_kit import ipfs_kit
 
 # Initialize with Storacha credentials (from environment variables or config)
-kit = ipfs_kit(metadata={
-    "storacha_token": "YOUR_TOKEN",  # Can also use W3_STORE_TOKEN env var
-    "api_url": "https://up.web3.storage"  # Optional custom endpoint
-})
+kit = ipfs_kit(
+    metadata={
+        "storacha_token": "YOUR_TOKEN",  # Can also use W3_STORE_TOKEN env var
+        "api_url": "https://up.web3.storage",  # Optional custom endpoint
+    }
+)
 
 # List available spaces
 spaces_result = kit.storacha_kit.space_ls()
@@ -81,32 +83,28 @@ if upload_result["success"]:
     # CID is returned on successful upload
     cid = upload_result["cid"]
     print(f"Uploaded to Storacha with CID: {cid}")
-    
+
     # The content is now persistently stored and can be accessed:
     # 1. Via IPFS directly if the CID is reachable in the network
     content = kit.ipfs_cat(cid)
-    
+
     # 2. Via Web3.Storage gateways
     gateway_url = f"https://{cid}.ipfs.w3s.link"
-    
+
     # 3. Batch upload multiple files
     batch_result = kit.storacha_kit.batch_operations(
         space=default_space,
         files=["/path/to/file1.txt", "/path/to/file2.jpg"],
-        cids=["QmExistingCid1", "QmExistingCid2"]  # Optional retrieval
+        cids=["QmExistingCid1", "QmExistingCid2"],  # Optional retrieval
     )
-    
+
     if batch_result["success"]:
         print(f"Batch operation completed with {len(batch_result['upload_results'])} uploads")
 else:
     print(f"Upload failed: {upload_result.get('error')}")
 
 # Allocate storage to a space (for enterprise users)
-allocation_result = kit.storacha_kit.space_allocate(
-    space=default_space,
-    amount=100,
-    unit="GiB"
-)
+allocation_result = kit.storacha_kit.space_allocate(space=default_space, amount=100, unit="GiB")
 if allocation_result["success"]:
     print(f"Successfully allocated {allocation_result['allocated']} to space")
 ```
@@ -128,7 +126,7 @@ Storacha integration uses both HTTP APIs and CLI tools:
 3. **Standardized Result Format**:
    ```python
    {
-       "success": True/False,
+       "success": True / False,
        "operation": "operation_name",
        "timestamp": 1234567890.123,
        "correlation_id": "uuid-for-tracking",
@@ -137,7 +135,7 @@ Storacha integration uses both HTTP APIs and CLI tools:
        "space": "did:mailto:...",
        # Error information if failed:
        "error": "Error message",
-       "error_type": "ErrorClassName"
+       "error_type": "ErrorClassName",
    }
    ```
 
@@ -179,13 +177,15 @@ The `s3_kit.py` module provides comprehensive integration with S3-compatible obj
 from ipfs_kit_py.ipfs_kit import ipfs_kit
 
 # Initialize with S3 configuration
-kit = ipfs_kit(metadata={
-    "s3cfg": {
-        "accessKey": "YOUR_ACCESS_KEY",     # or use AWS_ACCESS_KEY_ID env var
-        "secretKey": "YOUR_SECRET_KEY",     # or use AWS_SECRET_ACCESS_KEY env var
-        "endpoint": "https://s3.amazonaws.com"  # or use custom endpoint for MinIO, etc.
+kit = ipfs_kit(
+    metadata={
+        "s3cfg": {
+            "accessKey": "YOUR_ACCESS_KEY",  # or use AWS_ACCESS_KEY_ID env var
+            "secretKey": "YOUR_SECRET_KEY",  # or use AWS_SECRET_ACCESS_KEY env var
+            "endpoint": "https://s3.amazonaws.com",  # or use custom endpoint for MinIO, etc.
+        }
     }
-})
+)
 
 # List files in a directory (prefix)
 bucket_name = "my-ipfs-bucket"
@@ -200,11 +200,7 @@ cid = "QmSomeCID123456789abcdef"
 local_file = "/path/to/local_file.dat"
 s3_key = f"ipfs/{cid}/original.dat"
 
-upload_result = kit.s3_kit("ul_file", 
-    upload_file=local_file,
-    path=s3_key,
-    bucket=bucket_name
-)
+upload_result = kit.s3_kit("ul_file", upload_file=local_file, path=s3_key, bucket=bucket_name)
 
 if "key" in upload_result:
     print(f"Uploaded file to S3: s3://{bucket_name}/{upload_result['key']}")
@@ -215,10 +211,11 @@ else:
     print("Upload failed")
 
 # Download a file from S3
-download_result = kit.s3_kit("dl_file",
+download_result = kit.s3_kit(
+    "dl_file",
     remote_path=s3_key,
     local_path="/path/to/download_destination.dat",
-    bucket=bucket_name
+    bucket=bucket_name,
 )
 
 if "key" in download_result:
@@ -229,30 +226,29 @@ else:
     print("Download failed")
 
 # Upload an entire directory recursively
-upload_dir_result = kit.s3_kit("ul_dir",
+upload_dir_result = kit.s3_kit(
+    "ul_dir",
     local_path="/path/to/directory",
     remote_path="ipfs/directory_backup/",
-    bucket=bucket_name
+    bucket=bucket_name,
 )
 
 for key, item in upload_dir_result.items():
     print(f"Uploaded: {key} ({item['size']} bytes)")
 
 # Move a file within S3 (copy + delete)
-move_result = kit.s3_kit("mv_file",
+move_result = kit.s3_kit(
+    "mv_file",
     src_path="ipfs/original/file.dat",
     dst_path="ipfs/archive/file.dat",
-    bucket=bucket_name
+    bucket=bucket_name,
 )
 
 if "key" in move_result:
     print(f"Moved file to: {move_result['key']}")
 
 # Delete a file
-delete_result = kit.s3_kit("rm_file",
-    this_path="ipfs/to_delete/file.dat",
-    bucket=bucket_name
-)
+delete_result = kit.s3_kit("rm_file", this_path="ipfs/to_delete/file.dat", bucket=bucket_name)
 
 if "key" in delete_result:
     print(f"Deleted file: {delete_result['key']}")
@@ -267,22 +263,18 @@ The S3 integration supports multiple configuration formats:
 s3config = {
     "accessKey": "YOUR_ACCESS_KEY",
     "secretKey": "YOUR_SECRET_KEY",
-    "endpoint": "https://s3.amazonaws.com"
+    "endpoint": "https://s3.amazonaws.com",
 }
 
 # Method 2: Using standard AWS SDK naming
 s3config = {
-    "aws_access_key_id": "YOUR_ACCESS_KEY", 
+    "aws_access_key_id": "YOUR_ACCESS_KEY",
     "aws_secret_access_key": "YOUR_SECRET_KEY",
-    "endpoint_url": "https://s3.amazonaws.com"
+    "endpoint_url": "https://s3.amazonaws.com",
 }
 
 # You can also specify additional boto3 parameters
-s3config.update({
-    "region_name": "us-west-2",
-    "use_ssl": True,
-    "verify": True
-})
+s3config.update({"region_name": "us-west-2", "use_ssl": True, "verify": True})
 ```
 
 ### Advanced Operations
@@ -291,22 +283,22 @@ The S3 integration supports additional advanced operations:
 
 ```python
 # Create directory (prefix) in S3
-mkdir_result = kit.s3_kit("mk_dir", 
-    dir="ipfs/new_directory/",
-    bucket=bucket_name,
-    s3_config=s3config
+mkdir_result = kit.s3_kit(
+    "mk_dir", dir="ipfs/new_directory/", bucket=bucket_name, s3_config=s3config
 )
+
 
 # Upload with progress tracking
 def progress_callback(bytes_transferred):
     print(f"Transferred: {bytes_transferred} bytes")
 
+
 upload_result = kit.s3_kit.s3_upload_object(
-    f=open(local_file, 'rb'),
+    f=open(local_file, "rb"),
     bucket=bucket_name,
     key=s3_key,
     s3_config=s3config,
-    progress_callback=progress_callback
+    progress_callback=progress_callback,
 )
 
 # Using session management for efficient operations
@@ -347,33 +339,35 @@ from ipfs_kit_py.ipfs_kit import ipfs_kit
 from ipfs_kit_py.tiered_cache import TieredCacheManager
 
 # Configure tiered cache with external backend integration
-kit = ipfs_kit(metadata={
-    "cache_config": {
-        "memory_cache_size": 200 * 1024 * 1024,  # 200MB
-        "local_cache_size": 2 * 1024 * 1024 * 1024,  # 2GB
-        "local_cache_path": "/path/to/cache",
-        "external_backends": {
-            "storacha": {
-                "enabled": True,
-                "space": "default-space",
-                "promotion_threshold": 10,  # Access count before migration
-                "demotion_threshold": 30    # Days of no access before demotion
+kit = ipfs_kit(
+    metadata={
+        "cache_config": {
+            "memory_cache_size": 200 * 1024 * 1024,  # 200MB
+            "local_cache_size": 2 * 1024 * 1024 * 1024,  # 2GB
+            "local_cache_path": "/path/to/cache",
+            "external_backends": {
+                "storacha": {
+                    "enabled": True,
+                    "space": "default-space",
+                    "promotion_threshold": 10,  # Access count before migration
+                    "demotion_threshold": 30,  # Days of no access before demotion
+                },
+                "s3": {
+                    "enabled": True,
+                    "bucket": "ipfs-content-cache",
+                    "key_prefix": "ipfs/",
+                    "promotion_threshold": 5,
+                    "demotion_threshold": 60,
+                },
             },
-            "s3": {
-                "enabled": True,
-                "bucket": "ipfs-content-cache",
-                "key_prefix": "ipfs/",
-                "promotion_threshold": 5,
-                "demotion_threshold": 60
-            }
         }
     }
-})
+)
 
 # The cache manager integrates all tiers
 cache_manager = kit.get_cache_manager()
 
-# Access content through unified interface 
+# Access content through unified interface
 # (automatically retrieves from appropriate tier)
 content = cache_manager.get("QmSomeCID")
 
@@ -464,10 +458,12 @@ from ipfs_kit_py.ipfs_kit import ipfs_kit
 import pandas as pd
 
 # Initialize with both S3 and Storacha configured
-kit = ipfs_kit(metadata={
-    "s3cfg": {...},
-    "storacha_token": "...",
-})
+kit = ipfs_kit(
+    metadata={
+        "s3cfg": {...},
+        "storacha_token": "...",
+    }
+)
 
 # Get FSSpec-compatible filesystem
 fs = kit.get_filesystem()
@@ -479,7 +475,7 @@ df = pd.read_csv("ipfs://QmSomeCID/data.csv")  # Transparently retrieves from an
 # based on tiering policies
 with fs.open("ipfs://myproject/results.csv", "w") as f:
     df.to_csv(f)
-    
+
 # The CID of the new file can be used to access it from any backend
 new_cid = fs.get_cid("ipfs://myproject/results.csv")
 print(f"Data now available at ipfs://{new_cid}")
@@ -529,10 +525,10 @@ from ipfs_kit_py.credential_manager import add_s3_credentials
 
 # Store credentials securely
 add_s3_credentials(
-    access_key="YOUR_ACCESS_KEY", 
+    access_key="YOUR_ACCESS_KEY",
     secret_key="YOUR_SECRET_KEY",
     server="s3.example.com",
-    bucket="ipfs-test-bucket"
+    bucket="ipfs-test-bucket",
 )
 
 # Use credentials in your code
@@ -599,10 +595,10 @@ Always use secure credential management for external storage backends:
 ```python
 # Use credential management tools
 from ipfs_kit_py.credential_manager import (
-    add_s3_credentials, 
+    add_s3_credentials,
     add_huggingface_credentials,
     add_storacha_credentials,
-    get_stored_credentials
+    get_stored_credentials,
 )
 
 # Store credentials securely
@@ -624,7 +620,8 @@ def get_s3_key_from_cid(cid, prefix="ipfs"):
     """Generate consistent S3 key from CID."""
     # Use hierarchical structure for better performance
     return f"{prefix}/{cid[:2]}/{cid[2:4]}/{cid}"
-    
+
+
 def get_metadata_path(cid):
     """Generate path for metadata storage."""
     return f"metadata/{cid[:4]}/{cid}.json"
@@ -638,6 +635,7 @@ Always verify content integrity when retrieving from external backends:
 def verify_content_integrity(cid, content):
     """Verify content matches its CID."""
     import multihash
+
     calculated_cid = multihash.to_b58_string(multihash.digest(content, "sha2-256"))
     return cid == calculated_cid
 ```
@@ -654,21 +652,23 @@ metadata = {
     "title": "Important Document",
     "created": time.time(),
     "tags": ["important", "document"],
-    "backends": ["local", "storacha", "s3"]
+    "backends": ["local", "storacha", "s3"],
 }
 
 # Store metadata in index
 metadata_cid = kit.ipfs_add_json(metadata)
 
 # Track in Arrow index for efficient queries
-index.add_record({
-    "cid": content_cid,
-    "metadata_cid": metadata_cid,
-    "storage_locations": {
-        "storacha": {"space": "default-space"},
-        "s3": {"bucket": "content-bucket", "key": f"ipfs/{content_cid}"}
+index.add_record(
+    {
+        "cid": content_cid,
+        "metadata_cid": metadata_cid,
+        "storage_locations": {
+            "storacha": {"space": "default-space"},
+            "s3": {"bucket": "content-bucket", "key": f"ipfs/{content_cid}"},
+        },
     }
-})
+)
 ```
 
 ### 6. Error Recovery and Fallbacks
@@ -680,7 +680,7 @@ Implement robust error recovery with fallbacks between backends:
 def get_with_fallbacks(cid, retries=3, backoff=1.5):
     backends = ["memory", "disk", "ipfs", "storacha", "s3"]
     errors = {}
-    
+
     for backend in backends:
         for attempt in range(retries):
             try:
@@ -699,8 +699,8 @@ def get_with_fallbacks(cid, retries=3, backoff=1.5):
                     return content
             except Exception as e:
                 errors[f"{backend}-{attempt}"] = str(e)
-                time.sleep(backoff ** attempt)
-    
+                time.sleep(backoff**attempt)
+
     # All backends failed
     raise ContentRetrievalError(f"Failed to retrieve {cid} from any backend: {errors}")
 ```

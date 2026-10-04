@@ -79,10 +79,16 @@ def _validate_receipts(receipts: Mapping[str, Any]) -> None:
         _require(receipt_id not in ids, f"duplicate receipt id: {receipt_id}")
         ids.add(receipt_id)
         receipt_type = entry.get("type")
-        _require(receipt_type in {*REQUIRED_RECEIPT_TYPES, "operations", "packaging", "interoperability"}, f"invalid receipt type: {receipt_type}")
+        _require(
+            receipt_type
+            in {*REQUIRED_RECEIPT_TYPES, "operations", "packaging", "interoperability"},
+            f"invalid receipt type: {receipt_type}",
+        )
         types.add(receipt_type)
         status = entry.get("status")
-        _require(status in {"passed", "not_run", "conditional"}, f"invalid receipt status: {status}")
+        _require(
+            status in {"passed", "not_run", "conditional"}, f"invalid receipt status: {status}"
+        )
         _strings(entry.get("evidence"), f"receipt {receipt_id} evidence")
         command = entry.get("command")
         if command is not None:
@@ -92,20 +98,25 @@ def _validate_receipts(receipts: Mapping[str, Any]) -> None:
                 isinstance(entry.get("limitation"), str) and bool(entry["limitation"].strip()),
                 f"non-passing receipt {receipt_id} requires a limitation",
             )
-    _require(set(REQUIRED_RECEIPT_TYPES) <= types, "test, benchmark, and security receipts are required")
+    _require(
+        set(REQUIRED_RECEIPT_TYPES) <= types, "test, benchmark, and security receipts are required"
+    )
 
     findings = receipts.get("security_findings")
     _require(isinstance(findings, Mapping), "security_findings must be an object")
     for severity in ("critical", "high", "medium", "low"):
         count = findings.get(f"unresolved_{severity}")
-        _require(isinstance(count, int) and not isinstance(count, bool) and count >= 0, f"unresolved_{severity} must be a non-negative integer")
-    _require(findings["unresolved_critical"] == 0, "unresolved critical security findings block release")
+        _require(
+            isinstance(count, int) and not isinstance(count, bool) and count >= 0,
+            f"unresolved_{severity} must be a non-negative integer",
+        )
+    _require(
+        findings["unresolved_critical"] == 0, "unresolved critical security findings block release"
+    )
     _require(findings["unresolved_high"] == 0, "unresolved high security findings block release")
 
 
-def validate_release_readiness(
-    report: Mapping[str, Any], receipts: Mapping[str, Any]
-) -> None:
+def validate_release_readiness(report: Mapping[str, Any], receipts: Mapping[str, Any]) -> None:
     """Validate cross-artifact safety and stage-gate invariants.
 
     This validation is intentionally independent of ``jsonschema`` so it also
@@ -117,7 +128,10 @@ def validate_release_readiness(
     _require(report.get("schema_version") == 1, "unsupported readiness schema version")
     _require(report.get("kind") == "ipfs-kit-iroh-release-readiness", "invalid readiness kind")
     _require(report.get("task_id") == "IROH-027", "readiness task_id must be IROH-027")
-    _require(report.get("receipt_resource") == RECEIPTS_RESOURCE, "receipt resource does not match packaged ledger")
+    _require(
+        report.get("receipt_resource") == RECEIPTS_RESOURCE,
+        "receipt resource does not match packaged ledger",
+    )
 
     decision = report.get("release_decision")
     _require(isinstance(decision, Mapping), "release_decision must be an object")
@@ -135,12 +149,20 @@ def validate_release_readiness(
     _require(isinstance(rollout, Mapping), "rollout must be an object")
     _require(rollout.get("default_enabled") is False, "Iroh must remain disabled by default")
     stages = rollout.get("stages")
-    _require(isinstance(stages, list) and len(stages) == len(RELEASE_STAGES), "all four rollout stages are required")
-    _require([item.get("name") for item in stages if isinstance(item, Mapping)] == list(RELEASE_STAGES), "rollout stages must be ordered disabled, experimental, canary, supported")
+    _require(
+        isinstance(stages, list) and len(stages) == len(RELEASE_STAGES),
+        "all four rollout stages are required",
+    )
+    _require(
+        [item.get("name") for item in stages if isinstance(item, Mapping)] == list(RELEASE_STAGES),
+        "rollout stages must be ordered disabled, experimental, canary, supported",
+    )
     for index, stage in enumerate(stages):
         _require(isinstance(stage, Mapping), "each rollout stage must be an object")
         _require(stage.get("order") == index, f"stage {RELEASE_STAGES[index]} has an invalid order")
-        _require(stage.get("automatic_promotion") is False, "automatic stage promotion is forbidden")
+        _require(
+            stage.get("automatic_promotion") is False, "automatic stage promotion is forbidden"
+        )
         _strings(stage.get("entry_criteria"), f"stage {stage.get('name')} entry_criteria")
         _strings(stage.get("exit_criteria"), f"stage {stage.get('name')} exit_criteria")
         _strings(stage.get("rollback_triggers"), f"stage {stage.get('name')} rollback_triggers")
@@ -164,22 +186,41 @@ def validate_release_readiness(
     for slo in slos:
         _require(isinstance(slo, Mapping), "each SLO must be an object")
         _require(slo.get("operator") in {"gte", "lte", "eq"}, "invalid SLO operator")
-        _require(isinstance(slo.get("target"), (int, float)) and not isinstance(slo.get("target"), bool), "SLO target must be numeric")
+        _require(
+            isinstance(slo.get("target"), (int, float)) and not isinstance(slo.get("target"), bool),
+            "SLO target must be numeric",
+        )
         _require(isinstance(slo.get("unit"), str) and slo["unit"], "SLO unit is required")
         _require(isinstance(slo.get("window"), str) and slo["window"], "SLO window is required")
 
     for section in ("compatibility", "migration", "deprecation", "data_portability", "support"):
         _require(isinstance(report.get(section), Mapping), f"{section} must be an object")
-    _require(report["compatibility"].get("minimum_window_days", 0) >= 90, "compatibility window must be at least 90 days")
-    _require(report["deprecation"].get("minimum_notice_days", 0) >= 90, "deprecation notice must be at least 90 days")
-    _require(report["data_portability"].get("export_without_sidecar") is True, "portable export must not require a running sidecar")
+    _require(
+        report["compatibility"].get("minimum_window_days", 0) >= 90,
+        "compatibility window must be at least 90 days",
+    )
+    _require(
+        report["deprecation"].get("minimum_notice_days", 0) >= 90,
+        "deprecation notice must be at least 90 days",
+    )
+    _require(
+        report["data_portability"].get("export_without_sidecar") is True,
+        "portable export must not require a running sidecar",
+    )
     _strings(report["support"].get("owners"), "support owners")
-    _require(isinstance(report["support"].get("escalation"), str) and report["support"]["escalation"], "support escalation is required")
+    _require(
+        isinstance(report["support"].get("escalation"), str) and report["support"]["escalation"],
+        "support escalation is required",
+    )
 
     receipt_ids = set(decision.get("receipt_ids", []))
     known_ids = {entry["id"] for entry in receipts["receipts"]}
-    _require(receipt_ids and receipt_ids <= known_ids, "release decision references missing receipts")
-    required = {entry["id"] for entry in receipts["receipts"] if entry.get("required_for") == approved_stage}
+    _require(
+        receipt_ids and receipt_ids <= known_ids, "release decision references missing receipts"
+    )
+    required = {
+        entry["id"] for entry in receipts["receipts"] if entry.get("required_for") == approved_stage
+    }
     passing = {entry["id"] for entry in receipts["receipts"] if entry.get("status") == "passed"}
     _require(required <= receipt_ids, "release decision omits a required receipt")
     _require(required <= passing, "approved stage has a non-passing required receipt")
@@ -200,7 +241,9 @@ def promotion_blockers(
     if target_stage not in RELEASE_STAGES:
         raise ReleaseReadinessError(f"unknown rollout stage: {target_stage}")
     report = deepcopy(dict(report)) if report is not None else _load_resource(READINESS_RESOURCE)
-    receipts = deepcopy(dict(receipts)) if receipts is not None else _load_resource(RECEIPTS_RESOURCE)
+    receipts = (
+        deepcopy(dict(receipts)) if receipts is not None else _load_resource(RECEIPTS_RESOURCE)
+    )
     validate_release_readiness(report, receipts)
     target_index = RELEASE_STAGES.index(target_stage)
     blockers: list[str] = []

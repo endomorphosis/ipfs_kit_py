@@ -12,8 +12,11 @@ import json
 import logging
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def load_tools():
     """Load tools from the JSON file"""
@@ -31,6 +34,7 @@ def load_tools():
     except Exception as e:
         logger.error(f"Error loading tools from JSON: {e}")
         return None
+
 
 def create_patched_mcp_server():
     """Create a patched version of direct_mcp_server.py with the tools"""
@@ -71,7 +75,7 @@ def create_patched_mcp_server():
                     new_content = lines[:tools_start_index]
                     new_content.append("# Enhanced IPFS tools registered")
                     new_content.append("tools = " + json.dumps(tools, indent=4))
-                    new_content.extend(lines[tools_end_index+1:])
+                    new_content.extend(lines[tools_end_index + 1 :])
 
                     f.write("\n".join(new_content))
                     logger.info("✅ Replaced existing tools section in server file")
@@ -80,7 +84,9 @@ def create_patched_mcp_server():
                     f.write(server_content)
                     f.write("\n\n# Enhanced IPFS tools\n")
                     f.write("tools = " + json.dumps(tools, indent=4))
-                    logger.info("✅ Appended tools to server file (could not find end of existing tools section)")
+                    logger.info(
+                        "✅ Appended tools to server file (could not find end of existing tools section)"
+                    )
             else:
                 # No tools section found, append tools
                 f.write(server_content)
@@ -94,6 +100,7 @@ def create_patched_mcp_server():
     except Exception as e:
         logger.error(f"Error creating patched MCP server: {e}")
         return False
+
 
 def create_restart_script():
     """Create a script to restart the MCP server with the new tools"""
@@ -128,6 +135,7 @@ echo "To test, try using a tool with the MCP interface"
         logger.error(f"Error creating restart script: {e}")
         return False
 
+
 def main():
     """Main function"""
     logger.info("Starting to patch direct MCP server with IPFS tools...")
@@ -148,6 +156,7 @@ def main():
     logger.info("  2. The MCP server will now have access to all the enhanced IPFS tools")
     logger.info("  3. Test the tools through the MCP JSON-RPC interface")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

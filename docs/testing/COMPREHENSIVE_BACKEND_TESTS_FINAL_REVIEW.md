@@ -937,6 +937,7 @@ import os
 
 MOCK_MODE = os.environ.get("BACKEND_MOCK_MODE", "true").lower() == "true"
 
+
 def get_backend():
     if MOCK_MODE:
         return MockBackend()
@@ -974,11 +975,14 @@ def backend_with_tracking():
 #### Pattern 3: Parametrized Error Testing
 
 ```python
-@pytest.mark.parametrize("error_type,expected", [
-    ("timeout", TimeoutError),
-    ("not_found", NotFoundError),
-    ("permission", PermissionError),
-])
+@pytest.mark.parametrize(
+    "error_type,expected",
+    [
+        ("timeout", TimeoutError),
+        ("not_found", NotFoundError),
+        ("permission", PermissionError),
+    ],
+)
 def test_error_handling(backend, error_type, expected):
     with pytest.raises(expected):
         backend.trigger_error(error_type)
@@ -995,18 +999,16 @@ def test_error_handling(backend, error_type, expected):
 
 ❌ **Bad**:
 ```python
-backend = S3Backend({
-    "access_key": "AKIAIOSFODNN7EXAMPLE",
-    "secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-})
+backend = S3Backend(
+    {"access_key": "AKIAIOSFODNN7EXAMPLE", "secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"}
+)
 ```
 
 ✅ **Good**:
 ```python
-backend = S3Backend({
-    "access_key": os.environ.get("AWS_ACCESS_KEY"),
-    "secret_key": os.environ.get("AWS_SECRET_KEY")
-})
+backend = S3Backend(
+    {"access_key": os.environ.get("AWS_ACCESS_KEY"), "secret_key": os.environ.get("AWS_SECRET_KEY")}
+)
 ```
 
 #### Anti-Pattern 2: No Resource Cleanup
@@ -1035,9 +1037,11 @@ def test_upload(backend_with_tracking):
 ```python
 uploaded_id = None
 
+
 def test_upload():
     global uploaded_id
     uploaded_id = backend.upload(data)["id"]
+
 
 def test_download():
     # Depends on test_upload!
