@@ -26,6 +26,29 @@ from .coordination_storage import (
     validate_transport_cid,
 )
 
+WIRE_JSON_KIND = "ipfs-kit.wire-json@1"
+MAX_WIRE_JSON_BYTES = 262_144
+
+
+def _wire_json_object(data: bytes) -> dict[str, Any]:
+    """Validate exact bounded historical wire JSON without changing its bytes."""
+    if type(data) is not bytes:
+        raise TypeError("wire JSON must be bytes")
+    if not data or len(data) > MAX_WIRE_JSON_BYTES:
+        raise ValueError("wire JSON exceeds its byte bound")
+    try:
+        artifact = json.loads(data)
+        if type(artifact) is not dict:
+            raise ValueError("wire JSON requires a plain object")
+        canonical = json.dumps(
+            artifact, ensure_ascii=True, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ).encode("utf-8")
+        if canonical != data:
+            raise ValueError("wire JSON bytes are not canonical")
+    except (ValueError, TypeError, UnicodeError, RecursionError) as exc:
+        raise ValueError("invalid canonical wire JSON object") from exc
+    return artifact
+
 
 class NativeOwnerBindingError(CoordinationStorageError):
     """The supplied connection no longer belongs to the admitted owner."""
@@ -213,21 +236,30 @@ class DuckDBCoordinationStore:
     def _read_bytes(self, cid: str) -> bytes:
         codec = validate_transport_cid(cid)
         row = self._connection.execute(
-            "SELECT kind, codec, byte_length, block_bytes FROM kit_coordination_blocks "
+            "SELECT kind, codec, byte_length, "
+            "CASE WHEN kind=? AND octet_length(block_bytes)>? THEN NULL "
+            "ELSE block_bytes END FROM kit_coordination_blocks "
             "WHERE namespace=? AND cid=?",
-            [self.namespace, cid],
+            [WIRE_JSON_KIND, MAX_WIRE_JSON_BYTES, self.namespace, cid],
         ).fetchone()
         if row is None:
             raise ArtifactNotFound(cid)
+        if row[3] is None:
+            raise ArtifactIntegrityError("native wire JSON block exceeds its byte bound")
         data = bytes(row[3])
         if row[1] != codec or row[2] != len(data) or cid_for_bytes(data, codec=codec) != cid:
             raise ArtifactIntegrityError("native coordination block metadata or CID mismatch")
         try:
-            artifact = json.loads(data)
-            if not isinstance(artifact, dict) or _canonical_json(artifact) != data:
-                raise ValueError("noncanonical artifact")
-            if _artifact_kind(artifact) != row[0]:
-                raise ValueError("artifact kind differs")
+            if row[0] == WIRE_JSON_KIND:
+                if codec != "raw":
+                    raise ValueError("wire JSON requires raw transport")
+                _wire_json_object(data)
+            else:
+                artifact = json.loads(data)
+                if not isinstance(artifact, dict) or _canonical_json(artifact) != data:
+                    raise ValueError("noncanonical artifact")
+                if _artifact_kind(artifact) != row[0]:
+                    raise ValueError("artifact kind differs")
         except (ValueError, TypeError, UnicodeError) as exc:
             raise ArtifactIntegrityError("native coordination artifact is invalid") from exc
         return data
@@ -235,7 +267,15 @@ class DuckDBCoordinationStore:
     def _read_artifact(self, cid: str) -> dict[str, Any]:
         return json.loads(self._read_bytes(cid))
 
-    def _insert_block(self, artifact: Mapping[str, Any], data: bytes, cid: str, codec: str) -> bool:
+    def _insert_block(
+        self,
+        artifact: Mapping[str, Any],
+        data: bytes,
+        cid: str,
+        codec: str,
+        *,
+        kind: str | None = None,
+    ) -> bool:
         row = self._connection.execute(
             "SELECT cid FROM kit_coordination_blocks WHERE namespace=? AND cid=?",
             [self.namespace, cid],
@@ -246,7 +286,14 @@ class DuckDBCoordinationStore:
             return False
         self._connection.execute(
             "INSERT INTO kit_coordination_blocks VALUES (?, ?, ?, ?, ?, ?)",
-            [self.namespace, cid, _artifact_kind(artifact), codec, len(data), data],
+            [
+                self.namespace,
+                cid,
+                _artifact_kind(artifact) if kind is None else kind,
+                codec,
+                len(data),
+                data,
+            ],
         )
         return True
 
@@ -263,6 +310,8 @@ class DuckDBCoordinationStore:
         if not isinstance(artifact, Mapping):
             raise TypeError("artifact must be a mapping")
         kind = _artifact_kind(artifact)
+        if kind == WIRE_JSON_KIND:
+            raise ValueError("wire JSON row kind is reserved for put_wire_json")
         data = _canonical_json(artifact)
         cid = cid_for_bytes(data, codec=codec)
         if expected_cid is not None and cid != expected_cid:
@@ -272,10 +321,57 @@ class DuckDBCoordinationStore:
             self._require_namespace(fields["namespace"])
         with self._write_transaction():
             created = self._insert_block(artifact, data, cid, codec)
+            if not created:
+                kind = self._connection.execute(
+                    "SELECT kind FROM kit_coordination_blocks WHERE namespace=? AND cid=?",
+                    [self.namespace, cid],
+                ).fetchone()[0]
         return {
             "cid": cid,
             "kind": kind,
             "codec": codec,
+            "byte_length": len(data),
+            "created": created,
+            "replicated": False,
+            "durable": True,
+        }
+
+    def put_wire_json(
+        self, data: bytes, *, expected_cid: str, replicate: bool = False
+    ) -> dict[str, Any]:
+        """Store exact historical raw wire JSON through this admitted owner.
+
+        This narrow compatibility channel accepts canonical plain JSON objects,
+        including schemaless Profile F payloads. It preserves the caller's
+        exact bytes/CID and never interprets them as a schema-qualified native
+        artifact or a root transition. The internal row marker is not a proof,
+        dispatch authorization, or semantic acceptance receipt.
+        """
+        if replicate is not False:
+            raise ValueError("native owner storage has no replication backend")
+        artifact = _wire_json_object(data)
+        if type(expected_cid) is not str or not 10 <= len(expected_cid) <= 64:
+            raise ValueError("unsupported or malformed expected raw CID")
+        if validate_transport_cid(expected_cid) != "raw":
+            raise ArtifactIntegrityError("wire JSON requires an expected raw CID")
+        cid = cid_for_bytes(data, codec="raw")
+        if cid != expected_cid:
+            raise ArtifactIntegrityError("wire JSON CID does not match expected_cid")
+        if artifact.get("schema") == STATE_ROOT_TRANSITION_SCHEMA:
+            fields = self._transition_fields(artifact)
+            self._require_namespace(fields["namespace"])
+        kind = WIRE_JSON_KIND
+        with self._write_transaction():
+            created = self._insert_block(artifact, data, cid, "raw", kind=kind)
+            if not created:
+                kind = self._connection.execute(
+                    "SELECT kind FROM kit_coordination_blocks WHERE namespace=? AND cid=?",
+                    [self.namespace, cid],
+                ).fetchone()[0]
+        return {
+            "cid": cid,
+            "kind": kind,
+            "codec": "raw",
             "byte_length": len(data),
             "created": created,
             "replicated": False,
