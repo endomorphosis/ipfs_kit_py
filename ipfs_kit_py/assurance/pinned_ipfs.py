@@ -336,7 +336,10 @@ class LivePinnedIpfsAdapter:
         content_type: str | None = None,
         deadline: float | None = None,
         expect_json: bool = True,
+        max_response_bytes: int | None = None,
     ) -> Any:
+        if max_response_bytes is not None and (type(max_response_bytes) is not int or not 1 <= max_response_bytes <= 1048576):
+            self._raise(ErrorCode.INVALID_REQUEST, ErrorCategory.VALIDATION, "invalid response byte bound", state=OperationState.REJECTED)
         timeout = self._remaining_timeout(deadline)
         encoded_query = urllib.parse.urlencode(query or {})
         target = f"{self.api_url}{path}"
@@ -364,11 +367,13 @@ class LivePinnedIpfsAdapter:
                 )
                 with urllib.request.urlopen(request, timeout=timeout) as response:
                     status = int(getattr(response, "status", 200) or 200)
-                    payload = response.read()
+                    payload = response.read(max_response_bytes + 1) if max_response_bytes is not None else response.read()
         except PinnedIpfsBackendError:
             raise
         except urllib.error.HTTPError as exc:
-            detail = self.redact(exc.read().decode("utf-8", "replace") if exc.fp else exc)
+            error_bytes = (exc.read(max_response_bytes + 1) if max_response_bytes is not None else exc.read()) if exc.fp else None
+            detail = self.redact(error_bytes[:200].decode("utf-8", "replace") if max_response_bytes is not None and error_bytes is not None
+                                 else error_bytes.decode("utf-8", "replace") if error_bytes is not None else exc)
             self._raise(
                 ErrorCode.UNAVAILABLE,
                 ErrorCategory.UNAVAILABLE,
@@ -389,6 +394,8 @@ class LivePinnedIpfsAdapter:
                 f"ipfs request failed: {self.redact(exc)}",
                 state=OperationState.UNAVAILABLE,
             )
+        if max_response_bytes is not None and len(payload) > max_response_bytes:
+            self._raise(ErrorCode.INTEGRITY_FAILURE, ErrorCategory.INTEGRITY, "ipfs response exceeded its byte bound")
         if status >= 400:
             self._raise(
                 ErrorCode.UNAVAILABLE,
@@ -522,6 +529,58 @@ class LivePinnedIpfsAdapter:
                     "transport_kind": self.transport_kind,
                 },
             )
+
+    def node_id(self, *, deadline: float | None = None, cancel_event: Any = None) -> PinnedIpfsResult:
+        """Read this configured Kubo node's actual public identity; never a remote node."""
+        with self._lock:
+            self._check_open(deadline=deadline, cancel_event=cancel_event)
+            payload = self._request("/api/v0/id", deadline=deadline, max_response_bytes=65536)
+            self._check_open(deadline=deadline, cancel_event=cancel_event)
+            identity = payload.get("ID")
+            addresses = payload.get("Addresses")
+            if (type(identity) is not str or re.fullmatch(r"[A-Za-z0-9]{16,128}", identity) is None
+                    or payload.get("error") or payload.get("Error") or payload.get("success") is False
+                    or (addresses is not None and (type(addresses) is not list or len(addresses) > 64
+                        or any(type(item) is not str or len(item) > 2048 for item in addresses)))):
+                self._raise(ErrorCode.INTEGRITY_FAILURE, ErrorCategory.INTEGRITY, "invalid native node identity response")
+            observation = {"ID": identity, "Addresses": list(addresses or []),
+                           "addresses_reported_null": addresses is None}
+            for key in ("AgentVersion", "ProtocolVersion", "PublicKey"):
+                if key in payload:
+                    if type(payload[key]) is not str or len(payload[key]) > 4096:
+                        self._raise(ErrorCode.INTEGRITY_FAILURE, ErrorCategory.INTEGRITY, "invalid native node identity metadata")
+                    observation[key] = payload[key]
+            if "Protocols" in payload:
+                if (type(payload["Protocols"]) is not list or len(payload["Protocols"]) > 512
+                        or any(type(item) is not str or len(item) > 512 for item in payload["Protocols"])):
+                    self._raise(ErrorCode.INTEGRITY_FAILURE, ErrorCategory.INTEGRITY, "invalid native protocol list")
+                observation["Protocols"] = list(payload["Protocols"])
+            return self._success("node_id", metadata=observation)
+
+    def swarm_peers(self, *, deadline: float | None = None, cancel_event: Any = None) -> PinnedIpfsResult:
+        """Observe actual connected peers, including a reported empty Kubo swarm."""
+        with self._lock:
+            self._check_open(deadline=deadline, cancel_event=cancel_event)
+            payload = self._request("/api/v0/swarm/peers", deadline=deadline, max_response_bytes=262144)
+            self._check_open(deadline=deadline, cancel_event=cancel_event)
+            peers = payload.get("Peers")
+            if ("Peers" not in payload or payload.get("error") or payload.get("Error") or payload.get("success") is False
+                    or (peers is not None and (type(peers) is not list or len(peers) > 256))):
+                self._raise(ErrorCode.INTEGRITY_FAILURE, ErrorCategory.INTEGRITY, "invalid native peer response")
+            records = []
+            for row in peers or []:
+                if (not isinstance(row, Mapping) or type(row.get("Peer")) is not str
+                        or re.fullmatch(r"[A-Za-z0-9]{16,128}", row["Peer"]) is None
+                        or ("Addr" in row and (type(row["Addr"]) is not str or len(row["Addr"]) > 2048))):
+                    self._raise(ErrorCode.INTEGRITY_FAILURE, ErrorCategory.INTEGRITY, "invalid native peer record")
+                records.append(dict(row))
+            try:
+                raw_bytes = json.dumps(dict(payload), sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode("utf-8")
+            except (TypeError, ValueError):
+                self._raise(ErrorCode.INTEGRITY_FAILURE, ErrorCategory.INTEGRITY, "native peer observation is not finite JSON")
+            return self._success("swarm_peers", metadata={"Peers": records, "peer_count": len(records),
+                                 "peers_reported_null": peers is None, "raw_observation": dict(payload),
+                                 "raw_observation_canonical_sha256": hashlib.sha256(raw_bytes).hexdigest()})
 
     def add(
         self,
