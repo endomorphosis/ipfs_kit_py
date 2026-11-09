@@ -8,8 +8,11 @@ import logging
 import re
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def fix_registry():
     """Fix the IPFS tools registry by rebuilding it from scratch"""
@@ -17,7 +20,7 @@ def fix_registry():
 
     try:
         # Read the current registry
-        with open(registry_path, 'r') as f:
+        with open(registry_path, "r") as f:
             content = f.read()
 
         # Define a regex pattern to extract each tool definition
@@ -41,11 +44,7 @@ def fix_registry():
                 schema = json.loads(schema_str)
 
                 # Add the tool to our list
-                tools.append({
-                    "name": name,
-                    "description": description,
-                    "schema": schema
-                })
+                tools.append({"name": name, "description": description, "schema": schema})
                 logger.info(f"Extracted tool: {name}")
             except json.JSONDecodeError as e:
                 logger.warning(f"Error parsing schema for tool {name}: {e}")
@@ -61,7 +60,7 @@ IPFS_TOOLS = [
             tool_json = json.dumps(tool, indent=4)
 
             # Fix boolean literals for Python
-            tool_json = tool_json.replace('"true"', 'True').replace('"false"', 'False')
+            tool_json = tool_json.replace('"true"', "True").replace('"false"', "False")
 
             new_content += f"{tool_json}"
             if i < len(tools) - 1:
@@ -77,7 +76,7 @@ def get_ipfs_tools():
 """
 
         # Write the fixed file
-        with open(registry_path, 'w') as f:
+        with open(registry_path, "w") as f:
             f.write(new_content)
 
         logger.info(f"✅ Successfully rebuilt IPFS tools registry with {len(tools)} tools")
@@ -85,6 +84,7 @@ def get_ipfs_tools():
     except Exception as e:
         logger.error(f"❌ Error rebuilding registry: {e}")
         return False
+
 
 if __name__ == "__main__":
     fix_registry()

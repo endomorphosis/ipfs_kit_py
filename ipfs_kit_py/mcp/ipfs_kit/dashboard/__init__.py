@@ -9,8 +9,4 @@ from .template_manager import DashboardTemplateManager
 from .routes import DashboardRoutes
 from .websocket_manager import WebSocketManager
 
-__all__ = [
-    'DashboardTemplateManager',
-    'DashboardRoutes', 
-    'WebSocketManager'
-]
+__all__ = ["DashboardTemplateManager", "DashboardRoutes", "WebSocketManager"]

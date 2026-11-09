@@ -162,11 +162,11 @@ from ipfs_kit_py.ipfs_kit import ipfs_kit
 kit = ipfs_kit(metadata={"enable_knowledge_graph": True})
 
 # Access components (if initialization was successful)
-if hasattr(kit, 'knowledge_graph'):
+if hasattr(kit, "knowledge_graph"):
     print("Knowledge Graph DB is available.")
-if hasattr(kit, 'graph_query'):
+if hasattr(kit, "graph_query"):
     print("Graph Query interface is available.")
-if hasattr(kit, 'graph_rag'):
+if hasattr(kit, "graph_rag"):
     print("Graph RAG component is available.")
 
 # You might need to interact directly with the components:
@@ -183,33 +183,33 @@ Entities (nodes) represent distinct objects or concepts in your knowledge domain
 ```python
 # Add an entity with properties
 result = kg_db.add_entity(
-    entity_id="document_123",  # Unique identifier 
-    entity_type="document",    # Type of entity
-    properties={               # Arbitrary properties
+    entity_id="document_123",  # Unique identifier
+    entity_type="document",  # Type of entity
+    properties={  # Arbitrary properties
         "title": "IPFS: Content Addressed Filesystem",
         "author": "Protocol Labs",
         "year": 2021,
         "url": "https://example.com/ipfs-paper",
-        "topics": ["distributed systems", "content addressing", "p2p"]
+        "topics": ["distributed systems", "content addressing", "p2p"],
     },
-    vector=[0.1, 0.2, 0.3, ...]  # Optional embedding vector
+    vector=[0.1, 0.2, 0.3, ...],  # Optional embedding vector
 )
 
 if result["success"]:
     print(f"Added entity with CID: {result['cid']}")
-    
+
 # Get an entity
 entity = kg_db.get_entity("document_123")
 if entity:
     print(f"Title: {entity['properties']['title']}")
-    
+
 # Update an entity
 update_result = kg_db.update_entity(
     entity_id="document_123",
     properties={
         "citation_count": 42,  # Add new property
-        "tags": ["distributed-systems", "content-addressing"]  # Add another property
-    }
+        "tags": ["distributed-systems", "content-addressing"],  # Add another property
+    },
 )
 ```
 
@@ -220,13 +220,13 @@ Relationships (edges) define the connections between entities:
 ```python
 # Add a relationship between entities
 result = kg_db.add_relationship(
-    from_entity="document_123",    # Source entity ID
-    to_entity="concept_456",       # Target entity ID
-    relationship_type="describes", # Type of relationship
-    properties={                   # Optional relationship properties
+    from_entity="document_123",  # Source entity ID
+    to_entity="concept_456",  # Target entity ID
+    relationship_type="describes",  # Type of relationship
+    properties={  # Optional relationship properties
         "relevance": 0.95,
-        "section": "Introduction"
-    }
+        "section": "Introduction",
+    },
 )
 
 if result["success"]:
@@ -240,24 +240,22 @@ Basic query operations to find entities and their relationships:
 ```python
 # Find entities by type
 research_papers = kg_db.query_entities(
-    entity_type="document",
-    properties={"type": "research-paper"},
-    limit=10
+    entity_type="document", properties={"type": "research-paper"}, limit=10
 )
 
 # Find entities related to a specific entity
 related_concepts = kg_db.query_related(
     entity_id="document_123",
     relationship_type="describes",
-    direction="outgoing"  # Can be "outgoing", "incoming", or "both"
+    direction="outgoing",  # Can be "outgoing", "incoming", or "both"
 )
 
 # Find paths between entities
 paths = kg_db.path_between(
     source_id="author_789",
-    target_id="concept_456", 
+    target_id="concept_456",
     max_depth=3,  # Maximum number of hops
-    relationship_types=["authored", "describes"]  # Optional filter for relationship types
+    relationship_types=["authored", "describes"],  # Optional filter for relationship types
 )
 
 for path in paths:
@@ -276,8 +274,8 @@ Find entities by vector similarity:
 ```python
 # Vector similarity search
 similar_entities = kg_db.vector_search(
-    query_vector=[0.1, 0.2, 0.3, ...],  # Vector to compare against 
-    top_k=5  # Number of results to return
+    query_vector=[0.1, 0.2, 0.3, ...],  # Vector to compare against
+    top_k=5,  # Number of results to return
 )
 
 for result in similar_entities:
@@ -295,7 +293,7 @@ GraphRAG combines vector similarity with graph traversal for enhanced informatio
 from sentence_transformers import SentenceTransformer
 
 # Create an embedding model
-embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
 # Initialize GraphRAG with the graph and embedding model
 graph_rag = GraphRAG(kg_db, embedding_model)
@@ -305,13 +303,13 @@ context = graph_rag.retrieve(
     query_text="How does content addressing work in IPFS?",
     entity_types=["document", "concept"],  # Optional filter by entity types
     top_k=5,  # Number of direct matches to consider
-    hop_count=1  # How many steps to explore from matching entities
+    hop_count=1,  # How many steps to explore from matching entities
 )
 
 # Format the context for inclusion in an LLM prompt
 formatted_context = graph_rag.format_context_for_llm(
     context,
-    format_type="markdown"  # Can be "text", "json", or "markdown"
+    format_type="markdown",  # Can be "text", "json", or "markdown"
 )
 
 # Generate a complete prompt for an LLM
@@ -325,7 +323,7 @@ Context:
 
 Question: {question}
 
-Answer:"""
+Answer:""",
 )
 
 # Now you can send this prompt to your LLM of choice
@@ -340,8 +338,10 @@ The knowledge graph tracks changes, enabling version history:
 history = kg_db.get_version_history(limit=20)
 
 for change in history:
-    print(f"{change['timestamp']}: {change['operation']} - {change.get('entity_id', change.get('relationship_id'))}")
-    
+    print(
+        f"{change['timestamp']}: {change['operation']} - {change.get('entity_id', change.get('relationship_id'))}"
+    )
+
 # Get version history for a specific entity
 entity_history = kg_db.get_version_history(entity_id="document_123")
 ```
@@ -355,24 +355,26 @@ Share portions of your knowledge graph:
 subgraph = kg_db.export_subgraph(
     entity_ids=["document_123", "concept_456"],
     include_relationships=True,
-    max_hops=2  # Include entities up to 2 hops away
+    max_hops=2,  # Include entities up to 2 hops away
 )
 
 # Save to file
 with open("research_subgraph.json", "w") as f:
     json.dump(subgraph, f)
-    
+
 # Later, import into another graph
 with open("research_subgraph.json", "r") as f:
     imported_subgraph = json.load(f)
-    
+
 new_graph_db = IPLDGraphDB(ipfs_client)
 import_result = new_graph_db.import_subgraph(
     imported_subgraph,
-    merge_strategy="update"  # Can be "update", "replace", or "skip"
+    merge_strategy="update",  # Can be "update", "replace", or "skip"
 )
 
-print(f"Imported {import_result['entities_added']} entities and {import_result['relationships_added']} relationships")
+print(
+    f"Imported {import_result['entities_added']} entities and {import_result['relationships_added']} relationships"
+)
 ```
 
 ## Implementation Details
@@ -523,9 +525,9 @@ The IPLD Knowledge Graph is designed to handle large-scale knowledge bases effic
    # Configure HNSW index for medium-sized graphs
    kg_db.configure_vector_index(
        index_type="hnsw",
-       M=16,                # Number of connections per layer
-       ef_construction=200, # Build-time accuracy vs. speed tradeoff
-       ef=50                # Query-time accuracy vs. speed tradeoff
+       M=16,  # Number of connections per layer
+       ef_construction=200,  # Build-time accuracy vs. speed tradeoff
+       ef=50,  # Query-time accuracy vs. speed tradeoff
    )
    ```
 
@@ -543,7 +545,7 @@ The IPLD Knowledge Graph is designed to handle large-scale knowledge bases effic
    results = graph_rag.retrieve(
        query_text="content addressing",
        hop_count=1,
-       path_types=["DISCUSSES", "MENTIONS", "RELATES_TO"]  # Limit to semantic relationships
+       path_types=["DISCUSSES", "MENTIONS", "RELATES_TO"],  # Limit to semantic relationships
    )
    ```
 
@@ -557,7 +559,7 @@ The IPLD Knowledge Graph is designed to handle large-scale knowledge bases effic
        target_id="concept456",
        max_depth=3,
        relationship_types=["AUTHORED", "CONTAINS", "DISCUSSES"],
-       entity_types=["Document", "Concept"]  # Only traverse through these types
+       entity_types=["Document", "Concept"],  # Only traverse through these types
    )
    ```
 
@@ -607,9 +609,9 @@ For detailed profiling, you can enable the performance tracking mode:
 ```python
 kg_db.enable_performance_tracking(
     sample_rate=0.1,  # Track 10% of operations
-    detailed=True,    # Include detailed breakdowns
-    log_slow=True,    # Log operations taking >100ms
-    slow_threshold=100  # Threshold in milliseconds
+    detailed=True,  # Include detailed breakdowns
+    log_slow=True,  # Log operations taking >100ms
+    slow_threshold=100,  # Threshold in milliseconds
 )
 ```
 
@@ -636,21 +638,13 @@ graph_results = kg_db.graph_vector_search(query_vector=[0.1, 0.2, 0.3], hop_coun
 viz = create_visualization(metrics, interactive=True)
 
 # Visualize knowledge graph performance
-viz.plot_graph_operations(
-    figsize=(12, 8),
-    show_plot=True
-)
+viz.plot_graph_operations(figsize=(12, 8), show_plot=True)
 
 # Visualize GraphRAG performance
-viz.plot_graph_rag_metrics(
-    figsize=(10, 6),
-    show_plot=True
-)
+viz.plot_graph_rag_metrics(figsize=(10, 6), show_plot=True)
 
 # Create a comprehensive dashboard
-viz.plot_comprehensive_dashboard(
-    output_file="knowledge_graph_metrics.html"
-)
+viz.plot_comprehensive_dashboard(output_file="knowledge_graph_metrics.html")
 ```
 
 This visualization provides insights into:
@@ -675,10 +669,9 @@ from ipfs_kit_py.arrow_metadata_index import ArrowMetadataIndex
 
 # First, retrieve entities using the Arrow Metadata Index
 metadata_index = ArrowMetadataIndex(ipfs_client)
-records = metadata_index.query([
-    ("mime_type", "==", "application/pdf"),
-    ("tags", "contains", "research")
-])
+records = metadata_index.query(
+    [("mime_type", "==", "application/pdf"), ("tags", "contains", "research")]
+)
 
 # Then, integrate these with the knowledge graph
 for record in records:
@@ -690,8 +683,8 @@ for record in records:
             "title": record.get("title", "Untitled"),
             "mime_type": record.get("mime_type"),
             "size_bytes": record.get("size_bytes"),
-            "tags": record.get("tags", [])
-        }
+            "tags": record.get("tags", []),
+        },
     )
 ```
 
@@ -708,7 +701,7 @@ fs = IPFSFileSystem()
 # Read a file's content
 with fs.open(f"ipfs://{document_cid}", "r") as f:
     content = f.read()
-    
+
 # Process and add to knowledge graph
 entity_id = f"doc_{document_cid}"
 kg_db.add_entity(
@@ -717,8 +710,8 @@ kg_db.add_entity(
     properties={
         "content": content[:1000],  # First 1000 chars as preview
         "cid": document_cid,
-        "size": len(content)
-    }
+        "size": len(content),
+    },
 )
 ```
 
@@ -742,7 +735,7 @@ ENTITY_TYPES = {
     "PAPER": "research_paper",
     "AUTHOR": "person",
     "CONCEPT": "concept",
-    "VENUE": "publication_venue"
+    "VENUE": "publication_venue",
 }
 
 RELATIONSHIP_TYPES = {
@@ -750,11 +743,14 @@ RELATIONSHIP_TYPES = {
     "DISCUSSES": "discusses",
     "CITES": "cites",
     "PUBLISHED_IN": "published_in",
-    "RELATED_TO": "related_to"
+    "RELATED_TO": "related_to",
 }
 
+
 # Helper function to create paper entities with consistent schema
-def add_research_paper(kg, paper_id, title, authors, year, abstract, doi=None, url=None, venues=None, keywords=None):
+def add_research_paper(
+    kg, paper_id, title, authors, year, abstract, doi=None, url=None, venues=None, keywords=None
+):
     """Add a research paper with consistent schema."""
     properties = {
         "title": title,
@@ -762,7 +758,7 @@ def add_research_paper(kg, paper_id, title, authors, year, abstract, doi=None, u
         "year": year,
         "abstract": abstract,
     }
-    
+
     # Add optional properties if provided
     if doi:
         properties["doi"] = doi
@@ -772,14 +768,13 @@ def add_research_paper(kg, paper_id, title, authors, year, abstract, doi=None, u
         properties["venues"] = venues
     if keywords:
         properties["keywords"] = keywords
-        
+
     result = kg.add_entity(
-        entity_id=f"paper:{paper_id}",
-        entity_type=ENTITY_TYPES["PAPER"],
-        properties=properties
+        entity_id=f"paper:{paper_id}", entity_type=ENTITY_TYPES["PAPER"], properties=properties
     )
-    
+
     return result
+
 
 # Helper function for adding authors with consistent schema
 def add_author(kg, author_id, name, affiliation=None, email=None, orcid=None):
@@ -787,37 +782,37 @@ def add_author(kg, author_id, name, affiliation=None, email=None, orcid=None):
     properties = {
         "name": name,
     }
-    
+
     if affiliation:
         properties["affiliation"] = affiliation
     if email:
         properties["email"] = email
     if orcid:
         properties["orcid"] = orcid
-        
+
     result = kg.add_entity(
-        entity_id=f"author:{author_id}",
-        entity_type=ENTITY_TYPES["AUTHOR"],
-        properties=properties
+        entity_id=f"author:{author_id}", entity_type=ENTITY_TYPES["AUTHOR"], properties=properties
     )
-    
+
     return result
+
 
 # Helper function to connect paper with authors
 def connect_paper_to_authors(kg, paper_id, author_ids, contribution_types=None):
     """Create relationships between paper and its authors."""
     if contribution_types is None:
         contribution_types = ["author"] * len(author_ids)
-        
+
     for i, author_id in enumerate(author_ids):
         props = {"order": i + 1, "contribution_type": contribution_types[i]}
-        
+
         kg.add_relationship(
             from_entity=f"author:{author_id}",
             to_entity=f"paper:{paper_id}",
             relationship_type=RELATIONSHIP_TYPES["AUTHORED"],
-            properties=props
+            properties=props,
         )
+
 
 # Add research papers
 add_research_paper(
@@ -828,7 +823,7 @@ add_research_paper(
     year=2014,
     abstract="IPFS is a peer-to-peer distributed file system that seeks to connect all computing devices with the same system of files. IPFS combines good ideas from Git, BitTorrent, Kademlia, SFS, and the Web. The result is a single BitTorrent swarm, exchanging git objects. IPFS provides an interface as simple as HTTP, but instead of location addressing it uses content addressing.",
     doi="10.48550/arXiv.1407.3561",
-    keywords=["content addressing", "distributed systems", "p2p", "DHT"]
+    keywords=["content addressing", "distributed systems", "p2p", "DHT"],
 )
 
 add_research_paper(
@@ -839,17 +834,17 @@ add_research_paper(
     year=2017,
     abstract="Filecoin is a distributed electronic currency similar to Bitcoin. Unlike Bitcoin, Filecoin's miners provide useful services: they rent their unused hard-drive space to others. Filecoin is built upon a data structure called the InterPlanetary Linked Data (IPLD) which connects and links different blocks on top of IPFS.",
     url="https://filecoin.io/filecoin.pdf",
-    keywords=["blockchain", "storage", "incentives", "crypto-economics"]
+    keywords=["blockchain", "storage", "incentives", "crypto-economics"],
 )
 
 add_research_paper(
-    kg, 
+    kg,
     paper_id="merkledag2021",
     title="MerkleDAG: A Content-Addressable Graph Structure for IPFS",
     authors=["Alice Johnson", "Bob Smith"],
     year=2021,
     abstract="This paper explores the MerkleDAG data structure that underlies IPFS, analyzing its performance characteristics and security properties in distributed systems.",
-    keywords=["merkle trees", "content addressing", "distributed data structures"]
+    keywords=["merkle trees", "content addressing", "distributed data structures"],
 )
 
 # Add authors
@@ -858,7 +853,7 @@ add_author(
     author_id="juan_benet",
     name="Juan Benet",
     affiliation="Protocol Labs",
-    orcid="0000-0002-1111-2222"
+    orcid="0000-0002-1111-2222",
 )
 
 add_author(
@@ -866,7 +861,7 @@ add_author(
     author_id="alice_johnson",
     name="Alice Johnson",
     affiliation="University of Distributed Systems",
-    email="alice@example.edu"
+    email="alice@example.edu",
 )
 
 add_author(
@@ -874,59 +869,66 @@ add_author(
     author_id="bob_smith",
     name="Bob Smith",
     affiliation="Decentralized Research Institute",
-    email="bob@example.edu"
+    email="bob@example.edu",
 )
 
 # Connect papers to authors
 connect_paper_to_authors(kg, "ipfs2014", ["juan_benet"])
-connect_paper_to_authors(kg, "merkledag2021", ["alice_johnson", "bob_smith"], 
-                        ["corresponding author", "author"])
+connect_paper_to_authors(
+    kg, "merkledag2021", ["alice_johnson", "bob_smith"], ["corresponding author", "author"]
+)
 
 # Add key concepts
 for concept_info in [
-    {"id": "content_addressing", "name": "Content Addressing", 
-     "description": "A technique to store and retrieve data based on its content rather than its location."},
-    {"id": "dht", "name": "Distributed Hash Table", 
-     "description": "A distributed system that provides a lookup service similar to a hash table."},
-    {"id": "merkle_dag", "name": "MerkleDAG", 
-     "description": "A directed acyclic graph where each node is identified by the hash of its contents."},
-    {"id": "p2p", "name": "Peer-to-Peer Networking", 
-     "description": "A distributed application architecture that partitions tasks between peers."}
+    {
+        "id": "content_addressing",
+        "name": "Content Addressing",
+        "description": "A technique to store and retrieve data based on its content rather than its location.",
+    },
+    {
+        "id": "dht",
+        "name": "Distributed Hash Table",
+        "description": "A distributed system that provides a lookup service similar to a hash table.",
+    },
+    {
+        "id": "merkle_dag",
+        "name": "MerkleDAG",
+        "description": "A directed acyclic graph where each node is identified by the hash of its contents.",
+    },
+    {
+        "id": "p2p",
+        "name": "Peer-to-Peer Networking",
+        "description": "A distributed application architecture that partitions tasks between peers.",
+    },
 ]:
     kg.add_entity(
         entity_id=f"concept:{concept_info['id']}",
         entity_type=ENTITY_TYPES["CONCEPT"],
-        properties={
-            "name": concept_info["name"],
-            "description": concept_info["description"]
-        }
+        properties={"name": concept_info["name"], "description": concept_info["description"]},
     )
 
 # Add publication venues
 for venue_info in [
     {"id": "arxiv", "name": "arXiv", "type": "preprint server"},
-    {"id": "ieee_dsc", "name": "IEEE Distributed Systems Conference", "type": "conference"}
+    {"id": "ieee_dsc", "name": "IEEE Distributed Systems Conference", "type": "conference"},
 ]:
     kg.add_entity(
         entity_id=f"venue:{venue_info['id']}",
         entity_type=ENTITY_TYPES["VENUE"],
-        properties={
-            "name": venue_info["name"],
-            "venue_type": venue_info["type"]
-        }
+        properties={"name": venue_info["name"], "venue_type": venue_info["type"]},
     )
 
 # Connect papers to venues
 kg.add_relationship(
     from_entity="paper:ipfs2014",
     to_entity="venue:arxiv",
-    relationship_type=RELATIONSHIP_TYPES["PUBLISHED_IN"]
+    relationship_type=RELATIONSHIP_TYPES["PUBLISHED_IN"],
 )
 
 kg.add_relationship(
     from_entity="paper:merkledag2021",
     to_entity="venue:ieee_dsc",
-    relationship_type=RELATIONSHIP_TYPES["PUBLISHED_IN"]
+    relationship_type=RELATIONSHIP_TYPES["PUBLISHED_IN"],
 )
 
 # Connect papers to concepts they discuss
@@ -936,7 +938,7 @@ concept_relationships = [
     ("paper:ipfs2014", "concept:p2p", "primary"),
     ("paper:filecoin2017", "concept:content_addressing", "secondary"),
     ("paper:merkledag2021", "concept:merkle_dag", "primary"),
-    ("paper:merkledag2021", "concept:content_addressing", "primary")
+    ("paper:merkledag2021", "concept:content_addressing", "primary"),
 ]
 
 for paper_id, concept_id, centrality in concept_relationships:
@@ -944,7 +946,7 @@ for paper_id, concept_id, centrality in concept_relationships:
         from_entity=paper_id,
         to_entity=concept_id,
         relationship_type=RELATIONSHIP_TYPES["DISCUSSES"],
-        properties={"centrality": centrality}
+        properties={"centrality": centrality},
     )
 
 # Add citation relationships
@@ -952,14 +954,14 @@ kg.add_relationship(
     from_entity="paper:filecoin2017",
     to_entity="paper:ipfs2014",
     relationship_type=RELATIONSHIP_TYPES["CITES"],
-    properties={"context": "foundation technology"}
+    properties={"context": "foundation technology"},
 )
 
 kg.add_relationship(
     from_entity="paper:merkledag2021",
     to_entity="paper:ipfs2014",
     relationship_type=RELATIONSHIP_TYPES["CITES"],
-    properties={"context": "original description"}
+    properties={"context": "original description"},
 )
 
 # Demonstrate different query patterns
@@ -969,7 +971,7 @@ print("\n=== KNOWLEDGE GRAPH QUERIES ===")
 papers_discussing_content_addressing = kg.query_related(
     entity_id="concept:content_addressing",
     relationship_type=RELATIONSHIP_TYPES["DISCUSSES"],
-    direction="incoming"
+    direction="incoming",
 )
 print("\nPapers discussing Content Addressing:")
 for paper in papers_discussing_content_addressing:
@@ -981,7 +983,7 @@ for paper in papers_discussing_content_addressing:
 papers_by_author = kg.query_related(
     entity_id="author:juan_benet",
     relationship_type=RELATIONSHIP_TYPES["AUTHORED"],
-    direction="outgoing"
+    direction="outgoing",
 )
 print("\nPapers by Juan Benet:")
 for paper in papers_by_author:
@@ -990,9 +992,7 @@ for paper in papers_by_author:
 
 # 3. Find paths between authors and concepts (research interests)
 paths = kg.path_between(
-    source_id="author:alice_johnson", 
-    target_id="concept:content_addressing",
-    max_depth=4
+    source_id="author:alice_johnson", target_id="concept:content_addressing", max_depth=4
 )
 print("\nPath from Alice Johnson to Content Addressing:")
 for path in paths:
@@ -1010,7 +1010,7 @@ for path in paths:
 papers_in_arxiv = kg.query_related(
     entity_id="venue:arxiv",
     relationship_type=RELATIONSHIP_TYPES["PUBLISHED_IN"],
-    direction="incoming"
+    direction="incoming",
 )
 print("\nPapers published in arXiv:")
 for paper in papers_in_arxiv:
@@ -1019,9 +1019,7 @@ for paper in papers_in_arxiv:
 
 # 5. Citation analysis - find what papers cite a given paper
 citations = kg.query_related(
-    entity_id="paper:ipfs2014",
-    relationship_type=RELATIONSHIP_TYPES["CITES"],
-    direction="incoming"
+    entity_id="paper:ipfs2014", relationship_type=RELATIONSHIP_TYPES["CITES"], direction="incoming"
 )
 print("\nPapers citing IPFS paper:")
 for paper in citations:
@@ -1034,7 +1032,7 @@ print("\nExporting subgraph for visualization...")
 subgraph = kg.export_subgraph(
     entity_ids=["paper:ipfs2014", "concept:content_addressing"],
     include_relationships=True,
-    max_hops=2
+    max_hops=2,
 )
 
 # Save to file for external visualization
@@ -1067,7 +1065,7 @@ kit = ipfs_kit(metadata={"enable_knowledge_graph": True})
 kg = kit.knowledge_graph
 
 # Initialize embedding model
-embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
 # Initialize GraphRAG
 graph_rag = GraphRAG(kg, embedding_model)
@@ -1076,6 +1074,7 @@ graph_rag = GraphRAG(kg, embedding_model)
 LLM_API_URL = "https://your-llm-api-endpoint.com/generate"
 LLM_API_KEY = "your_api_key"  # In production, retrieve from secure storage
 
+
 # Helper function to call LLM API
 def call_llm(prompt, max_tokens=500, temperature=0.7):
     """Call external LLM API with the given prompt."""
@@ -1083,12 +1082,8 @@ def call_llm(prompt, max_tokens=500, temperature=0.7):
         response = requests.post(
             LLM_API_URL,
             headers={"Authorization": f"Bearer {LLM_API_KEY}"},
-            json={
-                "prompt": prompt,
-                "max_tokens": max_tokens,
-                "temperature": temperature
-            },
-            timeout=30
+            json={"prompt": prompt, "max_tokens": max_tokens, "temperature": temperature},
+            timeout=30,
         )
         response.raise_for_status()
         return response.json()["text"]
@@ -1096,27 +1091,21 @@ def call_llm(prompt, max_tokens=500, temperature=0.7):
         print(f"Error calling LLM API: {e}")
         return "Sorry, I encountered an error generating a response."
 
+
 # Create a GraphRAG assistant for answering questions
 def answer_question(question, hop_count=2, top_k=8):
     """Generate an answer to a question using GraphRAG and an LLM."""
     start_time = time.time()
-    
+
     # Phase 1: Retrieve relevant context from the knowledge graph
-    context = graph_rag.retrieve(
-        query_text=question,
-        hop_count=hop_count,
-        top_k=top_k
-    )
-    
+    context = graph_rag.retrieve(query_text=question, hop_count=hop_count, top_k=top_k)
+
     retrieval_time = time.time() - start_time
     print(f"Retrieved {len(context['entities'])} entities in {retrieval_time:.2f}s")
-    
+
     # Phase 2: Format the context for the LLM
-    formatted_context = graph_rag.format_context_for_llm(
-        context,
-        format_type="markdown"
-    )
-    
+    formatted_context = graph_rag.format_context_for_llm(context, format_type="markdown")
+
     # Phase 3: Generate a prompt with structured instructions
     prompt = graph_rag.generate_llm_prompt(
         user_query=question,
@@ -1133,56 +1122,62 @@ Context:
 
 Question: {question}
 
-Answer:"""
+Answer:""",
     )
-    
+
     # Phase 4: Generate an answer using the LLM
     response = call_llm(prompt, max_tokens=800)
-    
+
     # Phase 5: Add citations to the response
     entity_ids = [entity_id for entity_id in context["entities"]]
     citation_info = {}
-    
+
     # Collect citation information for all mentioned entities
     for entity_id in entity_ids:
         entity = kg.get_entity(entity_id)
         if not entity:
             continue
-            
+
         if entity["type"] == "research_paper":
             citation_info[entity_id] = {
                 "title": entity["properties"].get("title", "Unknown"),
                 "authors": entity["properties"].get("authors", ["Unknown"]),
                 "year": entity["properties"].get("year", "Unknown"),
-                "doi": entity["properties"].get("doi", "")
+                "doi": entity["properties"].get("doi", ""),
             }
         elif entity["type"] in ["documentation", "section"]:
             citation_info[entity_id] = {
                 "title": entity["properties"].get("title", "Unknown"),
                 "path": entity["properties"].get("path", ""),
-                "type": "Documentation"
+                "type": "Documentation",
             }
         elif entity["type"] == "concept":
             citation_info[entity_id] = {
                 "name": entity["properties"].get("name", "Unknown"),
-                "type": "Concept"
+                "type": "Concept",
             }
-    
+
     # Add citations to the response
     if citation_info:
         response += "\n\nSources:\n"
         for entity_id, citation in citation_info.items():
             if "authors" in citation:  # Research paper
-                authors = ", ".join(citation["authors"]) if isinstance(citation["authors"], list) else citation["authors"]
-                response += f"- {authors} ({citation['year']}). {citation['title']}. {citation['doi']}\n"
+                authors = (
+                    ", ".join(citation["authors"])
+                    if isinstance(citation["authors"], list)
+                    else citation["authors"]
+                )
+                response += (
+                    f"- {authors} ({citation['year']}). {citation['title']}. {citation['doi']}\n"
+                )
             elif citation.get("type") == "Documentation":
                 response += f"- Documentation: {citation['title']} ({citation.get('path', '')})\n"
             elif citation.get("type") == "Concept":
                 response += f"- Concept: {citation['name']}\n"
-    
+
     # Calculate total time
     total_time = time.time() - start_time
-    
+
     return {
         "question": question,
         "answer": response,
@@ -1190,14 +1185,15 @@ Answer:"""
         "retrieved_paths": [result["path"] for result in context["results"]],
         "retrieval_time": retrieval_time,
         "total_time": total_time,
-        "sources": list(citation_info.keys())
+        "sources": list(citation_info.keys()),
     }
+
 
 # Example usage
 questions = [
     "How does content addressing in IPFS relate to data deduplication?",
     "What's the relationship between IPFS and IPLD?",
-    "How does the MerkleDAG structure ensure data integrity in IPFS?"
+    "How does the MerkleDAG structure ensure data integrity in IPFS?",
 ]
 
 for question in questions:
@@ -1207,47 +1203,47 @@ for question in questions:
     print(result["answer"])
     print(f"\nRetrieved {result['context_items']} items in {result['retrieval_time']:.2f}s")
     print(f"Total processing time: {result['total_time']:.2f}s")
-    print("\n" + "-"*80)
+    print("\n" + "-" * 80)
+
 
 # Advanced usage: Multi-hop traversal analysis
 def analyze_traversal_effectiveness(question, hop_counts=[0, 1, 2, 3]):
     """Analyze the effectiveness of different hop counts for a question."""
     results = {}
-    
+
     for hops in hop_counts:
-        context = graph_rag.retrieve(
-            query_text=question,
-            hop_count=hops,
-            top_k=10
-        )
-        
+        context = graph_rag.retrieve(query_text=question, hop_count=hops, top_k=10)
+
         # Analyze retrieved entities
         direct_hits = 0
         indirect_hits = 0
-        
+
         for result in context["results"]:
             if result["distance"] == 0:
                 direct_hits += 1
             else:
                 indirect_hits += 1
-                
+
         # Score relevance (this would typically involve human evaluation)
         # Here we use a simple heuristic based on vector similarity
         relevance_scores = [r["score"] for r in context["results"]]
         avg_relevance = sum(relevance_scores) / len(relevance_scores) if relevance_scores else 0
-        
+
         results[hops] = {
             "entity_count": len(context["entities"]),
             "direct_hits": direct_hits,
             "indirect_hits": indirect_hits,
             "avg_relevance": avg_relevance,
-            "unique_paths": len(set(tuple(r["path"]) for r in context["results"]))
+            "unique_paths": len(set(tuple(r["path"]) for r in context["results"])),
         }
-    
+
     return results
 
+
 # Run traversal analysis on a complex question
-complex_question = "How do IPFS content addressing and UnixFS work together to enable file versioning?"
+complex_question = (
+    "How do IPFS content addressing and UnixFS work together to enable file versioning?"
+)
 analysis = analyze_traversal_effectiveness(complex_question)
 
 print("\nTRAVERSAL ANALYSIS:")
@@ -1300,7 +1296,7 @@ kit = ipfs_kit(metadata={"enable_knowledge_graph": True})
 kg = kit.knowledge_graph
 
 # Initialize embedding model
-embedding_model = SentenceTransformer('all-MiniLM-L6-v2')  # 384-dim embeddings
+embedding_model = SentenceTransformer("all-MiniLM-L6-v2")  # 384-dim embeddings
 
 # Define entity and relationship types
 ENTITY_TYPES = {
@@ -1308,7 +1304,7 @@ ENTITY_TYPES = {
     "SECTION": "section",
     "CONCEPT": "concept",
     "CODE_EXAMPLE": "code_example",
-    "API": "api_reference"
+    "API": "api_reference",
 }
 
 RELATIONSHIP_TYPES = {
@@ -1316,38 +1312,39 @@ RELATIONSHIP_TYPES = {
     "REFERENCES": "references",
     "RELATED_TO": "related_to",
     "IMPLEMENTS": "implements",
-    "EXPLAINS": "explains"
+    "EXPLAINS": "explains",
 }
+
 
 # Helper function to process markdown files
 def process_markdown_file(file_path):
     """Process a markdown file into document, sections, and concepts."""
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         md_content = f.read()
-    
+
     # Extract metadata from frontmatter if present
     metadata = {}
-    frontmatter_match = re.match(r'^---\n(.*?)\n---\n', md_content, re.DOTALL)
+    frontmatter_match = re.match(r"^---\n(.*?)\n---\n", md_content, re.DOTALL)
     if frontmatter_match:
         frontmatter = frontmatter_match.group(1)
-        for line in frontmatter.split('\n'):
-            if ':' in line:
-                key, value = line.split(':', 1)
+        for line in frontmatter.split("\n"):
+            if ":" in line:
+                key, value = line.split(":", 1)
                 metadata[key.strip()] = value.strip()
         # Remove frontmatter from content
-        md_content = re.sub(r'^---\n.*?\n---\n', '', md_content, flags=re.DOTALL)
-    
+        md_content = re.sub(r"^---\n.*?\n---\n", "", md_content, flags=re.DOTALL)
+
     # Get document title from first heading or filename
-    title_match = re.search(r'^# (.*?)$', md_content, re.MULTILINE)
+    title_match = re.search(r"^# (.*?)$", md_content, re.MULTILINE)
     if title_match:
         title = title_match.group(1)
     else:
-        title = os.path.splitext(os.path.basename(file_path))[0].replace('_', ' ').title()
-    
+        title = os.path.splitext(os.path.basename(file_path))[0].replace("_", " ").title()
+
     # Convert markdown to HTML for easier parsing
     html_content = markdown.markdown(md_content)
-    soup = BeautifulSoup(html_content, 'html.parser')
-    
+    soup = BeautifulSoup(html_content, "html.parser")
+
     # Create document entity
     doc_id = os.path.splitext(os.path.basename(file_path))[0]
     doc_entity = {
@@ -1358,40 +1355,40 @@ def process_markdown_file(file_path):
             "path": file_path,
             "updated_at": os.path.getmtime(file_path),
             "word_count": len(md_content.split()),
-            **metadata  # Include any metadata from frontmatter
-        }
+            **metadata,  # Include any metadata from frontmatter
+        },
     }
-    
+
     # Generate document embedding from full content
     doc_embedding = embedding_model.encode(md_content)
     doc_entity["vector"] = doc_embedding.tolist()
-    
+
     # Add document to knowledge graph
     kg.add_entity(
         entity_id=doc_entity["id"],
         entity_type=doc_entity["type"],
         properties=doc_entity["properties"],
-        vector=doc_entity["vector"]
+        vector=doc_entity["vector"],
     )
-    
+
     # Process sections (h2 headings)
     sections = []
-    section_tags = soup.find_all(['h2'])
-    
+    section_tags = soup.find_all(["h2"])
+
     for i, section_tag in enumerate(section_tags):
         section_title = section_tag.text
         section_id = f"{doc_id}_section_{i}"
-        
+
         # Get section content (everything until next h2 or end)
         section_content = []
         current = section_tag.next_sibling
-        while current and (not current.name or current.name != 'h2'):
+        while current and (not current.name or current.name != "h2"):
             if current.string:
                 section_content.append(current.string)
             current = current.next_sibling
-        
-        section_text = ' '.join([str(c).strip() for c in section_content if str(c).strip()])
-        
+
+        section_text = " ".join([str(c).strip() for c in section_content if str(c).strip()])
+
         # Create section entity
         section_entity = {
             "id": f"section:{section_id}",
@@ -1400,38 +1397,38 @@ def process_markdown_file(file_path):
                 "title": section_title,
                 "content": section_text[:1000],  # First 1000 chars as preview
                 "order": i,
-                "word_count": len(section_text.split())
-            }
+                "word_count": len(section_text.split()),
+            },
         }
-        
+
         # Generate section embedding
         if section_text:
             section_embedding = embedding_model.encode(section_text)
             section_entity["vector"] = section_embedding.tolist()
-        
+
         # Add section to knowledge graph
         kg.add_entity(
             entity_id=section_entity["id"],
             entity_type=section_entity["type"],
             properties=section_entity["properties"],
-            vector=section_entity.get("vector")
+            vector=section_entity.get("vector"),
         )
-        
+
         # Connect section to document
         kg.add_relationship(
             from_entity=doc_entity["id"],
             to_entity=section_entity["id"],
             relationship_type=RELATIONSHIP_TYPES["CONTAINS"],
-            properties={"order": i}
+            properties={"order": i},
         )
-        
+
         sections.append(section_entity)
-        
+
         # Extract code examples from section
-        code_blocks = re.findall(r'```(\w*)\n(.*?)```', section_text, re.DOTALL)
+        code_blocks = re.findall(r"```(\w*)\n(.*?)```", section_text, re.DOTALL)
         for j, (lang, code) in enumerate(code_blocks):
             code_id = f"{section_id}_code_{j}"
-            
+
             # Create code example entity
             code_entity = {
                 "id": f"code:{code_id}",
@@ -1439,41 +1436,41 @@ def process_markdown_file(file_path):
                 "properties": {
                     "language": lang if lang else "text",
                     "code": code,
-                    "line_count": len(code.split('\n'))
-                }
+                    "line_count": len(code.split("\n")),
+                },
             }
-            
+
             # Add code example to knowledge graph
             kg.add_entity(
                 entity_id=code_entity["id"],
                 entity_type=code_entity["type"],
-                properties=code_entity["properties"]
+                properties=code_entity["properties"],
             )
-            
+
             # Connect code example to section
             kg.add_relationship(
                 from_entity=section_entity["id"],
                 to_entity=code_entity["id"],
                 relationship_type=RELATIONSHIP_TYPES["CONTAINS"],
-                properties={"order": j}
+                properties={"order": j},
             )
-    
+
     # Extract potential concepts (based on bold text or links)
     concepts = set()
-    for bold in soup.find_all(['strong', 'b']):
+    for bold in soup.find_all(["strong", "b"]):
         concept = bold.text.strip()
         if len(concept.split()) <= 5 and len(concept) > 3:  # Simple heuristic for concept names
             concepts.add(concept)
-    
-    for link in soup.find_all('a'):
+
+    for link in soup.find_all("a"):
         concept = link.text.strip()
         if len(concept.split()) <= 5 and len(concept) > 3:
             concepts.add(concept)
-    
+
     # Add concepts and connect to document
     for concept in concepts:
-        concept_id = re.sub(r'[^a-z0-9]', '_', concept.lower())
-        
+        concept_id = re.sub(r"[^a-z0-9]", "_", concept.lower())
+
         # Check if concept already exists
         existing_concept = kg.get_entity(f"concept:{concept_id}")
         if not existing_concept:
@@ -1481,49 +1478,45 @@ def process_markdown_file(file_path):
             kg.add_entity(
                 entity_id=f"concept:{concept_id}",
                 entity_type=ENTITY_TYPES["CONCEPT"],
-                properties={
-                    "name": concept,
-                    "occurrences": 1
-                }
+                properties={"name": concept, "occurrences": 1},
             )
         else:
             # Update occurrence count
             occurrences = existing_concept["properties"].get("occurrences", 0) + 1
             kg.update_entity(
-                entity_id=f"concept:{concept_id}",
-                properties={"occurrences": occurrences}
+                entity_id=f"concept:{concept_id}", properties={"occurrences": occurrences}
             )
-        
+
         # Connect document to concept
         kg.add_relationship(
             from_entity=doc_entity["id"],
             to_entity=f"concept:{concept_id}",
-            relationship_type=RELATIONSHIP_TYPES["REFERENCES"]
+            relationship_type=RELATIONSHIP_TYPES["REFERENCES"],
         )
-    
+
     return doc_entity, sections
+
 
 # Helper function to find related documents for a given entity
 def find_related_documents(entity_id, max_hops=2):
     """Find documents related to an entity through graph traversal."""
-    related_docs = kg.graph_vector_search(
-        entity_id=entity_id,
-        hop_count=max_hops,
-        top_k=5
-    )
-    
+    related_docs = kg.graph_vector_search(entity_id=entity_id, hop_count=max_hops, top_k=5)
+
     result = []
     for item in related_docs:
         entity = kg.get_entity(item["entity_id"])
         if entity and entity["type"] == ENTITY_TYPES["DOCUMENT"]:
-            result.append({
-                "id": entity["id"],
-                "title": entity["properties"].get("title", "Untitled"),
-                "score": item["score"],
-                "path": item.get("path", [])
-            })
-    
+            result.append(
+                {
+                    "id": entity["id"],
+                    "title": entity["properties"].get("title", "Untitled"),
+                    "score": item["score"],
+                    "path": item.get("path", []),
+                }
+            )
+
     return result
+
 
 # Process a directory of markdown documentation
 docs_dir = "./docs"  # Change to your documentation directory
@@ -1545,98 +1538,97 @@ for i, doc1 in enumerate(doc_entities):
     doc1_entity = kg.get_entity(doc1["id"])
     if not doc1_entity or "vector" not in doc1_entity:
         continue
-        
+
     # Find similar documents
     similar_docs = kg.vector_search(
         vector=doc1_entity["vector"],
         entity_type=ENTITY_TYPES["DOCUMENT"],
-        top_k=6  # +1 because it will find itself
+        top_k=6,  # +1 because it will find itself
     )
-    
+
     # Connect to related documents (excluding self)
     for sim_doc in similar_docs:
         if sim_doc["entity_id"] == doc1["id"]:
             continue  # Skip self
-            
+
         if sim_doc["score"] > 0.7:  # Only connect if similarity is high enough
             kg.add_relationship(
                 from_entity=doc1["id"],
                 to_entity=sim_doc["entity_id"],
                 relationship_type=RELATIONSHIP_TYPES["RELATED_TO"],
-                properties={"similarity": round(sim_doc["score"], 3)}
+                properties={"similarity": round(sim_doc["score"], 3)},
             )
+
 
 # Now implement the GraphRAG query functionality
 def documentation_rag(query_text, hop_count=1, top_k=5):
     """Perform GraphRAG query on documentation knowledge graph."""
     # Step 1: Convert query to embedding vector
     query_vector = embedding_model.encode(query_text)
-    
+
     # Step 2: Perform GraphRAG search
     results = kg.graph_vector_search(
-        query_vector=query_vector.tolist(),
-        hop_count=hop_count,
-        top_k=top_k
+        query_vector=query_vector.tolist(), hop_count=hop_count, top_k=top_k
     )
-    
+
     # Step 3: Format results
     formatted_results = []
     for result in results:
         entity = kg.get_entity(result["entity_id"])
         if not entity:
             continue
-            
+
         item = {
             "id": entity["id"],
             "type": entity["type"],
             "title": entity["properties"].get("title", entity["id"]),
             "score": result["score"],
-            "distance": result["distance"]
+            "distance": result["distance"],
         }
-        
+
         # Add type-specific information
         if entity["type"] == ENTITY_TYPES["DOCUMENT"]:
             item["path"] = entity["properties"].get("path")
             item["word_count"] = entity["properties"].get("word_count")
-            
+
         elif entity["type"] == ENTITY_TYPES["SECTION"]:
             item["content"] = entity["properties"].get("content")
             # Get parent document
             parent_docs = kg.query_related(
                 entity_id=entity["id"],
                 relationship_type=RELATIONSHIP_TYPES["CONTAINS"],
-                direction="incoming"
+                direction="incoming",
             )
             if parent_docs:
                 parent = kg.get_entity(parent_docs[0]["entity_id"])
-                item["document"] = {
-                    "id": parent["id"],
-                    "title": parent["properties"].get("title")
-                }
-                
+                item["document"] = {"id": parent["id"], "title": parent["properties"].get("title")}
+
         elif entity["type"] == ENTITY_TYPES["CODE_EXAMPLE"]:
             item["language"] = entity["properties"].get("language")
             item["code"] = entity["properties"].get("code")
-            
+
         # Add path information
         if "path" in result:
             path_info = []
             for i in range(0, len(result["path"]), 2):
                 entity_id = result["path"][i]
-                rel_type = result["path"][i+1] if i+1 < len(result["path"]) else None
-                
+                rel_type = result["path"][i + 1] if i + 1 < len(result["path"]) else None
+
                 node = kg.get_entity(entity_id)
-                node_name = (node["properties"].get("title") or 
-                             node["properties"].get("name") or 
-                             entity_id) if node else entity_id
-                
+                node_name = (
+                    (node["properties"].get("title") or node["properties"].get("name") or entity_id)
+                    if node
+                    else entity_id
+                )
+
                 path_info.append({"entity": node_name, "relationship": rel_type})
-                
+
             item["path_info"] = path_info
-            
+
         formatted_results.append(item)
-    
+
     return formatted_results
+
 
 # Example RAG query
 print("\n=== GraphRAG Query Example ===")
@@ -1647,67 +1639,70 @@ results = documentation_rag(user_query, hop_count=2, top_k=5)
 print(f"\nFound {len(results)} relevant items:")
 
 for i, result in enumerate(results):
-    print(f"\n{i+1}. {result['title']} ({result['type']})")
+    print(f"\n{i + 1}. {result['title']} ({result['type']})")
     print(f"   Score: {result['score']:.2f}, Distance: {result['distance']}")
-    
-    if result['type'] == ENTITY_TYPES["SECTION"]:
+
+    if result["type"] == ENTITY_TYPES["SECTION"]:
         print(f"   From document: {result.get('document', {}).get('title', 'Unknown')}")
         print(f"   Content snippet: {result.get('content', '')[:150]}...")
-        
-    elif result['type'] == ENTITY_TYPES["CODE_EXAMPLE"]:
+
+    elif result["type"] == ENTITY_TYPES["CODE_EXAMPLE"]:
         print(f"   Language: {result.get('language', 'unknown')}")
         print(f"   Code snippet: {result.get('code', '')[:150]}...")
-        
+
     # Show path information if available
     if "path_info" in result and result["distance"] > 0:
         path_str = " → ".join([f"{p['entity']}" for p in result["path_info"]])
         print(f"   Connection path: {path_str}")
 
+
 # Format for LLM context
 def format_results_for_llm(results, max_length=4000):
     """Format GraphRAG results as context for an LLM."""
     context = "Here is relevant information from the documentation:\n\n"
-    
+
     for i, result in enumerate(results):
-        section = f"[{i+1}] "
-        
-        if result['type'] == ENTITY_TYPES["DOCUMENT"]:
+        section = f"[{i + 1}] "
+
+        if result["type"] == ENTITY_TYPES["DOCUMENT"]:
             section += f"Document: {result['title']}\n"
-            
-        elif result['type'] == ENTITY_TYPES["SECTION"]:
+
+        elif result["type"] == ENTITY_TYPES["SECTION"]:
             section += f"Section: {result['title']}\n"
             section += f"From document: {result.get('document', {}).get('title', 'Unknown')}\n"
             section += f"Content: {result.get('content', '')}\n"
-            
-        elif result['type'] == ENTITY_TYPES["CODE_EXAMPLE"]:
+
+        elif result["type"] == ENTITY_TYPES["CODE_EXAMPLE"]:
             section += f"Code Example ({result.get('language', 'unknown')}):\n"
             section += "```\n"
             section += f"{result.get('code', '')}\n"
             section += "```\n"
-            
-        elif result['type'] == ENTITY_TYPES["CONCEPT"]:
+
+        elif result["type"] == ENTITY_TYPES["CONCEPT"]:
             section += f"Concept: {result['title']}\n"
-            
+
         # Add connection information for non-direct matches
-        if result.get('distance', 0) > 0 and "path_info" in result:
+        if result.get("distance", 0) > 0 and "path_info" in result:
             path_str = " → ".join([f"{p['entity']}" for p in result["path_info"]])
             section += f"Related via: {path_str}\n"
-            
+
         section += "\n"
-        
+
         # Check if adding this section would exceed max length
         if len(context) + len(section) > max_length:
             context += "[Additional relevant information truncated due to length constraints]"
             break
-            
+
         context += section
-    
+
     return context
+
 
 # Example formatting for LLM
 llm_context = format_results_for_llm(results)
 print("\n=== Formatted Context for LLM ===")
 print(llm_context[:500] + "...")  # Show first 500 chars
+
 
 # Example LLM prompt template
 def create_llm_prompt(query, context):
@@ -1722,6 +1717,7 @@ Context:
 Question: {query}
 
 Answer:"""
+
 
 # Final LLM prompt (would be sent to an actual LLM in production)
 final_prompt = create_llm_prompt(user_query, llm_context)
@@ -1883,29 +1879,31 @@ def graph_vector_search(self, query_vector, hop_count=2, top_k=10, path_types=No
 The neighborhood exploration recursively traverses the graph:
 
 ```python
-def _explore_neighborhood(self, entity_id, results, max_hops, current_hop, origin_score, path, path_types=None):
+def _explore_neighborhood(
+    self, entity_id, results, max_hops, current_hop, origin_score, path, path_types=None
+):
     """Recursively explore entity neighborhood for graph search."""
     if current_hop >= max_hops:
         return
-        
+
     # Get related entities
     related = self.query_related(entity_id, direction="both")
-    
+
     for rel in related:
         neighbor_id = rel["entity_id"]
         rel_type = rel["relationship_type"]
-        
+
         # Skip if already in path (avoid cycles) or relationship type filtered out
         if neighbor_id in path or (path_types and rel_type not in path_types):
             continue
-            
+
         # Calculate score decay based on distance
         # We use exponential decay based on hop distance
         hop_penalty = 0.7 ** (current_hop + 1)  # Score decays by factor for each hop
         neighbor_score = origin_score * hop_penalty
-        
+
         new_path = path + [rel_type, neighbor_id]
-        
+
         # Add or update in results
         if neighbor_id not in results or neighbor_score > results[neighbor_id]["score"]:
             results[neighbor_id] = {
@@ -1913,18 +1911,12 @@ def _explore_neighborhood(self, entity_id, results, max_hops, current_hop, origi
                 "score": neighbor_score,
                 "path": new_path,
                 "distance": current_hop + 1,
-                "origin_similarity": origin_score
+                "origin_similarity": origin_score,
             }
-                
+
         # Continue exploration
         self._explore_neighborhood(
-            neighbor_id,
-            results,
-            max_hops,
-            current_hop + 1,
-            origin_score,
-            new_path,
-            path_types
+            neighbor_id, results, max_hops, current_hop + 1, origin_score, new_path, path_types
         )
 ```
 

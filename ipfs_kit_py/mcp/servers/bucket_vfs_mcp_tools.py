@@ -1,7 +1,7 @@
 """
 MCP Tools for Bucket VFS Management.
 
-This module provides Model Context Protocol (MCP) tools for managing 
+This module provides Model Context Protocol (MCP) tools for managing
 multi-bucket virtual filesystems with S3-like semantics, IPLD compatibility,
 and cross-platform data export capabilities.
 """
@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 HAS_DATASETS = False
 try:
     from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
+
     HAS_DATASETS = True
     logger.info("ipfs_datasets_py integration available")
 except ImportError:
@@ -31,10 +32,12 @@ HAS_ACCELERATE = False
 try:
     import sys
     from pathlib import Path as PathLib
+
     accelerate_path = PathLib(__file__).parent.parent.parent / "external" / "ipfs_accelerate_py"
     if accelerate_path.exists():
         sys.path.insert(0, str(accelerate_path))
     from ipfs_accelerate_py import AccelerateCompute
+
     HAS_ACCELERATE = True
     logger.info("ipfs_accelerate_py compute acceleration available")
 except ImportError:
@@ -43,6 +46,7 @@ except ImportError:
 # Import MCP types with fallback
 try:
     from mcp.types import Tool, TextContent
+
     MCP_AVAILABLE = True
 except ImportError:
     # Fallback for when MCP is not available
@@ -51,12 +55,12 @@ except ImportError:
             self.name = name
             self.description = description
             self.inputSchema = inputSchema
-    
+
     class TextContent:
         def __init__(self, type: str, text: str):
             self.type = type
             self.text = text
-    
+
     MCP_AVAILABLE = False
 
 # Import bucket VFS components
@@ -69,9 +73,10 @@ try:
     from ipfs_kit_py.bucket_vfs_manager import (
         get_global_bucket_manager as _get_global_bucket_manager,
         BucketType as _BucketType,
-        VFSStructureType as _VFSStructureType
+        VFSStructureType as _VFSStructureType,
     )
     from ipfs_kit_py.error import create_result_dict, handle_error
+
     BUCKET_VFS_AVAILABLE = True
     BucketType = _BucketType
     VFSStructureType = _VFSStructureType
@@ -91,28 +96,28 @@ _dataset_batch_size = 100
 _enable_dataset_storage = False
 _enable_compute_layer = False
 
-def init_dataset_storage(enable_dataset_storage: bool = False,
-                        enable_compute_layer: bool = False,
-                        ipfs_client = None,
-                        dataset_batch_size: int = 100):
+
+def init_dataset_storage(
+    enable_dataset_storage: bool = False,
+    enable_compute_layer: bool = False,
+    ipfs_client=None,
+    dataset_batch_size: int = 100,
+):
     """Initialize dataset storage and compute layer."""
     global _dataset_manager, _compute_layer, _dataset_batch_size
     global _enable_dataset_storage, _enable_compute_layer
-    
+
     _enable_dataset_storage = enable_dataset_storage
     _enable_compute_layer = enable_compute_layer
     _dataset_batch_size = dataset_batch_size
-    
+
     if HAS_DATASETS and enable_dataset_storage:
         try:
-            _dataset_manager = get_ipfs_datasets_manager(
-                enable=True,
-                ipfs_client=ipfs_client
-            )
+            _dataset_manager = get_ipfs_datasets_manager(enable=True, ipfs_client=ipfs_client)
             logger.info("Dataset storage enabled for bucket VFS operations")
         except Exception as e:
             logger.warning(f"Failed to initialize dataset storage: {e}")
-    
+
     if HAS_ACCELERATE and enable_compute_layer:
         try:
             _compute_layer = AccelerateCompute()
@@ -120,50 +125,52 @@ def init_dataset_storage(enable_dataset_storage: bool = False,
         except Exception as e:
             logger.warning(f"Failed to initialize compute layer: {e}")
 
+
 def get_bucket_manager(ipfs_client=None, storage_path: str = "/tmp/mcp_buckets"):
     """Get or create the global bucket manager instance."""
     global _bucket_manager
     if _bucket_manager is None and BUCKET_VFS_AVAILABLE and get_global_bucket_manager:
         _bucket_manager = get_global_bucket_manager(
-            storage_path=storage_path,
-            ipfs_client=ipfs_client
+            storage_path=storage_path, ipfs_client=ipfs_client
         )
     return _bucket_manager
+
 
 def _store_operation_to_dataset(tool_name: str, parameters: dict, result: dict):
     """Store tool invocation to dataset if enabled."""
     global _dataset_manager, _operation_buffer, _buffer_lock, _dataset_batch_size
-    
+
     if not HAS_DATASETS or not _enable_dataset_storage or not _dataset_manager:
         return
-    
+
     operation_data = {
         "tool_name": tool_name,
         "timestamp": datetime.now().isoformat(),
         "parameters": parameters,
-        "result": result
+        "result": result,
     }
-    
+
     with _buffer_lock:
         _operation_buffer.append(operation_data)
-        
+
         if len(_operation_buffer) >= _dataset_batch_size:
             _flush_operations_to_dataset()
+
 
 def _flush_operations_to_dataset():
     """Flush buffered operations to dataset storage."""
     global _dataset_manager, _operation_buffer
-    
+
     if not _operation_buffer or not _dataset_manager:
         return
-    
+
     try:
         # Write operations to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
             for op in _operation_buffer:
-                f.write(json.dumps(op) + '\n')
+                f.write(json.dumps(op) + "\n")
             temp_path = f.name
-        
+
         try:
             # Store via dataset manager
             result = _dataset_manager.store(
@@ -172,38 +179,42 @@ def _flush_operations_to_dataset():
                     "type": "bucket_vfs_tool_invocations",
                     "operation_count": len(_operation_buffer),
                     "timestamp": datetime.now().isoformat(),
-                    "component": "bucket_vfs_mcp_tools"
-                }
+                    "component": "bucket_vfs_mcp_tools",
+                },
             )
-            
+
             if result.get("success"):
-                logger.info(f"Stored {len(_operation_buffer)} bucket VFS operations to dataset: {result.get('cid', 'N/A')}")
-            
+                logger.info(
+                    f"Stored {len(_operation_buffer)} bucket VFS operations to dataset: {result.get('cid', 'N/A')}"
+                )
+
             _operation_buffer.clear()
-            
+
         finally:
             # Clean up temp file
             try:
                 os.unlink(temp_path)
             except:
                 pass
-                
+
     except Exception as e:
         logger.error(f"Failed to flush operations to dataset: {e}")
+
 
 def flush_to_dataset():
     """Manually flush pending operations to dataset storage."""
     global _buffer_lock
-    
+
     if HAS_DATASETS and _enable_dataset_storage:
         with _buffer_lock:
             _flush_operations_to_dataset()
+
 
 def create_bucket_tools() -> List[Tool]:
     """Create MCP tools for bucket VFS operations."""
     if not BUCKET_VFS_AVAILABLE:
         return []
-    
+
     tools = [
         Tool(
             name="bucket_create",
@@ -213,33 +224,32 @@ def create_bucket_tools() -> List[Tool]:
                 "properties": {
                     "bucket_name": {
                         "type": "string",
-                        "description": "Name of the bucket to create"
+                        "description": "Name of the bucket to create",
                     },
                     "bucket_type": {
                         "type": "string",
                         "enum": ["general", "dataset", "knowledge", "media", "archive", "temp"],
                         "default": "general",
-                        "description": "Type of bucket for specialized operations"
+                        "description": "Type of bucket for specialized operations",
                     },
                     "vfs_structure": {
-                        "type": "string", 
+                        "type": "string",
                         "enum": ["unixfs", "graph", "vector", "hybrid"],
                         "default": "hybrid",
-                        "description": "Virtual filesystem structure type"
+                        "description": "Virtual filesystem structure type",
                     },
                     "metadata": {
                         "type": "object",
-                        "description": "Additional metadata for the bucket"
+                        "description": "Additional metadata for the bucket",
                     },
                     "storage_path": {
                         "type": "string",
-                        "description": "Custom storage path for bucket data"
-                    }
+                        "description": "Custom storage path for bucket data",
+                    },
                 },
-                "required": ["bucket_name"]
-            }
+                "required": ["bucket_name"],
+            },
         ),
-        
         Tool(
             name="bucket_list",
             description="List all available buckets with their metadata and statistics",
@@ -248,17 +258,16 @@ def create_bucket_tools() -> List[Tool]:
                 "properties": {
                     "storage_path": {
                         "type": "string",
-                        "description": "Storage path to list buckets from"
+                        "description": "Storage path to list buckets from",
                     },
                     "detailed": {
                         "type": "boolean",
                         "default": False,
-                        "description": "Include detailed statistics for each bucket"
-                    }
-                }
-            }
+                        "description": "Include detailed statistics for each bucket",
+                    },
+                },
+            },
         ),
-        
         Tool(
             name="bucket_delete",
             description="Delete a bucket and all its contents",
@@ -267,59 +276,54 @@ def create_bucket_tools() -> List[Tool]:
                 "properties": {
                     "bucket_name": {
                         "type": "string",
-                        "description": "Name of the bucket to delete"
+                        "description": "Name of the bucket to delete",
                     },
                     "force": {
                         "type": "boolean",
                         "default": False,
-                        "description": "Force deletion even if bucket contains data"
+                        "description": "Force deletion even if bucket contains data",
                     },
                     "storage_path": {
                         "type": "string",
-                        "description": "Storage path for bucket data"
-                    }
+                        "description": "Storage path for bucket data",
+                    },
                 },
-                "required": ["bucket_name"]
-            }
+                "required": ["bucket_name"],
+            },
         ),
-        
         Tool(
             name="bucket_add_file",
             description="Add a file to a bucket with automatic IPLD content addressing",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "bucket_name": {
-                        "type": "string",
-                        "description": "Name of the target bucket"
-                    },
+                    "bucket_name": {"type": "string", "description": "Name of the target bucket"},
                     "file_path": {
                         "type": "string",
-                        "description": "Virtual path within the bucket"
+                        "description": "Virtual path within the bucket",
                     },
                     "content": {
                         "type": "string",
-                        "description": "File content (text) or base64 encoded binary data"
+                        "description": "File content (text) or base64 encoded binary data",
                     },
                     "content_type": {
                         "type": "string",
                         "enum": ["text", "base64", "json"],
                         "default": "text",
-                        "description": "Type of content being added"
+                        "description": "Type of content being added",
                     },
                     "metadata": {
                         "type": "object",
-                        "description": "Additional metadata for the file"
+                        "description": "Additional metadata for the file",
                     },
                     "storage_path": {
                         "type": "string",
-                        "description": "Storage path for bucket data"
-                    }
+                        "description": "Storage path for bucket data",
+                    },
                 },
-                "required": ["bucket_name", "file_path", "content"]
-            }
+                "required": ["bucket_name", "file_path", "content"],
+            },
         ),
-        
         Tool(
             name="bucket_export_car",
             description="Export bucket contents to CAR archive for IPFS distribution",
@@ -328,22 +332,21 @@ def create_bucket_tools() -> List[Tool]:
                 "properties": {
                     "bucket_name": {
                         "type": "string",
-                        "description": "Name of the bucket to export"
+                        "description": "Name of the bucket to export",
                     },
                     "include_indexes": {
                         "type": "boolean",
                         "default": True,
-                        "description": "Include knowledge graph and vector indexes"
+                        "description": "Include knowledge graph and vector indexes",
                     },
                     "storage_path": {
                         "type": "string",
-                        "description": "Storage path for bucket data"
-                    }
+                        "description": "Storage path for bucket data",
+                    },
                 },
-                "required": ["bucket_name"]
-            }
+                "required": ["bucket_name"],
+            },
         ),
-        
         Tool(
             name="bucket_cross_query",
             description="Execute SQL queries across multiple buckets using DuckDB",
@@ -352,28 +355,27 @@ def create_bucket_tools() -> List[Tool]:
                 "properties": {
                     "sql_query": {
                         "type": "string",
-                        "description": "SQL query to execute across buckets"
+                        "description": "SQL query to execute across buckets",
                     },
                     "bucket_filter": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "List of bucket names to include (default: all)"
+                        "description": "List of bucket names to include (default: all)",
                     },
                     "format": {
                         "type": "string",
                         "enum": ["table", "json", "csv"],
                         "default": "table",
-                        "description": "Output format for query results"
+                        "description": "Output format for query results",
                     },
                     "storage_path": {
                         "type": "string",
-                        "description": "Storage path for bucket data"
-                    }
+                        "description": "Storage path for bucket data",
+                    },
                 },
-                "required": ["sql_query"]
-            }
+                "required": ["sql_query"],
+            },
         ),
-        
         Tool(
             name="bucket_get_info",
             description="Get detailed information about a specific bucket",
@@ -382,22 +384,21 @@ def create_bucket_tools() -> List[Tool]:
                 "properties": {
                     "bucket_name": {
                         "type": "string",
-                        "description": "Name of the bucket to inspect"
+                        "description": "Name of the bucket to inspect",
                     },
                     "include_files": {
                         "type": "boolean",
                         "default": False,
-                        "description": "Include file listing in the response"
+                        "description": "Include file listing in the response",
                     },
                     "storage_path": {
                         "type": "string",
-                        "description": "Storage path for bucket data"
-                    }
+                        "description": "Storage path for bucket data",
+                    },
                 },
-                "required": ["bucket_name"]
-            }
+                "required": ["bucket_name"],
+            },
         ),
-        
         Tool(
             name="bucket_status",
             description="Get overall status of the bucket VFS system",
@@ -406,19 +407,20 @@ def create_bucket_tools() -> List[Tool]:
                 "properties": {
                     "storage_path": {
                         "type": "string",
-                        "description": "Storage path for bucket data"
+                        "description": "Storage path for bucket data",
                     },
                     "include_health": {
                         "type": "boolean",
                         "default": True,
-                        "description": "Include health check information"
-                    }
-                }
-            }
-        )
+                        "description": "Include health check information",
+                    },
+                },
+            },
+        ),
     ]
-    
+
     return tools
+
 
 async def handle_bucket_create(arguments: Dict[str, Any]) -> List[TextContent]:
     """Handle bucket creation."""
@@ -428,57 +430,73 @@ async def handle_bucket_create(arguments: Dict[str, Any]) -> List[TextContent]:
         vfs_structure = arguments.get("vfs_structure", "hybrid")
         metadata = arguments.get("metadata", {})
         storage_path = arguments.get("storage_path", "/tmp/mcp_buckets")
-        
+
         if not bucket_name:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": "bucket_name is required",
-                }, indent=2)
-            )]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {
+                            "success": False,
+                            "error": "bucket_name is required",
+                        },
+                        indent=2,
+                    ),
+                )
+            ]
+
         # Get bucket manager
         bucket_manager = get_bucket_manager(storage_path=storage_path)
         if not bucket_manager:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": "Bucket VFS system not available",
-                }, indent=2)
-            )]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {
+                            "success": False,
+                            "error": "Bucket VFS system not available",
+                        },
+                        indent=2,
+                    ),
+                )
+            ]
+
         # Convert string enums
         try:
             if not BucketType or not VFSStructureType:
-                return [TextContent(
-                    type="text",
-                    text=json.dumps({
-                        "success": False,
-                        "error": "Bucket VFS enums not available"
-                    }, indent=2)
-                )]
-            
+                return [
+                    TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {"success": False, "error": "Bucket VFS enums not available"}, indent=2
+                        ),
+                    )
+                ]
+
             bucket_type_enum = BucketType(bucket_type)
             vfs_structure_enum = VFSStructureType(vfs_structure)
         except ValueError as e:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": f"Invalid enum value: {e}",
-                }, indent=2)
-            )]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {
+                            "success": False,
+                            "error": f"Invalid enum value: {e}",
+                        },
+                        indent=2,
+                    ),
+                )
+            ]
+
         # Create bucket
         result = await bucket_manager.create_bucket(
             bucket_name=bucket_name,
             bucket_type=bucket_type_enum,
             vfs_structure=vfs_structure_enum,
-            metadata=metadata
+            metadata=metadata,
         )
-        
+
         if result["success"]:
             data = result.get("data", {})
             response = {
@@ -489,105 +507,92 @@ async def handle_bucket_create(arguments: Dict[str, Any]) -> List[TextContent]:
                     "type": data.get("bucket_type"),
                     "structure": data.get("vfs_structure"),
                     "root_cid": data.get("cid"),
-                    "created_at": data.get("created_at")
-                }
+                    "created_at": data.get("created_at"),
+                },
             }
         else:
-            response = {
-                "success": False,
-                "error": result.get("error", "Unknown error")
-            }
-        
+            response = {"success": False, "error": result.get("error", "Unknown error")}
+
         # Store operation to dataset
         _store_operation_to_dataset("bucket_create", arguments, response)
-        
-        return [TextContent(
-            type="text",
-            text=json.dumps(response, indent=2)
-        )]
-        
+
+        return [TextContent(type="text", text=json.dumps(response, indent=2))]
+
     except Exception as e:
         error_response = {
             "success": False,
             "error": f"Exception in bucket_create: {str(e)}",
-            "traceback": traceback.format_exc()
+            "traceback": traceback.format_exc(),
         }
-        return [TextContent(
-            type="text", 
-            text=json.dumps(error_response, indent=2)
-        )]
+        return [TextContent(type="text", text=json.dumps(error_response, indent=2))]
+
 
 async def handle_bucket_list(arguments: Dict[str, Any]) -> List[TextContent]:
     """Handle bucket listing."""
     try:
         storage_path = arguments.get("storage_path", "/tmp/mcp_buckets")
         detailed = arguments.get("detailed", False)
-        
+
         # Get bucket manager
         bucket_manager = get_bucket_manager(storage_path=storage_path)
         if not bucket_manager:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": "Bucket VFS system not available"
-                }, indent=2)
-            )]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {"success": False, "error": "Bucket VFS system not available"}, indent=2
+                    ),
+                )
+            ]
+
         # List buckets
         result = await bucket_manager.list_buckets()
-        
+
         if result["success"]:
             buckets_data = result.get("data", {})
             buckets = buckets_data.get("buckets", [])
-            
+
             response = {
                 "success": True,
                 "total_buckets": buckets_data.get("total_count", 0),
-                "buckets": []
+                "buckets": [],
             }
-            
+
             for bucket in buckets:
                 bucket_info = {
                     "name": bucket["name"],
                     "type": bucket["type"],
                     "structure": bucket["vfs_structure"],
                     "root_cid": bucket.get("root_cid"),
-                    "created_at": bucket.get("created_at")
+                    "created_at": bucket.get("created_at"),
                 }
-                
+
                 if detailed:
-                    bucket_info.update({
-                        "file_count": bucket.get("file_count", 0),
-                        "size_bytes": bucket.get("size_bytes", 0),
-                        "last_modified": bucket.get("last_modified")
-                    })
-                
+                    bucket_info.update(
+                        {
+                            "file_count": bucket.get("file_count", 0),
+                            "size_bytes": bucket.get("size_bytes", 0),
+                            "last_modified": bucket.get("last_modified"),
+                        }
+                    )
+
                 response["buckets"].append(bucket_info)
         else:
-            response = {
-                "success": False,
-                "error": result.get("error", "Unknown error")
-            }
-        
+            response = {"success": False, "error": result.get("error", "Unknown error")}
+
         # Store operation to dataset
         _store_operation_to_dataset("bucket_list", arguments, response)
-        
-        return [TextContent(
-            type="text",
-            text=json.dumps(response, indent=2)
-        )]
-        
+
+        return [TextContent(type="text", text=json.dumps(response, indent=2))]
+
     except Exception as e:
         error_response = {
             "success": False,
             "error": f"Exception in bucket_list: {str(e)}",
-            "traceback": traceback.format_exc()
+            "traceback": traceback.format_exc(),
         }
-        return [TextContent(
-            type="text",
-            text=json.dumps(error_response, indent=2)
-        )]
+        return [TextContent(type="text", text=json.dumps(error_response, indent=2))]
+
 
 async def handle_bucket_delete(arguments: Dict[str, Any]) -> List[TextContent]:
     """Handle bucket deletion."""
@@ -595,59 +600,50 @@ async def handle_bucket_delete(arguments: Dict[str, Any]) -> List[TextContent]:
         bucket_name = arguments.get("bucket_name")
         force = arguments.get("force", False)
         storage_path = arguments.get("storage_path", "/tmp/mcp_buckets")
-        
+
         if not bucket_name:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": "bucket_name is required"
-                }, indent=2)
-            )]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {"success": False, "error": "bucket_name is required"}, indent=2
+                    ),
+                )
+            ]
+
         # Get bucket manager
         bucket_manager = get_bucket_manager(storage_path=storage_path)
         if not bucket_manager:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": "Bucket VFS system not available"
-                }, indent=2)
-            )]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {"success": False, "error": "Bucket VFS system not available"}, indent=2
+                    ),
+                )
+            ]
+
         # Delete bucket
         result = await bucket_manager.delete_bucket(bucket_name, force=force)
-        
+
         if result["success"]:
-            response = {
-                "success": True,
-                "message": f"Deleted bucket '{bucket_name}'"
-            }
+            response = {"success": True, "message": f"Deleted bucket '{bucket_name}'"}
         else:
-            response = {
-                "success": False,
-                "error": result.get("error", "Unknown error")
-            }
-        
+            response = {"success": False, "error": result.get("error", "Unknown error")}
+
         # Store operation to dataset
         _store_operation_to_dataset("bucket_delete", arguments, response)
-        
-        return [TextContent(
-            type="text",
-            text=json.dumps(response, indent=2)
-        )]
-        
+
+        return [TextContent(type="text", text=json.dumps(response, indent=2))]
+
     except Exception as e:
         error_response = {
             "success": False,
             "error": f"Exception in bucket_delete: {str(e)}",
-            "traceback": traceback.format_exc()
+            "traceback": traceback.format_exc(),
         }
-        return [TextContent(
-            type="text",
-            text=json.dumps(error_response, indent=2)
-        )]
+        return [TextContent(type="text", text=json.dumps(error_response, indent=2))]
+
 
 async def handle_bucket_add_file(arguments: Dict[str, Any]) -> List[TextContent]:
     """Handle adding a file to a bucket."""
@@ -658,58 +654,68 @@ async def handle_bucket_add_file(arguments: Dict[str, Any]) -> List[TextContent]
         content_type = arguments.get("content_type", "text")
         metadata = arguments.get("metadata", {})
         storage_path = arguments.get("storage_path", "/tmp/mcp_buckets")
-        
+
         if not all([bucket_name, file_path, content is not None]):
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": "bucket_name, file_path, and content are required"
-                }, indent=2)
-            )]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {
+                            "success": False,
+                            "error": "bucket_name, file_path, and content are required",
+                        },
+                        indent=2,
+                    ),
+                )
+            ]
+
         # Get bucket manager
         bucket_manager = get_bucket_manager(storage_path=storage_path)
         if not bucket_manager:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": "Bucket VFS system not available"
-                }, indent=2)
-            )]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {"success": False, "error": "Bucket VFS system not available"}, indent=2
+                    ),
+                )
+            ]
+
         # Get bucket
         bucket = await bucket_manager.get_bucket(bucket_name)
         if not bucket:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": f"Bucket '{bucket_name}' not found"
-                }, indent=2)
-            )]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {"success": False, "error": f"Bucket '{bucket_name}' not found"}, indent=2
+                    ),
+                )
+            ]
+
         # Process content based on type
         if content_type == "text":
-            content_bytes = content.encode('utf-8')
+            content_bytes = content.encode("utf-8")
         elif content_type == "base64":
             import base64
+
             content_bytes = base64.b64decode(content)
         elif content_type == "json":
-            content_bytes = json.dumps(content).encode('utf-8')
+            content_bytes = json.dumps(content).encode("utf-8")
         else:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": f"Unknown content_type: {content_type}"
-                }, indent=2)
-            )]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {"success": False, "error": f"Unknown content_type: {content_type}"},
+                        indent=2,
+                    ),
+                )
+            ]
+
         # Add file to bucket
         result = await bucket.add_file(file_path, content_bytes, metadata)
-        
+
         if result["success"]:
             data = result.get("data", {})
             response = {
@@ -719,33 +725,25 @@ async def handle_bucket_add_file(arguments: Dict[str, Any]) -> List[TextContent]
                     "path": file_path,
                     "size": data.get("size"),
                     "cid": data.get("cid"),
-                    "local_path": data.get("local_path")
-                }
+                    "local_path": data.get("local_path"),
+                },
             }
         else:
-            response = {
-                "success": False,
-                "error": result.get("error", "Unknown error")
-            }
-        
+            response = {"success": False, "error": result.get("error", "Unknown error")}
+
         # Store operation to dataset
         _store_operation_to_dataset("bucket_add_file", arguments, response)
-        
-        return [TextContent(
-            type="text",
-            text=json.dumps(response, indent=2)
-        )]
-        
+
+        return [TextContent(type="text", text=json.dumps(response, indent=2))]
+
     except Exception as e:
         error_response = {
             "success": False,
             "error": f"Exception in bucket_add_file: {str(e)}",
-            "traceback": traceback.format_exc()
+            "traceback": traceback.format_exc(),
         }
-        return [TextContent(
-            type="text",
-            text=json.dumps(error_response, indent=2)
-        )]
+        return [TextContent(type="text", text=json.dumps(error_response, indent=2))]
+
 
 async def handle_bucket_export_car(arguments: Dict[str, Any]) -> List[TextContent]:
     """Handle bucket export to CAR archive."""
@@ -753,33 +751,34 @@ async def handle_bucket_export_car(arguments: Dict[str, Any]) -> List[TextConten
         bucket_name = arguments.get("bucket_name")
         include_indexes = arguments.get("include_indexes", True)
         storage_path = arguments.get("storage_path", "/tmp/mcp_buckets")
-        
+
         if not bucket_name:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": "bucket_name is required"
-                }, indent=2)
-            )]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {"success": False, "error": "bucket_name is required"}, indent=2
+                    ),
+                )
+            ]
+
         # Get bucket manager
         bucket_manager = get_bucket_manager(storage_path=storage_path)
         if not bucket_manager:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": "Bucket VFS system not available"
-                }, indent=2)
-            )]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {"success": False, "error": "Bucket VFS system not available"}, indent=2
+                    ),
+                )
+            ]
+
         # Export bucket
         result = await bucket_manager.export_bucket_to_car(
-            bucket_name,
-            include_indexes=include_indexes
+            bucket_name, include_indexes=include_indexes
         )
-        
+
         if result["success"]:
             data = result.get("data", {})
             response = {
@@ -788,30 +787,22 @@ async def handle_bucket_export_car(arguments: Dict[str, Any]) -> List[TextConten
                 "export": {
                     "car_path": data.get("car_path"),
                     "car_cid": data.get("car_cid"),
-                    "exported_items": data.get("exported_items")
-                }
+                    "exported_items": data.get("exported_items"),
+                },
             }
         else:
-            response = {
-                "success": False,
-                "error": result.get("error", "Unknown error")
-            }
-        
-        return [TextContent(
-            type="text",
-            text=json.dumps(response, indent=2)
-        )]
-        
+            response = {"success": False, "error": result.get("error", "Unknown error")}
+
+        return [TextContent(type="text", text=json.dumps(response, indent=2))]
+
     except Exception as e:
         error_response = {
             "success": False,
             "error": f"Exception in bucket_export_car: {str(e)}",
-            "traceback": traceback.format_exc()
+            "traceback": traceback.format_exc(),
         }
-        return [TextContent(
-            type="text",
-            text=json.dumps(error_response, indent=2)
-        )]
+        return [TextContent(type="text", text=json.dumps(error_response, indent=2))]
+
 
 async def handle_bucket_cross_query(arguments: Dict[str, Any]) -> List[TextContent]:
     """Handle cross-bucket SQL query."""
@@ -820,85 +811,70 @@ async def handle_bucket_cross_query(arguments: Dict[str, Any]) -> List[TextConte
         bucket_filter = arguments.get("bucket_filter")
         format_type = arguments.get("format", "table")
         storage_path = arguments.get("storage_path", "/tmp/mcp_buckets")
-        
+
         if not sql_query:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": "sql_query is required"
-                }, indent=2)
-            )]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps({"success": False, "error": "sql_query is required"}, indent=2),
+                )
+            ]
+
         # Get bucket manager
         bucket_manager = get_bucket_manager(storage_path=storage_path)
         if not bucket_manager:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": "Bucket VFS system not available"
-                }, indent=2)
-            )]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {"success": False, "error": "Bucket VFS system not available"}, indent=2
+                    ),
+                )
+            ]
+
         # Execute query
-        result = await bucket_manager.cross_bucket_query(
-            sql_query,
-            bucket_filter=bucket_filter
-        )
-        
+        result = await bucket_manager.cross_bucket_query(sql_query, bucket_filter=bucket_filter)
+
         if result["success"]:
             data = result.get("data", {})
             columns = data.get("columns", [])
             rows = data.get("rows", [])
-            
+
             response = {
                 "success": True,
                 "query": sql_query,
                 "row_count": len(rows),
-                "columns": columns
+                "columns": columns,
             }
-            
+
             if format_type == "json":
                 # Convert rows to JSON objects
-                response["results"] = [
-                    dict(zip(columns, row)) for row in rows
-                ]
+                response["results"] = [dict(zip(columns, row)) for row in rows]
             elif format_type == "csv":
                 # Convert to CSV format
                 import io
                 import csv
+
                 output = io.StringIO()
                 writer = csv.writer(output)
                 writer.writerow(columns)
                 writer.writerows(rows)
                 response["results"] = output.getvalue()
             else:  # table format
-                response["results"] = {
-                    "columns": columns,
-                    "rows": rows
-                }
+                response["results"] = {"columns": columns, "rows": rows}
         else:
-            response = {
-                "success": False,
-                "error": result.get("error", "Unknown error")
-            }
-        
-        return [TextContent(
-            type="text",
-            text=json.dumps(response, indent=2)
-        )]
-        
+            response = {"success": False, "error": result.get("error", "Unknown error")}
+
+        return [TextContent(type="text", text=json.dumps(response, indent=2))]
+
     except Exception as e:
         error_response = {
             "success": False,
             "error": f"Exception in bucket_cross_query: {str(e)}",
-            "traceback": traceback.format_exc()
+            "traceback": traceback.format_exc(),
         }
-        return [TextContent(
-            type="text",
-            text=json.dumps(error_response, indent=2)
-        )]
+        return [TextContent(type="text", text=json.dumps(error_response, indent=2))]
+
 
 async def handle_bucket_get_info(arguments: Dict[str, Any]) -> List[TextContent]:
     """Handle getting bucket information."""
@@ -906,38 +882,41 @@ async def handle_bucket_get_info(arguments: Dict[str, Any]) -> List[TextContent]
         bucket_name = arguments.get("bucket_name")
         include_files = arguments.get("include_files", False)
         storage_path = arguments.get("storage_path", "/tmp/mcp_buckets")
-        
+
         if not bucket_name:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": "bucket_name is required"
-                }, indent=2)
-            )]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {"success": False, "error": "bucket_name is required"}, indent=2
+                    ),
+                )
+            ]
+
         # Get bucket manager
         bucket_manager = get_bucket_manager(storage_path=storage_path)
         if not bucket_manager:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": "Bucket VFS system not available"
-                }, indent=2)
-            )]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {"success": False, "error": "Bucket VFS system not available"}, indent=2
+                    ),
+                )
+            ]
+
         # Get bucket
         bucket = await bucket_manager.get_bucket(bucket_name)
         if not bucket:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": f"Bucket '{bucket_name}' not found"
-                }, indent=2)
-            )]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {"success": False, "error": f"Bucket '{bucket_name}' not found"}, indent=2
+                    ),
+                )
+            ]
+
         # Build bucket info
         bucket_info = {
             "name": bucket.name,
@@ -948,23 +927,22 @@ async def handle_bucket_get_info(arguments: Dict[str, Any]) -> List[TextContent]
             "storage_path": str(bucket.storage_path),
             "file_count": await bucket.get_file_count(),
             "total_size": await bucket.get_total_size(),
-            "last_modified": await bucket.get_last_modified()
+            "last_modified": await bucket.get_last_modified(),
         }
-        
+
         # Include directory structure
         bucket_info["directories"] = {
-            name: str(path) for name, path in bucket.dirs.items()
-            if path.exists()
+            name: str(path) for name, path in bucket.dirs.items() if path.exists()
         }
-        
+
         # Include component status
         bucket_info["components"] = {
             "knowledge_graph": bucket.knowledge_graph is not None,
             "vector_index": bucket.vector_index is not None,
             "parquet_bridge": bucket.parquet_bridge is not None,
-            "car_bridge": bucket.car_bridge is not None
+            "car_bridge": bucket.car_bridge is not None,
         }
-        
+
         # Include files if requested
         if include_files:
             files_dir = bucket.dirs["files"]
@@ -973,89 +951,86 @@ async def handle_bucket_get_info(arguments: Dict[str, Any]) -> List[TextContent]
                 for file_path in files_dir.rglob("*"):
                     if file_path.is_file():
                         rel_path = file_path.relative_to(files_dir)
-                        file_list.append({
-                            "path": str(rel_path),
-                            "size": file_path.stat().st_size,
-                            "modified": file_path.stat().st_mtime
-                        })
+                        file_list.append(
+                            {
+                                "path": str(rel_path),
+                                "size": file_path.stat().st_size,
+                                "modified": file_path.stat().st_mtime,
+                            }
+                        )
                 bucket_info["files"] = file_list
-        
-        response = {
-            "success": True,
-            "bucket": bucket_info
-        }
-        
-        return [TextContent(
-            type="text",
-            text=json.dumps(response, indent=2)
-        )]
-        
+
+        response = {"success": True, "bucket": bucket_info}
+
+        return [TextContent(type="text", text=json.dumps(response, indent=2))]
+
     except Exception as e:
         error_response = {
             "success": False,
             "error": f"Exception in bucket_get_info: {str(e)}",
-            "traceback": traceback.format_exc()
+            "traceback": traceback.format_exc(),
         }
-        return [TextContent(
-            type="text",
-            text=json.dumps(error_response, indent=2)
-        )]
+        return [TextContent(type="text", text=json.dumps(error_response, indent=2))]
+
 
 async def handle_bucket_status(arguments: Dict[str, Any]) -> List[TextContent]:
     """Handle getting bucket VFS system status."""
     try:
         storage_path = arguments.get("storage_path", "/tmp/mcp_buckets")
         include_health = arguments.get("include_health", True)
-        
+
         # Get bucket manager
         bucket_manager = get_bucket_manager(storage_path=storage_path)
         if not bucket_manager:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": "Bucket VFS system not available"
-                }, indent=2)
-            )]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {"success": False, "error": "Bucket VFS system not available"}, indent=2
+                    ),
+                )
+            ]
+
         # Get bucket list for statistics
         buckets_result = await bucket_manager.list_buckets()
-        
+
         response = {
             "success": True,
             "system": {
                 "available": BUCKET_VFS_AVAILABLE,
                 "storage_path": storage_path,
-                "duckdb_integration": bucket_manager.enable_duckdb_integration if bucket_manager else False
-            }
+                "duckdb_integration": bucket_manager.enable_duckdb_integration
+                if bucket_manager
+                else False,
+            },
         }
-        
+
         if buckets_result["success"]:
             buckets_data = buckets_result.get("data", {})
             buckets = buckets_data.get("buckets", [])
-            
+
             # Calculate statistics
             total_files = sum(bucket.get("file_count", 0) for bucket in buckets)
             total_size = sum(bucket.get("size_bytes", 0) for bucket in buckets)
-            
+
             bucket_types = {}
             vfs_structures = {}
-            
+
             for bucket in buckets:
                 bucket_type = bucket.get("type", "unknown")
                 vfs_structure = bucket.get("vfs_structure", "unknown")
-                
+
                 bucket_types[bucket_type] = bucket_types.get(bucket_type, 0) + 1
                 vfs_structures[vfs_structure] = vfs_structures.get(vfs_structure, 0) + 1
-            
+
             response["statistics"] = {
                 "total_buckets": len(buckets),
                 "total_files": total_files,
                 "total_size_bytes": total_size,
                 "bucket_types": bucket_types,
-                "vfs_structures": vfs_structures
+                "vfs_structures": vfs_structures,
             }
-            
+
             if include_health:
                 # Check health of each bucket
                 healthy_buckets = 0
@@ -1063,30 +1038,25 @@ async def handle_bucket_status(arguments: Dict[str, Any]) -> List[TextContent]:
                     # Simple health check - bucket has root CID
                     if bucket.get("root_cid"):
                         healthy_buckets += 1
-                
+
                 response["health"] = {
                     "healthy_buckets": healthy_buckets,
                     "total_buckets": len(buckets),
-                    "health_percentage": (healthy_buckets / len(buckets) * 100) if buckets else 100
+                    "health_percentage": (healthy_buckets / len(buckets) * 100) if buckets else 100,
                 }
         else:
             response["error"] = buckets_result.get("error", "Failed to get bucket statistics")
-        
-        return [TextContent(
-            type="text",
-            text=json.dumps(response, indent=2)
-        )]
-        
+
+        return [TextContent(type="text", text=json.dumps(response, indent=2))]
+
     except Exception as e:
         error_response = {
             "success": False,
             "error": f"Exception in bucket_status: {str(e)}",
-            "traceback": traceback.format_exc()
+            "traceback": traceback.format_exc(),
         }
-        return [TextContent(
-            type="text",
-            text=json.dumps(error_response, indent=2)
-        )]
+        return [TextContent(type="text", text=json.dumps(error_response, indent=2))]
+
 
 # Tool handler mapping
 BUCKET_TOOL_HANDLERS = {
@@ -1097,8 +1067,9 @@ BUCKET_TOOL_HANDLERS = {
     "bucket_export_car": handle_bucket_export_car,
     "bucket_cross_query": handle_bucket_cross_query,
     "bucket_get_info": handle_bucket_get_info,
-    "bucket_status": handle_bucket_status
+    "bucket_status": handle_bucket_status,
 }
+
 
 async def handle_bucket_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
     """Handle bucket VFS tool calls."""
@@ -1106,10 +1077,11 @@ async def handle_bucket_tool(name: str, arguments: Dict[str, Any]) -> List[TextC
     if handler:
         return await handler(arguments)
     else:
-        return [TextContent(
-            type="text",
-            text=json.dumps({
-                "success": False,
-                "error": f"Unknown bucket tool: {name}"
-            }, indent=2)
-        )]
+        return [
+            TextContent(
+                type="text",
+                text=json.dumps(
+                    {"success": False, "error": f"Unknown bucket tool: {name}"}, indent=2
+                ),
+            )
+        ]

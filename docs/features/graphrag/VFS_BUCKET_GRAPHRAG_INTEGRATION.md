@@ -39,15 +39,12 @@ from ipfs_kit_py.vfs_bucket_graphrag_integration import get_vfs_bucket_graphrag_
 # Initialize the indexer
 indexer = get_vfs_bucket_graphrag_indexer(
     ipfs_client=ipfs_client,  # Optional IPFS client
-    enable_graphrag=True       # Enable GraphRAG indexing
+    enable_graphrag=True,  # Enable GraphRAG indexing
 )
 
 # Create a snapshot of a VFS bucket
 # This uses ipfs_datasets_py to manage the bucket content as a dataset
-result = indexer.snapshot_bucket(
-    bucket_name="my-bucket",
-    version="1.0"
-)
+result = indexer.snapshot_bucket(bucket_name="my-bucket", version="1.0")
 
 print(f"Snapshot created: {result['dataset_id']}")
 print(f"CID: {result.get('cid', 'N/A')}")
@@ -61,7 +58,7 @@ print(f"Distributed: {result.get('distributed', False)}")
 # This creates a snapshot (if needed) and indexes it for semantic search
 result = indexer.index_bucket_with_graphrag(
     bucket_name="my-bucket",
-    force_snapshot=False  # Only snapshot if not already done
+    force_snapshot=False,  # Only snapshot if not already done
 )
 
 print(f"Indexed components: {result['indexed_components']}")
@@ -75,7 +72,7 @@ print(f"Indexed components: {result['indexed_components']}")
 results = indexer.search_buckets(
     query="machine learning datasets",
     use_semantic_search=True,  # Use GraphRAG semantic search
-    limit=10
+    limit=10,
 )
 
 for bucket in results:
@@ -106,15 +103,11 @@ from ipfs_kit_py.bucket_vfs_manager import BucketVFSManager
 from ipfs_kit_py.vfs_bucket_graphrag_integration import VFSBucketGraphRAGIndexer
 
 # Initialize bucket manager
-bucket_manager = BucketVFSManager(
-    ipfs_client=ipfs_client
-)
+bucket_manager = BucketVFSManager(ipfs_client=ipfs_client)
 
 # Initialize indexer with bucket manager
 indexer = VFSBucketGraphRAGIndexer(
-    bucket_manager=bucket_manager,
-    ipfs_client=ipfs_client,
-    enable_graphrag=True
+    bucket_manager=bucket_manager, ipfs_client=ipfs_client, enable_graphrag=True
 )
 
 # Now you can index buckets managed by the bucket manager
@@ -200,7 +193,7 @@ bucket_names = ["ml-datasets", "web-assets", "user-uploads"]
 # Index all buckets
 for bucket_name in bucket_names:
     result = indexer.index_bucket_with_graphrag(bucket_name)
-    if result['success']:
+    if result["success"]:
         print(f"✓ Indexed {bucket_name}")
     else:
         print(f"✗ Failed to index {bucket_name}: {result.get('error')}")
@@ -226,15 +219,11 @@ v2_result = indexer.snapshot_bucket("data-bucket", version="2.0")
 ```python
 # Search for buckets containing ML-related content
 ml_buckets = indexer.search_buckets(
-    query="machine learning models and datasets",
-    use_semantic_search=True
+    query="machine learning models and datasets", use_semantic_search=True
 )
 
 # Search for buckets with media files
-media_buckets = indexer.search_buckets(
-    query="images videos audio files",
-    use_semantic_search=True
-)
+media_buckets = indexer.search_buckets(query="images videos audio files", use_semantic_search=True)
 ```
 
 ## Testing
@@ -296,15 +285,15 @@ from ipfs_kit_py.vfs_bucket_graphrag_integration import get_vfs_bucket_graphrag_
 indexer = get_vfs_bucket_graphrag_indexer(
     ipfs_client=ipfs_client,
     enable_graphrag=True,
-    enable_compute_layer=True  # Enable ipfs_accelerate_py compute
+    enable_compute_layer=True,  # Enable ipfs_accelerate_py compute
 )
 
 # Index a bucket with accelerated compute
 result = indexer.index_bucket_with_graphrag("my-bucket")
 
-if result['success']:
-    graphrag_result = result.get('graphrag_result', {})
-    if graphrag_result.get('compute_accelerated'):
+if result["success"]:
+    graphrag_result = result.get("graphrag_result", {})
+    if graphrag_result.get("compute_accelerated"):
         print("✓ Used ipfs_accelerate_py for accelerated indexing")
     else:
         print("Using standard GraphRAG indexing")
@@ -385,7 +374,7 @@ Knowledge Graph (searchable index)
 indexer = get_vfs_bucket_graphrag_indexer(
     ipfs_client=ipfs_client,
     enable_graphrag=True,
-    enable_compute_layer=True  # Use accelerated compute
+    enable_compute_layer=True,  # Use accelerated compute
 )
 
 # Index multiple buckets efficiently
@@ -401,7 +390,7 @@ for bucket_name in large_bucket_list:
 indexer = get_vfs_bucket_graphrag_indexer(
     ipfs_client=ipfs_client,
     enable_graphrag=True,
-    enable_compute_layer=False  # Disable compute layer
+    enable_compute_layer=False,  # Disable compute layer
 )
 ```
 
@@ -422,6 +411,7 @@ If acceleration fails, the system automatically falls back to standard processin
 
 ```python
 import logging
+
 logging.basicConfig(level=logging.INFO)
 # Will show compute layer status and fallback messages
 ```

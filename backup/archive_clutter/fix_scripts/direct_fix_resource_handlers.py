@@ -13,15 +13,16 @@ import pkgutil
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 def find_mcp_resource_handlers():
     """Find the MCP resource handler modules."""
     try:
         import mcp
+
         mcp_dir = os.path.dirname(mcp.__file__)
         logger.info(f"Found MCP package at {mcp_dir}")
 
@@ -32,7 +33,9 @@ def find_mcp_resource_handlers():
         if os.path.exists(server_dir):
             for root, dirs, files in os.walk(server_dir):
                 for file in files:
-                    if file.endswith('.py') and ('resource' in file.lower() or 'handler' in file.lower()):
+                    if file.endswith(".py") and (
+                        "resource" in file.lower() or "handler" in file.lower()
+                    ):
                         full_path = os.path.join(root, file)
                         handler_modules.append(full_path)
 
@@ -42,6 +45,7 @@ def find_mcp_resource_handlers():
         logger.error("Could not import MCP package")
         return []
 
+
 def fix_direct_resource_handlers():
     """Directly fix the resource handler files."""
     # Find and fix resource handlers in the MCP package
@@ -49,48 +53,50 @@ def fix_direct_resource_handlers():
 
     for module_path in handler_modules:
         try:
-            with open(module_path, 'r') as f:
+            with open(module_path, "r") as f:
                 content = f.read()
 
             # Create a backup
-            backup_path = module_path + '.bak'
-            with open(backup_path, 'w') as f:
+            backup_path = module_path + ".bak"
+            with open(backup_path, "w") as f:
                 f.write(content)
 
             # Add logger definition if needed
-            if 'logger' in content and 'logger = ' not in content:
-                lines = content.split('\n')
+            if "logger" in content and "logger = " not in content:
+                lines = content.split("\n")
 
                 # Find import section
                 import_line = -1
                 for i, line in enumerate(lines):
-                    if line.startswith('import ') or line.startswith('from '):
+                    if line.startswith("import ") or line.startswith("from "):
                         import_line = max(import_line, i)
 
                 if import_line >= 0:
                     # Add logging import if needed
-                    if 'import logging' not in content:
-                        lines.insert(import_line + 1, 'import logging')
+                    if "import logging" not in content:
+                        lines.insert(import_line + 1, "import logging")
                         import_line += 1
 
                     # Add logger definition after imports
-                    lines.insert(import_line + 1, '# Configure logger')
-                    lines.insert(import_line + 2, 'logger = logging.getLogger(__name__)')
-                    lines.insert(import_line + 3, '')
+                    lines.insert(import_line + 1, "# Configure logger")
+                    lines.insert(import_line + 2, "logger = logging.getLogger(__name__)")
+                    lines.insert(import_line + 3, "")
 
                     # Write the modified content
-                    modified_content = '\n'.join(lines)
-                    with open(module_path, 'w') as f:
+                    modified_content = "\n".join(lines)
+                    with open(module_path, "w") as f:
                         f.write(modified_content)
 
                     logger.info(f"Fixed logger definition in {module_path}")
         except Exception as e:
             logger.error(f"Error fixing {module_path}: {e}")
 
+
 def fix_resource_templates():
     """Fix resource templates in the MCP package."""
     try:
         import mcp
+
         mcp_dir = os.path.dirname(mcp.__file__)
 
         # Look for resource template modules
@@ -101,49 +107,54 @@ def fix_resource_templates():
         if os.path.exists(template_dir):
             for root, dirs, files in os.walk(template_dir):
                 for file in files:
-                    if file.endswith('.py') and 'resource' in file.lower():
+                    if file.endswith(".py") and "resource" in file.lower():
                         module_path = os.path.join(root, file)
 
                         try:
-                            with open(module_path, 'r') as f:
+                            with open(module_path, "r") as f:
                                 content = f.read()
 
                             # Create a backup
-                            backup_path = module_path + '.bak'
-                            with open(backup_path, 'w') as f:
+                            backup_path = module_path + ".bak"
+                            with open(backup_path, "w") as f:
                                 f.write(content)
 
                             # Add logger definition if needed
-                            if 'logger' in content and 'logger = ' not in content:
-                                lines = content.split('\n')
+                            if "logger" in content and "logger = " not in content:
+                                lines = content.split("\n")
 
                                 # Find import section
                                 import_line = -1
                                 for i, line in enumerate(lines):
-                                    if line.startswith('import ') or line.startswith('from '):
+                                    if line.startswith("import ") or line.startswith("from "):
                                         import_line = max(import_line, i)
 
                                 if import_line >= 0:
                                     # Add logging import if needed
-                                    if 'import logging' not in content:
-                                        lines.insert(import_line + 1, 'import logging')
+                                    if "import logging" not in content:
+                                        lines.insert(import_line + 1, "import logging")
                                         import_line += 1
 
                                     # Add logger definition after imports
-                                    lines.insert(import_line + 1, '# Configure logger')
-                                    lines.insert(import_line + 2, 'logger = logging.getLogger(__name__)')
-                                    lines.insert(import_line + 3, '')
+                                    lines.insert(import_line + 1, "# Configure logger")
+                                    lines.insert(
+                                        import_line + 2, "logger = logging.getLogger(__name__)"
+                                    )
+                                    lines.insert(import_line + 3, "")
 
                                     # Write the modified content
-                                    modified_content = '\n'.join(lines)
-                                    with open(module_path, 'w') as f:
+                                    modified_content = "\n".join(lines)
+                                    with open(module_path, "w") as f:
                                         f.write(modified_content)
 
-                                    logger.info(f"Fixed logger definition in template {module_path}")
+                                    logger.info(
+                                        f"Fixed logger definition in template {module_path}"
+                                    )
                         except Exception as e:
                             logger.error(f"Error fixing template {module_path}: {e}")
     except Exception as e:
         logger.error(f"Error fixing resource templates: {e}")
+
 
 def fix_directly_in_mcp_module():
     """Monkey patch the MCP module to ensure logger is defined in critical places."""
@@ -158,19 +169,19 @@ def fix_directly_in_mcp_module():
 
             if module_name in sys.modules:
                 module = sys.modules[module_name]
-                if not hasattr(module, 'logger'):
+                if not hasattr(module, "logger"):
                     # Use setattr to modify module attributes
-                    setattr(module, 'logger', logging.getLogger(module_name))
-                    return getattr(module, 'logger')
+                    setattr(module, "logger", logging.getLogger(module_name))
+                    return getattr(module, "logger")
                 return module.logger
             return None
 
         # Add to key modules
         modules_to_patch = [
-            'mcp.server.lowlevel.server',
-            'mcp.server.lowlevel.resource',
-            'mcp.server.lowlevel.handler',
-            'mcp.server.fastmcp'
+            "mcp.server.lowlevel.server",
+            "mcp.server.lowlevel.resource",
+            "mcp.server.lowlevel.handler",
+            "mcp.server.fastmcp",
         ]
 
         for module_name in modules_to_patch:
@@ -181,21 +192,22 @@ def fix_directly_in_mcp_module():
                     module = importlib.import_module(module_name)
 
                 # Use setattr to add attributes to the module
-                if not hasattr(module, 'ensure_logger'):
+                if not hasattr(module, "ensure_logger"):
                     # Create a closure that binds the module
                     def make_ensure_logger(mod):
                         def _ensure_logger():
-                            if not hasattr(mod, 'logger'):
-                                setattr(mod, 'logger', logging.getLogger(mod.__name__))
-                            return getattr(mod, 'logger')
+                            if not hasattr(mod, "logger"):
+                                setattr(mod, "logger", logging.getLogger(mod.__name__))
+                            return getattr(mod, "logger")
+
                         return _ensure_logger
 
                     # Set the attribute using setattr
-                    setattr(module, 'ensure_logger', make_ensure_logger(module))
+                    setattr(module, "ensure_logger", make_ensure_logger(module))
 
                 # Add logger if not present
-                if not hasattr(module, 'logger'):
-                    setattr(module, 'logger', logging.getLogger(module_name))
+                if not hasattr(module, "logger"):
+                    setattr(module, "logger", logging.getLogger(module_name))
                     logger.info(f"Added logger to module {module_name}")
             except ImportError:
                 logger.warning(f"Could not import module {module_name}")
@@ -205,6 +217,7 @@ def fix_directly_in_mcp_module():
         logger.info("Completed direct module patching")
     except ImportError:
         logger.error("Could not import MCP module for direct patching")
+
 
 def create_wrapper_module():
     """Create a wrapper module that adds loggers to resource modules."""
@@ -268,7 +281,7 @@ if __name__ == "__main__":
     patch_all_mcp_resources()
 """
 
-    with open(wrapper_path, 'w') as f:
+    with open(wrapper_path, "w") as f:
         f.write(content)
 
     # Make executable
@@ -276,6 +289,7 @@ if __name__ == "__main__":
 
     logger.info(f"Created wrapper module at {wrapper_path}")
     return wrapper_path
+
 
 def main():
     """Main function."""
@@ -293,8 +307,11 @@ def main():
     # Create wrapper module
     wrapper_path = create_wrapper_module()
 
-    logger.info(f"Resource handler fixes complete. Use {wrapper_path} to ensure loggers are defined at runtime.")
+    logger.info(
+        f"Resource handler fixes complete. Use {wrapper_path} to ensure loggers are defined at runtime."
+    )
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

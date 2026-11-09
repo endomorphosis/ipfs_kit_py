@@ -3,6 +3,7 @@
 Usage: ipfs-kit-mcp-tools <category> <tool> --key val ...
 Same registry, same codepath as the MCP server and Python imports.
 """
+
 from __future__ import annotations
 
 import json

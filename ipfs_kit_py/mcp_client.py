@@ -1,9 +1,9 @@
-
 import anyio
 import json
 
+
 class MCPClient:
-    def __init__(self, server_host='127.0.0.1', server_port=8888):
+    def __init__(self, server_host="127.0.0.1", server_port=8888):
         self.server_host = server_host
         self.server_port = server_port
 

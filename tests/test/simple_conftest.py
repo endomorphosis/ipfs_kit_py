@@ -22,16 +22,19 @@ sys.path.insert(0, str(project_root))
 # Import our test patching module
 try:
     import ipfs_test_patch
+
     logger.info("Successfully loaded test patching module")
 except ImportError as e:
     logger.error(f"Error importing test patching module: {e}")
-    
+
 # Basic fixtures
+
 
 @pytest.fixture(scope="session")
 def temp_dir(tmp_path_factory):
     """Create a temporary directory for tests."""
     return tmp_path_factory.mktemp("test_data")
+
 
 @pytest.fixture
 def mock_ipfs_client():
@@ -41,6 +44,7 @@ def mock_ipfs_client():
     client.cat = MagicMock(return_value=b"test content")
     client.id = MagicMock(return_value={"ID": "QmTestNodeId"})
     return client
+
 
 @pytest.fixture
 def mock_ipfs(monkeypatch):

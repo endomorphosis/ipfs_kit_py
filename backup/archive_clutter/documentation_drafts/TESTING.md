@@ -84,6 +84,7 @@ Example:
 ```python
 import pytest
 
+
 @pytest.mark.requires_fsspec
 def test_feature_needing_fsspec():
     # Test code here

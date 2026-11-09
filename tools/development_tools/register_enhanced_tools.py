@@ -14,27 +14,31 @@ import importlib.util
 from typing import Dict, List, Any, Optional, Union
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def import_module_from_file(file_path, module_name=None):
     """Import a module from a file path"""
     if not os.path.exists(file_path):
         raise ImportError(f"File not found: {file_path}")
-        
+
     if module_name is None:
-        module_name = os.path.basename(file_path).split('.')[0]
-    
+        module_name = os.path.basename(file_path).split(".")[0]
+
     spec = importlib.util.spec_from_file_location(module_name, file_path)
     if spec is None:
         raise ImportError(f"Could not load spec for {file_path}")
-    
+
     if spec.loader is None:
         raise ImportError(f"Could not get loader for {file_path}")
-    
+
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
 
 def register_tools_with_direct_mcp():
     """Register tools directly with the MCP server"""
@@ -43,22 +47,22 @@ def register_tools_with_direct_mcp():
         if not os.path.exists("direct_mcp_server.py"):
             logger.error("direct_mcp_server.py not found")
             return False
-            
+
         # Import the tools registry
         if not os.path.exists("ipfs_tools_registry.py"):
             logger.error("ipfs_tools_registry.py not found")
             return False
-            
+
         # Load the tools registry
         tools_registry = import_module_from_file("ipfs_tools_registry.py")
-        if not hasattr(tools_registry, 'get_ipfs_tools'):
+        if not hasattr(tools_registry, "get_ipfs_tools"):
             logger.error("get_ipfs_tools function not found in tools registry")
             return False
-            
+
         # Get the tools
         tools = tools_registry.get_ipfs_tools()
         logger.info(f"Loaded {len(tools)} tools from registry")
-        
+
         # Create a simple patch to register tools with the MCP server
         patch_content = '''
 import json
@@ -86,14 +90,14 @@ def register_tools_with_mcp(tools):
         print(f"Error registering tools: {e}")
         return False
 '''
-        
+
         # Write the patch to a file
         with open("register_tools_patch.py", "w") as f:
             f.write(patch_content)
-            
+
         # Import the patch
         register_patch = import_module_from_file("register_tools_patch.py")
-        
+
         # Register the tools
         result = register_patch.register_tools_with_mcp(tools)
         if result:
@@ -102,15 +106,16 @@ def register_tools_with_mcp(tools):
         else:
             logger.error("Failed to register tools with MCP server")
             return False
-            
+
     except Exception as e:
         logger.error(f"Error registering tools: {e}")
         return False
 
+
 def create_mcp_loader():
     """Create a script to load the tools into the MCP server"""
     loader_path = "load_tools_into_mcp.py"
-    
+
     try:
         with open(loader_path, "w") as f:
             f.write("""#!/usr/bin/env python3
@@ -222,23 +227,24 @@ def main():
 if __name__ == "__main__":
     sys.exit(main())
 """)
-        
+
         # Make the script executable
         os.chmod(loader_path, 0o755)
-        
+
         logger.info(f"✅ Created MCP loader script at {loader_path}")
         return True
-        
+
     except Exception as e:
         logger.error(f"Error creating MCP loader script: {e}")
         return False
 
+
 def create_restart_script():
     """Create a script to restart the MCP server with the new tools"""
     script_path = "restart_mcp_with_tools.sh"
-    
+
     try:
-        with open(script_path, 'w') as f:
+        with open(script_path, "w") as f:
             f.write("""#!/bin/bash
 # Restart MCP server with enhanced tools
 
@@ -262,47 +268,47 @@ python load_tools_into_mcp.py
 echo "✅ MCP server is now running with enhanced tools"
 echo "You can use the new tools through the JSON-RPC interface"
 """)
-        
+
         # Make the script executable
         os.chmod(script_path, 0o755)
-        
+
         logger.info(f"✅ Created restart script at {script_path}")
         return True
-    
+
     except Exception as e:
         logger.error(f"Error creating restart script: {e}")
         return False
 
+
 def main():
     """Main function to register enhanced tools"""
     logger.info("Starting registration of enhanced tools...")
-    
+
     # Register tools with MCP server
     tools_registered = register_tools_with_direct_mcp()
-    
+
     # Create MCP loader script
     loader_created = create_mcp_loader()
-    
+
     # Create restart script
     restart_script_created = create_restart_script()
-    
+
     # Check overall success
-    success = all([
-        tools_registered,
-        loader_created,
-        restart_script_created
-    ])
-    
+    success = all([tools_registered, loader_created, restart_script_created])
+
     if success:
         logger.info("\n✅ Enhanced tools registration completed successfully")
         logger.info("To use the enhanced tools:")
-        logger.info("  1. Run ./restart_mcp_with_tools.sh to restart the MCP server with enhanced tools")
+        logger.info(
+            "  1. Run ./restart_mcp_with_tools.sh to restart the MCP server with enhanced tools"
+        )
         logger.info("  2. Use the tools through the JSON-RPC interface")
         return 0
     else:
         logger.error("\n❌ Enhanced tools registration failed")
         logger.error("Please check the logs for details")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

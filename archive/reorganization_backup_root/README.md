@@ -536,7 +536,7 @@ kit = ipfs_kit_py.ipfs_kit()
 
 # Check installation status
 print(f"IPFS available: {ipfs_kit_py.INSTALL_IPFS_AVAILABLE}")
-print(f"Lotus available: {ipfs_kit_py.INSTALL_LOTUS_AVAILABLE}") 
+print(f"Lotus available: {ipfs_kit_py.INSTALL_LOTUS_AVAILABLE}")
 print(f"Lassie available: {ipfs_kit_py.INSTALL_LASSIE_AVAILABLE}")
 print(f"Storacha available: {ipfs_kit_py.INSTALL_STORACHA_AVAILABLE}")
 
@@ -564,16 +564,16 @@ from ipfs_kit_py import install_ipfs, install_lotus, install_lassie, install_sto
 
 # All installers are available and ready to use
 ipfs_installer = install_ipfs()
-lotus_installer = install_lotus()  
+lotus_installer = install_lotus()
 lassie_installer = install_lassie()
 storacha_installer = install_storacha()
 
 # Check installation status
 from ipfs_kit_py import (
     INSTALL_IPFS_AVAILABLE,
-    INSTALL_LOTUS_AVAILABLE, 
+    INSTALL_LOTUS_AVAILABLE,
     INSTALL_LASSIE_AVAILABLE,
-    INSTALL_STORACHA_AVAILABLE
+    INSTALL_STORACHA_AVAILABLE,
 )
 ```
 
@@ -905,16 +905,15 @@ pip install -e .[ai_ml,webrtc,full]
 import requests
 
 # Add content to IPFS
-response = requests.post('http://localhost:9998/ipfs/add', 
-                        json={'content': 'Hello IPFS!'})
-cid = response.json()['cid']
+response = requests.post("http://localhost:9998/ipfs/add", json={"content": "Hello IPFS!"})
+cid = response.json()["cid"]
 
 # Retrieve content
-response = requests.get(f'http://localhost:9998/ipfs/cat/{cid}')
-content = response.json()['content']
+response = requests.get(f"http://localhost:9998/ipfs/cat/{cid}")
+content = response.json()["content"]
 
 # Pin content
-requests.post(f'http://localhost:9998/ipfs/pin/add/{cid}')
+requests.post(f"http://localhost:9998/ipfs/pin/add/{cid}")
 ```
 
 ### MCP Protocol Usage
@@ -924,16 +923,13 @@ import requests
 # JSON-RPC 2.0 call
 payload = {
     "jsonrpc": "2.0",
-    "method": "tools/call", 
-    "params": {
-        "name": "ipfs_add",
-        "arguments": {"content": "Hello from MCP!"}
-    },
-    "id": 1
+    "method": "tools/call",
+    "params": {"name": "ipfs_add", "arguments": {"content": "Hello from MCP!"}},
+    "id": 1,
 }
 
-response = requests.post('http://localhost:9998/jsonrpc', json=payload)
-result = response.json()['result']
+response = requests.post("http://localhost:9998/jsonrpc", json=payload)
+result = response.json()["result"]
 ```
 
 ### Python Package Usage
@@ -941,6 +937,7 @@ result = response.json()['result']
 # Import the high-level API (if available)
 try:
     from ipfs_kit_py import IPFSSimpleAPI
+
     api = IPFSSimpleAPI()
     print("High-level API available")
 except ImportError:
@@ -967,7 +964,7 @@ from ipfs_kit_py import (
     INSTALL_IPFS_AVAILABLE,
     INSTALL_LOTUS_AVAILABLE,
     INSTALL_LASSIE_AVAILABLE,
-    INSTALL_STORACHA_AVAILABLE
+    INSTALL_STORACHA_AVAILABLE,
 )
 
 print(f"IPFS: {INSTALL_IPFS_AVAILABLE}")

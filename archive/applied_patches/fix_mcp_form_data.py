@@ -12,21 +12,24 @@ import re
 import sys
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def fix_ipfs_controller_anyio():
     """Fix the form data handling issues in the MCP IPFS controller (AnyIO version)."""
-    
+
     file_path = "ipfs_kit_py/mcp/controllers/ipfs_controller_anyio.py"
-    
+
     if not os.path.exists(file_path):
         logger.error(f"File not found: {file_path}")
         return False
-    
-    with open(file_path, 'r') as f:
+
+    with open(file_path, "r") as f:
         content = f.read()
-    
+
     # Fix handle_add_request method. Locate the legacy body structurally so this
     # archive script does not retain the old swallowed-exception implementation
     # as executable-looking source text.
@@ -35,7 +38,7 @@ def fix_ipfs_controller_anyio():
         r"(?=\n\s+async def|\Z)",
         re.DOTALL,
     )
-    
+
     new_handle_add_request = """async def handle_add_request(
     self, 
     request: Request, 
@@ -153,7 +156,7 @@ def fix_ipfs_controller_anyio():
             "error": str(e),
             "error_type": type(e).__name__
         }"""
-    
+
     # Fix add_file method
     old_add_file = """async def add_file(self, file: UploadFile = File(...)) -> Dict[str, Any]:
     \"\"\"
@@ -178,7 +181,7 @@ def fix_ipfs_controller_anyio():
     if result.get("success", False) and "Hash" in result and "cid" not in result:
         result["cid"] = result["Hash"]
     return result"""
-    
+
     new_add_file = """async def add_file(
     self, 
     file: UploadFile = File(...),
@@ -222,7 +225,7 @@ def fix_ipfs_controller_anyio():
             status_code=500,
             detail=f"Error adding file: {str(e)}"
         )"""
-    
+
     # Replace the methods in the file content
     updated_content, handle_replacements = handle_add_request_pattern.subn(
         new_handle_add_request,
@@ -230,20 +233,25 @@ def fix_ipfs_controller_anyio():
         count=1,
     )
     updated_content = updated_content.replace(old_add_file, new_add_file)
-    
+
     # Check if any changes were made
     if content == updated_content:
-        logger.warning("No changes were made to the file. Make sure the target methods exist with expected signatures.")
+        logger.warning(
+            "No changes were made to the file. Make sure the target methods exist with expected signatures."
+        )
         return False
     if handle_replacements == 0:
-        logger.warning("handle_add_request method was not found with the expected legacy signature.")
-    
+        logger.warning(
+            "handle_add_request method was not found with the expected legacy signature."
+        )
+
     # Write the updated content back to the file
-    with open(file_path, 'w') as f:
+    with open(file_path, "w") as f:
         f.write(updated_content)
-    
+
     logger.info(f"Successfully updated {file_path}")
     return True
+
 
 if __name__ == "__main__":
     logger.info("Starting to fix form data handling in MCP IPFS controller")

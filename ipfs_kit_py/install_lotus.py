@@ -42,8 +42,7 @@ import importlib
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("install_lotus")
 
@@ -74,7 +73,9 @@ DEFAULT_LOTUS_VERSION = "1.24.0"
 DEFAULT_PARAMS_SECTOR_SIZE = "2KiB"
 LOTUS_GITHUB_API_URL = "https://api.github.com/repos/filecoin-project/lotus/releases"
 LOTUS_RELEASE_BASE_URL = "https://github.com/filecoin-project/lotus/releases/download"
-LOTUS_RELEASE_INFO_URL = "https://api.github.com/repos/filecoin-project/lotus/releases/tags/v{version}"
+LOTUS_RELEASE_INFO_URL = (
+    "https://api.github.com/repos/filecoin-project/lotus/releases/tags/v{version}"
+)
 
 # Filecoin trusted setup directory URL
 FILECOIN_PROOFS_URL = "https://proofs.filecoin.io/"
@@ -94,11 +95,11 @@ except ImportError:
 
 class install_lotus:
     """Class for installing and configuring Lotus components."""
-    
+
     def __init__(self, resources=None, metadata=None):
         """
         Initialize Lotus installer with resources and metadata.
-        
+
         Args:
             resources: Dictionary of resources that may be shared between components
             metadata: Dictionary of metadata for configuration
@@ -115,11 +116,11 @@ class install_lotus:
         # Initialize basic properties first
         self.resources = resources or {}
         self.metadata = metadata or {}
-        
+
         # Setup environment
         self.this_dir = os.path.dirname(os.path.realpath(__file__))
         self.env_path = os.environ.get("PATH", "")
-        
+
         # Bin directory setup - MUST be before _install_system_dependencies
         default_bin_dir = os.path.join(self.this_dir, "bin")
         metadata_bin_dir = self.metadata.get("bin_dir")
@@ -133,14 +134,18 @@ class install_lotus:
         # Ensure the resolved path is discoverable by downstream helpers
         self.metadata["bin_dir"] = self.bin_path
         os.makedirs(self.bin_path, exist_ok=True)
-        
+
         # Determine whether system dependency installation is allowed
         metadata_auto_install = self.metadata.get("auto_install_deps")
         if metadata_auto_install is None:
             env_value = (
-                os.environ.get("IPFS_KIT_AUTO_INSTALL_LOTUS_DEPS", "")
-                or os.environ.get("IPFS_KIT_AUTO_INSTALL_DEPS", "")
-            ).strip().lower()
+                (
+                    os.environ.get("IPFS_KIT_AUTO_INSTALL_LOTUS_DEPS", "")
+                    or os.environ.get("IPFS_KIT_AUTO_INSTALL_DEPS", "")
+                )
+                .strip()
+                .lower()
+            )
             if env_value:
                 self.auto_install_deps = env_value in {"1", "true", "yes", "on"}
             else:
@@ -161,20 +166,20 @@ class install_lotus:
         # where we can't install system packages (containers, restricted hosts).
         explicit_userspace = (
             self.metadata.get("allow_userspace_deps")
-            or str(os.environ.get("IPFS_KIT_ALLOW_USERSPACE_DEPS", "")).strip().lower() in {"1", "true", "yes", "on"}
-            or str(os.environ.get("IPFS_KIT_USERSPACE_LOTUS_DEPS", "")).strip().lower() in {"1", "true", "yes", "on"}
+            or str(os.environ.get("IPFS_KIT_ALLOW_USERSPACE_DEPS", "")).strip().lower()
+            in {"1", "true", "yes", "on"}
+            or str(os.environ.get("IPFS_KIT_USERSPACE_LOTUS_DEPS", "")).strip().lower()
+            in {"1", "true", "yes", "on"}
         )
 
         default_userspace = (
-            platform.system() == "Linux"
-            and os.geteuid() != 0
-            and not self._sudo_is_passwordless()
+            platform.system() == "Linux" and os.geteuid() != 0 and not self._sudo_is_passwordless()
         )
         self.allow_userspace_deps = bool(explicit_userspace or default_userspace)
 
         # Check and install system dependencies if needed
         self._install_system_dependencies()
-        
+
         # Import multiformat handler if available
         if "ipfs_multiformats" in list(self.resources.keys()):
             self.ipfs_multiformats = resources["ipfs_multiformats"]
@@ -183,13 +188,13 @@ class install_lotus:
             self.ipfs_multiformats = self.resources["ipfs_multiformats"]
         else:
             self.ipfs_multiformats = None
-            
+
         # Setup paths
         if metadata and "path" in list(metadata.keys()):
             self.path = metadata["path"]
         else:
             self.path = self.env_path
-            
+
         # Normalize paths for platform
         if platform.system() == "Windows":
             bin_path = os.path.join(self.this_dir, "bin").replace("/", "\\")
@@ -202,43 +207,43 @@ class install_lotus:
             # Ensure our selected bin dir (supports metadata["bin_dir"]) is on PATH.
             self.path = self.path + ":" + self.bin_path
             self.path_string = "PATH=" + self.path
-            
+
         # Bin directory is already set up above
-        
+
         # Temporary directory setup
         if platform.system() == "Windows":
             self.tmp_path = os.environ.get("TEMP", "/tmp")
         else:
             self.tmp_path = "/tmp"
-            
+
         # Set up binaries distribution URLs and CIDs
         self._setup_distribution_info()
-        
+
         # Extract role and paths from metadata
         self.role = metadata.get("role", "leecher") if metadata else "leecher"
         if self.role not in ["master", "worker", "leecher"]:
             logger.warning(f"Invalid role '{self.role}', defaulting to 'leecher'")
             self.role = "leecher"
-            
+
         # Set up Lotus path
         self._setup_lotus_path()
-            
+
         # Prepare method references
         self.install_lotus_daemon = self.install_lotus_daemon
         self.install_lotus_miner = self.install_lotus_miner
         self.install_lotus_worker = self.install_lotus_worker
         self.install_lotus_gateway = self.install_lotus_gateway
-        
+
         # Prepare config methods based on role
         if self.role in ["master", "worker", "leecher"] and hasattr(self, "lotus_path"):
             self.lotus_install_command = self.install_lotus_daemon
             self.lotus_config_command = self.config_lotus
-            
+
         # Set up mining components for master role
         if self.role == "master":
             self.miner_install = self.install_lotus_miner
             self.miner_config = self.config_lotus_miner
-            
+
         # Initialize disk stats if needed
         self._init_disk_stats()
 
@@ -259,7 +264,7 @@ class install_lotus:
             return True
         except Exception:
             return False
-        
+
     def _setup_distribution_info(self):
         """Set up distribution URLs and CIDs for Lotus binaries."""
         # Main Lotus binaries URLs by platform
@@ -268,18 +273,18 @@ class install_lotus:
             "macos x86_64": f"{LOTUS_RELEASE_BASE_URL}/v{DEFAULT_LOTUS_VERSION}/lotus_{DEFAULT_LOTUS_VERSION}_darwin-amd64.tar.gz",
             "linux arm64": f"{LOTUS_RELEASE_BASE_URL}/v{DEFAULT_LOTUS_VERSION}/lotus_{DEFAULT_LOTUS_VERSION}_linux-arm64.tar.gz",
             "linux x86_64": f"{LOTUS_RELEASE_BASE_URL}/v{DEFAULT_LOTUS_VERSION}/lotus_{DEFAULT_LOTUS_VERSION}_linux-amd64.tar.gz",
-            "windows x86_64": f"{LOTUS_RELEASE_BASE_URL}/v{DEFAULT_LOTUS_VERSION}/lotus_{DEFAULT_LOTUS_VERSION}_windows-amd64.zip"
+            "windows x86_64": f"{LOTUS_RELEASE_BASE_URL}/v{DEFAULT_LOTUS_VERSION}/lotus_{DEFAULT_LOTUS_VERSION}_windows-amd64.zip",
         }
-        
+
         # CIDs for content verification (can be extended with actual CIDs)
         self.lotus_dists_cids = {
             "macos arm64": "",
             "macos x86_64": "",
             "linux arm64": "",
             "linux x86_64": "",
-            "windows x86_64": ""
+            "windows x86_64": "",
         }
-    
+
     def _setup_lotus_path(self):
         """Set up Lotus data directory path based on platform and metadata."""
         if self.metadata and "lotus_path" in self.metadata:
@@ -299,11 +304,11 @@ class install_lotus:
                 self.lotus_path = os.path.join(os.path.expanduser("~"), ".lotus")
             elif platform.system() == "Darwin":
                 self.lotus_path = os.path.join(os.path.expanduser("~"), ".lotus")
-                
+
             # Create directory if it doesn't exist
             if not os.path.exists(self.lotus_path):
                 os.makedirs(self.lotus_path)
-    
+
     def _init_disk_stats(self):
         """Initialize disk statistics for the Lotus path."""
         try:
@@ -312,17 +317,12 @@ class install_lotus:
                 "disk_size": self._get_disk_total_capacity(self.lotus_path),
                 "disk_used": self._get_disk_used_capacity(self.lotus_path),
                 "disk_avail": self._get_disk_avail_capacity(self.lotus_path),
-                "disk_name": self._get_disk_device_name(self.lotus_path)
+                "disk_name": self._get_disk_device_name(self.lotus_path),
             }
         except Exception as e:
             logger.warning(f"Failed to get disk stats: {e}")
-            self.disk_stats = {
-                "disk_size": 0,
-                "disk_used": 0,
-                "disk_avail": 0,
-                "disk_name": ""
-            }
-    
+            self.disk_stats = {"disk_size": 0, "disk_used": 0, "disk_avail": 0, "disk_name": ""}
+
     def _get_disk_device_name(self, path):
         """Get device name for the disk containing the specified path."""
         try:
@@ -333,19 +333,20 @@ class install_lotus:
             else:
                 # Use df command on Unix-like systems
                 result = subprocess.check_output(["df", path], universal_newlines=True)
-                lines = result.strip().split('\n')
+                lines = result.strip().split("\n")
                 if len(lines) > 1:
                     return lines[1].split()[0]
                 return ""
         except Exception as e:
             logger.warning(f"Failed to get disk device name: {e}")
             return ""
-    
+
     def _get_disk_total_capacity(self, path):
         """Get total capacity of the disk containing the specified path."""
         try:
             if platform.system() == "Windows":
                 import ctypes
+
                 drive = os.path.splitdrive(path)[0]
                 if not drive:
                     drive = "C:"
@@ -354,16 +355,13 @@ class install_lotus:
                 freeClusters = ctypes.c_ulonglong(0)
                 totalClusters = ctypes.c_ulonglong(0)
                 ctypes.windll.kernel32.GetDiskFreeSpaceExW(
-                    ctypes.c_wchar_p(drive), 
-                    None, 
-                    ctypes.pointer(totalClusters), 
-                    None
+                    ctypes.c_wchar_p(drive), None, ctypes.pointer(totalClusters), None
                 )
                 return totalClusters.value
             else:
                 # Use df command on Unix-like systems
                 result = subprocess.check_output(["df", "-k", path], universal_newlines=True)
-                lines = result.strip().split('\n')
+                lines = result.strip().split("\n")
                 if len(lines) > 1:
                     # Convert KB to bytes
                     return int(lines[1].split()[1]) * 1024
@@ -371,28 +369,29 @@ class install_lotus:
         except Exception as e:
             logger.warning(f"Failed to get disk total capacity: {e}")
             return 0
-    
+
     def _get_disk_used_capacity(self, path):
         """Get used capacity of the disk containing the specified path."""
         try:
             if platform.system() == "Windows":
                 import ctypes
+
                 drive = os.path.splitdrive(path)[0]
                 if not drive:
                     drive = "C:"
                 totalBytes = ctypes.c_ulonglong(0)
                 freeBytes = ctypes.c_ulonglong(0)
                 ctypes.windll.kernel32.GetDiskFreeSpaceExW(
-                    ctypes.c_wchar_p(drive), 
-                    None, 
-                    ctypes.pointer(totalBytes), 
-                    ctypes.pointer(freeBytes)
+                    ctypes.c_wchar_p(drive),
+                    None,
+                    ctypes.pointer(totalBytes),
+                    ctypes.pointer(freeBytes),
                 )
                 return totalBytes.value - freeBytes.value
             else:
                 # Use df command on Unix-like systems
                 result = subprocess.check_output(["df", "-k", path], universal_newlines=True)
-                lines = result.strip().split('\n')
+                lines = result.strip().split("\n")
                 if len(lines) > 1:
                     # Convert KB to bytes
                     return int(lines[1].split()[2]) * 1024
@@ -400,27 +399,25 @@ class install_lotus:
         except Exception as e:
             logger.warning(f"Failed to get disk used capacity: {e}")
             return 0
-    
+
     def _get_disk_avail_capacity(self, path):
         """Get available capacity of the disk containing the specified path."""
         try:
             if platform.system() == "Windows":
                 import ctypes
+
                 drive = os.path.splitdrive(path)[0]
                 if not drive:
                     drive = "C:"
                 freeBytes = ctypes.c_ulonglong(0)
                 ctypes.windll.kernel32.GetDiskFreeSpaceExW(
-                    ctypes.c_wchar_p(drive), 
-                    None, 
-                    None, 
-                    ctypes.pointer(freeBytes)
+                    ctypes.c_wchar_p(drive), None, None, ctypes.pointer(freeBytes)
                 )
                 return freeBytes.value
             else:
                 # Use df command on Unix-like systems
                 result = subprocess.check_output(["df", "-k", path], universal_newlines=True)
-                lines = result.strip().split('\n')
+                lines = result.strip().split("\n")
                 if len(lines) > 1:
                     # Convert KB to bytes
                     return int(lines[1].split()[3]) * 1024
@@ -432,7 +429,7 @@ class install_lotus:
     def hardware_detect(self):
         """
         Detect hardware platform for binary selection.
-        
+
         Returns:
             Dictionary with system, processor, and architecture information
         """
@@ -440,12 +437,12 @@ class install_lotus:
         system = platform.system()
         processor = platform.processor()
         machine = platform.machine()
-        
+
         results = {
-            "system": system, 
-            "processor": processor, 
+            "system": system,
+            "processor": processor,
             "architecture": architecture,
-            "machine": machine
+            "machine": machine,
         }
         return results
 
@@ -453,7 +450,7 @@ class install_lotus:
         """
         Select the appropriate distribution based on hardware detection.
         Uses platform.machine() as primary detection method for better ARM64 support.
-        
+
         Returns:
             String identifier for the platform (e.g., "linux arm64")
         """
@@ -475,7 +472,9 @@ class install_lotus:
         else:
             # Fallback heuristics
             if "apple" in processor:
-                aarch = "arm64" if ("arm" in machine or "64" in hardware["architecture"]) else "x86_64"
+                aarch = (
+                    "arm64" if ("arm" in machine or "64" in hardware["architecture"]) else "x86_64"
+                )
             elif "arm" in processor or "aarch64" in processor:
                 aarch = "arm64" if "64" in hardware["architecture"] else "arm"
             elif "64" in hardware["architecture"]:
@@ -488,7 +487,7 @@ class install_lotus:
     def get_latest_lotus_version(self):
         """
         Get the latest stable Lotus release version from GitHub.
-        
+
         Returns:
             Version string (e.g., "1.24.0")
         """
@@ -499,15 +498,17 @@ class install_lotus:
                     # Skip pre-releases
                     if release.get("prerelease", False):
                         continue
-                    
+
                     tag_name = release["tag_name"]
                     # Extract version number (e.g., "1.23.0" from "v1.23.0")
                     match = re.match(r"v?(\d+\.\d+\.\d+)", tag_name)
                     if match:
                         return match.group(1)
-                
+
                 # If no suitable release found, return default
-                logger.warning(f"Could not find latest release, using default: {DEFAULT_LOTUS_VERSION}")
+                logger.warning(
+                    f"Could not find latest release, using default: {DEFAULT_LOTUS_VERSION}"
+                )
                 return DEFAULT_LOTUS_VERSION
         except Exception as e:
             logger.warning(f"Error checking latest release: {e}")
@@ -517,10 +518,10 @@ class install_lotus:
     def get_release_info(self, version=None):
         """
         Get information about a specific Lotus release.
-        
+
         Args:
             version: Lotus version string (e.g., "1.23.0"), or None for default
-            
+
         Returns:
             Dictionary with release information
         """
@@ -529,7 +530,7 @@ class install_lotus:
                 version = self.metadata["version"]
             else:
                 version = self.get_latest_lotus_version()
-                
+
         url = LOTUS_RELEASE_INFO_URL.format(version=version)
         try:
             with urllib.request.urlopen(url) as response:
@@ -547,12 +548,12 @@ class install_lotus:
     def get_download_url(self, release_info, os_name=None, arch=None):
         """
         Get the download URL for Lotus binaries from release info.
-        
+
         Args:
             release_info: Release information dictionary
             os_name: Operating system name (e.g., "linux"), or None to detect
             arch: Architecture name (e.g., "amd64"), or None to detect
-            
+
         Returns:
             Tuple of (download_url, filename)
         """
@@ -560,27 +561,25 @@ class install_lotus:
             platform_info = self.dist_select().split()
             if os_name is None:
                 os_name = platform_info[0]
-            
+
             if arch is None:
-                arch_map = {
-                    "x86_64": "amd64",
-                    "x86": "386",
-                    "arm64": "arm64"
-                }
+                arch_map = {"x86_64": "amd64", "x86": "386", "arm64": "arm64"}
                 arch = arch_map.get(platform_info[1], "amd64")
-        
+
         # Construct expected asset name pattern.
         # Lotus releases have used both underscore and hyphen separators over time.
         # Examples observed upstream:
         # - lotus_v1.34.3_darwin_arm64.tar.gz
         # - lotus_v1.34.3_linux_amd64_v1.tar.gz
-        asset_pattern = rf"^lotus_.*_{re.escape(os_name)}[-_]{re.escape(arch)}(?:_v\d+)?\.(?:tar\.gz|zip)$"
-        
+        asset_pattern = (
+            rf"^lotus_.*_{re.escape(os_name)}[-_]{re.escape(arch)}(?:_v\d+)?\.(?:tar\.gz|zip)$"
+        )
+
         for asset in release_info.get("assets", []):
             name = asset.get("name", "")
             if re.match(asset_pattern, name):
                 return asset["browser_download_url"], name
-        
+
         logger.warning(
             f"Could not find download for {os_name}_{arch} in release {release_info.get('tag_name')}"
         )
@@ -589,16 +588,16 @@ class install_lotus:
     def download_file(self, url, dest_path):
         """
         Download a file with progress reporting.
-        
+
         Args:
             url: URL to download
             dest_path: Destination file path
-            
+
         Returns:
             True if successful, False otherwise
         """
         logger.info(f"Downloading from {url}")
-        
+
         try:
             # Implement a simple progress reporter
             def report_progress(block_count, block_size, total_size):
@@ -606,7 +605,7 @@ class install_lotus:
                     percent = min(100, block_count * block_size * 100 / total_size)
                     sys.stdout.write(f"\rDownload progress: {percent:.1f}%")
                     sys.stdout.flush()
-            
+
             urllib.request.urlretrieve(url, dest_path, reporthook=report_progress)
             print()  # New line after progress reporting
             logger.info(f"Download completed: {dest_path}")
@@ -618,37 +617,39 @@ class install_lotus:
     def verify_download(self, file_path, expected_hash=None):
         """
         Verify the integrity of a downloaded file.
-        
+
         Args:
             file_path: Path to downloaded file
             expected_hash: Expected SHA256 hash (optional)
-            
+
         Returns:
             True if verification passes
         """
         if not os.path.exists(file_path):
             logger.error(f"File does not exist: {file_path}")
             return False
-        
+
         # If no hash provided, just check file size
         if not expected_hash:
             size = os.path.getsize(file_path)
             if size < 1000000:  # Less than 1MB is suspicious
                 logger.warning(f"Downloaded file is suspiciously small: {size} bytes")
             return True
-        
+
         # Verify hash if provided
         try:
             sha256 = hashlib.sha256()
             with open(file_path, "rb") as f:
                 for block in iter(lambda: f.read(65536), b""):
                     sha256.update(block)
-            
+
             actual_hash = sha256.hexdigest()
             if actual_hash != expected_hash.lower():
-                logger.error(f"Hash verification failed. Expected: {expected_hash}, Got: {actual_hash}")
+                logger.error(
+                    f"Hash verification failed. Expected: {expected_hash}, Got: {actual_hash}"
+                )
                 return False
-                
+
             logger.info("Hash verification passed")
             return True
         except Exception as e:
@@ -658,16 +659,16 @@ class install_lotus:
     def extract_archive(self, archive_path, extract_dir):
         """
         Extract downloaded archive.
-        
+
         Args:
             archive_path: Path to the archive file
             extract_dir: Directory to extract to
-            
+
         Returns:
             True if successful, False otherwise
         """
         logger.info(f"Extracting archive to {extract_dir}")
-        
+
         try:
             if archive_path.endswith(".tar.gz"):
                 with tarfile.open(archive_path, "r:gz") as tar:
@@ -677,7 +678,7 @@ class install_lotus:
             else:
                 logger.error(f"Unsupported archive format: {archive_path}")
                 return False
-                
+
             logger.info("Extraction completed")
             return True
         except Exception as e:
@@ -687,54 +688,54 @@ class install_lotus:
     def find_binary_in_dir(self, directory, binary_name):
         """
         Find a binary file in a directory structure.
-        
+
         Args:
             directory: Base directory to search in
             binary_name: Name of the binary to find
-            
+
         Returns:
             Full path to the binary if found, None otherwise
         """
         if platform.system() == "Windows" and not binary_name.endswith(".exe"):
             binary_name += ".exe"
-            
+
         # Look for the binary in the directory and its subdirectories
         for root, _, files in os.walk(directory):
             if binary_name in files:
                 return os.path.join(root, binary_name)
-                
+
         return None
 
     def install_binaries(self, source_dir, bin_dir):
         """
         Install Lotus binaries to the bin directory.
-        
+
         Args:
             source_dir: Directory containing extracted binaries
             bin_dir: Target bin directory
-            
+
         Returns:
             List of installed binary paths
         """
         logger.info(f"Installing Lotus binaries to {bin_dir}")
-        
+
         # Create bin directory if it doesn't exist
         os.makedirs(bin_dir, exist_ok=True)
-        
+
         installed_binaries = []
-        
+
         # Find and install each binary
         for binary in LOTUS_BINARIES:
             binary_name = binary
             if platform.system() == "Windows":
                 binary_name += ".exe"
-            
+
             # Look for the binary in source_dir and its subdirectories
             binary_path = self.find_binary_in_dir(source_dir, binary_name)
-            
+
             if binary_path:
                 dest_path = os.path.join(bin_dir, binary_name)
-                
+
                 # Copy and set executable permissions
                 shutil.copy2(binary_path, dest_path)
                 if platform.system() != "Windows":
@@ -744,12 +745,12 @@ class install_lotus:
                 # runnable without requiring the user to manually set env vars.
                 if bin_dir == getattr(self, "bin_path", None):
                     self._wrap_binary_for_userspace_libs(dest_path)
-                
+
                 logger.info(f"Installed {binary_name}")
                 installed_binaries.append(dest_path)
             else:
                 logger.warning(f"Could not find binary: {binary_name}")
-        
+
         logger.info("Binary installation completed")
         return installed_binaries
 
@@ -779,31 +780,35 @@ class install_lotus:
             return True, output.strip()
         except (subprocess.SubprocessError, FileNotFoundError, OSError) as exc:
             # Capture as much diagnostic detail as possible for logging.
-            if isinstance(exc, subprocess.SubprocessError) and hasattr(exc, "output") and exc.output:
+            if (
+                isinstance(exc, subprocess.SubprocessError)
+                and hasattr(exc, "output")
+                and exc.output
+            ):
                 message = exc.output
             else:
                 message = str(exc)
             return False, message
-        
+
     def _install_system_dependencies(self):
         """
         Detect and install system dependencies required by Lotus.
-        
+
         This method checks for required system libraries and installs
         them if missing, using the appropriate package manager for the
         detected operating system.
-        
+
         This implementation includes:
         - Improved detection of installed libraries
         - Better handling of package manager locks
         - Fallback mechanisms when system package managers fail
         - Comprehensive error handling and retry logic
-        
+
         Returns:
             bool: True if dependencies are available or successfully installed
         """
         logger.info("Checking for required system dependencies...")
-        
+
         # Detect operating system
         os_name = platform.system().lower()
 
@@ -811,7 +816,7 @@ class install_lotus:
             logger.info("Windows platform detected; skipping Lotus system dependency checks")
             self.dependencies_available = True
             return True
-        
+
         # Define dependencies by OS
         dependencies = {
             "linux": {
@@ -819,33 +824,61 @@ class install_lotus:
                     "packages": ["hwloc", "libhwloc-dev", "mesa-opencl-icd", "ocl-icd-opencl-dev"],
                     "install_cmd": ["apt-get", "update"],
                     "package_cmd": ["apt-get", "install", "-y"],
-                    "alternative_package_cmd": ["apt-get", "install", "-y", "--no-install-recommends"],
-                    "lock_files": ["/var/lib/apt/lists/lock", "/var/lib/dpkg/lock", "/var/lib/dpkg/lock-frontend"],
-                    "package_check_cmd": ["dpkg", "-s"]
+                    "alternative_package_cmd": [
+                        "apt-get",
+                        "install",
+                        "-y",
+                        "--no-install-recommends",
+                    ],
+                    "lock_files": [
+                        "/var/lib/apt/lists/lock",
+                        "/var/lib/dpkg/lock",
+                        "/var/lib/dpkg/lock-frontend",
+                    ],
+                    "package_check_cmd": ["dpkg", "-s"],
                 },
                 "debian": {
                     "packages": ["hwloc", "libhwloc-dev", "mesa-opencl-icd", "ocl-icd-opencl-dev"],
                     "install_cmd": ["apt-get", "update"],
                     "package_cmd": ["apt-get", "install", "-y"],
-                    "alternative_package_cmd": ["apt-get", "install", "-y", "--no-install-recommends"],
-                    "lock_files": ["/var/lib/apt/lists/lock", "/var/lib/dpkg/lock", "/var/lib/dpkg/lock-frontend"],
-                    "package_check_cmd": ["dpkg", "-s"]
+                    "alternative_package_cmd": [
+                        "apt-get",
+                        "install",
+                        "-y",
+                        "--no-install-recommends",
+                    ],
+                    "lock_files": [
+                        "/var/lib/apt/lists/lock",
+                        "/var/lib/dpkg/lock",
+                        "/var/lib/dpkg/lock-frontend",
+                    ],
+                    "package_check_cmd": ["dpkg", "-s"],
                 },
                 "fedora": {
                     "packages": ["hwloc", "hwloc-devel", "opencl-headers", "ocl-icd-devel"],
                     "install_cmd": ["dnf", "check-update"],
                     "package_cmd": ["dnf", "install", "-y"],
-                    "alternative_package_cmd": ["dnf", "install", "-y", "--setopt=install_weak_deps=False"],
+                    "alternative_package_cmd": [
+                        "dnf",
+                        "install",
+                        "-y",
+                        "--setopt=install_weak_deps=False",
+                    ],
                     "lock_files": ["/var/lib/dnf/lock"],
-                    "package_check_cmd": ["rpm", "-q"]
+                    "package_check_cmd": ["rpm", "-q"],
                 },
                 "centos": {
                     "packages": ["hwloc", "hwloc-devel", "opencl-headers", "ocl-icd-devel"],
                     "install_cmd": ["yum", "check-update"],
                     "package_cmd": ["yum", "install", "-y"],
-                    "alternative_package_cmd": ["yum", "install", "-y", "--setopt=install_weak_deps=False"],
+                    "alternative_package_cmd": [
+                        "yum",
+                        "install",
+                        "-y",
+                        "--setopt=install_weak_deps=False",
+                    ],
                     "lock_files": ["/var/run/yum.pid"],
-                    "package_check_cmd": ["rpm", "-q"]
+                    "package_check_cmd": ["rpm", "-q"],
                 },
                 "alpine": {
                     "packages": ["hwloc", "hwloc-dev", "opencl-headers", "opencl-icd-loader-dev"],
@@ -853,7 +886,7 @@ class install_lotus:
                     "package_cmd": ["apk", "add"],
                     "alternative_package_cmd": ["apk", "add", "--no-cache"],
                     "lock_files": ["/var/lib/apk/lock"],
-                    "package_check_cmd": ["apk", "info", "-e"]
+                    "package_check_cmd": ["apk", "info", "-e"],
                 },
                 "arch": {
                     "packages": ["hwloc", "opencl-headers", "opencl-icd-loader"],
@@ -861,8 +894,8 @@ class install_lotus:
                     "package_cmd": ["pacman", "-S", "--noconfirm"],
                     "alternative_package_cmd": ["pacman", "-S", "--noconfirm", "--needed"],
                     "lock_files": ["/var/lib/pacman/db.lck"],
-                    "package_check_cmd": ["pacman", "-Qi"]
-                }
+                    "package_check_cmd": ["pacman", "-Qi"],
+                },
             },
             "darwin": {
                 "packages": ["hwloc"],
@@ -870,10 +903,10 @@ class install_lotus:
                 "package_cmd": ["brew", "install"],
                 "alternative_package_cmd": ["brew", "install", "--force"],
                 "lock_files": [],  # Homebrew doesn't use lock files in the same way
-                "package_check_cmd": ["brew", "list"]
-            }
+                "package_check_cmd": ["brew", "list"],
+            },
         }
-        
+
         # Detect library directly first, regardless of OS - most reliable method
         # This will work even if package management is broken or unavailable
         if self._check_hwloc_library_direct():
@@ -931,8 +964,10 @@ class install_lotus:
                 self.dependencies_available = False
                 return False
 
-        logger.info("Automatic dependency installation enabled; attempting to install prerequisites.")
-            
+        logger.info(
+            "Automatic dependency installation enabled; attempting to install prerequisites."
+        )
+
         # Continue with OS-specific package management
         if os_name == "linux":
             result = self._install_linux_dependencies(dependencies)
@@ -967,26 +1002,26 @@ class install_lotus:
             return True
         env_value = str(os.environ.get("IPFS_KIT_LOTUS_BUILD_SOURCE", "")).strip().lower()
         return env_value in {"1", "true", "yes", "on"}
-                
+
     def _check_hwloc_library_direct(self):
         """
         Check for libhwloc library files directly on the system.
-        
+
         This is a more reliable method than checking package installation
         as it directly verifies the library files exist.
-        
+
         Returns:
             bool: True if libhwloc is found, False otherwise
         """
         # Common library paths to check
         lib_paths = [
-            "/usr/lib", 
+            "/usr/lib",
             "/usr/lib/x86_64-linux-gnu",  # Debian/Ubuntu x86_64
             "/usr/lib/aarch64-linux-gnu",  # Debian/Ubuntu ARM64
             "/usr/lib/arm-linux-gnueabihf",  # Debian/Ubuntu ARM32
-            "/usr/local/lib", 
-            "/lib", 
-            "/lib64", 
+            "/usr/local/lib",
+            "/lib",
+            "/lib64",
             "/usr/lib64",
             # Add homebrew paths for macOS
             "/usr/local/opt/hwloc/lib",
@@ -997,23 +1032,23 @@ class install_lotus:
             os.path.join(self.bin_path),
             os.path.join(self.bin_path, "lib"),
         ]
-        
+
         # Library name patterns to look for (covering different versions)
         lib_patterns = [
-            "libhwloc.so",       # Base name
-            "libhwloc.so.15",    # Specific version
-            "libhwloc.so.5",     # Older version
-            "libhwloc.so.15.5.0", # Full versioned name
-            "libhwloc.dylib",    # macOS
-            "libhwloc.15.dylib", # macOS versioned
-            "hwloc.dll",         # Windows
+            "libhwloc.so",  # Base name
+            "libhwloc.so.15",  # Specific version
+            "libhwloc.so.5",  # Older version
+            "libhwloc.so.15.5.0",  # Full versioned name
+            "libhwloc.dylib",  # macOS
+            "libhwloc.15.dylib",  # macOS versioned
+            "hwloc.dll",  # Windows
         ]
-        
+
         # Check each path for matching libraries
         for path in lib_paths:
             if not os.path.exists(path):
                 continue
-                
+
             try:
                 # Look for any matching library in this path
                 for filename in os.listdir(path):
@@ -1025,15 +1060,12 @@ class install_lotus:
                 # Skip paths we can't access
                 logger.debug(f"Could not access {path}: {e}")
                 continue
-                
+
         # Also try using ldconfig to find the library (Linux only)
         if platform.system() == "Linux":
             try:
                 result = subprocess.run(
-                    ["ldconfig", "-p"], 
-                    capture_output=True, 
-                    text=True, 
-                    check=False
+                    ["ldconfig", "-p"], capture_output=True, text=True, check=False
                 )
                 if result.returncode == 0:
                     for line in result.stdout.splitlines():
@@ -1042,7 +1074,7 @@ class install_lotus:
                             return True
             except (subprocess.SubprocessError, FileNotFoundError):
                 pass
-                
+
         # Library not found
         return False
 
@@ -1075,7 +1107,9 @@ class install_lotus:
         # Only wrap if we actually have something that looks like a shared library.
         try:
             has_libs = any(
-                name.startswith("libhwloc") or name.startswith("libOpenCL") or name.endswith((".so", ".dylib"))
+                name.startswith("libhwloc")
+                or name.startswith("libOpenCL")
+                or name.endswith((".so", ".dylib"))
                 for name in os.listdir(lib_dir)
             )
         except OSError:
@@ -1150,24 +1184,15 @@ exec "$BIN_DIR/{real_basename}" "$@"
         if distro in RPM_DISTROS:
             packages = " ".join(REQUIRED_DEPENDENCY_PACKAGES["rpm"])
             install_cmd = "dnf" if distro == "fedora" else "yum"
-            return (
-                "Install Lotus prerequisites with:"
-                f" sudo {install_cmd} install -y {packages}"
-            )
+            return f"Install Lotus prerequisites with: sudo {install_cmd} install -y {packages}"
 
         if distro in APK_DISTROS:
             packages = " ".join(REQUIRED_DEPENDENCY_PACKAGES["apk"])
-            return (
-                "Install Lotus prerequisites with:"
-                f" sudo apk add {packages}"
-            )
+            return f"Install Lotus prerequisites with: sudo apk add {packages}"
 
         if distro in PACMAN_DISTROS:
             packages = " ".join(REQUIRED_DEPENDENCY_PACKAGES["pacman"])
-            return (
-                "Install Lotus prerequisites with:"
-                f" sudo pacman -S --needed {packages}"
-            )
+            return f"Install Lotus prerequisites with: sudo pacman -S --needed {packages}"
 
         if os_name == "darwin":
             packages = " ".join(BREW_DEPENDENCIES)
@@ -1187,10 +1212,10 @@ exec "$BIN_DIR/{real_basename}" "$@"
     def _check_package_manager_available(self, distro_deps):
         """
         Check if package manager is available and not locked.
-        
+
         Args:
             distro_deps: Dictionary with distribution dependencies info
-            
+
         Returns:
             tuple: (bool indicating availability, string with lock info if locked)
         """
@@ -1206,77 +1231,83 @@ exec "$BIN_DIR/{real_basename}" "$@"
                             # Check if process exists
                             try:
                                 os.kill(pid, 0)
-                                lock_info.append(f"Lock file {lock_file} is held by active process {pid}")
+                                lock_info.append(
+                                    f"Lock file {lock_file} is held by active process {pid}"
+                                )
                             except OSError:
-                                lock_info.append(f"Lock file {lock_file} exists but process {pid} is not running (stale lock)")
+                                lock_info.append(
+                                    f"Lock file {lock_file} exists but process {pid} is not running (stale lock)"
+                                )
                         except ValueError:
                             # Not a PID in the file
                             lock_info.append(f"Lock file {lock_file} exists")
                 except (PermissionError, IOError):
                     # Can't read the file
                     lock_info.append(f"Lock file {lock_file} exists but cannot be read")
-                    
+
         if lock_info:
             return False, ", ".join(lock_info)
-            
+
         # Check if package manager commands exist
         try:
             if distro_deps.get("package_check_cmd"):
                 check_cmd = distro_deps["package_check_cmd"][0]
-                subprocess.run([check_cmd, "--help"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                subprocess.run(
+                    [check_cmd, "--help"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                )
                 return True, None
         except (subprocess.SubprocessError, FileNotFoundError):
             return False, "Package manager not found or not functioning"
-            
+
         return True, None
-        
+
     def _wait_for_lock_release(self, distro_deps, timeout=300):
         """
         Wait for package manager locks to be released.
-        
+
         Args:
             distro_deps: Dictionary with distribution dependencies info
             timeout: Maximum time to wait in seconds
-            
+
         Returns:
             bool: True if locks were released, False if timed out
         """
         logger.info(f"Waiting for package manager locks to be released (timeout: {timeout}s)...")
-        
+
         start_time = time.time()
         while time.time() - start_time < timeout:
             available, lock_info = self._check_package_manager_available(distro_deps)
             if available:
                 logger.info("Package manager is now available")
                 return True
-                
+
             # Wait before checking again
             wait_time = min(10, timeout / 10)  # Wait up to 10 seconds between checks
             logger.debug(f"Package manager still locked: {lock_info}. Waiting {wait_time}s...")
             time.sleep(wait_time)
-            
+
         logger.error(f"Timed out waiting for package manager locks ({timeout}s)")
         return False
-        
+
     def _check_packages_installed(self, distro, distro_deps, packages):
         """
         Check which packages are missing using the appropriate package manager.
-        
+
         Args:
             distro: Distribution name
             distro_deps: Dictionary with distribution dependencies info
             packages: List of packages to check
-            
+
         Returns:
             list: List of missing packages
         """
         missing_packages = []
-        
+
         for package in packages:
             # For hwloc, we can also check for the library directly
             if package == "hwloc" and self._check_hwloc_library_direct():
                 continue
-                
+
             # Check using package manager
             try:
                 if distro_deps.get("package_check_cmd"):
@@ -1287,9 +1318,9 @@ exec "$BIN_DIR/{real_basename}" "$@"
             except (subprocess.SubprocessError, FileNotFoundError):
                 # If command fails, assume package is missing
                 missing_packages.append(package)
-                
+
         return missing_packages
-        
+
     def _try_direct_library_installation(self):
         """
         Try to install required runtime libraries into the package bin directory.
@@ -1297,12 +1328,12 @@ exec "$BIN_DIR/{real_basename}" "$@"
         This is a fallback for environments where root/sudo isn't available. On Debian/Ubuntu
         systems, we attempt `apt-get download` + `dpkg-deb -x` (no root required) and copy
         shared libraries into `bin/lib`.
-        
+
         Returns:
             bool: True if successful, False otherwise
         """
         logger.info("Attempting user-space library installation...")
-        
+
         # Create lib directory in bin folder if it doesn't exist
         lib_dir = os.path.join(self.bin_path, "lib")
         os.makedirs(lib_dir, exist_ok=True)
@@ -1316,7 +1347,7 @@ exec "$BIN_DIR/{real_basename}" "$@"
                 return True
             if self._try_userspace_rpm_library_install(lib_dir=lib_dir):
                 return True
-        
+
         # HWLoc binary URLs by platform (legacy fallback)
         hwloc_bins = {
             "linux-x86_64": "https://github.com/open-mpi/hwloc/releases/download/hwloc-2.8.0/hwloc-2.8.0-linux-x86_64.tar.gz",
@@ -1324,11 +1355,11 @@ exec "$BIN_DIR/{real_basename}" "$@"
             "macos-x86_64": "https://github.com/open-mpi/hwloc/releases/download/hwloc-2.8.0/hwloc-2.8.0-darwin-x86_64.tar.gz",
             "macos-arm64": "https://github.com/open-mpi/hwloc/releases/download/hwloc-2.8.0/hwloc-2.8.0-darwin-x86_64.tar.gz",  # Use x86_64 for arm64 too
         }
-        
+
         # Determine platform
         os_name = platform.system().lower()
         arch = platform.machine().lower()
-        
+
         # Map architecture to expected format
         if "x86_64" in arch or "amd64" in arch:
             arch = "x86_64"
@@ -1337,63 +1368,72 @@ exec "$BIN_DIR/{real_basename}" "$@"
         else:
             logger.error(f"Unsupported architecture for direct hwloc installation: {arch}")
             return False
-            
+
         # Get download URL
         platform_key = f"{os_name}-{arch}"
         if platform_key not in hwloc_bins:
             logger.error(f"No direct hwloc download available for {platform_key}")
             return False
-            
+
         url = hwloc_bins[platform_key]
-        
+
         try:
             # Download hwloc binary package
             with tempfile.TemporaryDirectory() as temp_dir:
                 tar_path = os.path.join(temp_dir, "hwloc.tar.gz")
-                
+
                 # Download file
                 logger.info(f"Downloading hwloc from {url}...")
                 urllib.request.urlretrieve(url, tar_path)
-                
+
                 # Extract archive
                 logger.info("Extracting hwloc library...")
                 with tarfile.open(tar_path, "r:gz") as tar:
                     tar.extractall(path=temp_dir)
-                    
+
                 # Find extracted directory (should be only one)
-                extracted_dirs = [d for d in os.listdir(temp_dir) 
-                                 if os.path.isdir(os.path.join(temp_dir, d)) and d.startswith("hwloc")]
+                extracted_dirs = [
+                    d
+                    for d in os.listdir(temp_dir)
+                    if os.path.isdir(os.path.join(temp_dir, d)) and d.startswith("hwloc")
+                ]
                 if not extracted_dirs:
                     logger.error("Could not find extracted hwloc directory")
                     return False
-                    
+
                 # Copy library files to bin/lib directory
                 extract_path = os.path.join(temp_dir, extracted_dirs[0])
                 lib_src_dir = os.path.join(extract_path, "lib")
-                
+
                 # Check if the lib directory exists
                 if not os.path.isdir(lib_src_dir):
-                    logger.error(f"Could not find lib directory in extracted hwloc package: {lib_src_dir}")
+                    logger.error(
+                        f"Could not find lib directory in extracted hwloc package: {lib_src_dir}"
+                    )
                     return False
-                    
+
                 # Copy all .so files
                 copied_files = []
                 for filename in os.listdir(lib_src_dir):
-                    if filename.endswith(".so") or filename.endswith(".dylib") or filename.endswith(".dll"):
+                    if (
+                        filename.endswith(".so")
+                        or filename.endswith(".dylib")
+                        or filename.endswith(".dll")
+                    ):
                         src_path = os.path.join(lib_src_dir, filename)
                         dst_path = os.path.join(lib_dir, filename)
                         shutil.copy2(src_path, dst_path)
                         copied_files.append(filename)
-                        
+
                 if not copied_files:
                     logger.error("No library files found to copy")
                     return False
-                    
+
                 logger.info(f"Installed hwloc libraries directly: {', '.join(copied_files)}")
 
                 # Ensure common -l<name> symlinks exist for building/linking.
                 self._ensure_userspace_linker_symlinks(lib_dir)
-                
+
                 # Create an LD_LIBRARY_PATH file to help with runtime loading
                 ldpath_script = os.path.join(self.bin_path, "set_lotus_env.sh")
                 with open(ldpath_script, "w") as f:
@@ -1402,9 +1442,9 @@ exec "$BIN_DIR/{real_basename}" "$@"
 export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
 """)
                 os.chmod(ldpath_script, 0o755)
-                
+
                 return True
-                
+
         except Exception as e:
             logger.error(f"Error during direct hwloc installation: {e}")
             return False
@@ -1418,7 +1458,11 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                 logger.debug(
                     "Userspace apt library install unavailable (missing tools): %s",
                     ", ".join(
-                        [name for name, path in (("apt-get", apt_get), ("dpkg-deb", dpkg_deb)) if not path]
+                        [
+                            name
+                            for name, path in (("apt-get", apt_get), ("dpkg-deb", dpkg_deb))
+                            if not path
+                        ]
                     ),
                 )
                 return False
@@ -1459,7 +1503,9 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                         continue
 
                 if not downloaded:
-                    logger.debug("Userspace apt library install: no .deb packages could be downloaded")
+                    logger.debug(
+                        "Userspace apt library install: no .deb packages could be downloaded"
+                    )
                     return False
 
                 extract_root = os.path.join(temp_dir, "extract")
@@ -1516,9 +1562,9 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                     f.write(
                         "#!/usr/bin/env bash\n"
                         "# Set env for Lotus binaries using user-space deps\n"
-                        f"export LD_LIBRARY_PATH=\"{lib_dir}:$LD_LIBRARY_PATH\"\n"
-                        f"export DYLD_LIBRARY_PATH=\"{lib_dir}:$DYLD_LIBRARY_PATH\"\n"
-                        f"if [ -d \"{vendors_dir}\" ]; then export OCL_ICD_VENDORS=\"{vendors_dir}\"; fi\n"
+                        f'export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"\n'
+                        f'export DYLD_LIBRARY_PATH="{lib_dir}:$DYLD_LIBRARY_PATH"\n'
+                        f'if [ -d "{vendors_dir}" ]; then export OCL_ICD_VENDORS="{vendors_dir}"; fi\n'
                     )
                 os.chmod(ldpath_script, 0o755)
 
@@ -1556,7 +1602,13 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
 
         wanted = {
             "libhwloc.so": ["libhwloc.so.15", "libhwloc.so.5", "libhwloc.so.*"],
-            "libOpenCL.so": ["libOpenCL.so.1", "libOpenCL.so.1.0.0", "libOpenCL.so.*", "libMesaOpenCL.so.1", "libMesaOpenCL.so.1.0.0"],
+            "libOpenCL.so": [
+                "libOpenCL.so.1",
+                "libOpenCL.so.1.0.0",
+                "libOpenCL.so.*",
+                "libMesaOpenCL.so.1",
+                "libMesaOpenCL.so.1.0.0",
+            ],
         }
 
         for link_name, candidates in wanted.items():
@@ -1588,7 +1640,11 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                 logger.debug(
                     "Userspace RPM library install unavailable (missing tools): %s",
                     ", ".join(
-                        [name for name, path in (("rpm2cpio", rpm2cpio), ("cpio", cpio)) if not path]
+                        [
+                            name
+                            for name, path in (("rpm2cpio", rpm2cpio), ("cpio", cpio))
+                            if not path
+                        ]
                     ),
                 )
                 return False
@@ -1636,18 +1692,24 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                     if result.returncode != 0:
                         return []
                     after = set(os.listdir(temp_dir))
-                    return [os.path.join(temp_dir, f) for f in (after - before) if f.endswith(".rpm")]
+                    return [
+                        os.path.join(temp_dir, f) for f in (after - before) if f.endswith(".rpm")
+                    ]
 
                 for pkg in candidates:
                     try:
                         rpms: List[str] = []
                         if dnf:
-                            rpms = _download_with([dnf, "-y", "download", "--destdir", temp_dir], pkg)
+                            rpms = _download_with(
+                                [dnf, "-y", "download", "--destdir", temp_dir], pkg
+                            )
                         if not rpms and yumdownloader:
                             rpms = _download_with([yumdownloader, "--destdir", temp_dir], pkg)
                         if not rpms and microdnf:
                             # microdnf supports `download` on some distros/images.
-                            rpms = _download_with([microdnf, "download", "--destdir", temp_dir], pkg)
+                            rpms = _download_with(
+                                [microdnf, "download", "--destdir", temp_dir], pkg
+                            )
 
                         for rpm_path in rpms:
                             if rpm_path not in downloaded:
@@ -1656,7 +1718,9 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                         continue
 
                 if not downloaded:
-                    logger.debug("Userspace RPM library install: no .rpm packages could be downloaded")
+                    logger.debug(
+                        "Userspace RPM library install: no .rpm packages could be downloaded"
+                    )
                     return False
 
                 extract_root = os.path.join(temp_dir, "extract")
@@ -1725,35 +1789,37 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                     f.write(
                         "#!/usr/bin/env bash\n"
                         "# Set env for Lotus binaries using user-space deps\n"
-                        f"export LD_LIBRARY_PATH=\"{lib_dir}:$LD_LIBRARY_PATH\"\n"
-                        f"export DYLD_LIBRARY_PATH=\"{lib_dir}:$DYLD_LIBRARY_PATH\"\n"
-                        f"if [ -d \"{vendors_dir}\" ]; then export OCL_ICD_VENDORS=\"{vendors_dir}\"; fi\n"
+                        f'export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"\n'
+                        f'export DYLD_LIBRARY_PATH="{lib_dir}:$DYLD_LIBRARY_PATH"\n'
+                        f'if [ -d "{vendors_dir}" ]; then export OCL_ICD_VENDORS="{vendors_dir}"; fi\n'
                     )
                 os.chmod(ldpath_script, 0o755)
 
                 # Success if we have at least hwloc libs after extraction.
                 if any(name.startswith("libhwloc") for name in os.listdir(lib_dir)):
-                    logger.info(f"Installed user-space RPM libraries into {lib_dir} (files: {copied})")
+                    logger.info(
+                        f"Installed user-space RPM libraries into {lib_dir} (files: {copied})"
+                    )
                     return True
                 return False
         except Exception as e:
             logger.debug(f"Userspace RPM library install failed: {e}")
             return False
-            
+
     def _install_linux_dependencies(self, dependencies):
         """
         Install dependencies on Linux systems.
-        
+
         Args:
             dependencies: Dictionary with dependencies information by OS
-            
+
         Returns:
             bool: True if successful, False otherwise
         """
         try:
             # First try to detect distribution
             distro = self._detect_linux_distribution()
-            
+
             if not distro or distro not in dependencies["linux"]:
                 # Use a fallback if distribution not specifically supported
                 if os.path.exists("/etc/debian_version"):
@@ -1770,10 +1836,10 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                     # Default to debian-based if we can't determine
                     distro = "debian"
                     logger.warning("Could not determine Linux distribution, assuming Debian-based")
-                    
+
             logger.info(f"Detected Linux distribution: {distro}")
             distro_deps = dependencies["linux"].get(distro, dependencies["linux"]["debian"])
-            
+
             # Prefer non-interactive sudo in non-interactive contexts; allow
             # interactive sudo when run in a terminal.
             sudo_prefix = []
@@ -1791,16 +1857,18 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                             logger.error(hint)
                         return False
                     sudo_prefix = ["sudo"]
-                
+
             # Check for package manager availability and lock status
             available, lock_info = self._check_package_manager_available(distro_deps)
             if not available:
                 logger.warning(f"Package manager is not available: {lock_info}")
-                
+
                 # Wait for locks to be released (only for lock issues, not missing package manager)
                 if "lock" in lock_info.lower() and not "not found" in lock_info.lower():
                     if not self._wait_for_lock_release(distro_deps):
-                        logger.warning("Could not wait for package manager locks, trying direct library installation")
+                        logger.warning(
+                            "Could not wait for package manager locks, trying direct library installation"
+                        )
                         # Try direct library installation as fallback
                         if self._try_direct_library_installation():
                             return True
@@ -1810,11 +1878,15 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                                 logger.info("Found hwloc library installed on the system")
                                 return True
                             else:
-                                logger.error("Could not install dependencies via package manager or direct installation")
+                                logger.error(
+                                    "Could not install dependencies via package manager or direct installation"
+                                )
                                 return False
                 else:
                     # Package manager not found, try direct installation
-                    logger.warning("Package manager not functional, trying direct library installation")
+                    logger.warning(
+                        "Package manager not functional, trying direct library installation"
+                    )
                     if self._try_direct_library_installation():
                         return True
                     else:
@@ -1823,42 +1895,47 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                             logger.info("Found hwloc library installed on the system")
                             return True
                         else:
-                            logger.error("Could not install dependencies via package manager or direct installation")
+                            logger.error(
+                                "Could not install dependencies via package manager or direct installation"
+                            )
                             return False
-                            
+
             # Check for missing packages
             missing_packages = self._check_packages_installed(
-                distro, distro_deps, distro_deps["packages"])
-            
+                distro, distro_deps, distro_deps["packages"]
+            )
+
             # Install missing packages if any
             if missing_packages:
                 logger.info(f"Missing required packages: {', '.join(missing_packages)}")
-                
+
                 # Try package manager installation
-                return self._try_package_installation(distro, distro_deps, missing_packages, sudo_prefix)
+                return self._try_package_installation(
+                    distro, distro_deps, missing_packages, sudo_prefix
+                )
             else:
                 logger.info("All required system dependencies are already installed")
                 return True
-                
+
         except Exception as e:
             logger.error(f"Error checking/installing Linux dependencies: {e}")
             logger.warning("Trying direct library installation as fallback...")
-            
+
             # Try direct installation as last resort
             if self._try_direct_library_installation():
                 return True
-            # Check library presence one last time    
+            # Check library presence one last time
             elif self._check_hwloc_library_direct():
                 logger.info("Found hwloc library installed on the system despite errors")
                 return True
             else:
                 logger.warning("You may need to manually install hwloc and OpenCL libraries")
                 return False
-                
+
     def _detect_linux_distribution(self):
         """
         Detect Linux distribution more reliably.
-        
+
         Returns:
             str: Distribution name or None if detection fails
         """
@@ -1868,23 +1945,20 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                 with open("/etc/os-release", "r") as f:
                     for line in f:
                         if line.startswith("ID="):
-                            return line.split("=")[1].strip().strip('"\'')
+                            return line.split("=")[1].strip().strip("\"'")
             except (PermissionError, IOError):
                 pass
-                
+
         # Try lsb_release command if available
         try:
             result = subprocess.run(
-                ["lsb_release", "-is"], 
-                capture_output=True, 
-                text=True, 
-                check=False
+                ["lsb_release", "-is"], capture_output=True, text=True, check=False
             )
             if result.returncode == 0:
                 return result.stdout.strip().lower()
         except (subprocess.SubprocessError, FileNotFoundError):
             pass
-            
+
         # Try specific distribution files
         if os.path.exists("/etc/debian_version"):
             return "debian"
@@ -1896,20 +1970,20 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
             return "alpine"
         elif os.path.exists("/etc/arch-release"):
             return "arch"
-            
+
         # Could not determine
         return None
-        
+
     def _try_package_installation(self, distro, distro_deps, missing_packages, sudo_prefix):
         """
         Try to install packages using package manager with fallback options.
-        
+
         Args:
             distro: Distribution name
             distro_deps: Dictionary with distribution dependencies info
             missing_packages: List of packages to install
             sudo_prefix: List containing "sudo" if needed
-            
+
         Returns:
             bool: True if successful, False otherwise
         """
@@ -1918,55 +1992,63 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
             # First update package lists
             logger.info("Updating package lists...")
             update_cmd = sudo_prefix + distro_deps["install_cmd"]
-            
+
             # Some package managers don't like having their update commands check=True
             # (e.g., dnf check-update can return 100 for "updates available")
             try:
                 subprocess.run(update_cmd, check=False, timeout=120)
             except subprocess.TimeoutExpired:
                 logger.warning("Package manager update timed out, continuing with installation")
-                
+
             # Install missing packages
             logger.info(f"Installing missing packages: {', '.join(missing_packages)}")
             install_cmd = sudo_prefix + distro_deps["package_cmd"] + missing_packages
-            
+
             try:
                 subprocess.run(install_cmd, check=True, timeout=300)
                 logger.info("Required system dependencies installed successfully")
                 return True
             except subprocess.SubprocessError as e:
                 logger.warning(f"Standard package installation failed: {e}")
-                
+
                 # Try alternative installation command if available
                 if "alternative_package_cmd" in distro_deps:
                     logger.info("Trying alternative package installation method...")
-                    alt_install_cmd = sudo_prefix + distro_deps["alternative_package_cmd"] + missing_packages
-                    
+                    alt_install_cmd = (
+                        sudo_prefix + distro_deps["alternative_package_cmd"] + missing_packages
+                    )
+
                     try:
                         subprocess.run(alt_install_cmd, check=True, timeout=300)
-                        logger.info("Required system dependencies installed with alternative method")
+                        logger.info(
+                            "Required system dependencies installed with alternative method"
+                        )
                         return True
                     except subprocess.SubprocessError as e2:
                         logger.warning(f"Alternative package installation also failed: {e2}")
-                
+
                 # If both methods failed, try direct library installation
-                logger.warning("Package manager installation failed, trying direct library installation")
+                logger.warning(
+                    "Package manager installation failed, trying direct library installation"
+                )
                 if self._try_direct_library_installation():
                     return True
-                
+
                 # As a last check, see if the libraries are actually there despite installation errors
                 if self._check_hwloc_library_direct():
-                    logger.info("Found hwloc library installed on the system despite package manager errors")
+                    logger.info(
+                        "Found hwloc library installed on the system despite package manager errors"
+                    )
                     return True
-                    
+
                 logger.error("All installation methods failed")
                 logger.warning("You may need to manually install the following packages:")
                 logger.warning(f"  {' '.join(missing_packages)}")
                 return False
-                
+
         except Exception as e:
             logger.error(f"Error during package installation: {e}")
-            
+
             # Try direct installation as last resort
             logger.warning("Trying direct library installation as fallback...")
             if self._try_direct_library_installation():
@@ -1975,14 +2057,14 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                 logger.warning("You may need to manually install the following packages:")
                 logger.warning(f"  {' '.join(missing_packages)}")
                 return False
-                
+
     def _install_darwin_dependencies(self, dependencies):
         """
         Install dependencies on macOS using Homebrew.
-        
+
         Args:
             dependencies: Dictionary with dependencies information by OS
-            
+
         Returns:
             bool: True if successful, False otherwise
         """
@@ -2000,56 +2082,68 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                 else:
                     logger.warning("Direct library check also failed")
                     return False
-            
+
             # Check for required packages
             missing_packages = []
             for package in dependencies["darwin"]["packages"]:
                 try:
                     result = subprocess.run(
-                        ["brew", "list", package], 
-                        stdout=subprocess.PIPE, 
+                        ["brew", "list", package],
+                        stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
-                        check=False
+                        check=False,
                     )
                     if result.returncode != 0:
                         missing_packages.append(package)
                 except subprocess.SubprocessError:
                     missing_packages.append(package)
-            
+
             # Install missing packages
             if missing_packages:
                 logger.info(f"Missing required packages: {', '.join(missing_packages)}")
-                
+
                 try:
                     # Update Homebrew first (not critical if it fails)
                     logger.info("Updating Homebrew...")
                     try:
-                        subprocess.run(dependencies["darwin"]["install_cmd"], check=False, timeout=120)
+                        subprocess.run(
+                            dependencies["darwin"]["install_cmd"], check=False, timeout=120
+                        )
                     except (subprocess.SubprocessError, subprocess.TimeoutExpired) as e:
                         logger.warning(f"Homebrew update failed but continuing: {e}")
-                    
+
                     # Install each package
                     for package in missing_packages:
                         logger.info(f"Installing {package}...")
                         try:
-                            subprocess.run(dependencies["darwin"]["package_cmd"] + [package], check=True, timeout=300)
+                            subprocess.run(
+                                dependencies["darwin"]["package_cmd"] + [package],
+                                check=True,
+                                timeout=300,
+                            )
                         except subprocess.SubprocessError:
                             # Try alternative installation if available
-                            logger.warning(f"Standard installation of {package} failed, trying alternative...")
-                            subprocess.run(
-                                dependencies["darwin"]["alternative_package_cmd"] + [package], 
-                                check=True, 
-                                timeout=300
+                            logger.warning(
+                                f"Standard installation of {package} failed, trying alternative..."
                             )
-                        
+                            subprocess.run(
+                                dependencies["darwin"]["alternative_package_cmd"] + [package],
+                                check=True,
+                                timeout=300,
+                            )
+
                     # Verify installation
                     if self._check_hwloc_library_direct():
-                        logger.info("Required system dependencies installed and verified successfully")
+                        logger.info(
+                            "Required system dependencies installed and verified successfully"
+                        )
                         return True
                     else:
-                        logger.warning("Package installed but library not found, may need a restart")
+                        logger.warning(
+                            "Package installed but library not found, may need a restart"
+                        )
                         return True
-                        
+
                 except Exception as e:
                     logger.error(f"Failed to install system dependencies: {e}")
                     # Check library directly one more time
@@ -2063,7 +2157,7 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
             else:
                 logger.info("All required system dependencies are already installed")
                 return True
-                
+
         except Exception as e:
             logger.error(f"Error checking/installing macOS dependencies: {e}")
             # Try direct library check one more time
@@ -2077,26 +2171,22 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
     def check_existing_installation(self, bin_dir=None):
         """
         Check if Lotus is already installed in the bin directory.
-        
+
         Args:
             bin_dir: Path to binary directory, or None for default
-            
+
         Returns:
             Dictionary with installation status and version information
         """
         if bin_dir is None:
             bin_dir = self.bin_path
-            
+
         lotus_path = os.path.join(bin_dir, "lotus")
         if platform.system() == "Windows":
             lotus_path += ".exe"
-        
-        result = {
-            "installed": False,
-            "version": None,
-            "binaries": {}
-        }
-        
+
+        result = {"installed": False, "version": None, "binaries": {}}
+
         if not os.path.exists(lotus_path):
             return result
 
@@ -2112,32 +2202,32 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
                 except Exception:
                     # Best-effort only; continue with version detection.
                     pass
-        
+
         # Check lotus version
         try:
-            output = subprocess.check_output([lotus_path, "--version"], 
-                                            stderr=subprocess.STDOUT, 
-                                            universal_newlines=True)
+            output = subprocess.check_output(
+                [lotus_path, "--version"], stderr=subprocess.STDOUT, universal_newlines=True
+            )
             version_match = re.search(r"lotus version (\d+\.\d+\.\d+)", output)
             if version_match:
                 result["version"] = version_match.group(1)
             else:
                 result["version"] = "unknown"
-                
+
             result["installed"] = True
             logger.info(f"Found existing Lotus installation: {output.strip()}")
-            
+
             # Check which binaries are installed
             for binary in LOTUS_BINARIES:
                 binary_path = os.path.join(bin_dir, binary)
                 if platform.system() == "Windows":
                     binary_path += ".exe"
-                
+
                 if os.path.exists(binary_path):
                     result["binaries"][binary] = True
                 else:
                     result["binaries"][binary] = False
-            
+
             return result
         except (subprocess.SubprocessError, FileNotFoundError):
             logger.info("Lotus binary exists but could not determine version")
@@ -2147,15 +2237,15 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
     def setup_lotus_env(self):
         """
         Set up Lotus environment variables and configuration.
-        
+
         Returns:
             True if successful, False otherwise
         """
         logger.info("Setting up Lotus environment")
-        
+
         # Create Lotus directory structure
         os.makedirs(self.lotus_path, exist_ok=True)
-        
+
         # Create basic config file if it doesn't exist
         config_file = os.path.join(self.lotus_path, "config.toml")
         if not os.path.exists(config_file):
@@ -2178,7 +2268,7 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
   IpfsUseForRetrieval = false
 """)
             logger.info(f"Created default config at {config_file}")
-        
+
         logger.info("Lotus environment setup completed")
         return True
 
@@ -2186,22 +2276,22 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
         """
         Download required parameters for Lotus.
         This uses lotus fetch-params to download the required parameters.
-        
+
         Returns:
             True if successful, False otherwise
         """
         logger.info("Checking for required Filecoin parameters")
-        
+
         # Use the lotus binary to download parameters
         lotus_bin = os.path.join(os.path.abspath(self.bin_path), "lotus")
         if platform.system() == "Windows":
             lotus_bin += ".exe"
-        
+
         if not os.path.exists(lotus_bin):
             logger.error(f"Lotus binary not found at {lotus_bin}")
             logger.error("Please run installer.install_lotus_daemon() first")
             return False
-        
+
         try:
             env = os.environ.copy()
             env["LOTUS_PATH"] = self.lotus_path
@@ -2290,62 +2380,64 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
 
         except subprocess.SubprocessError as exc:
             logger.error(f"Error downloading parameters: {exc}")
-            logger.warning("You may need to download parameters manually using 'lotus fetch-params'")
+            logger.warning(
+                "You may need to download parameters manually using 'lotus fetch-params'"
+            )
             return False
 
     def test_lotus_installation(self, bin_dir=None):
         """
         Test if the Lotus installation works.
-        
+
         Args:
             bin_dir: Path to binary directory, or None for default
-            
+
         Returns:
             True if installation test passes, False otherwise
         """
         logger.info("Testing Lotus installation")
-        
+
         if bin_dir is None:
             bin_dir = self.bin_path
-            
+
         lotus_bin = os.path.join(bin_dir, "lotus")
         if platform.system() == "Windows":
             lotus_bin += ".exe"
-        
+
         if not os.path.exists(lotus_bin):
             logger.error(f"Lotus binary not found at {lotus_bin}")
             return False
-        
+
         try:
             env = os.environ.copy()
             env["LOTUS_PATH"] = self.lotus_path
-            
+
             # Test version command
             result = subprocess.run(
-                [lotus_bin, "--version"], 
-                check=True, 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.STDOUT, 
+                [lotus_bin, "--version"],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
                 universal_newlines=True,
-                env=env
+                env=env,
             )
             logger.info(f"Lotus version: {result.stdout.strip()}")
-            
+
             # Test basic command (daemon not running)
             result = subprocess.run(
-                [lotus_bin, "net", "id"], 
+                [lotus_bin, "net", "id"],
                 check=False,
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.STDOUT, 
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
                 universal_newlines=True,
-                env=env
+                env=env,
             )
-            
+
             # If daemon not running, this is expected to fail but still shows the binary works
             logger.info("Installation test completed")
             logger.info("Note: To use Lotus functionality, you'll need to start the Lotus daemon")
             logger.info("Run 'bin/lotus daemon' in a separate terminal")
-            
+
             return True
         except Exception as e:
             logger.error(f"Installation test failed: {e}")
@@ -2354,19 +2446,19 @@ export LD_LIBRARY_PATH="{lib_dir}:$LD_LIBRARY_PATH"
     def generate_lotus_helper_script(self, bin_dir=None):
         """
         Generate helper script to start and manage Lotus daemon.
-        
+
         Args:
             bin_dir: Path to binary directory, or None for default
-            
+
         Returns:
             Path to the generated script
         """
         if bin_dir is None:
             bin_dir = self.bin_path
-            
+
         script_path = os.path.join("tools", "lotus_helper.py")
         os.makedirs("tools", exist_ok=True)
-        
+
         with open(script_path, "w") as f:
             f.write(f"""#!/usr/bin/env python3
 '''
@@ -2519,26 +2611,26 @@ def main():
 if __name__ == "__main__":
     main()
 """)
-        
+
         # Make script executable
         if platform.system() != "windows":
             os.chmod(script_path, 0o755)
-        
+
         logger.info(f"Created helper script at {script_path}")
         logger.info("You can use it to manage the Lotus daemon:")
         logger.info("  python tools/lotus_helper.py start  # Start daemon")
         logger.info("  python tools/lotus_helper.py stop   # Stop daemon")
         logger.info("  python tools/lotus_helper.py status # Check status")
-        
+
         return script_path
 
     def build_lotus_from_source(self, version="v1.24.0"):
         """
         Build Lotus from source when binary is not available.
-        
+
         Args:
             version: Version to build (default: v1.24.0)
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -2547,7 +2639,7 @@ if __name__ == "__main__":
         branch = version_str if version_str.startswith("v") else f"v{version_str}"
 
         logger.info(f"Building Lotus from source (version {version_str})...")
-        
+
         required_go = (1, 23, 10)
         required_go_str = ".".join(str(part) for part in required_go)
 
@@ -2594,7 +2686,7 @@ if __name__ == "__main__":
         except (subprocess.CalledProcessError, FileNotFoundError) as exc:
             logger.error(f"Unable to verify Go installation: {exc}")
             return False
-        
+
         # Check for required build tools
         required_tools = ["make", "git"]
         for tool in required_tools:
@@ -2607,98 +2699,105 @@ if __name__ == "__main__":
         if not self._ensure_jq_available():
             logger.error("jq is required for Lotus source builds")
             return False
-        
+
         # Create temporary directory for building
         build_dir = tempfile.mkdtemp(prefix="lotus_build_")
         try:
             logger.info(f"Using build directory: {build_dir}")
-            
+
             # Clone Lotus repository
             logger.info("Cloning Lotus repository...")
-            clone_cmd = ["git", "clone", "--depth=1", "--branch", branch, 
-                        "https://github.com/filecoin-project/lotus.git", build_dir]
+            clone_cmd = [
+                "git",
+                "clone",
+                "--depth=1",
+                "--branch",
+                branch,
+                "https://github.com/filecoin-project/lotus.git",
+                build_dir,
+            ]
             subprocess.run(clone_cmd, check=True, capture_output=True)
-            
+
             # Build the binaries
             logger.info("Building Lotus binaries (this may take several minutes)...")
             build_cmd = ["make", "all"]
             env = os.environ.copy()
             env["GO111MODULE"] = "on"
             env["CGO_ENABLED"] = "1"
-            
+
             # For ARM64, ensure proper GOARCH setting
             machine = platform.machine().lower()
             if "aarch64" in machine or "arm64" in machine:
                 env["GOARCH"] = "arm64"
-            
+
             result = subprocess.run(
                 build_cmd,
                 cwd=build_dir,
                 env=env,
                 capture_output=True,
                 text=True,
-                timeout=1800  # 30 minutes timeout for build
+                timeout=1800,  # 30 minutes timeout for build
             )
-            
+
             if result.returncode != 0:
                 logger.error(f"Build failed: {result.stderr}")
                 return False
-            
+
             logger.info("Build successful!")
-            
+
             # Install the built binaries
             logger.info("Installing built binaries...")
             os.makedirs(self.bin_path, exist_ok=True)
-            
+
             binaries_installed = 0
             for binary in LOTUS_BINARIES:
                 binary_name = binary
                 if platform.system() == "Windows":
                     binary_name += ".exe"
-                
+
                 # Look for the binary in build directory
                 built_binary = os.path.join(build_dir, binary_name)
                 if not os.path.exists(built_binary):
                     logger.warning(f"Binary {binary_name} not found after build")
                     continue
-                
+
                 dest_binary = os.path.join(self.bin_path, binary_name)
-                
+
                 # Copy binary
                 shutil.copy2(built_binary, dest_binary)
-                
+
                 # Make executable on Unix-like systems
                 if platform.system() != "Windows":
                     os.chmod(dest_binary, 0o755)
-                
+
                 logger.info(f"Installed {binary_name}")
                 binaries_installed += 1
-            
+
             if binaries_installed == 0:
                 logger.error("No binaries were installed")
                 return False
-            
+
             logger.info(f"Installed {binaries_installed} binaries to {self.bin_path}")
-            
+
             # Verify the main binary works
             try:
                 lotus_binary = os.path.join(self.bin_path, "lotus")
                 if platform.system() == "Windows":
                     lotus_binary += ".exe"
-                    
+
                 version_output = subprocess.check_output([lotus_binary, "--version"])
                 logger.info(f"Verification successful: {version_output.decode().strip()}")
                 return True
             except subprocess.CalledProcessError as e:
                 logger.error(f"Binary verification failed: {e}")
                 return False
-            
+
         except subprocess.TimeoutExpired:
             logger.error("Build timed out after 30 minutes")
             return False
         except subprocess.CalledProcessError as e:
             logger.error(f"Error during build: {e}")
-            if hasattr(e, 'output') and e.output:
+            if hasattr(e, "output") and e.output:
                 logger.error(f"Output: {e.output}")
             return False
         except Exception as e:
@@ -2711,22 +2810,22 @@ if __name__ == "__main__":
                 logger.info(f"Cleaned up build directory: {build_dir}")
             except Exception as e:
                 logger.warning(f"Could not clean up build directory: {e}")
-    
+
     def _install_go_for_build(self):
         """
         Install Go if not present (for building Lotus).
-        
+
         Returns:
             True if successful, False otherwise
         """
         logger.info("Attempting to install Go...")
-        
+
         system = platform.system()
         machine = platform.machine()
-        
+
         # Determine Go download URL based on system and architecture
         go_version = "1.24.1"  # Minimum version required for current Lotus builds
-        
+
         if system == "Linux":
             if "aarch64" in machine or "arm64" in machine.lower():
                 go_url = f"https://go.dev/dl/go{go_version}.linux-arm64.tar.gz"
@@ -2744,21 +2843,21 @@ if __name__ == "__main__":
             logger.error(f"Unsupported system for automatic Go installation: {system}")
             logger.error("Please install Go manually from https://go.dev/dl/")
             return False
-        
+
         try:
             # Download Go
             logger.info(f"Downloading Go from {go_url}...")
             go_tar = os.path.join(self.tmp_path, f"go{go_version}.tar.gz")
-            
+
             if system == "Linux":
                 subprocess.run(["wget", "-O", go_tar, go_url], check=True)
             elif system == "Darwin":
                 subprocess.run(["curl", "-L", "-o", go_tar, go_url], check=True)
-            
+
             # Extract Go
             go_install_dir = os.path.join(os.path.expanduser("~"), ".local")
             os.makedirs(go_install_dir, exist_ok=True)
-            
+
             logger.info(f"Extracting Go to {go_install_dir}...")
             existing_go_dir = os.path.join(go_install_dir, "go")
             if os.path.exists(existing_go_dir):
@@ -2769,17 +2868,17 @@ if __name__ == "__main__":
                 os.remove(go_tar)
             except OSError:
                 pass
-            
+
             # Update PATH for current process
             go_bin = os.path.join(go_install_dir, "go", "bin")
             os.environ["PATH"] = f"{go_bin}:{os.environ.get('PATH', '')}"
-            
+
             # Verify installation
             go_version_output = subprocess.check_output(["go", "version"], text=True).strip()
             logger.info(f"Go installed successfully: {go_version_output}")
-            
+
             return True
-            
+
         except subprocess.CalledProcessError as e:
             logger.error(f"Error installing Go: {e}")
             return False
@@ -2796,12 +2895,30 @@ if __name__ == "__main__":
         arch = platform.machine().lower()
 
         jq_downloads = {
-            ("linux", "x86_64"): ("https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64", "jq"),
-            ("linux", "amd64"): ("https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64", "jq"),
-            ("darwin", "x86_64"): ("https://github.com/stedolan/jq/releases/download/jq-1.6/jq-osx-amd64", "jq"),
-            ("darwin", "arm64"): ("https://github.com/stedolan/jq/releases/download/jq-1.6/jq-osx-arm64", "jq"),
-            ("windows", "x86_64"): ("https://github.com/stedolan/jq/releases/download/jq-1.6/jq-win64.exe", "jq.exe"),
-            ("windows", "amd64"): ("https://github.com/stedolan/jq/releases/download/jq-1.6/jq-win64.exe", "jq.exe"),
+            ("linux", "x86_64"): (
+                "https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64",
+                "jq",
+            ),
+            ("linux", "amd64"): (
+                "https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64",
+                "jq",
+            ),
+            ("darwin", "x86_64"): (
+                "https://github.com/stedolan/jq/releases/download/jq-1.6/jq-osx-amd64",
+                "jq",
+            ),
+            ("darwin", "arm64"): (
+                "https://github.com/stedolan/jq/releases/download/jq-1.6/jq-osx-arm64",
+                "jq",
+            ),
+            ("windows", "x86_64"): (
+                "https://github.com/stedolan/jq/releases/download/jq-1.6/jq-win64.exe",
+                "jq.exe",
+            ),
+            ("windows", "amd64"): (
+                "https://github.com/stedolan/jq/releases/download/jq-1.6/jq-win64.exe",
+                "jq.exe",
+            ),
         }
 
         download_key = (system, arch)
@@ -2837,7 +2954,7 @@ if __name__ == "__main__":
     def install_lotus_daemon(self):
         """
         Install the Lotus daemon binary.
-        
+
         Returns:
             CID of the installed binary if successful, False otherwise
         """
@@ -2852,15 +2969,15 @@ if __name__ == "__main__":
                     lotus_path += ".exe"
                 return self.ipfs_multiformats.get_cid(lotus_path)
             return True
-            
+
         # Get release information
         version = self.metadata.get("version") or self.get_latest_lotus_version()
         logger.info(f"Installing Lotus version {version}")
-        
+
         release_info = self.get_release_info(version)
         if not release_info:
             return False
-            
+
         # Get download URL
         download_url, filename = self.get_download_url(release_info)
         if not download_url:
@@ -2878,7 +2995,7 @@ if __name__ == "__main__":
                 return True
             logger.error("Failed to build Lotus from source")
             return False
-            
+
         # Create temp directory for download
         with tempfile.TemporaryDirectory() as temp_dir:
             # Download archive
@@ -2897,7 +3014,7 @@ if __name__ == "__main__":
                     return True
                 logger.error("Failed to build Lotus from source")
                 return False
-                
+
             # Verify download
             if not self.verify_download(archive_path):
                 logger.error("Download verification failed")
@@ -2913,7 +3030,7 @@ if __name__ == "__main__":
                     return True
                 logger.error("Failed to build Lotus from source")
                 return False
-                
+
             # Extract archive
             extract_dir = os.path.join(temp_dir, "extracted")
             os.makedirs(extract_dir, exist_ok=True)
@@ -2931,7 +3048,7 @@ if __name__ == "__main__":
                     return True
                 logger.error("Failed to build Lotus from source")
                 return False
-                
+
             # Install binaries
             installed_binaries = self.install_binaries(extract_dir, self.bin_path)
             if not installed_binaries:
@@ -3003,28 +3120,28 @@ if __name__ == "__main__":
                     return True
                 logger.error("Failed to build Lotus from source")
                 return False
-        
+
         # Verify installation
         installation = self.check_existing_installation()
         if not installation["installed"]:
             logger.error("Lotus installation verification failed")
             return False
-            
+
         logger.info(f"Lotus {version} installed successfully")
-        
+
         # Get CID if possible
         if self.ipfs_multiformats:
             lotus_path = os.path.join(self.bin_path, "lotus")
             if platform.system() == "Windows":
                 lotus_path += ".exe"
             return self.ipfs_multiformats.get_cid(lotus_path)
-            
+
         return True
-        
+
     def install_lotus_miner(self):
         """
         Install the Lotus miner binary.
-        
+
         Returns:
             CID of the installed binary if successful, False otherwise
         """
@@ -3039,13 +3156,13 @@ if __name__ == "__main__":
                     lotus_miner_path += ".exe"
                 return self.ipfs_multiformats.get_cid(lotus_miner_path)
             return True
-            
+
         # If lotus is installed but the miner binary is missing,
         # we need to reinstall the full package
         if installation["installed"]:
             logger.info("Lotus installed but miner binary missing, reinstalling")
             result = self.install_lotus_daemon()
-            
+
             # Check if miner is now installed
             new_installation = self.check_existing_installation()
             if new_installation["binaries"].get("lotus-miner", False):
@@ -3063,7 +3180,7 @@ if __name__ == "__main__":
             # If lotus isn't installed, install the full package
             logger.info("Lotus not installed, installing full package")
             result = self.install_lotus_daemon()
-            
+
             # Check if miner is now installed
             new_installation = self.check_existing_installation()
             if new_installation["binaries"].get("lotus-miner", False):
@@ -3077,11 +3194,11 @@ if __name__ == "__main__":
             else:
                 logger.error("Failed to install lotus-miner binary")
                 return False
-                
+
     def install_lotus_worker(self):
         """
         Install the Lotus worker binary.
-        
+
         Returns:
             CID of the installed binary if successful, False otherwise
         """
@@ -3095,12 +3212,12 @@ if __name__ == "__main__":
                     lotus_worker_path += ".exe"
                 return self.ipfs_multiformats.get_cid(lotus_worker_path)
             return True
-            
+
         # If lotus is installed but the worker binary is missing, reinstall
         if installation["installed"]:
             logger.info("Lotus installed but worker binary missing, reinstalling")
             result = self.install_lotus_daemon()
-            
+
             # Check if worker is now installed
             new_installation = self.check_existing_installation()
             if new_installation["binaries"].get("lotus-worker", False):
@@ -3118,7 +3235,7 @@ if __name__ == "__main__":
             # If lotus isn't installed, install the full package
             logger.info("Lotus not installed, installing full package")
             result = self.install_lotus_daemon()
-            
+
             # Check if worker is now installed
             new_installation = self.check_existing_installation()
             if new_installation["binaries"].get("lotus-worker", False):
@@ -3132,11 +3249,11 @@ if __name__ == "__main__":
             else:
                 logger.error("Failed to install lotus-worker binary")
                 return False
-                
+
     def install_lotus_gateway(self):
         """
         Install the Lotus gateway binary.
-        
+
         Returns:
             CID of the installed binary if successful, False otherwise
         """
@@ -3150,12 +3267,12 @@ if __name__ == "__main__":
                     lotus_gateway_path += ".exe"
                 return self.ipfs_multiformats.get_cid(lotus_gateway_path)
             return True
-            
+
         # If lotus is installed but the gateway binary is missing, reinstall
         if installation["installed"]:
             logger.info("Lotus installed but gateway binary missing, reinstalling")
             result = self.install_lotus_daemon()
-            
+
             # Check if gateway is now installed
             new_installation = self.check_existing_installation()
             if new_installation["binaries"].get("lotus-gateway", False):
@@ -3173,7 +3290,7 @@ if __name__ == "__main__":
             # If lotus isn't installed, install the full package
             logger.info("Lotus not installed, installing full package")
             result = self.install_lotus_daemon()
-            
+
             # Check if gateway is now installed
             new_installation = self.check_existing_installation()
             if new_installation["binaries"].get("lotus-gateway", False):
@@ -3191,18 +3308,18 @@ if __name__ == "__main__":
     def config_lotus(self, **kwargs):
         """
         Configure Lotus daemon.
-        
+
         Args:
             **kwargs: Additional configuration parameters
                 - secret: Secret key for securing the Lotus node
                 - api_port: Port for the Lotus API
                 - p2p_port: Port for Lotus P2P connections
-                
+
         Returns:
             Dictionary with configuration results
         """
         results = {}
-        
+
         # Process parameters
         secret = kwargs.get("secret")
         if not secret and hasattr(self, "secret"):
@@ -3211,41 +3328,37 @@ if __name__ == "__main__":
             # Generate a random secret if not provided
             secret = binascii.hexlify(random.randbytes(32)).decode()
             self.secret = secret
-            
+
         api_port = kwargs.get("api_port", 1234)
         p2p_port = kwargs.get("p2p_port", 1235)
-        
+
         # Ensure Lotus path exists
         os.makedirs(self.lotus_path, exist_ok=True)
-        
+
         # Get disk stats
         disk_available = self.disk_stats.get("disk_avail", 0)
         min_free_space = 32 * 1024 * 1024 * 1024  # 32 GB
-        
+
         # Initialize lotus if needed
         lotus_cmd_path = os.path.join(self.bin_path, "lotus")
         if platform.system() == "Windows":
             lotus_cmd_path += ".exe"
-            
+
         # Prepare environment
         env = os.environ.copy()
         env["LOTUS_PATH"] = self.lotus_path
         env["PATH"] = self.path
-        
+
         try:
             # Initialize Lotus repo if needed
             if not os.path.exists(os.path.join(self.lotus_path, "config.toml")):
                 logger.info("Initializing Lotus repository")
-                
+
                 init_cmd = [lotus_cmd_path, "init"]
                 process = subprocess.run(
-                    init_cmd,
-                    env=env,
-                    check=False,
-                    capture_output=True,
-                    text=True
+                    init_cmd, env=env, check=False, capture_output=True, text=True
                 )
-                
+
                 if process.returncode != 0 and "already initialized" not in process.stderr:
                     logger.error(f"Failed to initialize Lotus: {process.stderr}")
                     results["init"] = False
@@ -3259,54 +3372,48 @@ if __name__ == "__main__":
             else:
                 logger.info("Lotus repository already exists")
                 results["init"] = True
-                
+
             # Configure API and P2P ports
             config_cmd = [
-                lotus_cmd_path, 
-                "config", 
-                "set", 
-                "API.ListenAddress", 
-                f"/ip4/127.0.0.1/tcp/{api_port}/http"
+                lotus_cmd_path,
+                "config",
+                "set",
+                "API.ListenAddress",
+                f"/ip4/127.0.0.1/tcp/{api_port}/http",
             ]
             subprocess.run(config_cmd, env=env, check=True)
-            
+
             config_cmd = [
                 lotus_cmd_path,
                 "config",
                 "set",
                 "Libp2p.ListenAddresses",
-                f"[\"/ip4/0.0.0.0/tcp/{p2p_port}\", \"/ip6/::/tcp/{p2p_port}\"]"
+                f'["/ip4/0.0.0.0/tcp/{p2p_port}", "/ip6/::/tcp/{p2p_port}"]',
             ]
             subprocess.run(config_cmd, env=env, check=True)
-            
+
             # Configure storage space if we have enough disk space
             if disk_available > min_free_space:
                 allocate = math.ceil(((disk_available - min_free_space) * 0.8) / 1024 / 1024 / 1024)
                 logger.info(f"Configuring storage space: {allocate}GB")
-                
+
                 config_cmd = [
                     lotus_cmd_path,
                     "config",
                     "set",
                     "Storage.StorageMax",
-                    f"{allocate}GB"
+                    f"{allocate}GB",
                 ]
                 subprocess.run(config_cmd, env=env, check=True)
                 results["storage_configured"] = True
             else:
                 logger.warning("Insufficient disk space for optimal configuration")
                 results["storage_configured"] = False
-                
+
             # Get node identity
             id_cmd = [lotus_cmd_path, "net", "id"]
-            process = subprocess.run(
-                id_cmd,
-                env=env,
-                check=False,
-                capture_output=True,
-                text=True
-            )
-            
+            process = subprocess.run(id_cmd, env=env, check=False, capture_output=True, text=True)
+
             if process.returncode == 0:
                 try:
                     peer_id = json.loads(process.stdout)
@@ -3318,63 +3425,63 @@ if __name__ == "__main__":
                 # This is expected if the daemon isn't running
                 logger.info("Could not get peer ID (daemon not running)")
                 results["identity"] = None
-                
+
             # Set up systemd service on Linux if running as root
             if platform.system() == "Linux" and os.geteuid() == 0:
                 self._setup_systemd_service()
                 results["systemd_configured"] = True
-                
+
             # Overall success
             results["success"] = True
-            
+
         except Exception as e:
             logger.error(f"Error configuring Lotus: {e}")
             results["success"] = False
             results["error"] = str(e)
-            
+
         return results
-            
+
     def config_lotus_miner(self, **kwargs):
         """
         Configure Lotus miner.
-        
+
         Args:
             **kwargs: Additional configuration parameters
                 - owner_address: Owner wallet address
                 - sector_size: Sector size for storage
                 - max_workers: Maximum number of worker threads
-                
+
         Returns:
             Dictionary with configuration results
         """
         results = {}
-        
+
         # Process parameters
         owner_address = kwargs.get("owner_address")
         sector_size = kwargs.get("sector_size", "32GiB")
         max_workers = kwargs.get("max_workers", 4)
-        
+
         # Check if lotus-miner binary exists
         miner_cmd_path = os.path.join(self.bin_path, "lotus-miner")
         if platform.system() == "Windows":
             miner_cmd_path += ".exe"
-            
+
         if not os.path.exists(miner_cmd_path):
             logger.error(f"Lotus miner binary not found at {miner_cmd_path}")
             results["success"] = False
             results["error"] = "Binary not found"
             return results
-            
+
         # Prepare miner path
         miner_path = os.path.join(os.path.dirname(self.lotus_path), ".lotusminer")
         os.makedirs(miner_path, exist_ok=True)
-        
+
         # Prepare environment
         env = os.environ.copy()
         env["LOTUS_PATH"] = self.lotus_path
         env["LOTUS_MINER_PATH"] = miner_path
         env["PATH"] = self.path
-        
+
         try:
             # Check if miner is already initialized
             if os.path.exists(os.path.join(miner_path, "config.toml")):
@@ -3387,24 +3494,24 @@ if __name__ == "__main__":
                     results["success"] = False
                     results["error"] = "Missing owner address"
                     return results
-                    
+
                 # Initialize miner
-                logger.info(f"Initializing Lotus miner with owner {owner_address} and sector size {sector_size}")
+                logger.info(
+                    f"Initializing Lotus miner with owner {owner_address} and sector size {sector_size}"
+                )
                 init_cmd = [
                     miner_cmd_path,
                     "init",
-                    "--owner", owner_address,
-                    "--sector-size", sector_size
+                    "--owner",
+                    owner_address,
+                    "--sector-size",
+                    sector_size,
                 ]
-                
+
                 process = subprocess.run(
-                    init_cmd,
-                    env=env,
-                    check=False,
-                    capture_output=True,
-                    text=True
+                    init_cmd, env=env, check=False, capture_output=True, text=True
                 )
-                
+
                 if process.returncode != 0:
                     logger.error(f"Failed to initialize miner: {process.stderr}")
                     results["init"] = False
@@ -3414,56 +3521,50 @@ if __name__ == "__main__":
                 else:
                     logger.info("Miner initialized successfully")
                     results["init"] = True
-            
+
             # Configure max workers
-            config_cmd = [
-                miner_cmd_path,
-                "config",
-                "set",
-                "Mining.MaxWorkers",
-                str(max_workers)
-            ]
+            config_cmd = [miner_cmd_path, "config", "set", "Mining.MaxWorkers", str(max_workers)]
             subprocess.run(config_cmd, env=env, check=True)
             logger.info(f"Configured miner with {max_workers} max workers")
-            
+
             # Configure API settings for the miner
             config_cmd = [
                 miner_cmd_path,
                 "config",
                 "set",
                 "API.ListenAddress",
-                "/ip4/127.0.0.1/tcp/2345/http"
+                "/ip4/127.0.0.1/tcp/2345/http",
             ]
             subprocess.run(config_cmd, env=env, check=True)
-            
+
             # Set up systemd service on Linux if running as root
             if platform.system() == "Linux" and os.geteuid() == 0:
                 self._setup_miner_systemd_service()
                 results["systemd_configured"] = True
-                
+
             # Overall success
             results["success"] = True
-            
+
         except Exception as e:
             logger.error(f"Error configuring Lotus miner: {e}")
             results["success"] = False
             results["error"] = str(e)
-            
+
         return results
 
     def _setup_systemd_service(self):
         """
         Set up systemd service for Lotus daemon on Linux.
-        
+
         Returns:
             True if successful, False otherwise
         """
         if platform.system() != "Linux" or os.geteuid() != 0:
             logger.info("Systemd service setup skipped (not Linux or not root)")
             return False
-            
+
         logger.info("Setting up systemd service for Lotus daemon")
-        
+
         # Create service file
         service_content = f"""[Unit]
 Description=Lotus Daemon
@@ -3485,7 +3586,7 @@ WantedBy=multi-user.target
         # Write service file
         with open("/etc/systemd/system/lotus.service", "w") as f:
             f.write(service_content)
-            
+
         # Reload systemd and enable service
         try:
             subprocess.run(["systemctl", "daemon-reload"], check=True)
@@ -3499,16 +3600,16 @@ WantedBy=multi-user.target
     def _setup_miner_systemd_service(self):
         """
         Set up systemd service for Lotus miner on Linux.
-        
+
         Returns:
             True if successful, False otherwise
         """
         if platform.system() != "Linux" or os.geteuid() != 0:
             logger.info("Miner systemd service setup skipped (not Linux or not root)")
             return False
-            
+
         logger.info("Setting up systemd service for Lotus miner")
-        
+
         # Create service file
         miner_path = os.path.join(os.path.dirname(self.lotus_path), ".lotusminer")
         service_content = f"""[Unit]
@@ -3533,7 +3634,7 @@ WantedBy=multi-user.target
         # Write service file
         with open("/etc/systemd/system/lotus-miner.service", "w") as f:
             f.write(service_content)
-            
+
         # Reload systemd and enable service
         try:
             subprocess.run(["systemctl", "daemon-reload"], check=True)
@@ -3543,16 +3644,16 @@ WantedBy=multi-user.target
         except subprocess.SubprocessError as e:
             logger.error(f"Failed to enable miner systemd service: {e}")
             return False
-            
+
     def run_lotus_daemon(self, **kwargs):
         """
         Run the Lotus daemon.
-        
+
         Args:
             **kwargs: Additional parameters
                 - background: Run in background (default: True)
                 - lite: Run in lite mode (default: False)
-                
+
         Returns:
             Process object if successful, False otherwise
         """
@@ -3560,37 +3661,36 @@ WantedBy=multi-user.target
         lotus_cmd_path = os.path.join(self.bin_path, "lotus")
         if platform.system() == "Windows":
             lotus_cmd_path += ".exe"
-            
+
         if not os.path.exists(lotus_cmd_path):
             logger.error(f"Lotus binary not found at {lotus_cmd_path}")
             return False
-            
+
         # Process parameters
         background = kwargs.get("background", True)
         lite = kwargs.get("lite", False)
-        
+
         # Prepare environment
         env = os.environ.copy()
         env["LOTUS_PATH"] = self.lotus_path
         env["PATH"] = self.path
-        
+
         # Build command
         cmd = [lotus_cmd_path, "daemon"]
         if lite:
             cmd.append("--lite")
-            
+
         try:
             logger.info("Starting Lotus daemon")
-            
+
             if background:
                 # Start in background
                 if platform.system() == "Windows":
                     # Use subprocess.CREATE_NEW_CONSOLE on Windows
                     import subprocess
+
                     process = subprocess.Popen(
-                        cmd,
-                        env=env,
-                        creationflags=subprocess.CREATE_NEW_CONSOLE
+                        cmd, env=env, creationflags=subprocess.CREATE_NEW_CONSOLE
                     )
                 else:
                     # Use nohup on Unix-like systems
@@ -3600,30 +3700,27 @@ WantedBy=multi-user.target
                         env=env,
                         shell=True,
                         stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL
+                        stderr=subprocess.DEVNULL,
                     )
             else:
                 # Start in foreground
-                process = subprocess.Popen(
-                    cmd,
-                    env=env
-                )
-                
+                process = subprocess.Popen(cmd, env=env)
+
             logger.info(f"Lotus daemon started with PID {process.pid}")
             return process
-            
+
         except Exception as e:
             logger.error(f"Error starting Lotus daemon: {e}")
             return False
-            
+
     def run_lotus_miner(self, **kwargs):
         """
         Run the Lotus miner.
-        
+
         Args:
             **kwargs: Additional parameters
                 - background: Run in background (default: True)
-                
+
         Returns:
             Process object if successful, False otherwise
         """
@@ -3631,38 +3728,37 @@ WantedBy=multi-user.target
         miner_cmd_path = os.path.join(self.bin_path, "lotus-miner")
         if platform.system() == "Windows":
             miner_cmd_path += ".exe"
-            
+
         if not os.path.exists(miner_cmd_path):
             logger.error(f"Lotus miner binary not found at {miner_cmd_path}")
             return False
-            
+
         # Process parameters
         background = kwargs.get("background", True)
-        
+
         # Prepare miner path
         miner_path = os.path.join(os.path.dirname(self.lotus_path), ".lotusminer")
-        
+
         # Prepare environment
         env = os.environ.copy()
         env["LOTUS_PATH"] = self.lotus_path
         env["LOTUS_MINER_PATH"] = miner_path
         env["PATH"] = self.path
-        
+
         # Build command
         cmd = [miner_cmd_path, "run"]
-        
+
         try:
             logger.info("Starting Lotus miner")
-            
+
             if background:
                 # Start in background
                 if platform.system() == "Windows":
                     # Use subprocess.CREATE_NEW_CONSOLE on Windows
                     import subprocess
+
                     process = subprocess.Popen(
-                        cmd,
-                        env=env,
-                        creationflags=subprocess.CREATE_NEW_CONSOLE
+                        cmd, env=env, creationflags=subprocess.CREATE_NEW_CONSOLE
                     )
                 else:
                     # Use nohup on Unix-like systems
@@ -3672,39 +3768,36 @@ WantedBy=multi-user.target
                         env=env,
                         shell=True,
                         stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL
+                        stderr=subprocess.DEVNULL,
                     )
             else:
                 # Start in foreground
-                process = subprocess.Popen(
-                    cmd,
-                    env=env
-                )
-                
+                process = subprocess.Popen(cmd, env=env)
+
             logger.info(f"Lotus miner started with PID {process.pid}")
             return process
-            
+
         except Exception as e:
             logger.error(f"Error starting Lotus miner: {e}")
             return False
-                
+
     def kill_process_by_pattern(self, pattern):
         """
         Kill processes matching a pattern.
-        
+
         Args:
             pattern: String pattern to match in process names
-            
+
         Returns:
             True if successful, False on error
         """
         try:
             if platform.system() == "Windows":
                 # Use tasklist and taskkill on Windows
-                cmd = f'powershell -Command "Get-Process | Where-Object {{ $_.Name -like \'*{pattern}*\' }} | Select-Object Id"'
+                cmd = f"powershell -Command \"Get-Process | Where-Object {{ $_.Name -like '*{pattern}*' }} | Select-Object Id\""
                 output = subprocess.check_output(cmd, shell=True, text=True)
-                
-                for line in output.strip().split('\n'):
+
+                for line in output.strip().split("\n"):
                     if line.strip() and line.strip().isdigit():
                         pid = line.strip()
                         subprocess.run(f"taskkill /F /PID {pid}", shell=True)
@@ -3713,35 +3806,35 @@ WantedBy=multi-user.target
                 # Use pkill on Unix-like systems
                 subprocess.run(["pkill", "-f", pattern], check=False)
                 logger.info(f"Killed processes matching pattern: {pattern}")
-                
+
             return True
         except Exception as e:
             logger.error(f"Error killing processes: {e}")
             return False
-            
+
     def uninstall_lotus(self):
         """
         Uninstall Lotus components.
-        
+
         Returns:
             True if successful, False otherwise
         """
         # Stop any running processes
         self.kill_process_by_pattern("lotus")
-        
+
         # Remove binaries
         for binary in LOTUS_BINARIES:
             binary_path = os.path.join(self.bin_path, binary)
             if platform.system() == "Windows":
                 binary_path += ".exe"
-                
+
             if os.path.exists(binary_path):
                 try:
                     os.remove(binary_path)
                     logger.info(f"Removed {binary_path}")
                 except Exception as e:
                     logger.error(f"Failed to remove {binary_path}: {e}")
-        
+
         # Remove systemd services on Linux if running as root
         if platform.system() == "Linux" and os.geteuid() == 0:
             try:
@@ -3752,50 +3845,50 @@ WantedBy=multi-user.target
                         subprocess.run(["systemctl", "disable", service], check=False)
                         os.remove(service_path)
                         logger.info(f"Removed systemd service: {service}")
-                        
+
                 # Reload systemd
                 subprocess.run(["systemctl", "daemon-reload"], check=False)
             except Exception as e:
                 logger.error(f"Error removing systemd services: {e}")
-        
+
         # Offer to remove data directories
         logger.info(f"Data directories at {self.lotus_path} were not removed")
         logger.info("To completely remove Lotus data, manually delete these directories")
-        
+
         return True
 
     def _install_go_for_build(self):
         """Install Go programming language for building from source."""
         try:
             print("Installing Go for building Lotus from source...")
-            
+
             # Check if Go is already installed
-            if shutil.which('go'):
+            if shutil.which("go"):
                 print("Go is already installed")
                 return True
-            
+
             # Download and install Go for ARM64
             go_version = "1.24.1"
             go_url = f"https://go.dev/dl/go{go_version}.linux-arm64.tar.gz"
-            
+
             with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as tmp_file:
                 print(f"Downloading Go from {go_url}")
                 command = f"wget {go_url} -O {tmp_file.name}"
                 subprocess.run(command, shell=True, check=True)
-                
+
                 # Extract Go to /usr/local
                 print("Extracting Go...")
                 command = f"sudo tar -C /usr/local -xzf {tmp_file.name}"
                 subprocess.run(command, shell=True, check=True)
-                
+
                 # Add Go to PATH
                 go_path = "/usr/local/go/bin"
                 if go_path not in os.environ.get("PATH", ""):
                     os.environ["PATH"] = f"{go_path}:{os.environ.get('PATH', '')}"
-                
+
                 print("Go installation completed")
                 return True
-                
+
         except Exception as e:
             print(f"Error installing Go: {e}")
             return False
@@ -3804,28 +3897,28 @@ WantedBy=multi-user.target
         """Build Lotus from source code as fallback when binaries are not available."""
         try:
             print("Building Lotus from source...")
-            
+
             # Install Go if not available
-            if not shutil.which('go') and not self._install_go_for_build():
+            if not shutil.which("go") and not self._install_go_for_build():
                 raise Exception("Failed to install Go")
-            
+
             # Use latest version if not specified
             if version is None:
                 version = self.get_latest_lotus_version()
-            
+
             # Remove 'v' prefix if present
-            version = version.lstrip('v')
-            
+            version = version.lstrip("v")
+
             with tempfile.TemporaryDirectory() as build_dir:
                 print(f"Building Lotus {version} in {build_dir}")
-                
+
                 # Clone the Lotus repository
                 repo_url = "https://github.com/filecoin-project/lotus.git"
                 repo_path = os.path.join(build_dir, "lotus")
-                
+
                 command = f"git clone --branch v{version} --depth 1 {repo_url} {repo_path}"
                 subprocess.run(command, shell=True, check=True, cwd=build_dir)
-                
+
                 # Build Lotus
                 print("Compiling Lotus (this may take a while)...")
                 command = "make clean && make all"
@@ -3841,24 +3934,28 @@ WantedBy=multi-user.target
                     extra_ld = f"-L{lib_dir}"
                     env["CGO_LDFLAGS"] = (extra_ld + " " + env.get("CGO_LDFLAGS", "")).strip()
                     env["LIBRARY_PATH"] = (lib_dir + ":" + env.get("LIBRARY_PATH", "")).strip(":")
-                    env["LD_LIBRARY_PATH"] = (lib_dir + ":" + env.get("LD_LIBRARY_PATH", "")).strip(":")
+                    env["LD_LIBRARY_PATH"] = (lib_dir + ":" + env.get("LD_LIBRARY_PATH", "")).strip(
+                        ":"
+                    )
                     vendors_dir = os.path.join(self.bin_path, "opencl", "vendors")
                     if os.path.isdir(vendors_dir):
                         env.setdefault("OCL_ICD_VENDORS", vendors_dir)
 
-                subprocess.run(command, shell=True, check=True, cwd=repo_path, timeout=3600, env=env)
-                
+                subprocess.run(
+                    command, shell=True, check=True, cwd=repo_path, timeout=3600, env=env
+                )
+
                 # Install the binaries
                 built_binaries = []
                 for binary in LOTUS_BINARIES:
                     built_binary = os.path.join(repo_path, binary)
                     if os.path.exists(built_binary):
                         built_binaries.append(built_binary)
-                
+
                 if built_binaries:
                     # Create bin directory if it doesn't exist
                     os.makedirs(self.bin_path, exist_ok=True)
-                    
+
                     # Copy binaries to bin directory
                     for binary_path in built_binaries:
                         binary_name = os.path.basename(binary_path)
@@ -3866,12 +3963,14 @@ WantedBy=multi-user.target
                         shutil.copy2(binary_path, dest_path)
                         os.chmod(dest_path, 0o755)
                         print(f"Installed {binary_name} to {dest_path}")
-                    
-                    print(f"Lotus built and installed successfully ({len(built_binaries)} binaries)")
+
+                    print(
+                        f"Lotus built and installed successfully ({len(built_binaries)} binaries)"
+                    )
                     return True
                 else:
                     raise Exception("No built binaries found")
-                    
+
         except subprocess.TimeoutExpired:
             print("Build timed out after 60 minutes")
             return False
@@ -3941,10 +4040,10 @@ def main():
         help=f"Sector size hint for fetch-params (default: {DEFAULT_PARAMS_SECTOR_SIZE})",
     )
     args = parser.parse_args()
-    
+
     # Resolve bin directory to absolute path
     bin_dir = os.path.abspath(args.bin_dir)
-    
+
     # Create installer with metadata
     metadata = {
         "force": args.force,
@@ -3959,7 +4058,7 @@ def main():
     if args.version:
         metadata["version"] = args.version
     installer = install_lotus(metadata=metadata)
-    
+
     # Check if already installed
     installation = installer.check_existing_installation(bin_dir)
     if not args.force and installation["installed"]:
@@ -3968,21 +4067,23 @@ def main():
         if response.lower() != "y":
             logger.info("Installation aborted")
             return
-    
+
     # Install Lotus daemon
     if installer.install_lotus_daemon():
         # Set up environment
         installer.setup_lotus_env()
-        
+
         # Generate helper script
         installer.generate_lotus_helper_script(bin_dir)
-        
+
         # Download parameters if not skipped
         if args.skip_params:
-            logger.info("Skipping Filecoin parameter download (enable --download-params to fetch proving files during install)")
+            logger.info(
+                "Skipping Filecoin parameter download (enable --download-params to fetch proving files during install)"
+            )
         else:
             installer.download_params()
-        
+
         # Test installation
         if installer.test_lotus_installation(bin_dir):
             logger.info("Lotus installation completed successfully!")
@@ -3997,6 +4098,7 @@ def main():
     else:
         logger.error("Lotus installation failed")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

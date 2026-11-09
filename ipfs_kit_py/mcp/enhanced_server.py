@@ -25,6 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # Import ipfs_datasets_py integration with fallback
 try:
     from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
+
     IPFS_DATASETS_AVAILABLE = True
 except ImportError:
     IPFS_DATASETS_AVAILABLE = False
@@ -36,6 +37,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MCPCommandRequest:
     """Request structure for MCP commands - mirrors CLI argument structure."""
+
     command: str
     subcommand: Optional[str] = None
     action: Optional[str] = None
@@ -55,6 +57,7 @@ class MCPCommandRequest:
 @dataclass
 class MCPCommandResponse:
     """Response structure for MCP commands."""
+
     success: bool
     command: str
     result: Any = None
@@ -72,7 +75,7 @@ class MCPCommandResponse:
 class EnhancedMCPServer:
     """
     Enhanced MCP Server that mirrors CLI functionality while optimizing for MCP protocol.
-    
+
     This server maintains the comprehensive feature set of the CLI while providing:
     - Efficient metadata reading from ~/.ipfs_kit/
     - Daemon-managed synchronization with storage backends
@@ -100,30 +103,32 @@ class EnhancedMCPServer:
         self.log_level = log_level.upper()
         self.config_path = config_path
         self.metadata_path = metadata_path or os.path.expanduser("~/.ipfs_kit")
-        
+
         # Dataset storage configuration
         self.enable_dataset_storage = enable_dataset_storage and IPFS_DATASETS_AVAILABLE
         self.ipfs_client = ipfs_client
         self.dataset_batch_size = dataset_batch_size
         self.dataset_manager = None
         self._operation_buffer = []
-        
+
         # Initialize dataset manager if enabled
         if self.enable_dataset_storage:
             try:
-                self.dataset_manager = get_ipfs_datasets_manager(enable=True, ipfs_client=ipfs_client)
+                self.dataset_manager = get_ipfs_datasets_manager(
+                    enable=True, ipfs_client=ipfs_client
+                )
                 logger.info("MCP Server dataset storage enabled")
             except Exception as e:
                 logger.warning(f"Failed to initialize dataset storage: {e}")
                 self.enable_dataset_storage = False
-        
+
         # Initialize FastAPI app
         self.app = FastAPI(
             title="Enhanced IPFS-Kit MCP Server",
             description="MCP Server with full CLI feature parity",
-            version="2.0.0"
+            version="2.0.0",
         )
-        
+
         # Add CORS middleware
         self.app.add_middleware(
             CORSMiddleware,
@@ -132,14 +137,14 @@ class EnhancedMCPServer:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-        
+
         # Initialize components
         self._setup_logging()
         self._init_metadata_reader()
         self._init_daemon_connector()
         self._init_command_handlers()
         self._register_routes()
-        
+
         logger.info(f"Enhanced MCP Server initialized: {self.server_id}")
 
     def _setup_logging(self):
@@ -147,11 +152,11 @@ class EnhancedMCPServer:
         numeric_level = getattr(logging, self.log_level, logging.INFO)
         if self.debug_mode and numeric_level > logging.DEBUG:
             numeric_level = logging.DEBUG
-            
+
         logging.basicConfig(
             level=numeric_level,
-            format='%(asctime)s [%(levelname)8s] %(name)s: %(message)s',
-            datefmt='%H:%M:%S'
+            format="%(asctime)s [%(levelname)8s] %(name)s: %(message)s",
+            datefmt="%H:%M:%S",
         )
 
     def _init_metadata_reader(self):
@@ -166,41 +171,32 @@ class EnhancedMCPServer:
         """Initialize command handlers that mirror CLI functionality."""
         self.command_handlers = {
             # Daemon operations
-            'daemon': DaemonCommandHandler(self),
-            
-            # PIN operations  
-            'pin': PinCommandHandler(self),
-            
+            "daemon": DaemonCommandHandler(self),
+            # PIN operations
+            "pin": PinCommandHandler(self),
             # Backend operations
-            'backend': BackendCommandHandler(self),
-            
+            "backend": BackendCommandHandler(self),
             # Bucket operations
-            'bucket': BucketCommandHandler(self),
-            
+            "bucket": BucketCommandHandler(self),
             # Logging operations
-            'log': LogCommandHandler(self),
-            
+            "log": LogCommandHandler(self),
             # Service operations
-            'service': ServiceCommandHandler(self),
-            
+            "service": ServiceCommandHandler(self),
             # MCP operations
-            'mcp': MCPCommandHandler(self),
-            
+            "mcp": MCPCommandHandler(self),
             # Health and status
-            'health': HealthCommandHandler(self),
-            'status': StatusCommandHandler(self),
-            'version': VersionCommandHandler(self),
-            
+            "health": HealthCommandHandler(self),
+            "status": StatusCommandHandler(self),
+            "version": VersionCommandHandler(self),
             # Configuration
-            'config': ConfigCommandHandler(self),
-            
+            "config": ConfigCommandHandler(self),
             # Metrics
-            'metrics': MetricsCommandHandler(self),
+            "metrics": MetricsCommandHandler(self),
         }
 
     def _register_routes(self):
         """Register FastAPI routes that provide MCP protocol endpoints."""
-        
+
         @self.app.get("/health")
         async def health_check():
             """Health check endpoint."""
@@ -209,7 +205,7 @@ class EnhancedMCPServer:
                 "server_id": self.server_id,
                 "timestamp": time.time(),
                 "metadata_path": self.metadata_path,
-                "handlers": list(self.command_handlers.keys())
+                "handlers": list(self.command_handlers.keys()),
             }
 
         @self.app.get("/version")
@@ -219,7 +215,7 @@ class EnhancedMCPServer:
                 "server_id": self.server_id,
                 "version": "2.0.0",
                 "api_version": "v2",
-                "features": ["cli_parity", "metadata_efficient", "daemon_managed"]
+                "features": ["cli_parity", "metadata_efficient", "daemon_managed"],
             }
 
         @self.app.post("/command")
@@ -233,37 +229,35 @@ class EnhancedMCPServer:
                     action=request.get("action"),
                     args=request.get("args", []),
                     params=request.get("params", {}),
-                    metadata=request.get("metadata", {})
+                    metadata=request.get("metadata", {}),
                 )
-                
+
                 # Route to appropriate handler
                 handler = self.command_handlers.get(cmd_request.command)
                 if not handler:
                     response = MCPCommandResponse(
                         success=False,
                         command=cmd_request.command,
-                        error=f"Unknown command: {cmd_request.command}"
+                        error=f"Unknown command: {cmd_request.command}",
                     )
                     self._track_operation(cmd_request, response)
                     return response.__dict__
-                
+
                 # Execute command
                 response = await handler.handle(cmd_request)
-                
+
                 # Track operation to dataset
                 self._track_operation(cmd_request, response)
-                
+
                 return response.__dict__
-                
+
             except Exception as e:
                 logger.error(f"Error executing command: {e}")
                 response = MCPCommandResponse(
-                    success=False,
-                    command=request.get("command", "unknown"),
-                    error=str(e)
+                    success=False, command=request.get("command", "unknown"), error=str(e)
                 )
                 # Track error to dataset
-                if 'cmd_request' in locals():
+                if "cmd_request" in locals():
                     self._track_operation(cmd_request, response)
                 return response.__dict__
 
@@ -274,7 +268,7 @@ class EnhancedMCPServer:
         """Track MCP operation to dataset if enabled."""
         if not self.enable_dataset_storage or not self.dataset_manager:
             return
-        
+
         try:
             operation = {
                 "timestamp": datetime.now().isoformat(),
@@ -286,34 +280,35 @@ class EnhancedMCPServer:
                 "error": response.error,
                 "metadata": request.metadata,
             }
-            
+
             self._operation_buffer.append(operation)
-            
+
             # Store in batches
             if len(self._operation_buffer) >= self.dataset_batch_size:
                 self._flush_operations_to_dataset()
-                
+
         except Exception as e:
             logger.debug(f"Error tracking operation to dataset: {e}")
-    
+
     def _flush_operations_to_dataset(self):
         """Flush pending operations to dataset storage."""
         if not self.enable_dataset_storage or not self.dataset_manager:
             return
-        
+
         if not self._operation_buffer:
             return
-        
+
         try:
             # Store operations as JSON Lines dataset
             dataset_content = "\n".join(json.dumps(op) for op in self._operation_buffer)
-            
+
             # Write to temporary file
             import tempfile
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
+
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
                 f.write(dataset_content)
                 temp_path = f.name
-            
+
             try:
                 result = self.dataset_manager.store(
                     temp_path,
@@ -322,9 +317,9 @@ class EnhancedMCPServer:
                         "server_id": self.server_id,
                         "timestamp": datetime.now().isoformat(),
                         "operation_count": len(self._operation_buffer),
-                    }
+                    },
                 )
-                
+
                 if result.get("success"):
                     logger.debug(f"Stored {len(self._operation_buffer)} MCP operations to dataset")
                     self._operation_buffer.clear()
@@ -334,26 +329,22 @@ class EnhancedMCPServer:
                     os.unlink(temp_path)
                 except:
                     pass
-            
+
         except Exception as e:
             logger.error(f"Error storing operations to dataset: {e}")
-    
+
     def flush_to_dataset(self):
         """Manually flush pending operations to dataset."""
         self._flush_operations_to_dataset()
 
     def _register_rest_routes(self):
         """Register REST-style routes for common operations."""
-        
+
         # PIN operations
         @self.app.post("/pins")
         async def add_pin(request: dict):
             """Add a pin."""
-            cmd_request = MCPCommandRequest(
-                command="pin",
-                action="add",
-                params=request
-            )
+            cmd_request = MCPCommandRequest(command="pin", action="add", params=request)
             handler = self.command_handlers["pin"]
             response = await handler.handle(cmd_request)
             return response.__dict__
@@ -362,9 +353,7 @@ class EnhancedMCPServer:
         async def list_pins(limit: Optional[int] = None, metadata: bool = False):
             """List pins."""
             cmd_request = MCPCommandRequest(
-                command="pin",
-                action="list",
-                params={"limit": limit, "metadata": metadata}
+                command="pin", action="list", params={"limit": limit, "metadata": metadata}
             )
             handler = self.command_handlers["pin"]
             response = await handler.handle(cmd_request)
@@ -373,11 +362,7 @@ class EnhancedMCPServer:
         @self.app.delete("/pins/{cid}")
         async def remove_pin(cid: str):
             """Remove a pin."""
-            cmd_request = MCPCommandRequest(
-                command="pin",
-                action="remove",
-                args=[cid]
-            )
+            cmd_request = MCPCommandRequest(command="pin", action="remove", args=[cid])
             handler = self.command_handlers["pin"]
             response = await handler.handle(cmd_request)
             return response.__dict__
@@ -386,10 +371,7 @@ class EnhancedMCPServer:
         @self.app.get("/backends")
         async def list_backends():
             """List available backends."""
-            cmd_request = MCPCommandRequest(
-                command="backend",
-                action="list"
-            )
+            cmd_request = MCPCommandRequest(command="backend", action="list")
             handler = self.command_handlers["backend"]
             response = await handler.handle(cmd_request)
             return response.__dict__
@@ -397,11 +379,7 @@ class EnhancedMCPServer:
         @self.app.get("/backends/{backend_name}/status")
         async def backend_status(backend_name: str):
             """Get backend status."""
-            cmd_request = MCPCommandRequest(
-                command="backend",
-                action="status",
-                args=[backend_name]
-            )
+            cmd_request = MCPCommandRequest(command="backend", action="status", args=[backend_name])
             handler = self.command_handlers["backend"]
             response = await handler.handle(cmd_request)
             return response.__dict__
@@ -410,10 +388,7 @@ class EnhancedMCPServer:
         @self.app.get("/daemon/status")
         async def daemon_status():
             """Get daemon status."""
-            cmd_request = MCPCommandRequest(
-                command="daemon",
-                action="status"
-            )
+            cmd_request = MCPCommandRequest(command="daemon", action="status")
             handler = self.command_handlers["daemon"]
             response = await handler.handle(cmd_request)
             return response.__dict__
@@ -421,11 +396,7 @@ class EnhancedMCPServer:
         @self.app.post("/daemon/{action}")
         async def daemon_action(action: str, request: dict = None):
             """Execute daemon action (start, stop, restart)."""
-            cmd_request = MCPCommandRequest(
-                command="daemon",
-                action=action,
-                params=request or {}
-            )
+            cmd_request = MCPCommandRequest(command="daemon", action=action, params=request or {})
             handler = self.command_handlers["daemon"]
             response = await handler.handle(cmd_request)
             return response.__dict__
@@ -434,11 +405,9 @@ class EnhancedMCPServer:
         """Start the Enhanced MCP Server."""
         logger.info(f"Starting Enhanced MCP Server on {self.host}:{self.port}")
         import uvicorn
+
         config = uvicorn.Config(
-            app=self.app,
-            host=self.host,
-            port=self.port,
-            log_level=self.log_level.lower()
+            app=self.app, host=self.host, port=self.port, log_level=self.log_level.lower()
         )
         server = uvicorn.Server(config)
         await server.serve()
@@ -451,7 +420,7 @@ class EnhancedMCPServer:
 
 class MetadataReader:
     """Efficient reader for ~/.ipfs_kit/ metadata directory."""
-    
+
     def __init__(self, metadata_path: str):
         self.metadata_path = Path(metadata_path)
         self.cache = {}
@@ -462,26 +431,29 @@ class MetadataReader:
         """Read pin metadata efficiently from parquet files."""
         cache_key = "pin_metadata"
         current_time = time.time()
-        
-        if (cache_key in self.cache and 
-            current_time - self.last_cache_time.get(cache_key, 0) < self.cache_ttl):
+
+        if (
+            cache_key in self.cache
+            and current_time - self.last_cache_time.get(cache_key, 0) < self.cache_ttl
+        ):
             return self.cache[cache_key]
-        
+
         try:
             # Read from simplified pin manager
             from ..simple_pin_manager import get_simple_pin_manager
+
             pin_manager = get_simple_pin_manager()
             result = await pin_manager.list_pins()
-            
-            if result.get('success'):
-                metadata = result['data']
+
+            if result.get("success"):
+                metadata = result["data"]
                 self.cache[cache_key] = metadata
                 self.last_cache_time[cache_key] = current_time
                 return metadata
             else:
                 logger.warning(f"Failed to read pin metadata: {result.get('error')}")
                 return {"pins": [], "total": 0}
-                
+
         except Exception as e:
             logger.error(f"Error reading pin metadata: {e}")
             return {"pins": [], "total": 0}
@@ -490,11 +462,13 @@ class MetadataReader:
         """Read backend configurations from ~/.ipfs_kit/."""
         cache_key = "backend_config"
         current_time = time.time()
-        
-        if (cache_key in self.cache and 
-            current_time - self.last_cache_time.get(cache_key, 0) < self.cache_ttl):
+
+        if (
+            cache_key in self.cache
+            and current_time - self.last_cache_time.get(cache_key, 0) < self.cache_ttl
+        ):
             return self.cache[cache_key]
-        
+
         try:
             config_file = self.metadata_path / "config" / "backends.json"
             if config_file.exists():
@@ -505,7 +479,7 @@ class MetadataReader:
                 return config
             else:
                 return {"backends": {}}
-                
+
         except Exception as e:
             logger.error(f"Error reading backend config: {e}")
             return {"backends": {}}
@@ -514,6 +488,7 @@ class MetadataReader:
         """Read daemon status from metadata."""
         try:
             from ..intelligent_daemon_manager import get_daemon_manager
+
             daemon_manager = get_daemon_manager()
             return daemon_manager.get_status()
         except Exception as e:
@@ -523,7 +498,7 @@ class MetadataReader:
 
 class DaemonConnector:
     """Connector to communicate with IPFS-Kit daemon for synchronization."""
-    
+
     def __init__(self):
         self.daemon_host = "127.0.0.1"
         self.daemon_port = 9999
@@ -532,6 +507,7 @@ class DaemonConnector:
         """Check if daemon is running."""
         try:
             import socket
+
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(1)
             result = sock.connect_ex((self.daemon_host, self.daemon_port))
@@ -540,10 +516,13 @@ class DaemonConnector:
         except Exception:
             return False
 
-    async def send_daemon_command(self, command: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def send_daemon_command(
+        self, command: str, params: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """Send command to daemon API."""
         try:
             import aiohttp
+
             async with aiohttp.ClientSession() as session:
                 url = f"http://{self.daemon_host}:{self.daemon_port}/api/{command}"
                 async with session.post(url, json=params or {}) as response:
@@ -552,7 +531,7 @@ class DaemonConnector:
                     else:
                         return {
                             "success": False,
-                            "error": f"Daemon request failed: {response.status}"
+                            "error": f"Daemon request failed: {response.status}",
                         }
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -560,9 +539,10 @@ class DaemonConnector:
 
 # Command Handlers - Each mirrors corresponding CLI functionality
 
+
 class BaseCommandHandler:
     """Base class for command handlers."""
-    
+
     def __init__(self, server: EnhancedMCPServer):
         self.server = server
         self.metadata_reader = server.metadata_reader
@@ -575,11 +555,11 @@ class BaseCommandHandler:
 
 class DaemonCommandHandler(BaseCommandHandler):
     """Handler for daemon operations - mirrors CLI daemon commands."""
-    
+
     async def handle(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Handle daemon commands."""
         action = request.action or request.subcommand
-        
+
         try:
             if action == "start":
                 return await self._start_daemon(request)
@@ -593,16 +573,10 @@ class DaemonCommandHandler(BaseCommandHandler):
                 return await self._intelligent_daemon(request)
             else:
                 return MCPCommandResponse(
-                    success=False,
-                    command="daemon",
-                    error=f"Unknown daemon action: {action}"
+                    success=False, command="daemon", error=f"Unknown daemon action: {action}"
                 )
         except Exception as e:
-            return MCPCommandResponse(
-                success=False,
-                command="daemon",
-                error=str(e)
-            )
+            return MCPCommandResponse(success=False, command="daemon", error=str(e))
 
     async def _start_daemon(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Start daemon - mirrors cmd_daemon_start."""
@@ -610,67 +584,57 @@ class DaemonCommandHandler(BaseCommandHandler):
             return MCPCommandResponse(
                 success=True,
                 command="daemon",
-                result={"status": "already_running", "message": "Daemon is already running"}
+                result={"status": "already_running", "message": "Daemon is already running"},
             )
-        
+
         # Use simplified daemon management for MCP
         try:
             from ..intelligent_daemon_manager import get_daemon_manager
+
             daemon_manager = get_daemon_manager()
-            
+
             result = daemon_manager.start()
             if result:
                 return MCPCommandResponse(
                     success=True,
                     command="daemon",
-                    result={"status": "started", "message": "Daemon started successfully"}
+                    result={"status": "started", "message": "Daemon started successfully"},
                 )
             else:
                 return MCPCommandResponse(
-                    success=False,
-                    command="daemon",
-                    error="Failed to start daemon"
+                    success=False, command="daemon", error="Failed to start daemon"
                 )
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="daemon",
-                error=f"Error starting daemon: {e}"
+                success=False, command="daemon", error=f"Error starting daemon: {e}"
             )
 
     async def _stop_daemon(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Stop daemon - mirrors cmd_daemon_stop."""
         try:
             from ..intelligent_daemon_manager import get_daemon_manager
+
             daemon_manager = get_daemon_manager()
-            
+
             result = daemon_manager.stop()
             return MCPCommandResponse(
                 success=True,
                 command="daemon",
-                result={"status": "stopped", "message": "Daemon stopped successfully"}
+                result={"status": "stopped", "message": "Daemon stopped successfully"},
             )
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="daemon",
-                error=f"Error stopping daemon: {e}"
+                success=False, command="daemon", error=f"Error stopping daemon: {e}"
             )
 
     async def _daemon_status(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Get daemon status - mirrors cmd_daemon_status."""
         try:
             status = await self.metadata_reader.read_daemon_status()
-            return MCPCommandResponse(
-                success=True,
-                command="daemon",
-                result=status
-            )
+            return MCPCommandResponse(success=True, command="daemon", result=status)
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="daemon",
-                error=f"Error getting daemon status: {e}"
+                success=False, command="daemon", error=f"Error getting daemon status: {e}"
             )
 
     async def _restart_daemon(self, request: MCPCommandRequest) -> MCPCommandResponse:
@@ -680,81 +644,78 @@ class DaemonCommandHandler(BaseCommandHandler):
             stop_result = await self._stop_daemon(request)
             if not stop_result.success:
                 return stop_result
-                
+
             # Wait a moment
             await anyio.sleep(2)
-            
+
             # Start again
             start_result = await self._start_daemon(request)
             return start_result
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="daemon",
-                error=f"Error restarting daemon: {e}"
+                success=False, command="daemon", error=f"Error restarting daemon: {e}"
             )
 
     async def _intelligent_daemon(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Handle intelligent daemon operations - mirrors cmd_intelligent_daemon."""
         try:
             from ..intelligent_daemon_manager import get_daemon_manager
+
             daemon_manager = get_daemon_manager()
-            
+
             # Get the specific intelligent action from args
             if request.args:
                 action = request.args[0]
             else:
                 action = "status"
-            
+
             if action == "start":
                 daemon_manager.start()
                 return MCPCommandResponse(
                     success=True,
                     command="daemon",
-                    result={"action": "intelligent_start", "status": "started"}
+                    result={"action": "intelligent_start", "status": "started"},
                 )
             elif action == "stop":
                 daemon_manager.stop()
                 return MCPCommandResponse(
                     success=True,
                     command="daemon",
-                    result={"action": "intelligent_stop", "status": "stopped"}
+                    result={"action": "intelligent_stop", "status": "stopped"},
                 )
             elif action == "status":
                 status = daemon_manager.get_status()
                 return MCPCommandResponse(
                     success=True,
                     command="daemon",
-                    result={"action": "intelligent_status", "status": status}
+                    result={"action": "intelligent_status", "status": status},
                 )
             elif action == "insights":
                 insights = daemon_manager.get_metadata_insights()
                 return MCPCommandResponse(
                     success=True,
                     command="daemon",
-                    result={"action": "intelligent_insights", "insights": insights}
+                    result={"action": "intelligent_insights", "insights": insights},
                 )
             else:
                 return MCPCommandResponse(
                     success=False,
                     command="daemon",
-                    error=f"Unknown intelligent daemon action: {action}"
+                    error=f"Unknown intelligent daemon action: {action}",
                 )
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="daemon",
-                error=f"Error with intelligent daemon: {e}"
+                success=False, command="daemon", error=f"Error with intelligent daemon: {e}"
             )
 
 
 class PinCommandHandler(BaseCommandHandler):
     """Handler for PIN operations - mirrors CLI pin commands."""
-    
+
     async def handle(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Handle pin commands."""
         action = request.action or request.subcommand
-        
+
         try:
             if action == "add":
                 return await self._add_pin(request)
@@ -772,102 +733,84 @@ class PinCommandHandler(BaseCommandHandler):
                 return await self._init_pins(request)
             else:
                 return MCPCommandResponse(
-                    success=False,
-                    command="pin",
-                    error=f"Unknown pin action: {action}"
+                    success=False, command="pin", error=f"Unknown pin action: {action}"
                 )
         except Exception as e:
-            return MCPCommandResponse(
-                success=False,
-                command="pin",
-                error=str(e)
-            )
+            return MCPCommandResponse(success=False, command="pin", error=str(e))
 
     async def _add_pin(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Add pin - mirrors cmd_pin_add."""
         try:
             from ..simple_pin_manager import get_simple_pin_manager
+
             pin_manager = get_simple_pin_manager()
-            
+
             # Extract parameters
             cid_or_file = request.args[0] if request.args else request.params.get("cid")
             name = request.params.get("name")
             recursive = request.params.get("recursive", False)
-            
+
             if not cid_or_file:
                 return MCPCommandResponse(
-                    success=False,
-                    command="pin",
-                    error="CID or file path is required"
+                    success=False, command="pin", error="CID or file path is required"
                 )
-            
+
             # Add pin using manager
             result = await pin_manager.add_pin(
-                cid_or_file=cid_or_file,
-                name=name,
-                recursive=recursive
+                cid_or_file=cid_or_file, name=name, recursive=recursive
             )
-            
+
             return MCPCommandResponse(
                 success=result.get("success", False),
                 command="pin",
                 result=result.get("data"),
-                error=result.get("error")
+                error=result.get("error"),
             )
         except Exception as e:
-            return MCPCommandResponse(
-                success=False,
-                command="pin",
-                error=f"Error adding pin: {e}"
-            )
+            return MCPCommandResponse(success=False, command="pin", error=f"Error adding pin: {e}")
 
     async def _remove_pin(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Remove pin - mirrors cmd_pin_remove."""
         try:
             from ..simple_pin_manager import get_simple_pin_manager
+
             pin_manager = get_simple_pin_manager()
-            
+
             cid = request.args[0] if request.args else request.params.get("cid")
             if not cid:
-                return MCPCommandResponse(
-                    success=False,
-                    command="pin",
-                    error="CID is required"
-                )
-            
+                return MCPCommandResponse(success=False, command="pin", error="CID is required")
+
             result = await pin_manager.remove_pin(cid)
-            
+
             return MCPCommandResponse(
                 success=result.get("success", False),
                 command="pin",
                 result=result.get("data"),
-                error=result.get("error")
+                error=result.get("error"),
             )
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="pin",
-                error=f"Error removing pin: {e}"
+                success=False, command="pin", error=f"Error removing pin: {e}"
             )
 
     async def _list_pins(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """List pins - mirrors cmd_pin_list."""
         try:
             metadata = await self.metadata_reader.read_pin_metadata()
-            
+
             # Apply filters
             limit = request.params.get("limit")
             show_metadata = request.params.get("metadata", False)
-            
+
             pins = metadata.get("pins", [])
-            
+
             if limit:
                 pins = pins[:limit]
-            
+
             if not show_metadata:
                 # Remove metadata from pins for cleaner output
                 pins = [{k: v for k, v in pin.items() if k != "metadata"} for pin in pins]
-            
+
             return MCPCommandResponse(
                 success=True,
                 command="pin",
@@ -875,40 +818,35 @@ class PinCommandHandler(BaseCommandHandler):
                     "pins": pins,
                     "total": len(pins),
                     "limit": limit,
-                    "show_metadata": show_metadata
-                }
+                    "show_metadata": show_metadata,
+                },
             )
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="pin",
-                error=f"Error listing pins: {e}"
+                success=False, command="pin", error=f"Error listing pins: {e}"
             )
 
     async def _get_pin(self, request: MCPCommandRequest) -> MCPCommandResponse:
-        """Get pin content - mirrors cmd_pin_get.""" 
+        """Get pin content - mirrors cmd_pin_get."""
         try:
             cid = request.args[0] if request.args else request.params.get("cid")
             output = request.params.get("output")
             recursive = request.params.get("recursive", False)
-            
+
             if not cid:
-                return MCPCommandResponse(
-                    success=False,
-                    command="pin",
-                    error="CID is required"
-                )
-            
+                return MCPCommandResponse(success=False, command="pin", error="CID is required")
+
             # Try to get content from CAR WAL first
             try:
                 from ..car_wal_manager import get_car_wal_manager
+
                 car_wal = get_car_wal_manager()
-                
+
                 wal_result = await car_wal.get_content_from_wal(cid)
-                if wal_result.get('success'):
-                    content = wal_result['data']['content']
-                    metadata = wal_result['data'].get('metadata', {})
-                    
+                if wal_result.get("success"):
+                    content = wal_result["data"]["content"]
+                    metadata = wal_result["data"].get("metadata", {})
+
                     return MCPCommandResponse(
                         success=True,
                         command="pin",
@@ -917,134 +855,119 @@ class PinCommandHandler(BaseCommandHandler):
                             "content": content if isinstance(content, str) else content.hex(),
                             "source": "wal",
                             "metadata": metadata,
-                            "output": output
-                        }
+                            "output": output,
+                        },
                     )
             except Exception as e:
                 logger.debug(f"WAL lookup failed: {e}")
-            
+
             # Fallback to other methods would go here
             return MCPCommandResponse(
-                success=False,
-                command="pin",
-                error=f"Content not found for CID: {cid}"
+                success=False, command="pin", error=f"Content not found for CID: {cid}"
             )
-            
+
         except Exception as e:
-            return MCPCommandResponse(
-                success=False,
-                command="pin",
-                error=f"Error getting pin: {e}"
-            )
+            return MCPCommandResponse(success=False, command="pin", error=f"Error getting pin: {e}")
 
     async def _cat_pin(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Cat pin content - mirrors cmd_pin_cat."""
         try:
             cid = request.args[0] if request.args else request.params.get("cid")
             limit = request.params.get("limit")
-            
+
             if not cid:
-                return MCPCommandResponse(
-                    success=False,
-                    command="pin",
-                    error="CID is required"
-                )
-            
+                return MCPCommandResponse(success=False, command="pin", error="CID is required")
+
             # Similar to _get_pin but for streaming
             try:
                 from ..car_wal_manager import get_car_wal_manager
+
                 car_wal = get_car_wal_manager()
-                
+
                 wal_result = await car_wal.get_content_from_wal(cid)
-                if wal_result.get('success'):
-                    content = wal_result['data']['content']
-                    
+                if wal_result.get("success"):
+                    content = wal_result["data"]["content"]
+
                     # Apply limit if specified
                     if limit and isinstance(content, bytes) and len(content) > limit:
                         content = content[:limit]
                         truncated = True
                     elif limit and isinstance(content, str) and len(content.encode()) > limit:
-                        content = content.encode()[:limit].decode('utf-8', errors='ignore')
+                        content = content.encode()[:limit].decode("utf-8", errors="ignore")
                         truncated = True
                     else:
                         truncated = False
-                    
+
                     return MCPCommandResponse(
                         success=True,
                         command="pin",
                         result={
                             "cid": cid,
-                            "content": content if isinstance(content, str) else content.decode('utf-8', errors='ignore'),
+                            "content": content
+                            if isinstance(content, str)
+                            else content.decode("utf-8", errors="ignore"),
                             "truncated": truncated,
-                            "limit": limit
-                        }
+                            "limit": limit,
+                        },
                     )
             except Exception as e:
                 logger.debug(f"WAL cat failed: {e}")
-            
+
             return MCPCommandResponse(
-                success=False,
-                command="pin",
-                error=f"Content not found for CID: {cid}"
+                success=False, command="pin", error=f"Content not found for CID: {cid}"
             )
-            
+
         except Exception as e:
-            return MCPCommandResponse(
-                success=False,
-                command="pin",
-                error=f"Error catting pin: {e}"
-            )
+            return MCPCommandResponse(success=False, command="pin", error=f"Error catting pin: {e}")
 
     async def _pending_pins(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """List pending pins - mirrors cmd_pin_pending."""
         try:
             from ..simple_pin_manager import get_simple_pin_manager
+
             pin_manager = get_simple_pin_manager()
-            
+
             result = await pin_manager.list_pending_pins()
-            
+
             return MCPCommandResponse(
                 success=result.get("success", False),
                 command="pin",
                 result=result.get("data"),
-                error=result.get("error")
+                error=result.get("error"),
             )
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="pin",
-                error=f"Error getting pending pins: {e}"
+                success=False, command="pin", error=f"Error getting pending pins: {e}"
             )
 
     async def _init_pins(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Initialize pins - mirrors cmd_pin_init."""
         try:
             from ..simple_pin_manager import get_simple_pin_manager
+
             pin_manager = get_simple_pin_manager()
-            
+
             # Initialize sample pins
             result = await pin_manager.initialize_sample_pins()
-            
+
             return MCPCommandResponse(
                 success=True,
                 command="pin",
-                result={"message": "Pin metadata initialized successfully"}
+                result={"message": "Pin metadata initialized successfully"},
             )
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="pin",
-                error=f"Error initializing pins: {e}"
+                success=False, command="pin", error=f"Error initializing pins: {e}"
             )
 
 
 class BackendCommandHandler(BaseCommandHandler):
     """Handler for backend operations - mirrors CLI backend commands."""
-    
+
     async def handle(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Handle backend commands."""
         action = request.action or request.subcommand
-        
+
         try:
             if action == "list":
                 return await self._list_backends(request)
@@ -1054,150 +977,133 @@ class BackendCommandHandler(BaseCommandHandler):
                 return await self._test_backend(request)
             elif action == "auth":
                 return await self._backend_auth(request)
-            elif action in ["huggingface", "github", "s3", "storacha", "ipfs", "gdrive", 
-                           "lotus", "synapse", "sshfs", "ftp", "ipfs_cluster", 
-                           "ipfs_cluster_follow", "parquet", "arrow"]:
+            elif action in [
+                "huggingface",
+                "github",
+                "s3",
+                "storacha",
+                "ipfs",
+                "gdrive",
+                "lotus",
+                "synapse",
+                "sshfs",
+                "ftp",
+                "ipfs_cluster",
+                "ipfs_cluster_follow",
+                "parquet",
+                "arrow",
+            ]:
                 return await self._specific_backend(request, action)
             else:
                 return MCPCommandResponse(
-                    success=False,
-                    command="backend",
-                    error=f"Unknown backend action: {action}"
+                    success=False, command="backend", error=f"Unknown backend action: {action}"
                 )
         except Exception as e:
-            return MCPCommandResponse(
-                success=False,
-                command="backend",
-                error=str(e)
-            )
+            return MCPCommandResponse(success=False, command="backend", error=str(e))
 
     async def _list_backends(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """List backends - mirrors cmd_backend_list."""
         try:
             config = await self.metadata_reader.read_backend_config()
             backends = config.get("backends", {})
-            
+
             backend_list = []
             for name, backend_config in backends.items():
                 backend_info = {
                     "name": name,
                     "type": backend_config.get("type", "unknown"),
                     "enabled": backend_config.get("enabled", False),
-                    "status": "unknown"  # Would be determined by actual health check
+                    "status": "unknown",  # Would be determined by actual health check
                 }
                 backend_list.append(backend_info)
-            
+
             return MCPCommandResponse(
                 success=True,
                 command="backend",
-                result={
-                    "backends": backend_list,
-                    "total": len(backend_list)
-                }
+                result={"backends": backend_list, "total": len(backend_list)},
             )
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="backend",
-                error=f"Error listing backends: {e}"
+                success=False, command="backend", error=f"Error listing backends: {e}"
             )
 
     async def _backend_status(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Get backend status - mirrors cmd_backend_status."""
         try:
             backend_name = request.args[0] if request.args else request.params.get("backend")
-            
+
             if not backend_name:
                 return MCPCommandResponse(
-                    success=False,
-                    command="backend",
-                    error="Backend name is required"
+                    success=False, command="backend", error="Backend name is required"
                 )
-            
+
             # Check daemon for backend status
             daemon_result = await self.daemon_connector.send_daemon_command(
                 f"backend/{backend_name}/status"
             )
-            
+
             if daemon_result.get("success"):
-                return MCPCommandResponse(
-                    success=True,
-                    command="backend",
-                    result=daemon_result
-                )
+                return MCPCommandResponse(success=True, command="backend", result=daemon_result)
             else:
                 return MCPCommandResponse(
                     success=False,
                     command="backend",
-                    error=daemon_result.get("error", "Backend status check failed")
+                    error=daemon_result.get("error", "Backend status check failed"),
                 )
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="backend",
-                error=f"Error getting backend status: {e}"
+                success=False, command="backend", error=f"Error getting backend status: {e}"
             )
 
     async def _test_backend(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Test backend - mirrors cmd_backend_test."""
         try:
             backend_name = request.args[0] if request.args else request.params.get("backend")
-            
+
             if not backend_name:
                 return MCPCommandResponse(
-                    success=False,
-                    command="backend",
-                    error="Backend name is required"
+                    success=False, command="backend", error="Backend name is required"
                 )
-            
+
             # Perform backend test through daemon
             daemon_result = await self.daemon_connector.send_daemon_command(
-                f"backend/{backend_name}/test",
-                request.params
+                f"backend/{backend_name}/test", request.params
             )
-            
+
             return MCPCommandResponse(
                 success=daemon_result.get("success", False),
                 command="backend",
                 result=daemon_result,
-                error=daemon_result.get("error")
+                error=daemon_result.get("error"),
             )
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="backend",
-                error=f"Error testing backend: {e}"
+                success=False, command="backend", error=f"Error testing backend: {e}"
             )
 
     async def _backend_auth(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Backend authentication - mirrors cmd_backend_auth."""
         try:
             backend_type = request.args[0] if request.args else request.params.get("type")
-            
+
             if not backend_type:
                 return MCPCommandResponse(
                     success=False,
                     command="backend",
-                    error="Backend type is required for authentication"
+                    error="Backend type is required for authentication",
                 )
-            
+
             # Handle authentication for different backend types
             auth_info = {
                 "type": backend_type,
                 "instructions": self._get_auth_instructions(backend_type),
-                "status": "instructions_provided"
+                "status": "instructions_provided",
             }
-            
-            return MCPCommandResponse(
-                success=True,
-                command="backend",
-                result=auth_info
-            )
+
+            return MCPCommandResponse(success=True, command="backend", result=auth_info)
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="backend",
-                error=f"Error with backend auth: {e}"
+                success=False, command="backend", error=f"Error with backend auth: {e}"
             )
 
     def _get_auth_instructions(self, backend_type: str) -> str:
@@ -1211,7 +1117,9 @@ class BackendCommandHandler(BaseCommandHandler):
         }
         return instructions.get(backend_type, f"Authentication setup for {backend_type}")
 
-    async def _specific_backend(self, request: MCPCommandRequest, backend_type: str) -> MCPCommandResponse:
+    async def _specific_backend(
+        self, request: MCPCommandRequest, backend_type: str
+    ) -> MCPCommandResponse:
         """Handle specific backend operations - mirrors cmd_backend_* methods."""
         try:
             # Route to daemon for specific backend handling
@@ -1220,31 +1128,29 @@ class BackendCommandHandler(BaseCommandHandler):
                 {
                     "action": request.params.get("action", "status"),
                     "params": request.params,
-                    "args": request.args
-                }
+                    "args": request.args,
+                },
             )
-            
+
             return MCPCommandResponse(
                 success=daemon_result.get("success", False),
                 command="backend",
                 result=daemon_result,
-                error=daemon_result.get("error")
+                error=daemon_result.get("error"),
             )
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="backend",
-                error=f"Error with {backend_type} backend: {e}"
+                success=False, command="backend", error=f"Error with {backend_type} backend: {e}"
             )
 
 
 class BucketCommandHandler(BaseCommandHandler):
     """Handler for bucket operations - mirrors CLI bucket commands."""
-    
+
     async def handle(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Handle bucket commands."""
         action = request.action or request.subcommand
-        
+
         try:
             if action == "create":
                 return await self._create_bucket(request)
@@ -1254,16 +1160,10 @@ class BucketCommandHandler(BaseCommandHandler):
                 return await self._add_to_bucket(request)
             else:
                 return MCPCommandResponse(
-                    success=False,
-                    command="bucket",
-                    error=f"Unknown bucket action: {action}"
+                    success=False, command="bucket", error=f"Unknown bucket action: {action}"
                 )
         except Exception as e:
-            return MCPCommandResponse(
-                success=False,
-                command="bucket",
-                error=str(e)
-            )
+            return MCPCommandResponse(success=False, command="bucket", error=str(e))
 
     async def _create_bucket(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Create bucket - mirrors cmd_bucket_create."""
@@ -1271,35 +1171,31 @@ class BucketCommandHandler(BaseCommandHandler):
         return MCPCommandResponse(
             success=True,
             command="bucket",
-            result={"message": "Bucket creation delegated to daemon"}
+            result={"message": "Bucket creation delegated to daemon"},
         )
 
     async def _list_buckets(self, request: MCPCommandRequest) -> MCPCommandResponse:
-        """List buckets - mirrors cmd_bucket_list.""" 
+        """List buckets - mirrors cmd_bucket_list."""
         # Implementation would read bucket metadata
         return MCPCommandResponse(
-            success=True,
-            command="bucket",
-            result={"buckets": [], "total": 0}
+            success=True, command="bucket", result={"buckets": [], "total": 0}
         )
 
     async def _add_to_bucket(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Add to bucket - mirrors cmd_bucket_add."""
         # Implementation would delegate to bucket management
         return MCPCommandResponse(
-            success=True,
-            command="bucket",
-            result={"message": "Add to bucket delegated to daemon"}
+            success=True, command="bucket", result={"message": "Add to bucket delegated to daemon"}
         )
 
 
 class LogCommandHandler(BaseCommandHandler):
     """Handler for logging operations - mirrors CLI log commands."""
-    
+
     async def handle(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Handle log commands."""
         action = request.action or request.subcommand
-        
+
         try:
             if action == "show":
                 return await self._show_logs(request)
@@ -1311,16 +1207,10 @@ class LogCommandHandler(BaseCommandHandler):
                 return await self._export_logs(request)
             else:
                 return MCPCommandResponse(
-                    success=False,
-                    command="log",
-                    error=f"Unknown log action: {action}"
+                    success=False, command="log", error=f"Unknown log action: {action}"
                 )
         except Exception as e:
-            return MCPCommandResponse(
-                success=False,
-                command="log",
-                error=str(e)
-            )
+            return MCPCommandResponse(success=False, command="log", error=str(e))
 
     async def _show_logs(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Show logs - mirrors cmd_log_show."""
@@ -1328,33 +1218,26 @@ class LogCommandHandler(BaseCommandHandler):
             component = request.params.get("component", "all")
             level = request.params.get("level", "info")
             limit = request.params.get("limit", 100)
-            
+
             # Read logs from metadata directory
             logs_path = self.metadata_reader.metadata_path / "logs"
-            
+
             if not logs_path.exists():
                 return MCPCommandResponse(
                     success=True,
                     command="log",
-                    result={"logs": [], "total": 0, "message": "No logs found"}
+                    result={"logs": [], "total": 0, "message": "No logs found"},
                 )
-            
+
             # Implementation would read and filter logs
             return MCPCommandResponse(
                 success=True,
                 command="log",
-                result={
-                    "logs": [],
-                    "component": component,
-                    "level": level,
-                    "limit": limit
-                }
+                result={"logs": [], "component": component, "level": level, "limit": limit},
             )
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="log",
-                error=f"Error showing logs: {e}"
+                success=False, command="log", error=f"Error showing logs: {e}"
             )
 
     async def _log_stats(self, request: MCPCommandRequest) -> MCPCommandResponse:
@@ -1367,21 +1250,22 @@ class LogCommandHandler(BaseCommandHandler):
                 "log_files_count": 0,
                 "total_size_bytes": 0,
             }
-            
+
             if logs_path.exists():
                 log_files = list(logs_path.glob("*.log"))
                 stats["log_files_count"] = len(log_files)
                 stats["total_size_bytes"] = sum(f.stat().st_size for f in log_files if f.exists())
-            
+
             # Store stats to dataset if enabled
             if self.server.enable_dataset_storage and self.server.dataset_manager:
                 try:
                     # Write stats to temporary file
                     import tempfile
-                    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+
+                    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
                         json.dump(stats, f)
                         temp_path = f.name
-                    
+
                     try:
                         result = self.server.dataset_manager.store(
                             temp_path,
@@ -1389,7 +1273,7 @@ class LogCommandHandler(BaseCommandHandler):
                                 "type": "log_statistics",
                                 "timestamp": stats["timestamp"],
                                 "server_id": self.server.server_id,
-                            }
+                            },
                         )
                         if result.get("success"):
                             stats["stored_to_dataset"] = True
@@ -1402,25 +1286,17 @@ class LogCommandHandler(BaseCommandHandler):
                             pass
                 except Exception as e:
                     logger.debug(f"Error storing log stats to dataset: {e}")
-            
-            return MCPCommandResponse(
-                success=True,
-                command="log",
-                result={"stats": stats}
-            )
+
+            return MCPCommandResponse(success=True, command="log", result={"stats": stats})
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="log",
-                error=f"Error calculating log stats: {e}"
+                success=False, command="log", error=f"Error calculating log stats: {e}"
             )
 
     async def _clear_logs(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Clear logs - mirrors cmd_log_clear."""
         return MCPCommandResponse(
-            success=True,
-            command="log",
-            result={"message": "Log clearing delegated to daemon"}
+            success=True, command="log", result={"message": "Log clearing delegated to daemon"}
         )
 
     async def _export_logs(self, request: MCPCommandRequest) -> MCPCommandResponse:
@@ -1430,33 +1306,36 @@ class LogCommandHandler(BaseCommandHandler):
             if self.server.enable_dataset_storage and self.server.dataset_manager:
                 component = request.params.get("component", "all")
                 format_type = request.params.get("format", "jsonl")
-                
+
                 # Read logs from metadata directory
                 logs_path = Path(self.server.metadata_path) / "logs"
-                
+
                 if logs_path.exists():
                     # Collect log files
                     log_files = list(logs_path.glob("*.log"))
-                    
+
                     if log_files:
                         # Aggregate logs
                         logs_content = []
                         for log_file in log_files:
                             try:
-                                with open(log_file, 'r') as f:
+                                with open(log_file, "r") as f:
                                     logs_content.append(f.read())
                             except Exception as e:
                                 logger.warning(f"Error reading log file {log_file}: {e}")
-                        
+
                         if logs_content:
                             # Write combined logs to temporary file
                             import tempfile
+
                             combined_logs = "\n".join(logs_content)
-                            
-                            with tempfile.NamedTemporaryFile(mode='w', suffix='.log', delete=False) as f:
+
+                            with tempfile.NamedTemporaryFile(
+                                mode="w", suffix=".log", delete=False
+                            ) as f:
                                 f.write(combined_logs)
                                 temp_path = f.name
-                            
+
                             try:
                                 # Store to dataset
                                 result = self.server.dataset_manager.store(
@@ -1467,10 +1346,10 @@ class LogCommandHandler(BaseCommandHandler):
                                         "format": format_type,
                                         "timestamp": datetime.now().isoformat(),
                                         "server_id": self.server.server_id,
-                                        "file_count": len(log_files)
-                                    }
+                                        "file_count": len(log_files),
+                                    },
                                 )
-                                
+
                                 if result.get("success"):
                                     return MCPCommandResponse(
                                         success=True,
@@ -1479,8 +1358,8 @@ class LogCommandHandler(BaseCommandHandler):
                                             "message": "Logs exported to dataset",
                                             "cid": result.get("cid"),
                                             "distributed": result.get("distributed", False),
-                                            "file_count": len(log_files)
-                                        }
+                                            "file_count": len(log_files),
+                                        },
                                     )
                             finally:
                                 # Clean up temporary file
@@ -1488,77 +1367,66 @@ class LogCommandHandler(BaseCommandHandler):
                                     os.unlink(temp_path)
                                 except:
                                     pass
-                
+
             # Fallback to standard export
             return MCPCommandResponse(
-                success=True,
-                command="log",
-                result={"message": "Log export delegated to daemon"}
+                success=True, command="log", result={"message": "Log export delegated to daemon"}
             )
-            
+
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="log",
-                error=f"Error exporting logs: {e}"
+                success=False, command="log", error=f"Error exporting logs: {e}"
             )
 
 
 class ServiceCommandHandler(BaseCommandHandler):
     """Handler for service operations - mirrors CLI service commands."""
-    
+
     async def handle(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Handle service commands."""
         service = request.action or request.subcommand
-        
+
         try:
             if service in ["ipfs", "lotus", "cluster", "lassie"]:
                 return await self._service_operation(request, service)
             else:
                 return MCPCommandResponse(
-                    success=False,
-                    command="service",
-                    error=f"Unknown service: {service}"
+                    success=False, command="service", error=f"Unknown service: {service}"
                 )
         except Exception as e:
-            return MCPCommandResponse(
-                success=False,
-                command="service",
-                error=str(e)
-            )
+            return MCPCommandResponse(success=False, command="service", error=str(e))
 
-    async def _service_operation(self, request: MCPCommandRequest, service: str) -> MCPCommandResponse:
+    async def _service_operation(
+        self, request: MCPCommandRequest, service: str
+    ) -> MCPCommandResponse:
         """Handle service operations - mirrors cmd_service_* methods."""
         try:
             action = request.params.get("action", "status")
-            
+
             # Delegate to daemon for service management
             daemon_result = await self.daemon_connector.send_daemon_command(
-                f"service/{service}/{action}",
-                request.params
+                f"service/{service}/{action}", request.params
             )
-            
+
             return MCPCommandResponse(
                 success=daemon_result.get("success", False),
                 command="service",
                 result=daemon_result,
-                error=daemon_result.get("error")
+                error=daemon_result.get("error"),
             )
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="service",
-                error=f"Error with {service} service: {e}"
+                success=False, command="service", error=f"Error with {service} service: {e}"
             )
 
 
 class MCPCommandHandler(BaseCommandHandler):
     """Handler for MCP operations - mirrors CLI MCP commands."""
-    
+
     async def handle(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Handle MCP commands."""
         action = request.action or request.subcommand
-        
+
         try:
             if action == "start":
                 return await self._start_mcp(request)
@@ -1572,31 +1440,23 @@ class MCPCommandHandler(BaseCommandHandler):
                 return await self._mcp_role(request)
             else:
                 return MCPCommandResponse(
-                    success=False,
-                    command="mcp",
-                    error=f"Unknown MCP action: {action}"
+                    success=False, command="mcp", error=f"Unknown MCP action: {action}"
                 )
         except Exception as e:
-            return MCPCommandResponse(
-                success=False,
-                command="mcp",
-                error=str(e)
-            )
+            return MCPCommandResponse(success=False, command="mcp", error=str(e))
 
     async def _start_mcp(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Start MCP server."""
         return MCPCommandResponse(
             success=True,
             command="mcp",
-            result={"status": "running", "message": "MCP server is already running"}
+            result={"status": "running", "message": "MCP server is already running"},
         )
 
     async def _stop_mcp(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Stop MCP server."""
         return MCPCommandResponse(
-            success=False,
-            command="mcp",
-            error="Cannot stop MCP server from within itself"
+            success=False, command="mcp", error="Cannot stop MCP server from within itself"
         )
 
     async def _mcp_status(self, request: MCPCommandRequest) -> MCPCommandResponse:
@@ -1608,46 +1468,34 @@ class MCPCommandHandler(BaseCommandHandler):
                 "status": "running",
                 "server_id": self.server.server_id,
                 "host": self.server.host,
-                "port": self.server.port
-            }
+                "port": self.server.port,
+            },
         )
 
     async def _restart_mcp(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Restart MCP server."""
         return MCPCommandResponse(
-            success=False,
-            command="mcp",
-            error="Cannot restart MCP server from within itself"
+            success=False, command="mcp", error="Cannot restart MCP server from within itself"
         )
 
     async def _mcp_role(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Configure MCP role - mirrors cmd_mcp_role."""
         try:
             role = request.args[0] if request.args else request.params.get("role")
-            
+
             if not role:
-                return MCPCommandResponse(
-                    success=False,
-                    command="mcp",
-                    error="Role is required"
-                )
-            
+                return MCPCommandResponse(success=False, command="mcp", error="Role is required")
+
             role_info = {
                 "role": role,
                 "description": self._get_role_description(role),
-                "configured": True
+                "configured": True,
             }
-            
-            return MCPCommandResponse(
-                success=True,
-                command="mcp",
-                result=role_info
-            )
+
+            return MCPCommandResponse(success=True, command="mcp", result=role_info)
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="mcp",
-                error=f"Error configuring MCP role: {e}"
+                success=False, command="mcp", error=f"Error configuring MCP role: {e}"
             )
 
     def _get_role_description(self, role: str) -> str:
@@ -1656,71 +1504,59 @@ class MCPCommandHandler(BaseCommandHandler):
             "master": "Manages cluster coordination and worker/leecher registration",
             "worker": "Processes data storage and retrieval, participates in replication",
             "leecher": "Read-only content access via P2P networks",
-            "modular": "All components enabled for testing (kitchen sink mode)"
+            "modular": "All components enabled for testing (kitchen sink mode)",
         }
         return descriptions.get(role, f"Custom role: {role}")
 
 
 class HealthCommandHandler(BaseCommandHandler):
     """Handler for health check operations."""
-    
+
     async def handle(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Handle health check."""
         try:
             daemon_status = await self.metadata_reader.read_daemon_status()
             backend_config = await self.metadata_reader.read_backend_config()
-            
+
             health_info = {
                 "server_status": "healthy",
                 "daemon_running": daemon_status.get("running", False),
                 "metadata_accessible": True,
                 "backends_configured": len(backend_config.get("backends", {})),
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
-            
-            return MCPCommandResponse(
-                success=True,
-                command="health",
-                result=health_info
-            )
+
+            return MCPCommandResponse(success=True, command="health", result=health_info)
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="health",
-                error=f"Health check failed: {e}"
+                success=False, command="health", error=f"Health check failed: {e}"
             )
 
 
 class StatusCommandHandler(BaseCommandHandler):
     """Handler for status operations."""
-    
+
     async def handle(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Handle status request."""
         try:
             status_info = {
                 "server_id": self.server.server_id,
-                "uptime": time.time() - getattr(self.server, 'start_time', time.time()),
+                "uptime": time.time() - getattr(self.server, "start_time", time.time()),
                 "handlers": list(self.server.command_handlers.keys()),
                 "metadata_path": str(self.metadata_reader.metadata_path),
-                "daemon_connected": await self.daemon_connector.is_daemon_running()
+                "daemon_connected": await self.daemon_connector.is_daemon_running(),
             }
-            
-            return MCPCommandResponse(
-                success=True,
-                command="status",
-                result=status_info
-            )
+
+            return MCPCommandResponse(success=True, command="status", result=status_info)
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="status",
-                error=f"Status check failed: {e}"
+                success=False, command="status", error=f"Status check failed: {e}"
             )
 
 
 class VersionCommandHandler(BaseCommandHandler):
     """Handler for version operations."""
-    
+
     async def handle(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Handle version request."""
         try:
@@ -1729,34 +1565,28 @@ class VersionCommandHandler(BaseCommandHandler):
                 "api_version": "v2",
                 "features": [
                     "cli_parity",
-                    "metadata_efficient", 
+                    "metadata_efficient",
                     "daemon_managed",
                     "rest_endpoints",
-                    "command_interface"
+                    "command_interface",
                 ],
-                "cli_compatible": True
+                "cli_compatible": True,
             }
-            
-            return MCPCommandResponse(
-                success=True,
-                command="version",
-                result=version_info
-            )
+
+            return MCPCommandResponse(success=True, command="version", result=version_info)
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="version",
-                error=f"Version check failed: {e}"
+                success=False, command="version", error=f"Version check failed: {e}"
             )
 
 
 class ConfigCommandHandler(BaseCommandHandler):
     """Handler for configuration operations."""
-    
+
     async def handle(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Handle config commands."""
         action = request.action or request.subcommand
-        
+
         try:
             if action == "show":
                 return await self._show_config(request)
@@ -1766,29 +1596,23 @@ class ConfigCommandHandler(BaseCommandHandler):
                 return await self._get_config(request)
             else:
                 return MCPCommandResponse(
-                    success=False,
-                    command="config",
-                    error=f"Unknown config action: {action}"
+                    success=False, command="config", error=f"Unknown config action: {action}"
                 )
         except Exception as e:
-            return MCPCommandResponse(
-                success=False,
-                command="config",
-                error=str(e)
-            )
+            return MCPCommandResponse(success=False, command="config", error=str(e))
 
     async def _show_config(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Show configuration."""
         try:
             config_path = self.metadata_reader.metadata_path / "config"
-            
+
             if not config_path.exists():
                 return MCPCommandResponse(
                     success=True,
                     command="config",
-                    result={"config": {}, "message": "No configuration found"}
+                    result={"config": {}, "message": "No configuration found"},
                 )
-            
+
             # Read configuration files
             config = {}
             for config_file in config_path.glob("*.json"):
@@ -1797,17 +1621,11 @@ class ConfigCommandHandler(BaseCommandHandler):
                         config[config_file.stem] = json.load(f)
                 except Exception as e:
                     logger.warning(f"Error reading config file {config_file}: {e}")
-            
-            return MCPCommandResponse(
-                success=True,
-                command="config",
-                result={"config": config}
-            )
+
+            return MCPCommandResponse(success=True, command="config", result={"config": config})
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="config",
-                error=f"Error showing config: {e}"
+                success=False, command="config", error=f"Error showing config: {e}"
             )
 
     async def _set_config(self, request: MCPCommandRequest) -> MCPCommandResponse:
@@ -1815,65 +1633,59 @@ class ConfigCommandHandler(BaseCommandHandler):
         return MCPCommandResponse(
             success=True,
             command="config",
-            result={"message": "Configuration setting delegated to daemon"}
+            result={"message": "Configuration setting delegated to daemon"},
         )
 
     async def _get_config(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Get configuration value."""
         key = request.args[0] if request.args else request.params.get("key")
-        
+
         if not key:
             return MCPCommandResponse(
-                success=False,
-                command="config",
-                error="Configuration key is required"
+                success=False, command="config", error="Configuration key is required"
             )
-        
+
         # Implementation would retrieve specific config value
         return MCPCommandResponse(
             success=True,
             command="config",
-            result={"key": key, "value": None, "message": "Config retrieval delegated to daemon"}
+            result={"key": key, "value": None, "message": "Config retrieval delegated to daemon"},
         )
 
 
 class MetricsCommandHandler(BaseCommandHandler):
     """Handler for metrics operations."""
-    
+
     async def handle(self, request: MCPCommandRequest) -> MCPCommandResponse:
         """Handle metrics request."""
         try:
             detailed = request.params.get("detailed", False)
-            
+
             # Basic metrics
             metrics = {
                 "server_id": self.server.server_id,
-                "uptime": time.time() - getattr(self.server, 'start_time', time.time()),
+                "uptime": time.time() - getattr(self.server, "start_time", time.time()),
                 "handlers_registered": len(self.server.command_handlers),
                 "metadata_cache_size": len(self.metadata_reader.cache),
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
-            
+
             if detailed:
                 # Add detailed metrics
-                metrics.update({
-                    "cache_details": {
-                        "entries": list(self.metadata_reader.cache.keys()),
-                        "ttl": self.metadata_reader.cache_ttl
-                    },
-                    "handler_list": list(self.server.command_handlers.keys())
-                })
-            
-            return MCPCommandResponse(
-                success=True,
-                command="metrics",
-                result=metrics
-            )
+                metrics.update(
+                    {
+                        "cache_details": {
+                            "entries": list(self.metadata_reader.cache.keys()),
+                            "ttl": self.metadata_reader.cache_ttl,
+                        },
+                        "handler_list": list(self.server.command_handlers.keys()),
+                    }
+                )
+
+            return MCPCommandResponse(success=True, command="metrics", result=metrics)
         except Exception as e:
             return MCPCommandResponse(
-                success=False,
-                command="metrics",
-                error=f"Metrics collection failed: {e}"
+                success=False, command="metrics", error=f"Metrics collection failed: {e}"
             )
 
 
@@ -1881,7 +1693,7 @@ class MetricsCommandHandler(BaseCommandHandler):
 async def main():
     """Main entry point for Enhanced MCP Server."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Enhanced IPFS-Kit MCP Server")
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
     parser.add_argument("--port", type=int, default=8001, help="Port to bind to")
@@ -1889,9 +1701,9 @@ async def main():
     parser.add_argument("--log-level", default="INFO", help="Log level")
     parser.add_argument("--config", help="Configuration file path")
     parser.add_argument("--metadata-path", help="Metadata directory path")
-    
+
     args = parser.parse_args()
-    
+
     # Create and start server
     server = EnhancedMCPServer(
         host=args.host,
@@ -1899,12 +1711,12 @@ async def main():
         debug_mode=args.debug,
         log_level=args.log_level,
         config_path=args.config,
-        metadata_path=args.metadata_path
+        metadata_path=args.metadata_path,
     )
-    
+
     # Store start time for metrics
     server.start_time = time.time()
-    
+
     try:
         await server.start()
     except KeyboardInterrupt:

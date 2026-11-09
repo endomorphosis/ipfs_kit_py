@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 class FilecoinBackend(BackendStorage):
     """Filecoin backend implementation."""
+
     def __init__(self, resources: Dict[str, Any], metadata: Dict[str, Any]):
         """Initialize Filecoin backend."""
         super().__init__(StorageBackendType.FILECOIN, resources, metadata)
@@ -57,7 +58,9 @@ class FilecoinBackend(BackendStorage):
         return "filecoin"
 
     # Implement required abstract method
-    def add_content(self, content: Union[str, bytes, BinaryIO], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def add_content(
+        self, content: Union[str, bytes, BinaryIO], metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """
         Add content to Filecoin storage.
 

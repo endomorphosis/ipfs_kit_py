@@ -38,9 +38,7 @@ class MCPDashboardValidator:
         """Test if the MCP server is responding"""
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self.base_url}/api/mcp/status", timeout=5.0
-                )
+                response = await client.get(f"{self.base_url}/api/mcp/status", timeout=5.0)
                 if response.status_code == 200:
                     data = response.json()
                     self.results["passed"].append(
@@ -72,9 +70,7 @@ class MCPDashboardValidator:
                         )
                         return True
                 else:
-                    self.results["failed"].append(
-                        f"❌ UI returned status {response.status_code}"
-                    )
+                    self.results["failed"].append(f"❌ UI returned status {response.status_code}")
                     return False
         except Exception as e:
             self.results["failed"].append(f"❌ Cannot access UI: {e}")
@@ -93,8 +89,8 @@ class MCPDashboardValidator:
                     data = response.json()
                     if "result" in data:
                         tools = data["result"]
-                        tool_count = len(tools) if isinstance(tools, list) else len(
-                            tools.get("tools", [])
+                        tool_count = (
+                            len(tools) if isinstance(tools, list) else len(tools.get("tools", []))
                         )
                         self.results["passed"].append(
                             f"✅ MCP tools endpoint working ({tool_count} tools)"
@@ -137,9 +133,7 @@ class MCPDashboardValidator:
                         self.results["passed"].append("✅ Buckets API is functional")
                         return True
                     else:
-                        self.results["warnings"].append(
-                            "⚠️  Buckets API returned unexpected format"
-                        )
+                        self.results["warnings"].append("⚠️  Buckets API returned unexpected format")
                         return True
                 else:
                     self.results["failed"].append(
@@ -188,9 +182,9 @@ class MCPDashboardValidator:
 
     async def run_all_tests(self) -> bool:
         """Run all validation tests"""
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print("MCP Dashboard Validation")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
         print(f"Testing MCP Dashboard at {self.base_url}")
         print(f"Timestamp: {self.results['timestamp']}\n")
 
@@ -220,9 +214,9 @@ class MCPDashboardValidator:
 
     def print_summary(self):
         """Print test summary"""
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print("Test Summary")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
         if self.results["passed"]:
             print("✅ PASSED TESTS:")
@@ -250,12 +244,12 @@ class MCPDashboardValidator:
         passed = len(self.results["passed"])
         failed = len(self.results["failed"])
 
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")
         print(f"Total Tests: {total}")
         print(f"Passed: {passed}")
         print(f"Warnings: {len(self.results['warnings'])}")
         print(f"Failed: {failed}")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
         if failed == 0:
             print("✅ ALL TESTS PASSED!")

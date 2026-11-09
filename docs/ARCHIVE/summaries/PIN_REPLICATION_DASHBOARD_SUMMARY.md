@@ -47,7 +47,7 @@ backends = {
     "gdrive": {"type": "cloud", "max_size_gb": 1000, "priority": 5},
     "s3": {"type": "cloud", "max_size_gb": 50000, "priority": 6},
     "parquet": {"type": "local", "max_size_gb": 1000, "priority": 7},
-    "car_archive": {"type": "local", "max_size_gb": 5000, "priority": 8}
+    "car_archive": {"type": "local", "max_size_gb": 5000, "priority": 8},
 }
 ```
 

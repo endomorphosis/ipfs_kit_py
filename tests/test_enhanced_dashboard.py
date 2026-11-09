@@ -18,6 +18,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
+
 # Mock MCP Server for testing
 class MockMCPServer:
     def __init__(self):
@@ -29,34 +30,41 @@ class MockMCPServer:
                 "status": "enabled",
                 "health": "healthy",
                 "last_check": "2025-01-31T21:30:08+00:00",
-                "policies": {"cache": "none", "replication": 1, "retention": 30}
+                "policies": {"cache": "none", "replication": 1, "retention": 30},
             },
             {
-                "name": "s3_demo", 
+                "name": "s3_demo",
                 "type": "s3",
                 "description": "Amazon S3 storage",
                 "status": "enabled",
                 "health": "error",
                 "last_check": "2025-01-31T21:30:08+00:00",
-                "policies": {"cache": "none", "replication": 1, "retention": 30}
+                "policies": {"cache": "none", "replication": 1, "retention": 30},
             },
             {
                 "name": "ipfs_local",
                 "type": "ipfs",
                 "description": "Local IPFS node",
-                "status": "enabled", 
+                "status": "enabled",
                 "health": "healthy",
                 "last_check": "2025-01-31T21:30:08+00:00",
-                "policies": {"cache": "none", "replication": 1, "retention": 30}
-            }
+                "policies": {"cache": "none", "replication": 1, "retention": 30},
+            },
         ]
-    
+
     async def handle_tool_call(self, tool_name: str, params: dict) -> dict:
         """Handle MCP tool calls"""
         if tool_name == "list_backends":
             return {"result": self.backends}
         elif tool_name == "get_system_status":
-            return {"result": {"cpu_percent": 15.2, "memory_percent": 48.5, "disk_percent": 70.1, "status": "running"}}
+            return {
+                "result": {
+                    "cpu_percent": 15.2,
+                    "memory_percent": 48.5,
+                    "disk_percent": 70.1,
+                    "status": "running",
+                }
+            }
         elif tool_name == "health_check":
             return {"result": {"status": "healthy", "timestamp": datetime.now().isoformat()}}
         elif tool_name in ["test_backend_config", "test_backend"]:
@@ -72,6 +80,7 @@ class MockMCPServer:
         else:
             return {"error": {"code": -32601, "message": f"Unknown tool: {tool_name}"}}
 
+
 class TestEnhancedDashboard:
     __test__ = False
 
@@ -79,7 +88,7 @@ class TestEnhancedDashboard:
         self.app = FastAPI(title="Test Enhanced Dashboard")
         self.mock_mcp = MockMCPServer()
         self.setup_app()
-    
+
     def setup_app(self):
         # Enable CORS
         self.app.add_middleware(
@@ -89,30 +98,30 @@ class TestEnhancedDashboard:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-        
+
         # Mount static files
         static_dir = Path(__file__).parent / "static"
         if static_dir.exists():
             self.app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-        
+
         # Setup templates
         templates_dir = Path(__file__).parent / "templates"
         if templates_dir.exists():
             templates = Jinja2Templates(directory=str(templates_dir))
         else:
             templates = None
-        
+
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard_home(request: Request):
             """Serve the enhanced dashboard."""
             if templates:
                 return templates.TemplateResponse(
-                    "enhanced_dashboard.html", 
-                    {"request": request, "title": "Enhanced Dashboard Test"}
+                    "enhanced_dashboard.html",
+                    {"request": request, "title": "Enhanced Dashboard Test"},
                 )
             else:
                 return HTMLResponse("<h1>Templates not found</h1>")
-        
+
         @self.app.post("/mcp/tools/call")
         async def mcp_tools_call(request: Request):
             """Handle MCP tool calls."""
@@ -120,27 +129,26 @@ class TestEnhancedDashboard:
                 data = await request.json()
                 tool_name = data.get("params", {}).get("name")
                 arguments = data.get("params", {}).get("arguments", {})
-                
+
                 result = await self.mock_mcp.handle_tool_call(tool_name, arguments)
-                
-                return JSONResponse({
-                    "jsonrpc": "2.0",
-                    "id": data.get("id"),
-                    **result
-                })
+
+                return JSONResponse({"jsonrpc": "2.0", "id": data.get("id"), **result})
             except Exception as e:
-                return JSONResponse({
-                    "jsonrpc": "2.0",
-                    "id": data.get("id") if 'data' in locals() else None,
-                    "error": {"code": -32000, "message": str(e)}
-                })
-    
+                return JSONResponse(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": data.get("id") if "data" in locals() else None,
+                        "error": {"code": -32000, "message": str(e)},
+                    }
+                )
+
     def run(self, host="127.0.0.1", port=8005):
         """Run the test dashboard."""
         print(f"🚀 Starting Enhanced Dashboard Test")
         print(f"📍 URL: http://{host}:{port}")
-        print("="*50)
+        print("=" * 50)
         uvicorn.run(self.app, host=host, port=port, log_level="info")
+
 
 if __name__ == "__main__":
     dashboard = TestEnhancedDashboard()

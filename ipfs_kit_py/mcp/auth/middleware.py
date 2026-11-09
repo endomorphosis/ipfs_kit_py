@@ -30,6 +30,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
     This middleware checks for authentication tokens in requests and
     verifies permissions for protected routes.
     """
+
     def __init__(
         self,
         app: FastAPI,
@@ -313,6 +314,7 @@ def require_permission(permission: str):
     Returns:
         Dependency function
     """
+
     def _require_permission(request: Request):
         auth = getattr(request.state, "auth", None)
         if not auth or not auth.get("authenticated"):
@@ -357,6 +359,7 @@ def require_role(role: str):
     Returns:
         Dependency function
     """
+
     def _require_role(request: Request):
         auth = getattr(request.state, "auth", None)
         if not auth or not auth.get("authenticated"):

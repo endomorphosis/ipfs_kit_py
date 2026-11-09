@@ -60,7 +60,7 @@ telemetry = WALTelemetry(
     metrics_path="~/.ipfs_kit/telemetry",
     sampling_interval=10,
     enable_detailed_timing=True,
-    operation_hooks=True
+    operation_hooks=True,
 )
 
 # Create tracer with console exporter
@@ -68,14 +68,12 @@ tracer = WALTracing(
     service_name="my-service",
     telemetry=telemetry,
     exporter_type=TracingExporterType.CONSOLE,
-    auto_instrument=True
+    auto_instrument=True,
 )
 
 # Now operations will be automatically traced
 operation = wal.add_operation(
-    operation_type="add", 
-    backend="ipfs",
-    parameters={"path": "/tmp/example.txt"}
+    operation_type="add", backend="ipfs", parameters={"path": "/tmp/example.txt"}
 )
 
 # Cleanup when done
@@ -128,17 +126,13 @@ Spans represent a unit of work in a trace. You can create and manage spans in se
 ```python
 # Create a span directly
 with tracer.start_span(
-    name="my-operation",
-    attributes={"operation.type": "add", "backend": "ipfs"}
+    name="my-operation", attributes={"operation.type": "add", "backend": "ipfs"}
 ) as span:
     # Do some work
     span.set_attribute("custom.attribute", "value")
-    
+
     # Record an event
-    span.add_event(
-        name="processing.step",
-        attributes={"step": "validation"}
-    )
+    span.add_event(name="processing.step", attributes={"step": "validation"})
 ```
 
 #### Context Manager for WAL Operations
@@ -149,11 +143,11 @@ with tracer.create_span_context(
     operation_type="add",
     backend="ipfs",
     operation_id="op-123",
-    attributes={"custom.attribute": "value"}
+    attributes={"custom.attribute": "value"},
 ) as span:
     # Do some work with WAL
     result = do_something()
-    
+
     # If there's an error, the span will automatically record it
     # and set the status to ERROR when exiting the context
 ```
@@ -166,7 +160,7 @@ with tracer.create_span_context(
     name="my-function",
     operation_type="processing",
     backend="memory",
-    attributes={"custom": "value"}
+    attributes={"custom": "value"},
 )
 def process_data(data):
     # Function will be automatically traced
@@ -187,16 +181,15 @@ from ipfs_kit_py.wal_telemetry_tracing import add_tracing_middleware
 app = FastAPI()
 add_tracing_middleware(app, tracer, "my-api-service")
 
+
 @app.get("/api/data")
 async def get_data(request: Request):
     # Extract trace context from request headers
     trace_context = tracer.extract_context(dict(request.headers))
-    
+
     # Create span with extracted context
     with tracer.start_span(
-        name="get-data",
-        context=trace_context,
-        attributes={"endpoint": "/api/data"}
+        name="get-data", context=trace_context, attributes={"endpoint": "/api/data"}
     ) as span:
         # Process request
         result = process_data()
@@ -224,23 +217,24 @@ For a more complete approach with aiohttp:
 ```python
 from ipfs_kit_py.wal_telemetry_tracing import trace_aiohttp_request
 
+
 async def call_service(url):
     async with aiohttp.ClientSession() as session:
         # Get trace context and create span
         carrier, span = trace_aiohttp_request(tracer, "GET", url)
-        
+
         try:
             # Make request with trace context
             async with session.get(url, headers=carrier) as response:
                 data = await response.json()
-                
+
                 # Record response info
                 span.set_attribute("http.status_code", response.status)
-                
+
                 # Set status based on response
                 if response.status >= 400:
                     span.set_status(StatusCode.ERROR)
-                    
+
                 return data
         finally:
             # End span
@@ -256,10 +250,7 @@ The tracing system supports multiple exporters for sending traces to different b
 Prints traces to the console. Useful for development and debugging:
 
 ```python
-tracer = WALTracing(
-    service_name="my-service",
-    exporter_type=TracingExporterType.CONSOLE
-)
+tracer = WALTracing(service_name="my-service", exporter_type=TracingExporterType.CONSOLE)
 ```
 
 ### Jaeger Exporter
@@ -270,7 +261,7 @@ Sends traces to a Jaeger backend for visualization and analysis:
 tracer = WALTracing(
     service_name="my-service",
     exporter_type=TracingExporterType.JAEGER,
-    exporter_endpoint="http://localhost:14268/api/traces"
+    exporter_endpoint="http://localhost:14268/api/traces",
 )
 ```
 
@@ -282,7 +273,7 @@ Sends traces to a Zipkin backend:
 tracer = WALTracing(
     service_name="my-service",
     exporter_type=TracingExporterType.ZIPKIN,
-    exporter_endpoint="http://localhost:9411/api/v2/spans"
+    exporter_endpoint="http://localhost:9411/api/v2/spans",
 )
 ```
 
@@ -294,7 +285,7 @@ Sends traces to an OpenTelemetry collector:
 tracer = WALTracing(
     service_name="my-service",
     exporter_type=TracingExporterType.OTLP,
-    exporter_endpoint="http://localhost:4317"
+    exporter_endpoint="http://localhost:4317",
 )
 ```
 
@@ -346,8 +337,7 @@ logger.info(f"Processing operation [correlation_id={correlation_id}]")
 ```python
 # Add an event to the current span
 tracer.add_event(
-    name="operation.milestone",
-    attributes={"milestone": "validation", "duration_ms": 45}
+    name="operation.milestone", attributes={"milestone": "validation", "duration_ms": 45}
 )
 ```
 
@@ -389,8 +379,8 @@ tracer = WALTracing(
         "deployment.environment": "production",
         "host.name": "worker-pod-123",
         "cloud.provider": "aws",
-        "cloud.region": "us-west-2"
-    }
+        "cloud.region": "us-west-2",
+    },
 )
 ```
 
@@ -405,10 +395,10 @@ from fastapi import FastAPI, Request
 from ipfs_kit_py.storage_wal import StorageWriteAheadLog, BackendHealthMonitor
 from ipfs_kit_py.wal_telemetry import WALTelemetry
 from ipfs_kit_py.wal_telemetry_tracing import (
-    WALTracing, 
+    WALTracing,
     TracingExporterType,
     add_tracing_middleware,
-    trace_aiohttp_request
+    trace_aiohttp_request,
 )
 
 # Create WAL and telemetry
@@ -419,7 +409,7 @@ telemetry = WALTelemetry(
     metrics_path="~/.ipfs_kit/telemetry",
     sampling_interval=10,
     enable_detailed_timing=True,
-    operation_hooks=True
+    operation_hooks=True,
 )
 
 # Create tracer with Jaeger exporter
@@ -428,57 +418,51 @@ tracer = WALTracing(
     telemetry=telemetry,
     exporter_type=TracingExporterType.JAEGER,
     exporter_endpoint="http://jaeger:14268/api/traces",
-    resource_attributes={
-        "service.version": "1.0.0",
-        "deployment.environment": "production"
-    },
-    auto_instrument=True
+    resource_attributes={"service.version": "1.0.0", "deployment.environment": "production"},
+    auto_instrument=True,
 )
 
 # Create FastAPI app with tracing middleware
 app = FastAPI()
 add_tracing_middleware(app, tracer, "api-service")
 
+
 # Define API endpoints
 @app.post("/api/operation")
 async def add_operation(request: Request, operation_type: str, backend: str):
     # Extract trace context from request headers
     trace_context = tracer.extract_context(dict(request.headers))
-    
+
     # Create span for this request
     with tracer.start_span(
         name="api.add_operation",
         context=trace_context,
-        attributes={
-            "operation.type": operation_type,
-            "backend": backend
-        }
+        attributes={"operation.type": operation_type, "backend": backend},
     ) as span:
         # Add operation to WAL (will be automatically traced)
-        result = wal.add_operation(
-            operation_type=operation_type,
-            backend=backend
-        )
-        
+        result = wal.add_operation(operation_type=operation_type, backend=backend)
+
         # Schedule background processing
         if result.get("success"):
-            anyio.lowlevel.spawn_system_task(process_operation,
-                result["operation_id"], 
-                operation_type, 
+            anyio.lowlevel.spawn_system_task(
+                process_operation,
+                result["operation_id"],
+                operation_type,
                 backend,
-                tracer.generate_trace_context()  # Pass trace context to background task
+                tracer.generate_trace_context(),  # Pass trace context to background task
             )
-            
+
         return {
             "success": result.get("success", False),
             "operation_id": result.get("operation_id"),
-            "trace_id": tracer.get_trace_id()
+            "trace_id": tracer.get_trace_id(),
         }
+
 
 async def process_operation(operation_id, operation_type, backend, trace_context):
     # Extract trace context for continuation
     context = tracer.extract_context(trace_context)
-    
+
     # Create span for processing with extracted context
     with tracer.start_span(
         name="process.operation",
@@ -486,19 +470,19 @@ async def process_operation(operation_id, operation_type, backend, trace_context
         attributes={
             "operation.id": operation_id,
             "operation.type": operation_type,
-            "backend": backend
-        }
+            "backend": backend,
+        },
     ) as span:
         # Update operation status
         wal.update_operation_status(operation_id, "processing")
-        
+
         # Call worker service
         worker_url = "http://worker:8080/api/process"
-        
+
         # Create headers with trace context
         headers = {}
         tracer.inject_context(context, headers)
-        
+
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.post(
@@ -506,45 +490,37 @@ async def process_operation(operation_id, operation_type, backend, trace_context
                     json={
                         "operation_id": operation_id,
                         "operation_type": operation_type,
-                        "backend": backend
+                        "backend": backend,
                     },
-                    headers=headers
+                    headers=headers,
                 ) as response:
                     data = await response.json()
-                    
+
                     # Record result
                     if data.get("success"):
                         span.set_attribute("worker.response.success", True)
                         wal.update_operation_status(
-                            operation_id, 
-                            "completed",
-                            updates={"result": data.get("message")}
+                            operation_id, "completed", updates={"result": data.get("message")}
                         )
                     else:
                         span.set_attribute("worker.response.success", False)
                         span.set_attribute("worker.response.error", data.get("error"))
                         span.set_status(StatusCode.ERROR)
                         wal.update_operation_status(
-                            operation_id, 
+                            operation_id,
                             "failed",
-                            updates={
-                                "error": data.get("error"),
-                                "error_type": "worker_error"
-                            }
+                            updates={"error": data.get("error"), "error_type": "worker_error"},
                         )
             except Exception as e:
                 # Record exception
                 span.record_exception(e)
                 span.set_status(StatusCode.ERROR)
-                
+
                 # Update operation status
                 wal.update_operation_status(
                     operation_id,
                     "failed",
-                    updates={
-                        "error": str(e),
-                        "error_type": type(e).__name__
-                    }
+                    updates={"error": str(e), "error_type": type(e).__name__},
                 )
 ```
 
@@ -612,6 +588,7 @@ To see more details about tracing operations, enable debug logging:
 
 ```python
 import logging
+
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("ipfs_kit_py.wal_telemetry_tracing").setLevel(logging.DEBUG)
 ```

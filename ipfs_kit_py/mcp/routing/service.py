@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 class BackendMetadata(BaseModel):
     """Backend metadata for routing decisions."""
+
     id: str = Field(..., description="Backend identifier")
     type: str = Field(..., description="Backend type")
     available: bool = Field(True, description="Whether the backend is available")
@@ -41,6 +42,7 @@ class BackendMetadata(BaseModel):
 
 class RoutingPolicy(BaseModel):
     """Routing policy definition."""
+
     id: str = Field(..., description="Policy identifier")
     name: str = Field(..., description="Policy name")
     description: Optional[str] = Field(None, description="Policy description")
@@ -59,6 +61,7 @@ class RoutingPolicy(BaseModel):
 
 class ContentRequest(BaseModel):
     """Content request metadata for routing decisions."""
+
     content_size: int = Field(..., description="Content size in bytes")
     content_type: Optional[str] = Field(None, description="Content type")
     content_id: Optional[str] = Field(None, description="Content identifier")
@@ -73,6 +76,7 @@ class ContentRequest(BaseModel):
 
 class RoutingResult(BaseModel):
     """Result of routing decision."""
+
     backend_id: str = Field(..., description="Selected backend identifier")
     score: float = Field(..., description="Routing score")
     policy_id: Optional[str] = Field(None, description="ID of policy that made the decision")
@@ -87,6 +91,7 @@ class RoutingResult(BaseModel):
 
 class GeoLocation(BaseModel):
     """Geographic location information."""
+
     latitude: float = Field(..., description="Latitude")
     longitude: float = Field(..., description="Longitude")
     country: str = Field(..., description="Country code")
@@ -97,6 +102,7 @@ class GeoLocation(BaseModel):
 
 class RouteStatistics(BaseModel):
     """Statistics for routing decisions."""
+
     total_requests: int = Field(0, description="Total routing requests")
     successful_routes: int = Field(0, description="Successful routing decisions")
     failed_routes: int = Field(0, description="Failed routing decisions")
@@ -118,7 +124,8 @@ class DataRoutingService:
     from the MCP roadmap, including content-aware backend selection,
     cost-based routing algorithms, and geographic optimization.
     """
-    def __init__(self, backend_registry = None, metrics_service = None, geo_db_path = None):
+
+    def __init__(self, backend_registry=None, metrics_service=None, geo_db_path=None):
         """
         Initialize the data routing service.
 
@@ -645,7 +652,6 @@ class DataRoutingService:
         """
         if self.metrics_service:
             try:
-
                 # Record routing operation
                 self.metrics_service.record_api_operation(
                     "route_content", "routing", time.time() - duration, "success"

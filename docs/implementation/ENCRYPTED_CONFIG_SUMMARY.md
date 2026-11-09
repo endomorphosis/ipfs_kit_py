@@ -172,11 +172,7 @@ manager = SecureConfigManager(enable_encryption=True)
 config = {
     "backends": {
         "s3_prod": {
-            "config": {
-                "access_key": "AKIA123",
-                "secret_key": "secret",
-                "bucket": "prod-bucket"
-            }
+            "config": {"access_key": "AKIA123", "secret_key": "secret", "bucket": "prod-bucket"}
         }
     }
 }
@@ -191,10 +187,7 @@ print(loaded["backends"]["s3_prod"]["config"]["access_key"])  # AKIA123
 
 ```python
 # Use password-based encryption
-manager = SecureConfigManager(
-    enable_encryption=True,
-    master_password="my-secure-password"
-)
+manager = SecureConfigManager(enable_encryption=True, master_password="my-secure-password")
 
 manager.save_config("backends.json", config)
 # Key derived from password using PBKDF2
@@ -227,18 +220,18 @@ The encrypted config system integrates seamlessly:
 # In consolidated_mcp_dashboard.py or refactored_unified_mcp_dashboard.py
 from ipfs_kit_py.secure_config import SecureConfigManager
 
+
 class Dashboard:
     def __init__(self, config):
         self.secure_config = SecureConfigManager(
-            data_dir=config.get('data_dir'),
-            enable_encryption=config.get('enable_encryption', True)
+            data_dir=config.get("data_dir"), enable_encryption=config.get("enable_encryption", True)
         )
-    
+
     async def _get_backend_configs(self):
         """Load backends with automatic decryption."""
         backends = self.secure_config.load_config("backends.json")
         return backends.get("backends", {})
-    
+
     async def _update_backend_config(self, backend_name, config_data):
         """Save backend with automatic encryption."""
         backends = self.secure_config.load_config("backends.json") or {"backends": {}}
@@ -304,8 +297,8 @@ For existing deployments:
 5. **Update dashboard config** (if needed)
    ```python
    config = {
-       'enable_encryption': True,  # Enable encryption
-       'data_dir': '~/.ipfs_kit'
+       "enable_encryption": True,  # Enable encryption
+       "data_dir": "~/.ipfs_kit",
    }
    ```
 

@@ -11,19 +11,16 @@ import os
 import json
 import tempfile
 from typing import Dict, List, Any, Optional
-from fastapi import (
-    APIRouter,
-    HTTPException,
-    File,
-    UploadFile,
-    Form
-)
+from fastapi import APIRouter, HTTPException, File, UploadFile, Form
 from pydantic import BaseModel, Field
 
 import sys
 import os
+
 # Add the parent directory to sys.path to allow importing mcp_error_handling
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+sys.path.append(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+)
 import mcp_error_handling
 
 # Configure logger
@@ -35,6 +32,7 @@ logger = logging.getLogger(__name__)
 # Define Pydantic models for requests and responses
 class S3CredentialsRequest(BaseModel):
     """Request model for S3 credentials."""
+
     access_key: str = Field(..., description="AWS Access Key ID")
     secret_key: str = Field(..., description="AWS Secret Access Key")
     endpoint_url: Optional[str] = Field(
@@ -45,6 +43,7 @@ class S3CredentialsRequest(BaseModel):
 
 class S3UploadRequest(BaseModel):
     """Request model for S3 upload operations."""
+
     bucket: str = Field(..., description="S3 bucket name")
     key: str = Field(..., description="S3 object key")
     file_path: str = Field(..., description="Local file path to upload")
@@ -53,6 +52,7 @@ class S3UploadRequest(BaseModel):
 
 class S3DownloadRequest(BaseModel):
     """Request model for S3 download operations."""
+
     bucket: str = Field(..., description="S3 bucket name")
     key: str = Field(..., description="S3 object key")
     destination: str = Field(..., description="Local path to save the file")
@@ -60,18 +60,21 @@ class S3DownloadRequest(BaseModel):
 
 class S3ListRequest(BaseModel):
     """Request model for S3 list operations."""
+
     bucket: str = Field(..., description="S3 bucket name")
     prefix: Optional[str] = Field(None, description="Prefix to filter objects")
 
 
 class S3DeleteRequest(BaseModel):
     """Request model for S3 delete operations."""
+
     bucket: str = Field(..., description="S3 bucket name")
     key: str = Field(..., description="S3 object key")
 
 
 class IPFSS3Request(BaseModel):
     """Request model for IPFS to S3 operations."""
+
     cid: str = Field(..., description="Content Identifier (CID)")
     bucket: str = Field(..., description="S3 bucket name")
     key: Optional[str] = Field(None, description="S3 object key (defaults to CID if not provided)")
@@ -80,6 +83,7 @@ class IPFSS3Request(BaseModel):
 
 class S3IPFSRequest(BaseModel):
     """Request model for S3 to IPFS operations."""
+
     bucket: str = Field(..., description="S3 bucket name")
     key: str = Field(..., description="S3 object key")
     pin: bool = Field(True, description="Whether to pin the content in IPFS")
@@ -87,6 +91,7 @@ class S3IPFSRequest(BaseModel):
 
 class OperationResponse(BaseModel):
     """Base response model for operations."""
+
     success: bool = Field(..., description="Whether the operation was successful")
     operation_id: Optional[str] = Field(None, description="Unique identifier for this operation")
     duration_ms: Optional[float] = Field(
@@ -96,6 +101,7 @@ class OperationResponse(BaseModel):
 
 class S3UploadResponse(OperationResponse):
     """Response model for S3 upload operations."""
+
     bucket: Optional[str] = Field(None, description="S3 bucket name")
     key: Optional[str] = Field(None, description="S3 object key")
     etag: Optional[str] = Field(None, description="ETag of the uploaded object")
@@ -104,6 +110,7 @@ class S3UploadResponse(OperationResponse):
 
 class S3DownloadResponse(OperationResponse):
     """Response model for S3 download operations."""
+
     bucket: Optional[str] = Field(None, description="S3 bucket name")
     key: Optional[str] = Field(None, description="S3 object key")
     destination: Optional[str] = Field(None, description="Local path where the file was saved")
@@ -112,6 +119,7 @@ class S3DownloadResponse(OperationResponse):
 
 class S3ListResponse(OperationResponse):
     """Response model for S3 list operations."""
+
     bucket: Optional[str] = Field(None, description="S3 bucket name")
     prefix: Optional[str] = Field(None, description="Prefix used to filter objects")
     objects: Optional[List[Dict[str, Any]]] = Field(None, description="List of objects")
@@ -120,12 +128,14 @@ class S3ListResponse(OperationResponse):
 
 class S3DeleteResponse(OperationResponse):
     """Response model for S3 delete operations."""
+
     bucket: Optional[str] = Field(None, description="S3 bucket name")
     key: Optional[str] = Field(None, description="S3 object key")
 
 
 class IPFSS3Response(OperationResponse):
     """Response model for IPFS to S3 operations."""
+
     ipfs_cid: Optional[str] = Field(None, description="Content Identifier (CID) in IPFS")
     bucket: Optional[str] = Field(None, description="S3 bucket name")
     key: Optional[str] = Field(None, description="S3 object key")
@@ -135,6 +145,7 @@ class IPFSS3Response(OperationResponse):
 
 class S3IPFSResponse(OperationResponse):
     """Response model for S3 to IPFS operations."""
+
     bucket: Optional[str] = Field(None, description="S3 bucket name")
     key: Optional[str] = Field(None, description="S3 object key")
     ipfs_cid: Optional[str] = Field(None, description="Content Identifier (CID) in IPFS")
@@ -148,6 +159,7 @@ class S3Controller:
     Handles HTTP requests related to S3 operations and delegates
     the business logic to the S3 model.
     """
+
     def __init__(self, s3_model):
         """
         Initialize the S3 controller.
@@ -289,11 +301,9 @@ class S3Controller:
             if not bucket:
                 mcp_error_handling.raise_http_exception(
                     code="MISSING_PARAMETER",
-                    message_override={
-                        "error": "Bucket name is required"
-                    },
+                    message_override={"error": "Bucket name is required"},
                     endpoint="/api/v0/s3",
-                    doc_category="storage"
+                    doc_category="storage",
                 )
 
             # Use filename as key if not provided
@@ -308,11 +318,9 @@ class S3Controller:
                 except json.JSONDecodeError:
                     mcp_error_handling.raise_http_exception(
                         code="INVALID_REQUEST",
-                        message_override={
-                            "error": "Invalid metadata JSON"
-                        },
+                        message_override={"error": "Invalid metadata JSON"},
                         endpoint="/api/v0/s3",
-                        doc_category="storage"
+                        doc_category="storage",
                     )
 
             # Create temporary file to store the uploaded content
@@ -336,11 +344,9 @@ class S3Controller:
             if not request:
                 mcp_error_handling.raise_http_exception(
                     code="MISSING_PARAMETER",
-                    message_override={
-                        "error": "Missing request data"
-                    },
+                    message_override={"error": "Missing request data"},
                     endpoint="/api/v0/s3",
-                    doc_category="storage"
+                    doc_category="storage",
                 )
 
             # Delegate to S3 model
@@ -360,7 +366,7 @@ class S3Controller:
                     "error_type": result.get("error_type", "UnknownError"),
                 },
                 endpoint="/api/v0/s3",
-                doc_category="storage"
+                doc_category="storage",
             )
 
         # Add duration if not already present
@@ -394,7 +400,7 @@ class S3Controller:
                     "error_type": result.get("error_type", "UnknownError"),
                 },
                 endpoint="/api/v0/s3",
-                doc_category="storage"
+                doc_category="storage",
             )
 
         # Return successful response
@@ -423,7 +429,7 @@ class S3Controller:
                     "error_type": result.get("error_type", "UnknownError"),
                 },
                 endpoint="/api/v0/s3",
-                doc_category="storage"
+                doc_category="storage",
             )
 
         # Return successful response
@@ -451,7 +457,7 @@ class S3Controller:
                     "error_type": result.get("error_type", "UnknownError"),
                 },
                 endpoint="/api/v0/s3",
-                doc_category="storage"
+                doc_category="storage",
             )
 
         # Return successful response
@@ -481,7 +487,7 @@ class S3Controller:
                     "error_type": result.get("error_type", "UnknownError"),
                 },
                 endpoint="/api/v0/s3",
-                doc_category="storage"
+                doc_category="storage",
             )
 
         # Return successful response
@@ -509,7 +515,7 @@ class S3Controller:
                     "error_type": result.get("error_type", "UnknownError"),
                 },
                 endpoint="/api/v0/s3",
-                doc_category="storage"
+                doc_category="storage",
             )
 
         # Return successful response
@@ -557,7 +563,7 @@ class S3Controller:
                     "error_type": result.get("error_type", "UnknownError"),
                 },
                 endpoint="/api/v0/s3",
-                doc_category="storage"
+                doc_category="storage",
             )
 
         # Add duration if not already present

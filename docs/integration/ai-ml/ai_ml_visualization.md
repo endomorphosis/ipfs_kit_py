@@ -55,11 +55,7 @@ viz.generate_html_report("ai_ml_report.html")
 Visualizes training metrics like loss, accuracy, and learning rate over epochs:
 
 ```python
-viz.plot_training_metrics(
-    model_id="my_model", 
-    figsize=(12, 8),
-    show_plot=True
-)
+viz.plot_training_metrics(model_id="my_model", figsize=(12, 8), show_plot=True)
 ```
 
 [Training Metrics Example](../../../examples/ai_ml_visualization_example.py)
@@ -69,11 +65,7 @@ viz.plot_training_metrics(
 Visualizes inference latency distribution for model evaluation:
 
 ```python
-viz.plot_inference_latency(
-    model_id="my_model",
-    figsize=(10, 6),
-    show_plot=True
-)
+viz.plot_inference_latency(model_id="my_model", figsize=(10, 6), show_plot=True)
 ```
 
 ### Worker Utilization
@@ -81,10 +73,7 @@ viz.plot_inference_latency(
 Visualizes worker utilization in distributed training:
 
 ```python
-viz.plot_worker_utilization(
-    figsize=(10, 6),
-    show_plot=True
-)
+viz.plot_worker_utilization(figsize=(10, 6), show_plot=True)
 ```
 
 ### Dataset Loading Performance
@@ -92,10 +81,7 @@ viz.plot_worker_utilization(
 Visualizes dataset loading performance:
 
 ```python
-viz.plot_dataset_load_times(
-    figsize=(10, 6),
-    show_plot=True
-)
+viz.plot_dataset_load_times(figsize=(10, 6), show_plot=True)
 ```
 
 ### Comprehensive Dashboard
@@ -103,10 +89,7 @@ viz.plot_dataset_load_times(
 Generate a dashboard with multiple visualizations:
 
 ```python
-viz.plot_comprehensive_dashboard(
-    figsize=(15, 12),
-    show_plot=True
-)
+viz.plot_comprehensive_dashboard(figsize=(15, 12), show_plot=True)
 ```
 
 ## HTML Reports
@@ -129,8 +112,7 @@ Export all visualizations to files:
 
 ```python
 exported_files = viz.export_visualizations(
-    export_dir="./outputs",
-    formats=["png", "svg", "html", "json"]
+    export_dir="./outputs", formats=["png", "svg", "html", "json"]
 )
 ```
 
@@ -195,8 +177,9 @@ fig, ax = plt.subplots(figsize=(10, 6))
 viz.plot_training_metrics(model_id="my_model", show_plot=False)
 
 # Add custom annotations
-ax.annotate("Important event", xy=(3, 0.8), xytext=(4, 0.9),
-            arrowprops=dict(facecolor='black', shrink=0.05))
+ax.annotate(
+    "Important event", xy=(3, 0.8), xytext=(4, 0.9), arrowprops=dict(facecolor="black", shrink=0.05)
+)
 
 # Show the plot
 plt.show()
@@ -213,10 +196,11 @@ import pandas as pd
 metrics_df = viz.get_metrics_dataframe(model_id="my_model")
 
 # Perform custom analysis
-rolling_avg = metrics_df['train_loss'].rolling(window=3).mean()
+rolling_avg = metrics_df["train_loss"].rolling(window=3).mean()
 
 # Use results in visualizations
 import matplotlib.pyplot as plt
+
 plt.figure(figsize=(10, 6))
 plt.plot(metrics_df.index, rolling_avg, label="Rolling Average Loss")
 plt.legend()
@@ -235,10 +219,10 @@ import matplotlib.pyplot as plt
 metrics_df = viz.get_metrics_dataframe(model_id="my_model")
 
 # Compute rolling average for training loss
-rolling_avg = metrics_df['train_loss'].rolling(window=3).mean()
+rolling_avg = metrics_df["train_loss"].rolling(window=3).mean()
 
 # Plot the rolling average
-plt.figure(figsize=(10,6))
+plt.figure(figsize=(10, 6))
 plt.plot(rolling_avg, label="Rolling Average Train Loss")
 plt.title("Customized Analysis of Training Loss")
 plt.xlabel("Epoch")
@@ -267,31 +251,31 @@ class AIMLVisualization:
     related to AI/ML metrics, such as training metrics, inference latency,
     worker utilization, and dataset load times.
     """
-    
+
     def __init__(self, metrics=None, theme="light", interactive=True):
         """Initialize visualization tools with optional metrics."""
-    
+
     def plot_training_metrics(self, model_id=None, figsize=(12, 8), show_plot=True):
         """Plot training metrics for a specific model."""
-    
+
     def plot_inference_latency(self, model_id=None, figsize=(10, 6), show_plot=True):
         """Plot inference latency distribution for a model."""
-    
+
     def plot_worker_utilization(self, figsize=(10, 6), show_plot=True):
         """Plot worker utilization for distributed training."""
-    
+
     def plot_dataset_load_times(self, figsize=(10, 6), show_plot=True):
         """Plot dataset loading times."""
-    
+
     def plot_comprehensive_dashboard(self, figsize=(15, 12), show_plot=True):
         """Plot a comprehensive dashboard with multiple visualizations."""
-    
+
     def generate_html_report(self, filename=None):
         """Generate an HTML report with all metrics visualizations."""
-    
-    def export_visualizations(self, export_dir, formats=['png', 'html']):
+
+    def export_visualizations(self, export_dir, formats=["png", "html"]):
         """Export all visualizations to files."""
-    
+
     def export_plot(self, fig, filename):
         """Export a single plot to a file."""
 ```
@@ -354,11 +338,7 @@ viz.generate_html_report("ai_ml_report.html")
 Visualizes training metrics like loss, accuracy, and learning rate over epochs:
 
 ```python
-viz.plot_training_metrics(
-    model_id="my_model", 
-    figsize=(12, 8),
-    show_plot=True
-)
+viz.plot_training_metrics(model_id="my_model", figsize=(12, 8), show_plot=True)
 ```
 
 [Training Metrics Example](../../../examples/ai_ml_visualization_example.py)
@@ -368,11 +348,7 @@ viz.plot_training_metrics(
 Visualizes inference latency distribution for model evaluation:
 
 ```python
-viz.plot_inference_latency(
-    model_id="my_model",
-    figsize=(10, 6),
-    show_plot=True
-)
+viz.plot_inference_latency(model_id="my_model", figsize=(10, 6), show_plot=True)
 ```
 
 ### Worker Utilization
@@ -380,10 +356,7 @@ viz.plot_inference_latency(
 Visualizes worker utilization in distributed training:
 
 ```python
-viz.plot_worker_utilization(
-    figsize=(10, 6),
-    show_plot=True
-)
+viz.plot_worker_utilization(figsize=(10, 6), show_plot=True)
 ```
 
 ### Dataset Loading Performance
@@ -391,10 +364,7 @@ viz.plot_worker_utilization(
 Visualizes dataset loading performance:
 
 ```python
-viz.plot_dataset_load_times(
-    figsize=(10, 6),
-    show_plot=True
-)
+viz.plot_dataset_load_times(figsize=(10, 6), show_plot=True)
 ```
 
 ### Comprehensive Dashboard
@@ -402,10 +372,7 @@ viz.plot_dataset_load_times(
 Generate a dashboard with multiple visualizations:
 
 ```python
-viz.plot_comprehensive_dashboard(
-    figsize=(15, 12),
-    show_plot=True
-)
+viz.plot_comprehensive_dashboard(figsize=(15, 12), show_plot=True)
 ```
 
 ## HTML Reports
@@ -428,8 +395,7 @@ Export all visualizations to files:
 
 ```python
 exported_files = viz.export_visualizations(
-    export_dir="./outputs",
-    formats=["png", "svg", "html", "json"]
+    export_dir="./outputs", formats=["png", "svg", "html", "json"]
 )
 ```
 

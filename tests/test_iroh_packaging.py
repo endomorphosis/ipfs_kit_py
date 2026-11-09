@@ -40,7 +40,9 @@ def built_distributions(tmp_path_factory: pytest.TempPathFactory):
         shutil.copy2(ROOT / filename, staging / filename)
 
     def ignore(directory: str, names: list[str]) -> set[str]:
-        ignored = {name for name in names if name == "__pycache__" or name.endswith((".pyc", ".pyo"))}
+        ignored = {
+            name for name in names if name == "__pycache__" or name.endswith((".pyc", ".pyo"))
+        }
         if Path(directory).name == "bin":
             ignored.update(names)
         return ignored
@@ -84,7 +86,9 @@ def test_metadata_freezes_optional_dependencies_entry_points_and_python_versions
     classifiers = set(project["classifiers"])
     assert "Programming Language :: Python :: 3.12" in classifiers
     assert "Programming Language :: Python :: 3.13" in classifiers
-    assert {dependency.split(">=")[0] for dependency in project["optional-dependencies"]["iroh"]} == {
+    assert {
+        dependency.split(">=")[0] for dependency in project["optional-dependencies"]["iroh"]
+    } == {
         "blake3",
         "duckdb",
     }
@@ -127,7 +131,7 @@ def test_workflow_has_strict_required_lanes_and_supported_matrix() -> None:
     assert "linux/amd64" in workflow and "linux/arm64" in workflow
     assert "--cov-fail-under=70" in workflow
     assert "inputs.run_multinode" in workflow
-    assert "IPFS_KIT_IROH_INTEROP: \"1\"" in workflow
+    assert 'IPFS_KIT_IROH_INTEROP: "1"' in workflow
     assert "continue-on-error" not in workflow
 
 
@@ -139,7 +143,9 @@ def test_wheel_and_sdist_are_source_only_complete_and_metadata_valid(built_distr
     assert all(len(report["normalized_sha256"]) == 64 for report in reports)
 
 
-def test_distribution_auditor_emits_machine_readable_report(built_distributions, tmp_path: Path) -> None:
+def test_distribution_auditor_emits_machine_readable_report(
+    built_distributions, tmp_path: Path
+) -> None:
     report_path = tmp_path / "packaging-report.json"
     result = subprocess.run(
         [

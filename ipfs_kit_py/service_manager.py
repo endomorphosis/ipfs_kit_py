@@ -5,8 +5,9 @@ import time
 
 logger = logging.getLogger(__name__)
 
-IPFS_KIT_PATH = Path.home() / '.ipfs_kit'
-SERVICES_PATH = IPFS_KIT_PATH / 'services.json'
+IPFS_KIT_PATH = Path.home() / ".ipfs_kit"
+SERVICES_PATH = IPFS_KIT_PATH / "services.json"
+
 
 class ServiceManager:
     def __init__(self):
@@ -16,7 +17,7 @@ class ServiceManager:
         if not SERVICES_PATH.exists():
             return []
         try:
-            with open(SERVICES_PATH, 'r') as f:
+            with open(SERVICES_PATH, "r") as f:
                 return json.load(f)
         except Exception as e:
             logger.error(f"Error loading services data: {e}")
@@ -25,7 +26,7 @@ class ServiceManager:
     def _save_services(self):
         SERVICES_PATH.parent.mkdir(parents=True, exist_ok=True)
         try:
-            with open(SERVICES_PATH, 'w') as f:
+            with open(SERVICES_PATH, "w") as f:
                 json.dump(self.services_data, f, indent=2)
         except Exception as e:
             logger.error(f"Error saving services data: {e}")

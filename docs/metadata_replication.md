@@ -71,10 +71,10 @@ api = IPFSSimpleAPI(
             "enabled": True,
             "min_replication_factor": 3,  # Minimum for fault tolerance
             "target_replication_factor": 4,  # Target for optimal performance
-            "max_replication_factor": 5,   # Maximum to limit resource usage
+            "max_replication_factor": 5,  # Maximum to limit resource usage
             "replication_level": "QUORUM",  # Ensure quorum consistency
-            "progressive_replication": True  # Enable tiered replication
-        }
+            "progressive_replication": True,  # Enable tiered replication
+        },
     }
 )
 
@@ -84,13 +84,13 @@ metadata = {
     "name": "example.txt",
     "size": 1024,
     "created_at": time.time(),
-    "tags": ["example", "documentation"]
+    "tags": ["example", "documentation"],
 }
 
 result = api.store_metadata(
     metadata=metadata,
     replicate=True,  # Enable replication
-    replication_level="QUORUM"  # Specify consistency level
+    replication_level="QUORUM",  # Specify consistency level
 )
 
 print(f"Replication succeeded: {result['success']}")
@@ -106,7 +106,7 @@ For more advanced configuration:
 from ipfs_kit_py.fs_journal_replication import (
     MetadataReplicationManager,
     ReplicationLevel,
-    ReplicationStatus
+    ReplicationStatus,
 )
 
 # Create a replication manager with custom configuration
@@ -114,14 +114,14 @@ replication_manager = MetadataReplicationManager(
     node_id="my-node-id",
     role="worker",
     config={
-        "quorum_size": 3,                    # Minimum replication factor
-        "target_replication_factor": 4,      # Target number of copies
-        "max_replication_factor": 5,         # Maximum number of copies
+        "quorum_size": 3,  # Minimum replication factor
+        "target_replication_factor": 4,  # Target number of copies
+        "max_replication_factor": 5,  # Maximum number of copies
         "default_replication_level": ReplicationLevel.QUORUM,
-        "checkpoint_interval": 300,          # 5 minutes
-        "sync_interval": 30,                 # 30 seconds
-        "auto_recovery": True                # Automatically recover on startup
-    }
+        "checkpoint_interval": 300,  # 5 minutes
+        "sync_interval": 30,  # 30 seconds
+        "auto_recovery": True,  # Automatically recover on startup
+    },
 )
 
 # Register peer nodes
@@ -135,9 +135,9 @@ result = replication_manager.replicate_journal_entry(
         "entry_id": "entry-123",
         "timestamp": time.time(),
         "path": "/virtual_fs/example.txt",
-        "data": {"size": 1024, "is_directory": False}
+        "data": {"size": 1024, "is_directory": False},
     },
-    replication_level=ReplicationLevel.QUORUM
+    replication_level=ReplicationLevel.QUORUM,
 )
 
 # Check replication status
@@ -319,15 +319,11 @@ tier_progression = self.config["default_tier_progression"]
 current_tier = tier_progression[0]
 
 # Store in tiered backend
-content = json.dumps(checkpoint_data).encode('utf-8')
+content = json.dumps(checkpoint_data).encode("utf-8")
 tier_result = self.tiered_backend.store_content(
     content=content,
     target_tier=current_tier,
-    metadata={
-        "type": "checkpoint",
-        "checkpoint_id": checkpoint_id,
-        "timestamp": time.time()
-    }
+    metadata={"type": "checkpoint", "checkpoint_id": checkpoint_id, "timestamp": time.time()},
 )
 
 # Schedule progressive replication through tiers
@@ -335,7 +331,7 @@ self._schedule_progressive_tier_replication(
     tier_result["cid"],
     tier_progression,
     current_tier,
-    metadata={"type": "checkpoint", "checkpoint_id": checkpoint_id}
+    metadata={"type": "checkpoint", "checkpoint_id": checkpoint_id},
 )
 ```
 

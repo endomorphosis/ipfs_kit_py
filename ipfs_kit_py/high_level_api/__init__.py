@@ -14,6 +14,7 @@ _IPFS_SIMPLE_API_IMPL = None
 _IPFS_SIMPLE_API_LOAD_ATTEMPTED = False
 _IPFS_SIMPLE_API_LOAD_ERROR = None
 
+
 def _init_libp2p_integration() -> None:
     global HAVE_LIBP2P
     try:
@@ -25,17 +26,22 @@ def _init_libp2p_integration() -> None:
         # Only attempt to import integration if libp2p is available
         if HAVE_LIBP2P:
             from . import libp2p_integration
+
             logger.info("LibP2P integration module imported")
         else:
-            logger.warning("LibP2P integration module not loaded: libp2p dependencies not available")
+            logger.warning(
+                "LibP2P integration module not loaded: libp2p dependencies not available"
+            )
     except ImportError as e:
         logger.warning(f"LibP2P integration module not available: {e}")
+
 
 # We intentionally avoid importing optional helper modules at package-import time.
 # Some helpers pull in large dependency trees which can trigger circular imports.
 WebRTCBenchmarkIntegration = None
 WebRTCBenchmarkIntegrationAnyIO = None
 HAVE_ANYIO_BENCHMARK = False
+
 
 class IPFSSimpleAPI:
     """Functional stub implementation of IPFSSimpleAPI.
@@ -149,12 +155,12 @@ except Exception as e:
 # Deferring avoids circular imports during package initialization.
 
 # Export components
-__all__ = ['IPFSSimpleAPI']
+__all__ = ["IPFSSimpleAPI"]
 
 if WebRTCBenchmarkIntegration is not None:
-    __all__.append('WebRTCBenchmarkIntegration')
+    __all__.append("WebRTCBenchmarkIntegration")
 
 # Add anyio components to exports if available
 if HAVE_ANYIO_BENCHMARK:
-    __all__.append('WebRTCBenchmarkIntegrationAnyIO')
-    __all__.append('HAVE_ANYIO_BENCHMARK')
+    __all__.append("WebRTCBenchmarkIntegrationAnyIO")
+    __all__.append("HAVE_ANYIO_BENCHMARK")

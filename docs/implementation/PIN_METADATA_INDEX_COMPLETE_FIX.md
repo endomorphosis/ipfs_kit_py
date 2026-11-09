@@ -117,10 +117,10 @@ ipfs-kit pin init
 **Lightweight Daemon Detection**:
 ```python
 # Step 1: Quick daemon check (no heavy imports)
-response = requests.get('http://localhost:8774/health', timeout=1)
+response = requests.get("http://localhost:8774/health", timeout=1)
 
-# Step 2: Check Arrow IPC capability  
-response = requests.get('http://localhost:8774/pin-index-arrow', timeout=2)
+# Step 2: Check Arrow IPC capability
+response = requests.get("http://localhost:8774/pin-index-arrow", timeout=2)
 
 # Step 3: Only load VFS manager if daemon available
 if daemon_available:

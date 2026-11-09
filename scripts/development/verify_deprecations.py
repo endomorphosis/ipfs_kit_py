@@ -8,6 +8,7 @@ Exit codes:
     0 - OK
     1 - Violation detected
 """
+
 from __future__ import annotations
 import argparse
 import json
@@ -19,11 +20,13 @@ from ipfs_kit_py.dashboard.consolidated_mcp_dashboard import ConsolidatedMCPDash
 
 SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 
+
 def parse_version(v: str):
     m = SEMVER_RE.match(v.strip())
     if not m:
         return None
     return tuple(int(x) for x in m.groups())
+
 
 def current_version(cli_arg: str | None) -> str:
     if cli_arg:
@@ -37,12 +40,13 @@ def current_version(cli_arg: str | None) -> str:
             return with_version.group(1)
     return "0.0.0"
 
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--version", help="Current package version")
     args = ap.parse_args()
     ver = current_version(args.version)
-    parsed_now = parse_version(ver) or (0,0,0)
+    parsed_now = parse_version(ver) or (0, 0, 0)
 
     dash = ConsolidatedMCPDashboard({})
     violations = []
@@ -55,6 +59,7 @@ def main():
         print(json.dumps(violations, indent=2))
         sys.exit(1)
     print("All deprecations within allowed window (current version:", ver, ")")
+
 
 if __name__ == "__main__":
     main()

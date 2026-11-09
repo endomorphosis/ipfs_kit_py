@@ -31,7 +31,7 @@ api = IPFSSimpleAPI()
 
 # Add content
 result = api.add("myfile.txt")
-cid = result['cid']
+cid = result["cid"]
 print(f"Added: {cid}")
 
 # Get content
@@ -76,7 +76,7 @@ peers = api.cluster_peers()
 ```python
 # Publish to IPNS
 result = api.publish(cid, key="mykey", lifetime="24h")
-ipns_name = result['ipns_name']
+ipns_name = result["ipns_name"]
 
 # Resolve IPNS name
 resolved = api.resolve(ipns_name)
@@ -125,7 +125,7 @@ ipfs-kit mcp deprecations --json
 # Add file and pin
 api = IPFSSimpleAPI()
 result = api.add("myfile.txt", pin=True)
-cid = result['cid']
+cid = result["cid"]
 
 # Add directory recursively
 result = api.add("mydir/", recursive=True)
@@ -143,7 +143,7 @@ for item in contents:
     print(f"{item['name']}: {item['cid']}")
 
 # Get specific file from directory
-file_cid = contents[0]['cid']
+file_cid = contents[0]["cid"]
 data = api.get(file_cid)
 ```
 
@@ -167,23 +167,13 @@ from ipfs_kit_py.high_level_api import IPFSSimpleAPI
 api = IPFSSimpleAPI()
 
 # Add model to registry
-result = api.ai_model_add(
-    model=my_model,
-    metadata={"name": "my-model", "version": "1.0"}
-)
+result = api.ai_model_add(model=my_model, metadata={"name": "my-model", "version": "1.0"})
 
 # Add dataset
-result = api.ai_dataset_add(
-    dataset=my_dataframe,
-    metadata={"name": "training-data"}
-)
+result = api.ai_dataset_add(dataset=my_dataframe, metadata={"name": "training-data"})
 
 # Visualize metrics
-api.ai_metrics_visualize(
-    model_id="my-model",
-    metrics_type="all",
-    interactive=True
-)
+api.ai_metrics_visualize(model_id="my-model", metrics_type="all", interactive=True)
 ```
 
 ## Environment Variables

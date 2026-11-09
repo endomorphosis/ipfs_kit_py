@@ -24,37 +24,31 @@ logger = logging.getLogger(__name__)
 async def demo_enhanced_server():
     """Demonstrate the enhanced MCP server."""
     logger.info("🚀 Starting Enhanced MCP Server Demo")
-    
+
     # Create and setup the server
     server = EnhancedMCPServer(host="127.0.0.1", port=8004)
-    
+
     # Add some demo services
     service_registry = get_service_registry()
-    
+
     # Add IPFS service
-    await service_registry.add_service("ipfs", {
-        "host": "127.0.0.1",
-        "port": 5001,
-        "gateway_port": 8080
-    })
-    
+    await service_registry.add_service(
+        "ipfs", {"host": "127.0.0.1", "port": 5001, "gateway_port": 8080}
+    )
+
     # Add S3 service
-    await service_registry.add_service("s3", {
-        "region": "us-east-1",
-        "bucket": "my-ipfs-backup"
-    })
-    
+    await service_registry.add_service("s3", {"region": "us-east-1", "bucket": "my-ipfs-backup"})
+
     # Add Storacha service
-    await service_registry.add_service("storacha", {
-        "endpoint": "https://api.storacha.network",
-        "space": "default-space"
-    })
-    
+    await service_registry.add_service(
+        "storacha", {"endpoint": "https://api.storacha.network", "space": "default-space"}
+    )
+
     logger.info("✅ Demo services added")
     logger.info("🌐 Dashboard will be available at http://127.0.0.1:8004")
     logger.info("📊 Service management API at http://127.0.0.1:8004/api/services/")
     logger.info("🛑 Press Ctrl+C to stop the server")
-    
+
     # Start the server
     await server.start()
 

@@ -132,7 +132,7 @@ training = DistributedTraining()
 training_result = training.train_model(
     model_type="resnet50",
     dataset_cid="QmDatasetCID",
-    hyperparameters={"lr": 0.01, "batch_size": 32}
+    hyperparameters={"lr": 0.01, "batch_size": 32},
 )
 
 # Store trained model with metadata
@@ -143,8 +143,8 @@ model_cid = model_registry.store_model(
     metadata={
         "training_metrics": training_result["metrics"],
         "dataset_cid": "QmDatasetCID",
-        "hyperparameters": {"lr": 0.01, "batch_size": 32}
-    }
+        "hyperparameters": {"lr": 0.01, "batch_size": 32},
+    },
 )
 
 # Later, retrieve the model
@@ -195,24 +195,21 @@ training = DistributedTraining(metrics=metrics)
 
 # Configure visualization (two versions for different purposes)
 viz_interactive = create_visualization(metrics, interactive=True)  # For exploration
-viz_static = create_visualization(metrics, interactive=False)      # For reports
+viz_static = create_visualization(metrics, interactive=False)  # For reports
 
 # Start training with metrics collection
 training_result = training.train_model(
     model_type="resnet50",
     dataset_cid="QmDatasetCID",
     hyperparameters={"lr": 0.01, "batch_size": 32},
-    metrics=metrics  # Pass metrics collector for tracking
+    metrics=metrics,  # Pass metrics collector for tracking
 )
 
 # Store model with training metrics
 model_cid = model_registry.store_model(
     model=training_result["model"],
     model_type="resnet50",
-    metadata={
-        "metrics_summary": metrics.get_summary(),
-        "dataset_cid": "QmDatasetCID"
-    }
+    metadata={"metrics_summary": metrics.get_summary(), "dataset_cid": "QmDatasetCID"},
 )
 
 # Generate visualizations of the training process
@@ -228,8 +225,7 @@ viz_static.generate_html_report(report_path)
 
 # Export all visualizations for sharing
 exported_files = viz_static.export_visualizations(
-    export_dir="./training_results",
-    formats=["png", "svg", "html", "json"]
+    export_dir="./training_results", formats=["png", "svg", "html", "json"]
 )
 
 print(f"Model stored with CID: {model_cid}")
@@ -304,14 +300,15 @@ import pandas as pd
 metrics_df = viz.get_metrics_dataframe(model_id="my_model")
 
 # Perform advanced analysis with pandas
-rolling_avg = metrics_df['train_loss'].rolling(window=5).mean()
-correlation = metrics_df['train_loss'].corr(metrics_df['val_loss'])
+rolling_avg = metrics_df["train_loss"].rolling(window=5).mean()
+correlation = metrics_df["train_loss"].corr(metrics_df["val_loss"])
 
 # Create custom visualization with pandas and matplotlib
 import matplotlib.pyplot as plt
+
 plt.figure(figsize=(10, 6))
-plt.plot(metrics_df.index, metrics_df['train_loss'], label='Training Loss')
-plt.plot(metrics_df.index, rolling_avg, label='5-epoch Rolling Avg')
+plt.plot(metrics_df.index, metrics_df["train_loss"], label="Training Loss")
+plt.plot(metrics_df.index, rolling_avg, label="5-epoch Rolling Avg")
 plt.legend()
 plt.title(f"Loss Correlation: {correlation:.2f}")
 plt.show()

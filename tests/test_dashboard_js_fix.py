@@ -40,15 +40,15 @@ async def test_dashboard_api():
     """Test dashboard API endpoints to verify they return correct data structure."""
     print("🧪 Testing Dashboard API Endpoints")
     print("=" * 50)
-    
+
     # Use an ephemeral free port to avoid collisions with other runs.
     test_port = _get_free_local_port()
     base_url = f"http://127.0.0.1:{test_port}"
-    
+
     try:
         # Start dashboard server in background
         print(f"🚀 Starting test dashboard on port {test_port}...")
-        
+
         try:
             import uvicorn
         except ImportError as e:  # pragma: no cover - optional dep
@@ -58,20 +58,15 @@ async def test_dashboard_api():
             from ipfs_kit_py.mcp.refactored_unified_dashboard import RefactoredUnifiedMCPDashboard
         except ImportError as e:  # pragma: no cover - optional dep
             pytest.skip(f"Dashboard module not available: {e}")
-        
-        config = {
-            'host': '127.0.0.1',
-            'port': test_port,
-            'data_dir': '~/.ipfs_kit',
-            'debug': False
-        }
-        
+
+        config = {"host": "127.0.0.1", "port": test_port, "data_dir": "~/.ipfs_kit", "debug": False}
+
         dashboard = RefactoredUnifiedMCPDashboard(config)
-        
+
         # Start server in background
         import threading
         from typing import Any
-        
+
         server: Any = None
 
         def run_server():
@@ -84,17 +79,17 @@ async def test_dashboard_api():
             )
             server = uvicorn.Server(uvicorn_config)
             server.run()
-        
+
         server_thread = threading.Thread(target=run_server, daemon=True)
         server_thread.start()
-        
+
         # Wait for server to start
         print("⏳ Waiting for server to start...")
         _wait_for_http(f"{base_url}/api/services", timeout_s=15.0)
-        
+
         # Test API endpoints
         print("\n📡 Testing API Endpoints:")
-        
+
         # Test /api/services
         try:
             response = requests.get(f"{base_url}/api/services", timeout=5)
@@ -105,7 +100,7 @@ async def test_dashboard_api():
             assert isinstance(data, dict)
         except Exception as e:
             pytest.fail(f"/api/services failed: {e}")
-        
+
         # Test /api/system/overview
         try:
             response = requests.get(f"{base_url}/api/system/overview", timeout=5)
@@ -115,7 +110,7 @@ async def test_dashboard_api():
             assert isinstance(data, dict)
         except Exception as e:
             pytest.fail(f"/api/system/overview failed: {e}")
-        
+
         # Test /api/backends
         try:
             response = requests.get(f"{base_url}/api/backends", timeout=5)
@@ -125,7 +120,7 @@ async def test_dashboard_api():
             assert isinstance(data, dict)
         except Exception as e:
             pytest.fail(f"/api/backends failed: {e}")
-        
+
         # Test /api/buckets
         try:
             response = requests.get(f"{base_url}/api/buckets", timeout=5)
@@ -135,12 +130,12 @@ async def test_dashboard_api():
             assert isinstance(data, dict)
         except Exception as e:
             pytest.fail(f"/api/buckets failed: {e}")
-        
+
         print("\n" + "=" * 50)
         print("✅ API test completed")
         print(f"🌐 Dashboard available at: {base_url}")
         print("💡 JavaScript errors should now be fixed!")
-        
+
         return True
 
     except Exception as e:
@@ -159,11 +154,11 @@ def main():
     """Main test function."""
     print("🔧 Dashboard JavaScript Fix Verification")
     print("=" * 50)
-    
+
     repo_root = Path(__file__).resolve().parents[1]
     sys.path.insert(0, str(repo_root))
     success = anyio.run(test_dashboard_api)
-    
+
     if success:
         print("\n🎉 SUCCESS: Dashboard JavaScript fixes applied!")
         print("📋 Fixed issues:")

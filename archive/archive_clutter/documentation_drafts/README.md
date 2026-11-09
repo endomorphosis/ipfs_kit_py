@@ -314,13 +314,13 @@ kit = ipfs_kit(
     role="leecher",
     metadata={
         "async_backend": "async-io",  # Use async-io backend (alternative: 'trio')
-        "num_workers": 4             # Number of worker threads
-    }
+        "num_workers": 4,  # Number of worker threads
+    },
 )
 
 # Add a file to IPFS (uses ipfs_add method)
 result = kit.ipfs_add("example.txt")
-cid = result.get("Hash") # Note: 'Hash' key might vary, check result dict
+cid = result.get("Hash")  # Note: 'Hash' key might vary, check result dict
 if cid:
     print(f"Added file with CID: {cid}")
 
@@ -338,20 +338,20 @@ if cid:
                 print(f"Read {len(data)} bytes using filesystem interface")
     except ImportError:
         print("Install 'fsspec' extra for filesystem interface: pip install ipfs_kit_py[fsspec]")
-        
+
     # Try advanced metadata operations (requires arrow extra)
     try:
         # Import will succeed but creating an instance will give helpful error if PyArrow missing
         from ipfs_kit_py.arrow_metadata_index import ArrowMetadataIndex
+
         try:
             index = ArrowMetadataIndex()
             index.add_metadata(cid, {"title": "Example", "tags": ["test"]})
             print("Added metadata to index")
         except ImportError as e:
-            print(f"{e}") # Will show helpful message about installing with [arrow] extra
+            print(f"{e}")  # Will show helpful message about installing with [arrow] extra
     except Exception as e:
         print(f"Unexpected error with arrow features: {e}")
-
 ```
 
 ### High-Level API
@@ -365,9 +365,9 @@ from ipfs_kit_py.high_level_api import IPFSSimpleAPI
 # Initialize with declarative configuration
 api = IPFSSimpleAPI(
     config_path="config.yaml",  # Optional: Load from YAML/JSON config
-    role="worker",              # Override config settings
-    timeouts={"api": 30},       # Custom timeout settings
-    async_backend="async-io"     # Use async-io backend (alternative: 'trio')
+    role="worker",  # Override config settings
+    timeouts={"api": 30},  # Custom timeout settings
+    async_backend="async-io",  # Use async-io backend (alternative: 'trio')
 )
 
 # Content operations
@@ -380,8 +380,8 @@ try:
     print(f"Added file with CID: {cid}")
 
     # Add content from string or bytes
-    result_str = api.add("Hello, IPFS!")   # Add string content
-    result_bytes = api.add(b"Binary data")   # Add binary content
+    result_str = api.add("Hello, IPFS!")  # Add string content
+    result_bytes = api.add(b"Binary data")  # Add binary content
 
     # Get content - returns bytes
     content = api.get(cid)
@@ -457,32 +457,34 @@ try:
 
         # List cluster peers
         cluster_peers = api.cluster_peers()
-        
+
     # AI/ML operations (requires ai_ml extra)
     # ------------------------------
     try:
         # Import will succeed even without dependencies
         from ipfs_kit_py.ai_ml_integration import ModelRegistry
-        
+
         try:
             # Create a mock client for testing
             from unittest.mock import MagicMock
+
             client = MagicMock()
-            
+
             # Initialize model registry
             registry = ModelRegistry(client)
-            
+
             # This will show what ML frameworks are available
             # If none are installed, you'll see a warning message
-            
+
             # Create a simple model and add it
             from sklearn.ensemble import RandomForestClassifier
+
             model = RandomForestClassifier()
             model.fit([[0, 0], [1, 1]], [0, 1])
-            
+
             registry.add_model(model, "example_model", version="1.0")
             print("Added model to registry")
-            
+
         except ImportError as e:
             # If dependencies are missing, you'll get a helpful error message
             print(f"AI/ML dependencies not available: {e}")
@@ -527,7 +529,7 @@ api = IPFSSimpleAPI(
     role="worker",
     resources={"max_memory": "2GB", "max_storage": "100GB"},
     cache={"memory_size": "500MB", "disk_size": "5GB"},
-    timeouts={"api": 60, "gateway": 120}
+    timeouts={"api": 60, "gateway": 120},
 )
 
 # Save current configuration to file
@@ -651,28 +653,22 @@ import requests
 import json
 
 # Connect to API server
-api_url = "http://localhost:8000" # Assuming server is running
+api_url = "http://localhost:8000"  # Assuming server is running
 
 try:
     # Add content to IPFS
-    with open("example.txt", "w") as f: # Create dummy file
+    with open("example.txt", "w") as f:  # Create dummy file
         f.write("API test content")
     with open("example.txt", "rb") as f:
-        response = requests.post(
-            f"{api_url}/api/v0/add",
-            files={"file": f}
-        )
-    response.raise_for_status() # Raise exception for bad status codes
+        response = requests.post(f"{api_url}/api/v0/add", files={"file": f})
+    response.raise_for_status()  # Raise exception for bad status codes
     result = response.json()
-    cid = result.get("Hash") # Key might differ, adjust as needed
+    cid = result.get("Hash")  # Key might differ, adjust as needed
     if cid:
         print(f"Added content with CID: {cid}")
 
         # Get content from IPFS
-        response = requests.get(
-            f"{api_url}/api/v0/cat",
-            params={"arg": cid}
-        )
+        response = requests.get(f"{api_url}/api/v0/cat", params={"arg": cid})
         response.raise_for_status()
         content = response.content
         print(f"Retrieved content: {content}")
@@ -692,7 +688,6 @@ except requests.exceptions.RequestException as e:
     print(f"API request failed: {e}")
 except Exception as e:
     print(f"An error occurred: {e}")
-
 ```
 
 For more examples, see the `examples/` directory.
@@ -944,13 +939,13 @@ kit = ipfs_kit(
     role="leecher",
     metadata={
         "async_backend": "async-io",  # Use async-io backend (alternative: 'trio')
-        "num_workers": 4             # Number of worker threads
-    }
+        "num_workers": 4,  # Number of worker threads
+    },
 )
 
 # Add a file to IPFS (uses ipfs_add method)
 result = kit.ipfs_add("example.txt")
-cid = result.get("Hash") # Note: 'Hash' key might vary, check result dict
+cid = result.get("Hash")  # Note: 'Hash' key might vary, check result dict
 if cid:
     print(f"Added file with CID: {cid}")
 
@@ -968,20 +963,20 @@ if cid:
                 print(f"Read {len(data)} bytes using filesystem interface")
     except ImportError:
         print("Install 'fsspec' extra for filesystem interface: pip install ipfs_kit_py[fsspec]")
-        
+
     # Try advanced metadata operations (requires arrow extra)
     try:
         # Import will succeed but creating an instance will give helpful error if PyArrow missing
         from ipfs_kit_py.arrow_metadata_index import ArrowMetadataIndex
+
         try:
             index = ArrowMetadataIndex()
             index.add_metadata(cid, {"title": "Example", "tags": ["test"]})
             print("Added metadata to index")
         except ImportError as e:
-            print(f"{e}") # Will show helpful message about installing with [arrow] extra
+            print(f"{e}")  # Will show helpful message about installing with [arrow] extra
     except Exception as e:
         print(f"Unexpected error with arrow features: {e}")
-
 ```
 
 ### High-Level API
@@ -995,9 +990,9 @@ from ipfs_kit_py.high_level_api import IPFSSimpleAPI
 # Initialize with declarative configuration
 api = IPFSSimpleAPI(
     config_path="config.yaml",  # Optional: Load from YAML/JSON config
-    role="worker",              # Override config settings
-    timeouts={"api": 30},       # Custom timeout settings
-    async_backend="async-io"     # Use async-io backend (alternative: 'trio')
+    role="worker",  # Override config settings
+    timeouts={"api": 30},  # Custom timeout settings
+    async_backend="async-io",  # Use async-io backend (alternative: 'trio')
 )
 
 # Content operations
@@ -1010,8 +1005,8 @@ try:
     print(f"Added file with CID: {cid}")
 
     # Add content from string or bytes
-    result_str = api.add("Hello, IPFS!")   # Add string content
-    result_bytes = api.add(b"Binary data")   # Add binary content
+    result_str = api.add("Hello, IPFS!")  # Add string content
+    result_bytes = api.add(b"Binary data")  # Add binary content
 
     # Get content - returns bytes
     content = api.get(cid)
@@ -1087,32 +1082,34 @@ try:
 
         # List cluster peers
         cluster_peers = api.cluster_peers()
-        
+
     # AI/ML operations (requires ai_ml extra)
     # ------------------------------
     try:
         # Import will succeed even without dependencies
         from ipfs_kit_py.ai_ml_integration import ModelRegistry
-        
+
         try:
             # Create a mock client for testing
             from unittest.mock import MagicMock
+
             client = MagicMock()
-            
+
             # Initialize model registry
             registry = ModelRegistry(client)
-            
+
             # This will show what ML frameworks are available
             # If none are installed, you'll see a warning message
-            
+
             # Create a simple model and add it
             from sklearn.ensemble import RandomForestClassifier
+
             model = RandomForestClassifier()
             model.fit([[0, 0], [1, 1]], [0, 1])
-            
+
             registry.add_model(model, "example_model", version="1.0")
             print("Added model to registry")
-            
+
         except ImportError as e:
             # If dependencies are missing, you'll get a helpful error message
             print(f"AI/ML dependencies not available: {e}")
@@ -1157,7 +1154,7 @@ api = IPFSSimpleAPI(
     role="worker",
     resources={"max_memory": "2GB", "max_storage": "100GB"},
     cache={"memory_size": "500MB", "disk_size": "5GB"},
-    timeouts={"api": 60, "gateway": 120}
+    timeouts={"api": 60, "gateway": 120},
 )
 
 # Save current configuration to file
@@ -1281,28 +1278,22 @@ import requests
 import json
 
 # Connect to API server
-api_url = "http://localhost:8000" # Assuming server is running
+api_url = "http://localhost:8000"  # Assuming server is running
 
 try:
     # Add content to IPFS
-    with open("example.txt", "w") as f: # Create dummy file
+    with open("example.txt", "w") as f:  # Create dummy file
         f.write("API test content")
     with open("example.txt", "rb") as f:
-        response = requests.post(
-            f"{api_url}/api/v0/add",
-            files={"file": f}
-        )
-    response.raise_for_status() # Raise exception for bad status codes
+        response = requests.post(f"{api_url}/api/v0/add", files={"file": f})
+    response.raise_for_status()  # Raise exception for bad status codes
     result = response.json()
-    cid = result.get("Hash") # Key might differ, adjust as needed
+    cid = result.get("Hash")  # Key might differ, adjust as needed
     if cid:
         print(f"Added content with CID: {cid}")
 
         # Get content from IPFS
-        response = requests.get(
-            f"{api_url}/api/v0/cat",
-            params={"arg": cid}
-        )
+        response = requests.get(f"{api_url}/api/v0/cat", params={"arg": cid})
         response.raise_for_status()
         content = response.content
         print(f"Retrieved content: {content}")
@@ -1322,7 +1313,6 @@ except requests.exceptions.RequestException as e:
     print(f"API request failed: {e}")
 except Exception as e:
     print(f"An error occurred: {e}")
-
 ```
 
 For more examples, see the `examples/` directory.
@@ -1664,7 +1654,7 @@ stream_result = model.stream_content_webrtc(
     cid="QmCID",  # Content to stream
     buffer_size=60,  # Larger buffer for more resilience (1-120 frames)
     prefetch_threshold=0.3,  # Start prefetching when buffer is 30% full (0.1-0.9)
-    use_progressive_loading=True  # Load content in chunks as needed
+    use_progressive_loading=True,  # Load content in chunks as needed
 )
 
 # Get stream info and handle offer/answer exchange
@@ -1710,9 +1700,7 @@ manager = WebRTCStreamingManager(api, config=WebRTCConfig.get_optimal_config())
 
 # Add benchmarking capabilities
 WebRTCStreamingManagerBenchmarkIntegration.add_benchmarking_to_manager(
-    manager, 
-    enable_benchmarking=True,
-    benchmark_reports_dir="/path/to/reports"
+    manager, enable_benchmarking=True, benchmark_reports_dir="/path/to/reports"
 )
 
 # Create offer and start streaming

@@ -35,33 +35,38 @@ import os
 import subprocess
 import warnings
 
+
 def main():
     """Run the time-based recovery test using the new network_simulator."""
     # Show deprecation warning
     warnings.warn(
         "run_mcp_time_based_recovery_test.py is deprecated and will be removed in a future version. "
         "Please use network_simulator.py instead.",
-        DeprecationWarning, stacklevel=2
+        DeprecationWarning,
+        stacklevel=2,
     )
-    
+
     print("Running time-based recovery test using the new network_simulator module...")
-    
+
     # Check if network_simulator.py exists
     network_simulator_path = os.path.join(os.path.dirname(__file__), "network_simulator.py")
     if not os.path.exists(network_simulator_path):
         print("ERROR: network_simulator.py not found. Please make sure it's in the same directory.")
         return 1
-    
+
     # Build command for time-based recovery scenario
     cmd = [
         sys.executable,
         network_simulator_path,
-        "--scenario", "time_based_recovery",
-        "--nodes", "3",
-        "--duration", "60",
-        "--verbose"
+        "--scenario",
+        "time_based_recovery",
+        "--nodes",
+        "3",
+        "--duration",
+        "60",
+        "--verbose",
     ]
-    
+
     # Run network_simulator
     try:
         print(f"Running: {' '.join(cmd)}")
@@ -73,6 +78,7 @@ def main():
     except Exception as e:
         print(f"Error running network test: {e}")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())
