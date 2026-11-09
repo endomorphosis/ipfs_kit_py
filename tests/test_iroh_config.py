@@ -51,9 +51,7 @@ def test_named_instances_have_disjoint_state_and_rpc_paths(tmp_path: Path) -> No
     assert first.rpc_endpoint != second.rpc_endpoint
 
 
-@pytest.mark.parametrize(
-    "name", ["", "UPPER", "has.dot", "../escape", "trailing-", "a" * 65]
-)
+@pytest.mark.parametrize("name", ["", "UPPER", "has.dot", "../escape", "trailing-", "a" * 65])
 def test_invalid_instance_names_are_rejected(name: str) -> None:
     with pytest.raises(IrohInvalidConfigError):
         validate_instance_name(name)
@@ -73,7 +71,10 @@ def test_wildcard_and_specific_endpoint_binds_collide(tmp_path: Path) -> None:
     second_document["network"]["endpoint_bind"] = ["127.0.0.1:4919"]
     with pytest.raises(IrohConflictError, match="colliding"):
         validate_instance_isolation(
-            [IrohServiceConfig.from_dict(first_document), IrohServiceConfig.from_dict(second_document)]
+            [
+                IrohServiceConfig.from_dict(first_document),
+                IrohServiceConfig.from_dict(second_document),
+            ]
         )
 
 
@@ -107,9 +108,7 @@ def test_layout_rejects_symlinked_state(tmp_path: Path) -> None:
         ("identity", "token", "inline"),
     ],
 )
-def test_inline_secrets_are_rejected(
-    tmp_path: Path, location: str, key: str, value: str
-) -> None:
+def test_inline_secrets_are_rejected(tmp_path: Path, location: str, key: str, value: str) -> None:
     document = default_config("secret-test", state_root=tmp_path).to_dict()
     document[location][key] = value
     if key != "node_identity_ref":

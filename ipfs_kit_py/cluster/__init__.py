@@ -27,12 +27,24 @@ _LAZY: Dict[str, Tuple[str, str]] = {
     "role_capabilities": ("ipfs_kit_py.cluster.role_manager", "role_capabilities"),
     "get_gpu_info": ("ipfs_kit_py.cluster.utils", "get_gpu_info"),
     # Daemon management with cluster capabilities
-    "EnhancedDaemonManager": ("ipfs_kit_py.cluster.enhanced_daemon_manager_with_cluster", "EnhancedDaemonManager"),
+    "EnhancedDaemonManager": (
+        "ipfs_kit_py.cluster.enhanced_daemon_manager_with_cluster",
+        "EnhancedDaemonManager",
+    ),
     "DaemonNodeRole": ("ipfs_kit_py.cluster.enhanced_daemon_manager_with_cluster", "NodeRole"),
     "DaemonPeerInfo": ("ipfs_kit_py.cluster.enhanced_daemon_manager_with_cluster", "PeerInfo"),
-    "LeaderElection": ("ipfs_kit_py.cluster.enhanced_daemon_manager_with_cluster", "LeaderElection"),
-    "ReplicationManager": ("ipfs_kit_py.cluster.enhanced_daemon_manager_with_cluster", "ReplicationManager"),
-    "IndexingService": ("ipfs_kit_py.cluster.enhanced_daemon_manager_with_cluster", "IndexingService"),
+    "LeaderElection": (
+        "ipfs_kit_py.cluster.enhanced_daemon_manager_with_cluster",
+        "LeaderElection",
+    ),
+    "ReplicationManager": (
+        "ipfs_kit_py.cluster.enhanced_daemon_manager_with_cluster",
+        "ReplicationManager",
+    ),
+    "IndexingService": (
+        "ipfs_kit_py.cluster.enhanced_daemon_manager_with_cluster",
+        "IndexingService",
+    ),
 }
 
 

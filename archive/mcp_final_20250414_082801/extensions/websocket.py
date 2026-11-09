@@ -28,7 +28,7 @@ except ImportError as e:
 
 
 def create_websocket_extension_router(
-    api_prefix: str
+    api_prefix: str,
 ) -> Tuple[Optional[APIRouter], Optional[APIRouter]]:
     """
     Create a FastAPI router for WebSocket endpoints.
@@ -50,7 +50,9 @@ def create_websocket_extension_router(
         logger.info("Successfully created WebSocket routers")
         return websocket_router, rest_router
     except (TypeError, ValueError) as e:
-        logger.exception("Invalid configuration creating WebSocket router (prefix=%r): %s", api_prefix, e)
+        logger.exception(
+            "Invalid configuration creating WebSocket router (prefix=%r): %s", api_prefix, e
+        )
         return None, None
     except Exception:
         # Broad catch-all: logger.exception captures the full traceback via sys.exc_info().
@@ -106,7 +108,9 @@ def register_app_websocket_routes(app: FastAPI, api_prefix: str) -> bool:
         # Return the REST router for normal inclusion
         return True
     except (TypeError, ValueError) as e:
-        logger.exception("Invalid configuration registering WebSocket routes (prefix=%r): %s", api_prefix, e)
+        logger.exception(
+            "Invalid configuration registering WebSocket routes (prefix=%r): %s", api_prefix, e
+        )
         return False
     except Exception:
         # Broad catch-all: logger.exception captures the full traceback via sys.exc_info().

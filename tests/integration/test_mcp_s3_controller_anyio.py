@@ -16,8 +16,11 @@ from fastapi import APIRouter, UploadFile, File, Form
 from fastapi.testclient import TestClient
 
 from ipfs_kit_py.mcp.controllers.storage.s3_controller import (
-    S3UploadRequest, S3DownloadRequest, S3DeleteRequest,
-    IPFSS3Request, S3IPFSRequest
+    S3UploadRequest,
+    S3DownloadRequest,
+    S3DeleteRequest,
+    IPFSS3Request,
+    S3IPFSRequest,
 )
 from ipfs_kit_py.mcp.controllers.storage.s3_controller_anyio import S3ControllerAnyIO
 
@@ -26,7 +29,7 @@ from ipfs_kit_py.mcp.controllers.storage.s3_controller_anyio import S3Controller
 def mock_s3_model():
     """Create a mock S3 model with async methods."""
     model = MagicMock()
-    
+
     # Configure async method mocks
     model.upload_file_async = MagicMock()
     model.download_file_async = MagicMock()
@@ -36,7 +39,7 @@ def mock_s3_model():
     model.s3_to_ipfs_async = MagicMock()
     model.get_stats_async = MagicMock()
     model.list_buckets_async = MagicMock()
-    
+
     # Configure sync method mocks (should not be called in async context)
     model.upload_file = MagicMock()
     model.download_file = MagicMock()
@@ -46,7 +49,7 @@ def mock_s3_model():
     model.s3_to_ipfs = MagicMock()
     model.get_stats = MagicMock()
     model.list_buckets = MagicMock()
-    
+
     return model
 
 
@@ -67,11 +70,11 @@ def router():
 def test_app(s3_controller_anyio, router):
     """Create a FastAPI test app with the controller routes."""
     from fastapi import FastAPI
-    
+
     app = FastAPI()
     s3_controller_anyio.register_routes(router)
     app.include_router(router)
-    
+
     return app
 
 
@@ -87,6 +90,7 @@ def temp_dir():
     dir_path = tempfile.mkdtemp()
     yield dir_path
     import shutil
+
     shutil.rmtree(dir_path, ignore_errors=True)
 
 
@@ -96,7 +100,7 @@ def test_file(temp_dir):
     file_path = os.path.join(temp_dir, "test_file.txt")
     with open(file_path, "w") as f:
         f.write("Test content for S3 upload")
-    
+
     return file_path
 
 
@@ -112,10 +116,10 @@ def test_route_registration(s3_controller_anyio, router):
     """Test that routes are registered correctly."""
     # Register routes
     s3_controller_anyio.register_routes(router)
-    
+
     # Get registered route paths
     route_paths = [route.path for route in router.routes]
-    
+
     # Check core routes
     assert "/storage/s3/upload" in route_paths
     assert "/storage/s3/download" in route_paths
@@ -125,7 +129,7 @@ def test_route_registration(s3_controller_anyio, router):
     assert "/storage/s3/to_ipfs" in route_paths
     assert "/storage/s3/status" in route_paths
     assert "/storage/s3/buckets" in route_paths
-    
+
     # Check backward compatibility routes
     assert "/s3/status" in route_paths
 
@@ -141,20 +145,20 @@ async def test_handle_upload_request_json(test_client, mock_s3_model, test_file)
         "key": "test-key",
         "etag": "test-etag",
         "size_bytes": 100,
-        "duration_ms": 50.5
+        "duration_ms": 50.5,
     }
-    
+
     # Create request data
     request_data = {
         "file_path": test_file,
         "bucket": "test-bucket",
         "key": "test-key",
-        "metadata": {"test-key": "test-value"}
+        "metadata": {"test-key": "test-value"},
     }
-    
+
     # Send request
     response = test_client.post("/storage/s3/upload", json=request_data)
-    
+
     # Check response
     assert response.status_code == 200
     response_data = response.json()
@@ -163,7 +167,7 @@ async def test_handle_upload_request_json(test_client, mock_s3_model, test_file)
     assert response_data["key"] == "test-key"
     assert response_data["etag"] == "test-etag"
     assert response_data["size_bytes"] == 100
-    
+
     # Check that the async model method was called with correct parameters
     mock_s3_model.upload_file_async.assert_called_once()
     args, kwargs = mock_s3_model.upload_file_async.call_args
@@ -171,7 +175,7 @@ async def test_handle_upload_request_json(test_client, mock_s3_model, test_file)
     assert kwargs["bucket"] == "test-bucket"
     assert kwargs["key"] == "test-key"
     assert kwargs["metadata"] == {"test-key": "test-value"}
-    
+
     # Verify that sync method was not called
     mock_s3_model.upload_file.assert_not_called()
 
@@ -187,38 +191,29 @@ async def test_handle_upload_request_form(test_client, mock_s3_model, test_file)
         "key": "test-file.txt",
         "etag": "test-etag",
         "size_bytes": 100,
-        "duration_ms": 50.5
+        "duration_ms": 50.5,
     }
-    
+
     # Create form data
     with open(test_file, "rb") as f:
         file_content = f.read()
-    
-    files = {
-        "file": ("test-file.txt", file_content, "text/plain")
-    }
-    form_data = {
-        "bucket": "test-bucket",
-        "metadata": json.dumps({"test-key": "test-value"})
-    }
-    
+
+    files = {"file": ("test-file.txt", file_content, "text/plain")}
+    form_data = {"bucket": "test-bucket", "metadata": json.dumps({"test-key": "test-value"})}
+
     # Send request
-    response = test_client.post(
-        "/storage/s3/upload",
-        files=files,
-        data=form_data
-    )
-    
+    response = test_client.post("/storage/s3/upload", files=files, data=form_data)
+
     # Check response
     assert response.status_code == 200
     response_data = response.json()
     assert response_data["success"] is True
     assert response_data["bucket"] == "test-bucket"
     assert response_data["key"] == "test-file.txt"
-    
+
     # Check that the async model method was called
     mock_s3_model.upload_file_async.assert_called_once()
-    
+
     # Verify that sync method was not called
     mock_s3_model.upload_file.assert_not_called()
 
@@ -231,25 +226,21 @@ async def test_handle_upload_request_error(test_client, mock_s3_model, test_file
     mock_s3_model.upload_file_async.return_value = {
         "success": False,
         "error": "S3 upload failed",
-        "error_type": "S3Error"
+        "error_type": "S3Error",
     }
-    
+
     # Create request data
-    request_data = {
-        "file_path": test_file,
-        "bucket": "test-bucket",
-        "key": "test-key"
-    }
-    
+    request_data = {"file_path": test_file, "bucket": "test-bucket", "key": "test-key"}
+
     # Send request
     response = test_client.post("/storage/s3/upload", json=request_data)
-    
+
     # Check response
     assert response.status_code == 500
     response_data = response.json()
     assert response_data["detail"]["error"] == "S3 upload failed"
     assert response_data["detail"]["error_type"] == "S3Error"
-    
+
     # Verify that sync method was not called
     mock_s3_model.upload_file.assert_not_called()
 
@@ -265,19 +256,19 @@ async def test_handle_download_request(test_client, mock_s3_model):
         "key": "test-key",
         "destination": "/tmp/test-download.txt",
         "size_bytes": 100,
-        "duration_ms": 50.5
+        "duration_ms": 50.5,
     }
-    
+
     # Create request data
     request_data = {
         "bucket": "test-bucket",
         "key": "test-key",
-        "destination": "/tmp/test-download.txt"
+        "destination": "/tmp/test-download.txt",
     }
-    
+
     # Send request
     response = test_client.post("/storage/s3/download", json=request_data)
-    
+
     # Check response
     assert response.status_code == 200
     response_data = response.json()
@@ -285,14 +276,12 @@ async def test_handle_download_request(test_client, mock_s3_model):
     assert response_data["bucket"] == "test-bucket"
     assert response_data["key"] == "test-key"
     assert response_data["destination"] == "/tmp/test-download.txt"
-    
+
     # Check that the async model method was called with correct parameters
     mock_s3_model.download_file_async.assert_called_once_with(
-        bucket="test-bucket",
-        key="test-key",
-        destination="/tmp/test-download.txt"
+        bucket="test-bucket", key="test-key", destination="/tmp/test-download.txt"
     )
-    
+
     # Verify that sync method was not called
     mock_s3_model.download_file.assert_not_called()
 
@@ -307,14 +296,14 @@ async def test_handle_list_request(test_client, mock_s3_model):
             "key": "test-key-1",
             "e_tag": "test-etag-1",
             "last_modified": "2022-01-01T00:00:00Z",
-            "size": 100
+            "size": 100,
         },
         {
             "key": "test-key-2",
             "e_tag": "test-etag-2",
             "last_modified": "2022-01-02T00:00:00Z",
-            "size": 200
-        }
+            "size": 200,
+        },
     ]
     mock_s3_model.list_objects_async.return_value = {
         "success": True,
@@ -322,12 +311,12 @@ async def test_handle_list_request(test_client, mock_s3_model):
         "prefix": "test-prefix",
         "objects": mock_objects,
         "count": 2,
-        "duration_ms": 50.5
+        "duration_ms": 50.5,
     }
-    
+
     # Send request
     response = test_client.get("/storage/s3/list/test-bucket?prefix=test-prefix")
-    
+
     # Check response
     assert response.status_code == 200
     response_data = response.json()
@@ -336,13 +325,12 @@ async def test_handle_list_request(test_client, mock_s3_model):
     assert response_data["prefix"] == "test-prefix"
     assert response_data["count"] == 2
     assert len(response_data["objects"]) == 2
-    
+
     # Check that the async model method was called with correct parameters
     mock_s3_model.list_objects_async.assert_called_once_with(
-        bucket="test-bucket",
-        prefix="test-prefix"
+        bucket="test-bucket", prefix="test-prefix"
     )
-    
+
     # Verify that sync method was not called
     mock_s3_model.list_objects.assert_not_called()
 
@@ -356,31 +344,25 @@ async def test_handle_delete_request(test_client, mock_s3_model):
         "success": True,
         "bucket": "test-bucket",
         "key": "test-key",
-        "duration_ms": 50.5
+        "duration_ms": 50.5,
     }
-    
+
     # Create request data
-    request_data = {
-        "bucket": "test-bucket",
-        "key": "test-key"
-    }
-    
+    request_data = {"bucket": "test-bucket", "key": "test-key"}
+
     # Send request
     response = test_client.post("/storage/s3/delete", json=request_data)
-    
+
     # Check response
     assert response.status_code == 200
     response_data = response.json()
     assert response_data["success"] is True
     assert response_data["bucket"] == "test-bucket"
     assert response_data["key"] == "test-key"
-    
+
     # Check that the async model method was called with correct parameters
-    mock_s3_model.delete_object_async.assert_called_once_with(
-        bucket="test-bucket",
-        key="test-key"
-    )
-    
+    mock_s3_model.delete_object_async.assert_called_once_with(bucket="test-bucket", key="test-key")
+
     # Verify that sync method was not called
     mock_s3_model.delete_object.assert_not_called()
 
@@ -397,20 +379,15 @@ async def test_handle_ipfs_to_s3_request(test_client, mock_s3_model):
         "key": "test-key",
         "etag": "test-etag",
         "size_bytes": 100,
-        "duration_ms": 50.5
+        "duration_ms": 50.5,
     }
-    
+
     # Create request data
-    request_data = {
-        "cid": "test-cid",
-        "bucket": "test-bucket",
-        "key": "test-key",
-        "pin": True
-    }
-    
+    request_data = {"cid": "test-cid", "bucket": "test-bucket", "key": "test-key", "pin": True}
+
     # Send request
     response = test_client.post("/storage/s3/from_ipfs", json=request_data)
-    
+
     # Check response
     assert response.status_code == 200
     response_data = response.json()
@@ -418,15 +395,12 @@ async def test_handle_ipfs_to_s3_request(test_client, mock_s3_model):
     assert response_data["ipfs_cid"] == "test-cid"
     assert response_data["bucket"] == "test-bucket"
     assert response_data["key"] == "test-key"
-    
+
     # Check that the async model method was called with correct parameters
     mock_s3_model.ipfs_to_s3_async.assert_called_once_with(
-        cid="test-cid",
-        bucket="test-bucket",
-        key="test-key",
-        pin=True
+        cid="test-cid", bucket="test-bucket", key="test-key", pin=True
     )
-    
+
     # Verify that sync method was not called
     mock_s3_model.ipfs_to_s3.assert_not_called()
 
@@ -442,19 +416,15 @@ async def test_handle_s3_to_ipfs_request(test_client, mock_s3_model):
         "key": "test-key",
         "ipfs_cid": "test-cid",
         "size_bytes": 100,
-        "duration_ms": 50.5
+        "duration_ms": 50.5,
     }
-    
+
     # Create request data
-    request_data = {
-        "bucket": "test-bucket",
-        "key": "test-key",
-        "pin": True
-    }
-    
+    request_data = {"bucket": "test-bucket", "key": "test-key", "pin": True}
+
     # Send request
     response = test_client.post("/storage/s3/to_ipfs", json=request_data)
-    
+
     # Check response
     assert response.status_code == 200
     response_data = response.json()
@@ -462,14 +432,12 @@ async def test_handle_s3_to_ipfs_request(test_client, mock_s3_model):
     assert response_data["bucket"] == "test-bucket"
     assert response_data["key"] == "test-key"
     assert response_data["ipfs_cid"] == "test-cid"
-    
+
     # Check that the async model method was called with correct parameters
     mock_s3_model.s3_to_ipfs_async.assert_called_once_with(
-        bucket="test-bucket",
-        key="test-key",
-        pin=True
+        bucket="test-bucket", key="test-key", pin=True
     )
-    
+
     # Verify that sync method was not called
     mock_s3_model.s3_to_ipfs.assert_not_called()
 
@@ -491,15 +459,15 @@ async def test_handle_status_request(test_client, mock_s3_model):
             "bytes_uploaded": 1000,
             "bytes_downloaded": 500,
             "start_time": 1672531200.0,
-            "last_operation_time": 1672531500.0
+            "last_operation_time": 1672531500.0,
         },
         "timestamp": 1672531600.0,
-        "uptime_seconds": 400.0
+        "uptime_seconds": 400.0,
     }
-    
+
     # Send request
     response = test_client.get("/storage/s3/status")
-    
+
     # Check response
     assert response.status_code == 200
     response_data = response.json()
@@ -507,10 +475,10 @@ async def test_handle_status_request(test_client, mock_s3_model):
     assert response_data["backend"] == "s3"
     assert response_data["is_available"] is True
     assert "stats" in response_data
-    
+
     # Check that the async model method was called
     mock_s3_model.get_stats_async.assert_called_once()
-    
+
     # Verify that sync method was not called
     mock_s3_model.get_stats.assert_not_called()
 
@@ -524,22 +492,22 @@ async def test_handle_list_buckets_request(test_client, mock_s3_model):
         "success": True,
         "buckets": ["bucket1", "bucket2", "bucket3"],
         "count": 3,
-        "duration_ms": 50.5
+        "duration_ms": 50.5,
     }
-    
+
     # Send request
     response = test_client.get("/storage/s3/buckets")
-    
+
     # Check response
     assert response.status_code == 200
     response_data = response.json()
     assert response_data["success"] is True
     assert response_data["buckets"] == ["bucket1", "bucket2", "bucket3"]
     assert response_data["count"] == 3
-    
+
     # Check that the async model method was called
     mock_s3_model.list_buckets_async.assert_called_once()
-    
+
     # Verify that sync method was not called
     mock_s3_model.list_buckets.assert_not_called()
 
@@ -550,7 +518,7 @@ async def test_handle_upload_request_validation_error(test_client):
     """Test handling upload request with validation error."""
     # Send request without required fields
     response = test_client.post("/storage/s3/upload", json={})
-    
+
     # Check response
     assert response.status_code == 400
     assert "error" in response.json()["detail"]
@@ -564,19 +532,19 @@ async def test_handle_download_request_error(test_client, mock_s3_model):
     mock_s3_model.download_file_async.return_value = {
         "success": False,
         "error": "S3 download failed",
-        "error_type": "S3Error"
+        "error_type": "S3Error",
     }
-    
+
     # Create request data
     request_data = {
         "bucket": "test-bucket",
         "key": "test-key",
-        "destination": "/tmp/test-download.txt"
+        "destination": "/tmp/test-download.txt",
     }
-    
+
     # Send request
     response = test_client.post("/storage/s3/download", json=request_data)
-    
+
     # Check response
     assert response.status_code == 500
     response_data = response.json()
@@ -592,12 +560,12 @@ async def test_handle_list_request_error(test_client, mock_s3_model):
     mock_s3_model.list_objects_async.return_value = {
         "success": False,
         "error": "S3 list failed",
-        "error_type": "S3Error"
+        "error_type": "S3Error",
     }
-    
+
     # Send request
     response = test_client.get("/storage/s3/list/test-bucket")
-    
+
     # Check response
     assert response.status_code == 500
     response_data = response.json()
@@ -613,18 +581,15 @@ async def test_handle_delete_request_error(test_client, mock_s3_model):
     mock_s3_model.delete_object_async.return_value = {
         "success": False,
         "error": "S3 delete failed",
-        "error_type": "S3Error"
+        "error_type": "S3Error",
     }
-    
+
     # Create request data
-    request_data = {
-        "bucket": "test-bucket",
-        "key": "test-key"
-    }
-    
+    request_data = {"bucket": "test-bucket", "key": "test-key"}
+
     # Send request
     response = test_client.post("/storage/s3/delete", json=request_data)
-    
+
     # Check response
     assert response.status_code == 500
     response_data = response.json()
@@ -640,20 +605,15 @@ async def test_handle_ipfs_to_s3_request_error(test_client, mock_s3_model):
     mock_s3_model.ipfs_to_s3_async.return_value = {
         "success": False,
         "error": "IPFS to S3 transfer failed",
-        "error_type": "TransferError"
+        "error_type": "TransferError",
     }
-    
+
     # Create request data
-    request_data = {
-        "cid": "test-cid",
-        "bucket": "test-bucket",
-        "key": "test-key",
-        "pin": True
-    }
-    
+    request_data = {"cid": "test-cid", "bucket": "test-bucket", "key": "test-key", "pin": True}
+
     # Send request
     response = test_client.post("/storage/s3/from_ipfs", json=request_data)
-    
+
     # Check response
     assert response.status_code == 500
     response_data = response.json()
@@ -669,19 +629,15 @@ async def test_handle_s3_to_ipfs_request_error(test_client, mock_s3_model):
     mock_s3_model.s3_to_ipfs_async.return_value = {
         "success": False,
         "error": "S3 to IPFS transfer failed",
-        "error_type": "TransferError"
+        "error_type": "TransferError",
     }
-    
+
     # Create request data
-    request_data = {
-        "bucket": "test-bucket",
-        "key": "test-key",
-        "pin": True
-    }
-    
+    request_data = {"bucket": "test-bucket", "key": "test-key", "pin": True}
+
     # Send request
     response = test_client.post("/storage/s3/to_ipfs", json=request_data)
-    
+
     # Check response
     assert response.status_code == 500
     response_data = response.json()
@@ -696,23 +652,20 @@ async def test_handle_backward_compatibility_routes(test_client, mock_s3_model):
     # Configure mock response
     mock_s3_model.get_stats_async.return_value = {
         "backend_name": "S3",
-        "operation_stats": {
-            "upload_count": 10,
-            "download_count": 5
-        },
-        "timestamp": 1672531600.0
+        "operation_stats": {"upload_count": 10, "download_count": 5},
+        "timestamp": 1672531600.0,
     }
-    
+
     # Send request to old status endpoint
     response = test_client.get("/s3/status")
-    
+
     # Check response
     assert response.status_code == 200
     response_data = response.json()
     assert response_data["success"] is True
-    
+
     # Check that the async model method was called
     mock_s3_model.get_stats_async.assert_called_once()
-    
+
     # Verify that sync method was not called
     mock_s3_model.get_stats.assert_not_called()

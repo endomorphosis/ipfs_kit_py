@@ -4,6 +4,7 @@ Root entrypoint for the MCP Dashboard used by tests.
 This file is a thin wrapper that imports and exposes the packaged
 implementation to avoid divergence and corruption.
 """
+
 from __future__ import annotations
 
 import argparse

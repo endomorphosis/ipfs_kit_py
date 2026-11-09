@@ -202,11 +202,7 @@ pytest.importorskip("fastapi")
 ### 5. Edge Case Testing
 ```python
 # Test with various content patterns
-contents = [
-    "Visit https://example.com",
-    "Contact user@example.com",
-    "CID: QmTest123ABC456DEF789"
-]
+contents = ["Visit https://example.com", "Contact user@example.com", "CID: QmTest123ABC456DEF789"]
 for content in contents:
     entities = await engine.extract_entities(content)
     assert len(entities) > 0

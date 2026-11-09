@@ -151,33 +151,94 @@ OPERATION_DEFINITIONS: dict[str, OperationDefinition] = {
         IrohPermission.READ,
         "Read a redacted health receipt or bounded-label metrics.",
         "_diagnostics",
-        _object_schema({**_COMMON, "format": {"type": "string", "enum": ["health", "metrics", "prometheus"], "default": "health"}, "persist": {"type": "boolean", "default": True}}),
+        _object_schema(
+            {
+                **_COMMON,
+                "format": {
+                    "type": "string",
+                    "enum": ["health", "metrics", "prometheus"],
+                    "default": "health",
+                },
+                "persist": {"type": "boolean", "default": True},
+            }
+        ),
     ),
     "service.status": OperationDefinition(
-        "service.status", IrohPermission.READ, "Read managed Iroh service status.", "_service_status", _object_schema(_COMMON)
+        "service.status",
+        IrohPermission.READ,
+        "Read managed Iroh service status.",
+        "_service_status",
+        _object_schema(_COMMON),
     ),
     "blob.stat": OperationDefinition(
-        "blob.stat", IrohPermission.READ, "Read verified immutable blob metadata.", "_blob_stat", _object_schema({**_COMMON, "blob_hash": _HASH}, ["blob_hash"])
+        "blob.stat",
+        IrohPermission.READ,
+        "Read verified immutable blob metadata.",
+        "_blob_stat",
+        _object_schema({**_COMMON, "blob_hash": _HASH}, ["blob_hash"]),
     ),
     "service.start": OperationDefinition(
-        "service.start", IrohPermission.CONTROL, "Start the managed Iroh service.", "_service_start", _object_schema(_COMMON)
+        "service.start",
+        IrohPermission.CONTROL,
+        "Start the managed Iroh service.",
+        "_service_start",
+        _object_schema(_COMMON),
     ),
     "blob.fetch": OperationDefinition(
-        "blob.fetch", IrohPermission.CONTROL, "Fetch and verify an immutable blob from an explicit provider.", "_blob_fetch", _object_schema({**_COMMON, "blob_hash": _HASH, "provider": {"type": "string", "minLength": 1, "maxLength": 2048}}, ["blob_hash", "provider"])
+        "blob.fetch",
+        IrohPermission.CONTROL,
+        "Fetch and verify an immutable blob from an explicit provider.",
+        "_blob_fetch",
+        _object_schema(
+            {
+                **_COMMON,
+                "blob_hash": _HASH,
+                "provider": {"type": "string", "minLength": 1, "maxLength": 2048},
+            },
+            ["blob_hash", "provider"],
+        ),
     ),
     "ticket.import": OperationDefinition(
-        "ticket.import", IrohPermission.CONTROL, "Import and verify a bearer read ticket without reflecting it.", "_ticket_import", _object_schema({**_COMMON, "ticket": {"type": "string", "minLength": 1, "maxLength": MAX_TICKET_BYTES, "writeOnly": True}, "expected_hash": _HASH}, ["ticket", "expected_hash"])
+        "ticket.import",
+        IrohPermission.CONTROL,
+        "Import and verify a bearer read ticket without reflecting it.",
+        "_ticket_import",
+        _object_schema(
+            {
+                **_COMMON,
+                "ticket": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": MAX_TICKET_BYTES,
+                    "writeOnly": True,
+                },
+                "expected_hash": _HASH,
+            },
+            ["ticket", "expected_hash"],
+        ),
     ),
     "service.stop": OperationDefinition(
-        "service.stop", IrohPermission.DESTRUCTIVE, "Stop the managed Iroh service.", "_service_stop", _object_schema(_COMMON), True
+        "service.stop",
+        IrohPermission.DESTRUCTIVE,
+        "Stop the managed Iroh service.",
+        "_service_stop",
+        _object_schema(_COMMON),
+        True,
     ),
     "service.restart": OperationDefinition(
-        "service.restart", IrohPermission.DESTRUCTIVE, "Restart the managed Iroh service.", "_service_restart", _object_schema(_COMMON), True
+        "service.restart",
+        IrohPermission.DESTRUCTIVE,
+        "Restart the managed Iroh service.",
+        "_service_restart",
+        _object_schema(_COMMON),
+        True,
     ),
 }
 
 
-def normalize_permissions(values: Iterable[str | IrohPermission] | str | IrohPermission | None) -> frozenset[str]:
+def normalize_permissions(
+    values: Iterable[str | IrohPermission] | str | IrohPermission | None,
+) -> frozenset[str]:
     if values is None:
         return frozenset({IrohPermission.READ.value})
     if isinstance(values, (str, IrohPermission)):
@@ -264,13 +325,27 @@ class IrohOperationController:
         public_operation = operation if definition is not None else "unsupported"
         try:
             if definition is None:
-                raise GovernedOperationError("unsupported_operation", "Iroh operation is not exposed", status_code=404)
+                raise GovernedOperationError(
+                    "unsupported_operation", "Iroh operation is not exposed", status_code=404
+                )
             args = self._validate_arguments(definition, arguments)
             allowed = normalize_permissions(permissions)
-            if definition.permission.value not in allowed and "iroh.*" not in allowed and "*" not in allowed:
-                raise GovernedOperationError("permission_denied", "permission is required for this Iroh operation", status_code=403)
+            if (
+                definition.permission.value not in allowed
+                and "iroh.*" not in allowed
+                and "*" not in allowed
+            ):
+                raise GovernedOperationError(
+                    "permission_denied",
+                    "permission is required for this Iroh operation",
+                    status_code=403,
+                )
             if definition.destructive and confirm is not True:
-                raise GovernedOperationError("confirmation_required", "explicit confirmation is required for this destructive Iroh operation", status_code=409)
+                raise GovernedOperationError(
+                    "confirmation_required",
+                    "explicit confirmation is required for this destructive Iroh operation",
+                    status_code=409,
+                )
             progress.append({"sequence": 1, "state": "running", "at": _now()})
             result = await getattr(self, definition.handler)(args, progress)
             progress.append({"sequence": len(progress), "state": "completed", "at": _now()})
@@ -286,7 +361,9 @@ class IrohOperationController:
             }
         except Exception as exc:
             error = self._public_error(exc)
-            progress.append({"sequence": len(progress), "state": "failed", "at": _now(), "code": error["code"]})
+            progress.append(
+                {"sequence": len(progress), "state": "failed", "at": _now(), "code": error["code"]}
+            )
             audit_definition = definition or OperationDefinition(
                 public_operation, IrohPermission.READ, "", "", {}
             )
@@ -311,14 +388,18 @@ class IrohOperationController:
         return value
 
     @staticmethod
-    def _validate_arguments(definition: OperationDefinition, value: Mapping[str, Any] | None) -> dict[str, Any]:
+    def _validate_arguments(
+        definition: OperationDefinition, value: Mapping[str, Any] | None
+    ) -> dict[str, Any]:
         if value is not None and not isinstance(value, Mapping):
             raise GovernedOperationError("invalid_arguments", "arguments must be an object")
         args = dict(value or {})
         schema = definition.input_schema
         properties = schema.get("properties", {})
         if set(args) - set(properties):
-            raise GovernedOperationError("invalid_arguments", "arguments contain unsupported fields")
+            raise GovernedOperationError(
+                "invalid_arguments", "arguments contain unsupported fields"
+            )
         for required in schema.get("required", []):
             if required not in args:
                 raise GovernedOperationError("invalid_arguments", "required argument is missing")
@@ -328,9 +409,7 @@ class IrohOperationController:
                 not isinstance(args["operation_id"], str)
                 or not _OPERATION_ID_RE.fullmatch(args["operation_id"])
             ):
-                raise GovernedOperationError(
-                    "invalid_arguments", "operation_id is invalid"
-                )
+                raise GovernedOperationError("invalid_arguments", "operation_id is invalid")
             if "blob_hash" in args:
                 args["blob_hash"] = validate_blob_hash(args["blob_hash"])
             if "expected_hash" in args:
@@ -340,8 +419,14 @@ class IrohOperationController:
         except GovernedOperationError:
             raise
         except Exception:
-            raise GovernedOperationError("invalid_arguments", "Iroh operation arguments are invalid") from None
-        if "provider" in args and (not isinstance(args["provider"], str) or not args["provider"] or len(args["provider"]) > 2048):
+            raise GovernedOperationError(
+                "invalid_arguments", "Iroh operation arguments are invalid"
+            ) from None
+        if "provider" in args and (
+            not isinstance(args["provider"], str)
+            or not args["provider"]
+            or len(args["provider"]) > 2048
+        ):
             raise GovernedOperationError("invalid_arguments", "provider is invalid")
         if "persist" in args and not isinstance(args["persist"], bool):
             raise GovernedOperationError("invalid_arguments", "persist must be boolean")
@@ -373,7 +458,14 @@ class IrohOperationController:
             handler = _run_diagnostics
         else:
             handler = self.diagnostics_handler
-        return await handler({"instance": args["instance"], "format": args.get("format", "health"), "persist": args.get("persist", True)}, state_root=os.fspath(self.state_root) if self.state_root is not None else None)
+        return await handler(
+            {
+                "instance": args["instance"],
+                "format": args.get("format", "health"),
+                "persist": args.get("persist", True),
+            },
+            state_root=os.fspath(self.state_root) if self.state_root is not None else None,
+        )
 
     async def _service_status(self, args: dict[str, Any], _progress: list[dict[str, Any]]) -> Any:
         return await self.service_factory(self._config(args)).status()
@@ -390,7 +482,9 @@ class IrohOperationController:
         changed = await self.service_factory(self._config(args)).restart()
         return {"changed": bool(changed), "status": "restarted"}
 
-    async def _with_blob_store(self, args: dict[str, Any], callback: Callable[[Any], Awaitable[Any]]) -> Any:
+    async def _with_blob_store(
+        self, args: dict[str, Any], callback: Callable[[Any], Awaitable[Any]]
+    ) -> Any:
         client = self._client(self._config(args))
         try:
             return await callback(self.blob_store_factory(client))
@@ -403,55 +497,145 @@ class IrohOperationController:
     @staticmethod
     def _transfer_progress(progress: list[dict[str, Any]]) -> Callable[[TransferProgress], None]:
         def report(event: TransferProgress) -> None:
-            progress.append({
-                "sequence": len(progress),
-                "state": "running",
-                "phase": event.operation,
-                "completed": event.completed,
-                "total": event.total,
-                "resumed": event.resumed,
-                "at": _now(),
-            })
+            progress.append(
+                {
+                    "sequence": len(progress),
+                    "state": "running",
+                    "phase": event.operation,
+                    "completed": event.completed,
+                    "total": event.total,
+                    "resumed": event.resumed,
+                    "at": _now(),
+                }
+            )
 
         return report
 
     async def _blob_fetch(self, args: dict[str, Any], progress: list[dict[str, Any]]) -> Any:
         callback = self._transfer_progress(progress)
-        return await self._with_blob_store(args, lambda store: store.fetch(args["blob_hash"], provider=args["provider"], progress=callback))
+        return await self._with_blob_store(
+            args,
+            lambda store: store.fetch(
+                args["blob_hash"], provider=args["provider"], progress=callback
+            ),
+        )
 
     async def _ticket_import(self, args: dict[str, Any], progress: list[dict[str, Any]]) -> Any:
         callback = self._transfer_progress(progress)
         ticket = args.pop("ticket")
         try:
-            return await self._with_blob_store(args, lambda store: store.import_ticket(ticket, expected_hash=args["expected_hash"], progress=callback))
+            return await self._with_blob_store(
+                args,
+                lambda store: store.import_ticket(
+                    ticket, expected_hash=args["expected_hash"], progress=callback
+                ),
+            )
         finally:
             ticket = ""
 
-    def _audit(self, definition: OperationDefinition, operation_id: str, actor: str, started: str, outcome: str, error_code: str | None = None) -> dict[str, Any]:
-        safe_actor = actor if isinstance(actor, str) and 0 < len(actor) <= 128 and all(31 < ord(c) < 127 for c in actor) else "anonymous"
-        record = AuditRecord(str(uuid.uuid4()), operation_id, definition.name, definition.permission.value, outcome, started, _now(), safe_actor, error_code).as_dict()
+    def _audit(
+        self,
+        definition: OperationDefinition,
+        operation_id: str,
+        actor: str,
+        started: str,
+        outcome: str,
+        error_code: str | None = None,
+    ) -> dict[str, Any]:
+        safe_actor = (
+            actor
+            if isinstance(actor, str)
+            and 0 < len(actor) <= 128
+            and all(31 < ord(c) < 127 for c in actor)
+            else "anonymous"
+        )
+        record = AuditRecord(
+            str(uuid.uuid4()),
+            operation_id,
+            definition.name,
+            definition.permission.value,
+            outcome,
+            started,
+            _now(),
+            safe_actor,
+            error_code,
+        ).as_dict()
         self.audit_sink.append(record)
         return record
 
     @staticmethod
     def _public_error(exc: BaseException) -> dict[str, Any]:
         if isinstance(exc, GovernedOperationError):
-            return {"code": exc.code, "type": "IrohOperationError", "message": exc.public_message, "status": exc.status_code, "retryable": exc.retryable}
+            return {
+                "code": exc.code,
+                "type": "IrohOperationError",
+                "message": exc.public_message,
+                "status": exc.status_code,
+                "retryable": exc.retryable,
+            }
         if isinstance(exc, (IrohPermissionDeniedError, PermissionError)):
-            return {"code": "permission_denied", "type": "IrohPermissionError", "message": "Iroh operation is not permitted", "status": 403, "retryable": False}
+            return {
+                "code": "permission_denied",
+                "type": "IrohPermissionError",
+                "message": "Iroh operation is not permitted",
+                "status": 403,
+                "retryable": False,
+            }
         if isinstance(exc, (IrohNotFoundError, FileNotFoundError)):
-            return {"code": "not_found", "type": "IrohNotFoundError", "message": "Iroh resource was not found", "status": 404, "retryable": False}
+            return {
+                "code": "not_found",
+                "type": "IrohNotFoundError",
+                "message": "Iroh resource was not found",
+                "status": 404,
+                "retryable": False,
+            }
         if isinstance(exc, IrohConflictError):
-            return {"code": "conflict", "type": "IrohConflictError", "message": "Iroh operation conflicts with current state", "status": 409, "retryable": False}
+            return {
+                "code": "conflict",
+                "type": "IrohConflictError",
+                "message": "Iroh operation conflicts with current state",
+                "status": 409,
+                "retryable": False,
+            }
         if isinstance(exc, (IrohUnavailableError, IrohTimeoutError, ConnectionError, TimeoutError)):
-            return {"code": getattr(exc, "code", "unavailable"), "type": "IrohUnavailableError", "message": "Iroh service is unavailable", "status": 503, "retryable": True}
+            return {
+                "code": getattr(exc, "code", "unavailable"),
+                "type": "IrohUnavailableError",
+                "message": "Iroh service is unavailable",
+                "status": 503,
+                "retryable": True,
+            }
         if isinstance(exc, IrohIntegrityError):
-            return {"code": "integrity_error", "type": "IrohIntegrityError", "message": "Iroh integrity verification failed", "status": 422, "retryable": False}
+            return {
+                "code": "integrity_error",
+                "type": "IrohIntegrityError",
+                "message": "Iroh integrity verification failed",
+                "status": 422,
+                "retryable": False,
+            }
         if isinstance(exc, (IrohInvalidConfigError, ValueError, TypeError)):
-            return {"code": getattr(exc, "code", "invalid_arguments"), "type": "IrohValidationError", "message": "Iroh operation arguments are invalid", "status": 400, "retryable": False}
+            return {
+                "code": getattr(exc, "code", "invalid_arguments"),
+                "type": "IrohValidationError",
+                "message": "Iroh operation arguments are invalid",
+                "status": 400,
+                "retryable": False,
+            }
         if isinstance(exc, IrohError):
-            return {"code": exc.code, "type": type(exc).__name__, "message": "Iroh operation failed", "status": 500, "retryable": False}
-        return {"code": "operation_failed", "type": "IrohOperationError", "message": "Iroh operation failed", "status": 500, "retryable": False}
+            return {
+                "code": exc.code,
+                "type": type(exc).__name__,
+                "message": "Iroh operation failed",
+                "status": 500,
+                "retryable": False,
+            }
+        return {
+            "code": "operation_failed",
+            "type": "IrohOperationError",
+            "message": "Iroh operation failed",
+            "status": 500,
+            "retryable": False,
+        }
 
 
 __all__ = [

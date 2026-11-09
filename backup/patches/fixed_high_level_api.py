@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 FSSPEC_AVAILABLE = False
 try:
     import fsspec
+
     FSSPEC_AVAILABLE = True
 except ImportError:
     FSSPEC_AVAILABLE = False
@@ -31,23 +32,28 @@ except ImportError:
 AI_ML_AVAILABLE = False
 try:
     import numpy as np
+
     # Check for tensor libraries
     try:
         import torch
+
         AI_ML_AVAILABLE = True
     except ImportError:
         try:
             import tensorflow as tf
+
             AI_ML_AVAILABLE = True
         except ImportError:
             # Fall back to scikit-learn
             try:
                 import sklearn
+
                 AI_ML_AVAILABLE = True
             except ImportError:
                 AI_ML_AVAILABLE = False
 except ImportError:
     AI_ML_AVAILABLE = False
+
 
 class IPFSSimpleAPI:
     """
@@ -88,10 +94,12 @@ class IPFSSimpleAPI:
         # Import here to avoid circular imports
         try:
             from .ipfs_kit import ipfs_kit
+
             return ipfs_kit(self.config)
         except ImportError:
             # Fallback to module import
             from ipfs_kit_py.ipfs_kit import ipfs_kit
+
             return ipfs_kit(self.config)
 
     def _load_plugins(self, plugin_config):
@@ -110,6 +118,7 @@ class IPFSSimpleAPI:
         """
         try:
             import fsspec
+
             return True
         except ImportError:
             return False
@@ -129,10 +138,12 @@ class IPFSSimpleAPI:
         try:
             # Try relative import first
             from .ipfs_fsspec import IPFSFileSystem
+
             return IPFSFileSystem
         except ImportError:
             # Try absolute import next
             from ipfs_kit_py.ipfs_fsspec import IPFSFileSystem
+
             return IPFSFileSystem
 
     def get_filesystem(
@@ -144,7 +155,7 @@ class IPFSSimpleAPI:
         cache_config: Optional[Dict[str, Any]] = None,
         enable_metrics: Optional[bool] = None,
         return_mock: bool = False,  # For backward compatibility and testing
-        **kwargs
+        **kwargs,
     ) -> Optional[Any]:
         """
         Get an FSSpec-compatible filesystem for IPFS.
@@ -194,17 +205,22 @@ class IPFSSimpleAPI:
 
             def open(self, path, mode="rb", **kwargs):
                 from io import BytesIO
+
                 return BytesIO(b"")
 
         # Check if fsspec is available
         fsspec_available = self._check_fsspec_available()
         if not fsspec_available:
-            logger.warning("FSSpec is not available. Please install fsspec to use the filesystem interface.")
+            logger.warning(
+                "FSSpec is not available. Please install fsspec to use the filesystem interface."
+            )
             if return_mock:
                 logger.error("Using mock filesystem due to missing fsspec dependency")
                 return MockIPFSFileSystem(**kwargs)
             else:
-                raise ImportError("fsspec is not available. Please install fsspec to use this feature.")
+                raise ImportError(
+                    "fsspec is not available. Please install fsspec to use this feature."
+                )
 
         # Try to import IPFSFileSystem if fsspec is available
         have_ipfsfs = False
@@ -218,7 +234,9 @@ class IPFSSimpleAPI:
                     "ipfs_fsspec.IPFSFileSystem is not available. Please ensure your installation is complete."
                 )
                 if not return_mock:
-                    raise ImportError("ipfs_fsspec.IPFSFileSystem is not available. Please ensure your installation is complete.")
+                    raise ImportError(
+                        "ipfs_fsspec.IPFSFileSystem is not available. Please ensure your installation is complete."
+                    )
 
         # If dependencies are missing and return_mock is True, return the mock filesystem
         if not fsspec_available or not have_ipfsfs:
@@ -227,7 +245,9 @@ class IPFSSimpleAPI:
                 return MockIPFSFileSystem(**kwargs)
             else:
                 # This should never be reached due to the earlier raises, but included for safety
-                raise ImportError("Required dependencies for filesystem interface are not available")
+                raise ImportError(
+                    "Required dependencies for filesystem interface are not available"
+                )
 
         # Prepare configuration with clear precedence:
         # 1. Explicit parameters to this method
@@ -245,17 +265,14 @@ class IPFSSimpleAPI:
             "enable_metrics": enable_metrics,
             "ipfs_path": kwargs.get("ipfs_path"),
             "socket_path": kwargs.get("socket_path"),
-            "use_mmap": kwargs.get("use_mmap")
+            "use_mmap": kwargs.get("use_mmap"),
         }
 
         config_mapping = {
             "cache_config": "cache",  # Handle special case where config key differs
         }
 
-        default_values = {
-            "role": "leecher",
-            "use_mmap": True
-        }
+        default_values = {"role": "leecher", "use_mmap": True}
 
         # Build configuration with proper precedence
         for param, value in param_mapping.items():
@@ -484,7 +501,7 @@ class IPFSSimpleAPI:
             Result dictionary with CID
         """
         if isinstance(content, str):
-            content = content.encode('utf-8')
+            content = content.encode("utf-8")
         return self.kit.ipfs_add(content, **kwargs)
 
     def publish_to_ipns(self, cid, key="self", **kwargs):
@@ -578,7 +595,7 @@ class IPFSSimpleAPI:
             os.path.expanduser("~/.ipfs_kit_config.json"),
             os.path.expanduser("~/.config/ipfs_kit/config.yaml"),
             "./ipfs_kit_config.yaml",
-            "./config.yaml"
+            "./config.yaml",
         ]
 
         # Filter out None values
@@ -609,80 +626,145 @@ class IPFSSimpleAPI:
             "operation": "ai_register_model",
             "model_id": "model_123456",
             "registry_cid": "QmSimRegistryCID",
-            "simulation_note": "AI/ML integration not available, using simulated response"
+            "simulation_note": "AI/ML integration not available, using simulated response",
         }
         return result
 
-    def ai_test_inference(self, model_cid, test_data_cid, *, batch_size=32, max_samples=None, metrics=None, output_format="json", compute_metrics=True, save_predictions=True, device=None, precision="float32", timeout=300, allow_simulation=True, **kwargs):
+    def ai_test_inference(
+        self,
+        model_cid,
+        test_data_cid,
+        *,
+        batch_size=32,
+        max_samples=None,
+        metrics=None,
+        output_format="json",
+        compute_metrics=True,
+        save_predictions=True,
+        device=None,
+        precision="float32",
+        timeout=300,
+        allow_simulation=True,
+        **kwargs,
+    ):
         """Run inference on a test dataset."""
         result = {
             "success": True,
             "operation": "ai_test_inference",
             "metrics": {"accuracy": 0.95, "f1": 0.94},
             "predictions_cid": "QmSimPredictionsCID",
-            "simulation_note": "AI/ML integration not available, using simulated response"
+            "simulation_note": "AI/ML integration not available, using simulated response",
         }
         return result
 
-    def ai_update_deployment(self, deployment_id, *, model_cid=None, config=None, allow_simulation=True, **kwargs):
+    def ai_update_deployment(
+        self, deployment_id, *, model_cid=None, config=None, allow_simulation=True, **kwargs
+    ):
         """Update a model deployment."""
         result = {
             "success": True,
             "operation": "ai_update_deployment",
             "deployment_id": deployment_id,
-            "simulation_note": "AI/ML integration not available, using simulated response"
+            "simulation_note": "AI/ML integration not available, using simulated response",
         }
         return result
 
-    def ai_list_models(self, *, framework=None, model_type=None, limit=100, offset=0, order_by="created_at", order_dir="desc", allow_simulation=True, **kwargs):
+    def ai_list_models(
+        self,
+        *,
+        framework=None,
+        model_type=None,
+        limit=100,
+        offset=0,
+        order_by="created_at",
+        order_dir="desc",
+        allow_simulation=True,
+        **kwargs,
+    ):
         """List available models."""
         result = {
             "success": True,
             "operation": "ai_list_models",
             "models": [{"id": "model_1", "name": "Test Model"}],
             "count": 1,
-            "simulation_note": "AI/ML integration not available, using simulated response"
+            "simulation_note": "AI/ML integration not available, using simulated response",
         }
         return result
 
-    def ai_create_embeddings(self, docs_cid, *, embedding_model="default", recursive=True, filter_pattern=None, chunk_size=1000, chunk_overlap=0, max_docs=None, save_index=True, allow_simulation=True, **kwargs):
+    def ai_create_embeddings(
+        self,
+        docs_cid,
+        *,
+        embedding_model="default",
+        recursive=True,
+        filter_pattern=None,
+        chunk_size=1000,
+        chunk_overlap=0,
+        max_docs=None,
+        save_index=True,
+        allow_simulation=True,
+        **kwargs,
+    ):
         """Create vector embeddings."""
         result = {
             "success": True,
             "operation": "ai_create_embeddings",
             "cid": "QmSimEmbeddingCID",
-            "simulation_note": "AI/ML integration not available, using simulated response"
+            "simulation_note": "AI/ML integration not available, using simulated response",
         }
         return result
 
-    def ai_create_vector_index(self, embedding_cid, *, index_type="hnsw", params=None, save_index=True, allow_simulation=True, **kwargs):
+    def ai_create_vector_index(
+        self,
+        embedding_cid,
+        *,
+        index_type="hnsw",
+        params=None,
+        save_index=True,
+        allow_simulation=True,
+        **kwargs,
+    ):
         """Create a vector index."""
         result = {
             "success": True,
             "operation": "ai_create_vector_index",
             "cid": "QmSimVectorIndexCID",
-            "simulation_note": "AI/ML integration not available, using simulated response"
+            "simulation_note": "AI/ML integration not available, using simulated response",
         }
         return result
 
-    def ai_hybrid_search(self, query, *, vector_index_cid, keyword_index_cid=None, vector_weight=0.7, keyword_weight=0.3, top_k=10, rerank=False, allow_simulation=True, **kwargs):
+    def ai_hybrid_search(
+        self,
+        query,
+        *,
+        vector_index_cid,
+        keyword_index_cid=None,
+        vector_weight=0.7,
+        keyword_weight=0.3,
+        top_k=10,
+        rerank=False,
+        allow_simulation=True,
+        **kwargs,
+    ):
         """Perform hybrid search."""
         result = {
             "success": True,
             "operation": "ai_hybrid_search",
             "results": [{"content": "Simulated result", "score": 0.95}],
             "count": 1,
-            "simulation_note": "AI/ML integration not available, using simulated response"
+            "simulation_note": "AI/ML integration not available, using simulated response",
         }
         return result
 
-    def ai_langchain_query(self, *, vectorstore_cid, query, top_k=5, allow_simulation=True, **kwargs):
+    def ai_langchain_query(
+        self, *, vectorstore_cid, query, top_k=5, allow_simulation=True, **kwargs
+    ):
         """Query a Langchain vectorstore."""
         result = {
             "success": True,
             "operation": "ai_langchain_query",
             "results": [{"content": "Simulated result", "score": 0.95}],
             "count": 1,
-            "simulation_note": "AI/ML integration not available, using simulated response"
+            "simulation_note": "AI/ML integration not available, using simulated response",
         }
         return result

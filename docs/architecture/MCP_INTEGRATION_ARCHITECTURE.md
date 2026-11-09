@@ -75,6 +75,7 @@ class BucketVFSManager:
 from ipfs_kit_py.bucket_vfs_manager import get_global_bucket_manager
 from ipfs_kit_py.error import create_result_dict
 
+
 # ❌ INCORRECT: Don't implement functionality in MCP tools
 # File: mcp/bucket_vfs_mcp_tools.py
 class BucketVFSManager:  # Don't do this!
@@ -108,20 +109,17 @@ from ..bucket_manager import BucketManager  # Unclear path
 from ipfs_kit_py.bucket_vfs_manager import get_global_bucket_manager
 from mcp.types import Tool, TextContent
 
+
 def create_bucket_tool(name: str, config: dict) -> dict:
     """MCP tool wrapper for bucket creation."""
     # Get the actual implementation from package
     manager = get_global_bucket_manager()
-    
+
     # Call the package function
     result = manager.create_bucket(name, config)
-    
+
     # Format for MCP protocol
-    return {
-        "success": True,
-        "data": result,
-        "type": "bucket_created"
-    }
+    return {"success": True, "data": result, "type": "bucket_created"}
 ```
 
 ## Current Status
@@ -201,15 +199,13 @@ Create MCP wrapper in `mcp/`:
 from ipfs_kit_py.my_new_feature import MyNewFeature
 from mcp.types import Tool, TextContent
 
+
 def create_my_tool(params: dict) -> dict:
     """MCP tool for my new feature."""
     feature = MyNewFeature()
     result = feature.do_something(params)
-    
-    return {
-        "success": True,
-        "data": result
-    }
+
+    return {"success": True, "data": result}
 ```
 
 ### Step 3: Register with MCP Server
@@ -233,8 +229,9 @@ Add CLI command:
 from ipfs_kit_py.my_new_feature import MyNewFeature
 import click
 
+
 @click.command()
-@click.option('--param', help='Parameter')
+@click.option("--param", help="Parameter")
 def my_feature(param):
     """CLI command for my feature."""
     feature = MyNewFeature()
@@ -289,6 +286,7 @@ MCP tools should be stateless and delegate to package classes:
 # ✅ GOOD: Stateless, delegates to package
 from ipfs_kit_py.bucket_vfs_manager import get_global_bucket_manager
 
+
 def list_buckets():
     manager = get_global_bucket_manager()
     return manager.list_buckets()
@@ -303,26 +301,22 @@ MCP tools handle protocol-specific concerns:
 from ipfs_kit_py.bucket_vfs_manager import get_global_bucket_manager
 from mcp.types import Tool, TextContent
 
+
 def create_bucket_tool():
     return Tool(
         name="create_bucket",
         description="Create a new VFS bucket",
         inputSchema={
             "type": "object",
-            "properties": {
-                "name": {"type": "string"},
-                "config": {"type": "object"}
-            }
-        }
+            "properties": {"name": {"type": "string"}, "config": {"type": "object"}},
+        },
     )
+
 
 async def handle_create_bucket(name, config):
     manager = get_global_bucket_manager()
     result = manager.create_bucket(name, config)
-    return TextContent(
-        type="text",
-        text=json.dumps(result)
-    )
+    return TextContent(type="text", text=json.dumps(result))
 ```
 
 ### 3. Integration with ipfs_datasets_py and ipfs_accelerate_py
@@ -334,14 +328,15 @@ async def handle_create_bucket(name, config):
 from ipfs_kit_py.bucket_vfs_manager import get_global_bucket_manager
 from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
 
+
 def create_bucket_with_tracking():
     """Create bucket - automatically tracked in datasets if enabled."""
     manager = get_global_bucket_manager()
-    
+
     # If bucket_manager has enable_dataset_storage=True,
     # this operation is automatically tracked to IPFS datasets
     result = manager.create_bucket("my-bucket", {})
-    
+
     return result
 ```
 
@@ -362,17 +357,15 @@ MCP tools handle protocol-specific concerns:
 from ipfs_kit_py.bucket_vfs_manager import get_global_bucket_manager
 from mcp.types import TextContent
 
+
 def list_buckets_tool():
     # Get data from package
     manager = get_global_bucket_manager()
     buckets = manager.list_buckets()
-    
+
     # Format for MCP protocol
-    content = TextContent(
-        type="text",
-        text=json.dumps(buckets, indent=2)
-    )
-    
+    content = TextContent(type="text", text=json.dumps(buckets, indent=2))
+
     return [content]
 ```
 
@@ -383,6 +376,7 @@ def list_buckets_tool():
 HAS_DATASETS = False
 try:
     from ipfs_kit_py.ipfs_datasets_integration import get_ipfs_datasets_manager
+
     HAS_DATASETS = True
 except ImportError:
     logger.info("ipfs_datasets_py not available")

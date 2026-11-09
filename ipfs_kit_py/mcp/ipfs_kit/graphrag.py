@@ -15,12 +15,14 @@ except ImportError:
     # Fallback for development
     import sys
     import os
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
     from ipfs_kit_py.graphrag import GraphRAGSearchEngine as CoreGraphRAGSearchEngine
 
 logger = logging.getLogger(__name__)
+
 
 class GraphRAGSearchEngine:
     """
@@ -43,20 +45,20 @@ class GraphRAGSearchEngine:
         """Delegates content indexing to the core engine."""
         if not self.engine:
             return {"success": False, "error": "GraphRAG engine not initialized."}
-        
+
         return await self.engine.index_content(**kwargs)
 
     async def search(self, **kwargs) -> Dict[str, Any]:
         """Delegates search operations to the core engine."""
         if not self.engine:
             return {"success": False, "error": "GraphRAG engine not initialized."}
-            
+
         return await self.engine.search(**kwargs)
 
     def cleanup(self):
         """Cleans up resources if the underlying engine has a cleanup method."""
         if self.engine:
             logger.info("Cleaning up MCP GraphRAGSearchEngine wrapper...")
-            if hasattr(self.engine, 'cleanup'):
+            if hasattr(self.engine, "cleanup"):
                 self.engine.cleanup()
             logger.info("✓ MCP GraphRAGSearchEngine wrapper cleaned up.")

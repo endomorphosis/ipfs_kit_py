@@ -26,7 +26,7 @@ self.daemon_manager = None
 # Before:
 config_manager = DaemonConfigManager(self)
 
-# After:  
+# After:
 self.daemon_manager = DaemonConfigManager(self)
 ```
 

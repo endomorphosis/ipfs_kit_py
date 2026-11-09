@@ -181,20 +181,16 @@ from ipfs_kit_py.routing.grpc_auth import secure_channel_credentials
 
 # Create secure channel with JWT token
 channel = grpc.secure_channel(
-    "localhost:50051",
-    secure_channel_credentials(jwt_token="your-jwt-token")
+    "localhost:50051", secure_channel_credentials(jwt_token="your-jwt-token")
 )
 
 # Create secure channel with API key
-channel = grpc.secure_channel(
-    "localhost:50051",
-    secure_channel_credentials(api_key="your-api-key")
-)
+channel = grpc.secure_channel("localhost:50051", secure_channel_credentials(api_key="your-api-key"))
 
 # Create secure channel with Basic auth
 channel = grpc.secure_channel(
     "localhost:50051",
-    secure_channel_credentials(username="your-username", password="your-password")
+    secure_channel_credentials(username="your-username", password="your-password"),
 )
 ```
 

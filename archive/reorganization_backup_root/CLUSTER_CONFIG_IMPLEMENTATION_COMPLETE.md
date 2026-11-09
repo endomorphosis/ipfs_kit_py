@@ -111,28 +111,23 @@ GET  /api/tools                             # Available tools
 ### **Worker/Follower Node Configuration**
 ```python
 # Example: Create worker node configuration
-await handle_cluster_config_tool("cluster_follow_config_create", {
-    "cluster_name": "production-cluster",
-    "bootstrap_peer": "/ip4/192.168.1.100/tcp/9096/p2p/12D3KooWLeaderPeer",
-    "custom_settings": {
-        "informer": {
-            "tags": {"role": "worker", "datacenter": "us-west"}
-        }
-    }
-})
+await handle_cluster_config_tool(
+    "cluster_follow_config_create",
+    {
+        "cluster_name": "production-cluster",
+        "bootstrap_peer": "/ip4/192.168.1.100/tcp/9096/p2p/12D3KooWLeaderPeer",
+        "custom_settings": {"informer": {"tags": {"role": "worker", "datacenter": "us-west"}}},
+    },
+)
 ```
 
 ### **Master Node Configuration**
 ```python
 # Example: Create cluster service configuration
-await handle_cluster_config_tool("cluster_service_config_create", {
-    "custom_settings": {
-        "cluster": {
-            "replication_factor_min": 2,
-            "replication_factor_max": 5
-        }
-    }
-})
+await handle_cluster_config_tool(
+    "cluster_service_config_create",
+    {"custom_settings": {"cluster": {"replication_factor_min": 2, "replication_factor_max": 5}}},
+)
 ```
 
 ## 🧪 Testing Results

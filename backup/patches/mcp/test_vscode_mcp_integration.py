@@ -20,38 +20,44 @@ import argparse
 from urllib.parse import urljoin
 
 # ANSI colors for terminal output
-GREEN = '\033[0;32m'
-RED = '\033[0;31m'
-YELLOW = '\033[0;33m'
-BLUE = '\033[0;34m'
-NC = '\033[0m'  # No Color
+GREEN = "\033[0;32m"
+RED = "\033[0;31m"
+YELLOW = "\033[0;33m"
+BLUE = "\033[0;34m"
+NC = "\033[0m"  # No Color
+
 
 def print_success(message):
     """Print success message in green."""
     print(f"{GREEN}✓ {message}{NC}")
 
+
 def print_error(message):
     """Print error message in red."""
     print(f"{RED}✗ {message}{NC}")
+
 
 def print_info(message):
     """Print info message in blue."""
     print(f"{BLUE}ℹ {message}{NC}")
 
+
 def print_warning(message):
     """Print warning message in yellow."""
     print(f"{YELLOW}⚠ {message}{NC}")
 
+
 def print_section(title):
     """Print section title."""
     print(f"\n{YELLOW}=== {title} ==={NC}")
+
 
 class VSCodeMCPTester:
     """Test VSCode MCP integration endpoints."""
 
     def __init__(self, base_url="http://localhost:9994", api_prefix="/api/v0", timeout=5):
         """Initialize the tester with server settings."""
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.api_prefix = api_prefix
         self.timeout = timeout
         self.errors = []
@@ -60,7 +66,7 @@ class VSCodeMCPTester:
     def full_url(self, path):
         """Get full URL for a path."""
         # Handle paths with and without API prefix
-        if path.startswith('/api/'):
+        if path.startswith("/api/"):
             return f"{self.base_url}{path}"
         return f"{self.base_url}{self.api_prefix}{path}"
 
@@ -126,7 +132,7 @@ class VSCodeMCPTester:
         # Test both the root jsonrpc and api-prefixed jsonrpc endpoints
         endpoints = [
             "/jsonrpc",  # Root JSON-RPC
-            "/api/v0/jsonrpc"  # API-prefixed JSON-RPC
+            "/api/v0/jsonrpc",  # API-prefixed JSON-RPC
         ]
 
         all_success = True
@@ -140,11 +146,7 @@ class VSCodeMCPTester:
                 "jsonrpc": "2.0",
                 "id": 1,
                 "method": "initialize",
-                "params": {
-                    "processId": 123,
-                    "rootUri": None,
-                    "capabilities": {}
-                }
+                "params": {"processId": 123, "rootUri": None, "capabilities": {}},
             }
 
             try:
@@ -152,18 +154,24 @@ class VSCodeMCPTester:
                     jsonrpc_url,
                     json=init_request,
                     headers={"Content-Type": "application/json"},
-                    timeout=self.timeout
+                    timeout=self.timeout,
                 )
 
                 if response.status_code == 200:
                     try:
                         result = response.json()
                         if "result" in result and "capabilities" in result["result"]:
-                            print_success(f"JSON-RPC endpoint {endpoint} responded with capabilities")
+                            print_success(
+                                f"JSON-RPC endpoint {endpoint} responded with capabilities"
+                            )
                         else:
-                            print_warning(f"JSON-RPC endpoint {endpoint} response missing expected structure")
+                            print_warning(
+                                f"JSON-RPC endpoint {endpoint} response missing expected structure"
+                            )
                             print_info(f"Response: {json.dumps(result, indent=2)}")
-                            self.warnings.append(f"JSON-RPC {endpoint} unexpected response structure")
+                            self.warnings.append(
+                                f"JSON-RPC {endpoint} unexpected response structure"
+                            )
                             all_success = False
                     except json.JSONDecodeError:
                         print_error(f"JSON-RPC endpoint {endpoint} returned invalid JSON")
@@ -171,7 +179,9 @@ class VSCodeMCPTester:
                         self.errors.append(f"JSON-RPC {endpoint} invalid JSON")
                         all_success = False
                 else:
-                    print_error(f"JSON-RPC endpoint {endpoint} returned status code {response.status_code}")
+                    print_error(
+                        f"JSON-RPC endpoint {endpoint} returned status code {response.status_code}"
+                    )
                     self.errors.append(f"JSON-RPC {endpoint} error status {response.status_code}")
                     all_success = False
 
@@ -196,8 +206,8 @@ class VSCodeMCPTester:
 
             if response.status_code == 200:
                 # Check the content type
-                content_type = response.headers.get('Content-Type', '')
-                if 'text/event-stream' in content_type:
+                content_type = response.headers.get("Content-Type", "")
+                if "text/event-stream" in content_type:
                     print_success("SSE endpoint is available with correct content type")
 
                     # Try to get at least one event
@@ -232,9 +242,7 @@ class VSCodeMCPTester:
         # Test the add endpoint
         add_url = self.full_url("/ipfs/add")
         test_content = "This is a test content from VS Code integration test"
-        files = {
-            'file': ('test.txt', test_content.encode('utf-8'), 'text/plain')
-        }
+        files = {"file": ("test.txt", test_content.encode("utf-8"), "text/plain")}
 
         try:
             response = requests.post(add_url, files=files, timeout=self.timeout)
@@ -317,6 +325,7 @@ class VSCodeMCPTester:
             print_warning("VSCode integration may not work correctly.")
             return False
 
+
 def main():
     """Run the script with command-line arguments."""
     parser = argparse.ArgumentParser(description="Test VSCode MCP integration.")
@@ -337,6 +346,7 @@ def main():
         print_error("\nVSCode MCP integration tests failed.")
         print_info("Check the test results above for details on which specific endpoints failed.")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

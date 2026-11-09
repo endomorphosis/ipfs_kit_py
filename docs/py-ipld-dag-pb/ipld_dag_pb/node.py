@@ -18,9 +18,7 @@ class PBLink:
     t_size: Optional[int]
     hash: CID
 
-    def __init__(
-        self, hash: CID, name: Optional[str] = None, size: Optional[int] = None
-    ) -> None:
+    def __init__(self, hash: CID, name: Optional[str] = None, size: Optional[int] = None) -> None:
         self.hash = hash
         self.name = name
         self.t_size = size
@@ -30,20 +28,14 @@ class PBLink:
             return True
         if not isinstance(other, PBLink):
             return NotImplemented
-        return (
-            self.hash == other.hash
-            and self.name == other.name
-            and self.t_size == other.t_size
-        )
+        return self.hash == other.hash and self.name == other.name and self.t_size == other.t_size
 
 
 class PBNode:
     data: Optional[BytesLike]
     links: list[PBLink]
 
-    def __init__(
-        self, data: Optional[BytesLike] = None, links: list[PBLink] = []
-    ) -> None:
+    def __init__(self, data: Optional[BytesLike] = None, links: list[PBLink] = []) -> None:
         self.data = data
         self.links = links
 
@@ -69,7 +61,6 @@ class RawPBLink:
     name: str
     t_size: int
     hash: BytesLike
-
 
     def __eq__(self, other: Any) -> bool:
         if self is other:

@@ -3,7 +3,7 @@ from ipfs_kit_py.mcp.dashboard.consolidated_mcp_dashboard import ConsolidatedMCP
 
 
 def test_websocket_initial_includes_deprecations():
-    inst = ConsolidatedMCPDashboard({"port":0})
+    inst = ConsolidatedMCPDashboard({"port": 0})
     client = TestClient(inst.app)
     with client.websocket_connect("/ws") as ws:
         first = ws.receive_json()

@@ -116,10 +116,7 @@ class SidecarRPCAdapter:
 
     endpoint: str | os.PathLike[str]
     connector: (
-        Callable[
-            ..., Awaitable[tuple[asyncio.StreamReader, asyncio.StreamWriter]]
-        ]
-        | None
+        Callable[..., Awaitable[tuple[asyncio.StreamReader, asyncio.StreamWriter]]] | None
     ) = None
     max_frame_bytes: int = MAX_FRAME_BYTES
 
@@ -133,9 +130,7 @@ class SidecarRPCAdapter:
             or self.max_frame_bytes <= 0
             or self.max_frame_bytes > MAX_FRAME_BYTES
         ):
-            raise ValueError(
-                f"max_frame_bytes must be an integer from 1 to {MAX_FRAME_BYTES}"
-            )
+            raise ValueError(f"max_frame_bytes must be an integer from 1 to {MAX_FRAME_BYTES}")
 
     async def request(self, request: RPCRequest, *, timeout: float) -> RPCResponse:
         del timeout  # The runtime client owns the single operation timeout.
@@ -154,9 +149,7 @@ class SidecarRPCAdapter:
                     # expose a positional-only endpoint.
                     reader, writer = await self.connector(self.endpoint)
         except (OSError, EOFError):
-            raise IrohUnavailableError(
-                "cannot connect to the local Iroh sidecar"
-            ) from None
+            raise IrohUnavailableError("cannot connect to the local Iroh sidecar") from None
 
         try:
             writer.write(request.to_bytes())
@@ -168,16 +161,10 @@ class SidecarRPCAdapter:
                     "sidecar returned an oversized or incomplete frame"
                 ) from None
             if not payload:
-                raise IrohProtocolError(
-                    "sidecar closed the connection without a response"
-                )
+                raise IrohProtocolError("sidecar closed the connection without a response")
             if len(payload) > self.max_frame_bytes + 1 or not payload.endswith(b"\n"):
-                raise IrohProtocolError(
-                    "sidecar returned an oversized or incomplete frame"
-                )
-            return RPCResponse.from_dict(
-                decode_frame(payload), expected_id=request.request_id
-            )
+                raise IrohProtocolError("sidecar returned an oversized or incomplete frame")
+            return RPCResponse.from_dict(decode_frame(payload), expected_id=request.request_id)
         except (ConnectionError, BrokenPipeError, EOFError):
             raise IrohUnavailableError("local Iroh sidecar connection failed") from None
         finally:
@@ -215,15 +202,9 @@ class DiagnosticCLIAdapter:
             raise ValueError("diagnostic executable must not be empty")
         self.timeout = _validate_timeout(timeout)
         self.expected_sidecar_version = expected_sidecar_version
-        self.expected_components = _normalize_expected_components(
-            expected_components
-        )
+        self.expected_components = _normalize_expected_components(expected_components)
         self._process_factory = process_factory or asyncio.create_subprocess_exec
-        if (
-            isinstance(max_output, bool)
-            or not isinstance(max_output, int)
-            or max_output <= 0
-        ):
+        if isinstance(max_output, bool) or not isinstance(max_output, int) or max_output <= 0:
             raise ValueError("max_output must be a positive integer")
         self.max_output = max_output
 
@@ -259,13 +240,9 @@ class DiagnosticCLIAdapter:
         remaining = deadline - (loop.time() - started)
         if remaining <= 0:
             await _kill_process(process)
-            raise IrohTimeoutError(
-                "Iroh sidecar diagnostic timed out", operation="version"
-            )
+            raise IrohTimeoutError("Iroh sidecar diagnostic timed out", operation="version")
         try:
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), timeout=remaining
-            )
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=remaining)
         except asyncio.TimeoutError:
             await _kill_process(process)
             raise IrohTimeoutError(
@@ -282,13 +259,9 @@ class DiagnosticCLIAdapter:
                 "diagnostic process returned non-binary output", operation="version"
             )
         if len(stdout) > self.max_output or len(stderr) > self.max_output:
-            raise IrohProtocolError(
-                "diagnostic output exceeds the size limit", operation="version"
-            )
+            raise IrohProtocolError("diagnostic output exceeds the size limit", operation="version")
         if process.returncode != 0 or stderr:
-            raise IrohUnavailableError(
-                "Iroh sidecar diagnostic failed", operation="version"
-            )
+            raise IrohUnavailableError("Iroh sidecar diagnostic failed", operation="version")
         try:
             line = stdout.decode("utf-8")
             version = RuntimeVersion.from_cli_line(line)
@@ -332,9 +305,7 @@ class IrohRuntimeClient:
         required_methods: Sequence[str] = tuple(sorted(REQUIRED_METHODS)),
     ) -> None:
         if isinstance(protocol_version, bool) or protocol_version != PROTOCOL_VERSION:
-            raise IrohUnsupportedVersionError(
-                "client protocol version is unsupported"
-            )
+            raise IrohUnsupportedVersionError("client protocol version is unsupported")
         if adapter is not None and transport is not None:
             raise ValueError("provide only one of adapter or transport")
         adapter = adapter or transport
@@ -389,9 +360,7 @@ class IrohRuntimeClient:
         """Issue one typed request and translate transport/sidecar failures."""
 
         if self._closed:
-            raise IrohUnavailableError(
-                "Iroh runtime client is closed", operation=method
-            )
+            raise IrohUnavailableError("Iroh runtime client is closed", operation=method)
         if require_negotiation and not method.startswith("system."):
             await self.negotiate(timeout=timeout)
             assert self._capabilities is not None
@@ -401,9 +370,7 @@ class IrohRuntimeClient:
                 )
 
         request_timeout = self.timeout if timeout is None else _validate_timeout(timeout)
-        rpc_request = RPCRequest(
-            f"py-{next(self._ids)}", method, dict(params or {})
-        )
+        rpc_request = RPCRequest(f"py-{next(self._ids)}", method, dict(params or {}))
         try:
             response_value = await asyncio.wait_for(
                 self.adapter.request(rpc_request, timeout=request_timeout),
@@ -412,15 +379,11 @@ class IrohRuntimeClient:
             response = (
                 response_value
                 if isinstance(response_value, RPCResponse)
-                else RPCResponse.from_dict(
-                    response_value, expected_id=rpc_request.request_id
-                )
+                else RPCResponse.from_dict(response_value, expected_id=rpc_request.request_id)
             )
         except asyncio.TimeoutError:
             await self._cancel(rpc_request.request_id)
-            raise IrohTimeoutError(
-                "Iroh sidecar request timed out", operation=method
-            ) from None
+            raise IrohTimeoutError("Iroh sidecar request timed out", operation=method) from None
         except asyncio.CancelledError:
             await self._cancel(rpc_request.request_id)
             raise IrohCancelledError(
@@ -431,19 +394,13 @@ class IrohRuntimeClient:
                 exc.operation = method
             raise
         except (ConnectionError, EOFError, OSError):
-            raise IrohUnavailableError(
-                "Iroh sidecar request failed", operation=method
-            ) from None
+            raise IrohUnavailableError("Iroh sidecar request failed", operation=method) from None
         except Exception:
             # Adapter exceptions never cross the public boundary verbatim.
-            raise IrohProtocolError(
-                "Iroh RPC adapter failed", operation=method
-            ) from None
+            raise IrohProtocolError("Iroh RPC adapter failed", operation=method) from None
 
         if response.request_id != rpc_request.request_id:
-            raise IrohProtocolError(
-                "RPC response request id does not match", operation=method
-            )
+            raise IrohProtocolError("RPC response request id does not match", operation=method)
         if response.protocol_version != self.protocol_version:
             raise IrohUnsupportedVersionError(
                 "sidecar RPC protocol version is unsupported", operation=method
@@ -465,9 +422,7 @@ class IrohRuntimeClient:
     ) -> RuntimeVersion:
         if self._version is not None and not refresh:
             return self._version
-        result = await self.request(
-            "system.version", timeout=timeout, require_negotiation=False
-        )
+        result = await self.request("system.version", timeout=timeout, require_negotiation=False)
         try:
             version = RuntimeVersion.from_mapping(result)
             _verify_version(
@@ -522,21 +477,13 @@ class IrohRuntimeClient:
             return await self.capabilities(timeout=timeout, refresh=refresh)
 
     async def health(self, *, timeout: float | None = None) -> Mapping[str, Any]:
-        result = await self.request(
-            "system.health", timeout=timeout, require_negotiation=False
-        )
+        result = await self.request("system.health", timeout=timeout, require_negotiation=False)
         if not isinstance(result, Mapping) or result.get("healthy") is not True:
-            raise IrohUnavailableError(
-                "Iroh sidecar is unhealthy", operation="system.health"
-            )
+            raise IrohUnavailableError("Iroh sidecar is unhealthy", operation="system.health")
         return dict(result)
 
-    async def diagnostics(
-        self, *, timeout: float | None = None
-    ) -> Mapping[str, Any]:
-        result = await self.request(
-            "system.health", timeout=timeout, require_negotiation=False
-        )
+    async def diagnostics(self, *, timeout: float | None = None) -> Mapping[str, Any]:
+        result = await self.request("system.health", timeout=timeout, require_negotiation=False)
         if not isinstance(result, Mapping):
             raise IrohProtocolError(
                 "Iroh health result must be an object", operation="system.health"
@@ -562,11 +509,7 @@ class IrohRuntimeClient:
 
 
 def _validate_timeout(value: float) -> float:
-    if (
-        isinstance(value, bool)
-        or not isinstance(value, (int, float))
-        or value <= 0
-    ):
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
         raise ValueError("timeout must be a finite positive number")
     result = float(value)
     if not math.isfinite(result):
@@ -582,8 +525,7 @@ def _normalize_expected_components(
         not isinstance(version, str) or not version for version in result.values()
     ):
         raise ValueError(
-            "component versions must contain exactly iroh, iroh_blobs, "
-            "iroh_docs, and iroh_gossip"
+            "component versions must contain exactly iroh, iroh_blobs, iroh_docs, and iroh_gossip"
         )
     return result
 
@@ -617,10 +559,7 @@ def _verify_version(
         version.protocol != PROTOCOL_VERSION
         or version.sidecar != expected_sidecar_version
         or any(actual.get(name) != value for name, value in expected_components.items())
-        or (
-            expected_bundle is not None
-            and version.release_bundle != expected_bundle
-        )
+        or (expected_bundle is not None and version.release_bundle != expected_bundle)
     ):
         raise IrohUnsupportedVersionError(
             "Iroh sidecar release bundle is unsupported", operation=operation

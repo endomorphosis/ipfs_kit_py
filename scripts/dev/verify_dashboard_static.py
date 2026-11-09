@@ -15,10 +15,12 @@ from ipfs_kit_py.mcp.dashboard.refactored_unified_mcp_dashboard import Refactore
 HOST = "127.0.0.1"
 PORT = 8004
 
+
 def run_server():
     app = RefactoredUnifiedMCPDashboard({"host": HOST, "port": PORT}).app
     server = Server(Config(app=app, host=HOST, port=PORT, log_level="info"))
     anyio.run(server.serve)
+
 
 def main():
     t = threading.Thread(target=run_server, daemon=True)
@@ -42,6 +44,7 @@ def main():
     check("/static/js/pins-manager.js")
 
     print("All dashboard endpoints responding correctly.")
+
 
 if __name__ == "__main__":
     main()

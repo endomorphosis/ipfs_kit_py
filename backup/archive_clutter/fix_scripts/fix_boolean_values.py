@@ -9,8 +9,11 @@ import logging
 import re
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def fix_boolean_values(filename):
     if not os.path.exists(filename):
@@ -18,7 +21,7 @@ def fix_boolean_values(filename):
         return False
 
     # Read the current content
-    with open(filename, 'r') as f:
+    with open(filename, "r") as f:
         content = f.read()
 
     # Count occurrences before replacement
@@ -36,16 +39,21 @@ def fix_boolean_values(filename):
     other_true = len(re.findall(r'(?<!")\btrue\b(?!")', content))
 
     if other_false > 0 or other_true > 0:
-        fixed_content = re.sub(r'(?<!")\bfalse\b(?!")', 'False', fixed_content)
-        fixed_content = re.sub(r'(?<!")\btrue\b(?!")', 'True', fixed_content)
-        logger.info(f"Found {other_false} other instances of 'false' and {other_true} other instances of 'true'")
+        fixed_content = re.sub(r'(?<!")\bfalse\b(?!")', "False", fixed_content)
+        fixed_content = re.sub(r'(?<!")\btrue\b(?!")', "True", fixed_content)
+        logger.info(
+            f"Found {other_false} other instances of 'false' and {other_true} other instances of 'true'"
+        )
 
     # Write the fixed content back to the file
-    with open(filename, 'w') as f:
+    with open(filename, "w") as f:
         f.write(fixed_content)
 
-    logger.info(f"✅ Fixed {false_count + true_count + other_false + other_true} JavaScript-style boolean values in {filename}")
+    logger.info(
+        f"✅ Fixed {false_count + true_count + other_false + other_true} JavaScript-style boolean values in {filename}"
+    )
     return True
+
 
 if __name__ == "__main__":
     logger.info("Starting to fix JavaScript-style boolean values...")

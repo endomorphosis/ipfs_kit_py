@@ -18,10 +18,7 @@ import ipfs_kit_py.mcp.models.ipfs_model as ipfs_model
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler("mcp_direct_server.log")
-    ]
+    handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler("mcp_direct_server.log")],
 )
 logger = logging.getLogger("direct-mcp-runner")
 
@@ -31,6 +28,7 @@ parser.add_argument("--host", default="127.0.0.1", help="Host to bind the server
 parser.add_argument("--port", type=int, default=3001, help="Port to bind the server to")
 parser.add_argument("--debug", action="store_true", help="Enable debug logging")
 args = parser.parse_args()
+
 
 def register_tools(mcp_server):
     """Register all IPFS and FS tools with the MCP server"""
@@ -48,6 +46,7 @@ def register_tools(mcp_server):
     # Register filesystem tools
     try:
         from fs_journal_tools import register_fs_journal_tools
+
         register_fs_journal_tools(mcp_server)
         logger.info("✅ Successfully registered FS Journal tools")
     except ImportError:
@@ -56,12 +55,14 @@ def register_tools(mcp_server):
     # Register multi-backend tools
     try:
         from multi_backend_fs_integration import register_multi_backend_tools
+
         register_multi_backend_tools(mcp_server)
         logger.info("✅ Successfully registered Multi-Backend tools")
     except ImportError:
         logger.warning("⚠️ Multi-Backend tools not available")
 
     logger.info("✅ Tool registration complete")
+
 
 def main():
     """Run the MCP server with all tools registered"""
@@ -91,7 +92,7 @@ def main():
             allow_origins=["*"],
             allow_credentials=True,
             allow_methods=["*"],
-            allow_headers=["*"]
+            allow_headers=["*"],
         )
 
         # Setup basic routes
@@ -114,18 +115,17 @@ def main():
                 return JSONResponse(result)
             except Exception as e:
                 logger.error(f"JSON-RPC request handling error: {e}")
-                return JSONResponse({
-                    'jsonrpc': '2.0',
-                    'error': {'code': -32603, 'message': f'Internal error: {str(e)}'},
-                    'id': req_id
-                })
+                return JSONResponse(
+                    {
+                        "jsonrpc": "2.0",
+                        "error": {"code": -32603, "message": f"Internal error: {str(e)}"},
+                        "id": req_id,
+                    }
+                )
 
         logger.info(f"Starting server on {args.host}:{args.port}")
         uvicorn.run(
-            app,
-            host=args.host,
-            port=args.port,
-            log_level="debug" if args.debug else "info"
+            app, host=args.host, port=args.port, log_level="debug" if args.debug else "info"
         )
 
     except ImportError as e:
@@ -134,6 +134,7 @@ def main():
     except Exception as e:
         logger.error(f"Error starting server: {e}", exc_info=True)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

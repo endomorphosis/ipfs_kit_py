@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """
 Unified MCP Dashboard Server
@@ -9,7 +8,7 @@ using JSON-RPC communication instead of WebSocket. Both services run on the same
 
 Features:
 - MCP Server JSON-RPC API
-- Web Dashboard Interface  
+- Web Dashboard Interface
 - Unified port and startup
 - JSON-RPC communication between dashboard and MCP
 - FastAPI backend with static file serving
@@ -51,8 +50,7 @@ except ImportError:
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -63,36 +61,37 @@ ipfs_kit = None
 daemon_manager = None
 config_manager = None
 
+
 class JSONRPCHandler:
     """JSON-RPC handler for MCP operations"""
-    
+
     def __init__(self):
         self.methods = {}
         self.register_default_methods()
-    
+
     def register_method(self, name: str, method):
         """Register a JSON-RPC method"""
         self.methods[name] = method
         logger.info(f"Registered JSON-RPC method: {name}")
-    
+
     def register_default_methods(self):
         """Register default MCP methods"""
         # System methods
         self.register_method("system.health", self.system_health)
         self.register_method("system.status", self.system_status)
         self.register_method("system.metrics", self.system_metrics)
-        
+
         # Daemon methods
         self.register_method("daemon.start", self.daemon_start)
         self.register_method("daemon.stop", self.daemon_stop)
         self.register_method("daemon.status", self.daemon_status)
         self.register_method("daemon.restart", self.daemon_restart)
-        
+
         # IPFS methods
         self.register_method("ipfs.add", self.ipfs_add)
         self.register_method("ipfs.get", self.ipfs_get)
         self.register_method("ipfs.cat", self.ipfs_cat)
-        
+
         # Pin methods - comprehensive set matching CLI features
         self.register_method("ipfs.pin.add", self.ipfs_pin_add)
         self.register_method("ipfs.pin.rm", self.ipfs_pin_rm)
@@ -108,17 +107,17 @@ class JSONRPCHandler:
         self.register_method("ipfs.pin.bulk_rm", self.ipfs_pin_bulk_rm)
         self.register_method("ipfs.pin.search", self.ipfs_pin_search)
         self.register_method("ipfs.pin.cleanup", self.ipfs_pin_cleanup)
-        
+
         # Bucket methods
         self.register_method("bucket.list", self.bucket_list)
         self.register_method("bucket.create", self.bucket_create)
         self.register_method("bucket.delete", self.bucket_delete)
         self.register_method("bucket.files", self.bucket_files)
-        
+
         # Backend methods
         self.register_method("backend.list", self.backend_list)
         self.register_method("backend.status", self.backend_status)
-        
+
         # Peer methods
         self.register_method("peer.list", self.peer_list)
         self.register_method("peer.connect", self.peer_connect)
@@ -129,52 +128,41 @@ class JSONRPCHandler:
         self.register_method("config.save_backend_config", self.config_save_backend_config)
         self.register_method("config.get_all_backend_configs", self.config_get_all_backend_configs)
         self.register_method("config.get_backend_schemas", self.config_get_backend_schemas)
-    
+
     async def handle_request(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """Handle a JSON-RPC request"""
         try:
             # Validate JSON-RPC format
             if not isinstance(request_data, dict):
                 return self.error_response(None, -32600, "Invalid Request")
-            
+
             jsonrpc = request_data.get("jsonrpc")
             method = request_data.get("method")
             params = request_data.get("params", {})
             request_id = request_data.get("id")
-            
+
             if jsonrpc != "2.0":
                 return self.error_response(request_id, -32600, "Invalid Request")
-            
+
             if not method or method not in self.methods:
                 return self.error_response(request_id, -32601, "Method not found")
-            
+
             # Call the method
             try:
                 result = await self.methods[method](params)
-                return {
-                    "jsonrpc": "2.0",
-                    "result": result,
-                    "id": request_id
-                }
+                return {"jsonrpc": "2.0", "result": result, "id": request_id}
             except Exception as e:
                 logger.error(f"Error in method {method}: {e}")
                 return self.error_response(request_id, -32603, f"Internal error: {str(e)}")
-                
+
         except Exception as e:
             logger.error(f"Error handling JSON-RPC request: {e}")
             return self.error_response(None, -32700, "Parse error")
-    
+
     def error_response(self, request_id, code: int, message: str) -> Dict[str, Any]:
         """Create JSON-RPC error response"""
-        return {
-            "jsonrpc": "2.0",
-            "error": {
-                "code": code,
-                "message": message
-            },
-            "id": request_id
-        }
-    
+        return {"jsonrpc": "2.0", "error": {"code": code, "message": message}, "id": request_id}
+
     # System methods
     async def system_health(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Get system health status"""
@@ -182,77 +170,77 @@ class JSONRPCHandler:
             "status": "healthy",
             "timestamp": time.time(),
             "uptime": (datetime.now() - server_start_time).total_seconds(),
-            "version": "1.0.0"
+            "version": "1.0.0",
         }
-    
+
     async def system_status(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Get system status"""
         global request_count
         request_count += 1
-        
+
         return {
             "status": "running",
             "start_time": server_start_time.isoformat(),
             "uptime": (datetime.now() - server_start_time).total_seconds(),
             "request_count": request_count,
             "ipfs_kit_available": IPFSKitPy is not None,
-            "daemon_manager_available": EnhancedDaemonManager is not None
+            "daemon_manager_available": EnhancedDaemonManager is not None,
         }
-    
+
     async def system_metrics(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Get system metrics"""
         import psutil
-        
+
         return {
             "cpu_usage": psutil.cpu_percent(),
             "memory_usage": psutil.virtual_memory().percent,
-            "disk_usage": psutil.disk_usage('/').percent,
-            "timestamp": time.time()
+            "disk_usage": psutil.disk_usage("/").percent,
+            "timestamp": time.time(),
         }
-    
+
     # Daemon methods
     async def daemon_start(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Start daemon services"""
         global daemon_manager
-        
+
         if not daemon_manager and EnhancedDaemonManager:
             daemon_manager = EnhancedDaemonManager()
-        
+
         if daemon_manager:
             try:
                 result = await daemon_manager.start_all()
                 return {"success": True, "result": result}
             except Exception as e:
                 return {"success": False, "error": str(e)}
-        
+
         return {"success": False, "error": "Daemon manager not available"}
-    
+
     async def daemon_stop(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Stop daemon services"""
         global daemon_manager
-        
+
         if daemon_manager:
             try:
                 result = await daemon_manager.stop_all()
                 return {"success": True, "result": result}
             except Exception as e:
                 return {"success": False, "error": str(e)}
-        
+
         return {"success": False, "error": "Daemon manager not available"}
-    
+
     async def daemon_status(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Get daemon status"""
         global daemon_manager
-        
+
         if daemon_manager:
             try:
                 status = await daemon_manager.get_status()
                 return {"success": True, "status": status}
             except Exception as e:
                 return {"success": False, "error": str(e)}
-        
+
         return {"success": False, "error": "Daemon manager not available"}
-    
+
     async def daemon_restart(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Restart daemon services"""
         stop_result = await self.daemon_stop(params)
@@ -260,59 +248,42 @@ class JSONRPCHandler:
             await anyio.sleep(2)  # Wait a moment
             return await self.daemon_start(params)
         return stop_result
-    
+
     # IPFS methods (mock implementations)
     async def ipfs_add(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Add content to IPFS"""
         content = params.get("content", "")
         filename = params.get("filename", "file.txt")
-        
+
         # Generate mock CID
         mock_cid = f"Qm{hashlib.sha256(content.encode()).hexdigest()[:44]}"
-        
-        return {
-            "success": True,
-            "cid": mock_cid,
-            "filename": filename,
-            "size": len(content)
-        }
-    
+
+        return {"success": True, "cid": mock_cid, "filename": filename, "size": len(content)}
+
     async def ipfs_get(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Get content from IPFS"""
         cid = params.get("cid", "")
-        
-        return {
-            "success": True,
-            "cid": cid,
-            "content": f"Mock content for {cid}",
-            "size": 1024
-        }
-    
+
+        return {"success": True, "cid": cid, "content": f"Mock content for {cid}", "size": 1024}
+
     async def ipfs_cat(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Cat IPFS content"""
         cid = params.get("cid", "")
-        
-        return {
-            "success": True,
-            "cid": cid,
-            "content": f"Mock file content for CID: {cid}"
-        }
-    
+
+        return {"success": True, "cid": cid, "content": f"Mock file content for CID: {cid}"}
+
     async def ipfs_pin_add(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Pin content in IPFS"""
         cid_or_file = params.get("cid_or_file", params.get("cid", ""))
         name = params.get("name")
         recursive = params.get("recursive", True)
         metadata = params.get("metadata", {})
-        
+
         try:
             # Try to use actual IPFS API if available
             if ipfs_kit:
                 result = await ipfs_kit.pin_add(
-                    cid_or_path=cid_or_file,
-                    name=name,
-                    recursive=recursive,
-                    metadata=metadata
+                    cid_or_path=cid_or_file, name=name, recursive=recursive, metadata=metadata
                 )
                 return {
                     "success": True,
@@ -321,7 +292,7 @@ class JSONRPCHandler:
                     "recursive": recursive,
                     "pinned": True,
                     "metadata": metadata,
-                    "operation_id": f"pin_add_{int(time.time() * 1000)}"
+                    "operation_id": f"pin_add_{int(time.time() * 1000)}",
                 }
             else:
                 # Fallback simulation
@@ -333,20 +304,20 @@ class JSONRPCHandler:
                     "pinned": True,
                     "metadata": metadata,
                     "operation_id": f"pin_add_{int(time.time() * 1000)}",
-                    "simulated": True
+                    "simulated": True,
                 }
         except Exception as e:
             return {
                 "success": False,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "cid": cid_or_file
+                "cid": cid_or_file,
             }
-    
+
     async def ipfs_pin_rm(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Unpin content in IPFS"""
         cid = params.get("cid", "")
-        
+
         try:
             # Try to use actual IPFS API if available
             if ipfs_kit:
@@ -355,7 +326,7 @@ class JSONRPCHandler:
                     "success": True,
                     "cid": cid,
                     "unpinned": True,
-                    "operation_id": f"pin_rm_{int(time.time() * 1000)}"
+                    "operation_id": f"pin_rm_{int(time.time() * 1000)}",
                 }
             else:
                 # Fallback simulation
@@ -364,22 +335,17 @@ class JSONRPCHandler:
                     "cid": cid,
                     "unpinned": True,
                     "operation_id": f"pin_rm_{int(time.time() * 1000)}",
-                    "simulated": True
+                    "simulated": True,
                 }
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "error_type": type(e).__name__,
-                "cid": cid
-            }
-    
+            return {"success": False, "error": str(e), "error_type": type(e).__name__, "cid": cid}
+
     async def ipfs_pin_ls(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """List pinned content"""
         limit = params.get("limit")
         metadata = params.get("metadata", False)
         cid_filter = params.get("cid")
-        
+
         try:
             # Try to use actual IPFS API if available
             if ipfs_kit:
@@ -388,7 +354,7 @@ class JSONRPCHandler:
                     "success": True,
                     "pins": pins,
                     "count": len(pins),
-                    "operation_id": f"pin_ls_{int(time.time() * 1000)}"
+                    "operation_id": f"pin_ls_{int(time.time() * 1000)}",
                 }
             else:
                 # Fallback simulation with more realistic data
@@ -398,44 +364,44 @@ class JSONRPCHandler:
                         "type": "recursive",
                         "name": "example-document.pdf",
                         "size": 1024576,
-                        "timestamp": "2024-01-15T10:30:00Z"
+                        "timestamp": "2024-01-15T10:30:00Z",
                     },
                     {
                         "cid": "QmHash123abc456def789",
-                        "type": "direct", 
+                        "type": "direct",
                         "name": "config.json",
                         "size": 2048,
-                        "timestamp": "2024-01-14T15:45:00Z"
+                        "timestamp": "2024-01-14T15:45:00Z",
                     },
                     {
                         "cid": "QmTest789xyz123abc456",
                         "type": "recursive",
                         "name": "dataset-folder",
                         "size": 104857600,
-                        "timestamp": "2024-01-13T09:15:00Z"
-                    }
+                        "timestamp": "2024-01-13T09:15:00Z",
+                    },
                 ]
-                
+
                 if metadata:
                     for pin in mock_pins:
                         pin["metadata"] = {
                             "uploader": "user123",
                             "tags": ["document", "important"],
-                            "description": f"Content for {pin['name']}"
+                            "description": f"Content for {pin['name']}",
                         }
-                
+
                 if cid_filter:
                     mock_pins = [p for p in mock_pins if p["cid"] == cid_filter]
-                
+
                 if limit:
                     mock_pins = mock_pins[:limit]
-                
+
                 return {
                     "success": True,
                     "pins": mock_pins,
                     "count": len(mock_pins),
                     "operation_id": f"pin_ls_{int(time.time() * 1000)}",
-                    "simulated": True
+                    "simulated": True,
                 }
         except Exception as e:
             return {
@@ -443,14 +409,14 @@ class JSONRPCHandler:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "pins": [],
-                "count": 0
+                "count": 0,
             }
-    
+
     async def ipfs_pin_pending(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """List pending pin operations"""
         limit = params.get("limit")
         metadata = params.get("metadata", False)
-        
+
         try:
             # Mock pending operations for now
             pending_ops = [
@@ -460,34 +426,30 @@ class JSONRPCHandler:
                     "action": "add",
                     "status": "queued",
                     "timestamp": "2024-01-15T12:00:00Z",
-                    "estimated_completion": "2024-01-15T12:05:00Z"
+                    "estimated_completion": "2024-01-15T12:05:00Z",
                 },
                 {
-                    "operation_id": "pin_op_002", 
+                    "operation_id": "pin_op_002",
                     "cid": "QmPending456",
                     "action": "remove",
                     "status": "processing",
                     "timestamp": "2024-01-15T11:55:00Z",
-                    "progress": 75
-                }
+                    "progress": 75,
+                },
             ]
-            
+
             if metadata:
                 for op in pending_ops:
-                    op["metadata"] = {
-                        "priority": "normal",
-                        "retry_count": 0,
-                        "backend": "local"
-                    }
-            
+                    op["metadata"] = {"priority": "normal", "retry_count": 0, "backend": "local"}
+
             if limit:
                 pending_ops = pending_ops[:limit]
-                
+
             return {
                 "success": True,
                 "pending_operations": pending_ops,
                 "count": len(pending_ops),
-                "operation_id": f"pin_pending_{int(time.time() * 1000)}"
+                "operation_id": f"pin_pending_{int(time.time() * 1000)}",
             }
         except Exception as e:
             return {
@@ -495,13 +457,13 @@ class JSONRPCHandler:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "pending_operations": [],
-                "count": 0
+                "count": 0,
             }
-    
+
     async def ipfs_pin_status(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Check pin operation status"""
         operation_id = params.get("operation_id", "")
-        
+
         try:
             # Mock status response
             return {
@@ -513,22 +475,22 @@ class JSONRPCHandler:
                 "completed_at": "2024-01-15T11:55:00Z",
                 "duration_seconds": 300,
                 "cid": "QmStatusExample123",
-                "action": "add"
+                "action": "add",
             }
         except Exception as e:
             return {
                 "success": False,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "operation_id": operation_id
+                "operation_id": operation_id,
             }
-    
+
     async def ipfs_pin_get(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Download pinned content"""
         cid = params.get("cid", "")
         output_path = params.get("output_path")
         recursive = params.get("recursive", False)
-        
+
         try:
             if ipfs_kit:
                 # Use actual IPFS API
@@ -539,7 +501,7 @@ class JSONRPCHandler:
                     "output_path": output_path or f"./{cid}",
                     "downloaded": True,
                     "recursive": recursive,
-                    "operation_id": f"pin_get_{int(time.time() * 1000)}"
+                    "operation_id": f"pin_get_{int(time.time() * 1000)}",
                 }
             else:
                 # Mock response
@@ -551,21 +513,16 @@ class JSONRPCHandler:
                     "recursive": recursive,
                     "operation_id": f"pin_get_{int(time.time() * 1000)}",
                     "simulated": True,
-                    "size_bytes": 1024
+                    "size_bytes": 1024,
                 }
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "error_type": type(e).__name__,
-                "cid": cid
-            }
-    
+            return {"success": False, "error": str(e), "error_type": type(e).__name__, "cid": cid}
+
     async def ipfs_pin_cat(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Stream pinned content"""
         cid = params.get("cid", "")
         limit = params.get("limit")
-        
+
         try:
             if ipfs_kit:
                 # Use actual IPFS API
@@ -574,30 +531,25 @@ class JSONRPCHandler:
                     "success": True,
                     "cid": cid,
                     "content": content,
-                    "operation_id": f"pin_cat_{int(time.time() * 1000)}"
+                    "operation_id": f"pin_cat_{int(time.time() * 1000)}",
                 }
             else:
                 # Mock response with sample content
                 mock_content = f"Mock content for CID {cid}\nThis is sample data that would be streamed from IPFS."
                 if limit:
                     mock_content = mock_content[:limit]
-                
+
                 return {
                     "success": True,
                     "cid": cid,
                     "content": mock_content,
                     "operation_id": f"pin_cat_{int(time.time() * 1000)}",
                     "simulated": True,
-                    "size_bytes": len(mock_content)
+                    "size_bytes": len(mock_content),
                 }
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "error_type": type(e).__name__,
-                "cid": cid
-            }
-    
+            return {"success": False, "error": str(e), "error_type": type(e).__name__, "cid": cid}
+
     async def ipfs_pin_init(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Initialize pin metadata index"""
         try:
@@ -607,19 +559,15 @@ class JSONRPCHandler:
                 "message": "Pin metadata index initialized successfully",
                 "sample_data_created": True,
                 "index_path": "./pin_metadata.db",
-                "operation_id": f"pin_init_{int(time.time() * 1000)}"
+                "operation_id": f"pin_init_{int(time.time() * 1000)}",
             }
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "error_type": type(e).__name__
-            }
-    
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+
     async def ipfs_pin_export_metadata(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Export pin metadata to CAR files"""
         max_shard_size = params.get("max_shard_size", 100)  # MB
-        
+
         try:
             # Mock export
             return {
@@ -630,22 +578,18 @@ class JSONRPCHandler:
                 "output_dir": "./pin_exports",
                 "car_files": [
                     "pin_metadata_shard_001.car",
-                    "pin_metadata_shard_002.car", 
-                    "pin_metadata_shard_003.car"
+                    "pin_metadata_shard_002.car",
+                    "pin_metadata_shard_003.car",
                 ],
-                "operation_id": f"pin_export_{int(time.time() * 1000)}"
+                "operation_id": f"pin_export_{int(time.time() * 1000)}",
             }
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "error_type": type(e).__name__
-            }
-    
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+
     async def ipfs_pin_verify(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Verify all pins"""
         cid = params.get("cid")  # Optional: verify specific CID
-        
+
         try:
             if cid:
                 # Verify specific pin
@@ -655,7 +599,7 @@ class JSONRPCHandler:
                     "verified": True,
                     "status": "valid",
                     "last_verified": "2024-01-15T12:00:00Z",
-                    "operation_id": f"pin_verify_{int(time.time() * 1000)}"
+                    "operation_id": f"pin_verify_{int(time.time() * 1000)}",
                 }
             else:
                 # Verify all pins
@@ -667,38 +611,36 @@ class JSONRPCHandler:
                     "verification_results": [
                         {"cid": "QmInvalid123", "status": "failed", "error": "Content not found"}
                     ],
-                    "operation_id": f"pin_verify_all_{int(time.time() * 1000)}"
+                    "operation_id": f"pin_verify_all_{int(time.time() * 1000)}",
                 }
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "error_type": type(e).__name__
-            }
-    
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+
     async def ipfs_pin_bulk_add(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Bulk pin operations"""
         cids = params.get("cids", [])
         recursive = params.get("recursive", True)
         name_prefix = params.get("name_prefix", "bulk_pin")
-        
+
         try:
             results = []
             for i, cid in enumerate(cids):
-                results.append({
-                    "cid": cid,
-                    "success": True,
-                    "name": f"{name_prefix}_{i}",
-                    "recursive": recursive
-                })
-            
+                results.append(
+                    {
+                        "cid": cid,
+                        "success": True,
+                        "name": f"{name_prefix}_{i}",
+                        "recursive": recursive,
+                    }
+                )
+
             return {
                 "success": True,
                 "total_requested": len(cids),
                 "successful": len(results),
                 "failed": 0,
                 "results": results,
-                "operation_id": f"bulk_pin_{int(time.time() * 1000)}"
+                "operation_id": f"bulk_pin_{int(time.time() * 1000)}",
             }
         except Exception as e:
             return {
@@ -707,29 +649,25 @@ class JSONRPCHandler:
                 "error_type": type(e).__name__,
                 "total_requested": len(cids),
                 "successful": 0,
-                "failed": len(cids)
+                "failed": len(cids),
             }
-    
+
     async def ipfs_pin_bulk_rm(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Bulk unpin operations"""
         cids = params.get("cids", [])
-        
+
         try:
             results = []
             for cid in cids:
-                results.append({
-                    "cid": cid,
-                    "success": True,
-                    "unpinned": True
-                })
-            
+                results.append({"cid": cid, "success": True, "unpinned": True})
+
             return {
                 "success": True,
                 "total_requested": len(cids),
                 "successful": len(results),
                 "failed": 0,
                 "results": results,
-                "operation_id": f"bulk_unpin_{int(time.time() * 1000)}"
+                "operation_id": f"bulk_unpin_{int(time.time() * 1000)}",
             }
         except Exception as e:
             return {
@@ -738,9 +676,9 @@ class JSONRPCHandler:
                 "error_type": type(e).__name__,
                 "total_requested": len(cids),
                 "successful": 0,
-                "failed": len(cids)
+                "failed": len(cids),
             }
-    
+
     async def ipfs_pin_search(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Search pins by criteria"""
         query = params.get("query", "")
@@ -751,7 +689,7 @@ class JSONRPCHandler:
         date_from = params.get("date_from")
         date_to = params.get("date_to")
         limit = params.get("limit", 10)
-        
+
         try:
             # Mock search results
             all_pins = [
@@ -760,57 +698,56 @@ class JSONRPCHandler:
                     "name": "document.pdf",
                     "type": "recursive",
                     "size": 1024576,
-                    "timestamp": "2024-01-15T10:30:00Z"
+                    "timestamp": "2024-01-15T10:30:00Z",
                 },
                 {
                     "cid": "QmHash123abc456def789",
                     "name": "config.json",
                     "type": "direct",
                     "size": 2048,
-                    "timestamp": "2024-01-14T15:45:00Z"
-                }
+                    "timestamp": "2024-01-14T15:45:00Z",
+                },
             ]
-            
+
             # Apply filters
             filtered_pins = all_pins
-            
+
             if query:
-                filtered_pins = [p for p in filtered_pins if query.lower() in p.get("name", "").lower()]
-            
+                filtered_pins = [
+                    p for p in filtered_pins if query.lower() in p.get("name", "").lower()
+                ]
+
             if name_filter:
-                filtered_pins = [p for p in filtered_pins if name_filter.lower() in p.get("name", "").lower()]
-                
+                filtered_pins = [
+                    p for p in filtered_pins if name_filter.lower() in p.get("name", "").lower()
+                ]
+
             if type_filter:
                 filtered_pins = [p for p in filtered_pins if p.get("type") == type_filter]
-            
+
             if size_min:
                 filtered_pins = [p for p in filtered_pins if p.get("size", 0) >= size_min]
-                
+
             if size_max:
                 filtered_pins = [p for p in filtered_pins if p.get("size", 0) <= size_max]
-            
+
             # Apply limit
             filtered_pins = filtered_pins[:limit]
-            
+
             return {
                 "success": True,
                 "query": query,
                 "total_matches": len(filtered_pins),
                 "pins": filtered_pins,
-                "operation_id": f"pin_search_{int(time.time() * 1000)}"
+                "operation_id": f"pin_search_{int(time.time() * 1000)}",
             }
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "error_type": type(e).__name__,
-                "pins": []
-            }
-    
+            return {"success": False, "error": str(e), "error_type": type(e).__name__, "pins": []}
+
     async def ipfs_pin_cleanup(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Cleanup unpinned or failed pins"""
         dry_run = params.get("dry_run", True)
-        
+
         try:
             # Mock cleanup results
             cleanup_results = {
@@ -819,26 +756,22 @@ class JSONRPCHandler:
                 "duplicate_pins": 2,
                 "total_cleaned": 6 if not dry_run else 0,
                 "space_freed_mb": 125.5 if not dry_run else 0,
-                "dry_run": dry_run
+                "dry_run": dry_run,
             }
-            
+
             if dry_run:
                 cleanup_results["message"] = "Dry run completed - no changes made"
             else:
                 cleanup_results["message"] = "Cleanup completed successfully"
-            
+
             return {
                 "success": True,
                 **cleanup_results,
-                "operation_id": f"pin_cleanup_{int(time.time() * 1000)}"
+                "operation_id": f"pin_cleanup_{int(time.time() * 1000)}",
             }
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "error_type": type(e).__name__
-            }
-    
+            return {"success": False, "error": str(e), "error_type": type(e).__name__}
+
     # Bucket methods
     async def bucket_list(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """List buckets"""
@@ -847,45 +780,41 @@ class JSONRPCHandler:
             "buckets": [
                 {"id": "bucket1", "name": "Documents", "size": 1024000, "files": 15},
                 {"id": "bucket2", "name": "Images", "size": 5120000, "files": 42},
-                {"id": "bucket3", "name": "Videos", "size": 102400000, "files": 8}
-            ]
+                {"id": "bucket3", "name": "Videos", "size": 102400000, "files": 8},
+            ],
         }
-    
+
     async def bucket_create(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new bucket"""
         name = params.get("name", "")
-        
+
         return {
             "success": True,
             "bucket_id": f"bucket_{int(time.time())}",
             "name": name,
-            "created": datetime.now().isoformat()
+            "created": datetime.now().isoformat(),
         }
-    
+
     async def bucket_delete(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Delete a bucket"""
         bucket_id = params.get("bucket_id", "")
-        
-        return {
-            "success": True,
-            "bucket_id": bucket_id,
-            "deleted": True
-        }
-    
+
+        return {"success": True, "bucket_id": bucket_id, "deleted": True}
+
     async def bucket_files(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """List files in a bucket"""
         bucket_id = params.get("bucket_id", "")
-        
+
         return {
             "success": True,
             "bucket_id": bucket_id,
             "files": [
                 {"name": "document1.pdf", "size": 102400, "cid": "QmDoc1"},
                 {"name": "image1.jpg", "size": 204800, "cid": "QmImg1"},
-                {"name": "video1.mp4", "size": 10240000, "cid": "QmVid1"}
-            ]
+                {"name": "video1.mp4", "size": 10240000, "cid": "QmVid1"},
+            ],
         }
-    
+
     # Backend methods
     async def backend_list(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """List storage backends"""
@@ -895,22 +824,22 @@ class JSONRPCHandler:
                 {"name": "IPFS", "status": "active", "type": "primary"},
                 {"name": "Storacha", "status": "active", "type": "cloud"},
                 {"name": "Pinata", "status": "inactive", "type": "cloud"},
-                {"name": "Local", "status": "active", "type": "local"}
-            ]
+                {"name": "Local", "status": "active", "type": "local"},
+            ],
         }
-    
+
     async def backend_status(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Get backend status"""
         backend_name = params.get("name", "")
-        
+
         return {
             "success": True,
             "backend": backend_name,
             "status": "active",
             "health": "healthy",
-            "last_check": datetime.now().isoformat()
+            "last_check": datetime.now().isoformat(),
         }
-    
+
     # Peer methods
     async def peer_list(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """List connected peers"""
@@ -919,29 +848,21 @@ class JSONRPCHandler:
             "peers": [
                 {"id": "12D3KooWPeer1", "addr": "/ip4/127.0.0.1/tcp/4001", "latency": 50},
                 {"id": "12D3KooWPeer2", "addr": "/ip4/192.168.1.100/tcp/4001", "latency": 25},
-                {"id": "12D3KooWPeer3", "addr": "/ip6/::1/tcp/4001", "latency": 75}
-            ]
+                {"id": "12D3KooWPeer3", "addr": "/ip6/::1/tcp/4001", "latency": 75},
+            ],
         }
-    
+
     async def peer_connect(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Connect to a peer"""
         peer_addr = params.get("addr", "")
-        
-        return {
-            "success": True,
-            "peer_addr": peer_addr,
-            "connected": True
-        }
-    
+
+        return {"success": True, "peer_addr": peer_addr, "connected": True}
+
     async def peer_disconnect(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Disconnect from a peer"""
         peer_id = params.get("peer_id", "")
-        
-        return {
-            "success": True,
-            "peer_id": peer_id,
-            "disconnected": True
-        }
+
+        return {"success": True, "peer_id": peer_id, "disconnected": True}
 
     # Config methods
     async def config_get_backend_config(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -976,9 +897,10 @@ class JSONRPCHandler:
         """Get the configuration schemas for all backends."""
         return {"success": True, "schemas": BACKEND_SCHEMAS}
 
+
 class UnifiedMCPDashboardServer:
     """Unified server combining MCP and Dashboard functionality"""
-    
+
     def __init__(self, host: str = "127.0.0.1", port: int = 8083):
         self.host = host
         self.port = port
@@ -987,7 +909,7 @@ class UnifiedMCPDashboardServer:
         self.setup_middleware()
         self.setup_templates()
         self.setup_routes()
-    
+
     def setup_middleware(self):
         """Setup FastAPI middleware"""
         self.app.add_middleware(
@@ -997,28 +919,28 @@ class UnifiedMCPDashboardServer:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-    
+
     def setup_templates(self):
         """Setup templates and static files"""
         # Create templates directory if it doesn't exist
         templates_dir = Path(__file__).parent / "templates"
         static_dir = Path(__file__).parent / "static"
-        
+
         templates_dir.mkdir(exist_ok=True)
         static_dir.mkdir(exist_ok=True)
-        
+
         # Create the main dashboard template
         self.create_dashboard_template(templates_dir)
         self.create_static_files(static_dir)
-        
+
         self.templates = Jinja2Templates(directory=str(templates_dir))
-        
+
         # Mount static files
         self.app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-    
+
     def create_dashboard_template(self, templates_dir: Path):
         """Create the main dashboard HTML template"""
-        template_content = '''<!DOCTYPE html>
+        template_content = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1413,13 +1335,13 @@ class UnifiedMCPDashboardServer:
 
     <script src="/static/dashboard.js"></script>
 </body>
-</html>'''
-        
+</html>"""
+
         (templates_dir / "dashboard.html").write_text(template_content)
-    
+
     def create_static_files(self, static_dir: Path):
         """Create static JavaScript files"""
-        js_content = '''// Unified MCP Dashboard JavaScript with Comprehensive Pin Management
+        js_content = """// Unified MCP Dashboard JavaScript with Comprehensive Pin Management
 class MCPDashboard {
     constructor() {
         this.init();
@@ -2165,18 +2087,18 @@ class MCPDashboard {
 }
 
 const dashboard = new MCPDashboard();
-'''
-        
+"""
+
         (static_dir / "dashboard.js").write_text(js_content)
-    
+
     def setup_routes(self):
         """Setup API and web routes"""
-        
+
         @self.app.get("/", response_class=HTMLResponse)
         async def get_dashboard(request: Request):
             """Serve the main dashboard page"""
             return self.templates.TemplateResponse("dashboard.html", {"request": request})
-        
+
         @self.app.post("/api/jsonrpc")
         async def handle_jsonrpc(request: Request):
             """Handle JSON-RPC requests"""
@@ -2187,18 +2109,18 @@ const dashboard = new MCPDashboard();
             except json.JSONDecodeError:
                 return JSONResponse(
                     content=self.jsonrpc_handler.error_response(None, -32700, "Parse error"),
-                    status_code=400
+                    status_code=400,
                 )
-        
+
         @self.app.get("/health")
         async def health_check():
             """Health check endpoint"""
             return {"status": "healthy"}
-    
+
     def run(self):
         """Run the FastAPI server"""
         logger.info(f"Starting Unified MCP Dashboard Server on http://{self.host}:{self.port}")
-        
+
         # Initialize IPFS Kit if available
         global ipfs_kit, config_manager
         if IPFSKitPy:
@@ -2207,7 +2129,7 @@ const dashboard = new MCPDashboard();
                 logger.info("IPFS Kit initialized successfully")
             except Exception as e:
                 logger.error(f"Failed to initialize IPFS Kit: {e}")
-        
+
         if ConfigManager:
             try:
                 config_manager = ConfigManager()
@@ -2215,12 +2137,8 @@ const dashboard = new MCPDashboard();
             except Exception as e:
                 logger.error(f"Failed to initialize ConfigManager: {e}")
 
-        uvicorn.run(
-            self.app,
-            host=self.host,
-            port=self.port,
-            log_level="info"
-        )
+        uvicorn.run(self.app, host=self.host, port=self.port, log_level="info")
+
 
 def main():
     """Main entry point"""
@@ -2228,23 +2146,24 @@ def main():
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
     parser.add_argument("--port", type=int, default=8083, help="Port to run on")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
-    
+
     args = parser.parse_args()
-    
+
     if args.debug:
         logger.setLevel(logging.DEBUG)
-    
+
     server = UnifiedMCPDashboardServer(host=args.host, port=args.port)
-    
+
     # Handle graceful shutdown
     def shutdown_handler(signum, frame):
         logger.info("Shutting down server...")
         sys.exit(0)
-    
+
     signal.signal(signal.SIGINT, shutdown_handler)
     signal.signal(signal.SIGTERM, shutdown_handler)
-    
+
     server.run()
+
 
 if __name__ == "__main__":
     main()

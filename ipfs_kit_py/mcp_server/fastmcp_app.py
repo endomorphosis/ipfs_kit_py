@@ -11,6 +11,7 @@ Usage:
     app = FastMCP("ipfs_kit_py-mcpplusplus")
     register_fastmcp(app)
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, List
@@ -29,6 +30,7 @@ def register_fastmcp(app: Any, tm: HierarchicalToolManager | None = None) -> Lis
         def _make(cat: str, tl: str):
             async def _handler(arguments: Dict[str, Any] | None = None) -> Dict[str, Any]:
                 return await tm.dispatch(cat, tl, arguments or {})
+
             return _handler
 
         handler = _make(category, tool)
@@ -42,6 +44,7 @@ def register_fastmcp(app: Any, tm: HierarchicalToolManager | None = None) -> Lis
 def build_app(name: str = "ipfs_kit_py-mcpplusplus") -> Any:
     """Construct a FastMCP app with all tools registered. Requires the mcp pkg."""
     from mcp.server import FastMCP  # type: ignore
+
     app = FastMCP(name)
     register_fastmcp(app)
     return app

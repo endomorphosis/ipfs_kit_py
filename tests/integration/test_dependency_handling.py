@@ -106,7 +106,7 @@ class TestDependencyHandling(unittest.TestCase):
             model = {"type": "simple_dict_model", "layers": 2}
 
             # Patch the store_model method to avoid Pydantic validation issues
-            with patch.object(registry, 'store_model') as mock_store:
+            with patch.object(registry, "store_model") as mock_store:
                 mock_store.return_value = {"success": True, "cid": "QmTestModelCID123"}
                 result = registry.add_model(model, "test_model", version="1.0")
 

@@ -1,4 +1,5 @@
 """CAR (content-addressed archive) tool group."""
+
 from __future__ import annotations
 
 import uuid

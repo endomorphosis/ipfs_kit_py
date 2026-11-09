@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fix for import issues in server_bridge.py to ensure proper compatibility 
+Fix for import issues in server_bridge.py to ensure proper compatibility
 between old and new MCP server implementations.
 
 This patch updates the server_bridge.py file to correctly handle import paths
@@ -58,25 +58,27 @@ except ImportError as e:
 __all__ = ['MCPServer', 'AsyncMCPServer']
 '''
 
+
 def fix_server_bridge():
     """Apply fixes to the server bridge file."""
     print(f"Updating server bridge at {SERVER_BRIDGE_PATH}...")
-    
+
     # Backup the original file
     backup_path = SERVER_BRIDGE_PATH.with_suffix(".py.bak")
     if SERVER_BRIDGE_PATH.exists():
-        with open(SERVER_BRIDGE_PATH, 'r') as f:
+        with open(SERVER_BRIDGE_PATH, "r") as f:
             original_content = f.read()
-            
-        with open(backup_path, 'w') as f:
+
+        with open(backup_path, "w") as f:
             f.write(original_content)
             print(f"Created backup at {backup_path}")
-    
+
     # Write the updated content
-    with open(SERVER_BRIDGE_PATH, 'w') as f:
+    with open(SERVER_BRIDGE_PATH, "w") as f:
         f.write(UPDATED_CONTENT)
-        
+
     print("Server bridge updated successfully")
+
 
 if __name__ == "__main__":
     try:

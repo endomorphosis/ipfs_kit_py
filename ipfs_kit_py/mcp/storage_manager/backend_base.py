@@ -11,6 +11,7 @@ class BackendStorage(ABC):
     """
     Abstract base class for storage backends.
     """
+
     def __init__(self, backend_type, resources: dict, metadata: dict):
         self.backend_type = backend_type
         self.resources = resources

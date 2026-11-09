@@ -17,8 +17,7 @@ from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -32,6 +31,7 @@ ORIGINAL_LASSIE_STORAGE = PACKAGE_ROOT / "lassie_storage.py"
 ENHANCED_LASSIE_EXTENSION = MCP_EXTENSIONS_DIR / "enhanced_lassie_extension.py"
 ORIGINAL_LASSIE_EXTENSION = MCP_EXTENSIONS_DIR / "lassie_extension.py"
 
+
 def backup_file(file_path):
     """Create a backup of a file."""
     backup_path = f"{file_path}.bak"
@@ -42,6 +42,7 @@ def backup_file(file_path):
     except Exception as e:
         logger.error(f"Failed to backup {file_path}: {e}")
         return False
+
 
 def update_lassie_implementation():
     """Update the Lassie implementation with enhanced version."""
@@ -63,6 +64,7 @@ def update_lassie_implementation():
         logger.error(f"Failed to update Lassie implementation: {e}")
         return False
 
+
 def restart_mcp_server():
     """Restart the MCP server."""
     try:
@@ -70,7 +72,7 @@ def restart_mcp_server():
         logger.info("Stopping MCP server...")
         pid_file = Path("/tmp/mcp/server.pid")
         if pid_file.exists():
-            with open(pid_file, 'r') as f:
+            with open(pid_file, "r") as f:
                 pid = f.read().strip()
                 subprocess.run(["kill", "-15", pid], check=False)
 
@@ -98,6 +100,7 @@ def restart_mcp_server():
         logger.error(f"Error restarting MCP server: {e}")
         return False
 
+
 def test_lassie_integration():
     """Test that the Lassie integration works correctly."""
     try:
@@ -106,7 +109,7 @@ def test_lassie_integration():
             ["curl", "http://localhost:9997/api/v0/health"],
             capture_output=True,
             text=True,
-            check=True
+            check=True,
         )
 
         if "lassie" not in result.stdout:
@@ -117,10 +120,7 @@ def test_lassie_integration():
 
         # Test the well-known CIDs endpoint
         logger.info("Testing well-known CIDs endpoint...")
-        subprocess.run(
-            ["curl", "http://localhost:9997/api/v0/lassie/well_known_cids"],
-            check=True
-        )
+        subprocess.run(["curl", "http://localhost:9997/api/v0/lassie/well_known_cids"], check=True)
 
         return True
     except subprocess.CalledProcessError as e:
@@ -129,6 +129,7 @@ def test_lassie_integration():
     except Exception as e:
         logger.error(f"Error testing Lassie integration: {e}")
         return False
+
 
 def main():
     """Main function to fix Lassie integration."""
@@ -157,6 +158,7 @@ def main():
     logger.info("4. Detailed error messages with actionable suggestions")
 
     return True
+
 
 if __name__ == "__main__":
     success = main()

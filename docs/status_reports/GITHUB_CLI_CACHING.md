@@ -100,7 +100,7 @@ from ipfs_kit_py.gh_cache import GHCache
 cache = GHCache(enable_ipfs=True)
 
 # Run cached command
-return_code, stdout, stderr = cache.run(['gh', 'repo', 'list'])
+return_code, stdout, stderr = cache.run(["gh", "repo", "list"])
 
 # Get statistics
 stats = cache.get_stats()
@@ -166,9 +166,9 @@ export GH_CACHE_DEBUG=0
 ```python
 cache = GHCache(
     cache_dir="/custom/cache/path",
-    enable_ipfs=True,              # Enable IPFS caching
-    enable_p2p=True,               # Enable P2P sharing
-    max_cache_size=2*1024*1024*1024  # 2GB max
+    enable_ipfs=True,  # Enable IPFS caching
+    enable_p2p=True,  # Enable P2P sharing
+    max_cache_size=2 * 1024 * 1024 * 1024,  # 2GB max
 )
 ```
 
@@ -412,12 +412,19 @@ import json
 cache = GHCache(enable_ipfs=True)
 
 # Get workflow runs (cached)
-code, output, err = cache.run([
-    'gh', 'run', 'list', 
-    '--status', 'failure',
-    '--limit', '5',
-    '--json', 'databaseId,name,conclusion'
-])
+code, output, err = cache.run(
+    [
+        "gh",
+        "run",
+        "list",
+        "--status",
+        "failure",
+        "--limit",
+        "5",
+        "--json",
+        "databaseId,name,conclusion",
+    ]
+)
 
 if code == 0:
     runs = json.loads(output)

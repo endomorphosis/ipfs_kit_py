@@ -168,9 +168,7 @@ def _read_json_object(path: Path) -> dict[str, Any] | None:
             "managed Iroh receipt is invalid", operation="service.status"
         ) from exc
     if not isinstance(value, dict):
-        raise IrohConflictError(
-            "managed Iroh receipt is invalid", operation="service.status"
-        )
+        raise IrohConflictError("managed Iroh receipt is invalid", operation="service.status")
     return value
 
 
@@ -180,14 +178,11 @@ def _atomic_json(path: Path, document: Mapping[str, Any]) -> None:
     temporary: Path | None = None
     descriptor: int | None = None
     try:
-        descriptor, name = tempfile.mkstemp(
-            prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
-        )
+        descriptor, name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
         temporary = Path(name)
         os.fchmod(descriptor, FILE_MODE)
         payload = (
-            json.dumps(dict(document), indent=2, sort_keys=True, ensure_ascii=False)
-            + "\n"
+            json.dumps(dict(document), indent=2, sort_keys=True, ensure_ascii=False) + "\n"
         ).encode("utf-8")
         with os.fdopen(descriptor, "wb") as stream:
             descriptor = None
@@ -299,9 +294,7 @@ class IrohService:
 
             self._install_manager = IrohInstallManager()
             executable = self._install_manager.binary_path
-        self.executable = os.path.realpath(
-            os.fspath(executable)
-        )
+        self.executable = os.path.realpath(os.fspath(executable))
         default_command = (
             self.executable,
             "serve",
@@ -369,10 +362,7 @@ class IrohService:
             validated = self._coerce_config(config)
         except (TypeError, ValueError, IrohInvalidConfigError):
             return False
-        if (
-            validated.instance != self.config.instance
-            or validated.layout != self.config.layout
-        ):
+        if validated.instance != self.config.instance or validated.layout != self.config.layout:
             return False
         self.config = validated
         self.layout = validated.layout
@@ -786,9 +776,7 @@ class IrohService:
     async def _wait_pid_exit(self, pid: int, timeout: float) -> bool:
         if self._process is not None and self._process.pid == pid:
             try:
-                await asyncio.wait_for(
-                    asyncio.shield(self._process.wait()), timeout=timeout
-                )
+                await asyncio.wait_for(asyncio.shield(self._process.wait()), timeout=timeout)
                 return True
             except asyncio.TimeoutError:
                 return False
@@ -908,18 +896,14 @@ class IrohService:
 
         from .observability import IrohObservability
 
-        return await IrohObservability(self.config, service=self).diagnostics(
-            persist=persist
-        )
+        return await IrohObservability(self.config, service=self).diagnostics(persist=persist)
 
     async def metrics(self, *, persist: bool = True) -> dict[str, Any]:
         """Return bounded-cardinality operational metrics for this instance."""
 
         from .observability import IrohObservability
 
-        return await IrohObservability(self.config, service=self).metrics(
-            persist=persist
-        )
+        return await IrohObservability(self.config, service=self).metrics(persist=persist)
 
     async def run_foreground(self) -> int:
         """Run until the child exits, forwarding termination into ``stop``."""
@@ -966,7 +950,9 @@ async def _async_main(args: argparse.Namespace) -> int:
     service = IrohService(
         config,
         executable=args.executable,
-        mode=LifecycleMode.FOREGROUND if args.action == "foreground" else LifecycleMode.MANAGED_CHILD,
+        mode=LifecycleMode.FOREGROUND
+        if args.action == "foreground"
+        else LifecycleMode.MANAGED_CHILD,
     )
     if args.action == "start":
         result: Any = await service.start()
@@ -986,7 +972,9 @@ async def _async_main(args: argparse.Namespace) -> int:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("start", "stop", "restart", "status", "foreground", "clear-crash-loop"))
+    parser.add_argument(
+        "action", choices=("start", "stop", "restart", "status", "foreground", "clear-crash-loop")
+    )
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--executable", type=Path)
     args = parser.parse_args(argv)

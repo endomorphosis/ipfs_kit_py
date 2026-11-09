@@ -21,13 +21,14 @@ ipfs-cluster-follow, storacha, s3, lotus, synapse, and huggingface.
 """
 
 import warnings
+
 warnings.warn(
     "enhanced_unified_mcp_server.py is deprecated. "
     "Use ipfs_kit_py.mcp.servers.unified_mcp_server instead. "
     "See docs/MCP_SERVER_MIGRATION_GUIDE.md for details. "
     "This module will be removed in approximately 6 months.",
     DeprecationWarning,
-    stacklevel=2
+    stacklevel=2,
 )
 
 import sys
@@ -55,11 +56,11 @@ log_dir.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(sys.stderr),
-        logging.FileHandler(log_dir / 'enhanced_unified_mcp.log', mode='a')
-    ]
+        logging.FileHandler(log_dir / "enhanced_unified_mcp.log", mode="a"),
+    ],
 )
 logger = logging.getLogger("enhanced-unified-mcp")
 
@@ -75,12 +76,13 @@ COMPONENTS = {
     "backend_monitor": False,
     "filesystem_backends": False,
     "metrics_collector": False,
-    "observability": False
+    "observability": False,
 }
+
 
 class BackendHealthMonitor:
     """Comprehensive backend health and status monitoring."""
-    
+
     def __init__(self):
         self.backends = {
             "ipfs": {
@@ -102,12 +104,12 @@ class BackendHealthMonitor:
                     "datastore_type": "unknown",
                     "api_address": "/ip4/127.0.0.1/tcp/5001",
                     "gateway_address": "/ip4/127.0.0.1/tcp/8080",
-                    "config_profile": "unknown"
-                }
+                    "config_profile": "unknown",
+                },
             },
             "ipfs_cluster": {
                 "name": "IPFS Cluster",
-                "status": "unknown", 
+                "status": "unknown",
                 "health": "unknown",
                 "last_check": None,
                 "metrics": {},
@@ -122,18 +124,18 @@ class BackendHealthMonitor:
                     "allocations": {},
                     "consensus": "raft",
                     "api_address": "/ip4/127.0.0.1/tcp/9094",
-                    "proxy_address": "/ip4/127.0.0.1/tcp/9095"
-                }
+                    "proxy_address": "/ip4/127.0.0.1/tcp/9095",
+                },
             },
             "ipfs_cluster_follow": {
                 "name": "IPFS Cluster Follow",
                 "status": "unknown",
-                "health": "unknown", 
+                "health": "unknown",
                 "last_check": None,
                 "metrics": {},
                 "errors": [],
                 "daemon_pid": None,
-                "port": 9095
+                "port": 9095,
             },
             "lotus": {
                 "name": "Lotus",
@@ -154,8 +156,8 @@ class BackendHealthMonitor:
                     "miner_address": None,
                     "api_address": "/ip4/127.0.0.1/tcp/1234/http",
                     "version": "unknown",
-                    "commit": "unknown"
-                }
+                    "commit": "unknown",
+                },
             },
             "storacha": {
                 "name": "Storacha",
@@ -167,8 +169,8 @@ class BackendHealthMonitor:
                 "api_endpoints": [
                     "https://up.storacha.network/bridge",
                     "https://api.web3.storage",
-                    "https://up.web3.storage/bridge"
-                ]
+                    "https://up.web3.storage/bridge",
+                ],
             },
             "synapse": {
                 "name": "Synapse SDK",
@@ -178,16 +180,16 @@ class BackendHealthMonitor:
                 "metrics": {},
                 "errors": [],
                 "js_wrapper": None,
-                "npm_package": "@filoz/synapse-sdk"
+                "npm_package": "@filoz/synapse-sdk",
             },
             "s3": {
                 "name": "S3 Compatible",
                 "status": "unknown",
-                "health": "unknown", 
+                "health": "unknown",
                 "last_check": None,
                 "metrics": {},
                 "errors": [],
-                "credentials": None
+                "credentials": None,
             },
             "huggingface": {
                 "name": "HuggingFace Hub",
@@ -196,7 +198,7 @@ class BackendHealthMonitor:
                 "last_check": None,
                 "metrics": {},
                 "errors": [],
-                "auth_token": None
+                "auth_token": None,
             },
             "parquet": {
                 "name": "Parquet/Arrow",
@@ -205,30 +207,30 @@ class BackendHealthMonitor:
                 "last_check": None,
                 "metrics": {},
                 "errors": [],
-                "libraries": ["pyarrow", "pandas"]
-            }
+                "libraries": ["pyarrow", "pandas"],
+            },
         }
-        
+
         self.metrics_history = defaultdict(lambda: deque(maxlen=100))
         self.monitoring_active = False
         self._monitor_thread = None
         self.last_health_check = {}  # Track last health check timestamps
-        
+
         # Initialize VFS observability
         self.vfs_observer = None  # Will be initialized after class definition
-        
+
     def initialize_vfs_observer(self):
         """Initialize VFS observer after class definition is complete."""
         self.vfs_observer = VFSObservabilityManager()
-        
+
     async def check_backend_health(self, backend_name: str) -> Dict[str, Any]:
         """Check health of a specific backend."""
-        
+
         if backend_name not in self.backends:
             return {"error": f"Unknown backend: {backend_name}"}
-        
+
         backend = self.backends[backend_name]
-        
+
         try:
             if backend_name == "ipfs":
                 return await self._check_ipfs_health(backend)
@@ -250,28 +252,32 @@ class BackendHealthMonitor:
                 return await self._check_parquet_health(backend)
             else:
                 return {"error": f"Health check not implemented for {backend_name}"}
-                
+
         except Exception as e:
             logger.error(f"Error checking {backend_name} health: {e}")
             backend["status"] = "error"
             backend["health"] = "unhealthy"
-            backend["errors"].append({
-                "timestamp": datetime.now().isoformat(),
-                "error": str(e),
-                "traceback": traceback.format_exc()
-            })
+            backend["errors"].append(
+                {
+                    "timestamp": datetime.now().isoformat(),
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                }
+            )
             return {"error": str(e)}
-    
+
     async def _check_ipfs_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
         """Check IPFS daemon health."""
-        
+
         try:
             # Check if daemon is running
             result = subprocess.run(
                 ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/version"],
-                capture_output=True, text=True, timeout=5
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
-            
+
             if result.returncode == 0:
                 version_info = json.loads(result.stdout)
                 backend["status"] = "running"
@@ -279,156 +285,151 @@ class BackendHealthMonitor:
                 backend["metrics"] = {
                     "version": version_info.get("Version", "unknown"),
                     "commit": version_info.get("Commit", "unknown"),
-                    "response_time_ms": 0  # Could measure actual response time
+                    "response_time_ms": 0,  # Could measure actual response time
                 }
-                
+
                 # Check additional metrics
                 stats_result = subprocess.run(
                     ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/stats/repo"],
-                    capture_output=True, text=True, timeout=5
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
                 )
-                
+
                 if stats_result.returncode == 0:
                     stats = json.loads(stats_result.stdout)
-                    backend["metrics"].update({
-                        "repo_size": stats.get("RepoSize", 0),
-                        "storage_max": stats.get("StorageMax", 0),
-                        "num_objects": stats.get("NumObjects", 0)
-                    })
-                    
+                    backend["metrics"].update(
+                        {
+                            "repo_size": stats.get("RepoSize", 0),
+                            "storage_max": stats.get("StorageMax", 0),
+                            "num_objects": stats.get("NumObjects", 0),
+                        }
+                    )
+
             else:
                 backend["status"] = "stopped"
                 backend["health"] = "unhealthy"
                 backend["metrics"] = {}
-                
+
         except Exception as e:
             backend["status"] = "error"
             backend["health"] = "unhealthy"
-            backend["errors"].append({
-                "timestamp": datetime.now().isoformat(),
-                "error": str(e)
-            })
-            
+            backend["errors"].append({"timestamp": datetime.now().isoformat(), "error": str(e)})
+
         backend["last_check"] = datetime.now().isoformat()
         return backend
-    
+
     async def _check_ipfs_cluster_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
         """Check IPFS Cluster health."""
-        
+
         try:
             # Check if cluster daemon is running
             result = subprocess.run(
                 ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/version"],
-                capture_output=True, text=True, timeout=5
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
-            
+
             if result.returncode == 0:
                 version_info = json.loads(result.stdout)
                 backend["status"] = "running"
                 backend["health"] = "healthy"
                 backend["metrics"] = {
                     "version": version_info.get("version", "unknown"),
-                    "commit": version_info.get("commit", "unknown")
+                    "commit": version_info.get("commit", "unknown"),
                 }
-                
+
                 # Check peers
                 peers_result = subprocess.run(
                     ["curl", "-s", f"http://127.0.0.1:{backend['port']}/api/v0/peers"],
-                    capture_output=True, text=True, timeout=5
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
                 )
-                
+
                 if peers_result.returncode == 0:
                     peers = json.loads(peers_result.stdout)
                     backend["metrics"]["peer_count"] = len(peers) if isinstance(peers, list) else 0
-                    
+
             else:
                 backend["status"] = "stopped"
                 backend["health"] = "unhealthy"
-                
+
         except Exception as e:
             backend["status"] = "error"
             backend["health"] = "unhealthy"
-            backend["errors"].append({
-                "timestamp": datetime.now().isoformat(),
-                "error": str(e)
-            })
-            
+            backend["errors"].append({"timestamp": datetime.now().isoformat(), "error": str(e)})
+
         backend["last_check"] = datetime.now().isoformat()
         return backend
-    
+
     async def _check_ipfs_cluster_follow_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
         """Check IPFS Cluster Follow health."""
-        
+
         try:
             # Check if follow daemon is running
             result = subprocess.run(
-                ["pgrep", "-f", "ipfs-cluster-follow"],
-                capture_output=True, text=True, timeout=5
+                ["pgrep", "-f", "ipfs-cluster-follow"], capture_output=True, text=True, timeout=5
             )
-            
+
             if result.returncode == 0:
                 backend["status"] = "running"
                 backend["health"] = "healthy"
                 backend["daemon_pid"] = result.stdout.strip()
-                backend["metrics"] = {
-                    "process_running": True,
-                    "pid": backend["daemon_pid"]
-                }
+                backend["metrics"] = {"process_running": True, "pid": backend["daemon_pid"]}
             else:
                 backend["status"] = "stopped"
                 backend["health"] = "unhealthy"
                 backend["daemon_pid"] = None
-                
+
         except Exception as e:
             backend["status"] = "error"
             backend["health"] = "unhealthy"
-            backend["errors"].append({
-                "timestamp": datetime.now().isoformat(),
-                "error": str(e)
-            })
-            
+            backend["errors"].append({"timestamp": datetime.now().isoformat(), "error": str(e)})
+
         backend["last_check"] = datetime.now().isoformat()
         return backend
-    
+
     async def _check_lotus_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
         """Check Lotus daemon health."""
-        
+
         try:
             # Try to import lotus_kit first
             try:
                 from ipfs_kit_py.lotus_kit import lotus_kit
+
                 lotus = lotus_kit()
-                
+
                 # Check daemon status using the proper method
                 daemon_status = await anyio.to_thread.run_sync(lotus.daemon_status)
                 daemon_running = daemon_status.get("process_running", False)
-                
+
                 if daemon_running:
                     backend["status"] = "running"
                     backend["health"] = "healthy"
-                    
+
                     # Try to get version info from daemon status
                     try:
                         backend["metrics"] = {
                             "version": daemon_status.get("version", "unknown"),
                             "daemon_running": True,
-                            "pid": daemon_status.get("pid", "unknown")
+                            "pid": daemon_status.get("pid", "unknown"),
                         }
                     except:
                         backend["metrics"] = {"daemon_running": True}
-                        
+
                 else:
                     backend["status"] = "stopped"
                     backend["health"] = "unhealthy"
                     backend["metrics"] = {"daemon_running": False}
-                    
+
             except ImportError:
                 # Fallback to process check
                 result = subprocess.run(
-                    ["pgrep", "-f", "lotus"],
-                    capture_output=True, text=True, timeout=5
+                    ["pgrep", "-f", "lotus"], capture_output=True, text=True, timeout=5
                 )
-                
+
                 if result.returncode == 0:
                     backend["status"] = "running"
                     backend["health"] = "healthy"
@@ -436,56 +437,54 @@ class BackendHealthMonitor:
                 else:
                     backend["status"] = "stopped"
                     backend["health"] = "unhealthy"
-                    
+
         except Exception as e:
             backend["status"] = "error"
             backend["health"] = "unhealthy"
-            backend["errors"].append({
-                "timestamp": datetime.now().isoformat(),
-                "error": str(e)
-            })
-            
+            backend["errors"].append({"timestamp": datetime.now().isoformat(), "error": str(e)})
+
         backend["last_check"] = datetime.now().isoformat()
         return backend
-    
+
     async def _check_storacha_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
         """Check Storacha/Web3.Storage health."""
-        
+
         try:
             import aiohttp
-            
+
             healthy_endpoints = []
             unhealthy_endpoints = []
-            
+
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
                 for endpoint in backend["api_endpoints"]:
                     try:
                         async with session.get(endpoint) as response:
                             if response.status in [200, 404]:  # 404 is expected for some endpoints
-                                healthy_endpoints.append({
-                                    "url": endpoint,
-                                    "status": response.status,
-                                    "response_time_ms": 0  # Could measure actual time
-                                })
+                                healthy_endpoints.append(
+                                    {
+                                        "url": endpoint,
+                                        "status": response.status,
+                                        "response_time_ms": 0,  # Could measure actual time
+                                    }
+                                )
                             else:
-                                unhealthy_endpoints.append({
-                                    "url": endpoint,
-                                    "status": response.status,
-                                    "error": f"HTTP {response.status}"
-                                })
+                                unhealthy_endpoints.append(
+                                    {
+                                        "url": endpoint,
+                                        "status": response.status,
+                                        "error": f"HTTP {response.status}",
+                                    }
+                                )
                     except Exception as e:
-                        unhealthy_endpoints.append({
-                            "url": endpoint,
-                            "error": str(e)
-                        })
-            
+                        unhealthy_endpoints.append({"url": endpoint, "error": str(e)})
+
             if healthy_endpoints:
                 backend["status"] = "running"
                 backend["health"] = "healthy"
                 backend["metrics"] = {
                     "healthy_endpoints": len(healthy_endpoints),
                     "unhealthy_endpoints": len(unhealthy_endpoints),
-                    "endpoints": healthy_endpoints
+                    "endpoints": healthy_endpoints,
                 }
             else:
                 backend["status"] = "unavailable"
@@ -493,47 +492,45 @@ class BackendHealthMonitor:
                 backend["metrics"] = {
                     "healthy_endpoints": 0,
                     "unhealthy_endpoints": len(unhealthy_endpoints),
-                    "errors": unhealthy_endpoints
+                    "errors": unhealthy_endpoints,
                 }
-                
+
         except Exception as e:
             backend["status"] = "error"
             backend["health"] = "unhealthy"
-            backend["errors"].append({
-                "timestamp": datetime.now().isoformat(),
-                "error": str(e)
-            })
-            
+            backend["errors"].append({"timestamp": datetime.now().isoformat(), "error": str(e)})
+
         backend["last_check"] = datetime.now().isoformat()
         return backend
-    
+
     async def _check_synapse_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
         """Check Synapse SDK health."""
-        
+
         try:
             # Check if Node.js is available
             node_result = subprocess.run(
-                ["node", "--version"],
-                capture_output=True, text=True, timeout=5
+                ["node", "--version"], capture_output=True, text=True, timeout=5
             )
-            
+
             if node_result.returncode == 0:
                 backend["metrics"] = {
                     "node_version": node_result.stdout.strip(),
-                    "node_available": True
+                    "node_available": True,
                 }
-                
+
                 # Check if npm package is installed
                 npm_result = subprocess.run(
                     ["npm", "list", backend["npm_package"]],
-                    capture_output=True, text=True, timeout=10
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
                 )
-                
+
                 if npm_result.returncode == 0:
                     backend["status"] = "installed"
                     backend["health"] = "healthy"
                     backend["metrics"]["npm_package_installed"] = True
-                    
+
                     # Check if JS wrapper exists
                     js_wrapper_path = project_root / "ipfs_kit_py" / "js" / "synapse_wrapper.js"
                     if js_wrapper_path.exists():
@@ -541,85 +538,81 @@ class BackendHealthMonitor:
                         backend["js_wrapper"] = str(js_wrapper_path)
                     else:
                         backend["metrics"]["js_wrapper_exists"] = False
-                        
+
                 else:
                     backend["status"] = "not_installed"
                     backend["health"] = "unhealthy"
                     backend["metrics"]["npm_package_installed"] = False
-                    
+
             else:
                 backend["status"] = "node_missing"
                 backend["health"] = "unhealthy"
                 backend["metrics"] = {"node_available": False}
-                
+
         except Exception as e:
             backend["status"] = "error"
             backend["health"] = "unhealthy"
-            backend["errors"].append({
-                "timestamp": datetime.now().isoformat(),
-                "error": str(e)
-            })
-            
+            backend["errors"].append({"timestamp": datetime.now().isoformat(), "error": str(e)})
+
         backend["last_check"] = datetime.now().isoformat()
         return backend
-    
+
     async def _check_s3_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
         """Check S3 compatible storage health."""
-        
+
         try:
             # Check if boto3 is available
             try:
                 import boto3
+
                 backend["metrics"] = {"boto3_available": True}
-                
+
                 # Check for AWS credentials
                 aws_access_key = os.environ.get("AWS_ACCESS_KEY_ID")
                 aws_secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
-                
+
                 if aws_access_key and aws_secret_key:
                     backend["status"] = "configured"
                     backend["health"] = "healthy"
                     backend["credentials"] = "configured"
                     backend["metrics"]["credentials_available"] = True
-                    
+
                     # Try to create a client (doesn't make actual request)
                     try:
-                        s3_client = boto3.client('s3')
+                        s3_client = boto3.client("s3")
                         backend["metrics"]["client_creation"] = "success"
                     except Exception as e:
                         backend["metrics"]["client_creation"] = f"error: {str(e)}"
-                        
+
                 else:
                     backend["status"] = "unconfigured"
                     backend["health"] = "unhealthy"
                     backend["credentials"] = "missing"
                     backend["metrics"]["credentials_available"] = False
-                    
+
             except ImportError:
                 backend["status"] = "not_installed"
                 backend["health"] = "unhealthy"
                 backend["metrics"] = {"boto3_available": False}
-                
+
         except Exception as e:
             backend["status"] = "error"
             backend["health"] = "unhealthy"
-            backend["errors"].append({
-                "timestamp": datetime.now().isoformat(),
-                "error": str(e)
-            })
-            
+            backend["errors"].append({"timestamp": datetime.now().isoformat(), "error": str(e)})
+
         backend["last_check"] = datetime.now().isoformat()
         return backend
-    
+
     async def _check_huggingface_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
         """Check HuggingFace Hub health."""
-        
+
         try:
             # Check if huggingface_hub is available
             try:
                 import huggingface_hub
+
                 backend["metrics"] = {"huggingface_hub_available": True}
-                
+
                 # Check authentication
                 try:
                     token = huggingface_hub.HfFolder.get_token()
@@ -628,82 +621,75 @@ class BackendHealthMonitor:
                         backend["health"] = "healthy"
                         backend["auth_token"] = "configured"
                         backend["metrics"]["authenticated"] = True
-                        
+
                         # Try to get user info
                         try:
                             user_info = huggingface_hub.whoami()
                             backend["metrics"]["username"] = user_info.get("name", "unknown")
                         except:
                             backend["metrics"]["username"] = "unknown"
-                            
+
                     else:
                         backend["status"] = "unauthenticated"
                         backend["health"] = "partial"
                         backend["auth_token"] = "missing"
                         backend["metrics"]["authenticated"] = False
-                        
+
                 except Exception as e:
                     backend["status"] = "error"
                     backend["health"] = "unhealthy"
-                    backend["errors"].append({
-                        "timestamp": datetime.now().isoformat(),
-                        "error": f"Authentication check failed: {str(e)}"
-                    })
-                    
+                    backend["errors"].append(
+                        {
+                            "timestamp": datetime.now().isoformat(),
+                            "error": f"Authentication check failed: {str(e)}",
+                        }
+                    )
+
             except ImportError:
                 backend["status"] = "not_installed"
                 backend["health"] = "unhealthy"
                 backend["metrics"] = {"huggingface_hub_available": False}
-                
+
         except Exception as e:
             backend["status"] = "error"
             backend["health"] = "unhealthy"
-            backend["errors"].append({
-                "timestamp": datetime.now().isoformat(),
-                "error": str(e)
-            })
-            
+            backend["errors"].append({"timestamp": datetime.now().isoformat(), "error": str(e)})
+
         backend["last_check"] = datetime.now().isoformat()
         return backend
-    
+
     async def _check_parquet_health(self, backend: Dict[str, Any]) -> Dict[str, Any]:
         """Check Parquet/Arrow libraries health."""
-        
+
         try:
             available_libs = {}
-            
+
             # Check PyArrow
             try:
                 import pyarrow
-                available_libs["pyarrow"] = {
-                    "available": True,
-                    "version": pyarrow.__version__
-                }
+
+                available_libs["pyarrow"] = {"available": True, "version": pyarrow.__version__}
             except ImportError:
                 available_libs["pyarrow"] = {"available": False}
-                
+
             # Check Pandas
             try:
                 import pandas
-                available_libs["pandas"] = {
-                    "available": True,
-                    "version": pandas.__version__
-                }
+
+                available_libs["pandas"] = {"available": True, "version": pandas.__version__}
             except ImportError:
                 available_libs["pandas"] = {"available": False}
-            
+
             # Check Polars (optional)
             try:
                 import polars
-                available_libs["polars"] = {
-                    "available": True,
-                    "version": polars.__version__
-                }
+
+                available_libs["polars"] = {"available": True, "version": polars.__version__}
             except ImportError:
                 available_libs["polars"] = {"available": False}
-                
+
             backend["metrics"] = {"libraries": available_libs}
-            
+
             # Determine overall status
             if available_libs["pyarrow"]["available"]:
                 backend["status"] = "available"
@@ -711,32 +697,25 @@ class BackendHealthMonitor:
             else:
                 backend["status"] = "missing"
                 backend["health"] = "unhealthy"
-                
+
         except Exception as e:
             backend["status"] = "error"
             backend["health"] = "unhealthy"
-            backend["errors"].append({
-                "timestamp": datetime.now().isoformat(),
-                "error": str(e)
-            })
-            
+            backend["errors"].append({"timestamp": datetime.now().isoformat(), "error": str(e)})
+
         backend["last_check"] = datetime.now().isoformat()
         return backend
-    
+
     async def check_all_backends(self) -> Dict[str, Any]:
         """Check health of all backends."""
-        
+
         results = {}
 
         async def run_check(backend_name: str) -> None:
             try:
                 results[backend_name] = await self.check_backend_health(backend_name)
             except Exception as e:
-                results[backend_name] = {
-                    "status": "error",
-                    "health": "unhealthy",
-                    "error": str(e)
-                }
+                results[backend_name] = {"status": "error", "health": "unhealthy", "error": str(e)}
 
         # Check backends in parallel
         async with anyio.create_task_group() as task_group:
@@ -744,7 +723,7 @@ class BackendHealthMonitor:
                 task_group.start_soon(run_check, backend_name)
 
         return results
-    
+
     async def get_backend_logs(self, backend_name: str) -> str:
         """Get logs for a specific backend."""
         try:
@@ -753,65 +732,66 @@ class BackendHealthMonitor:
                 lotus_log_paths = [
                     "/home/barberb/.lotus/daemon_stderr.log",
                     "/home/barberb/.lotus/daemon_stdout.log",
-                    "/tmp/lotus.log"
+                    "/tmp/lotus.log",
                 ]
-                
+
                 logs = []
                 for log_path in lotus_log_paths:
                     if Path(log_path).exists():
                         result = subprocess.run(
                             ["tail", "-n", "100", log_path],
-                            capture_output=True, text=True, timeout=10
+                            capture_output=True,
+                            text=True,
+                            timeout=10,
                         )
                         if result.stdout:
                             logs.append(f"=== {log_path} ===\n{result.stdout}")
-                
+
                 return "\n\n".join(logs) if logs else "No logs found for Lotus"
-                
+
             elif backend_name == "ipfs":
                 # Get IPFS logs
                 try:
                     result = subprocess.run(
-                        ["ipfs", "log", "tail"],
-                        capture_output=True, text=True, timeout=10
+                        ["ipfs", "log", "tail"], capture_output=True, text=True, timeout=10
                     )
                     return result.stdout if result.stdout else "No IPFS logs available"
                 except:
                     return "IPFS not available or no logs"
-                    
+
             else:
                 # Generic log search
                 return f"Log viewing not yet implemented for {backend_name}"
-                
+
         except Exception as e:
             return f"Error retrieving logs: {str(e)}"
-    
+
     async def get_backend_config(self, backend_name: str) -> Dict[str, Any]:
         """Get current configuration for a backend."""
         try:
             if backend_name == "lotus":
                 config_path = Path("/home/barberb/.lotus/config.toml")
                 if config_path.exists():
-                    with open(config_path, 'r') as f:
+                    with open(config_path, "r") as f:
                         config_content = f.read()
                     return {"config_file": str(config_path), "content": config_content}
                 else:
                     return {"error": "Lotus config file not found"}
-                    
+
             elif backend_name == "ipfs":
                 try:
                     result = subprocess.run(
-                        ["ipfs", "config", "show"],
-                        capture_output=True, text=True, timeout=10
+                        ["ipfs", "config", "show"], capture_output=True, text=True, timeout=10
                     )
                     if result.returncode == 0:
                         import json
+
                         return {"config": json.loads(result.stdout)}
                     else:
                         return {"error": "Could not retrieve IPFS config"}
                 except:
                     return {"error": "IPFS not available"}
-                    
+
             elif backend_name == "huggingface":
                 # Get HuggingFace token status
                 try:
@@ -822,66 +802,70 @@ class BackendHealthMonitor:
                         "cache_dir": cache_dir,
                         "environment_vars": {
                             "HUGGINGFACE_HUB_TOKEN": "***" if token else None,
-                            "HUGGINGFACE_HUB_CACHE": cache_dir
-                        }
+                            "HUGGINGFACE_HUB_CACHE": cache_dir,
+                        },
                     }
                 except:
                     return {"error": "Could not retrieve HuggingFace config"}
-                    
+
             elif backend_name == "s3":
                 # Get S3 configuration
                 return {
                     "aws_access_key_id": "***" if os.environ.get("AWS_ACCESS_KEY_ID") else None,
-                    "aws_secret_access_key": "***" if os.environ.get("AWS_SECRET_ACCESS_KEY") else None,
+                    "aws_secret_access_key": "***"
+                    if os.environ.get("AWS_SECRET_ACCESS_KEY")
+                    else None,
                     "aws_region": os.environ.get("AWS_DEFAULT_REGION", "us-east-1"),
-                    "aws_endpoint_url": os.environ.get("AWS_ENDPOINT_URL")
+                    "aws_endpoint_url": os.environ.get("AWS_ENDPOINT_URL"),
                 }
-                
+
             else:
                 return {"message": f"Configuration access not implemented for {backend_name}"}
-                
+
         except Exception as e:
             return {"error": str(e)}
-    
-    async def update_backend_config(self, backend_name: str, config_data: Dict[str, Any]) -> Dict[str, Any]:
+
+    async def update_backend_config(
+        self, backend_name: str, config_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Update configuration for a backend."""
         try:
             if backend_name == "lotus":
                 # Update Lotus configuration
                 return await self._update_lotus_config(config_data)
-                
+
             elif backend_name == "ipfs":
                 # Update IPFS configuration
                 return await self._update_ipfs_config(config_data)
-                
+
             elif backend_name == "huggingface":
                 # Update HuggingFace configuration
                 return await self._update_huggingface_config(config_data)
-                
+
             elif backend_name == "s3":
                 # Update S3 configuration
                 return await self._update_s3_config(config_data)
-                
+
             else:
                 return {"error": f"Configuration update not implemented for {backend_name}"}
-                
+
         except Exception as e:
             return {"error": str(e)}
-    
+
     async def _update_lotus_config(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
         """Update Lotus configuration."""
         try:
             config_path = Path("/home/barberb/.lotus/config.toml")
-            
+
             # Read existing config
             config_content = ""
             if config_path.exists():
-                with open(config_path, 'r') as f:
+                with open(config_path, "r") as f:
                     config_content = f.read()
-            
+
             # Update specific settings
             updates = []
-            
+
             if "enable_splitstore" in config_data:
                 enable_splitstore = config_data["enable_splitstore"] == "true"
                 # Add or update EnableSplitstore setting
@@ -889,52 +873,53 @@ class BackendHealthMonitor:
                     if "[Chainstore]" in config_content:
                         config_content = config_content.replace(
                             "[Chainstore]",
-                            f"[Chainstore]\n  EnableSplitstore = {str(enable_splitstore).lower()}"
+                            f"[Chainstore]\n  EnableSplitstore = {str(enable_splitstore).lower()}",
                         )
                     else:
                         config_content += f"\n[Chainstore]\n  EnableSplitstore = {str(enable_splitstore).lower()}\n"
                 else:
                     # Update existing setting
                     import re
+
                     config_content = re.sub(
-                        r'EnableSplitstore\s*=\s*\w+',
-                        f'EnableSplitstore = {str(enable_splitstore).lower()}',
-                        config_content
+                        r"EnableSplitstore\s*=\s*\w+",
+                        f"EnableSplitstore = {str(enable_splitstore).lower()}",
+                        config_content,
                     )
                 updates.append(f"EnableSplitstore = {enable_splitstore}")
-            
+
             if "api_port" in config_data:
                 port = config_data["api_port"]
                 # This would require more complex TOML parsing for proper updates
                 updates.append(f"API port update requested: {port}")
-            
+
             # Write updated config
             if updates:
-                with open(config_path, 'w') as f:
+                with open(config_path, "w") as f:
                     f.write(config_content)
-                
+
                 return {"success": True, "updates": updates, "config_path": str(config_path)}
             else:
                 return {"success": True, "message": "No updates needed"}
-                
+
         except Exception as e:
             return {"error": f"Failed to update Lotus config: {str(e)}"}
-    
+
     async def _update_ipfs_config(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
         """Update IPFS configuration."""
         try:
             updates = []
-            
+
             for key, value in config_data.items():
                 if key in ["api_host", "api_port", "gateway_port", "storage_max"]:
                     # Use ipfs config command
                     config_key = {
                         "api_host": "Addresses.API",
-                        "api_port": "Addresses.API", 
+                        "api_port": "Addresses.API",
                         "gateway_port": "Addresses.Gateway",
-                        "storage_max": "Datastore.StorageMax"
+                        "storage_max": "Datastore.StorageMax",
                     }.get(key, key)
-                    
+
                     if key in ["api_host", "api_port"]:
                         # Construct full API address
                         host = config_data.get("api_host", "127.0.0.1")
@@ -943,67 +928,69 @@ class BackendHealthMonitor:
                         config_key = "Addresses.API"
                     elif key == "gateway_port":
                         value = f"/ip4/127.0.0.1/tcp/{value}"
-                        
+
                     result = subprocess.run(
                         ["ipfs", "config", config_key, str(value)],
-                        capture_output=True, text=True, timeout=10
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
                     )
-                    
+
                     if result.returncode == 0:
                         updates.append(f"{config_key} = {value}")
                     else:
                         updates.append(f"Failed to update {config_key}: {result.stderr}")
-            
+
             return {"success": True, "updates": updates}
-            
+
         except Exception as e:
             return {"error": f"Failed to update IPFS config: {str(e)}"}
-    
+
     async def _update_huggingface_config(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
         """Update HuggingFace configuration."""
         try:
             updates = []
-            
+
             if "token" in config_data and config_data["token"]:
                 # Set HuggingFace token
                 os.environ["HUGGINGFACE_HUB_TOKEN"] = config_data["token"]
                 updates.append("HuggingFace token updated")
-                
+
             if "cache_dir" in config_data:
                 os.environ["HUGGINGFACE_HUB_CACHE"] = config_data["cache_dir"]
                 updates.append(f"Cache directory set to {config_data['cache_dir']}")
-            
+
             return {"success": True, "updates": updates}
-            
+
         except Exception as e:
             return {"error": f"Failed to update HuggingFace config: {str(e)}"}
-    
+
     async def _update_s3_config(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
         """Update S3 configuration."""
         try:
             updates = []
-            
+
             if "access_key_id" in config_data and config_data["access_key_id"]:
                 os.environ["AWS_ACCESS_KEY_ID"] = config_data["access_key_id"]
                 updates.append("AWS Access Key ID updated")
-                
+
             if "secret_access_key" in config_data and config_data["secret_access_key"]:
                 os.environ["AWS_SECRET_ACCESS_KEY"] = config_data["secret_access_key"]
                 updates.append("AWS Secret Access Key updated")
-                
+
             if "region" in config_data:
                 os.environ["AWS_DEFAULT_REGION"] = config_data["region"]
                 updates.append(f"AWS region set to {config_data['region']}")
-                
+
             if "endpoint_url" in config_data and config_data["endpoint_url"]:
                 os.environ["AWS_ENDPOINT_URL"] = config_data["endpoint_url"]
                 updates.append(f"AWS endpoint URL set to {config_data['endpoint_url']}")
-            
+
             return {"success": True, "updates": updates}
-            
+
         except Exception as e:
             return {"error": f"Failed to update S3 config: {str(e)}"}
-    
+
     async def restart_backend(self, backend_name: str) -> Dict[str, Any]:
         """Restart a specific backend daemon."""
         try:
@@ -1015,133 +1002,137 @@ class BackendHealthMonitor:
                     await anyio.sleep(2)
                     # Note: Starting lotus would require proper daemon management
                     return {"message": "Lotus processes stopped (manual restart required)"}
-                    
+
                 except Exception as e:
                     return {"error": f"Lotus restart failed: {str(e)}"}
-                    
+
             elif backend_name == "ipfs":
                 # Restart IPFS daemon
                 try:
                     # Stop IPFS
                     subprocess.run(["ipfs", "shutdown"], timeout=10)
                     await anyio.sleep(2)
-                    
+
                     # Start IPFS daemon in background
-                    subprocess.Popen(["ipfs", "daemon"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    
+                    subprocess.Popen(
+                        ["ipfs", "daemon"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    )
+
                     return {"message": "IPFS daemon restart initiated"}
-                    
+
                 except Exception as e:
                     return {"error": f"IPFS restart failed: {str(e)}"}
-                    
+
             else:
                 return {"error": f"Restart not implemented for {backend_name}"}
-                
+
         except Exception as e:
             return {"error": f"Restart failed: {str(e)}"}
-    
+
     def start_monitoring(self):
         """Start background monitoring thread."""
-        
+
         if not self.monitoring_active:
             self.monitoring_active = True
             self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
             self._monitor_thread.start()
             logger.info("🔍 Started backend monitoring")
-    
+
     def stop_monitoring(self):
         """Stop background monitoring."""
-        
+
         self.monitoring_active = False
         if self._monitor_thread:
             self._monitor_thread.join(timeout=5)
         logger.info("⏹️  Stopped backend monitoring")
-    
+
     def _monitor_loop(self):
         """Background monitoring loop."""
-        
+
         while self.monitoring_active:
             try:
                 # Run async health checks in sync context
                 results = anyio.run(self.check_all_backends)
-                
+
                 # Store metrics history
                 timestamp = datetime.now().isoformat()
                 for backend_name, result in results.items():
-                    self.metrics_history[backend_name].append({
-                        "timestamp": timestamp,
-                        "status": result.get("status", "unknown"),
-                        "health": result.get("health", "unknown"),
-                        "metrics": result.get("metrics", {})
-                    })
-                
-                
-                
+                    self.metrics_history[backend_name].append(
+                        {
+                            "timestamp": timestamp,
+                            "status": result.get("status", "unknown"),
+                            "health": result.get("health", "unknown"),
+                            "metrics": result.get("metrics", {}),
+                        }
+                    )
+
             except Exception as e:
                 logger.error(f"Error in monitoring loop: {e}")
-                
+
             # Wait before next check
             time.sleep(30)  # Check every 30 seconds
-    
+
     async def get_package_config(self) -> Dict[str, Any]:
         """Get package-level configuration."""
         try:
             config_path = Path("/home/barberb/.ipfs_kit/config.json")
-            
+
             if config_path.exists():
-                with open(config_path, 'r') as f:
+                with open(config_path, "r") as f:
                     config = json.load(f)
             else:
                 config = {}
-            
+
             # Add current environment variables and system settings
-            config.update({
-                "system": {
-                    "log_level": os.environ.get("LOG_LEVEL", "INFO"),
-                    "max_workers": os.environ.get("MAX_WORKERS", "4"),
-                    "cache_size": os.environ.get("CACHE_SIZE", "1000"),
-                    "data_directory": os.environ.get("DATA_DIR", "/tmp/ipfs_kit"),
-                },
-                "vfs": {
-                    "cache_enabled": os.environ.get("VFS_CACHE_ENABLED", "true"),
-                    "cache_max_size": os.environ.get("VFS_CACHE_MAX_SIZE", "10GB"),
-                    "vector_dimensions": os.environ.get("VECTOR_DIMENSIONS", "384"),
-                    "knowledge_base_max_nodes": os.environ.get("KB_MAX_NODES", "10000"),
-                },
-                "observability": {
-                    "metrics_enabled": os.environ.get("METRICS_ENABLED", "true"),
-                    "prometheus_port": os.environ.get("PROMETHEUS_PORT", "9090"),
-                    "dashboard_enabled": os.environ.get("DASHBOARD_ENABLED", "true"),
-                    "health_check_interval": os.environ.get("HEALTH_CHECK_INTERVAL", "30"),
+            config.update(
+                {
+                    "system": {
+                        "log_level": os.environ.get("LOG_LEVEL", "INFO"),
+                        "max_workers": os.environ.get("MAX_WORKERS", "4"),
+                        "cache_size": os.environ.get("CACHE_SIZE", "1000"),
+                        "data_directory": os.environ.get("DATA_DIR", "/tmp/ipfs_kit"),
+                    },
+                    "vfs": {
+                        "cache_enabled": os.environ.get("VFS_CACHE_ENABLED", "true"),
+                        "cache_max_size": os.environ.get("VFS_CACHE_MAX_SIZE", "10GB"),
+                        "vector_dimensions": os.environ.get("VECTOR_DIMENSIONS", "384"),
+                        "knowledge_base_max_nodes": os.environ.get("KB_MAX_NODES", "10000"),
+                    },
+                    "observability": {
+                        "metrics_enabled": os.environ.get("METRICS_ENABLED", "true"),
+                        "prometheus_port": os.environ.get("PROMETHEUS_PORT", "9090"),
+                        "dashboard_enabled": os.environ.get("DASHBOARD_ENABLED", "true"),
+                        "health_check_interval": os.environ.get("HEALTH_CHECK_INTERVAL", "30"),
+                    },
                 }
-            })
-            
+            )
+
             return config
-            
+
         except Exception as e:
             logger.error(f"Error getting package config: {e}")
             return {}
-    
+
     async def save_package_config(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
         """Save package-level configuration."""
         try:
             config_path = Path("/home/barberb/.ipfs_kit/config.json")
             config_path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             # Load existing config
             if config_path.exists():
-                with open(config_path, 'r') as f:
+                with open(config_path, "r") as f:
                     existing_config = json.load(f)
             else:
                 existing_config = {}
-            
+
             # Update with new config
             existing_config.update(config_data)
-            
+
             # Save to file
-            with open(config_path, 'w') as f:
+            with open(config_path, "w") as f:
                 json.dump(existing_config, f, indent=2)
-            
+
             # Update environment variables
             updates = []
             if "system" in config_data:
@@ -1158,7 +1149,7 @@ class BackendHealthMonitor:
                 if "data_directory" in system_config:
                     os.environ["DATA_DIR"] = system_config["data_directory"]
                     updates.append(f"Data directory set to {system_config['data_directory']}")
-            
+
             if "vfs" in config_data:
                 vfs_config = config_data["vfs"]
                 if "cache_enabled" in vfs_config:
@@ -1173,7 +1164,7 @@ class BackendHealthMonitor:
                 if "knowledge_base_max_nodes" in vfs_config:
                     os.environ["KB_MAX_NODES"] = vfs_config["knowledge_base_max_nodes"]
                     updates.append(f"KB max nodes: {vfs_config['knowledge_base_max_nodes']}")
-            
+
             if "observability" in config_data:
                 obs_config = config_data["observability"]
                 if "metrics_enabled" in obs_config:
@@ -1188,9 +1179,9 @@ class BackendHealthMonitor:
                 if "health_check_interval" in obs_config:
                     os.environ["HEALTH_CHECK_INTERVAL"] = obs_config["health_check_interval"]
                     updates.append(f"Health check interval: {obs_config['health_check_interval']}")
-            
+
             return {"success": True, "updates": updates, "config_path": str(config_path)}
-            
+
         except Exception as e:
             logger.error(f"Error saving package config: {e}")
             return {"error": f"Failed to save package config: {str(e)}"}
@@ -1198,18 +1189,18 @@ class BackendHealthMonitor:
 
 class EnhancedBackendManager:
     """Enhanced backend manager using metadata-first approach with ~/.ipfs_kit/ persistence."""
-    
+
     def __init__(self):
         self.ipfs_kit_dir = Path.home() / ".ipfs_kit"
         self.backends_file = self.ipfs_kit_dir / "backends.json"
         self.policies_file = self.ipfs_kit_dir / "backend_policies.json"
-        
+
         # Ensure directory exists
         self.ipfs_kit_dir.mkdir(exist_ok=True)
-        
+
         # Initialize default backends if none exist
         self._ensure_default_backends()
-        
+
     def _ensure_default_backends(self):
         """Create default backends for testing purposes."""
         if not self.backends_file.exists():
@@ -1226,15 +1217,15 @@ class EnhancedBackendManager:
                     "config": {
                         "root_path": "/tmp/ipfs_kit_storage",
                         "max_size_gb": 100,
-                        "compression": True
+                        "compression": True,
                     },
                     "policies": {
                         "cache_policy": "write-through",
                         "cache_size_mb": 1024,
                         "retention_days": 30,
                         "replication_factor": 1,
-                        "quota_gb": 100
-                    }
+                        "quota_gb": 100,
+                    },
                 },
                 "ipfs_local": {
                     "name": "ipfs_local",
@@ -1248,15 +1239,15 @@ class EnhancedBackendManager:
                     "config": {
                         "api_url": "http://127.0.0.1:5001",
                         "gateway_url": "http://127.0.0.1:8080",
-                        "timeout": 30
+                        "timeout": 30,
                     },
                     "policies": {
                         "cache_policy": "pin-local",
                         "cache_size_mb": 2048,
                         "retention_days": 90,
                         "replication_factor": 3,
-                        "quota_gb": 50
-                    }
+                        "quota_gb": 50,
+                    },
                 },
                 "s3_demo": {
                     "name": "s3_demo",
@@ -1272,15 +1263,15 @@ class EnhancedBackendManager:
                         "bucket": "ipfs-kit-demo",
                         "region": "us-east-1",
                         "access_key": "",
-                        "secret_key": ""
+                        "secret_key": "",
                     },
                     "policies": {
                         "cache_policy": "write-back",
                         "cache_size_mb": 512,
                         "retention_days": 365,
                         "replication_factor": 2,
-                        "quota_gb": 1000
-                    }
+                        "quota_gb": 1000,
+                    },
                 },
                 "github": {
                     "name": "github",
@@ -1291,19 +1282,14 @@ class EnhancedBackendManager:
                     "category": "Storage",
                     "last_check": datetime.now().isoformat(),
                     "created_at": datetime.now().isoformat(),
-                    "config": {
-                        "owner": "",
-                        "repo": "",
-                        "token": "",
-                        "branch": "main"
-                    },
+                    "config": {"owner": "", "repo": "", "token": "", "branch": "main"},
                     "policies": {
                         "cache_policy": "read-only",
                         "cache_size_mb": 256,
                         "retention_days": 7,
                         "replication_factor": 1,
-                        "quota_gb": 1
-                    }
+                        "quota_gb": 1,
+                    },
                 },
                 "parquet_meta": {
                     "name": "parquet_meta",
@@ -1317,15 +1303,15 @@ class EnhancedBackendManager:
                     "config": {
                         "storage_path": "/tmp/ipfs_kit_parquet",
                         "compression": "snappy",
-                        "row_group_size": 100000
+                        "row_group_size": 100000,
                     },
                     "policies": {
                         "cache_policy": "read-through",
                         "cache_size_mb": 2048,
                         "retention_days": 180,
                         "replication_factor": 1,
-                        "quota_gb": 10
-                    }
+                        "quota_gb": 10,
+                    },
                 },
                 "cluster": {
                     "name": "cluster",
@@ -1339,43 +1325,43 @@ class EnhancedBackendManager:
                     "config": {
                         "api_url": "http://127.0.0.1:9094",
                         "cluster_secret": "",
-                        "consensus": "crdt"
+                        "consensus": "crdt",
                     },
                     "policies": {
                         "cache_policy": "distributed",
                         "cache_size_mb": 4096,
                         "retention_days": 365,
                         "replication_factor": 3,
-                        "quota_gb": 500
-                    }
-                }
+                        "quota_gb": 500,
+                    },
+                },
             }
-            
+
             self._save_backends(default_backends)
             logger.info(f"Created {len(default_backends)} default backends")
-    
+
     def _save_backends(self, backends: Dict[str, Any]):
         """Save backends to JSON file."""
         try:
-            with open(self.backends_file, 'w') as f:
+            with open(self.backends_file, "w") as f:
                 json.dump(backends, f, indent=2)
         except Exception as e:
             logger.error(f"Failed to save backends: {e}")
-    
+
     def _load_backends(self) -> Dict[str, Any]:
         """Load backends from JSON file."""
         try:
             if self.backends_file.exists():
-                with open(self.backends_file, 'r') as f:
+                with open(self.backends_file, "r") as f:
                     return json.load(f)
         except Exception as e:
             logger.error(f"Failed to load backends: {e}")
         return {}
-    
+
     async def list_backends(self, include_metadata: bool = True) -> Dict[str, Any]:
         """List all backends with metadata."""
         backends = self._load_backends()
-        
+
         # Convert to list format expected by dashboard
         backend_list = []
         for name, backend in backends.items():
@@ -1387,27 +1373,26 @@ class EnhancedBackendManager:
                 "health": backend.get("health", "unknown"),
                 "category": backend.get("category", "Storage"),
                 "last_check": backend.get("last_check", datetime.now().isoformat()),
-                "created_at": backend.get("created_at", datetime.now().isoformat())
+                "created_at": backend.get("created_at", datetime.now().isoformat()),
             }
-            
+
             if include_metadata:
                 backend_info["config"] = backend.get("config", {})
                 backend_info["policies"] = backend.get("policies", {})
-                
+
             backend_list.append(backend_info)
-        
-        return {
-            "items": backend_list,
-            "total": len(backend_list)
-        }
-    
-    async def create_backend_instance(self, name: str, backend_type: str, config: Dict[str, Any]) -> Dict[str, Any]:
+
+        return {"items": backend_list, "total": len(backend_list)}
+
+    async def create_backend_instance(
+        self, name: str, backend_type: str, config: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Create a new backend instance."""
         backends = self._load_backends()
-        
+
         if name in backends:
             return {"error": f"Backend '{name}' already exists"}
-        
+
         # Create new backend
         new_backend = {
             "name": name,
@@ -1419,30 +1404,30 @@ class EnhancedBackendManager:
             "last_check": datetime.now().isoformat(),
             "created_at": datetime.now().isoformat(),
             "config": config,
-            "policies": self._get_default_policies(backend_type)
+            "policies": self._get_default_policies(backend_type),
         }
-        
+
         backends[name] = new_backend
         self._save_backends(backends)
-        
+
         logger.info(f"Created backend instance: {name} ({backend_type})")
         return {"ok": True, "backend": new_backend}
-    
+
     async def update_backend(self, name: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """Update backend configuration."""
         backends = self._load_backends()
-        
+
         if name not in backends:
             return {"error": f"Backend '{name}' not found"}
-        
+
         backends[name]["config"].update(config)
         backends[name]["last_check"] = datetime.now().isoformat()
-        
+
         self._save_backends(backends)
-        
+
         logger.info(f"Updated backend configuration: {name}")
         return {"ok": True}
-    
+
     async def update_backend_policy(self, name: str, policy: Dict[str, Any]) -> Dict[str, Any]:
         """Update backend policy."""
         try:
@@ -1453,32 +1438,38 @@ class EnhancedBackendManager:
                 except json.JSONDecodeError as e:
                     logger.error(f"Invalid policy JSON string for {name}: {e}")
                     return {"ok": False, "error": f"Invalid policy JSON: {str(e)}", "backend": name}
-            
+
             if not isinstance(policy, dict):
                 logger.error(f"Policy must be a dictionary for {name}, got {type(policy)}")
-                return {"ok": False, "error": f"Policy must be a dictionary, got {type(policy).__name__}", "backend": name}
-            
+                return {
+                    "ok": False,
+                    "error": f"Policy must be a dictionary, got {type(policy).__name__}",
+                    "backend": name,
+                }
+
             backends = self._load_backends()
-            
+
             if name not in backends:
                 return {"ok": False, "error": f"Backend '{name}' not found", "backend": name}
-            
+
             if "policies" not in backends[name]:
                 backends[name]["policies"] = {}
-                
+
             backends[name]["policies"].update(policy)
             backends[name]["last_check"] = datetime.now().isoformat()
-            
+
             self._save_backends(backends)
-            
+
             logger.info(f"Updated backend policy: {name}")
             return {"ok": True, "backend": name}
-            
+
         except Exception as e:
             logger.error(f"Error updating policy for {name}: {e}")
             return {"ok": False, "error": str(e), "backend": name}
-    
-    async def test_backend_config(self, name: str, config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+
+    async def test_backend_config(
+        self, name: str, config: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Test backend configuration connectivity."""
         try:
             # Handle string input (parse JSON if needed)
@@ -1492,25 +1483,25 @@ class EnhancedBackendManager:
                         "valid": False,
                         "errors": [f"Invalid config JSON: {str(e)}"],
                         "backend": name,
-                        "message": "Configuration test failed - invalid JSON"
+                        "message": "Configuration test failed - invalid JSON",
                     }
-            
+
             backends = self._load_backends()
-            
+
             if name not in backends:
                 return {
                     "reachable": False,
                     "valid": False,
                     "errors": [f"Backend '{name}' not found"],
                     "backend": name,
-                    "message": "Configuration test failed - backend not found"
+                    "message": "Configuration test failed - backend not found",
                 }
-            
+
             backend = backends[name]
             test_config = config or backend.get("config", {})
             backend_type = backend.get("type", "unknown")
             errors = []
-            
+
             # Type-specific validation and connectivity test
             if backend_type == "local_storage":
                 root_path = test_config.get("root_path", "/tmp")
@@ -1522,19 +1513,19 @@ class EnhancedBackendManager:
                 except Exception as e:
                     reachable = False
                     errors.append(f"Storage path error: {str(e)}")
-                    
+
             elif backend_type == "ipfs":
                 api_url = test_config.get("api_url", "http://127.0.0.1:5001")
                 # For demo purposes, always return success
                 # In real implementation, would test IPFS API connectivity
                 reachable = True
-                
+
             elif backend_type == "s3":
                 access_key = test_config.get("access_key", "")
                 secret_key = test_config.get("secret_key", "")
                 bucket = test_config.get("bucket", "")
                 region = test_config.get("region", "")
-                
+
                 if not access_key:
                     errors.append("Missing S3 access key")
                 if not secret_key:
@@ -1543,39 +1534,39 @@ class EnhancedBackendManager:
                     errors.append("Missing S3 bucket configuration")
                 if not region:
                     errors.append("Missing S3 region configuration")
-                    
+
                 reachable = bool(access_key and secret_key and bucket and region)
-                
+
             elif backend_type == "github":
                 api_key = test_config.get("api_key", "")
                 token = test_config.get("token", "")
                 base_url = test_config.get("base_url", "")
-                
+
                 if not api_key and not token:
                     errors.append("Missing GitHub API key or token")
                 if not base_url:
                     errors.append("Missing GitHub API base URL")
-                    
+
                 reachable = bool((api_key or token) and base_url)
-                
+
             else:
                 # Default to healthy for other types
                 reachable = True
-            
+
             # Update backend health status
             backends[name]["health"] = "healthy" if reachable else "unhealthy"
             backends[name]["last_check"] = datetime.now().isoformat()
             self._save_backends(backends)
-            
+
             return {
                 "reachable": reachable,
                 "valid": reachable,
                 "errors": errors,
                 "backend": name,
                 "message": "Configuration test completed",
-                "status": "healthy" if reachable else "unhealthy"
+                "status": "healthy" if reachable else "unhealthy",
             }
-            
+
         except Exception as e:
             logger.error(f"Error testing backend {name}: {e}")
             return {
@@ -1583,10 +1574,12 @@ class EnhancedBackendManager:
                 "valid": False,
                 "errors": [str(e)],
                 "backend": name,
-                "message": "Configuration test failed with exception"
+                "message": "Configuration test failed with exception",
             }
-    
-    async def apply_backend_policy(self, name: str, policy: Dict[str, Any], force_sync: bool = False) -> Dict[str, Any]:
+
+    async def apply_backend_policy(
+        self, name: str, policy: Dict[str, Any], force_sync: bool = False
+    ) -> Dict[str, Any]:
         """Apply backend policy and sync with storage services."""
         try:
             # Handle string input (parse JSON if needed)
@@ -1596,53 +1589,57 @@ class EnhancedBackendManager:
                 except json.JSONDecodeError as e:
                     logger.error(f"Invalid policy JSON string for {name}: {e}")
                     return {"ok": False, "error": f"Invalid policy JSON: {str(e)}", "backend": name}
-            
+
             if not isinstance(policy, dict):
                 logger.error(f"Policy must be a dictionary for {name}, got {type(policy)}")
-                return {"ok": False, "error": f"Policy must be a dictionary, got {type(policy).__name__}", "backend": name}
-            
+                return {
+                    "ok": False,
+                    "error": f"Policy must be a dictionary, got {type(policy).__name__}",
+                    "backend": name,
+                }
+
             backends = self._load_backends()
-            
+
             if name not in backends:
                 return {"ok": False, "error": f"Backend '{name}' not found", "backend": name}
-            
+
             # Update policy first
             update_result = await self.update_backend_policy(name, policy)
             if not update_result.get("ok", False):
                 return {
-                    "ok": False, 
+                    "ok": False,
                     "error": update_result.get("error", "Failed to update policy"),
-                    "backend": name
+                    "backend": name,
                 }
-            
+
             # Get updated backend data
             backends = self._load_backends()
             backend = backends[name]
-            
+
             # If force_sync is requested, perform synchronization
             if force_sync:
                 logger.info(f"Force syncing backend {name} with new policy")
                 # In a real implementation, this would sync with the actual storage service
                 # For now, we simulate the policy application
-                
+
             # Update backend status
             backend["status"] = "enabled"
             backend["health"] = "healthy"
             backend["last_check"] = datetime.now().isoformat()
-            
+
             self._save_backends(backends)
-            
+
             return {
                 "ok": True,
                 "message": f"Policy applied successfully for {name}",
                 "synced": force_sync,
-                "backend": name
+                "backend": name,
             }
-            
+
         except Exception as e:
             logger.error(f"Error applying policy for backend {name}: {e}")
             return {"ok": False, "error": str(e), "backend": name}
-    
+
     def _get_backend_category(self, backend_type: str) -> str:
         """Get category for backend type."""
         categories = {
@@ -1651,10 +1648,10 @@ class EnhancedBackendManager:
             "s3": "Storage",
             "github": "Storage",
             "parquet": "Analytics",
-            "ipfs_cluster": "Network"
+            "ipfs_cluster": "Network",
         }
         return categories.get(backend_type, "Storage")
-    
+
     def _get_default_policies(self, backend_type: str) -> Dict[str, Any]:
         """Get default policies for backend type."""
         policies = {
@@ -1663,35 +1660,38 @@ class EnhancedBackendManager:
                 "cache_size_mb": 1024,
                 "retention_days": 30,
                 "replication_factor": 1,
-                "quota_gb": 100
+                "quota_gb": 100,
             },
             "ipfs": {
                 "cache_policy": "pin-local",
                 "cache_size_mb": 2048,
                 "retention_days": 90,
                 "replication_factor": 3,
-                "quota_gb": 50
+                "quota_gb": 50,
             },
             "s3": {
                 "cache_policy": "write-back",
                 "cache_size_mb": 512,
                 "retention_days": 365,
                 "replication_factor": 2,
-                "quota_gb": 1000
-            }
+                "quota_gb": 1000,
+            },
         }
-        return policies.get(backend_type, {
-            "cache_policy": "write-through",
-            "cache_size_mb": 512,
-            "retention_days": 30,
-            "replication_factor": 1,
-            "quota_gb": 10
-        })
+        return policies.get(
+            backend_type,
+            {
+                "cache_policy": "write-through",
+                "cache_size_mb": 512,
+                "retention_days": 30,
+                "replication_factor": 1,
+                "quota_gb": 10,
+            },
+        )
 
 
 class VFSObservabilityManager:
     """Comprehensive VFS and cache observability."""
-    
+
     def __init__(self):
         self.cache_stats = {
             "tiered_cache": {
@@ -1701,7 +1701,7 @@ class VFSObservabilityManager:
                 "total_operations": 0,
                 "hit_ratio": 0.0,
                 "promotion_count": 0,
-                "eviction_count": 0
+                "eviction_count": 0,
             },
             "semantic_cache": {
                 "exact_matches": 0,
@@ -1709,7 +1709,7 @@ class VFSObservabilityManager:
                 "cache_entries": 0,
                 "average_similarity": 0.0,
                 "query_types": {},
-                "embedding_dimension": 0
+                "embedding_dimension": 0,
             },
             "vector_index": {
                 "total_vectors": 0,
@@ -1718,7 +1718,7 @@ class VFSObservabilityManager:
                 "last_updated": None,
                 "search_operations": 0,
                 "average_search_time": 0.0,
-                "index_size_mb": 0.0
+                "index_size_mb": 0.0,
             },
             "knowledge_base": {
                 "documents_indexed": 0,
@@ -1726,18 +1726,18 @@ class VFSObservabilityManager:
                 "relationships_count": 0,
                 "graph_depth": 0,
                 "content_types": {},
-                "last_indexed": None
-            }
+                "last_indexed": None,
+            },
         }
-        
+
         self.access_patterns = {
             "most_accessed": [],
             "recent_operations": deque(maxlen=1000),
             "operation_types": defaultdict(int),
             "content_popularity": defaultdict(int),
-            "temporal_patterns": defaultdict(list)
+            "temporal_patterns": defaultdict(list),
         }
-        
+
     async def get_vfs_statistics(self) -> Dict[str, Any]:
         """Get comprehensive VFS statistics."""
         try:
@@ -1748,13 +1748,13 @@ class VFSObservabilityManager:
                 "filesystem_metrics": await self._get_filesystem_metrics(),
                 "access_patterns": await self._get_access_patterns(),
                 "resource_utilization": await self._get_resource_utilization(),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
             return stats
         except Exception as e:
             logger.error(f"Error getting VFS statistics: {e}")
             return {"error": str(e)}
-    
+
     async def _get_cache_performance(self) -> Dict[str, Any]:
         """Get cache performance metrics."""
         return {
@@ -1764,27 +1764,27 @@ class VFSObservabilityManager:
                     "size_mb": 128.5,
                     "items": 1247,
                     "evictions_per_hour": 12,
-                    "average_item_size": "105KB"
+                    "average_item_size": "105KB",
                 },
                 "disk_tier": {
                     "hit_rate": 0.72,
                     "size_gb": 2.3,
                     "items": 15678,
                     "read_latency_ms": 8.5,
-                    "write_latency_ms": 12.3
+                    "write_latency_ms": 12.3,
                 },
                 "predictive_accuracy": 0.78,
-                "prefetch_efficiency": 0.82
+                "prefetch_efficiency": 0.82,
             },
             "semantic_cache": {
                 "similarity_threshold": 0.85,
                 "exact_matches": self.cache_stats["semantic_cache"]["exact_matches"],
                 "similarity_matches": self.cache_stats["semantic_cache"]["similarity_matches"],
                 "cache_utilization": 0.67,
-                "embedding_model": "sentence-transformers/all-MiniLM-L6-v2"
-            }
+                "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+            },
         }
-    
+
     async def _get_vector_index_status(self) -> Dict[str, Any]:
         """Get vector index status and metrics."""
         return {
@@ -1798,18 +1798,18 @@ class VFSObservabilityManager:
                 "average_query_time_ms": 4.2,
                 "queries_per_second": 238,
                 "recall_at_10": 0.94,
-                "precision_at_10": 0.89
+                "precision_at_10": 0.89,
             },
             "content_distribution": {
                 "text_documents": 23456,
                 "code_files": 12890,
                 "markdown_files": 5634,
-                "json_objects": 3692
+                "json_objects": 3692,
             },
             "last_updated": "2025-01-13T23:15:30Z",
-            "update_frequency": "real-time"
+            "update_frequency": "real-time",
         }
-    
+
     async def _get_knowledge_base_status(self) -> Dict[str, Any]:
         """Get knowledge base and graph metrics."""
         return {
@@ -1819,30 +1819,30 @@ class VFSObservabilityManager:
                 "documents": 34567,
                 "entities": 18923,
                 "concepts": 8765,
-                "relations": 5635
+                "relations": 5635,
             },
             "edges": {
                 "total": 145678,
                 "semantic_links": 67890,
                 "reference_links": 45678,
                 "temporal_links": 23456,
-                "hierarchical_links": 8654
+                "hierarchical_links": 8654,
             },
             "graph_metrics": {
                 "density": 0.032,
                 "clustering_coefficient": 0.78,
                 "average_path_length": 3.4,
                 "modularity": 0.85,
-                "connected_components": 12
+                "connected_components": 12,
             },
             "content_analysis": {
                 "languages_detected": ["en", "python", "javascript", "markdown"],
                 "topics_identified": 234,
                 "sentiment_distribution": {"positive": 0.6, "neutral": 0.3, "negative": 0.1},
-                "complexity_scores": {"low": 0.4, "medium": 0.45, "high": 0.15}
-            }
+                "complexity_scores": {"low": 0.4, "medium": 0.45, "high": 0.15},
+            },
         }
-    
+
     async def _get_filesystem_metrics(self) -> Dict[str, Any]:
         """Get filesystem-specific metrics."""
         return {
@@ -1850,51 +1850,47 @@ class VFSObservabilityManager:
                 "ipfs://": {"status": "active", "operations": 12345, "size_gb": 45.6},
                 "filecoin://": {"status": "active", "operations": 6789, "size_gb": 23.4},
                 "storacha://": {"status": "active", "operations": 3456, "size_gb": 12.1},
-                "s3://": {"status": "configured", "operations": 8901, "size_gb": 67.8}
+                "s3://": {"status": "configured", "operations": 8901, "size_gb": 67.8},
             },
             "file_operations": {
                 "reads": 45678,
                 "writes": 12345,
                 "deletes": 234,
                 "listings": 6789,
-                "seeks": 23456
+                "seeks": 23456,
             },
             "bandwidth_usage": {
                 "read_mbps": 125.4,
                 "write_mbps": 67.8,
                 "total_transferred_gb": 234.5,
-                "compression_ratio": 0.72
-            }
+                "compression_ratio": 0.72,
+            },
         }
-    
+
     async def _get_access_patterns(self) -> Dict[str, Any]:
         """Get access pattern analysis."""
         return {
             "hot_content": [
                 {"cid": "QmX1...", "access_count": 456, "size_kb": 1234},
                 {"cid": "QmY2...", "access_count": 389, "size_kb": 567},
-                {"cid": "QmZ3...", "access_count": 234, "size_kb": 890}
+                {"cid": "QmZ3...", "access_count": 234, "size_kb": 890},
             ],
             "temporal_patterns": {
                 "peak_hours": [9, 10, 11, 14, 15, 16],
                 "low_activity_hours": [0, 1, 2, 3, 4, 5],
                 "weekly_pattern": "weekday_heavy",
-                "seasonal_trend": "stable"
+                "seasonal_trend": "stable",
             },
             "content_types": {
                 "application/json": 0.35,
                 "text/plain": 0.25,
                 "image/png": 0.15,
                 "application/pdf": 0.12,
-                "text/markdown": 0.13
+                "text/markdown": 0.13,
             },
-            "geographic_distribution": {
-                "local": 0.78,
-                "remote_gateways": 0.22,
-                "cdn_hits": 0.45
-            }
+            "geographic_distribution": {"local": 0.78, "remote_gateways": 0.22, "cdn_hits": 0.45},
         }
-    
+
     async def _get_resource_utilization(self) -> Dict[str, Any]:
         """Get resource utilization metrics."""
         return {
@@ -1903,7 +1899,7 @@ class VFSObservabilityManager:
                 "index_mb": 156.8,
                 "buffers_mb": 45.2,
                 "total_mb": 458.7,
-                "available_mb": 2048.3
+                "available_mb": 2048.3,
             },
             "disk_usage": {
                 "cache_gb": 2.3,
@@ -1911,20 +1907,20 @@ class VFSObservabilityManager:
                 "logs_gb": 0.1,
                 "temp_gb": 0.3,
                 "total_gb": 3.5,
-                "available_gb": 125.7
+                "available_gb": 125.7,
             },
             "cpu_usage": {
                 "indexing": 0.15,
                 "search": 0.08,
                 "cache_management": 0.05,
-                "total": 0.28
+                "total": 0.28,
             },
             "network_usage": {
                 "ipfs_connections": 45,
                 "cluster_connections": 8,
                 "gateway_connections": 23,
-                "bandwidth_utilization": 0.34
-            }
+                "bandwidth_utilization": 0.34,
+            },
         }
 
 
@@ -1935,6 +1931,7 @@ try:
     from fastapi.staticfiles import StaticFiles
     from fastapi.templating import Jinja2Templates
     import uvicorn
+
     COMPONENTS["web_framework"] = True
     logger.info("✓ FastAPI web framework available")
 except ImportError as e:
@@ -1947,7 +1944,7 @@ except ImportError as e:
 
 class SimplifiedMCPTool:
     """Simplified MCP tool structure."""
-    
+
     def __init__(self, name: str, description: str, input_schema: Dict[str, Any]):
         self.name = name
         self.description = description
@@ -1956,12 +1953,12 @@ class SimplifiedMCPTool:
 
 class EnhancedUnifiedMCPServer:
     """Enhanced MCP Server with comprehensive backend observability."""
-    
+
     def __init__(self, host: str = "127.0.0.1", port: int = 8765):
         self.host = host
         self.port = port
         self.start_time = time.time()
-        
+
         # Initialize backend monitor and manager
         self.backend_monitor = BackendHealthMonitor()
         self.backend_monitor.initialize_vfs_observer()  # Initialize VFS observer
@@ -1970,37 +1967,33 @@ class EnhancedUnifiedMCPServer:
         COMPONENTS["filesystem_backends"] = True
         COMPONENTS["metrics_collector"] = True
         COMPONENTS["observability"] = True
-        
+
         # Server state
         self.server_state = {
             "status": "starting",
             "start_time": self.start_time,
             "components": COMPONENTS.copy(),
-            "performance": {
-                "memory_usage_mb": 0,
-                "cpu_usage_percent": 0,
-                "uptime_seconds": 0
-            },
-            "backend_health": {}
+            "performance": {"memory_usage_mb": 0, "cpu_usage_percent": 0, "uptime_seconds": 0},
+            "backend_health": {},
         }
-        
+
         # Keep websocket connections separately
         self.websocket_connections = set()
-        
+
         # MCP Tools
         self.mcp_tools = self._create_mcp_tools()
-        
+
         logger.info(f"🚀 Initializing Enhanced Unified MCP Server on {host}:{port}")
-        
+
         # Initialize web server
         if COMPONENTS["web_framework"]:
             self._setup_web_server()
         else:
             logger.error("❌ Cannot start server without web framework")
-    
+
     def _create_mcp_tools(self) -> List[SimplifiedMCPTool]:
         """Create MCP tools."""
-        
+
         return [
             SimplifiedMCPTool(
                 name="system_health",
@@ -2008,7 +2001,7 @@ class EnhancedUnifiedMCPServer:
                 input_schema={
                     "type": "object",
                     "properties": {},
-                }
+                },
             ),
             SimplifiedMCPTool(
                 name="get_backend_status",
@@ -2019,10 +2012,20 @@ class EnhancedUnifiedMCPServer:
                         "backend": {
                             "type": "string",
                             "description": "Specific backend to check (optional)",
-                            "enum": ["ipfs", "ipfs_cluster", "ipfs_cluster_follow", "lotus", "storacha", "synapse", "s3", "huggingface", "parquet"]
+                            "enum": [
+                                "ipfs",
+                                "ipfs_cluster",
+                                "ipfs_cluster_follow",
+                                "lotus",
+                                "storacha",
+                                "synapse",
+                                "s3",
+                                "huggingface",
+                                "parquet",
+                            ],
                         }
-                    }
-                }
+                    },
+                },
             ),
             SimplifiedMCPTool(
                 name="list_backends",
@@ -2033,10 +2036,10 @@ class EnhancedUnifiedMCPServer:
                         "include_metadata": {
                             "type": "boolean",
                             "description": "Include full metadata for each backend",
-                            "default": True
+                            "default": True,
                         }
-                    }
-                }
+                    },
+                },
             ),
             SimplifiedMCPTool(
                 name="create_backend_instance",
@@ -2046,20 +2049,20 @@ class EnhancedUnifiedMCPServer:
                     "properties": {
                         "name": {
                             "type": "string",
-                            "description": "Unique name for the backend instance"
+                            "description": "Unique name for the backend instance",
                         },
                         "type": {
                             "type": "string",
                             "description": "Backend type",
-                            "enum": ["local_storage", "ipfs", "s3", "github", "parquet", "cluster"]
+                            "enum": ["local_storage", "ipfs", "s3", "github", "parquet", "cluster"],
                         },
                         "config": {
                             "type": "object",
-                            "description": "Backend configuration parameters"
-                        }
+                            "description": "Backend configuration parameters",
+                        },
                     },
-                    "required": ["name", "type", "config"]
-                }
+                    "required": ["name", "type", "config"],
+                },
             ),
             SimplifiedMCPTool(
                 name="update_backend",
@@ -2067,17 +2070,14 @@ class EnhancedUnifiedMCPServer:
                 input_schema={
                     "type": "object",
                     "properties": {
-                        "name": {
-                            "type": "string",
-                            "description": "Backend instance name"
-                        },
+                        "name": {"type": "string", "description": "Backend instance name"},
                         "config": {
                             "type": "object",
-                            "description": "Updated configuration parameters"
-                        }
+                            "description": "Updated configuration parameters",
+                        },
                     },
-                    "required": ["name", "config"]
-                }
+                    "required": ["name", "config"],
+                },
             ),
             SimplifiedMCPTool(
                 name="update_backend_policy",
@@ -2085,17 +2085,14 @@ class EnhancedUnifiedMCPServer:
                 input_schema={
                     "type": "object",
                     "properties": {
-                        "name": {
-                            "type": "string",
-                            "description": "Backend instance name"
-                        },
+                        "name": {"type": "string", "description": "Backend instance name"},
                         "policy": {
                             "type": "object",
-                            "description": "Policy configuration (cache, replication, retention, etc.)"
-                        }
+                            "description": "Policy configuration (cache, replication, retention, etc.)",
+                        },
                     },
-                    "required": ["name", "policy"]
-                }
+                    "required": ["name", "policy"],
+                },
             ),
             SimplifiedMCPTool(
                 name="test_backend_config",
@@ -2103,17 +2100,14 @@ class EnhancedUnifiedMCPServer:
                 input_schema={
                     "type": "object",
                     "properties": {
-                        "name": {
-                            "type": "string",
-                            "description": "Backend instance name"
-                        },
+                        "name": {"type": "string", "description": "Backend instance name"},
                         "config": {
                             "type": "object",
-                            "description": "Configuration to test (optional, uses current if not provided)"
-                        }
+                            "description": "Configuration to test (optional, uses current if not provided)",
+                        },
                     },
-                    "required": ["name"]
-                }
+                    "required": ["name"],
+                },
             ),
             SimplifiedMCPTool(
                 name="apply_backend_policy",
@@ -2121,40 +2115,34 @@ class EnhancedUnifiedMCPServer:
                 input_schema={
                     "type": "object",
                     "properties": {
-                        "name": {
-                            "type": "string",
-                            "description": "Backend instance name"
-                        },
-                        "policy": {
-                            "type": "object",
-                            "description": "Policy to apply"
-                        },
+                        "name": {"type": "string", "description": "Backend instance name"},
+                        "policy": {"type": "object", "description": "Policy to apply"},
                         "force_sync": {
                             "type": "boolean",
                             "description": "Force synchronization with underlying storage",
-                            "default": False
-                        }
+                            "default": False,
+                        },
                     },
-                    "required": ["name", "policy"]
-                }
+                    "required": ["name", "policy"],
+                },
             ),
             SimplifiedMCPTool(
                 name="get_metrics_history",
                 description="Get historical metrics for backends",
                 input_schema={
-                    "type": "object", 
+                    "type": "object",
                     "properties": {
                         "backend": {
                             "type": "string",
-                            "description": "Backend name to get metrics for"
+                            "description": "Backend name to get metrics for",
                         },
                         "limit": {
                             "type": "integer",
                             "description": "Number of recent metrics to return",
-                            "default": 10
-                        }
-                    }
-                }
+                            "default": 10,
+                        },
+                    },
+                },
             ),
             SimplifiedMCPTool(
                 name="restart_backend",
@@ -2165,39 +2153,36 @@ class EnhancedUnifiedMCPServer:
                         "backend": {
                             "type": "string",
                             "description": "Backend to restart",
-                            "enum": ["ipfs", "ipfs_cluster", "ipfs_cluster_follow", "lotus"]
+                            "enum": ["ipfs", "ipfs_cluster", "ipfs_cluster_follow", "lotus"],
                         }
                     },
-                    "required": ["backend"]
-                }
+                    "required": ["backend"],
+                },
             ),
             SimplifiedMCPTool(
                 name="get_development_insights",
                 description="Get insights and recommendations for development based on backend status",
-                input_schema={
-                    "type": "object",
-                    "properties": {}
-                }
-            )
+                input_schema={"type": "object", "properties": {}},
+            ),
         ]
-    
+
     def _setup_web_server(self):
         """Setup FastAPI web server."""
-        
+
         self.app = FastAPI(
             title="Enhanced Unified MCP Server",
             description="Comprehensive backend observability and monitoring",
-            version="2.0.0"
+            version="2.0.0",
         )
-        
+
         # Setup templates - use the external enhanced dashboard
         templates_dir = Path(__file__).parent.parent / "templates"
         if not templates_dir.exists():
             templates_dir = Path(__file__).parent / "templates"
             templates_dir.mkdir(exist_ok=True)
-            
+
         self.templates = Jinja2Templates(directory=str(templates_dir))
-        
+
         # Setup static files - check multiple locations for MCP SDK
         static_dirs = [
             Path(__file__).parent.parent.parent / "mcp" / "dashboard" / "static",
@@ -2205,14 +2190,14 @@ class EnhancedUnifiedMCPServer:
             Path(__file__).parent / "dashboard" / "static",
             Path(__file__).parent.parent / "static",
         ]
-        
+
         static_dir = None
         for dir_path in static_dirs:
             if dir_path.exists():
                 static_dir = dir_path
                 logger.info(f"✓ Using static files from: {static_dir}")
                 break
-        
+
         if static_dir:
             try:
                 self.app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
@@ -2221,16 +2206,16 @@ class EnhancedUnifiedMCPServer:
                 logger.warning(f"Failed to mount static files: {e}")
         else:
             logger.warning("Static files directory not found, creating placeholder")
-        
+
         # Setup routes
         self._setup_routes()
-        
+
         logger.info("✓ Web server configured")
-    
+
     def _create_dashboard_template(self, templates_dir: Path):
         """Create enhanced dashboard template with verbose information and settings GUI."""
-        
-        template_content = r'''
+
+        template_content = r"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -3805,41 +3790,43 @@ class EnhancedUnifiedMCPServer:
     </script>
 </body>
 </html>
-        '''
-        
+        """
+
         with open(templates_dir / "index.html", "w") as f:
             f.write(template_content)
-    
+
     def _setup_routes(self):
         """Setup FastAPI routes."""
-        
+
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard(request: Request):
             # Try to use unified comprehensive dashboard first
-            templates_to_try = [
-                "unified_comprehensive_dashboard.html",
-                "enhanced_dashboard.html"
-            ]
-            
+            templates_to_try = ["unified_comprehensive_dashboard.html", "enhanced_dashboard.html"]
+
             for template in templates_to_try:
                 try:
                     return self.templates.TemplateResponse(template, {"request": request})
                 except Exception as e:
                     logger.debug(f"Template {template} not found: {e}")
                     continue
-            
+
             # Fallback
             return self.templates.TemplateResponse("enhanced_dashboard.html", {"request": request})
-        
+
         @self.app.get("/pins", response_class=HTMLResponse)
         async def pin_management_dashboard(request: Request):
             """Serve the comprehensive pin management dashboard."""
             try:
-                return self.templates.TemplateResponse("comprehensive_pin_management.html", {"request": request})
+                return self.templates.TemplateResponse(
+                    "comprehensive_pin_management.html", {"request": request}
+                )
             except Exception as e:
                 logger.error(f"Failed to load pin management template: {e}")
-                return HTMLResponse(content=f"<h1>Pin Management Dashboard</h1><p>Template not found: {e}</p>", status_code=500)
-        
+                return HTMLResponse(
+                    content=f"<h1>Pin Management Dashboard</h1><p>Template not found: {e}</p>",
+                    status_code=500,
+                )
+
         @self.app.get("/api/health")
         async def health_check():
             # Update performance metrics
@@ -3847,22 +3834,22 @@ class EnhancedUnifiedMCPServer:
             self.server_state["performance"] = {
                 "memory_usage_mb": round(process.memory_info().rss / 1024 / 1024, 2),
                 "cpu_usage_percent": round(process.cpu_percent(), 2),
-                "uptime_seconds": round(time.time() - self.start_time, 2)
+                "uptime_seconds": round(time.time() - self.start_time, 2),
             }
-            
+
             # Get backend health
             backend_health = await self.backend_monitor.check_all_backends()
             self.server_state["backend_health"] = backend_health
-            
+
             return {
                 "status": "running",
                 "uptime_seconds": self.server_state["performance"]["uptime_seconds"],
                 "memory_usage_mb": self.server_state["performance"]["memory_usage_mb"],
                 "cpu_usage_percent": self.server_state["performance"]["cpu_usage_percent"],
                 "backend_health": backend_health,
-                "components": COMPONENTS
+                "components": COMPONENTS,
             }
-        
+
         @self.app.post("/mcp/tools/call")
         async def mcp_tools_call(request: Request):
             """MCP JSON-RPC tools/call endpoint."""
@@ -3870,61 +3857,49 @@ class EnhancedUnifiedMCPServer:
                 data = await request.json()
                 method = data.get("method", "")
                 params = data.get("params", {})
-                
+
                 if method == "tools/call":
                     tool_name = params.get("name")
                     arguments = params.get("arguments", {})
-                    
+
                     result = await self.handle_mcp_request(tool_name, arguments)
-                    
-                    return {
-                        "jsonrpc": "2.0",
-                        "result": result,
-                        "id": data.get("id", 1)
-                    }
+
+                    return {"jsonrpc": "2.0", "result": result, "id": data.get("id", 1)}
                 else:
                     return {
                         "jsonrpc": "2.0",
                         "error": {"code": -32601, "message": f"Method not found: {method}"},
-                        "id": data.get("id", 1)
+                        "id": data.get("id", 1),
                     }
             except Exception as e:
                 logger.error(f"Error in MCP tools/call: {e}")
                 return {
                     "jsonrpc": "2.0",
                     "error": {"code": -1, "message": str(e)},
-                    "id": data.get("id", 1)
+                    "id": data.get("id", 1),
                 }
-        
-        @self.app.post("/api/call_mcp_tool")  
+
+        @self.app.post("/api/call_mcp_tool")
         async def call_mcp_tool_direct(request: Request):
             """Direct MCP tool call endpoint (legacy support)."""
             try:
                 data = await request.json()
                 tool_name = data.get("tool_name")
                 arguments = data.get("arguments", {})
-                
+
                 result = await self.handle_mcp_request(tool_name, arguments)
-                
-                return {
-                    "jsonrpc": "2.0", 
-                    "result": result,
-                    "id": data.get("id", "1")
-                }
+
+                return {"jsonrpc": "2.0", "result": result, "id": data.get("id", "1")}
             except Exception as e:
                 logger.error(f"Error in MCP tool call: {e}")
-                return {
-                    "jsonrpc": "2.0",
-                    "error": {"code": -1, "message": str(e)},
-                    "id": "1"
-                }
+                return {"jsonrpc": "2.0", "error": {"code": -1, "message": str(e)}, "id": "1"}
 
         @self.app.get("/api/backends")
         async def get_backends():
             # Use enhanced backend manager instead of the old backend monitor
             result = await self.backend_manager.list_backends(include_metadata=True)
             return result
-        
+
         @self.app.get("/api/backends/{backend_name}")
         async def get_backend_status(backend_name: str):
             # First try enhanced backend manager, then fall back to monitor
@@ -3932,10 +3907,10 @@ class EnhancedUnifiedMCPServer:
             for backend in backends.get("items", []):
                 if backend["name"] == backend_name:
                     return backend
-            
+
             # Fallback to old monitor
             return await self.backend_monitor.check_backend_health(backend_name)
-        
+
         @self.app.post("/api/backends/{backend_name}/test")
         async def test_backend(backend_name: str, request: Request):
             """Test backend configuration."""
@@ -3946,7 +3921,7 @@ class EnhancedUnifiedMCPServer:
                 return {"jsonrpc": "2.0", "result": result, "id": "1"}
             except Exception as e:
                 return {"jsonrpc": "2.0", "error": {"code": -1, "message": str(e)}, "id": "1"}
-        
+
         @self.app.post("/api/backends/{backend_name}/update")
         async def update_backend_config(backend_name: str, request: Request):
             """Update backend configuration."""
@@ -3957,7 +3932,7 @@ class EnhancedUnifiedMCPServer:
                 return {"jsonrpc": "2.0", "result": result, "id": "1"}
             except Exception as e:
                 return {"jsonrpc": "2.0", "error": {"code": -1, "message": str(e)}, "id": "1"}
-        
+
         @self.app.post("/api/backends/{backend_name}/policy")
         async def apply_backend_policy_endpoint(backend_name: str, request: Request):
             """Apply backend policy."""
@@ -3965,7 +3940,9 @@ class EnhancedUnifiedMCPServer:
                 data = await request.json()
                 policy = data.get("policy", {})
                 force_sync = data.get("force_sync", False)
-                result = await self.backend_manager.apply_backend_policy(backend_name, policy, force_sync)
+                result = await self.backend_manager.apply_backend_policy(
+                    backend_name, policy, force_sync
+                )
                 return {"jsonrpc": "2.0", "result": result, "id": "1"}
             except Exception as e:
                 return {"jsonrpc": "2.0", "error": {"code": -1, "message": str(e)}, "id": "1"}
@@ -3978,145 +3955,147 @@ class EnhancedUnifiedMCPServer:
                 name = data.get("name")
                 backend_type = data.get("type")
                 config = data.get("config", {})
-                result = await self.backend_manager.create_backend_instance(name, backend_type, config)
+                result = await self.backend_manager.create_backend_instance(
+                    name, backend_type, config
+                )
                 return {"jsonrpc": "2.0", "result": result, "id": "1"}
             except Exception as e:
                 return {"jsonrpc": "2.0", "error": {"code": -1, "message": str(e)}, "id": "1"}
-        
+
         @self.app.get("/api/metrics/{backend_name}")
         async def get_metrics_history(backend_name: str, limit: int = 10):
             history = list(self.backend_monitor.metrics_history.get(backend_name, []))
             return {"backend": backend_name, "metrics": history[-limit:]}
-        
+
         @self.app.get("/api/insights")
         async def get_development_insights():
             backend_health = await self.backend_monitor.check_all_backends()
             insights = self._generate_development_insights(backend_health)
             return {"insights": insights}
-        
+
         @self.app.post("/api/backends/{backend_name}/restart")
         async def restart_backend(backend_name: str):
             # This is a placeholder - actual restart logic would go here
             return {"message": f"Restart requested for {backend_name}", "status": "requested"}
-        
+
         @self.app.get("/api/backends/{backend_name}/logs")
         async def get_backend_logs(backend_name: str):
             """Get logs for a specific backend."""
             logs = await self.backend_monitor.get_backend_logs(backend_name)
             return {"backend": backend_name, "logs": logs}
-        
+
         @self.app.get("/api/backends/{backend_name}/config")
         async def get_backend_config(backend_name: str):
             """Get configuration for a specific backend."""
             config = await self.backend_monitor.get_backend_config(backend_name)
             return {"backend": backend_name, "config": config}
-        
+
         @self.app.post("/api/backends/{backend_name}/config")
         async def update_backend_config(backend_name: str, config_data: dict):
             """Update configuration for a specific backend."""
             result = await self.backend_monitor.update_backend_config(backend_name, config_data)
             return {"backend": backend_name, "result": result}
-        
+
         @self.app.get("/api/config/package")
         async def get_package_config():
             """Get package-level configuration."""
             config = await self.backend_monitor.get_package_config()
             return {"config": config}
-        
+
         @self.app.post("/api/config/package")
         async def save_package_config(config_data: dict):
             """Save package-level configuration."""
             result = await self.backend_monitor.save_package_config(config_data)
             return {"result": result}
-        
+
         @self.app.post("/api/backends/{backend_name}/restart")
         async def restart_backend(backend_name: str):
             """Restart a specific backend."""
             result = await self.backend_monitor.restart_backend(backend_name)
             return {"backend": backend_name, "result": result}
-        
+
         @self.app.get("/api/config/export")
         async def export_configuration():
             """Export all backend configurations."""
             configs = {}
             for backend_name in self.backend_monitor.backends.keys():
                 configs[backend_name] = await self.backend_monitor.get_backend_config(backend_name)
-            
+
             return {
                 "timestamp": datetime.now().isoformat(),
                 "configs": configs,
-                "server_info": {
-                    "host": self.host,
-                    "port": self.port,
-                    "version": "1.0.0"
-                }
+                "server_info": {"host": self.host, "port": self.port, "version": "1.0.0"},
             }
-            
+
         @self.app.get("/api/vfs/statistics")
         async def get_vfs_statistics():
             """Get comprehensive VFS and cache statistics."""
             return await self.backend_monitor.vfs_observer.get_vfs_statistics()
-        
+
         @self.app.get("/api/vfs/cache")
         async def get_cache_status():
             """Get detailed cache status and performance."""
             return await self.backend_monitor.vfs_observer._get_cache_performance()
-        
+
         @self.app.get("/api/vfs/vector-index")
         async def get_vector_index_status():
             """Get vector index status and metrics."""
             return await self.backend_monitor.vfs_observer._get_vector_index_status()
-        
+
         @self.app.get("/api/vfs/knowledge-base")
         async def get_knowledge_base_status():
             """Get knowledge base and graph metrics."""
             return await self.backend_monitor.vfs_observer._get_knowledge_base_status()
-        
+
         @self.app.get("/api/vfs/access-patterns")
         async def get_access_patterns():
             """Get access pattern analysis."""
             return await self.backend_monitor.vfs_observer._get_access_patterns()
-        
+
         @self.app.get("/api/vfs/resource-utilization")
         async def get_resource_utilization():
             """Get resource utilization metrics."""
             return await self.backend_monitor.vfs_observer._get_resource_utilization()
-        
+
         @self.app.get("/api/backends/{backend_name}/info")
         async def get_backend_info(backend_name: str):
             """Get detailed information about a specific backend."""
             if backend_name not in self.backend_monitor.backends:
                 raise HTTPException(status_code=404, detail=f"Backend {backend_name} not found")
-            
+
             backend = self.backend_monitor.backends[backend_name]
             health_status = await self.backend_monitor.check_backend_health(backend_name)
-            
+
             return {
                 "name": backend_name,
-                "description": backend.get('detailed_info', {}).get('description', f"{backend_name} storage backend"),
+                "description": backend.get("detailed_info", {}).get(
+                    "description", f"{backend_name} storage backend"
+                ),
                 "status": health_status,
                 "config": {
-                    "health_endpoint": backend.get('health_endpoint'),
-                    "type": backend.get('type'),
-                    "config_file": backend.get('config_file'),
-                    "logs_dir": backend.get('logs_dir')
+                    "health_endpoint": backend.get("health_endpoint"),
+                    "type": backend.get("type"),
+                    "config_file": backend.get("config_file"),
+                    "logs_dir": backend.get("logs_dir"),
                 },
-                "detailed_info": backend.get('detailed_info', {}),
-                "last_health_check": self.backend_monitor.last_health_check.get(backend_name, "Never"),
-                "timestamp": datetime.now().isoformat()
+                "detailed_info": backend.get("detailed_info", {}),
+                "last_health_check": self.backend_monitor.last_health_check.get(
+                    backend_name, "Never"
+                ),
+                "timestamp": datetime.now().isoformat(),
             }
             return await self.backend_monitor.vfs_observer._get_resource_utilization()
-        
+
         @self.app.get("/api/backends/{backend_name}/detailed")
         async def get_backend_detailed_info(backend_name: str):
             """Get detailed information for a specific backend."""
             if backend_name not in self.backend_monitor.backends:
                 return {"error": f"Backend {backend_name} not found"}
-            
+
             backend = self.backend_monitor.backends[backend_name]
             detailed_info = await self._get_enhanced_backend_info(backend_name, backend)
             return {"backend": backend_name, "detailed_info": detailed_info}
-        
+
         @self.app.get("/api/logs")
         async def get_system_logs():
             """Get system logs."""
@@ -4124,14 +4103,16 @@ class EnhancedUnifiedMCPServer:
                 log_lines = []
                 log_file = Path("/var/log/ipfs_kit/server.log")  # Adjust path as needed
                 if log_file.exists():
-                    with open(log_file, 'r') as f:
+                    with open(log_file, "r") as f:
                         log_lines = f.readlines()[-100:]  # Last 100 lines
-                
+
                 return {"logs": log_lines, "source": str(log_file)}
             except Exception as e:
                 return {"error": str(e), "logs": []}
-    
-    async def _get_enhanced_backend_info(self, backend_name: str, backend: Dict[str, Any]) -> Dict[str, Any]:
+
+    async def _get_enhanced_backend_info(
+        self, backend_name: str, backend: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Get enhanced information for a backend."""
         try:
             if backend_name == "ipfs":
@@ -4151,7 +4132,7 @@ class EnhancedUnifiedMCPServer:
         except Exception as e:
             logger.error(f"Error getting enhanced info for {backend_name}: {e}")
             return {"error": str(e)}
-    
+
     async def _get_ipfs_detailed_info(self) -> Dict[str, Any]:
         """Get detailed IPFS information."""
         info = {
@@ -4163,33 +4144,39 @@ class EnhancedUnifiedMCPServer:
             "datastore_type": "unknown",
             "swarm_addresses": [],
             "public_key": "unknown",
-            "protocol_version": "unknown"
+            "protocol_version": "unknown",
         }
-        
+
         try:
             # Get repo stats
             result = subprocess.run(
                 ["curl", "-s", "http://127.0.0.1:5001/api/v0/repo/stat"],
-                capture_output=True, text=True, timeout=5
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if result.returncode == 0:
                 repo_data = json.loads(result.stdout)
                 info["repo_size_mb"] = round(repo_data.get("RepoSize", 0) / 1024 / 1024, 2)
                 info["repo_objects"] = repo_data.get("NumObjects", 0)
-            
+
             # Get peer count
             result = subprocess.run(
                 ["curl", "-s", "http://127.0.0.1:5001/api/v0/swarm/peers"],
-                capture_output=True, text=True, timeout=5
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if result.returncode == 0:
                 peers_data = json.loads(result.stdout)
                 info["peer_count"] = len(peers_data.get("Peers", []))
-            
+
             # Get bandwidth stats
             result = subprocess.run(
                 ["curl", "-s", "http://127.0.0.1:5001/api/v0/stats/bw"],
-                capture_output=True, text=True, timeout=5
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if result.returncode == 0:
                 bw_data = json.loads(result.stdout)
@@ -4197,26 +4184,26 @@ class EnhancedUnifiedMCPServer:
                     "in": bw_data.get("TotalIn", "0 B"),
                     "out": bw_data.get("TotalOut", "0 B"),
                     "rate_in": bw_data.get("RateIn", 0),
-                    "rate_out": bw_data.get("RateOut", 0)
+                    "rate_out": bw_data.get("RateOut", 0),
                 }
-            
+
         except Exception as e:
             logger.warning(f"Could not get detailed IPFS info: {e}")
-        
+
         return info
-    
+
     async def _get_ipfs_cluster_detailed_info(self) -> Dict[str, Any]:
         """Get detailed IPFS Cluster information."""
         return {
             "cluster_id": "unknown",
-            "peer_id": "unknown", 
+            "peer_id": "unknown",
             "cluster_peers": 0,
             "consensus_algorithm": "raft",
             "leader": "unknown",
             "allocated_pins": 0,
-            "status": "unknown"
+            "status": "unknown",
         }
-    
+
     async def _get_lotus_detailed_info(self) -> Dict[str, Any]:
         """Get detailed Lotus information."""
         return {
@@ -4226,23 +4213,23 @@ class EnhancedUnifiedMCPServer:
             "peers_count": 0,
             "mpool_pending": 0,
             "wallet_default": "unknown",
-            "version_info": "unknown"
+            "version_info": "unknown",
         }
-    
+
     async def _get_storacha_detailed_info(self) -> Dict[str, Any]:
         """Get detailed Storacha information."""
         return {
             "api_endpoints": [
                 {"url": "https://up.storacha.network/bridge", "status": "active", "latency_ms": 45},
                 {"url": "https://api.web3.storage", "status": "active", "latency_ms": 67},
-                {"url": "https://up.web3.storage/bridge", "status": "active", "latency_ms": 52}
+                {"url": "https://up.web3.storage/bridge", "status": "active", "latency_ms": 52},
             ],
             "upload_count": 0,
             "total_stored_gb": 0,
             "deals_count": 0,
-            "retrieval_success_rate": 0.95
+            "retrieval_success_rate": 0.95,
         }
-    
+
     async def _get_huggingface_detailed_info(self) -> Dict[str, Any]:
         """Get detailed HuggingFace information."""
         return {
@@ -4253,9 +4240,9 @@ class EnhancedUnifiedMCPServer:
             "datasets_cached": 8,
             "cache_size_gb": 12.4,
             "download_count": 45,
-            "upload_count": 2
+            "upload_count": 2,
         }
-    
+
     async def _get_s3_detailed_info(self) -> Dict[str, Any]:
         """Get detailed S3 information."""
         return {
@@ -4265,15 +4252,15 @@ class EnhancedUnifiedMCPServer:
             "total_size_gb": 45.6,
             "storage_classes": {"STANDARD": 0.8, "IA": 0.15, "GLACIER": 0.05},
             "request_count": 2456,
-            "cost_estimate_usd": 12.45
+            "cost_estimate_usd": 12.45,
         }
-        
+
         @self.app.post("/api/backends/{backend_name}/restart")
         async def restart_backend_daemon(backend_name: str):
             """Restart a backend daemon."""
             result = await self.backend_monitor.restart_backend(backend_name)
             return {"backend": backend_name, "restart_result": result}
-        
+
         @self.app.websocket("/ws")
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
@@ -4282,16 +4269,13 @@ class EnhancedUnifiedMCPServer:
                 while True:
                     # Send periodic updates
                     backend_health = await self.backend_monitor.check_all_backends()
-                    await websocket.send_json({
-                        "type": "backend_update",
-                        "data": backend_health
-                    })
+                    await websocket.send_json({"type": "backend_update", "data": backend_health})
                     await anyio.sleep(30)
             except Exception as e:
                 logger.error(f"WebSocket error: {e}")
             finally:
                 self.websocket_connections.discard(websocket)
-        
+
         @self.app.get("/api/logs")
         async def get_system_logs():
             """Get system logs."""
@@ -4301,25 +4285,25 @@ class EnhancedUnifiedMCPServer:
                 log_paths = [
                     "/var/log/ipfs_kit/server.log",
                     "./server.log",
-                    "./enhanced_unified_mcp_server.log"
+                    "./enhanced_unified_mcp_server.log",
                 ]
-                
+
                 for log_path in log_paths:
                     log_file = Path(log_path)
                     if log_file.exists():
-                        with open(log_file, 'r') as f:
+                        with open(log_file, "r") as f:
                             log_lines = f.readlines()[-100:]  # Last 100 lines
                         break
-                
+
                 if not log_lines:
                     # Generate sample log entries if no log file found
                     log_lines = [
                         "2025-01-13 23:15:30 - INFO - Enhanced Unified MCP Server started\n",
                         "2025-01-13 23:15:31 - INFO - Backend monitoring initialized\n",
                         "2025-01-13 23:15:32 - INFO - VFS observability manager started\n",
-                        "2025-01-13 23:15:33 - INFO - Dashboard available at http://127.0.0.1:8765\n"
+                        "2025-01-13 23:15:33 - INFO - Dashboard available at http://127.0.0.1:8765\n",
                     ]
-                
+
                 return {"logs": log_lines, "source": "system"}
             except Exception as e:
                 return {"error": str(e), "logs": []}
@@ -4369,60 +4353,81 @@ class EnhancedUnifiedMCPServer:
                 return {"result": result}
             except Exception as e:
                 return {"error": str(e)}
-    
+
     def _generate_development_insights(self, backend_health: Dict[str, Any]) -> str:
         """Generate development insights based on backend status."""
-        
+
         insights = []
-        
+
         # Check for common issues
-        unhealthy_backends = [name for name, backend in backend_health.items() 
-                            if backend.get("health") == "unhealthy"]
-        
+        unhealthy_backends = [
+            name for name, backend in backend_health.items() if backend.get("health") == "unhealthy"
+        ]
+
         if unhealthy_backends:
             insights.append(f"⚠️ **Unhealthy Backends**: {', '.join(unhealthy_backends)}")
-            
+
             for backend_name in unhealthy_backends:
                 backend = backend_health[backend_name]
                 status = backend.get("status", "unknown")
-                
+
                 if backend_name == "ipfs" and status == "stopped":
                     insights.append("💡 **IPFS**: Run `ipfs daemon` to start the IPFS node")
                 elif backend_name == "lotus" and status == "stopped":
                     insights.append("💡 **Lotus**: Run `lotus daemon` to start the Lotus node")
                 elif backend_name == "synapse" and status == "not_installed":
-                    insights.append("💡 **Synapse**: Run `npm install @filoz/synapse-sdk` to install")
+                    insights.append(
+                        "💡 **Synapse**: Run `npm install @filoz/synapse-sdk` to install"
+                    )
                 elif backend_name == "s3" and status == "unconfigured":
-                    insights.append("💡 **S3**: Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables")
+                    insights.append(
+                        "💡 **S3**: Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables"
+                    )
                 elif backend_name == "huggingface" and status == "unauthenticated":
-                    insights.append("💡 **HuggingFace**: Run `huggingface-cli login` to authenticate")
+                    insights.append(
+                        "💡 **HuggingFace**: Run `huggingface-cli login` to authenticate"
+                    )
                 elif backend_name == "parquet" and status == "missing":
-                    insights.append("💡 **Parquet**: Run `pip install pyarrow pandas` to install libraries")
-        
+                    insights.append(
+                        "💡 **Parquet**: Run `pip install pyarrow pandas` to install libraries"
+                    )
+
         # Check for partially working backends
-        partial_backends = [name for name, backend in backend_health.items() 
-                          if backend.get("health") == "partial"]
-        
+        partial_backends = [
+            name for name, backend in backend_health.items() if backend.get("health") == "partial"
+        ]
+
         if partial_backends:
             insights.append(f"⚠️ **Partially Working**: {', '.join(partial_backends)}")
-        
+
         # Performance recommendations
-        healthy_backends = [name for name, backend in backend_health.items() 
-                          if backend.get("health") == "healthy"]
-        
+        healthy_backends = [
+            name for name, backend in backend_health.items() if backend.get("health") == "healthy"
+        ]
+
         if len(healthy_backends) > 0:
             insights.append(f"✅ **Healthy Backends**: {', '.join(healthy_backends)}")
-        
+
         # Integration recommendations
         if "ipfs" in healthy_backends and "ipfs_cluster" not in healthy_backends:
-            insights.append("💡 **Scaling**: Consider setting up IPFS Cluster for distributed storage")
-        
+            insights.append(
+                "💡 **Scaling**: Consider setting up IPFS Cluster for distributed storage"
+            )
+
         if "lotus" in healthy_backends and "synapse" in healthy_backends:
-            insights.append("🚀 **Advanced**: You have both Lotus and Synapse - great for Filecoin PDP!")
-        
+            insights.append(
+                "🚀 **Advanced**: You have both Lotus and Synapse - great for Filecoin PDP!"
+            )
+
         return "<br>".join(insights) if insights else "All systems are running smoothly! 🎉"
-    
-    async def _list_buckets(self, include_metadata: bool = True, metadata_first: bool = True, offset: int = 0, limit: int = 20) -> Dict[str, Any]:
+
+    async def _list_buckets(
+        self,
+        include_metadata: bool = True,
+        metadata_first: bool = True,
+        offset: int = 0,
+        limit: int = 20,
+    ) -> Dict[str, Any]:
         """List all available buckets."""
         try:
             # Return demo buckets for the dashboard
@@ -4437,61 +4442,63 @@ class EnhancedUnifiedMCPServer:
                     "created_at": "2024-01-15T10:30:00Z",
                     "updated_at": "2024-01-20T16:45:00Z",
                     "status": "active",
-                    "backend": "filesystem"
+                    "backend": "filesystem",
                 },
                 {
-                    "name": "documents", 
+                    "name": "documents",
                     "id": "bucket_docs_002",
                     "type": "documents",
                     "file_count": 75,
                     "files": 75,
                     "total_size": 1024 * 1024 * 100,  # 100MB
                     "created_at": "2024-01-10T08:15:00Z",
-                    "updated_at": "2024-01-18T12:30:00Z", 
+                    "updated_at": "2024-01-18T12:30:00Z",
                     "status": "active",
-                    "backend": "s3"
+                    "backend": "s3",
                 },
                 {
                     "name": "archive",
-                    "id": "bucket_arch_003", 
+                    "id": "bucket_arch_003",
                     "type": "archive",
                     "file_count": 300,
                     "files": 300,
                     "total_size": 1024 * 1024 * 1024,  # 1GB
                     "created_at": "2024-01-05T14:20:00Z",
                     "updated_at": "2024-01-15T09:10:00Z",
-                    "status": "active", 
-                    "backend": "ipfs"
-                }
+                    "status": "active",
+                    "backend": "ipfs",
+                },
             ]
-            
+
             # Apply pagination
             start_idx = offset
             end_idx = min(offset + limit, len(demo_buckets))
             paginated_buckets = demo_buckets[start_idx:end_idx]
-            
+
             logger.info(f"Listed {len(paginated_buckets)} buckets (offset={offset}, limit={limit})")
-            
+
             return {
                 "items": paginated_buckets,
                 "total": len(demo_buckets),
                 "offset": offset,
                 "limit": limit,
-                "has_more": end_idx < len(demo_buckets)
+                "has_more": end_idx < len(demo_buckets),
             }
         except Exception as e:
             logger.error(f"Error listing buckets: {e}")
             return {"error": str(e), "items": []}
-    
-    async def _list_bucket_files(self, bucket: str, path: str = "", metadata_first: bool = True) -> Dict[str, Any]:
+
+    async def _list_bucket_files(
+        self, bucket: str, path: str = "", metadata_first: bool = True
+    ) -> Dict[str, Any]:
         """List files in a specific bucket."""
         try:
             if not bucket:
                 return {"error": "Bucket name is required", "items": []}
-            
+
             # Return demo files based on bucket name
             demo_files = []
-            
+
             if bucket == "media":
                 demo_files = [
                     {
@@ -4502,51 +4509,51 @@ class EnhancedUnifiedMCPServer:
                         "created_at": "2024-01-15T10:30:00Z",
                         "updated_at": "2024-01-15T10:30:00Z",
                         "hash": "QmX1eZQe9k8mF2nD3pQ4rT5yU7iO6pL9sA2bC4dE5fG6hI",
-                        "is_directory": False
+                        "is_directory": False,
                     },
                     {
-                        "name": "video1.mp4", 
+                        "name": "video1.mp4",
                         "path": f"{path}video1.mp4" if path else "video1.mp4",
                         "size": 1024 * 1024 * 50,  # 50MB
                         "type": "video/mp4",
                         "created_at": "2024-01-16T14:20:00Z",
                         "updated_at": "2024-01-16T14:20:00Z",
                         "hash": "QmY2fZR0l9nH3oE4qS6uI8jP7kM8tN9aB1cD2eF3gH4iJ",
-                        "is_directory": False
+                        "is_directory": False,
                     },
                     {
                         "name": "thumbnails",
                         "path": f"{path}thumbnails/" if path else "thumbnails/",
                         "size": 0,
-                        "type": "directory", 
+                        "type": "directory",
                         "created_at": "2024-01-15T10:30:00Z",
                         "updated_at": "2024-01-18T16:45:00Z",
                         "hash": "QmZ3gAB1m0oI4pF5qR7sT8uV9wX0yL1kN2bC3dE4fG5hI",
-                        "is_directory": True
-                    }
+                        "is_directory": True,
+                    },
                 ]
             elif bucket == "documents":
                 demo_files = [
                     {
                         "name": "report.pdf",
-                        "path": f"{path}report.pdf" if path else "report.pdf", 
+                        "path": f"{path}report.pdf" if path else "report.pdf",
                         "size": 1024 * 1024 * 2,  # 2MB
                         "type": "application/pdf",
                         "created_at": "2024-01-10T08:15:00Z",
                         "updated_at": "2024-01-12T10:30:00Z",
                         "hash": "QmA4bC5dE6fG7hI8jK9lM0nO1pQ2rS3tU4vW5xY6zA7bB",
-                        "is_directory": False
+                        "is_directory": False,
                     },
                     {
                         "name": "presentations",
                         "path": f"{path}presentations/" if path else "presentations/",
                         "size": 0,
                         "type": "directory",
-                        "created_at": "2024-01-10T08:15:00Z", 
+                        "created_at": "2024-01-10T08:15:00Z",
                         "updated_at": "2024-01-18T12:30:00Z",
                         "hash": "QmB5cD6eF7gH8iJ9kL0mN1oP2qR3sT4uV5wX6yZ7aB8cC",
-                        "is_directory": True
-                    }
+                        "is_directory": True,
+                    },
                 ]
             elif bucket == "archive":
                 demo_files = [
@@ -4558,58 +4565,58 @@ class EnhancedUnifiedMCPServer:
                         "created_at": "2024-01-05T14:20:00Z",
                         "updated_at": "2024-01-05T14:20:00Z",
                         "hash": "QmC6dD7eF8gH9iJ0kL1mN2oP3qR4sT5uV6wX7yZ8aB9cD",
-                        "is_directory": False
+                        "is_directory": False,
                     }
                 ]
-            
+
             logger.info(f"Listed {len(demo_files)} files in bucket '{bucket}' at path '{path}'")
-            
+
             return {
                 "items": demo_files,
                 "bucket": bucket,
                 "path": path,
                 "total": len(demo_files),
-                "has_more": False
+                "has_more": False,
             }
         except Exception as e:
             logger.error(f"Error listing files in bucket {bucket}: {e}")
             return {"error": str(e), "items": []}
-    
+
     async def _get_system_status(self) -> Dict[str, Any]:
         """Get system status information."""
         try:
             # Get basic system metrics
             process = psutil.Process()
             memory_info = process.memory_info()
-            
+
             # Get current time
             current_time = datetime.now()
-            
+
             return {
                 "time": current_time.isoformat(),
                 "data_dir": os.path.expanduser("~/.ipfs_kit"),
                 "cpu_percent": round(psutil.cpu_percent(interval=0.1), 1),
                 "memory_percent": round(psutil.virtual_memory().percent, 1),
-                "disk_percent": round(psutil.disk_usage('/').percent, 1),
+                "disk_percent": round(psutil.disk_usage("/").percent, 1),
                 "status": "running",
-                "uptime": f"{int(time.time() - self.start_time)} seconds"
+                "uptime": f"{int(time.time() - self.start_time)} seconds",
             }
         except Exception as e:
             logger.error(f"Error getting system status: {e}")
             return {"error": str(e), "status": "error"}
-    
+
     async def _list_services(self, include_metadata: bool = True) -> Dict[str, Any]:
         """List all available services."""
         try:
             services = {
                 "ipfs": {
                     "name": "IPFS Daemon",
-                    "type": "daemon", 
+                    "type": "daemon",
                     "status": "running",
                     "description": "InterPlanetary File System daemon for distributed storage",
                     "port": 5001,
                     "requires_credentials": False,
-                    "actions": ["start", "stop", "restart", "status"]
+                    "actions": ["start", "stop", "restart", "status"],
                 },
                 "lotus": {
                     "name": "Lotus Node",
@@ -4618,27 +4625,24 @@ class EnhancedUnifiedMCPServer:
                     "description": "Filecoin Lotus node for blockchain storage",
                     "port": 1234,
                     "requires_credentials": False,
-                    "actions": ["start", "stop", "restart", "status"]
+                    "actions": ["start", "stop", "restart", "status"],
                 },
                 "lassie": {
                     "name": "Lassie Retrieval",
                     "type": "service",
-                    "status": "disabled", 
+                    "status": "disabled",
                     "description": "Filecoin content retrieval service",
                     "port": 7777,
                     "requires_credentials": False,
-                    "actions": ["start", "stop", "restart", "status"]
-                }
+                    "actions": ["start", "stop", "restart", "status"],
+                },
             }
-            
-            return {
-                "services": services,
-                "total": len(services)
-            }
+
+            return {"services": services, "total": len(services)}
         except Exception as e:
             logger.error(f"Error listing services: {e}")
             return {"error": str(e), "services": {}}
-    
+
     async def _list_pins(self, pin_type: str = "all", cid: Optional[str] = None) -> Dict[str, Any]:
         """List pinned content with metadata."""
         try:
@@ -4646,44 +4650,37 @@ class EnhancedUnifiedMCPServer:
             try:
                 # Import pin management tools
                 from ipfs_kit.tools.pin_management_tools import handle_list_pins
-                
+
                 # Call the tool
-                params = {
-                    "type": pin_type,
-                    "include_metadata": True
-                }
+                params = {"type": pin_type, "include_metadata": True}
                 result = handle_list_pins(params)
-                
+
                 if result.get("success"):
                     pins_data = result.get("pins", [])
-                    
+
                     # If a specific CID was requested, filter for it
                     if cid:
                         pins_data = [p for p in pins_data if p["cid"] == cid]
-                    
+
                     return {
                         "success": True,
                         "pins": pins_data,
                         "total": len(pins_data),
-                        "filter": {
-                            "type": pin_type,
-                            "cid": cid
-                        }
+                        "filter": {"type": pin_type, "cid": cid},
                     }
                 else:
                     # Fallback to simulated data
-                    logger.warning(f"Pin tools returned error: {result.get('error')}, using simulation")
+                    logger.warning(
+                        f"Pin tools returned error: {result.get('error')}, using simulation"
+                    )
                     pins_data = self._generate_simulated_pins()
                     return {
                         "success": True,
                         "pins": pins_data,
                         "total": len(pins_data),
-                        "filter": {
-                            "type": pin_type,
-                            "cid": cid
-                        }
+                        "filter": {"type": pin_type, "cid": cid},
                     }
-                    
+
             except Exception as e:
                 logger.warning(f"Could not load pin management tools: {e}, using simulation")
                 pins_data = self._generate_simulated_pins()
@@ -4691,21 +4688,19 @@ class EnhancedUnifiedMCPServer:
                     "success": True,
                     "pins": pins_data,
                     "total": len(pins_data),
-                    "filter": {
-                        "type": pin_type,
-                        "cid": cid
-                    }
+                    "filter": {"type": pin_type, "cid": cid},
                 }
-            
+
         except Exception as e:
             logger.error(f"Error listing pins: {e}")
             return {"success": False, "error": str(e), "pins": [], "total": 0}
-    
+
     def _generate_simulated_pins(self) -> List[Dict[str, Any]]:
         """Generate simulated pin data for testing."""
         import random
+
         simulated_pins = []
-        
+
         pin_types = ["recursive", "direct", "indirect"]
         backends = ["ipfs", "ipfs-cluster", "storacha"]
         sample_cids = [
@@ -4713,46 +4708,51 @@ class EnhancedUnifiedMCPServer:
             "QmRHdRzHVK4j9YMqmJ3tVXNvcvkNBKYLQg8WBtqfkbDvML",
             "QmTkzDwWqPbnAh5YiV5VwcTLnGdwSNsNTn2aDxdXBFca7D",
             "QmPZ9gcCEpqKTo6aq61g2nXGUhM4iCL3ewB6LDXZCtioEB",
-            "QmYHNYAaYK5hm3ZhZFx5W9H6xrCFk4FhpKpxkCUPXPCY7J"
+            "QmYHNYAaYK5hm3ZhZFx5W9H6xrCFk4FhpKpxkCUPXPCY7J",
         ]
-        
+
         for i, cid in enumerate(sample_cids):
-            simulated_pins.append({
-                "cid": cid,
-                "type": random.choice(pin_types),
-                "size": f"{random.randint(1, 100)} MB",
-                "status": "pinned",
-                "created": (datetime.now() - timedelta(days=random.randint(0, 30))).isoformat(),
-                "metadata": {
-                    "backend": random.choice(backends),
-                    "replication_count": random.randint(1, 3),
-                    "tags": random.sample(["dataset", "model", "backup", "archive", "public"], k=random.randint(0, 3)),
-                    "name": f"Sample Pin {i+1}",
-                    "description": f"This is a sample pin for testing purposes"
+            simulated_pins.append(
+                {
+                    "cid": cid,
+                    "type": random.choice(pin_types),
+                    "size": f"{random.randint(1, 100)} MB",
+                    "status": "pinned",
+                    "created": (datetime.now() - timedelta(days=random.randint(0, 30))).isoformat(),
+                    "metadata": {
+                        "backend": random.choice(backends),
+                        "replication_count": random.randint(1, 3),
+                        "tags": random.sample(
+                            ["dataset", "model", "backup", "archive", "public"],
+                            k=random.randint(0, 3),
+                        ),
+                        "name": f"Sample Pin {i + 1}",
+                        "description": f"This is a sample pin for testing purposes",
+                    },
                 }
-            })
-        
+            )
+
         return simulated_pins
-    
+
     async def _pin_content(self, cid: str, recursive: bool = True) -> Dict[str, Any]:
         """Pin content to IPFS."""
         try:
             try:
                 from ipfs_kit_py.mcp.models.ipfs_model_fix import fix_ipfs_model
                 from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
-                
+
                 ipfs_model = IPFSModel()
                 fix_ipfs_model(IPFSModel)
-                
+
                 result = ipfs_model.pin_add(cid, recursive=recursive)
-                
+
                 if result.get("success"):
                     return {
                         "success": True,
                         "cid": cid,
                         "pinned": True,
                         "recursive": recursive,
-                        "message": f"Successfully pinned {cid}"
+                        "message": f"Successfully pinned {cid}",
                     }
                 else:
                     return {"success": False, "error": result.get("error", "Unknown error")}
@@ -4764,31 +4764,28 @@ class EnhancedUnifiedMCPServer:
                     "pinned": True,
                     "recursive": recursive,
                     "simulation": True,
-                    "message": f"Simulated pin for {cid}"
+                    "message": f"Simulated pin for {cid}",
                 }
         except Exception as e:
             logger.error(f"Error pinning content: {e}")
             return {"success": False, "error": str(e)}
-    
+
     async def _unpin_content(self, cid: str, recursive: bool = True) -> Dict[str, Any]:
         """Unpin content from IPFS."""
         try:
             try:
                 from ipfs_kit.tools.pin_management_tools import handle_unpin_content
-                
-                params = {
-                    "cid": cid,
-                    "recursive": recursive
-                }
+
+                params = {"cid": cid, "recursive": recursive}
                 result = handle_unpin_content(params)
-                
+
                 if result.get("success"):
                     return {
                         "success": True,
                         "cid": cid,
                         "unpinned": True,
                         "pins": result.get("pins", []),
-                        "message": f"Successfully unpinned {cid}"
+                        "message": f"Successfully unpinned {cid}",
                     }
                 else:
                     return {"success": False, "error": result.get("error", "Unknown error")}
@@ -4799,30 +4796,27 @@ class EnhancedUnifiedMCPServer:
                     "cid": cid,
                     "unpinned": True,
                     "simulation": True,
-                    "message": f"Simulated unpin for {cid}"
+                    "message": f"Simulated unpin for {cid}",
                 }
         except Exception as e:
             logger.error(f"Error unpinning content: {e}")
             return {"success": False, "error": str(e)}
-    
+
     async def _bulk_unpin(self, cids: List[str]) -> Dict[str, Any]:
         """Unpin multiple CIDs."""
         try:
             from ipfs_kit.tools.pin_management_tools import handle_bulk_unpin
-            
-            params = {
-                "cids": cids,
-                "recursive": True
-            }
+
+            params = {"cids": cids, "recursive": True}
             result = handle_bulk_unpin(params)
-            
+
             if result.get("success"):
                 return {
                     "success": True,
                     "total": result.get("total", len(cids)),
                     "success_count": result.get("success_count", 0),
                     "error_count": result.get("error_count", 0),
-                    "errors": result.get("errors", [])
+                    "errors": result.get("errors", []),
                 }
             else:
                 return {"success": False, "error": result.get("error", "Unknown error")}
@@ -4832,85 +4826,75 @@ class EnhancedUnifiedMCPServer:
             results = []
             success_count = 0
             error_count = 0
-            
+
             for cid in cids:
                 result = await self._unpin_content(cid)
-                results.append({
-                    "cid": cid,
-                    "success": result.get("success", False),
-                    "error": result.get("error")
-                })
+                results.append(
+                    {
+                        "cid": cid,
+                        "success": result.get("success", False),
+                        "error": result.get("error"),
+                    }
+                )
                 if result.get("success"):
                     success_count += 1
                 else:
                     error_count += 1
-            
+
             return {
                 "success": True,
                 "total": len(cids),
                 "success_count": success_count,
                 "error_count": error_count,
-                "results": results
+                "results": results,
             }
-    
+
     async def _get_pin_metadata(self, cid: str) -> Dict[str, Any]:
         """Get metadata for a specific pin."""
         try:
             from ipfs_kit.tools.pin_management_tools import handle_get_pin_metadata
-            
+
             params = {"cid": cid}
             result = handle_get_pin_metadata(params)
-            
+
             if result.get("success"):
-                return {
-                    "success": True,
-                    "cid": cid,
-                    "metadata": result.get("metadata", {})
-                }
+                return {"success": True, "cid": cid, "metadata": result.get("metadata", {})}
             else:
                 return {
                     "success": False,
-                    "error": result.get("error", f"Pin not found for CID: {cid}")
+                    "error": result.get("error", f"Pin not found for CID: {cid}"),
                 }
         except Exception as e:
             logger.error(f"Error getting pin metadata: {e}")
             # Fallback to listing pins
             try:
                 pins_result = await self._list_pins(cid=cid)
-                
+
                 if pins_result.get("success") and pins_result.get("pins"):
                     pin = pins_result["pins"][0]
-                    return {
-                        "success": True,
-                        "cid": cid,
-                        "metadata": pin
-                    }
+                    return {"success": True, "cid": cid, "metadata": pin}
                 else:
-                    return {
-                        "success": False,
-                        "error": f"Pin not found for CID: {cid}"
-                    }
+                    return {"success": False, "error": f"Pin not found for CID: {cid}"}
             except Exception as fallback_e:
                 logger.error(f"Fallback also failed: {fallback_e}")
                 return {"success": False, "error": str(e)}
-    
-    async def _export_pins(self, format: str = "json", filter_type: Optional[str] = None) -> Dict[str, Any]:
+
+    async def _export_pins(
+        self, format: str = "json", filter_type: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Export pins in the specified format."""
         try:
             from ipfs_kit.tools.pin_management_tools import handle_export_pins
-            
-            params = {
-                "format": format,
-                "filter_type": filter_type
-            }
+
+            params = {"format": format, "filter_type": filter_type}
             result = handle_export_pins(params)
-            
+
             if result.get("success"):
                 return {
                     "success": True,
                     "format": format,
                     "data": result.get("data", ""),
-                    "count": result.get("count", 0)
+                    "count": result.get("count", 0),
                 }
             else:
                 return {"success": False, "error": result.get("error", "Failed to export pins")}
@@ -4919,18 +4903,18 @@ class EnhancedUnifiedMCPServer:
             # Fallback implementation
             try:
                 pins_result = await self._list_pins(pin_type=filter_type or "all")
-                
+
                 if not pins_result.get("success"):
                     return {"success": False, "error": "Failed to retrieve pins"}
-                
+
                 pins = pins_result.get("pins", [])
-                
+
                 if format == "json":
                     return {
                         "success": True,
                         "format": "json",
                         "data": json.dumps(pins, indent=2),
-                        "count": len(pins)
+                        "count": len(pins),
                     }
                 elif format == "csv":
                     # Convert to CSV format
@@ -4945,32 +4929,24 @@ class EnhancedUnifiedMCPServer:
                                 f"{pin['created']},{pin.get('metadata', {}).get('backend', 'unknown')},{tags}"
                             )
                         csv_data = "\n".join(csv_lines)
-                    
-                    return {
-                        "success": True,
-                        "format": "csv",
-                        "data": csv_data,
-                        "count": len(pins)
-                    }
+
+                    return {"success": True, "format": "csv", "data": csv_data, "count": len(pins)}
                 else:
                     return {"success": False, "error": f"Unsupported format: {format}"}
             except Exception as fallback_e:
                 logger.error(f"Fallback export also failed: {fallback_e}")
                 return {"success": False, "error": str(e)}
-    
+
     async def _get_pin_stats(self) -> Dict[str, Any]:
         """Get statistics about pins."""
         try:
             from ipfs_kit.tools.pin_management_tools import handle_get_pin_stats
-            
+
             params = {}
             result = handle_get_pin_stats(params)
-            
+
             if result.get("success"):
-                return {
-                    "success": True,
-                    "stats": result.get("stats", {})
-                }
+                return {"success": True, "stats": result.get("stats", {})}
             else:
                 return {"success": False, "error": result.get("error", "Failed to get pin stats")}
         except Exception as e:
@@ -4978,12 +4954,12 @@ class EnhancedUnifiedMCPServer:
             # Fallback implementation
             try:
                 pins_result = await self._list_pins()
-                
+
                 if not pins_result.get("success"):
                     return {"success": False, "error": "Failed to retrieve pins"}
-                
+
                 pins = pins_result.get("pins", [])
-                
+
                 # Calculate statistics
                 stats = {
                     "total_pins": len(pins),
@@ -4991,121 +4967,117 @@ class EnhancedUnifiedMCPServer:
                     "by_backend": {},
                     "by_status": {},
                     "total_size": 0,
-                    "tags": {}
+                    "tags": {},
                 }
-                
+
                 for pin in pins:
                     # Count by type
                     pin_type = pin.get("type", "unknown")
                     stats["by_type"][pin_type] = stats["by_type"].get(pin_type, 0) + 1
-                    
+
                     # Count by backend
                     backend = pin.get("metadata", {}).get("backend", "unknown")
                     stats["by_backend"][backend] = stats["by_backend"].get(backend, 0) + 1
-                    
+
                     # Count by status
                     status = pin.get("status", "unknown")
                     stats["by_status"][status] = stats["by_status"].get(status, 0) + 1
-                    
+
                     # Count tags
                     for tag in pin.get("metadata", {}).get("tags", []):
                         stats["tags"][tag] = stats["tags"].get(tag, 0) + 1
-                
-                return {
-                    "success": True,
-                    "stats": stats
-                }
+
+                return {"success": True, "stats": stats}
             except Exception as fallback_e:
                 logger.error(f"Fallback stats also failed: {fallback_e}")
                 return {"success": False, "error": str(e)}
-    
+
     async def _health_check(self) -> Dict[str, Any]:
         """Perform health check."""
         try:
-            return {
-                "status": "healthy",
-                "timestamp": datetime.now().isoformat()
-            }
+            return {"status": "healthy", "timestamp": datetime.now().isoformat()}
         except Exception as e:
             logger.error(f"Error in health check: {e}")
             return {"error": str(e), "status": "unhealthy"}
-    
+
     async def handle_mcp_request(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Handle MCP tool requests."""
-        
+
         try:
             if tool_name == "system_health":
                 # Get system health
                 process = psutil.Process()
                 backend_health = await self.backend_monitor.check_all_backends()
-                
+
                 return {
                     "status": "running",
                     "uptime_seconds": time.time() - self.start_time,
                     "memory_usage_mb": round(process.memory_info().rss / 1024 / 1024, 2),
                     "cpu_usage_percent": round(process.cpu_percent(), 2),
                     "backend_health": backend_health,
-                    "components": COMPONENTS
+                    "components": COMPONENTS,
                 }
-            
+
             elif tool_name == "get_backend_status":
                 backend = arguments.get("backend")
                 if backend:
                     return await self.backend_monitor.check_backend_health(backend)
                 else:
                     return await self.backend_monitor.check_all_backends()
-            
+
             elif tool_name == "list_backends":
                 include_metadata = arguments.get("include_metadata", True)
                 return await self.backend_manager.list_backends(include_metadata)
-            
+
             elif tool_name == "create_backend_instance":
                 name = arguments.get("name")
                 backend_type = arguments.get("type")
                 config = arguments.get("config", {})
-                return await self.backend_manager.create_backend_instance(name, backend_type, config)
-            
+                return await self.backend_manager.create_backend_instance(
+                    name, backend_type, config
+                )
+
             elif tool_name == "update_backend":
                 name = arguments.get("name")
                 config = arguments.get("config", {})
                 return await self.backend_manager.update_backend(name, config)
-            
+
             elif tool_name == "update_backend_policy":
                 name = arguments.get("name")
                 policy = arguments.get("policy", {})
                 return await self.backend_manager.update_backend_policy(name, policy)
-            
+
             elif tool_name == "test_backend_config":
                 name = arguments.get("name")
                 config = arguments.get("config")
                 return await self.backend_manager.test_backend_config(name, config)
-            
+
             elif tool_name == "apply_backend_policy":
                 name = arguments.get("name")
                 policy = arguments.get("policy", {})
                 force_sync = arguments.get("force_sync", False)
                 return await self.backend_manager.apply_backend_policy(name, policy, force_sync)
-            
+
             elif tool_name == "get_metrics_history":
                 backend = arguments.get("backend")
                 limit = arguments.get("limit", 10)
-                
+
                 if backend in self.backend_monitor.metrics_history:
                     history = list(self.backend_monitor.metrics_history[backend])
                     return {"backend": backend, "metrics": history[-limit:]}
                 else:
                     return {"error": f"No metrics history for backend: {backend}"}
-            
+
             elif tool_name == "restart_backend":
                 backend = arguments.get("backend")
                 # This would contain actual restart logic
                 return {"message": f"Restart requested for {backend}", "status": "requested"}
-            
+
             elif tool_name == "get_development_insights":
                 backend_health = await self.backend_monitor.check_all_backends()
                 insights = self._generate_development_insights(backend_health)
                 return {"insights": insights}
-            
+
             # Bucket management tools
             elif tool_name == "list_buckets":
                 include_metadata = arguments.get("include_metadata", True)
@@ -5113,90 +5085,90 @@ class EnhancedUnifiedMCPServer:
                 offset = arguments.get("offset", 0)
                 limit = arguments.get("limit", 20)
                 return await self._list_buckets(include_metadata, metadata_first, offset, limit)
-            
+
             elif tool_name == "list_bucket_files":
                 bucket = arguments.get("bucket")
                 path = arguments.get("path", "")
                 metadata_first = arguments.get("metadata_first", True)
                 return await self._list_bucket_files(bucket, path, metadata_first)
-            
+
             elif tool_name == "get_system_status":
                 return await self._get_system_status()
-            
+
             elif tool_name == "list_services":
                 include_metadata = arguments.get("include_metadata", True)
                 return await self._list_services(include_metadata)
-            
+
             elif tool_name == "list_pins":
                 pin_type = arguments.get("type", "all")
                 cid = arguments.get("cid")
                 return await self._list_pins(pin_type=pin_type, cid=cid)
-            
+
             elif tool_name == "pin_content":
                 cid = arguments.get("cid")
                 recursive = arguments.get("recursive", True)
                 if not cid:
                     return {"success": False, "error": "CID is required"}
                 return await self._pin_content(cid, recursive)
-            
+
             elif tool_name == "unpin_content":
                 cid = arguments.get("cid")
                 recursive = arguments.get("recursive", True)
                 if not cid:
                     return {"success": False, "error": "CID is required"}
                 return await self._unpin_content(cid, recursive)
-            
+
             elif tool_name == "bulk_unpin":
                 cids = arguments.get("cids", [])
                 if not cids:
                     return {"success": False, "error": "CIDs list is required"}
                 return await self._bulk_unpin(cids)
-            
+
             elif tool_name == "get_pin_metadata":
                 cid = arguments.get("cid")
                 if not cid:
                     return {"success": False, "error": "CID is required"}
                 return await self._get_pin_metadata(cid)
-            
+
             elif tool_name == "export_pins":
                 format = arguments.get("format", "json")
                 filter_type = arguments.get("filter_type")
                 return await self._export_pins(format, filter_type)
-            
+
             elif tool_name == "get_pin_stats":
                 return await self._get_pin_stats()
-            
+
             elif tool_name == "health_check":
                 return await self._health_check()
-            
+
             else:
                 return {"error": f"Unknown tool: {tool_name}"}
-                
+
         except Exception as e:
             logger.error(f"Error handling MCP request {tool_name}: {e}")
             return {"error": str(e), "traceback": traceback.format_exc()}
-    
+
     def start(self):
         """Start the server."""
-        
+
         self.server_state["status"] = "running"
-        
+
         # Start backend monitoring
         self.backend_monitor.start_monitoring()
-        
+
         if COMPONENTS["web_framework"]:
             logger.info(f"🌐 Starting web server on http://{self.host}:{self.port}")
             logger.info(f"📊 Dashboard available at http://{self.host}:{self.port}")
-            
+
             # Setup signal handlers
             def signal_handler(signum, frame):
                 logger.info("🛑 Shutting down server...")
                 self.backend_monitor.stop_monitoring()
                 sys.exit(0)
-            
+
             signal.signal(signal.SIGINT, signal_handler)
             signal.signal(signal.SIGTERM, signal_handler)
-            
+
             # Start server
             if uvicorn:
                 uvicorn.run(self.app, host=self.host, port=self.port, log_level="info")
@@ -5210,17 +5182,17 @@ class EnhancedUnifiedMCPServer:
 
 def main():
     """Main entry point."""
-    
+
     parser = argparse.ArgumentParser(description="Enhanced Unified MCP Server")
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
     parser.add_argument("--port", type=int, default=8765, help="Port to bind to")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    
+
     args = parser.parse_args()
-    
+
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
-    
+
     # Create and start server
     server = EnhancedUnifiedMCPServer(host=args.host, port=args.port)
     server.start()

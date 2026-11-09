@@ -4,6 +4,7 @@ Serves the same JSON-RPC handler over a libp2p stream protocol when py-libp2p is
 installed, so peers can call tools over /mcp+p2p/1.0.0 (MCP++ Profile E). When
 libp2p is unavailable, ``HAVE_LIBP2P`` is False and the server stays HTTP/stdio.
 """
+
 from __future__ import annotations
 
 import json
@@ -14,6 +15,7 @@ HAVE_LIBP2P = False
 
 try:  # py-libp2p is an optional extra
     import libp2p  # type: ignore  # noqa: F401
+
     HAVE_LIBP2P = True
 except Exception:  # pragma: no cover
     libp2p = None  # type: ignore
@@ -46,4 +48,5 @@ async def serve_p2p(handler: Callable[[dict], Awaitable[dict]]) -> None:
 
     host.set_stream_handler(PROTOCOL_ID, _stream)
     import anyio
+
     await anyio.sleep_forever()

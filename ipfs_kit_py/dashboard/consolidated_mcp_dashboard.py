@@ -23,5 +23,7 @@ if __name__ == "__main__":  # pragma: no cover
     data_dir = os.environ.get("MCP_DATA_DIR")
     debug = os.environ.get("MCP_DEBUG", "0") in ("1", "true", "True")
 
-    app = ConsolidatedMCPDashboard({"host": host, "port": port, "data_dir": data_dir, "debug": debug})
+    app = ConsolidatedMCPDashboard(
+        {"host": host, "port": port, "data_dir": data_dir, "debug": debug}
+    )
     app.run_sync()

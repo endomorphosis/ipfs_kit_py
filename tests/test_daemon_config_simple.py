@@ -74,5 +74,7 @@ def test_installer_ensure_daemon_configured_smoke(tmp_path):
     ipfs_repo.mkdir(parents=True, exist_ok=True)
     (ipfs_repo / "config").write_text("{}", encoding="utf-8")
 
-    ipfs_installer = install_ipfs(metadata={"ipfs_path": str(ipfs_repo), "bin_dir": str(tmp_path / "bin")})
+    ipfs_installer = install_ipfs(
+        metadata={"ipfs_path": str(ipfs_repo), "bin_dir": str(tmp_path / "bin")}
+    )
     assert ipfs_installer.ensure_daemon_configured() is True

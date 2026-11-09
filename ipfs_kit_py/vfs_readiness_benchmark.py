@@ -85,7 +85,9 @@ def run_vfs_readiness_benchmark(
         try:
             for i in range(max(1, int(samples))):
                 path = f"/tmp/vfs-benchmark/sample-{i}.txt"
-                payload = f"sample-{i}-at-{datetime.datetime.now(datetime.timezone.utc).isoformat()}"
+                payload = (
+                    f"sample-{i}-at-{datetime.datetime.now(datetime.timezone.utc).isoformat()}"
+                )
                 t0 = time.perf_counter()
                 result = vfs_write(path, payload)
                 elapsed_ms = (time.perf_counter() - t0) * 1000.0

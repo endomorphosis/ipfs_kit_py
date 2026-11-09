@@ -45,23 +45,23 @@ Distributed training settings might be part of the main AI/ML or cluster configu
 ```python
 # Example configuration snippet
 config = {
-    'ai_ml': {
-        'distributed_training': {
-            'enabled': True,
-            'coordinator_role': 'Master', # Role responsible for coordination
-            'worker_capability': 'gpu', # Workers must have this capability (optional)
-            'sync_strategy': 'parameter_server', # or 'all_reduce' (implementation dependent)
-            'pubsub_topic_prefix': '/ipfs-kit/dist-train/',
-            'heartbeat_interval_seconds': 30,
-            'task_timeout_seconds': 3600 # Timeout for individual worker tasks
+    "ai_ml": {
+        "distributed_training": {
+            "enabled": True,
+            "coordinator_role": "Master",  # Role responsible for coordination
+            "worker_capability": "gpu",  # Workers must have this capability (optional)
+            "sync_strategy": "parameter_server",  # or 'all_reduce' (implementation dependent)
+            "pubsub_topic_prefix": "/ipfs-kit/dist-train/",
+            "heartbeat_interval_seconds": 30,
+            "task_timeout_seconds": 3600,  # Timeout for individual worker tasks
         }
         # ... other ai_ml config
     },
-    'cluster': {
+    "cluster": {
         # Cluster needs to be enabled and configured
-        'enabled': True,
+        "enabled": True,
         # ...
-    }
+    },
     # ... other ipfs-kit-py config
 }
 ```

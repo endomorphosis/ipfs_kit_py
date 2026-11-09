@@ -147,6 +147,7 @@ libp2p_peer = IPFSLibp2pPeer(role="worker")
 
 # Register libp2p with IPFSKit
 from ipfs_kit_py.libp2p import register_libp2p_with_ipfs_kit
+
 integration = register_libp2p_with_ipfs_kit(kit, libp2p_peer)
 
 # Now IPFSKit can use libp2p for direct content retrieval
@@ -204,19 +205,18 @@ from ipfs_kit_py.libp2p.dag_exchange import DAGExchange, make_all_selector
 dag_exchange = DAGExchange(libp2p_peer)
 await dag_exchange.start()
 
+
 # Define response handler
 def handle_response(response):
     for cid, block in response.blocks.items():
         print(f"Received block {cid}, size: {len(block)} bytes")
 
+
 # Request a DAG starting from a root CID
 root_cid = "QmRootCID..."
 selector = make_all_selector()
 request_id = await dag_exchange.request(
-    peer_id="QmPeerID...",
-    root_cid=root_cid,
-    selector=selector,
-    callback=handle_response
+    peer_id="QmPeerID...", root_cid=root_cid, selector=selector, callback=handle_response
 )
 
 # Later, cancel if needed
