@@ -102,7 +102,9 @@ def test_metadata_index_file_is_valid_json_after_refresh(tmp_path, monkeypatch):
     dataset.write_text("a,b\n1,2\n", encoding="utf-8")
 
     manager = IPFSDatasetsManager(enable=False)
-    refresh = manager.refresh_metadata_index(path=dataset, operation="store", metadata={"source": "test"})
+    refresh = manager.refresh_metadata_index(
+        path=dataset, operation="store", metadata={"source": "test"}
+    )
     assert refresh["success"] is True
 
     assert manager.metadata_index_path.exists()
@@ -490,7 +492,9 @@ def test_async_enrichment_reclaims_stale_running_tasks(tmp_path, monkeypatch):
         if "DOUBLE" in updated_at_type or "FLOAT" in updated_at_type:
             stale_time = float(time.time() - 30.0)
         else:
-            stale_time = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(seconds=30)
+            stale_time = datetime.datetime.now(datetime.timezone.utc).replace(
+                tzinfo=None
+            ) - datetime.timedelta(seconds=30)
 
         conn.execute(
             f"""

@@ -15,10 +15,10 @@ from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 def check_ipfs_daemon():
     """Check if IPFS daemon is running"""
@@ -36,6 +36,7 @@ def check_ipfs_daemon():
         logger.info("Install IPFS from: https://docs.ipfs.tech/install/")
         return False
 
+
 def check_python_module(module_name):
     """Check if a Python module is installed"""
     try:
@@ -50,6 +51,7 @@ def check_python_module(module_name):
         logger.error(f"❌ Python module {module_name} is not installed")
         return False
 
+
 def check_file_exists(filepath, required=True):
     """Check if a file exists"""
     if os.path.exists(filepath):
@@ -62,32 +64,33 @@ def check_file_exists(filepath, required=True):
             logger.warning(f"⚠️ Optional file not found: {filepath}")
         return False
 
+
 def main():
     """Main verification function"""
     success = True
-    
+
     # Check IPFS daemon
     if not check_ipfs_daemon():
         success = False
-    
+
     # Check Python modules
     modules = [
         "sqlite3",
         "hashlib",
     ]
-    
+
     optional_modules = [
         "ipfshttpclient",
         "boto3",
     ]
-    
+
     for module in modules:
         if not check_python_module(module):
             success = False
-    
+
     for module in optional_modules:
         check_python_module(module)
-    
+
     # Check required files
     required_files = [
         "direct_mcp_server.py",
@@ -95,19 +98,19 @@ def main():
         "fs_journal_tools.py",
         "multi_backend_fs_integration.py",
     ]
-    
+
     optional_files = [
         "start_ipfs_mcp_with_tools.sh",
         "stop_ipfs_mcp.sh",
     ]
-    
+
     for filepath in required_files:
         if not check_file_exists(filepath):
             success = False
-    
+
     for filepath in optional_files:
         check_file_exists(filepath, required=False)
-    
+
     # Final result
     if success:
         logger.info("✅ All required components are available")
@@ -116,8 +119,9 @@ def main():
     else:
         logger.error("❌ Some required components are missing")
         logger.error("Please address the issues above before starting the server")
-    
+
     return success
+
 
 if __name__ == "__main__":
     sys.exit(0 if main() else 1)

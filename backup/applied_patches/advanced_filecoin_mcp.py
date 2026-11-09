@@ -18,13 +18,17 @@ logger = logging.getLogger(__name__)
 # Import advanced Filecoin implementation
 try:
     from advanced_filecoin import AdvancedFilecoinStorage
+
     ADVANCED_FILECOIN_AVAILABLE = True
 except ImportError:
     ADVANCED_FILECOIN_AVAILABLE = False
-    logger.warning("Advanced Filecoin features not available. Make sure advanced_filecoin.py is in the Python path.")
+    logger.warning(
+        "Advanced Filecoin features not available. Make sure advanced_filecoin.py is in the Python path."
+    )
 
 # Singleton instance of AdvancedFilecoinStorage
 _filecoin_instance = None
+
 
 def get_filecoin_client():
     """Get or create the AdvancedFilecoinStorage instance."""
@@ -37,6 +41,7 @@ def get_filecoin_client():
             logger.error(f"Error initializing AdvancedFilecoinStorage: {e}")
 
     return _filecoin_instance
+
 
 def create_advanced_filecoin_router(api_prefix: str) -> APIRouter:
     """
@@ -54,10 +59,7 @@ def create_advanced_filecoin_router(api_prefix: str) -> APIRouter:
 
         @router.get("/status")
         async def filecoin_advanced_status():
-            return {
-                "available": False,
-                "error": "Advanced Filecoin features not available"
-            }
+            return {"available": False, "error": "Advanced Filecoin features not available"}
 
         return router
 
@@ -65,13 +67,12 @@ def create_advanced_filecoin_router(api_prefix: str) -> APIRouter:
     router = APIRouter(prefix=f"{api_prefix}/filecoin/advanced")
 
     @router.get("/status")
-    async def filecoin_advanced_status(filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client)):
+    async def filecoin_advanced_status(
+        filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client),
+    ):
         """Get the status of the advanced Filecoin features."""
         if filecoin_client is None:
-            return {
-                "available": False,
-                "error": "Advanced Filecoin client not initialized"
-            }
+            return {"available": False, "error": "Advanced Filecoin client not initialized"}
 
         return {
             "available": True,
@@ -79,11 +80,13 @@ def create_advanced_filecoin_router(api_prefix: str) -> APIRouter:
             "gateway_mode": filecoin_client.gateway_mode,
             "simulation_mode": filecoin_client.simulation_mode,
             "api_endpoint": filecoin_client.api_endpoint,
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
 
     @router.get("/network/stats")
-    async def filecoin_network_stats(filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client)):
+    async def filecoin_network_stats(
+        filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client),
+    ):
         """Get Filecoin network statistics."""
         if filecoin_client is None:
             raise HTTPException(status_code=503, detail="Advanced Filecoin client not available")
@@ -95,7 +98,9 @@ def create_advanced_filecoin_router(api_prefix: str) -> APIRouter:
         return result
 
     @router.get("/network/gas")
-    async def filecoin_gas_metrics(filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client)):
+    async def filecoin_gas_metrics(
+        filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client),
+    ):
         """Get current gas metrics for the Filecoin network."""
         if filecoin_client is None:
             raise HTTPException(status_code=503, detail="Advanced Filecoin client not available")
@@ -111,7 +116,7 @@ def create_advanced_filecoin_router(api_prefix: str) -> APIRouter:
         min_reputation: int = Query(85, description="Minimum miner reputation score"),
         region: Optional[str] = Query(None, description="Filter by region"),
         max_price: Optional[float] = Query(None, description="Maximum price per GiB per epoch"),
-        filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client)
+        filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client),
     ):
         """Get recommended miners with optional filtering."""
         if filecoin_client is None:
@@ -120,7 +125,7 @@ def create_advanced_filecoin_router(api_prefix: str) -> APIRouter:
         filter_criteria = {
             "min_reputation": min_reputation,
             "region": region,
-            "max_price": max_price
+            "max_price": max_price,
         }
 
         result = filecoin_client.get_recommended_miners(filter_criteria)
@@ -132,7 +137,7 @@ def create_advanced_filecoin_router(api_prefix: str) -> APIRouter:
     @router.get("/miners/{miner_address}")
     async def filecoin_analyze_miner(
         miner_address: str = Path(..., description="Filecoin address of the miner to analyze"),
-        filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client)
+        filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client),
     ):
         """Analyze a specific miner."""
         if filecoin_client is None:
@@ -148,15 +153,19 @@ def create_advanced_filecoin_router(api_prefix: str) -> APIRouter:
     async def filecoin_create_redundant_storage(
         cid: str = Body(..., embed=True, description="Content ID to store"),
         miner_count: int = Body(3, embed=True, description="Number of different miners to use"),
-        verified_deal: bool = Body(False, embed=True, description="Whether to make a verified storage deal"),
+        verified_deal: bool = Body(
+            False, embed=True, description="Whether to make a verified storage deal"
+        ),
         deal_duration: int = Body(518400, embed=True, description="Deal duration in epochs"),
-        filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client)
+        filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client),
     ):
         """Store IPFS content with multiple miners for redundancy."""
         if filecoin_client is None:
             raise HTTPException(status_code=503, detail="Advanced Filecoin client not available")
 
-        result = filecoin_client.create_redundant_storage(cid, miner_count, verified_deal, deal_duration)
+        result = filecoin_client.create_redundant_storage(
+            cid, miner_count, verified_deal, deal_duration
+        )
         if not result.get("success", False):
             raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
 
@@ -165,8 +174,10 @@ def create_advanced_filecoin_router(api_prefix: str) -> APIRouter:
     @router.post("/deals/{deal_id}/monitor")
     async def filecoin_monitor_deal(
         deal_id: str = Path(..., description="Deal ID to monitor"),
-        callback_url: Optional[str] = Body(None, embed=True, description="Optional URL to call with status updates"),
-        filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client)
+        callback_url: Optional[str] = Body(
+            None, embed=True, description="Optional URL to call with status updates"
+        ),
+        filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client),
     ):
         """Start monitoring a storage deal's status."""
         if filecoin_client is None:
@@ -182,8 +193,10 @@ def create_advanced_filecoin_router(api_prefix: str) -> APIRouter:
     async def filecoin_estimate_storage_cost(
         size_bytes: int = Body(..., embed=True, description="Size of data in bytes"),
         duration_days: int = Body(180, embed=True, description="Duration in days"),
-        verified_deal: bool = Body(False, embed=True, description="Whether to use verified storage deals"),
-        filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client)
+        verified_deal: bool = Body(
+            False, embed=True, description="Whether to use verified storage deals"
+        ),
+        filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client),
     ):
         """Estimate cost to store data on Filecoin."""
         if filecoin_client is None:
@@ -197,9 +210,13 @@ def create_advanced_filecoin_router(api_prefix: str) -> APIRouter:
 
     @router.get("/chain/block")
     async def filecoin_explore_chain_block(
-        height: Optional[int] = Query(None, description="Optional block height, if None uses the latest block"),
-        cid: Optional[str] = Query(None, description="Optional block CID, overrides height if provided"),
-        filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client)
+        height: Optional[int] = Query(
+            None, description="Optional block height, if None uses the latest block"
+        ),
+        cid: Optional[str] = Query(
+            None, description="Optional block CID, overrides height if provided"
+        ),
+        filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client),
     ):
         """Get information about a specific Filecoin blockchain block."""
         if filecoin_client is None:
@@ -214,7 +231,7 @@ def create_advanced_filecoin_router(api_prefix: str) -> APIRouter:
     @router.get("/content/{cid}/health")
     async def filecoin_content_health(
         cid: str = Path(..., description="Content ID to check"),
-        filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client)
+        filecoin_client: AdvancedFilecoinStorage = Depends(get_filecoin_client),
     ):
         """Check the health of content stored on Filecoin."""
         if filecoin_client is None:

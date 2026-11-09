@@ -17,8 +17,9 @@ os.chdir(PROJECT_ROOT)
 # Paths to the files with the error
 LIBP2P_MODEL_PATHS = [
     PROJECT_ROOT / "ipfs_kit_py" / "mcp" / "models" / "libp2p_model.py",
-    PROJECT_ROOT / "ipfs_kit_py" / "mcp_server" / "models" / "libp2p_model.py"
+    PROJECT_ROOT / "ipfs_kit_py" / "mcp_server" / "models" / "libp2p_model.py",
 ]
+
 
 def fix_syntax_error():
     """Fix the syntax error in libp2p_model.py files."""
@@ -32,7 +33,7 @@ def fix_syntax_error():
             continue
 
         # Read the file content
-        with open(model_path, 'r') as f:
+        with open(model_path, "r") as f:
             content = f.read()
 
         # Check for lines with incorrect docstring indentation
@@ -46,18 +47,18 @@ def fix_syntax_error():
             line = lines[i]
 
             # Check for docstring lines
-            if line.strip().startswith('"""') and i+1 < len(lines):
+            if line.strip().startswith('"""') and i + 1 < len(lines):
                 # Add the current line
                 fixed_content.append(line)
 
                 # Check if next line has the issue (empty with just a dash)
-                next_line = lines[i+1]
+                next_line = lines[i + 1]
                 indent_level = len(line) - len(line.lstrip())
 
-                if next_line.strip() == '-':
+                if next_line.strip() == "-":
                     # This is a problematic line - replace with proper docstring
                     method_name = None
-                    for j in range(i-1, max(0, i-10), -1):
+                    for j in range(i - 1, max(0, i - 10), -1):
                         if "def " in lines[j]:
                             method_name = lines[j].split("def ")[1].split("(")[0].strip()
                             break
@@ -72,7 +73,7 @@ def fix_syntax_error():
                     fixed = True
                     fixed_lines += 1
                     i += 1  # Skip the bad line
-                    print(f"  Fixed docstring at line {i+1}")
+                    print(f"  Fixed docstring at line {i + 1}")
                 else:
                     fixed_content.append(next_line)
                     i += 1
@@ -85,12 +86,12 @@ def fix_syntax_error():
         if fixed:
             # Create backup
             backup_path = str(model_path) + ".bak"
-            with open(backup_path, 'w') as f:
+            with open(backup_path, "w") as f:
                 f.write(content)
             print(f"  Created backup at {backup_path}")
 
             # Write fixed content
-            with open(model_path, 'w') as f:
+            with open(model_path, "w") as f:
                 f.write("\n".join(fixed_content))
 
             print(f"  Successfully fixed {fixed_lines} syntax errors in {model_path}")
@@ -99,6 +100,7 @@ def fix_syntax_error():
             print(f"  No syntax errors found in {model_path}")
 
     return fixed_files > 0
+
 
 if __name__ == "__main__":
     if fix_syntax_error():

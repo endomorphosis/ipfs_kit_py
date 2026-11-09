@@ -14,8 +14,7 @@ from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -24,49 +23,41 @@ HOME_DIR = Path.home()
 CONFIG_DIR = HOME_DIR / ".ipfs_kit"
 CREDENTIALS_FILE = CONFIG_DIR / "credentials.json"
 
+
 def setup_configuration():
     """Create necessary directories and configuration files."""
     logger.info("Setting up configuration directories")
-    
+
     # Create config directory if it doesn't exist
     CONFIG_DIR.mkdir(exist_ok=True, parents=True)
-    
+
     # Create credentials file if it doesn't exist
     if not CREDENTIALS_FILE.exists():
         default_credentials = {
-            "huggingface": {
-                "token": ""
-            },
-            "storacha": {
-                "token": ""
-            },
-            "filecoin": {
-                "api_token": ""
-            },
+            "huggingface": {"token": ""},
+            "storacha": {"token": ""},
+            "filecoin": {"api_token": ""},
             "lassie": {},
-            "s3": {
-                "access_key": "",
-                "secret_key": "",
-                "region": "us-east-1"
-            }
+            "s3": {"access_key": "", "secret_key": "", "region": "us-east-1"},
         }
-        
+
         with open(CREDENTIALS_FILE, "w") as f:
             json.dump(default_credentials, f, indent=2)
-        
+
         logger.info(f"Created credentials template at {CREDENTIALS_FILE}")
     else:
         logger.info(f"Credentials file already exists at {CREDENTIALS_FILE}")
-    
+
     # Set appropriate permissions
     os.chmod(CREDENTIALS_FILE, 0o600)
-    
+
     return True
+
 
 def create_huggingface_implementation():
     """Create real API implementation for HuggingFace."""
     impl_file = "huggingface_real_api.py"
-    
+
     with open(impl_file, "w") as f:
         f.write('''"""
 Real API implementation for HuggingFace storage backend.
@@ -262,14 +253,15 @@ class HuggingFaceRealAPI:
         
         return None
 ''')
-    
+
     logger.info(f"Created real HuggingFace implementation at {impl_file}")
     return impl_file
+
 
 def update_mcp_server():
     """Create a new version of the MCP server that uses real APIs."""
     server_file = "run_mcp_server_real_apis.py"
-    
+
     with open(server_file, "w") as f:
         f.write('''#!/usr/bin/env python3
 """
@@ -533,18 +525,19 @@ if __name__ == "__main__":
         log_level="info"
     )
 ''')
-    
+
     # Make executable
     os.chmod(server_file, 0o755)
     logger.info(f"Created MCP server with real APIs at {server_file}")
     return server_file
 
+
 def create_startup_script():
     """Create script to start the MCP server with real APIs."""
     script_file = "start_mcp_real_apis.sh"
-    
+
     with open(script_file, "w") as f:
-        f.write('''#!/bin/bash
+        f.write("""#!/bin/bash
 # Start MCP server with real API implementations
 
 # Kill any existing MCP server
@@ -557,17 +550,18 @@ echo $! > mcp_real_apis.pid
 
 echo "MCP Server started with real API implementations (PID: $(cat mcp_real_apis.pid))"
 echo "Log file: mcp_real_apis.log"
-''')
-    
+""")
+
     # Make executable
     os.chmod(script_file, 0o755)
     logger.info(f"Created startup script at {script_file}")
     return script_file
 
+
 def create_test_script():
     """Create test script for real API backends."""
     script_file = "test_storage_backends_real.py"
-    
+
     with open(script_file, "w") as f:
         f.write('''#!/usr/bin/env python3
 """
@@ -718,41 +712,43 @@ def main():
 if __name__ == "__main__":
     main()
 ''')
-    
+
     # Make executable
     os.chmod(script_file, 0o755)
     logger.info(f"Created test script at {script_file}")
     return script_file
 
+
 def main():
     """Main function."""
     print("=== CONVERTING STORAGE BACKENDS TO REAL API IMPLEMENTATIONS ===\n")
-    
+
     # Setup configuration
     print("Setting up configuration...")
     setup_configuration()
-    
+
     # Implement HuggingFace API
     print("\nImplementing HuggingFace API...")
     huggingface_file = create_huggingface_implementation()
-    
+
     # Update MCP server
     print("\nUpdating MCP server...")
     server_file = update_mcp_server()
-    
+
     # Create startup script
     print("\nCreating startup script...")
     startup_script = create_startup_script()
-    
+
     # Create test script
     print("\nCreating test script...")
     test_script = create_test_script()
-    
+
     print("\n=== IMPLEMENTATION COMPLETE ===")
     print("\nTo use the real API implementations:")
     print(f"1. Edit your credentials at: {CREDENTIALS_FILE}")
     print(f"2. Start the server: ./{startup_script}")
     print(f"3. Test the backends: python {test_script}")
+
 
 if __name__ == "__main__":
     main()

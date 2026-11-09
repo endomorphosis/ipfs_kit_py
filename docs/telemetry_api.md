@@ -277,10 +277,7 @@ if response.status_code == 200:
 # Get filtered telemetry metrics
 response = requests.get(
     "http://localhost:8000/api/v0/wal/telemetry/metrics",
-    params={
-        "metric_type": "operation_latency",
-        "aggregation": "average"
-    }
+    params={"metric_type": "operation_latency", "aggregation": "average"},
 )
 if response.status_code == 200:
     data = response.json()
@@ -291,10 +288,7 @@ end_time = time.time()
 start_time = end_time - 3600  # Last hour
 response = requests.post(
     "http://localhost:8000/api/v0/wal/telemetry/report",
-    data={
-        "start_time": start_time,
-        "end_time": end_time
-    }
+    data={"start_time": start_time, "end_time": end_time},
 )
 if response.status_code == 200:
     data = response.json()

@@ -1,5 +1,3 @@
-
-
 def _run_async_from_sync(async_fn, *args, **kwargs):
     """Run an async callable from sync code.
 
@@ -33,8 +31,11 @@ def _run_async_from_sync(async_fn, *args, **kwargs):
     if error:
         raise error[0]
     return result[0] if result else None
+
+
 import threading
 import sniffio
+
 """
 IPFS Kit High-Level API LibP2P Integration
 
@@ -75,6 +76,7 @@ except Exception as e:
     logger.warning(f"Failed to check for high-level API module: {e}")
     HAS_HIGH_LEVEL_API = False
 
+
 def extend_high_level_api_class(high_level_api_cls):
     """Extend the IPFSSimpleAPI class with libp2p peer discovery functionality.
 
@@ -90,7 +92,9 @@ def extend_high_level_api_class(high_level_api_cls):
         return high_level_api_cls
 
     # Check if the class is already extended
-    if hasattr(high_level_api_cls, "discover_peers") and hasattr(high_level_api_cls, "connect_to_peer"):
+    if hasattr(high_level_api_cls, "discover_peers") and hasattr(
+        high_level_api_cls, "connect_to_peer"
+    ):
         return high_level_api_cls
 
     def discover_peers(self, discovery_method="all", max_peers=20, timeout=30, topic=None):
@@ -114,7 +118,7 @@ def extend_high_level_api_class(high_level_api_cls):
             "success": False,
             "peers": [],
             "timestamp": time.time(),
-            "operation": "discover_peers"
+            "operation": "discover_peers",
         }
 
         try:
@@ -135,6 +139,7 @@ def extend_high_level_api_class(high_level_api_cls):
 
                     # Initialize components
                     from ..libp2p.p2p_integration import register_libp2p_with_ipfs_kit
+
                     if hasattr(self, "kit"):
                         # If we have an IPFSKit instance, register with it
                         register_libp2p_with_ipfs_kit(self.kit, self.libp2p_peer)
@@ -172,6 +177,7 @@ def extend_high_level_api_class(high_level_api_cls):
                         self.libp2p_peer.start_discovery("ipfs-discovery")
                         # Sleep a bit to let mDNS work
                         import anyio
+
                         loop = anyio.get_event_loop()
                         loop.run_until_complete(anyio.sleep(min(2, remaining_time)))
 
@@ -182,23 +188,21 @@ def extend_high_level_api_class(high_level_api_cls):
                         # Create discovery component if it doesn't exist
                         if not hasattr(self, "dht_discovery"):
                             self.dht_discovery = EnhancedDHTDiscovery(
-                                self.libp2p_peer,
-                                role=getattr(self, "role", "leecher")
+                                self.libp2p_peer, role=getattr(self, "role", "leecher")
                             )
 
                         # Find random peers in the DHT
                         import uuid
+
                         random_key = f"random-{uuid.uuid4()}"
 
                         async def find_dht_peers():
                             return await self.dht_discovery._find_random_peers_async(
-                                random_key,
-                                max(max_peers - len(discovered_peers), 5)
+                                random_key, max(max_peers - len(discovered_peers), 5)
                             )
 
                         dht_peers = _run_async_from_sync(
-                            anyio.wait_for,
-                            find_dht_peers(), timeout=remaining_time
+                            anyio.wait_for, find_dht_peers(), timeout=remaining_time
                         )
                         source_peers = dht_peers or []
 
@@ -210,20 +214,26 @@ def extend_high_level_api_class(high_level_api_cls):
                         try:
                             if hasattr(self.libp2p_peer, "pubsub"):
                                 # Get peers subscribed to the topic
-                                ps_peers = self.libp2p_peer.pubsub.get_peers_subscribed(discovery_topic)
+                                ps_peers = self.libp2p_peer.pubsub.get_peers_subscribed(
+                                    discovery_topic
+                                )
 
                                 for peer_id in ps_peers:
                                     peer_info = {
                                         "id": str(peer_id),
                                         "addresses": [],
-                                        "source": "pubsub"
+                                        "source": "pubsub",
                                     }
 
                                     # Try to get multiaddresses
                                     try:
-                                        peer = self.libp2p_peer.host.get_peerstore().get_peer(peer_id)
+                                        peer = self.libp2p_peer.host.get_peerstore().get_peer(
+                                            peer_id
+                                        )
                                         if peer:
-                                            peer_info["addresses"] = [str(addr) for addr in peer.addrs]
+                                            peer_info["addresses"] = [
+                                                str(addr) for addr in peer.addrs
+                                            ]
                                     except Exception:
                                         pass
 
@@ -231,13 +241,16 @@ def extend_high_level_api_class(high_level_api_cls):
 
                                 # Also publish to the topic to announce ourselves
                                 import json
+
                                 self.libp2p_peer.pubsub.publish(
                                     discovery_topic,
-                                    json.dumps({
-                                        "announce": True,
-                                        "peer_id": self.libp2p_peer.get_peer_id(),
-                                        "timestamp": time.time()
-                                    }).encode()
+                                    json.dumps(
+                                        {
+                                            "announce": True,
+                                            "peer_id": self.libp2p_peer.get_peer_id(),
+                                            "timestamp": time.time(),
+                                        }
+                                    ).encode(),
                                 )
                         except Exception as e:
                             logger.warning(f"PubSub peer discovery error: {e}")
@@ -268,11 +281,7 @@ def extend_high_level_api_class(high_level_api_cls):
                     for peer_id in connections:
                         str_id = str(peer_id)
                         if str_id not in discovered_peers:
-                            peer_info = {
-                                "id": str_id,
-                                "addresses": [],
-                                "source": "connected"
-                            }
+                            peer_info = {"id": str_id, "addresses": [], "source": "connected"}
 
                             # Try to get peer information from peerstore
                             try:
@@ -316,7 +325,7 @@ def extend_high_level_api_class(high_level_api_cls):
             "success": False,
             "operation": "connect_to_peer",
             "timestamp": time.time(),
-            "address": peer_address
+            "address": peer_address,
         }
 
         try:
@@ -369,7 +378,7 @@ def extend_high_level_api_class(high_level_api_cls):
             "success": False,
             "peers": [],
             "operation": "get_connected_peers",
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
 
         try:
@@ -386,10 +395,7 @@ def extend_high_level_api_class(high_level_api_cls):
                 connections = self.libp2p_peer.host.get_network().connections
 
                 for peer_id in connections:
-                    peer_info = {
-                        "id": str(peer_id),
-                        "addresses": []
-                    }
+                    peer_info = {"id": str(peer_id), "addresses": []}
 
                     # Try to get peer information from peerstore
                     try:
@@ -436,7 +442,7 @@ def extend_high_level_api_class(high_level_api_cls):
             "operation": "request_content_from_peer",
             "timestamp": time.time(),
             "peer_id": peer_id,
-            "cid": cid
+            "cid": cid,
         }
 
         try:
@@ -470,11 +476,7 @@ def extend_high_level_api_class(high_level_api_cls):
             Dictionary with peer ID information
         """
         logger = getattr(self, "logger", logging.getLogger(__name__))
-        result = {
-            "success": False,
-            "operation": "get_libp2p_peer_id",
-            "timestamp": time.time()
-        }
+        result = {"success": False, "operation": "get_libp2p_peer_id", "timestamp": time.time()}
 
         try:
             # Check if we have a libp2p peer

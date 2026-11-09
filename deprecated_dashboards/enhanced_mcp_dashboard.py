@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 class MCPIntegratedDashboard:
     """
     Enhanced dashboard with full MCP server integration.
-    
+
     This dashboard provides:
     - MCP server monitoring and control
     - Real-time ~/.ipfs_kit/ data visualization
@@ -52,41 +52,41 @@ class MCPIntegratedDashboard:
     - Backend and pin management
     - Daemon coordination monitoring
     """
-    
+
     def __init__(self, config: Dict[str, Any] = None):
         """Initialize the enhanced dashboard."""
         self.config = config or self._default_config()
         self.app = FastAPI(
             title="IPFS Kit Enhanced Dashboard",
             description="Comprehensive monitoring and control dashboard with MCP integration",
-            version="2.0.0"
+            version="2.0.0",
         )
-        
+
         # MCP integration
-        self.mcp_server_url = self.config.get('mcp_server_url', 'http://127.0.0.1:8004')
-        self.data_dir = Path(self.config.get('data_dir', '~/.ipfs_kit')).expanduser()
-        
+        self.mcp_server_url = self.config.get("mcp_server_url", "http://127.0.0.1:8004")
+        self.data_dir = Path(self.config.get("data_dir", "~/.ipfs_kit")).expanduser()
+
         # Dashboard state
         self.is_running = False
         self.websocket_clients: Set[WebSocket] = set()
         self.update_task = None
         self.cached_data = {}
         self.last_update = None
-        
+
         self._setup_routes()
         self._setup_middleware()
-    
+
     def _default_config(self) -> Dict[str, Any]:
         """Get default configuration."""
         return {
-            'host': '127.0.0.1',
-            'port': 8080,
-            'mcp_server_url': 'http://127.0.0.1:8004',
-            'data_dir': '~/.ipfs_kit',
-            'update_interval': 5,  # seconds
-            'debug': False
+            "host": "127.0.0.1",
+            "port": 8080,
+            "mcp_server_url": "http://127.0.0.1:8004",
+            "data_dir": "~/.ipfs_kit",
+            "update_interval": 5,  # seconds
+            "debug": False,
         }
-    
+
     def _setup_middleware(self):
         """Setup FastAPI middleware."""
         self.app.add_middleware(
@@ -96,136 +96,136 @@ class MCPIntegratedDashboard:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-    
+
     def _setup_routes(self):
         """Setup FastAPI routes."""
-        
+
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard_home(request: Request):
             """Main dashboard page."""
             return await self._render_dashboard()
-        
+
         @self.app.get("/api/status")
         async def get_status():
             """Get overall system status."""
             return await self._get_system_status()
-        
+
         @self.app.get("/api/mcp")
         async def get_mcp_status():
             """Get MCP server status and metrics."""
             return await self._get_mcp_status()
-        
+
         @self.app.get("/api/backends")
         async def get_backends():
             """Get backend information from ~/.ipfs_kit/."""
             return await self._get_backend_data()
-        
+
         @self.app.get("/api/pins")
         async def get_pins():
             """Get pin information from ~/.ipfs_kit/."""
             return await self._get_pin_data()
-        
+
         @self.app.get("/api/daemon")
         async def get_daemon_status():
             """Get daemon status."""
             return await self._get_daemon_status()
-        
+
         @self.app.post("/api/daemon/{action}")
         async def daemon_control(action: str):
             """Control daemon operations."""
             return await self._execute_daemon_command(action)
-        
+
         @self.app.get("/api/services")
         async def get_services():
             """Get service status for IPFS, Lotus, Cluster, Lassie."""
             return await self._get_services_data()
-        
+
         @self.app.get("/api/services/{service}/status")
         async def get_service_status(service: str):
             """Get detailed service status."""
             return await self._get_service_status(service)
-        
+
         @self.app.post("/api/services/{service}/{action}")
         async def service_control(service: str, action: str):
             """Control service operations."""
             return await self._execute_service_command(service, action)
-        
+
         @self.app.get("/api/peers")
         async def get_peers():
             """Get peer information and connectivity."""
             return await self._get_peers_data()
-        
+
         @self.app.post("/api/peers/connect")
         async def connect_peer(peer_data: dict):
             """Connect to a new peer."""
             return await self._connect_peer(peer_data)
-        
+
         @self.app.delete("/api/peers/{peer_id}")
         async def disconnect_peer(peer_id: str):
             """Disconnect from a peer."""
             return await self._disconnect_peer(peer_id)
-        
+
         @self.app.get("/api/logs")
         async def get_logs(component: str = "all", level: str = "info", limit: int = 100):
             """Get system logs."""
             return await self._get_logs_data(component, level, limit)
-        
+
         @self.app.get("/api/logs/stream")
         async def stream_logs():
             """Stream logs in real-time."""
             return StreamingResponse(self._stream_logs(), media_type="text/plain")
-        
+
         @self.app.get("/api/metrics/detailed")
         async def get_detailed_metrics():
             """Get detailed performance metrics."""
             return await self._get_detailed_metrics()
-        
+
         @self.app.get("/api/system")
         async def get_system_metrics():
             """Get system resource metrics."""
             return await self._get_system_metrics()
-        
+
         @self.app.post("/api/config/update")
         async def update_config(config_data: dict):
             """Update configuration settings."""
             return await self._update_config(config_data)
-        
+
         @self.app.get("/api/buckets")
         async def get_buckets():
             """Get bucket information."""
             return await self._get_buckets_data()
-        
+
         @self.app.get("/api/buckets/{bucket_name}")
         async def get_bucket_details(bucket_name: str):
             """Get detailed bucket information."""
             return await self._get_bucket_details(bucket_name)
-        
+
         @self.app.get("/api/config")
         async def get_config():
             """Get configuration information."""
             return await self._get_config_data()
-        
+
         @self.app.post("/api/mcp/command")
         async def execute_mcp_command(request: Request):
             """Execute MCP command."""
             data = await request.json()
             return await self._execute_mcp_command(data)
-        
+
         @self.app.get("/api/wal")
         async def get_wal_data():
             """Get WAL information."""
             return await self._get_wal_data()
-        
+
         @self.app.get("/api/program_state")
         async def get_program_state_data():
             """Get program state information."""
             return await self._get_program_state_data()
-        
+
         @self.app.websocket("/ws")
         async def websocket_endpoint(websocket: WebSocket):
             """WebSocket endpoint for real-time updates."""
             await self._handle_websocket(websocket)
-    
+
     async def _render_dashboard(self) -> str:
         """Render the main dashboard HTML."""
         html = f"""
@@ -1288,35 +1288,32 @@ class MCPIntegratedDashboard:
 </html>
         """
         return html
-    
+
     async def _get_system_status(self) -> Dict[str, Any]:
         """Get overall system status."""
         try:
             # Get MCP server status
             mcp_status = await self._check_mcp_health()
-            
+
             # Get daemon status from files
             daemon_status = await self._read_daemon_status()
-            
+
             # Get backend and pin counts
             backend_data = await self._read_backend_data()
             pin_data = await self._read_pin_data()
-            
+
             return {
-                'mcp': mcp_status,
-                'daemon': daemon_status,
-                'backend_count': len(backend_data.get('backends', [])),
-                'pin_count': len(pin_data.get('pins', [])),
-                'timestamp': datetime.now().isoformat()
+                "mcp": mcp_status,
+                "daemon": daemon_status,
+                "backend_count": len(backend_data.get("backends", [])),
+                "pin_count": len(pin_data.get("pins", [])),
+                "timestamp": datetime.now().isoformat(),
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting system status: {e}")
-            return {
-                'error': str(e),
-                'timestamp': datetime.now().isoformat()
-            }
-    
+            return {"error": str(e), "timestamp": datetime.now().isoformat()}
+
     async def _get_mcp_status(self) -> Dict[str, Any]:
         """Get detailed MCP server status."""
         try:
@@ -1324,130 +1321,134 @@ class MCPIntegratedDashboard:
                 async with session.get(f"{self.mcp_server_url}/health") as response:
                     if response.status == 200:
                         health_data = await response.json()
-                        
+
                         # Get additional status
                         async with session.get(f"{self.mcp_server_url}/status") as status_response:
-                            status_data = await status_response.json() if status_response.status == 200 else {}
-                        
+                            status_data = (
+                                await status_response.json()
+                                if status_response.status == 200
+                                else {}
+                            )
+
                         return {
-                            'status': 'running',
-                            'health': health_data,
-                            'details': status_data,
-                            'uptime': 'Active',
-                            'last_check': datetime.now().strftime('%H:%M:%S'),
-                            'timestamp': datetime.now().isoformat()
+                            "status": "running",
+                            "health": health_data,
+                            "details": status_data,
+                            "uptime": "Active",
+                            "last_check": datetime.now().strftime("%H:%M:%S"),
+                            "timestamp": datetime.now().isoformat(),
                         }
                     else:
                         return {
-                            'status': 'error',
-                            'error': f"HTTP {response.status}",
-                            'timestamp': datetime.now().isoformat()
+                            "status": "error",
+                            "error": f"HTTP {response.status}",
+                            "timestamp": datetime.now().isoformat(),
                         }
-                        
+
         except Exception as e:
-            return {
-                'status': 'error',
-                'error': str(e),
-                'timestamp': datetime.now().isoformat()
-            }
-    
+            return {"status": "error", "error": str(e), "timestamp": datetime.now().isoformat()}
+
     async def _check_mcp_health(self) -> Dict[str, Any]:
         """Check MCP server health."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(f"{self.mcp_server_url}/health", timeout=5) as response:
                     if response.status == 200:
-                        return {
-                            'status': 'running',
-                            'timestamp': datetime.now().isoformat()
-                        }
+                        return {"status": "running", "timestamp": datetime.now().isoformat()}
                     else:
                         return {
-                            'status': 'error',
-                            'error': f"HTTP {response.status}",
-                            'timestamp': datetime.now().isoformat()
+                            "status": "error",
+                            "error": f"HTTP {response.status}",
+                            "timestamp": datetime.now().isoformat(),
                         }
         except Exception as e:
-            return {
-                'status': 'error',
-                'error': str(e),
-                'timestamp': datetime.now().isoformat()
-            }
-    
+            return {"status": "error", "error": str(e), "timestamp": datetime.now().isoformat()}
+
     async def _get_services_data(self) -> Dict[str, Any]:
         """Get comprehensive service status data."""
         try:
             services = {
                 "ipfs": await self._get_service_status("ipfs"),
-                "lotus": await self._get_service_status("lotus"), 
+                "lotus": await self._get_service_status("lotus"),
                 "cluster": await self._get_service_status("cluster"),
-                "lassie": await self._get_service_status("lassie")
+                "lassie": await self._get_service_status("lassie"),
             }
-            
+
             # Get overall service health
-            healthy_count = sum(1 for service in services.values() 
-                              if service.get("status") == "running")
-            
+            healthy_count = sum(
+                1 for service in services.values() if service.get("status") == "running"
+            )
+
             return {
                 "services": services,
                 "summary": {
                     "total": len(services),
                     "healthy": healthy_count,
-                    "unhealthy": len(services) - healthy_count
-                }
+                    "unhealthy": len(services) - healthy_count,
+                },
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting services data: {e}")
-            return {"services": {}, "summary": {"total": 0, "healthy": 0, "unhealthy": 0}, "error": str(e)}
-    
+            return {
+                "services": {},
+                "summary": {"total": 0, "healthy": 0, "unhealthy": 0},
+                "error": str(e),
+            }
+
     async def _get_service_status(self, service: str) -> Dict[str, Any]:
         """Get detailed status for a specific service."""
         try:
             # Check if service process is running
-            result = subprocess.run(['pgrep', '-f', service], capture_output=True, text=True)
+            result = subprocess.run(["pgrep", "-f", service], capture_output=True, text=True)
             is_running = bool(result.stdout.strip())
-            
+
             status_data = {
                 "name": service,
                 "status": "running" if is_running else "stopped",
                 "pid": result.stdout.strip() if is_running else None,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-            
+
             if is_running and result.stdout.strip():
                 try:
-                    pid = int(result.stdout.strip().split('\n')[0])
+                    pid = int(result.stdout.strip().split("\n")[0])
                     process = psutil.Process(pid)
-                    status_data.update({
-                        "cpu_percent": process.cpu_percent(),
-                        "memory_mb": process.memory_info().rss / 1024 / 1024,
-                        "create_time": datetime.fromtimestamp(process.create_time()).isoformat()
-                    })
+                    status_data.update(
+                        {
+                            "cpu_percent": process.cpu_percent(),
+                            "memory_mb": process.memory_info().rss / 1024 / 1024,
+                            "create_time": datetime.fromtimestamp(
+                                process.create_time()
+                            ).isoformat(),
+                        }
+                    )
                 except (psutil.NoSuchProcess, ValueError):
                     pass
-            
+
             # Try to get service-specific information via MCP
             try:
-                mcp_result = await self._execute_mcp_command("service", action="status", args=[service])
+                mcp_result = await self._execute_mcp_command(
+                    "service", action="status", args=[service]
+                )
                 if mcp_result and "result" in mcp_result:
                     status_data.update(mcp_result["result"])
             except Exception:
                 pass
-            
+
             return status_data
-            
+
         except Exception as e:
             logger.error(f"Error getting {service} status: {e}")
             return {"name": service, "status": "error", "error": str(e)}
-    
+
     async def _get_peers_data(self) -> Dict[str, Any]:
         """Get peer connectivity information."""
         try:
             # Get peer data via MCP
             result = await self._execute_mcp_command("ipfs", action="swarm", args=["peers"])
             peers_raw = result.get("result", {}).get("peers", [])
-            
+
             peers = []
             for peer in peers_raw:
                 peer_info = {
@@ -1455,57 +1456,61 @@ class MCPIntegratedDashboard:
                     "addresses": peer.get("Addr", []),
                     "direction": peer.get("Direction", "unknown"),
                     "latency": peer.get("Latency", "unknown"),
-                    "streams": peer.get("Streams", [])
+                    "streams": peer.get("Streams", []),
                 }
                 peers.append(peer_info)
-            
+
             # Get additional connectivity metrics
             try:
-                connectivity_result = await self._execute_mcp_command("ipfs", action="diag", args=["net"])
+                connectivity_result = await self._execute_mcp_command(
+                    "ipfs", action="diag", args=["net"]
+                )
                 connectivity = connectivity_result.get("result", {})
             except Exception:
                 connectivity = {}
-            
+
             return {
                 "peers": peers,
                 "total": len(peers),
                 "connectivity": connectivity,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting peers data: {e}")
             return {"peers": [], "total": 0, "error": str(e)}
-    
-    async def _get_logs_data(self, component: str = "all", level: str = "info", limit: int = 100) -> Dict[str, Any]:
+
+    async def _get_logs_data(
+        self, component: str = "all", level: str = "info", limit: int = 100
+    ) -> Dict[str, Any]:
         """Get system logs with filtering."""
         try:
-            result = await self._execute_mcp_command("log", action="show", params={
-                "component": component,
-                "level": level,
-                "limit": limit
-            })
-            
+            result = await self._execute_mcp_command(
+                "log",
+                action="show",
+                params={"component": component, "level": level, "limit": limit},
+            )
+
             logs = result.get("result", {}).get("logs", [])
-            
+
             return {
                 "logs": logs,
                 "component": component,
                 "level": level,
                 "total": len(logs),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting logs data: {e}")
             return {"logs": [], "error": str(e)}
-    
+
     async def _get_detailed_metrics(self) -> Dict[str, Any]:
         """Get comprehensive performance metrics."""
         try:
             # System metrics
             system_metrics = await self._get_system_metrics()
-            
+
             # MCP server metrics
             mcp_metrics = {}
             try:
@@ -1515,25 +1520,25 @@ class MCPIntegratedDashboard:
                             mcp_metrics = await response.json()
             except Exception:
                 pass
-            
+
             # Storage metrics
             storage_metrics = await self._get_storage_metrics()
-            
+
             # Network metrics
             network_metrics = await self._get_network_metrics()
-            
+
             return {
                 "system": system_metrics,
                 "mcp_server": mcp_metrics,
                 "storage": storage_metrics,
                 "network": network_metrics,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting detailed metrics: {e}")
             return {"error": str(e)}
-    
+
     async def _get_system_metrics(self) -> Dict[str, Any]:
         """Get comprehensive system resource metrics."""
         try:
@@ -1541,21 +1546,21 @@ class MCPIntegratedDashboard:
             cpu_percent = psutil.cpu_percent(interval=1)
             cpu_count = psutil.cpu_count()
             cpu_freq = psutil.cpu_freq()
-            
+
             # Memory metrics
             memory = psutil.virtual_memory()
             swap = psutil.swap_memory()
-            
+
             # Disk metrics
-            disk_usage = psutil.disk_usage('/')
+            disk_usage = psutil.disk_usage("/")
             disk_io = psutil.disk_io_counters()
-            
+
             # Network metrics
             network_io = psutil.net_io_counters()
-            
+
             # Process metrics
             process_count = len(psutil.pids())
-            
+
             return {
                 "cpu": {
                     "percent": cpu_percent,
@@ -1563,21 +1568,21 @@ class MCPIntegratedDashboard:
                     "frequency": {
                         "current": cpu_freq.current if cpu_freq else None,
                         "min": cpu_freq.min if cpu_freq else None,
-                        "max": cpu_freq.max if cpu_freq else None
-                    }
+                        "max": cpu_freq.max if cpu_freq else None,
+                    },
                 },
                 "memory": {
                     "percent": memory.percent,
                     "total": memory.total,
                     "available": memory.available,
                     "used": memory.used,
-                    "free": memory.free
+                    "free": memory.free,
                 },
                 "swap": {
                     "percent": swap.percent,
                     "total": swap.total,
                     "used": swap.used,
-                    "free": swap.free
+                    "free": swap.free,
                 },
                 "disk": {
                     "percent": (disk_usage.used / disk_usage.total) * 100,
@@ -1588,25 +1593,23 @@ class MCPIntegratedDashboard:
                         "read_bytes": disk_io.read_bytes if disk_io else 0,
                         "write_bytes": disk_io.write_bytes if disk_io else 0,
                         "read_count": disk_io.read_count if disk_io else 0,
-                        "write_count": disk_io.write_count if disk_io else 0
-                    }
+                        "write_count": disk_io.write_count if disk_io else 0,
+                    },
                 },
                 "network": {
                     "bytes_sent": network_io.bytes_sent,
                     "bytes_recv": network_io.bytes_recv,
                     "packets_sent": network_io.packets_sent,
-                    "packets_recv": network_io.packets_recv
+                    "packets_recv": network_io.packets_recv,
                 },
-                "processes": {
-                    "count": process_count
-                },
-                "timestamp": datetime.now().isoformat()
+                "processes": {"count": process_count},
+                "timestamp": datetime.now().isoformat(),
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting system metrics: {e}")
             return {"error": str(e)}
-    
+
     async def _get_storage_metrics(self) -> Dict[str, Any]:
         """Get storage-related metrics."""
         try:
@@ -1617,7 +1620,7 @@ class MCPIntegratedDashboard:
                 ipfs_storage = result.get("result", {})
             except Exception:
                 pass
-            
+
             # Get backend storage metrics
             backend_data = await self._get_backend_data()
             backend_storage = {}
@@ -1626,25 +1629,25 @@ class MCPIntegratedDashboard:
                 if backend_name:
                     backend_storage[backend_name] = {
                         "status": backend.get("health_status", "unknown"),
-                        "pin_count": backend.get("pin_count", 0)
+                        "pin_count": backend.get("pin_count", 0),
                     }
-            
+
             return {
                 "ipfs": ipfs_storage,
                 "backends": backend_storage,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting storage metrics: {e}")
             return {"error": str(e)}
-    
+
     async def _get_network_metrics(self) -> Dict[str, Any]:
         """Get network connectivity metrics."""
         try:
             # Get peer count and connectivity
             peers_data = await self._get_peers_data()
-            
+
             # Get IPFS network stats
             ipfs_stats = {}
             try:
@@ -1652,50 +1655,50 @@ class MCPIntegratedDashboard:
                 ipfs_stats = result.get("result", {})
             except Exception:
                 pass
-            
+
             return {
                 "peer_count": peers_data.get("total", 0),
                 "ipfs_bandwidth": ipfs_stats,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting network metrics: {e}")
             return {"error": str(e)}
-    
+
     async def _get_buckets_data(self) -> Dict[str, Any]:
         """Get bucket information from filesystem."""
         try:
             buckets_dir = self.data_dir / "buckets"
             buckets = []
-            
+
             if buckets_dir.exists():
                 for bucket_path in buckets_dir.iterdir():
                     if bucket_path.is_dir():
                         bucket_info = await self._get_bucket_details(bucket_path.name)
                         buckets.append(bucket_info)
-            
+
             return {
                 "buckets": buckets,
                 "total": len(buckets),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting buckets data: {e}")
             return {"buckets": [], "total": 0, "error": str(e)}
-    
+
     async def _get_bucket_details(self, bucket_name: str) -> Dict[str, Any]:
         """Get detailed information about a specific bucket."""
         try:
             bucket_path = self.data_dir / "buckets" / bucket_name
-            
+
             if not bucket_path.exists():
                 return {"name": bucket_name, "status": "not_found"}
-            
+
             # Get basic info
             stat = bucket_path.stat()
-            
+
             # Count files
             file_count = 0
             total_size = 0
@@ -1704,17 +1707,17 @@ class MCPIntegratedDashboard:
                     if item.is_file():
                         file_count += 1
                         total_size += item.stat().st_size
-            
+
             # Check for bucket metadata
             metadata_file = bucket_path / "bucket_metadata.json"
             metadata = {}
             if metadata_file.exists():
                 try:
-                    with open(metadata_file, 'r') as f:
+                    with open(metadata_file, "r") as f:
                         metadata = json.load(f)
                 except Exception:
                     pass
-            
+
             return {
                 "name": bucket_name,
                 "path": str(bucket_path),
@@ -1723,9 +1726,9 @@ class MCPIntegratedDashboard:
                 "total_size": total_size,
                 "created": datetime.fromtimestamp(stat.st_ctime).isoformat(),
                 "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                "metadata": metadata
+                "metadata": metadata,
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting bucket details for {bucket_name}: {e}")
 
@@ -1740,7 +1743,7 @@ class MCPIntegratedDashboard:
             return {
                 "wal_status": "Active",
                 "file_count": len(wal_files),
-                "files": [f.name for f in wal_files]
+                "files": [f.name for f in wal_files],
             }
         except Exception as e:
             logger.error(f"Error getting WAL data: {e}")
@@ -1757,7 +1760,7 @@ class MCPIntegratedDashboard:
             return {
                 "program_state_status": "Active",
                 "file_count": len(program_state_files),
-                "files": [f.name for f in program_state_files]
+                "files": [f.name for f in program_state_files],
             }
         except Exception as e:
             logger.error(f"Error getting program state data: {e}")
@@ -1768,39 +1771,40 @@ class MCPIntegratedDashboard:
         try:
             daemon_status_file = self.data_dir / "daemon_status.json"
             daemon_pid_file = self.data_dir / "daemon.pid"
-            
-            status = {'is_running': False, 'role': 'unknown'}
-            
+
+            status = {"is_running": False, "role": "unknown"}
+
             if daemon_status_file.exists():
-                with open(daemon_status_file, 'r') as f:
+                with open(daemon_status_file, "r") as f:
                     file_status = json.load(f)
                     status.update(file_status)
-            
+
             # Check PID
             if daemon_pid_file.exists():
                 try:
-                    with open(daemon_pid_file, 'r') as f:
+                    with open(daemon_pid_file, "r") as f:
                         pid = int(f.read().strip())
-                    
+
                     # Check if process is running
                     try:
                         import psutil
+
                         process = psutil.Process(pid)
-                        status['is_running'] = process.is_running()
-                        status['pid'] = pid
-                        status['cpu_percent'] = process.cpu_percent()
-                        status['memory_mb'] = process.memory_info().rss / 1024 / 1024
+                        status["is_running"] = process.is_running()
+                        status["pid"] = pid
+                        status["cpu_percent"] = process.cpu_percent()
+                        status["memory_mb"] = process.memory_info().rss / 1024 / 1024
                     except (psutil.NoSuchProcess, ImportError):
-                        status['is_running'] = False
+                        status["is_running"] = False
                 except ValueError:
                     pass
-            
+
             return status
-            
+
         except Exception as e:
             logger.error(f"Error reading daemon status: {e}")
-            return {'is_running': False, 'error': str(e)}
-    
+            return {"is_running": False, "error": str(e)}
+
     async def _execute_daemon_command(self, action: str) -> Dict[str, Any]:
         """Execute daemon control commands."""
         try:
@@ -1814,71 +1818,75 @@ class MCPIntegratedDashboard:
                 result = {"result": await self._read_daemon_status()}
             else:
                 return {"success": False, "error": f"Unknown action: {action}"}
-            
+
             return {"success": True, "result": result.get("result", {})}
-            
+
         except Exception as e:
             logger.error(f"Error executing daemon command {action}: {e}")
             return {"success": False, "error": str(e)}
-    
+
     async def _execute_service_command(self, service: str, action: str) -> Dict[str, Any]:
         """Execute service control commands."""
         try:
             result = await self._execute_mcp_command("service", action=action, args=[service])
             return {"success": True, "result": result.get("result", {})}
-            
+
         except Exception as e:
             logger.error(f"Error executing service command {service}/{action}: {e}")
             return {"success": False, "error": str(e)}
-    
+
     async def _connect_peer(self, peer_data: dict) -> Dict[str, Any]:
         """Connect to a new peer."""
         try:
             peer_address = peer_data.get("address", "")
             if not peer_address:
                 return {"success": False, "error": "Peer address required"}
-            
-            result = await self._execute_mcp_command("ipfs", action="swarm", args=["connect", peer_address])
+
+            result = await self._execute_mcp_command(
+                "ipfs", action="swarm", args=["connect", peer_address]
+            )
             return {"success": True, "result": result.get("result", {})}
-            
+
         except Exception as e:
             logger.error(f"Error connecting to peer: {e}")
             return {"success": False, "error": str(e)}
-    
+
     async def _disconnect_peer(self, peer_id: str) -> Dict[str, Any]:
         """Disconnect from a peer."""
         try:
-            result = await self._execute_mcp_command("ipfs", action="swarm", args=["disconnect", peer_id])
+            result = await self._execute_mcp_command(
+                "ipfs", action="swarm", args=["disconnect", peer_id]
+            )
             return {"success": True, "result": result.get("result", {})}
-            
+
         except Exception as e:
             logger.error(f"Error disconnecting from peer: {e}")
             return {"success": False, "error": str(e)}
-    
+
     async def _update_config(self, config_data: dict) -> Dict[str, Any]:
         """Update configuration settings."""
         try:
             # Update local config file
             config_file = self.data_dir / "config.json"
             existing_config = {}
-            
+
             if config_file.exists():
-                with open(config_file, 'r') as f:
+                with open(config_file, "r") as f:
                     existing_config = json.load(f)
-            
+
             # Merge configurations
             existing_config.update(config_data)
-            
+
             # Write back to file
-            with open(config_file, 'w') as f:
+            with open(config_file, "w") as f:
                 json.dump(existing_config, f, indent=2)
-            
+
             return {"success": True, "message": "Configuration updated successfully"}
-            
+
         except Exception as e:
             logger.error(f"Error updating config: {e}")
             return {"success": False, "error": str(e)}
-    
+
     async def _stream_logs(self):
         """Stream logs in real-time."""
         try:
@@ -1889,8 +1897,14 @@ class MCPIntegratedDashboard:
                 await anyio.sleep(2)
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
-    
-    async def _execute_mcp_command(self, command: str, action: str = None, args: List[str] = None, params: Dict[str, Any] = None) -> Dict[str, Any]:
+
+    async def _execute_mcp_command(
+        self,
+        command: str,
+        action: str = None,
+        args: List[str] = None,
+        params: Dict[str, Any] = None,
+    ) -> Dict[str, Any]:
         """Execute command via MCP server with conflict-free operations."""
         try:
             # Build the command payload for atomic operations
@@ -1898,29 +1912,27 @@ class MCPIntegratedDashboard:
                 "command": command,
                 "timestamp": datetime.now().isoformat(),
                 "content_addressed": True,  # Ensure conflict-free operations
-                "atomic": True
+                "atomic": True,
             }
-            
+
             if action:
                 cmd_payload["action"] = action
             if args:
                 cmd_payload["args"] = args
             if params:
                 cmd_payload["params"] = params
-            
+
             # Send to MCP server
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.mcp_server_url}/execute",
-                    json=cmd_payload,
-                    timeout=30
+                    f"{self.mcp_server_url}/execute", json=cmd_payload, timeout=30
                 ) as response:
                     if response.status == 200:
                         return await response.json()
                     else:
                         error_text = await response.text()
                         return {"error": f"HTTP {response.status}: {error_text}"}
-                        
+
         except Exception as e:
             logger.error(f"Error executing MCP command: {e}")
             return {"error": str(e)}
@@ -1928,228 +1940,225 @@ class MCPIntegratedDashboard:
         try:
             daemon_status_file = self.data_dir / "daemon_status.json"
             daemon_pid_file = self.data_dir / "daemon.pid"
-            
-            status = {'is_running': False, 'role': 'unknown'}
-            
+
+            status = {"is_running": False, "role": "unknown"}
+
             if daemon_status_file.exists():
-                with open(daemon_status_file, 'r') as f:
+                with open(daemon_status_file, "r") as f:
                     file_status = json.load(f)
                     status.update(file_status)
-            
+
             # Check PID
             if daemon_pid_file.exists():
                 try:
-                    with open(daemon_pid_file, 'r') as f:
+                    with open(daemon_pid_file, "r") as f:
                         pid = int(f.read().strip())
-                    
+
                     # Check if process is running
                     try:
                         import psutil
+
                         process = psutil.Process(pid)
-                        status['is_running'] = process.is_running()
-                        status['pid'] = pid
+                        status["is_running"] = process.is_running()
+                        status["pid"] = pid
                     except (psutil.NoSuchProcess, ImportError):
-                        status['is_running'] = False
+                        status["is_running"] = False
                 except ValueError:
                     pass
-            
+
             return status
-            
+
         except Exception as e:
             logger.error(f"Error reading daemon status: {e}")
-            return {'is_running': False, 'error': str(e)}
-    
+            return {"is_running": False, "error": str(e)}
+
     async def _read_backend_data(self) -> Dict[str, Any]:
         """Read backend data from ~/.ipfs_kit/ files."""
         try:
             backend_index_file = self.data_dir / "backend_index.parquet"
-            
+
             if not backend_index_file.exists():
-                return {'backends': [], 'message': 'No backend index found'}
-            
+                return {"backends": [], "message": "No backend index found"}
+
             df = pd.read_parquet(backend_index_file)
             backends = []
-            
+
             for _, row in df.iterrows():
                 backend = {
-                    'backend_name': row.get('backend_name', ''),
-                    'backend_type': row.get('backend_type', ''),
-                    'health_status': row.get('health_status', 'unknown'),
-                    'last_health_check': row.get('last_health_check', ''),
-                    'pin_count': 0  # Will be calculated from pins
+                    "backend_name": row.get("backend_name", ""),
+                    "backend_type": row.get("backend_type", ""),
+                    "health_status": row.get("health_status", "unknown"),
+                    "last_health_check": row.get("last_health_check", ""),
+                    "pin_count": 0,  # Will be calculated from pins
                 }
                 backends.append(backend)
-            
-            return {'backends': backends}
-            
+
+            return {"backends": backends}
+
         except Exception as e:
             logger.error(f"Error reading backend data: {e}")
-            return {'backends': [], 'error': str(e)}
-    
+            return {"backends": [], "error": str(e)}
+
     async def _read_pin_data(self) -> Dict[str, Any]:
         """Read pin data from ~/.ipfs_kit/ files."""
         try:
             pin_mappings_file = self.data_dir / "pin_mappings.parquet"
-            
+
             if not pin_mappings_file.exists():
-                return {'pins': [], 'message': 'No pin mappings found'}
-            
+                return {"pins": [], "message": "No pin mappings found"}
+
             df = pd.read_parquet(pin_mappings_file)
             pins = []
-            
+
             for _, row in df.iterrows():
                 pin = {
-                    'cid': row.get('cid', ''),
-                    'backend_name': row.get('backend_name', ''),
-                    'pin_status': row.get('pin_status', 'unknown'),
-                    'size': row.get('size', ''),
-                    'created_at': row.get('created_at', ''),
-                    'updated_at': row.get('updated_at', '')
+                    "cid": row.get("cid", ""),
+                    "backend_name": row.get("backend_name", ""),
+                    "pin_status": row.get("pin_status", "unknown"),
+                    "size": row.get("size", ""),
+                    "created_at": row.get("created_at", ""),
+                    "updated_at": row.get("updated_at", ""),
                 }
                 pins.append(pin)
-            
-            return {'pins': pins}
-            
+
+            return {"pins": pins}
+
         except Exception as e:
             logger.error(f"Error reading pin data: {e}")
-            return {'pins': [], 'error': str(e)}
-    
+            return {"pins": [], "error": str(e)}
+
     async def _get_backend_data(self) -> Dict[str, Any]:
         """Get backend data with pin counts."""
         backend_data = await self._read_backend_data()
         pin_data = await self._read_pin_data()
-        
+
         # Calculate pin counts per backend
-        if backend_data.get('backends') and pin_data.get('pins'):
+        if backend_data.get("backends") and pin_data.get("pins"):
             pin_counts = {}
-            for pin in pin_data['pins']:
-                backend_name = pin.get('backend_name', '')
+            for pin in pin_data["pins"]:
+                backend_name = pin.get("backend_name", "")
                 pin_counts[backend_name] = pin_counts.get(backend_name, 0) + 1
-            
-            for backend in backend_data['backends']:
-                backend['pin_count'] = pin_counts.get(backend['backend_name'], 0)
-        
+
+            for backend in backend_data["backends"]:
+                backend["pin_count"] = pin_counts.get(backend["backend_name"], 0)
+
         return backend_data
-    
+
     async def _get_pin_data(self) -> Dict[str, Any]:
         """Get pin data."""
         return await self._read_pin_data()
-    
+
     async def _get_daemon_status(self) -> Dict[str, Any]:
         """Get daemon status."""
         return await self._read_daemon_status()
-    
+
     async def _get_config_data(self) -> Dict[str, Any]:
         """Get configuration data."""
         try:
             # Read MCP config
             mcp_config_file = self.data_dir / "mcp_config.json"
             config_file = self.data_dir / "config.json"
-            
+
             mcp_config = {}
             system_config = {}
-            
+
             if mcp_config_file.exists():
-                with open(mcp_config_file, 'r') as f:
-                    mcp_config = json.load(f).get('mcp', {})
-            
+                with open(mcp_config_file, "r") as f:
+                    mcp_config = json.load(f).get("mcp", {})
+
             if config_file.exists():
-                with open(config_file, 'r') as f:
+                with open(config_file, "r") as f:
                     system_config = json.load(f)
-            
+
             return {
-                'mcp': mcp_config,
-                'system': {
-                    'data_dir': str(self.data_dir),
-                    'debug': self.config.get('debug', False),
-                    'cache_ttl_seconds': 300
-                }
+                "mcp": mcp_config,
+                "system": {
+                    "data_dir": str(self.data_dir),
+                    "debug": self.config.get("debug", False),
+                    "cache_ttl_seconds": 300,
+                },
             }
-            
+
         except Exception as e:
             logger.error(f"Error reading config data: {e}")
-            return {'error': str(e)}
-    
+            return {"error": str(e)}
+
     async def _handle_websocket(self, websocket: WebSocket):
         """Handle WebSocket connection."""
         await websocket.accept()
         self.websocket_clients.add(websocket)
-        
+
         try:
             while True:
                 # Send periodic updates
                 await anyio.sleep(5)
-                
+
                 status = await self._get_system_status()
-                await websocket.send_text(json.dumps({
-                    'type': 'status_update',
-                    'data': status
-                }))
-                
+                await websocket.send_text(json.dumps({"type": "status_update", "data": status}))
+
         except WebSocketDisconnect:
             self.websocket_clients.discard(websocket)
         except Exception as e:
             logger.error(f"WebSocket error: {e}")
             self.websocket_clients.discard(websocket)
-    
+
     async def start(self, host: str = None, port: int = None):
         """Start the dashboard server."""
-        host = host or self.config['host']
-        port = port or self.config['port']
-        
+        host = host or self.config["host"]
+        port = port or self.config["port"]
+
         self.is_running = True
         logger.info(f"Starting Enhanced MCP Dashboard on {host}:{port}")
-        
+
         # Start background tasks
         self.update_task_scope = anyio.CancelScope()
+
         async def run_updates():
             with self.update_task_scope:
                 await self._background_update_loop()
+
         anyio.lowlevel.spawn_system_task(run_updates)
-        
+
         # Start the server
         config = uvicorn.Config(
             self.app,
             host=host,
             port=port,
-            log_level="info" if self.config.get('debug') else "warning"
+            log_level="info" if self.config.get("debug") else "warning",
         )
         server = uvicorn.Server(config)
         await server.serve()
-    
+
     async def stop(self):
         """Stop the dashboard server."""
         self.is_running = False
-        
+
         if getattr(self, "update_task_scope", None):
             self.update_task_scope.cancel()
-        
+
         logger.info("Enhanced MCP Dashboard stopped")
-    
+
     async def _background_update_loop(self):
         """Background loop for periodic updates."""
         while self.is_running:
             try:
-                await anyio.sleep(self.config.get('update_interval', 5))
-                
+                await anyio.sleep(self.config.get("update_interval", 5))
+
                 # Broadcast updates to WebSocket clients
                 if self.websocket_clients:
                     status = await self._get_system_status()
-                    message = json.dumps({
-                        'type': 'status_update',
-                        'data': status
-                    })
-                    
+                    message = json.dumps({"type": "status_update", "data": status})
+
                     disconnected = set()
                     for client in self.websocket_clients.copy():
                         try:
                             await client.send_text(message)
                         except Exception:
                             disconnected.add(client)
-                    
+
                     for client in disconnected:
                         self.websocket_clients.discard(client)
-                        
+
             except anyio.get_cancelled_exc_class():
                 break
             except Exception as e:
@@ -2159,25 +2168,25 @@ class MCPIntegratedDashboard:
 async def main():
     """Main function to start the enhanced dashboard."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Enhanced MCP-Integrated IPFS Kit Dashboard")
-    parser.add_argument('--host', default='127.0.0.1', help='Host to bind to')
-    parser.add_argument('--port', type=int, default=8080, help='Port to bind to')
-    parser.add_argument('--mcp-url', default='http://127.0.0.1:8004', help='MCP server URL')
-    parser.add_argument('--data-dir', default='~/.ipfs_kit', help='Data directory')
-    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
-    
+    parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
+    parser.add_argument("--port", type=int, default=8080, help="Port to bind to")
+    parser.add_argument("--mcp-url", default="http://127.0.0.1:8004", help="MCP server URL")
+    parser.add_argument("--data-dir", default="~/.ipfs_kit", help="Data directory")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+
     args = parser.parse_args()
-    
+
     config = {
-        'host': args.host,
-        'port': args.port,
-        'mcp_server_url': args.mcp_url,
-        'data_dir': args.data_dir,
-        'debug': args.debug,
-        'update_interval': 5
+        "host": args.host,
+        "port": args.port,
+        "mcp_server_url": args.mcp_url,
+        "data_dir": args.data_dir,
+        "debug": args.debug,
+        "update_interval": 5,
     }
-    
+
     dashboard = MCPIntegratedDashboard(config)
     await dashboard.start()
 

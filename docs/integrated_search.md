@@ -20,28 +20,25 @@ The main integration class that combines both systems:
 ```python
 class MetadataEnhancedGraphRAG:
     """GraphRAG system enhanced with Arrow metadata index capabilities.
-    
+
     This class integrates the Arrow metadata index with the IPLD Knowledge Graph
     to provide a unified search experience that combines the strengths of both
     systems: efficient metadata filtering and vector similarity search.
     """
-    
-    def __init__(self, 
-                 ipfs_client, 
-                 graph_db=None,
-                 metadata_index=None):
+
+    def __init__(self, ipfs_client, graph_db=None, metadata_index=None):
         """Initialize the enhanced GraphRAG system.
-        
+
         Args:
             ipfs_client: The IPFS client instance
             graph_db: Optional existing IPLD Knowledge Graph instance
             metadata_index: Optional existing Arrow metadata index instance
         """
         self.ipfs = ipfs_client
-        
+
         # Initialize or use provided components
         self.graph_db = graph_db or IPLDGraphDB(ipfs_client)
-        
+
         if metadata_index is not None:
             self.metadata_index = metadata_index
         elif hasattr(ipfs_client, "metadata_index") and ipfs_client.metadata_index is not None:
@@ -49,21 +46,23 @@ class MetadataEnhancedGraphRAG:
         else:
             # Create a new metadata index if none exists
             self.metadata_index = IPFSArrowIndex(role=ipfs_client.role)
-    
-    def hybrid_search(self, 
-                     query_text=None, 
-                     query_vector=None,
-                     metadata_filters=None, 
-                     entity_types=None,
-                     hop_count=1,
-                     top_k=10):
+
+    def hybrid_search(
+        self,
+        query_text=None,
+        query_vector=None,
+        metadata_filters=None,
+        entity_types=None,
+        hop_count=1,
+        top_k=10,
+    ):
         """Perform a hybrid search combining metadata filtering and vector similarity.
-        
+
         This method supports multiple search strategies:
         1. Metadata-first: Filter content by metadata, then perform vector search
         2. Vector-first: Perform vector search, then filter by metadata
         3. Pure hybrid: Execute both searches and merge results
-        
+
         Args:
             query_text: Text query (will be converted to vector if query_vector not provided)
             query_vector: Vector representation for similarity search
@@ -71,7 +70,7 @@ class MetadataEnhancedGraphRAG:
             entity_types: List of entity types to include in results
             hop_count: Number of graph traversal hops for related entities
             top_k: Maximum number of results to return
-            
+
         Returns:
             List of search results with combined scores
         """
@@ -79,51 +78,53 @@ class MetadataEnhancedGraphRAG:
         if metadata_filters and not (query_text or query_vector):
             # Metadata-only search
             return self._metadata_only_search(metadata_filters, top_k)
-            
+
         elif (query_text or query_vector) and not metadata_filters:
             # Vector-only search
-            return self._vector_only_search(query_text, query_vector, entity_types, hop_count, top_k)
-            
+            return self._vector_only_search(
+                query_text, query_vector, entity_types, hop_count, top_k
+            )
+
         else:
             # Hybrid search combining both approaches
-            return self._combined_search(query_text, query_vector, metadata_filters, entity_types, hop_count, top_k)
-    
+            return self._combined_search(
+                query_text, query_vector, metadata_filters, entity_types, hop_count, top_k
+            )
+
     def _metadata_only_search(self, metadata_filters, top_k):
         """Execute a search using only metadata filters."""
         # Query the Arrow index with filters
         filtered_table = self.metadata_index.query(metadata_filters)
-        
+
         # Convert to result format
         results = []
         for row in filtered_table.to_pylist()[:top_k]:
             # Check if this entity exists in the knowledge graph
             entity_id = row.get("cid")
             entity = self.graph_db.get_entity(entity_id)
-            
+
             result = {
                 "id": entity_id,
                 "score": 1.0,  # No relevance score for metadata-only search
                 "metadata": row,
                 "properties": entity["properties"] if entity else {},
-                "source": "metadata"
+                "source": "metadata",
             }
             results.append(result)
-            
+
         return results
-    
+
     def _vector_only_search(self, query_text, query_vector, entity_types, hop_count, top_k):
         """Execute a search using only vector similarity."""
         # Convert text to vector if needed
         if query_text and not query_vector:
             query_vector = self.graph_db.generate_embedding(query_text)
-            
+
         # Perform graph vector search
         results = self.graph_db.graph_vector_search(
-            query_vector=query_vector,
-            hop_count=hop_count,
-            top_k=top_k
+            query_vector=query_vector, hop_count=hop_count, top_k=top_k
         )
-        
+
         # Filter by entity type if specified
         if entity_types:
             filtered_results = []
@@ -132,13 +133,13 @@ class MetadataEnhancedGraphRAG:
                 if entity and entity.get("properties", {}).get("type") in entity_types:
                     filtered_results.append(result)
             results = filtered_results[:top_k]
-            
+
         # Enhance with metadata if available
         enhanced_results = []
         for result in results:
             entity_id = result["entity_id"]
             metadata = self._get_metadata_for_entity(entity_id)
-            
+
             enhanced_result = {
                 "id": entity_id,
                 "score": result["score"],
@@ -146,28 +147,30 @@ class MetadataEnhancedGraphRAG:
                 "properties": self.graph_db.get_entity(entity_id)["properties"],
                 "path": result.get("path", []),
                 "distance": result.get("distance", 0),
-                "source": "vector"
+                "source": "vector",
             }
             enhanced_results.append(enhanced_result)
-            
+
         return enhanced_results
-    
-    def _combined_search(self, query_text, query_vector, metadata_filters, entity_types, hop_count, top_k):
+
+    def _combined_search(
+        self, query_text, query_vector, metadata_filters, entity_types, hop_count, top_k
+    ):
         """Execute a hybrid search combining metadata filtering and vector similarity."""
         # Strategy: Filter by metadata first, then rank by vector similarity
-        
+
         # 1. Get candidate set from metadata filtering
         filtered_table = self.metadata_index.query(metadata_filters)
         candidate_cids = [row["cid"] for row in filtered_table.to_pylist()]
-        
+
         # Short circuit if no candidates match metadata filters
         if not candidate_cids:
             return []
-            
+
         # 2. Convert text to vector if needed
         if query_text and not query_vector:
             query_vector = self.graph_db.generate_embedding(query_text)
-            
+
         # 3. For each candidate, compute vector similarity and add to results
         results = []
         for cid in candidate_cids:
@@ -175,37 +178,39 @@ class MetadataEnhancedGraphRAG:
             entity = self.graph_db.get_entity(cid)
             if not entity:
                 continue
-                
+
             # Check entity type filter
             if entity_types and entity.get("properties", {}).get("type") not in entity_types:
                 continue
-                
+
             # Get vector and compute similarity
             vector = entity.get("vector")
             if vector is not None:
                 similarity = self.graph_db.compute_similarity(query_vector, vector)
-                
+
                 # Find related entities through graph traversal
                 related_entities = self.graph_db.find_related_entities(
                     cid, max_hops=hop_count, include_properties=True
                 )
-                
+
                 # Get metadata for this entity
                 metadata = self._get_metadata_for_entity(cid)
-                
-                results.append({
-                    "id": cid,
-                    "score": similarity,
-                    "metadata": metadata if metadata else {},
-                    "properties": entity["properties"],
-                    "related_entities": related_entities,
-                    "source": "combined"
-                })
-                
+
+                results.append(
+                    {
+                        "id": cid,
+                        "score": similarity,
+                        "metadata": metadata if metadata else {},
+                        "properties": entity["properties"],
+                        "related_entities": related_entities,
+                        "source": "combined",
+                    }
+                )
+
         # Sort by similarity score and return top results
         sorted_results = sorted(results, key=lambda x: x["score"], reverse=True)
         return sorted_results[:top_k]
-    
+
     def _get_metadata_for_entity(self, entity_id):
         """Retrieve metadata for an entity from the Arrow index."""
         try:
@@ -214,42 +219,31 @@ class MetadataEnhancedGraphRAG:
             return metadata_record
         except Exception:
             return None
-    
-    def index_entity(self, 
-                    entity_id, 
-                    properties, 
-                    vector=None, 
-                    relationships=None, 
-                    metadata=None):
+
+    def index_entity(self, entity_id, properties, vector=None, relationships=None, metadata=None):
         """Index an entity in both the knowledge graph and metadata index.
-        
+
         This method ensures that entities are properly indexed in both systems,
         maintaining consistency between the knowledge graph and metadata index.
-        
+
         Args:
             entity_id: Unique identifier for the entity
             properties: Dictionary of entity properties
             vector: Optional embedding vector for similarity search
             relationships: Optional list of relationships to other entities
             metadata: Optional additional metadata for the Arrow index
-        
+
         Returns:
             Dictionary with indexing results for both systems
         """
-        result = {
-            "success": False,
-            "graph_result": None,
-            "metadata_result": None
-        }
-        
+        result = {"success": False, "graph_result": None, "metadata_result": None}
+
         # 1. Add to knowledge graph
         graph_result = self.graph_db.add_entity(
-            entity_id=entity_id,
-            properties=properties,
-            vector=vector
+            entity_id=entity_id, properties=properties, vector=vector
         )
         result["graph_result"] = graph_result
-        
+
         # 2. Add relationships if provided
         if relationships:
             for rel in relationships:
@@ -257,13 +251,13 @@ class MetadataEnhancedGraphRAG:
                     from_entity=entity_id,
                     to_entity=rel["target"],
                     relationship_type=rel["type"],
-                    properties=rel.get("properties", {})
+                    properties=rel.get("properties", {}),
                 )
-        
+
         # 3. Prepare metadata record
         if metadata is None:
             metadata = {}
-            
+
         # Extract basic metadata from properties
         metadata_record = {
             "cid": entity_id,
@@ -271,65 +265,64 @@ class MetadataEnhancedGraphRAG:
             "mime_type": metadata.get("mime_type", "application/json"),
             "added_timestamp": metadata.get("added_timestamp", int(time.time() * 1000)),
             "tags": metadata.get("tags", []) + [properties.get("type", "entity")],
-            "properties": {}
+            "properties": {},
         }
-        
+
         # Add embedding metadata if vector is provided
         if vector is not None:
             metadata_record["embedding_available"] = True
             metadata_record["embedding_dimensions"] = len(vector)
             metadata_record["embedding_type"] = "float32"
-        
+
         # 4. Add to metadata index
         metadata_result = self.metadata_index.add_record(metadata_record)
         result["metadata_result"] = metadata_result
-        
+
         # 5. Set overall success based on both operations
-        result["success"] = (graph_result is not None and 
-                           metadata_result.get("success", False))
-        
+        result["success"] = graph_result is not None and metadata_result.get("success", False)
+
         return result
-    
+
     def generate_llm_context(self, query, search_results, format_type="text"):
         """Generate formatted context for LLM consumption based on search results.
-        
+
         Args:
             query: Original query string
             search_results: Results from hybrid_search
             format_type: Output format ("text", "json", or "markdown")
-            
+
         Returns:
             Formatted context string ready for LLM prompt
         """
         # Use the GraphRAG's context generation with enhanced metadata
         enhanced_results = []
-        
+
         for result in search_results:
             # Combine metadata and properties for richer context
             combined_properties = {**result.get("properties", {})}
-            
+
             # Add metadata fields that aren't in properties
             metadata = result.get("metadata", {})
             for key, value in metadata.items():
                 if key not in combined_properties and key not in ("cid", "size_bytes"):
                     combined_properties[key] = value
-            
+
             # Create enhanced result object
             enhanced_result = {
                 "entity_id": result["id"],
                 "score": result["score"],
                 "properties": combined_properties,
-                "source": result.get("source", "unknown")
+                "source": result.get("source", "unknown"),
             }
-            
+
             # Add path and distance if available (from graph traversal)
             if "path" in result:
                 enhanced_result["path"] = result["path"]
             if "distance" in result:
                 enhanced_result["distance"] = result["distance"]
-                
+
             enhanced_results.append(enhanced_result)
-            
+
         # Call the original GraphRAG context generation with enhanced results
         return self.graph_db.generate_llm_prompt(query, enhanced_results, format_type)
 ```
@@ -354,16 +347,16 @@ results = enhanced_rag.hybrid_search(
     metadata_filters=[
         ("mime_type", "==", "application/x-pytorch"),
         ("tags", "contains", "computer-vision"),
-        ("added_timestamp", ">", 1577836800000)  # After Jan 1, 2020
+        ("added_timestamp", ">", 1577836800000),  # After Jan 1, 2020
     ],
-    top_k=5
+    top_k=5,
 )
 
 # Example 2: Use results with an LLM
 context = enhanced_rag.generate_llm_context(
     query="Find image classification models that use transformers",
     search_results=results,
-    format_type="markdown"
+    format_type="markdown",
 )
 
 # This context can now be used in an LLM prompt
@@ -385,15 +378,15 @@ enhanced_rag.index_entity(
         "task": "image-classification",
         "framework": "pytorch",
         "architecture": "convolutional",
-        "description": "Efficient convolutional neural network for image classification"
+        "description": "Efficient convolutional neural network for image classification",
     },
     vector=[0.1, 0.2, 0.3, ...],  # Embedding vector
     metadata={
         "mime_type": "application/x-pytorch",
         "size_bytes": 45678912,
         "tags": ["computer-vision", "classification", "efficient"],
-        "added_timestamp": time.time() * 1000
-    }
+        "added_timestamp": time.time() * 1000,
+    },
 )
 ```
 
@@ -443,18 +436,13 @@ search_connector = AIMLSearchConnector(ipfs_client=kit)
 
 # Search for PyTorch image classification models
 model_results = search_connector.search_models(
-    query_text="image classification",
-    framework="pytorch",
-    tags=["cnn"],
-    min_accuracy=0.9
+    query_text="image classification", framework="pytorch", tags=["cnn"], min_accuracy=0.9
 )
 print(f"Found {len(model_results)} models.")
 
 # Search for Parquet datasets related to finance
 dataset_results = search_connector.search_datasets(
-    query_text="financial timeseries",
-    format="parquet",
-    min_rows=100000
+    query_text="financial timeseries", format="parquet", min_rows=100000
 )
 print(f"Found {len(dataset_results)} datasets.")
 
@@ -462,7 +450,7 @@ print(f"Found {len(dataset_results)} datasets.")
 langchain_retriever = search_connector.create_langchain_retriever(
     query_text="transformer models for NLP",
     asset_type="model",
-    search_kwargs={"k": 3} # Retrieve top 3
+    search_kwargs={"k": 3},  # Retrieve top 3
 )
 # Use retriever in a Langchain chain...
 ```
@@ -487,14 +475,14 @@ The optimizer might be used internally by `MetadataEnhancedGraphRAG` or `AIMLSea
 from ipfs_kit_py.ipfs_kit import IPFSKit
 from ipfs_kit_py.integrated_search import DistributedQueryOptimizer, MetadataEnhancedGraphRAG
 
-kit = IPFSKit(role="master") # Assume running on coordinator
+kit = IPFSKit(role="master")  # Assume running on coordinator
 enhanced_rag = MetadataEnhancedGraphRAG(ipfs_client=kit)
-optimizer = DistributedQueryOptimizer(ipfs_client=kit) # Needs access to cluster info
+optimizer = DistributedQueryOptimizer(ipfs_client=kit)  # Needs access to cluster info
 
 query_params = {
     "query_text": "find relevant documents",
     "metadata_filters": [("year", ">", 2020), ("tags", "contains", "ipfs")],
-    "top_k": 50
+    "top_k": 50,
 }
 
 if optimizer.is_query_distributable(query_params):
@@ -532,7 +520,7 @@ from ipfs_kit_py.ipfs_kit import IPFSKit
 from ipfs_kit_py.integrated_search import SearchBenchmark, AIMLSearchConnector
 
 kit = IPFSKit(role="worker")
-search_connector = AIMLSearchConnector(ipfs_client=kit) # Needed if benchmarking connector methods
+search_connector = AIMLSearchConnector(ipfs_client=kit)  # Needed if benchmarking connector methods
 benchmark = SearchBenchmark(ipfs_client=kit, search_connector=search_connector)
 
 # Define test cases for hybrid search
@@ -547,7 +535,9 @@ vector_results = benchmark.benchmark_vector_search(num_runs=50)
 hybrid_results = benchmark.benchmark_hybrid_search(test_cases=hybrid_test_cases, num_runs=10)
 
 # Run full suite
-full_results = benchmark.run_full_benchmark_suite(save_results=True, output_dir="./search_benchmarks")
+full_results = benchmark.run_full_benchmark_suite(
+    save_results=True, output_dir="./search_benchmarks"
+)
 
 # Generate report
 report = benchmark.generate_benchmark_report(results=full_results, format="markdown")

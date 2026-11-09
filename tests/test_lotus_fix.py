@@ -4,7 +4,9 @@
 import sys
 import os
 import pytest
-sys.path.insert(0, os.path.abspath('.'))
+
+sys.path.insert(0, os.path.abspath("."))
+
 
 def run_lotus_kit_availability() -> bool:
     """Run lotus_kit availability checks and return success."""
@@ -12,6 +14,7 @@ def run_lotus_kit_availability() -> bool:
 
     try:
         import ipfs_kit_py
+
         print("✓ Successfully imported ipfs_kit_py")
 
         # Create an ipfs_kit instance (use stable accessor; the package attribute
@@ -34,16 +37,16 @@ def run_lotus_kit_availability() -> bool:
         print("✓ Successfully created ipfs_kit instance")
 
         # Check available attributes
-        attrs = [attr for attr in dir(kit) if not attr.startswith('_')]
+        attrs = [attr for attr in dir(kit) if not attr.startswith("_")]
         print(f"✓ Available attributes: {attrs}")
 
         # Check if lotus_kit is available
-        if hasattr(kit, 'lotus_kit'):
+        if hasattr(kit, "lotus_kit"):
             print("✓ lotus_kit is available")
             print(f"✓ lotus_kit type: {type(kit.lotus_kit)}")
 
             # Check auto-start daemon setting
-            auto_start = getattr(kit.lotus_kit, 'auto_start_daemon', False)
+            auto_start = getattr(kit.lotus_kit, "auto_start_daemon", False)
             print(f"✓ Auto-start daemon setting: {auto_start}")
 
             # Check daemon status
@@ -58,6 +61,7 @@ def run_lotus_kit_availability() -> bool:
     except Exception as e:
         print(f"✗ Error: {e}")
         import traceback
+
         traceback.print_exc()
         pytest.skip(f"lotus_kit integration unavailable: {e}")
 
@@ -65,6 +69,7 @@ def run_lotus_kit_availability() -> bool:
 def test_lotus_kit_availability():
     """Test that lotus_kit is available in ipfs_kit instances."""
     assert run_lotus_kit_availability() is True
+
 
 if __name__ == "__main__":
     success = run_lotus_kit_availability()

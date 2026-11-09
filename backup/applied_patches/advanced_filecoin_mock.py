@@ -29,14 +29,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("filecoin-mock")
 
 # Initialize FastAPI app
 app = FastAPI(
     title="Advanced Filecoin Mock API",
     description="Mock API for testing advanced Filecoin features in MCP",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # Add CORS middleware
@@ -61,12 +63,48 @@ storage = {
 
 # Sample miner data
 SAMPLE_MINERS = [
-    {"id": "t01000", "region": "North America", "reputation": 4.8, "success_rate": 0.99, "ask_price": "50000000000", "available_space": 1024000000000},
-    {"id": "t01001", "region": "Europe", "reputation": 4.5, "success_rate": 0.97, "ask_price": "45000000000", "available_space": 2048000000000},
-    {"id": "t01002", "region": "Asia", "reputation": 4.2, "success_rate": 0.95, "ask_price": "40000000000", "available_space": 3072000000000},
-    {"id": "t01003", "region": "South America", "reputation": 4.0, "success_rate": 0.92, "ask_price": "35000000000", "available_space": 4096000000000},
-    {"id": "t01004", "region": "Oceania", "reputation": 3.8, "success_rate": 0.90, "ask_price": "30000000000", "available_space": 5120000000000},
+    {
+        "id": "t01000",
+        "region": "North America",
+        "reputation": 4.8,
+        "success_rate": 0.99,
+        "ask_price": "50000000000",
+        "available_space": 1024000000000,
+    },
+    {
+        "id": "t01001",
+        "region": "Europe",
+        "reputation": 4.5,
+        "success_rate": 0.97,
+        "ask_price": "45000000000",
+        "available_space": 2048000000000,
+    },
+    {
+        "id": "t01002",
+        "region": "Asia",
+        "reputation": 4.2,
+        "success_rate": 0.95,
+        "ask_price": "40000000000",
+        "available_space": 3072000000000,
+    },
+    {
+        "id": "t01003",
+        "region": "South America",
+        "reputation": 4.0,
+        "success_rate": 0.92,
+        "ask_price": "35000000000",
+        "available_space": 4096000000000,
+    },
+    {
+        "id": "t01004",
+        "region": "Oceania",
+        "reputation": 3.8,
+        "success_rate": 0.90,
+        "ask_price": "30000000000",
+        "available_space": 5120000000000,
+    },
 ]
+
 
 # Initialize mock data
 def initialize_mock_data():
@@ -89,8 +127,8 @@ def initialize_mock_data():
         "gas_trends": [
             {"timestamp": time.time() - 86400, "base_fee": "90000000"},
             {"timestamp": time.time() - 43200, "base_fee": "95000000"},
-            {"timestamp": time.time(), "base_fee": "100000000"}
-        ]
+            {"timestamp": time.time(), "base_fee": "100000000"},
+        ],
     }
 
     # Initialize chain data
@@ -106,6 +144,7 @@ def initialize_mock_data():
 # Data Models
 class DealRequest(BaseModel):
     """Model for a deal request."""
+
     cid: str
     miner_id: Optional[str] = None
     duration: int = 518400
@@ -116,6 +155,7 @@ class DealRequest(BaseModel):
 
 class MetadataUpdate(BaseModel):
     """Model for metadata updates."""
+
     metadata: Dict[str, Any]
 
 
@@ -125,7 +165,7 @@ def generate_mock_cid() -> str:
     return f"bafy{uuid.uuid4().hex[:44]}"
 
 
-def generate_mock_deal(cid: str, miner_id: str, size: int = 1024*1024):
+def generate_mock_deal(cid: str, miner_id: str, size: int = 1024 * 1024):
     """Generate mock deal data."""
     deal_id = str(uuid.uuid4())
     now = time.time()
@@ -191,7 +231,7 @@ def select_miners(replication: int, max_price: Optional[str] = None, region: Opt
     candidates.sort(key=lambda m: m["reputation"], reverse=True)
 
     # Take the top N (replication count)
-    selected = candidates[:min(replication, len(candidates))]
+    selected = candidates[: min(replication, len(candidates))]
 
     return [m["id"] for m in selected]
 
@@ -227,7 +267,7 @@ def update_deal_state(deal_id: str, new_state: str, message: str = ""):
             "message": "Deal is healthy",
             "checks": [
                 {"time": now, "result": "success", "message": "Initial health check passed"}
-            ]
+            ],
         }
 
     return True
@@ -268,11 +308,13 @@ async def background_task():
                             health_score = random.randint(90, 100)
                             health["health"] = health_score
                             health["message"] = "Regular health check"
-                            health["checks"].append({
-                                "time": now,
-                                "result": "success",
-                                "message": f"Health check passed with score {health_score}"
-                            })
+                            health["checks"].append(
+                                {
+                                    "time": now,
+                                    "result": "success",
+                                    "message": f"Health check passed with score {health_score}",
+                                }
+                            )
 
             # Add a new block every ~30 seconds
             if random.random() < 0.1:  # Only add block ~10% of the time to simulate 30s block time
@@ -295,11 +337,7 @@ async def background_task():
 @app.get("/api/v0/filecoin/advanced/network/stats")
 async def get_network_stats():
     """Get current Filecoin network statistics."""
-    return {
-        "success": True,
-        "stats": storage["network_stats"],
-        "timestamp": time.time()
-    }
+    return {"success": True, "stats": storage["network_stats"], "timestamp": time.time()}
 
 
 @app.get("/api/v0/filecoin/advanced/network/gas")
@@ -312,17 +350,19 @@ async def get_gas_prices(days: int = Query(7, description="Number of days of gas
     for i in range(days * 4):
         timestamp = now - (i * 6 * 3600)
         base_fee = str(int(10000000 + 1000000 * (10 + random.randint(-5, 5))))
-        trends.append({
-            "timestamp": timestamp,
-            "base_fee": base_fee,
-            "date": datetime.fromtimestamp(timestamp).isoformat()
-        })
+        trends.append(
+            {
+                "timestamp": timestamp,
+                "base_fee": base_fee,
+                "date": datetime.fromtimestamp(timestamp).isoformat(),
+            }
+        )
 
     return {
         "success": True,
         "current_base_fee": storage["network_stats"]["current_base_fee"],
         "trends": sorted(trends, key=lambda x: x["timestamp"]),
-        "period_days": days
+        "period_days": days,
     }
 
 
@@ -336,17 +376,24 @@ async def get_storage_stats():
     for i in range(30):
         timestamp = now - (i * 24 * 3600)
         avg_price = str(int(40000000000 + 5000000000 * (10 + random.randint(-5, 5))))
-        price_history.append({
-            "timestamp": timestamp,
-            "average_price": avg_price,
-            "date": datetime.fromtimestamp(timestamp).isoformat()
-        })
+        price_history.append(
+            {
+                "timestamp": timestamp,
+                "average_price": avg_price,
+                "date": datetime.fromtimestamp(timestamp).isoformat(),
+            }
+        )
 
     return {
         "success": True,
         "total_capacity": storage["network_stats"]["network_storage_capacity"],
         "committed_storage": storage["network_stats"]["total_committed_storage"],
-        "utilization_percentage": round(storage["network_stats"]["total_committed_storage"] / storage["network_stats"]["network_storage_capacity"] * 100, 2),
+        "utilization_percentage": round(
+            storage["network_stats"]["total_committed_storage"]
+            / storage["network_stats"]["network_storage_capacity"]
+            * 100,
+            2,
+        ),
         "price_trends": sorted(price_history, key=lambda x: x["timestamp"]),
         "regional_stats": {
             "North America": {"capacity": 3000000000000, "price": "50000000000"},
@@ -354,7 +401,7 @@ async def get_storage_stats():
             "Asia": {"capacity": 2000000000000, "price": "40000000000"},
             "South America": {"capacity": 1500000000000, "price": "35000000000"},
             "Oceania": {"capacity": 1000000000000, "price": "30000000000"},
-        }
+        },
     }
 
 
@@ -365,7 +412,7 @@ async def list_miners(
     min_reputation: Optional[float] = Query(None, description="Minimum reputation score"),
     max_price: Optional[str] = Query(None, description="Maximum price (attoFIL)"),
     available_space: Optional[int] = Query(None, description="Minimum available space (bytes)"),
-    limit: int = Query(100, description="Maximum number of miners to return")
+    limit: int = Query(100, description="Maximum number of miners to return"),
 ):
     """List and filter storage miners."""
     miners = list(storage["miners"].values())
@@ -394,7 +441,7 @@ async def list_miners(
         "success": True,
         "miners": miners,
         "count": len(miners),
-        "total_miners": len(storage["miners"])
+        "total_miners": len(storage["miners"]),
     }
 
 
@@ -418,20 +465,19 @@ async def get_miner_info(miner_id: str = Path(..., description="Miner ID")):
     performance_history = []
     for i in range(30):
         timestamp = now - (i * 24 * 3600)
-        performance_history.append({
-            "timestamp": timestamp,
-            "date": datetime.fromtimestamp(timestamp).isoformat(),
-            "success_rate": round(miner["success_rate"] + random.uniform(-0.05, 0.05), 2),
-            "online_percentage": round(miner["online_percentage"] + random.uniform(-2, 2), 2),
-            "time_to_seal": miner["time_to_seal"] + random.randint(-1, 1)
-        })
+        performance_history.append(
+            {
+                "timestamp": timestamp,
+                "date": datetime.fromtimestamp(timestamp).isoformat(),
+                "success_rate": round(miner["success_rate"] + random.uniform(-0.05, 0.05), 2),
+                "online_percentage": round(miner["online_percentage"] + random.uniform(-2, 2), 2),
+                "time_to_seal": miner["time_to_seal"] + random.randint(-1, 1),
+            }
+        )
 
     miner["performance_history"] = sorted(performance_history, key=lambda x: x["timestamp"])
 
-    return {
-        "success": True,
-        "miner": miner
-    }
+    return {"success": True, "miner": miner}
 
 
 @app.post("/api/v0/filecoin/advanced/miners/recommend")
@@ -441,7 +487,7 @@ async def recommend_miners(
     max_price: Optional[str] = Query(None, description="Maximum price per GiB per epoch"),
     duration: int = Query(518400, description="Deal duration in epochs"),
     region: Optional[str] = Query(None, description="Preferred region"),
-    verified: bool = Query(False, description="Whether to use verified datacap")
+    verified: bool = Query(False, description="Whether to use verified datacap"),
 ):
     """Recommend miners based on file requirements."""
     # Get candidate miners based on criteria
@@ -473,7 +519,7 @@ async def recommend_miners(
     if gib < 0.001:
         gib = 0.001  # Minimum 1 MiB
 
-    recommended = miners[:min(replication, len(miners))]
+    recommended = miners[: min(replication, len(miners))]
 
     # Calculate storage costs
     costs = []
@@ -485,13 +531,15 @@ async def recommend_miners(
         if verified:
             total_cost *= 0.7  # 30% discount for verified deals
 
-        costs.append({
-            "miner_id": m["id"],
-            "price_per_gib_per_epoch": price_per_gib_per_epoch,
-            "total_cost": str(int(total_cost)),
-            "total_cost_fil": str(int(total_cost) / 1e18),  # Convert attoFIL to FIL
-            "duration_days": round(duration * 30 / 86400),  # Convert epochs to days
-        })
+        costs.append(
+            {
+                "miner_id": m["id"],
+                "price_per_gib_per_epoch": price_per_gib_per_epoch,
+                "total_cost": str(int(total_cost)),
+                "total_cost_fil": str(int(total_cost) / 1e18),  # Convert attoFIL to FIL
+                "duration_days": round(duration * 30 / 86400),  # Convert epochs to days
+            }
+        )
 
     return {
         "success": True,
@@ -523,17 +571,14 @@ async def make_deal(deal_request: DealRequest):
         else:
             raise HTTPException(status_code=404, detail=f"Miner {deal_request.miner_id} not found")
     else:
-        miners = select_miners(
-            deal_request.replication,
-            deal_request.max_price
-        )
+        miners = select_miners(deal_request.replication, deal_request.max_price)
 
     if not miners:
         raise HTTPException(status_code=400, detail="No suitable miners found")
 
     # Create deals
     deals = []
-    size = random.randint(1024**2, 100*(1024**2))  # Random size between 1MB and 100MB
+    size = random.randint(1024**2, 100 * (1024**2))  # Random size between 1MB and 100MB
 
     for miner_id in miners:
         deal_id, deal = generate_mock_deal(cid, miner_id, size)
@@ -570,10 +615,7 @@ async def get_deal_info(deal_id: str = Path(..., description="Deal ID")):
     if deal_id not in storage["deals"]:
         raise HTTPException(status_code=404, detail=f"Deal {deal_id} not found")
 
-    return {
-        "success": True,
-        "deal": storage["deals"][deal_id]
-    }
+    return {"success": True, "deal": storage["deals"][deal_id]}
 
 
 @app.get("/api/v0/filecoin/advanced/storage/cid/{cid}")
@@ -583,7 +625,9 @@ async def get_cid_info(cid: str = Path(..., description="Content ID")):
         raise HTTPException(status_code=404, detail=f"Content {cid} not found")
 
     content = storage["content"][cid]
-    deals = [storage["deals"][deal_id] for deal_id in content["deals"] if deal_id in storage["deals"]]
+    deals = [
+        storage["deals"][deal_id] for deal_id in content["deals"] if deal_id in storage["deals"]
+    ]
 
     return {
         "success": True,
@@ -614,8 +658,12 @@ async def get_deal_health(deal_id: str = Path(..., description="Deal ID")):
             "health": health_score,
             "message": "Initial health check",
             "checks": [
-                {"time": now, "result": "success", "message": f"Initial health check: {health_score}"}
-            ]
+                {
+                    "time": now,
+                    "result": "success",
+                    "message": f"Initial health check: {health_score}",
+                }
+            ],
         }
 
     return {
@@ -650,17 +698,23 @@ async def get_cid_health(cid: str = Path(..., description="Content ID")):
                     "health": health_score,
                     "message": "Initial health check",
                     "checks": [
-                        {"time": now, "result": "success", "message": f"Initial health check: {health_score}"}
-                    ]
+                        {
+                            "time": now,
+                            "result": "success",
+                            "message": f"Initial health check: {health_score}",
+                        }
+                    ],
                 }
 
-            deal_healths.append({
-                "deal_id": deal_id,
-                "miner": deal["miner"],
-                "state": deal["state"],
-                "health": storage["health_metrics"][deal_id]["health"],
-                "last_checked": storage["health_metrics"][deal_id]["last_checked"],
-            })
+            deal_healths.append(
+                {
+                    "deal_id": deal_id,
+                    "miner": deal["miner"],
+                    "state": deal["state"],
+                    "health": storage["health_metrics"][deal_id]["health"],
+                    "last_checked": storage["health_metrics"][deal_id]["last_checked"],
+                }
+            )
 
     # Calculate overall health
     overall_health = 100
@@ -675,12 +729,14 @@ async def get_cid_health(cid: str = Path(..., description="Content ID")):
         # Find unhealthy deals
         unhealthy_deals = [d for d in deal_healths if d["health"] < 90]
         for deal in unhealthy_deals:
-            repair_recommendations.append({
-                "deal_id": deal["deal_id"],
-                "health": deal["health"],
-                "action": "replicate",
-                "reason": f"Deal health below threshold: {deal['health']}",
-            })
+            repair_recommendations.append(
+                {
+                    "deal_id": deal["deal_id"],
+                    "health": deal["health"],
+                    "action": "replicate",
+                    "reason": f"Deal health below threshold: {deal['health']}",
+                }
+            )
 
     return {
         "success": True,
@@ -698,7 +754,7 @@ async def get_cid_health(cid: str = Path(..., description="Content ID")):
 @app.post("/api/v0/filecoin/advanced/health/repair")
 async def repair_content(
     cid: str = Query(..., description="Content ID to repair"),
-    strategy: str = Query("replicate", description="Repair strategy: replicate, recover, migrate")
+    strategy: str = Query("replicate", description="Repair strategy: replicate, recover, migrate"),
 ):
     """Initiate repair operations for content."""
     if cid not in storage["content"]:
@@ -719,11 +775,17 @@ async def repair_content(
     if strategy == "replicate":
         # Create new deals for the same CID
         size = content["size"]
-        needed_replicas = min(content["replication"] - len(content["deals"]) + len(unhealthy_deals), 3)
+        needed_replicas = min(
+            content["replication"] - len(content["deals"]) + len(unhealthy_deals), 3
+        )
 
         if needed_replicas > 0:
             # Select new miners different from current ones
-            current_miners = [storage["deals"][deal_id]["miner"] for deal_id in content["deals"] if deal_id in storage["deals"]]
+            current_miners = [
+                storage["deals"][deal_id]["miner"]
+                for deal_id in content["deals"]
+                if deal_id in storage["deals"]
+            ]
             candidates = [m for m in storage["miners"].keys() if m not in current_miners]
 
             if candidates:
@@ -736,12 +798,14 @@ async def repair_content(
                     storage["deals"][deal_id] = deal
                     content["deals"].append(deal_id)
 
-                    repair_results.append({
-                        "action": "replicate",
-                        "deal_id": deal_id,
-                        "miner": miner_id,
-                        "status": "created",
-                    })
+                    repair_results.append(
+                        {
+                            "action": "replicate",
+                            "deal_id": deal_id,
+                            "miner": miner_id,
+                            "status": "created",
+                        }
+                    )
 
     elif strategy == "recover":
         # Simulate data recovery process
@@ -752,25 +816,29 @@ async def repair_content(
             health["last_checked"] = now
             health["health"] = 95  # Improved health
             health["message"] = "Repaired via data recovery"
-            health["checks"].append({
-                "time": now,
-                "result": "success",
-                "message": "Content repaired via data recovery"
-            })
+            health["checks"].append(
+                {"time": now, "result": "success", "message": "Content repaired via data recovery"}
+            )
 
-            repair_results.append({
-                "action": "recover",
-                "deal_id": deal_id,
-                "status": "repaired",
-                "new_health": 95,
-            })
+            repair_results.append(
+                {
+                    "action": "recover",
+                    "deal_id": deal_id,
+                    "status": "repaired",
+                    "new_health": 95,
+                }
+            )
 
     elif strategy == "migrate":
         # Migrate to new miners
         size = content["size"]
 
         # Select new miners different from unhealthy ones
-        unhealthy_miners = [storage["deals"][deal_id]["miner"] for deal_id in unhealthy_deals if deal_id in storage["deals"]]
+        unhealthy_miners = [
+            storage["deals"][deal_id]["miner"]
+            for deal_id in unhealthy_deals
+            if deal_id in storage["deals"]
+        ]
         candidates = [m for m in storage["miners"].keys() if m not in unhealthy_miners]
 
         if candidates:
@@ -789,20 +857,24 @@ async def repair_content(
                     # Mark old deal for cancellation
                     old_deal = storage["deals"][deal_id]
                     old_deal["state"] = "terminating"
-                    old_deal["history"].append({
-                        "time": time.time(),
-                        "state": "terminating",
-                        "message": "Deal terminating due to migration",
-                    })
+                    old_deal["history"].append(
+                        {
+                            "time": time.time(),
+                            "state": "terminating",
+                            "message": "Deal terminating due to migration",
+                        }
+                    )
 
-                    repair_results.append({
-                        "action": "migrate",
-                        "old_deal_id": deal_id,
-                        "new_deal_id": new_deal_id,
-                        "old_miner": old_deal["miner"],
-                        "new_miner": new_miner,
-                        "status": "migrated",
-                    })
+                    repair_results.append(
+                        {
+                            "action": "migrate",
+                            "old_deal_id": deal_id,
+                            "new_deal_id": new_deal_id,
+                            "old_miner": old_deal["miner"],
+                            "new_miner": new_miner,
+                            "status": "migrated",
+                        }
+                    )
 
     # Update network stats
     storage["network_stats"]["total_deals"] += len(repair_results)
@@ -835,7 +907,7 @@ async def get_blockchain_status():
 async def get_blockchain_blocks(
     start: int = Query(None, description="Starting block height"),
     end: int = Query(None, description="Ending block height"),
-    limit: int = Query(10, description="Maximum number of blocks to return")
+    limit: int = Query(10, description="Maximum number of blocks to return"),
 ):
     """Get blockchain blocks."""
     blocks = storage["chain"]["blocks"]
@@ -864,7 +936,7 @@ async def get_blockchain_blocks(
 async def get_blockchain_deals(
     miner: Optional[str] = Query(None, description="Filter by miner"),
     status: Optional[str] = Query(None, description="Filter by status"),
-    limit: int = Query(100, description="Maximum number of deals to return")
+    limit: int = Query(100, description="Maximum number of deals to return"),
 ):
     """Get on-chain deal information."""
     deals = list(storage["deals"].values())
@@ -912,15 +984,13 @@ async def get_transaction_status(tx_id: str = Path(..., description="Transaction
         "confirmations": random.randint(1, 10),
     }
 
-    return {
-        "success": True,
-        "transaction": tx
-    }
+    return {"success": True, "transaction": tx}
 
 
 # Initialize AnyIO for background tasks
 import anyio
 from fastapi import BackgroundTasks
+
 
 @app.on_event("startup")
 async def startup_event():

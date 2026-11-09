@@ -181,7 +181,7 @@ if await client.is_daemon_running():
 health = await client.get_health()
 print(f"System healthy: {health['system_healthy']}")
 
-backends = await client.get_backend_health()  
+backends = await client.get_backend_health()
 print(f"Backend status: {backends['status']}")
 ```
 
@@ -193,7 +193,7 @@ print(f"Total pins: {pins['total']}")
 
 # Add pin
 result = await client.add_pin("QmHash123...")
-if result['success']:
+if result["success"]:
     print("Pin added successfully")
 ```
 

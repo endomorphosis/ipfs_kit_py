@@ -190,16 +190,16 @@ This ensures:
 Exports added:
 ```python
 __all__ = [
-    'MerkleClock',
-    'FibonacciHeap',
-    'WorkflowPriorityQueue',
-    'P2PWorkflowCoordinator',
-    'WorkflowStatus',
-    'WorkflowTask',
-    'hamming_distance',
-    'select_task_owner',
-    'create_task_hash',
-    'P2PWorkflowTools',
+    "MerkleClock",
+    "FibonacciHeap",
+    "WorkflowPriorityQueue",
+    "P2PWorkflowCoordinator",
+    "WorkflowStatus",
+    "WorkflowTask",
+    "hamming_distance",
+    "select_task_owner",
+    "create_task_hash",
+    "P2PWorkflowTools",
 ]
 ```
 
@@ -228,7 +228,7 @@ for tool_def in MCP_TOOLS:
         name=tool_def["name"],
         description=tool_def["description"],
         inputSchema=tool_def["inputSchema"],
-        handler=getattr(p2p_tools, tool_def["name"])
+        handler=getattr(p2p_tools, tool_def["name"]),
     )
 ```
 
@@ -375,9 +375,7 @@ coordinator.add_peer("peer-3")
 
 # Submit workflow
 workflow_id = coordinator.submit_workflow(
-    workflow_file=".github/workflows/scrape.yml",
-    name="Daily Scraping",
-    priority=3.0
+    workflow_file=".github/workflows/scrape.yml", name="Daily Scraping", priority=3.0
 )
 
 # Assign workflows
@@ -389,11 +387,7 @@ status = coordinator.get_workflow_status(workflow_id)
 print(f"Status: {status['status']}")
 
 # Update when complete
-coordinator.update_workflow_status(
-    workflow_id,
-    WorkflowStatus.COMPLETED,
-    result={"items": 1000}
-)
+coordinator.update_workflow_status(workflow_id, WorkflowStatus.COMPLETED, result={"items": 1000})
 ```
 
 ### CLI
@@ -426,9 +420,7 @@ tools = P2PWorkflowTools()
 
 # Submit workflow
 result = tools.submit_p2p_workflow(
-    workflow_file=".github/workflows/scrape.yml",
-    name="Daily Scraping",
-    priority=3.0
+    workflow_file=".github/workflows/scrape.yml", name="Daily Scraping", priority=3.0
 )
 
 # Assign workflows

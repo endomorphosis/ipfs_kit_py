@@ -4,7 +4,7 @@ Test script to demonstrate role-based component disabling functionality.
 
 This script tests the implementation where the leecher role disables:
 - ipfs_cluster
-- ipfs_cluster_follow  
+- ipfs_cluster_follow
 - lotus
 - synapse
 
@@ -17,114 +17,120 @@ import os
 import pytest
 
 # Add current directory to path
-sys.path.insert(0, '.')
+sys.path.insert(0, ".")
+
 
 def test_leecher_role():
     """Test leecher role with disabled components."""
     print("=" * 60)
     print("Testing Leecher Role Component Disabling")
     print("=" * 60)
-    
+
     try:
         from ipfs_kit_py.high_level_api import IPFSSimpleAPI
-        
+
         # Create API with disabled components
-        disabled_components = ['ipfs_cluster', 'ipfs_cluster_follow', 'lotus', 'synapse']
+        disabled_components = ["ipfs_cluster", "ipfs_cluster_follow", "lotus", "synapse"]
         print(f"Creating IPFSSimpleAPI with disabled components: {disabled_components}")
-        
-        api = IPFSSimpleAPI(role='leecher', disabled_components=disabled_components)
-        
+
+        api = IPFSSimpleAPI(role="leecher", disabled_components=disabled_components)
+
         print(f"\n✅ API initialized successfully")
         print(f"   Role: {api.role}")
         print(f"   Disabled components: {api.disabled_components}")
-        
+
         # Check component status
         print(f"\nComponent Status:")
-        if hasattr(api.kit, 'lotus_kit'):
+        if hasattr(api.kit, "lotus_kit"):
             status = "ENABLED" if api.kit.lotus_kit is not None else "DISABLED"
             print(f"   lotus_kit: {status}")
-        
-        if hasattr(api.kit, 'synapse_storage'):
+
+        if hasattr(api.kit, "synapse_storage"):
             status = "ENABLED" if api.kit.synapse_storage is not None else "DISABLED"
             print(f"   synapse_storage: {status}")
-            
-        if hasattr(api.kit, 'ipfs_cluster_service'):
+
+        if hasattr(api.kit, "ipfs_cluster_service"):
             status = "ENABLED" if api.kit.ipfs_cluster_service is not None else "DISABLED"
             print(f"   ipfs_cluster_service: {status}")
-            
-        if hasattr(api.kit, 'ipfs_cluster_follow'):
+
+        if hasattr(api.kit, "ipfs_cluster_follow"):
             status = "ENABLED" if api.kit.ipfs_cluster_follow is not None else "DISABLED"
             print(f"   ipfs_cluster_follow: {status}")
-            
+
         assert api is not None
         assert getattr(api, "disabled_components", None) is not None
-        
+
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         pytest.fail(f"Leecher role test failed: {e}")
+
 
 def test_normal_role():
     """Test normal role without disabled components."""
     print("\n" + "=" * 60)
     print("Testing Normal Role (No Component Disabling)")
     print("=" * 60)
-    
+
     try:
         from ipfs_kit_py.high_level_api import IPFSSimpleAPI
-        
+
         # Create API without disabled components
         print(f"Creating IPFSSimpleAPI with normal leecher role (no disabled components)")
-        
-        api = IPFSSimpleAPI(role='leecher')
-        
+
+        api = IPFSSimpleAPI(role="leecher")
+
         print(f"\n✅ API initialized successfully")
         print(f"   Role: {api.role}")
         print(f"   Disabled components: {getattr(api, 'disabled_components', 'None')}")
-        
+
         # Check component status (should be enabled)
         print(f"\nComponent Status:")
-        if hasattr(api.kit, 'lotus_kit'):
+        if hasattr(api.kit, "lotus_kit"):
             status = "ENABLED" if api.kit.lotus_kit is not None else "DISABLED"
             print(f"   lotus_kit: {status}")
-        
-        if hasattr(api.kit, 'synapse_storage'):
+
+        if hasattr(api.kit, "synapse_storage"):
             status = "ENABLED" if api.kit.synapse_storage is not None else "DISABLED"
             print(f"   synapse_storage: {status}")
-            
+
         assert api is not None
-        
+
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         pytest.fail(f"Normal role test failed: {e}")
+
 
 def main():
     """Main test function."""
     print("IPFS Kit Role-Based Component Disabling Test")
     print("Testing implementation for leecher role component restrictions")
-    
+
     success = True
-    
+
     # Test leecher role with disabled components
     success &= test_leecher_role()
-    
+
     # Test normal role
     success &= test_normal_role()
-    
+
     print("\n" + "=" * 60)
     if success:
         print("🎉 All tests passed! Component disabling is working correctly.")
         print("\nThe leecher role now successfully disables:")
         print("   - ipfs_cluster")
-        print("   - ipfs_cluster_follow") 
+        print("   - ipfs_cluster_follow")
         print("   - lotus")
         print("   - synapse")
     else:
         print("❌ Some tests failed. Check the output above for details.")
     print("=" * 60)
+
 
 if __name__ == "__main__":
     main()

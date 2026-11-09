@@ -88,9 +88,26 @@ All CLI commands now support both SSHFS and FTP backends:
 
 **Backend Choices Updated:**
 ```python
-choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 
-         'huggingface', 'github', 'ipfs_cluster', 'cluster_follow',
-         'parquet', 'arrow', 'sshfs', 'ftp', 'package', 'wal', 'fs_journal', 'all']
+choices = [
+    "daemon",
+    "s3",
+    "lotus",
+    "storacha",
+    "gdrive",
+    "synapse",
+    "huggingface",
+    "github",
+    "ipfs_cluster",
+    "cluster_follow",
+    "parquet",
+    "arrow",
+    "sshfs",
+    "ftp",
+    "package",
+    "wal",
+    "fs_journal",
+    "all",
+]
 ```
 
 ## 📊 Backend Comparison

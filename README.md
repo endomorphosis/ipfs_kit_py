@@ -170,26 +170,15 @@ from ipfs_kit_py.high_level_api import IPFSSimpleAPI
 # Initialize with multiple backends
 api = IPFSSimpleAPI(
     storage_backends={
-        'ipfs': {'enabled': True},
-        'filecoin': {
-            'enabled': True,
-            'lotus_path': '/path/to/lotus'
-        },
-        's3': {
-            'enabled': True,
-            'bucket': 'my-ipfs-backup',
-            'region': 'us-west-2'
-        },
-        'storacha': {
-            'enabled': True,
-            'token': 'your_token',
-            'space': 'your_space_did'
-        }
+        "ipfs": {"enabled": True},
+        "filecoin": {"enabled": True, "lotus_path": "/path/to/lotus"},
+        "s3": {"enabled": True, "bucket": "my-ipfs-backup", "region": "us-west-2"},
+        "storacha": {"enabled": True, "token": "your_token", "space": "your_space_did"},
     }
 )
 
 # Content automatically distributed across backends
-cid = api.add("important_data.txt", backends=['ipfs', 'filecoin', 's3'])
+cid = api.add("important_data.txt", backends=["ipfs", "filecoin", "s3"])
 ```
 
 **See Also:** [Storage Backends Documentation](docs/reference/storage_backends.md)
@@ -209,11 +198,11 @@ api = IPFSSimpleAPI(role="master")
 result = api.cluster_add(
     "dataset.tar.gz",
     replication_factor=3,  # Distribute to 3 nodes
-    replication_policy="distributed"  # Strategy: distributed, local-first, geo-aware
+    replication_policy="distributed",  # Strategy: distributed, local-first, geo-aware
 )
 
 # Check replication status
-status = api.cluster_status(result['cid'])
+status = api.cluster_status(result["cid"])
 print(f"Replicas: {len(status['peers'])} nodes")
 print(f"Locations: {status['peer_locations']}")
 ```
@@ -225,7 +214,7 @@ api.pin_add(
     cid,
     replication_min=2,  # Minimum 2 copies
     replication_max=5,  # Maximum 5 copies
-    replication_priority="high"  # Auto-repair if below min
+    replication_priority="high",  # Auto-repair if below min
 )
 
 # Monitor replica health
@@ -246,8 +235,8 @@ health = api.get_replication_health(cid)
 api.enable_auto_repair(
     cid,
     check_interval=3600,  # Check every hour
-    repair_threshold=2,   # Repair if below 2 replicas
-    target_replicas=3     # Maintain 3 replicas
+    repair_threshold=2,  # Repair if below 2 replicas
+    target_replicas=3,  # Maintain 3 replicas
 )
 ```
 
@@ -286,12 +275,12 @@ from ipfs_kit_py.tiered_cache import TieredCacheManager
 # Custom cache configuration
 cache = TieredCacheManager(
     config={
-        'memory_cache_size': 500 * 1024 * 1024,  # 500MB
-        'disk_cache_size': 10 * 1024 * 1024 * 1024,  # 10GB
-        'disk_cache_path': '/fast/ssd/cache',
-        'enable_mmap': True,  # Zero-copy for large files
-        'eviction_policy': 'heat',  # heat, lru, lfu
-        'promotion_threshold': 3,  # Access count for promotion
+        "memory_cache_size": 500 * 1024 * 1024,  # 500MB
+        "disk_cache_size": 10 * 1024 * 1024 * 1024,  # 10GB
+        "disk_cache_path": "/fast/ssd/cache",
+        "enable_mmap": True,  # Zero-copy for large files
+        "eviction_policy": "heat",  # heat, lru, lfu
+        "promotion_threshold": 3,  # Access count for promotion
     }
 )
 
@@ -358,11 +347,9 @@ vfs.create_bucket("archive", quota="1TB", policy="cold")
 
 # Bucket operations
 vfs.write("/ml-models/resnet50.h5", model_data)
-vfs.set_bucket_policy("ml-models", {
-    'replication': 3,
-    'cache_priority': 'high',
-    'backup_schedule': 'daily'
-})
+vfs.set_bucket_policy(
+    "ml-models", {"replication": 3, "cache_priority": "high", "backup_schedule": "daily"}
+)
 
 # List buckets and usage
 buckets = vfs.list_buckets()
@@ -386,8 +373,7 @@ vfs.replicate_journal(target_node="node2.example.com")
 **Metadata & Indexing:**
 ```python
 # Automatic metadata extraction and indexing
-vfs.write("/docs/paper.pdf", pdf_data, 
-    metadata={'author': 'Smith', 'year': 2024})
+vfs.write("/docs/paper.pdf", pdf_data, metadata={"author": "Smith", "year": 2024})
 
 # Enhanced pin index for fast lookup
 results = vfs.search(query="machine learning", content_type="pdf")
@@ -432,10 +418,7 @@ results = api.search_vector("semantic similarity query", threshold=0.7)
 ```python
 # Hybrid search combines all methods
 results = api.search_hybrid(
-    query="AI model deployment",
-    search_types=["text", "graph", "vector"],
-    limit=20,
-    min_score=0.6
+    query="AI model deployment", search_types=["text", "graph", "vector"], limit=20, min_score=0.6
 )
 
 # SPARQL for structured queries
@@ -480,19 +463,14 @@ cred_manager.add_s3_credentials(
     name="production",
     aws_access_key_id="AKIA...",
     aws_secret_access_key="secret...",
-    region_name="us-west-2"
+    region_name="us-west-2",
 )
 
 cred_manager.add_storacha_credentials(
-    name="default",
-    api_token="your_token",
-    space_did="did:web:..."
+    name="default", api_token="your_token", space_did="did:web:..."
 )
 
-cred_manager.add_filecoin_credentials(
-    name="mainnet",
-    api_key="fil_api_key"
-)
+cred_manager.add_filecoin_credentials(name="mainnet", api_key="fil_api_key")
 
 # Retrieve credentials securely
 s3_creds = cred_manager.get_s3_credentials("production")
@@ -620,7 +598,7 @@ api = IPFSSimpleAPI()
 
 # Add content
 result = api.add("Hello, IPFS!")
-cid = result['cid']
+cid = result["cid"]
 print(f"Content added: {cid}")
 
 # Retrieve content
@@ -646,7 +624,7 @@ api = IPFSSimpleAPI(role="master")
 result = api.cluster_add("large_file.dat", replication_factor=3)
 
 # Check replication status
-status = api.cluster_status(result['cid'])
+status = api.cluster_status(result["cid"])
 print(f"Replicated on {len(status['peers'])} nodes")
 
 # List cluster peers
@@ -668,12 +646,12 @@ result = api.ai_dataset_add(
     metadata={
         "name": "customer_data_v1",
         "version": "1.0",
-        "description": "Customer behavior dataset"
-    }
+        "description": "Customer behavior dataset",
+    },
 )
 
 # Retrieve dataset later
-dataset_cid = result['cid']
+dataset_cid = result["cid"]
 loaded_df = api.ai_dataset_get(dataset_cid)
 ```
 
@@ -712,7 +690,7 @@ Comprehensive documentation available in [docs/](docs/):
 # Store application data immutably
 api = IPFSSimpleAPI()
 user_data = {"user_id": 123, "preferences": {...}}
-cid = api.add(json.dumps(user_data))['cid']
+cid = api.add(json.dumps(user_data))["cid"]
 
 # Share CID with users - data is permanently accessible
 return f"ipfs://{cid}"
@@ -723,12 +701,11 @@ return f"ipfs://{cid}"
 # Publish trained model
 model_path = "model.h5"
 result = api.ai_model_add(
-    model=load_model(model_path),
-    metadata={"architecture": "ResNet50", "accuracy": 0.95}
+    model=load_model(model_path), metadata={"architecture": "ResNet50", "accuracy": 0.95}
 )
 
 # Others can load your model
-model = api.ai_model_get(result['cid'])
+model = api.ai_model_get(result["cid"])
 ```
 
 ### 3. Content Distribution Network
@@ -745,7 +722,7 @@ for file in website_files:
 ```python
 # Backup with verification
 result = api.add("important_data.zip", pin=True)
-cid = result['cid']
+cid = result["cid"]
 
 # Later verification
 assert api.exists(cid), "Backup lost!"
@@ -761,18 +738,9 @@ from ipfs_kit_py.high_level_api import IPFSSimpleAPI
 
 api = IPFSSimpleAPI(
     role="master",  # master, worker, or leecher
-    resources={
-        "max_memory": "2GB",
-        "max_storage": "100GB"
-    },
-    cache={
-        "memory_size": "500MB",
-        "disk_size": "5GB"
-    },
-    timeouts={
-        "api": 60,
-        "gateway": 120
-    }
+    resources={"max_memory": "2GB", "max_storage": "100GB"},
+    cache={"memory_size": "500MB", "disk_size": "5GB"},
+    timeouts={"api": 60, "gateway": 120},
 )
 ```
 

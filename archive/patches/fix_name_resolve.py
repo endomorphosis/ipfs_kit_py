@@ -1,4 +1,4 @@
-#\!/usr/bin/env python3
+# \!/usr/bin/env python3
 """
 Script to replace the ipfs_name_resolve method in the IPFS model.
 """
@@ -8,7 +8,7 @@ import os
 import sys
 
 # Define the file path
-file_path = '/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/models/ipfs_model.py'
+file_path = "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/models/ipfs_model.py"
 
 # Check if file exists
 if not os.path.exists(file_path):
@@ -16,12 +16,12 @@ if not os.path.exists(file_path):
     sys.exit(1)
 
 # Read the current file content
-with open(file_path, 'r') as f:
+with open(file_path, "r") as f:
     content = f.read()
 
 # Create a backup of the original file
-backup_path = file_path + '.bak'
-with open(backup_path, 'w') as f:
+backup_path = file_path + ".bak"
+with open(backup_path, "w") as f:
     f.write(content)
 print(f"Created backup: {backup_path}")
 
@@ -191,7 +191,7 @@ replacement_method = '''def ipfs_name_resolve(self, name: str, recursive: bool =
     return result'''
 
 # Find the method definition
-pattern = r'def ipfs_name_resolve\([^)]*\).*?return result'
+pattern = r"def ipfs_name_resolve\([^)]*\).*?return result"
 match = re.search(pattern, content, re.DOTALL)
 
 if not match:
@@ -202,7 +202,7 @@ if not match:
 new_content = content.replace(match.group(0), replacement_method)
 
 # Write the modified content back to the file
-with open(file_path, 'w') as f:
+with open(file_path, "w") as f:
     f.write(new_content)
 
 print(f"Successfully replaced ipfs_name_resolve method in {file_path}")

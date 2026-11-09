@@ -141,9 +141,7 @@ class ipfs_cluster_ctl:
             stderr = e.stderr.decode("utf-8", errors="replace") if e.stderr else ""
 
             logger.error(
-                f"Command failed: {command_str}\n"
-                f"Return code: {e.returncode}\n"
-                f"Stderr: {stderr}"
+                f"Command failed: {command_str}\nReturn code: {e.returncode}\nStderr: {stderr}"
             )
 
             result["returncode"] = e.returncode

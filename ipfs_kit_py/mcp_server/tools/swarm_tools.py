@@ -1,4 +1,5 @@
 """Swarm / node identity tool group."""
+
 from __future__ import annotations
 
 import uuid

@@ -17,32 +17,35 @@ logger = logging.getLogger(__name__)
 # Add the project directory to sys.path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+
 # Create necessary mock modules
 def setup_mock_modules():
     """Set up mock modules needed for tests."""
     # Mock ipfs_kit_py.lotus_kit module
-    if 'ipfs_kit_py.lotus_kit' not in sys.modules:
+    if "ipfs_kit_py.lotus_kit" not in sys.modules:
         import types
-        lotus_kit = types.ModuleType('ipfs_kit_py.lotus_kit')
+
+        lotus_kit = types.ModuleType("ipfs_kit_py.lotus_kit")
         lotus_kit.LOTUS_KIT_AVAILABLE = True
-        sys.modules['ipfs_kit_py.lotus_kit'] = lotus_kit
+        sys.modules["ipfs_kit_py.lotus_kit"] = lotus_kit
         logger.info("Created mock lotus_kit module")
 
     # Mock ipfs_kit_py.mcp.storage_manager module
-    if 'ipfs_kit_py.mcp.storage_manager' not in sys.modules:
+    if "ipfs_kit_py.mcp.storage_manager" not in sys.modules:
         import types
 
         # Create parent modules if they don't exist
-        if 'ipfs_kit_py.mcp' not in sys.modules:
-            mcp = types.ModuleType('ipfs_kit_py.mcp')
-            sys.modules['ipfs_kit_py.mcp'] = mcp
+        if "ipfs_kit_py.mcp" not in sys.modules:
+            mcp = types.ModuleType("ipfs_kit_py.mcp")
+            sys.modules["ipfs_kit_py.mcp"] = mcp
 
         # Create storage_manager module
-        storage_manager = types.ModuleType('ipfs_kit_py.mcp.storage_manager')
+        storage_manager = types.ModuleType("ipfs_kit_py.mcp.storage_manager")
 
         # Add BackendStorage class
         class BackendStorage:
             """Base class for all storage backends."""
+
             def __init__(self, resources=None, metadata=None):
                 self.resources = resources or {}
                 self.metadata = metadata or {}
@@ -64,15 +67,15 @@ def setup_mock_modules():
                 return {"success": True}
 
         storage_manager.BackendStorage = BackendStorage
-        sys.modules['ipfs_kit_py.mcp.storage_manager'] = storage_manager
+        sys.modules["ipfs_kit_py.mcp.storage_manager"] = storage_manager
         logger.info("Created mock storage_manager module with BackendStorage")
 
     # Mock ipfs_kit_py.ipfs module
-    if 'ipfs_kit_py.ipfs' not in sys.modules:
+    if "ipfs_kit_py.ipfs" not in sys.modules:
         import types
 
         # Create ipfs module
-        ipfs_module = types.ModuleType('ipfs_kit_py.ipfs')
+        ipfs_module = types.ModuleType("ipfs_kit_py.ipfs")
 
         # Add ipfs class
         class ipfs:
@@ -95,8 +98,9 @@ def setup_mock_modules():
         ipfs_module.ipfs = ipfs
         ipfs_module.ipfs_py = MagicMock()
 
-        sys.modules['ipfs_kit_py.ipfs'] = ipfs_module
+        sys.modules["ipfs_kit_py.ipfs"] = ipfs_module
         logger.info("Created mock ipfs module")
+
 
 # Set up test classes
 class TestBasicFunctionality(unittest.TestCase):
@@ -109,14 +113,16 @@ class TestBasicFunctionality(unittest.TestCase):
     def test_backend_storage_import(self):
         """Test that we can import BackendStorage."""
         from ipfs_kit_py.mcp.storage_manager import BackendStorage
+
         self.assertIsNotNone(BackendStorage)
 
     def test_lotus_kit_available(self):
         """Test that we can import LOTUS_KIT_AVAILABLE."""
         from ipfs_kit_py.lotus_kit import LOTUS_KIT_AVAILABLE
+
         self.assertTrue(LOTUS_KIT_AVAILABLE)
 
-    @patch('ipfs_kit_py.ipfs.ipfs_py')
+    @patch("ipfs_kit_py.ipfs.ipfs_py")
     def test_ipfs_basic_functionality(self, mock_ipfs):
         """Test basic IPFS functionality with mocks."""
         from ipfs_kit_py.ipfs import ipfs
@@ -136,6 +142,7 @@ class TestBasicFunctionality(unittest.TestCase):
         # Test cat functionality
         cat_result = instance.cat("QmTestHash")
         self.assertEqual(cat_result, b"test content")
+
 
 # Run the tests if executed directly
 if __name__ == "__main__":

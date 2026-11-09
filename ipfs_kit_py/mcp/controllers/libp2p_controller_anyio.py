@@ -12,12 +12,12 @@ logger = logging.getLogger(__name__)
 
 class LibP2PControllerAnyIO:
     """AnyIO-compatible controller for LibP2P operations."""
-    
+
     def __init__(self, libp2p_model):
         """Initialize with a LibP2P model."""
         self.libp2p_model = libp2p_model
         self.logger = logging.getLogger(__name__)
-    
+
     async def start_node(self, request) -> Dict[str, Any]:
         """Start the LibP2P node asynchronously."""
         self.logger.info("Starting LibP2P node asynchronously")
@@ -29,20 +29,14 @@ class LibP2PControllerAnyIO:
                     "success": True,
                     "message": "LibP2P node started successfully",
                     "peer_id": info["peer_id"],
-                    "multiaddrs": info["multiaddrs"]
+                    "multiaddrs": info["multiaddrs"],
                 }
             else:
-                return {
-                    "success": False,
-                    "message": "Failed to start LibP2P node"
-                }
+                return {"success": False, "message": "Failed to start LibP2P node"}
         except Exception as e:
             self.logger.error(f"Error starting LibP2P node asynchronously: {str(e)}")
-            return {
-                "success": False,
-                "message": f"Error starting LibP2P node: {str(e)}"
-            }
-    
+            return {"success": False, "message": f"Error starting LibP2P node: {str(e)}"}
+
     async def stop_node(self, request) -> Dict[str, Any]:
         """Stop the LibP2P node asynchronously."""
         self.logger.info("Stopping LibP2P node asynchronously")
@@ -50,15 +44,14 @@ class LibP2PControllerAnyIO:
             success = await self.libp2p_model.stop_async()
             return {
                 "success": success,
-                "message": "LibP2P node stopped successfully" if success else "Failed to stop LibP2P node"
+                "message": "LibP2P node stopped successfully"
+                if success
+                else "Failed to stop LibP2P node",
             }
         except Exception as e:
             self.logger.error(f"Error stopping LibP2P node asynchronously: {str(e)}")
-            return {
-                "success": False,
-                "message": f"Error stopping LibP2P node: {str(e)}"
-            }
-    
+            return {"success": False, "message": f"Error stopping LibP2P node: {str(e)}"}
+
     async def connect_peer(self, request) -> Dict[str, Any]:
         """Connect to a peer asynchronously."""
         peer_addr = request.peer_addr
@@ -67,15 +60,14 @@ class LibP2PControllerAnyIO:
             success = await self.libp2p_model.connect_async(peer_addr)
             return {
                 "success": success,
-                "message": f"Connected to peer: {peer_addr}" if success else f"Failed to connect to peer: {peer_addr}"
+                "message": f"Connected to peer: {peer_addr}"
+                if success
+                else f"Failed to connect to peer: {peer_addr}",
             }
         except Exception as e:
             self.logger.error(f"Error connecting to peer asynchronously: {str(e)}")
-            return {
-                "success": False,
-                "message": f"Error connecting to peer: {str(e)}"
-            }
-    
+            return {"success": False, "message": f"Error connecting to peer: {str(e)}"}
+
     async def disconnect_peer(self, request) -> Dict[str, Any]:
         """Disconnect from a peer asynchronously."""
         peer_id = request.peer_id
@@ -84,15 +76,14 @@ class LibP2PControllerAnyIO:
             success = await self.libp2p_model.disconnect_async(peer_id)
             return {
                 "success": success,
-                "message": f"Disconnected from peer: {peer_id}" if success else f"Failed to disconnect from peer: {peer_id}"
+                "message": f"Disconnected from peer: {peer_id}"
+                if success
+                else f"Failed to disconnect from peer: {peer_id}",
             }
         except Exception as e:
             self.logger.error(f"Error disconnecting from peer asynchronously: {str(e)}")
-            return {
-                "success": False,
-                "message": f"Error disconnecting from peer: {str(e)}"
-            }
-    
+            return {"success": False, "message": f"Error disconnecting from peer: {str(e)}"}
+
     async def get_peers(self, request) -> Dict[str, Any]:
         """Get connected peers asynchronously."""
         self.logger.info("Getting connected peers asynchronously")
@@ -101,16 +92,16 @@ class LibP2PControllerAnyIO:
             return {
                 "success": True,
                 "message": f"Found {len(peers)} connected peers",
-                "peers": peers
+                "peers": peers,
             }
         except Exception as e:
             self.logger.error(f"Error getting connected peers asynchronously: {str(e)}")
             return {
                 "success": False,
                 "message": f"Error getting connected peers: {str(e)}",
-                "peers": []
+                "peers": [],
             }
-    
+
     async def dht_get(self, request) -> Dict[str, Any]:
         """Get a value from the DHT asynchronously."""
         key = request.key
@@ -121,22 +112,18 @@ class LibP2PControllerAnyIO:
                 return {
                     "success": True,
                     "message": f"Got value from DHT for key: {key}",
-                    "value": value
+                    "value": value,
                 }
             else:
-                return {
-                    "success": False,
-                    "message": f"Key not found in DHT: {key}",
-                    "value": None
-                }
+                return {"success": False, "message": f"Key not found in DHT: {key}", "value": None}
         except Exception as e:
             self.logger.error(f"Error getting value from DHT asynchronously: {str(e)}")
             return {
                 "success": False,
                 "message": f"Error getting value from DHT: {str(e)}",
-                "value": None
+                "value": None,
             }
-    
+
     async def dht_put(self, request) -> Dict[str, Any]:
         """Put a value in the DHT asynchronously."""
         key = request.key
@@ -146,15 +133,14 @@ class LibP2PControllerAnyIO:
             success = await self.libp2p_model.dht_put_async(key, value)
             return {
                 "success": success,
-                "message": f"Put value in DHT for key: {key}" if success else f"Failed to put value in DHT for key: {key}"
+                "message": f"Put value in DHT for key: {key}"
+                if success
+                else f"Failed to put value in DHT for key: {key}",
             }
         except Exception as e:
             self.logger.error(f"Error putting value in DHT asynchronously: {str(e)}")
-            return {
-                "success": False,
-                "message": f"Error putting value in DHT: {str(e)}"
-            }
-    
+            return {"success": False, "message": f"Error putting value in DHT: {str(e)}"}
+
     async def dht_find_providers(self, request) -> Dict[str, Any]:
         """Find providers for a CID asynchronously."""
         cid = request.cid
@@ -164,16 +150,16 @@ class LibP2PControllerAnyIO:
             return {
                 "success": True,
                 "message": f"Found {len(providers)} providers for CID: {cid}",
-                "providers": providers
+                "providers": providers,
             }
         except Exception as e:
             self.logger.error(f"Error finding providers asynchronously: {str(e)}")
             return {
                 "success": False,
                 "message": f"Error finding providers: {str(e)}",
-                "providers": []
+                "providers": [],
             }
-    
+
     async def dht_provide(self, request) -> Dict[str, Any]:
         """Announce that this node can provide a CID asynchronously."""
         cid = request.cid
@@ -182,15 +168,12 @@ class LibP2PControllerAnyIO:
             success = await self.libp2p_model.dht_provide_async(cid)
             return {
                 "success": success,
-                "message": f"Providing CID: {cid}" if success else f"Failed to provide CID: {cid}"
+                "message": f"Providing CID: {cid}" if success else f"Failed to provide CID: {cid}",
             }
         except Exception as e:
             self.logger.error(f"Error providing CID asynchronously: {str(e)}")
-            return {
-                "success": False,
-                "message": f"Error providing CID: {str(e)}"
-            }
-    
+            return {"success": False, "message": f"Error providing CID: {str(e)}"}
+
     async def pubsub_subscribe(self, request) -> Dict[str, Any]:
         """Subscribe to a pubsub topic asynchronously."""
         topic = request.topic
@@ -199,19 +182,18 @@ class LibP2PControllerAnyIO:
             # We need a callback for the subscription
             async def message_callback(peer_id, data):
                 self.logger.info(f"Received message on topic {topic} from peer {peer_id}")
-            
+
             success = await self.libp2p_model.pubsub_subscribe_async(topic, message_callback)
             return {
                 "success": success,
-                "message": f"Subscribed to topic: {topic}" if success else f"Failed to subscribe to topic: {topic}"
+                "message": f"Subscribed to topic: {topic}"
+                if success
+                else f"Failed to subscribe to topic: {topic}",
             }
         except Exception as e:
             self.logger.error(f"Error subscribing to topic asynchronously: {str(e)}")
-            return {
-                "success": False,
-                "message": f"Error subscribing to topic: {str(e)}"
-            }
-    
+            return {"success": False, "message": f"Error subscribing to topic: {str(e)}"}
+
     async def pubsub_publish(self, request) -> Dict[str, Any]:
         """Publish to a pubsub topic asynchronously."""
         topic = request.topic
@@ -220,33 +202,28 @@ class LibP2PControllerAnyIO:
         try:
             if isinstance(data, str):
                 data = data.encode()
-            
+
             success = await self.libp2p_model.pubsub_publish_async(topic, data)
             return {
                 "success": success,
-                "message": f"Published to topic: {topic}" if success else f"Failed to publish to topic: {topic}"
+                "message": f"Published to topic: {topic}"
+                if success
+                else f"Failed to publish to topic: {topic}",
             }
         except Exception as e:
             self.logger.error(f"Error publishing to topic asynchronously: {str(e)}")
-            return {
-                "success": False,
-                "message": f"Error publishing to topic: {str(e)}"
-            }
-    
+            return {"success": False, "message": f"Error publishing to topic: {str(e)}"}
+
     async def get_node_info(self, request) -> Dict[str, Any]:
         """Get information about the LibP2P node asynchronously."""
         self.logger.info("Getting LibP2P node info asynchronously")
         try:
             info = await self.libp2p_model.get_info_async()
-            return {
-                "success": True,
-                "message": "Got LibP2P node info",
-                "info": info
-            }
+            return {"success": True, "message": "Got LibP2P node info", "info": info}
         except Exception as e:
             self.logger.error(f"Error getting LibP2P node info asynchronously: {str(e)}")
             return {
                 "success": False,
                 "message": f"Error getting LibP2P node info: {str(e)}",
-                "info": {}
+                "info": {},
             }

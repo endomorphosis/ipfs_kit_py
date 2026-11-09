@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 # Define Pydantic models for requests and responses
 class DistributedResponse(BaseModel):
     """Base response model for distributed operations."""
+
     success: bool = Field(..., description="Whether the operation was successful")
     operation_id: Optional[str] = Field(None, description="Unique identifier for this operation")
     timestamp: float = Field(..., description="Operation timestamp")
@@ -27,6 +28,7 @@ class DistributedResponse(BaseModel):
 
 class PeerDiscoveryRequest(BaseModel):
     """Request model for peer discovery."""
+
     discovery_methods: List[str] = Field(
         default=["mdns", "dht", "bootstrap", "direct"],
         description="Methods to use for peer discovery",
@@ -42,6 +44,7 @@ class PeerDiscoveryRequest(BaseModel):
 
 class PeerDiscoveryResponse(DistributedResponse):
     """Response model for peer discovery."""
+
     peers: List[Dict[str, Any]] = Field(default=[], description="List of discovered peers")
     discovery_methods_used: List[str] = Field(
         default=[], description="Discovery methods that were successful"
@@ -51,6 +54,7 @@ class PeerDiscoveryResponse(DistributedResponse):
 
 class ClusterCacheRequest(BaseModel):
     """Request model for cluster-wide cache operations."""
+
     operation: str = Field(
         ..., description="Cache operation to perform (get, put, invalidate, sync)"
     )
@@ -69,6 +73,7 @@ class ClusterCacheRequest(BaseModel):
 
 class ClusterCacheResponse(DistributedResponse):
     """Response model for cluster-wide cache operations."""
+
     operation: str = Field(..., description="Cache operation performed")
     key: Optional[str] = Field(None, description="Cache key for the operation")
     value: Optional[Any] = Field(None, description="Retrieved cache value (for 'get' operations)")
@@ -80,6 +85,7 @@ class ClusterCacheResponse(DistributedResponse):
 
 class ClusterStateRequest(BaseModel):
     """Request model for cluster state operations."""
+
     operation: str = Field(..., description="State operation to perform (query, update, subscribe)")
     path: Optional[str] = Field(
         None, description="State path to operate on (e.g., 'nodes.worker1.status')"
@@ -95,6 +101,7 @@ class ClusterStateRequest(BaseModel):
 
 class StateSyncRequest(BaseModel):
     """Request model for state synchronization."""
+
     force_full_sync: bool = Field(
         False, description="Whether to force a full state synchronization"
     )
@@ -105,6 +112,7 @@ class StateSyncRequest(BaseModel):
 
 class ClusterStateResponse(DistributedResponse):
     """Response model for cluster state operations."""
+
     operation: str = Field(..., description="State operation performed")
     path: Optional[str] = Field(None, description="State path operated on")
     value: Optional[Any] = Field(None, description="Retrieved or updated state value")
@@ -116,6 +124,7 @@ class ClusterStateResponse(DistributedResponse):
 
 class NodeRegistrationRequest(BaseModel):
     """Request model for node registration."""
+
     node_id: Optional[str] = Field(None, description="Node identifier (generated if not provided)")
     role: str = Field(..., description="Node role (master, worker, leecher)")
     capabilities: List[str] = Field(
@@ -129,6 +138,7 @@ class NodeRegistrationRequest(BaseModel):
 
 class NodeRegistrationResponse(DistributedResponse):
     """Response model for node registration."""
+
     node_id: str = Field(..., description="Assigned node identifier")
     role: str = Field(..., description="Confirmed node role")
     status: str = Field(..., description="Node status after registration")
@@ -143,6 +153,7 @@ class NodeRegistrationResponse(DistributedResponse):
 
 class DistributedTaskRequest(BaseModel):
     """Request model for distributed task operations."""
+
     task_type: str = Field(..., description="Type of task to perform or submit")
     parameters: Dict[str, Any] = Field(default={}, description="Task parameters")
     priority: int = Field(default=5, description="Task priority (1-10, with 10 being highest)")
@@ -155,6 +166,7 @@ class DistributedTaskRequest(BaseModel):
 
 class DistributedTaskResponse(DistributedResponse):
     """Response model for distributed task operations."""
+
     task_id: str = Field(..., description="Assigned task identifier")
     task_type: str = Field(..., description="Type of task")
     status: str = Field(..., description="Task status")
@@ -173,6 +185,7 @@ class DistributedController:
     - Cross-node state synchronization
     - Distributed task scheduling
     """
+
     def __init__(self, ipfs_model):
         """
         Initialize the distributed controller.
@@ -362,11 +375,7 @@ class DistributedController:
             logger.error(f"Error discovering peers: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def list_known_peers(
-        self, 
-        include_metrics=False, 
-        filter_role=None
-    ) -> Dict[str, Any]:
+    async def list_known_peers(self, include_metrics=False, filter_role=None) -> Dict[str, Any]:
         """
         List all known peers in the cluster.
 
@@ -753,7 +762,9 @@ class DistributedController:
                 error_msg = result.get("error", "Unknown error getting task status")
                 status_code = 404 if "not found" in error_msg.lower() else 500
                 # Add operation context to the detail message
-                raise HTTPException(status_code=status_code, detail=f"Failed to get task status: {error_msg}")
+                raise HTTPException(
+                    status_code=status_code, detail=f"Failed to get task status: {error_msg}"
+                )
 
             return {
                 "success": True,
@@ -793,8 +804,10 @@ class DistributedController:
             if not result.get("success", False):
                 error_msg = result.get("error", "Unknown error cancelling task")
                 status_code = 404 if "not found" in error_msg.lower() else 500
-                 # Add operation context to the detail message
-                raise HTTPException(status_code=status_code, detail=f"Failed to cancel task: {error_msg}")
+                # Add operation context to the detail message
+                raise HTTPException(
+                    status_code=status_code, detail=f"Failed to cancel task: {error_msg}"
+                )
 
             return {
                 "success": True,

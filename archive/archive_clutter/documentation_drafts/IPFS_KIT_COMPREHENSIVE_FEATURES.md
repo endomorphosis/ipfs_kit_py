@@ -139,9 +139,7 @@ Once the server is running, these tools are accessible through the MCP interface
 3. **Multi-Backend Storage**:
    ```python
    result = await mbfs_store(
-       content="Multi-backend example",
-       path="/examples/test.txt",
-       backend_id="ipfs-default"
+       content="Multi-backend example", path="/examples/test.txt", backend_id="ipfs-default"
    )
    ```
 

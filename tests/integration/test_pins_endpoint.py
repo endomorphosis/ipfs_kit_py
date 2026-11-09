@@ -23,7 +23,7 @@ try:
     print(f"Response: {json.dumps(response.json(), indent=2)}")
 except Exception as e:
     print(f"Error connecting to http://localhost:{server_port}/api/v0/mcp/cli/pins: {str(e)}")
-    
+
     # Try alternative port
     server_port = 9991
     try:

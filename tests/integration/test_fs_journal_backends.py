@@ -19,13 +19,14 @@ from unittest.mock import patch, MagicMock, PropertyMock
 from ipfs_kit_py.fs_journal_backends import (
     StorageBackendType,
     TieredStorageJournalBackend,
-    TieredJournalManagerFactory
+    TieredJournalManagerFactory,
 )
 from ipfs_kit_py.filesystem_journal import (
     FilesystemJournal,
     JournalOperationType,
-    JournalEntryStatus
+    JournalEntryStatus,
 )
+
 
 class TestTieredStorageJournalBackend(unittest.TestCase):
     """Test the TieredStorageJournalBackend class."""
@@ -60,7 +61,7 @@ class TestTieredStorageJournalBackend(unittest.TestCase):
         self.backend = TieredStorageJournalBackend(
             tiered_cache_manager=self.tiered_cache,
             journal_base_path=journal_path,
-            auto_recovery=False
+            auto_recovery=False,
         )
 
         # Test data
@@ -70,15 +71,14 @@ class TestTieredStorageJournalBackend(unittest.TestCase):
     def tearDown(self):
         """Clean up after tests."""
         import shutil
+
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_store_content(self):
         """Test storing content with journaling."""
         # Store content in memory tier
         result = self.backend.store_content(
-            content=self.test_content,
-            cid=self.test_cid,
-            target_tier=StorageBackendType.MEMORY
+            content=self.test_content, cid=self.test_cid, target_tier=StorageBackendType.MEMORY
         )
 
         # Verify result
@@ -92,8 +92,7 @@ class TestTieredStorageJournalBackend(unittest.TestCase):
         # Verify content location was updated
         self.assertIn(self.test_cid, self.backend.content_locations)
         self.assertEqual(
-            self.backend.content_locations[self.test_cid]["tier"],
-            StorageBackendType.MEMORY
+            self.backend.content_locations[self.test_cid]["tier"], StorageBackendType.MEMORY
         )
 
         # Verify tier stats were updated
@@ -103,9 +102,7 @@ class TestTieredStorageJournalBackend(unittest.TestCase):
         """Test retrieving content with journaling."""
         # First store content
         self.backend.store_content(
-            content=self.test_content,
-            cid=self.test_cid,
-            target_tier=StorageBackendType.MEMORY
+            content=self.test_content, cid=self.test_cid, target_tier=StorageBackendType.MEMORY
         )
 
         # Then retrieve it
@@ -124,16 +121,12 @@ class TestTieredStorageJournalBackend(unittest.TestCase):
         """Test moving content between tiers."""
         # First store content in memory tier
         self.backend.store_content(
-            content=self.test_content,
-            cid=self.test_cid,
-            target_tier=StorageBackendType.MEMORY
+            content=self.test_content, cid=self.test_cid, target_tier=StorageBackendType.MEMORY
         )
 
         # Move content to disk tier
         result = self.backend.move_content_to_tier(
-            cid=self.test_cid,
-            target_tier=StorageBackendType.DISK,
-            keep_in_source=False
+            cid=self.test_cid, target_tier=StorageBackendType.DISK, keep_in_source=False
         )
 
         # Verify result
@@ -147,8 +140,7 @@ class TestTieredStorageJournalBackend(unittest.TestCase):
 
         # Verify content location was updated
         self.assertEqual(
-            self.backend.content_locations[self.test_cid]["tier"],
-            StorageBackendType.DISK
+            self.backend.content_locations[self.test_cid]["tier"], StorageBackendType.DISK
         )
 
         # Verify tier stats were updated
@@ -159,9 +151,7 @@ class TestTieredStorageJournalBackend(unittest.TestCase):
         """Test getting content location information."""
         # First store content
         self.backend.store_content(
-            content=self.test_content,
-            cid=self.test_cid,
-            target_tier=StorageBackendType.MEMORY
+            content=self.test_content, cid=self.test_cid, target_tier=StorageBackendType.MEMORY
         )
 
         # Get location info
@@ -177,9 +167,7 @@ class TestTieredStorageJournalBackend(unittest.TestCase):
         """Test getting tier statistics."""
         # First store content
         self.backend.store_content(
-            content=self.test_content,
-            cid=self.test_cid,
-            target_tier=StorageBackendType.MEMORY
+            content=self.test_content, cid=self.test_cid, target_tier=StorageBackendType.MEMORY
         )
 
         # Get tier stats
@@ -197,9 +185,7 @@ class TestTieredStorageJournalBackend(unittest.TestCase):
 
         # Attempt to store content
         result = self.backend.store_content(
-            content=self.test_content,
-            cid=self.test_cid,
-            target_tier=StorageBackendType.MEMORY
+            content=self.test_content, cid=self.test_cid, target_tier=StorageBackendType.MEMORY
         )
 
         # Verify result indicates failure
@@ -222,31 +208,33 @@ class TestTieredStorageJournalBackend(unittest.TestCase):
                 "size": len(self.test_content),  # Add size at the top level
                 "metadata": {
                     "storage_tier": StorageBackendType.MEMORY,
-                    "size": len(self.test_content)
+                    "size": len(self.test_content),
                 },
-                "modified_at": time.time()
+                "modified_at": time.time(),
             }
         }
 
         # Create a new backend with the mocked journal
-        with patch.object(FilesystemJournal, 'get_fs_state', return_value=fs_state):
+        with patch.object(FilesystemJournal, "get_fs_state", return_value=fs_state):
             journal_path = os.path.join(self.temp_dir, "recovery_journal")
             recovery_backend = TieredStorageJournalBackend(
                 tiered_cache_manager=self.tiered_cache,
                 journal_base_path=journal_path,
-                auto_recovery=True  # Enable recovery
+                auto_recovery=True,  # Enable recovery
             )
 
             # Verify content location was recovered
             self.assertIn(self.test_cid, recovery_backend.content_locations)
             self.assertEqual(
-                recovery_backend.content_locations[self.test_cid]["tier"],
-                StorageBackendType.MEMORY
+                recovery_backend.content_locations[self.test_cid]["tier"], StorageBackendType.MEMORY
             )
 
             # Verify tier stats were updated
             self.assertEqual(recovery_backend.tier_stats[StorageBackendType.MEMORY]["items"], 1)
-            self.assertEqual(recovery_backend.tier_stats[StorageBackendType.MEMORY]["bytes_stored"], len(self.test_content))
+            self.assertEqual(
+                recovery_backend.tier_stats[StorageBackendType.MEMORY]["bytes_stored"],
+                len(self.test_content),
+            )
 
 
 class TestTieredJournalManagerFactory(unittest.TestCase):
@@ -267,6 +255,7 @@ class TestTieredJournalManagerFactory(unittest.TestCase):
     def tearDown(self):
         """Clean up after tests."""
         import shutil
+
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_create_for_tiered_cache(self):
@@ -275,7 +264,7 @@ class TestTieredJournalManagerFactory(unittest.TestCase):
         backend = TieredJournalManagerFactory.create_for_tiered_cache(
             tiered_cache_manager=self.tiered_cache,
             journal_base_path=journal_path,
-            auto_recovery=False
+            auto_recovery=False,
         )
 
         # Verify correct backend was created
@@ -286,9 +275,7 @@ class TestTieredJournalManagerFactory(unittest.TestCase):
         """Test creating backend from high-level API."""
         journal_path = os.path.join(self.temp_dir, "journal")
         backend = TieredJournalManagerFactory.create_from_high_level_api(
-            api_instance=self.api,
-            journal_base_path=journal_path,
-            auto_recovery=False
+            api_instance=self.api, journal_base_path=journal_path, auto_recovery=False
         )
 
         # Verify correct backend was created
@@ -303,9 +290,7 @@ class TestTieredJournalManagerFactory(unittest.TestCase):
 
         journal_path = os.path.join(self.temp_dir, "journal")
         backend = TieredJournalManagerFactory.create_from_high_level_api(
-            api_instance=api,
-            journal_base_path=journal_path,
-            auto_recovery=False
+            api_instance=api, journal_base_path=journal_path, auto_recovery=False
         )
 
         # Verify correct backend was created
@@ -325,9 +310,7 @@ class TestTieredJournalManagerFactory(unittest.TestCase):
 
         journal_path = os.path.join(self.temp_dir, "journal")
         backend = TieredJournalManagerFactory.create_from_high_level_api(
-            api_instance=api,
-            journal_base_path=journal_path,
-            auto_recovery=False
+            api_instance=api, journal_base_path=journal_path, auto_recovery=False
         )
 
         # Verify correct backend was created
@@ -350,11 +333,9 @@ class TestTieredJournalManagerFactory(unittest.TestCase):
         # Verify error is raised
         with self.assertRaises(ValueError):
             TieredJournalManagerFactory.create_from_high_level_api(
-                api_instance=api,
-                journal_base_path=journal_path,
-                auto_recovery=False
+                api_instance=api, journal_base_path=journal_path, auto_recovery=False
             )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

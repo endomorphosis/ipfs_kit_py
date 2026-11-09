@@ -80,9 +80,7 @@ def test_rollout_is_ordered_manual_and_higher_stages_are_not_signed_off() -> Non
     assert [stage["order"] for stage in stages] == list(range(4))
     assert all(stage["automatic_promotion"] is False for stage in stages)
     assert promotion_blockers("disabled") == []
-    assert promotion_blockers("experimental") == [
-        "signoff:stage-experimental-not-approved"
-    ]
+    assert promotion_blockers("experimental") == ["signoff:stage-experimental-not-approved"]
     canary = promotion_blockers("canary")
     assert "receipt:iroh-packaging-source-pinned-20260713:conditional" in canary
     assert "receipt:iroh-real-multinode-pending-20260713:not_run" in canary

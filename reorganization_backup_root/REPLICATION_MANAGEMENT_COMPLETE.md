@@ -128,16 +128,12 @@ manager = ReplicationManager()
 
 # Add storage backend
 await manager.add_storage_backend(
-    name="my_cluster",
-    backend_type="ipfs_cluster", 
-    config={"endpoint": "http://localhost:9094"}
+    name="my_cluster", backend_type="ipfs_cluster", config={"endpoint": "http://localhost:9094"}
 )
 
 # Register pin for replication
 await manager.register_pin_for_replication(
-    cid="QmExample123",
-    size_bytes=1024,
-    metadata={"dataset": "test_data"}
+    cid="QmExample123", size_bytes=1024, metadata={"dataset": "test_data"}
 )
 ```
 

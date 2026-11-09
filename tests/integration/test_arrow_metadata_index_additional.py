@@ -1,4 +1,4 @@
-#\!/usr/bin/env python3
+# \!/usr/bin/env python3
 """
 Additional unit tests for the arrow_metadata_index module.
 
@@ -274,13 +274,15 @@ class TestArrowMetadataIndexAdditional(unittest.TestCase):
             result = self.index.query([("cid", "==", "QmTest")])
 
             # Verify result is an empty table with the correct schema
-            if hasattr(pa, 'Table') and isinstance(pa.Table, type):
+            if hasattr(pa, "Table") and isinstance(pa.Table, type):
                 self.assertIsInstance(result, pa.Table)
             else:
                 # Just check it's a table-like object with basic attributes
-                self.assertTrue(hasattr(result, 'column_names'), "Result should have column_names attribute")
+                self.assertTrue(
+                    hasattr(result, "column_names"), "Result should have column_names attribute"
+                )
             self.assertEqual(result.num_rows, 0)
-            
+
             # Verify schema matches the index schema
             self.assertEqual(result.schema, self.index.schema)
 
@@ -292,11 +294,13 @@ class TestArrowMetadataIndexAdditional(unittest.TestCase):
             result = self.index.search_text("test")
 
             # Verify result is an empty table with the correct schema
-            if hasattr(pa, 'Table') and isinstance(pa.Table, type):
+            if hasattr(pa, "Table") and isinstance(pa.Table, type):
                 self.assertIsInstance(result, pa.Table)
             else:
                 # Just check it's a table-like object with basic attributes
-                self.assertTrue(hasattr(result, 'column_names'), "Result should have column_names attribute")
+                self.assertTrue(
+                    hasattr(result, "column_names"), "Result should have column_names attribute"
+                )
             self.assertEqual(result.num_rows, 0)
 
             # Verify schema matches the index schema
@@ -381,10 +385,10 @@ class TestArrowMetadataIndexAdditional(unittest.TestCase):
         self.index.should_stop = stop_flag
 
         # Verify the thread calls the expected methods
-        with patch.object(self.index, "_write_current_batch") as mock_write, patch.object(
-            self.index, "_sync_with_peers"
-        ) as mock_sync:
-
+        with (
+            patch.object(self.index, "_write_current_batch") as mock_write,
+            patch.object(self.index, "_sync_with_peers") as mock_sync,
+        ):
             # Set up record_batch to trigger the write call
             self.index.record_batch = True
             self.index.ipfs_client = True
@@ -415,12 +419,11 @@ class TestArrowMetadataIndexAdditional(unittest.TestCase):
         self.index.should_stop = stop_flag
 
         # Set up mocks
-        with patch.object(
-            self.index, "_write_current_batch", side_effect=raise_error
-        ), patch.object(self.index, "_sync_with_peers", side_effect=raise_error), patch.object(
-            self.index, "record_batch", True
+        with (
+            patch.object(self.index, "_write_current_batch", side_effect=raise_error),
+            patch.object(self.index, "_sync_with_peers", side_effect=raise_error),
+            patch.object(self.index, "record_batch", True),
         ):
-
             # Start the method - it will run until stop is set
             stop_thread = threading.Thread(target=lambda: stop_flag.set())
             stop_thread.start()

@@ -9,8 +9,11 @@ import logging
 import re
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def fix_pytest_call():
     """Fix the run_pytest call missing closing parenthesis"""
@@ -26,10 +29,10 @@ def fix_pytest_call():
 
         # Find the line with the run_pytest call
         for i, line in enumerate(lines):
-            if "run_pytest(DEPLOYMENT_CONFIG[\"test_suite\"]" in line:
+            if 'run_pytest(DEPLOYMENT_CONFIG["test_suite"]' in line:
                 # Add closing parenthesis
                 lines[i] = line.rstrip() + ")\n"
-                logger.info(f"Fixed run_pytest call at line {i+1}")
+                logger.info(f"Fixed run_pytest call at line {i + 1}")
                 break
 
         # Write the fixed content back to the file
@@ -43,6 +46,7 @@ def fix_pytest_call():
         logger.error(f"Error fixing run_pytest call: {e}")
         return False
 
+
 def main():
     """Main function"""
     logger.info("Starting to fix run_pytest call in direct_mcp_server_with_tools.py...")
@@ -55,6 +59,7 @@ def main():
     logger.info("\n✅ Successfully fixed run_pytest call in direct_mcp_server_with_tools.py")
     logger.info("You can now run the server with './restart_mcp_with_tools.sh'")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -36,13 +36,20 @@ Enhanced `ModularEnhancedMCPServer` constructor to:
 - Disable component status flags in COMPONENTS dict
 
 ```python
-def __init__(self, host: str = "127.0.0.1", port: int = 8765, role: str = "leecher", debug: bool = False, disabled_components: List[str] = None):
+def __init__(
+    self,
+    host: str = "127.0.0.1",
+    port: int = 8765,
+    role: str = "leecher",
+    debug: bool = False,
+    disabled_components: List[str] = None,
+):
     self.disabled_components = disabled_components or []
-    
+
     # Log disabled components
     if self.disabled_components:
         logger.info(f"Disabled components for {role} role: {', '.join(self.disabled_components)}")
-    
+
     # Pass to setup manager and IPFS client
     setup_manager = SetupManager(disabled_components=self.disabled_components)
     self.ipfs_client = IPFSClient(role=self.role, disabled_components=self.disabled_components)
@@ -104,7 +111,7 @@ Enhanced the `ipfs_kit` class constructor to:
 # For leecher role
 if self.role == "leecher":
     disabled_components = metadata.get("disabled_components", [])
-    
+
     # Initialize Synapse storage if not disabled
     if HAS_SYNAPSE and "synapse" not in disabled_components:
         self.synapse_storage = synapse_storage(resources=resources, metadata=metadata)
@@ -113,8 +120,8 @@ if self.role == "leecher":
         self.synapse_storage = None
         if "synapse" in disabled_components:
             self.logger.info("Synapse storage disabled for leecher role")
-    
-    # Initialize Lotus Kit if not disabled        
+
+    # Initialize Lotus Kit if not disabled
     if HAS_LOTUS and "lotus" not in disabled_components:
         self.lotus_kit = lotus_kit(resources=resources, metadata=lotus_metadata)
         self.logger.info("Initialized Lotus Kit for Filecoin integration")
@@ -142,8 +149,7 @@ from ipfs_kit_py.high_level_api import IPFSSimpleAPI
 
 # Create API with disabled components
 api = IPFSSimpleAPI(
-    role='leecher', 
-    disabled_components=['lotus', 'synapse', 'ipfs_cluster', 'ipfs_cluster_follow']
+    role="leecher", disabled_components=["lotus", "synapse", "ipfs_cluster", "ipfs_cluster_follow"]
 )
 
 # Check component status

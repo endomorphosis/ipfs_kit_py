@@ -203,7 +203,10 @@ class IPFSHeliaBlockBackend:
             result = client.block.put(data, format=codec, mhtype="sha2-256")
         elif hasattr(client, "dag") and hasattr(client.dag, "put") and codec == "dag-json":
             result = client.dag.put(
-                json.loads(data.decode("utf-8")), store_codec="dag-json", input_codec="dag-json", hash="sha2-256"
+                json.loads(data.decode("utf-8")),
+                store_codec="dag-json",
+                input_codec="dag-json",
+                hash="sha2-256",
             )
         elif hasattr(client, "add_bytes") and codec == "raw":
             result = client.add_bytes(data)
@@ -236,7 +239,9 @@ class IPFSHeliaBlockBackend:
             return result.encode("utf-8")
         if isinstance(result, (bytes, bytearray, memoryview)):
             return bytes(result)
-        if isinstance(result, Mapping) and isinstance(result.get("data"), (bytes, bytearray, memoryview)):
+        if isinstance(result, Mapping) and isinstance(
+            result.get("data"), (bytes, bytearray, memoryview)
+        ):
             return bytes(result["data"])
         raise TypeError("IPFS/Helia client returned non-byte block data")
 
@@ -264,7 +269,8 @@ class DurableCoordinationStore:
         self.blocks_dir.mkdir(parents=True, exist_ok=True)
         self.backend = (
             backend
-            if backend is None or (hasattr(backend, "store_block") and hasattr(backend, "load_block"))
+            if backend is None
+            or (hasattr(backend, "store_block") and hasattr(backend, "load_block"))
             else IPFSHeliaBlockBackend(backend)
         )
         self.retention = retention or RetentionPolicy()
@@ -284,7 +290,9 @@ class DurableCoordinationStore:
             # Immutable blocks, not SQLite, are authoritative. Preserve the bad
             # file for diagnosis and recreate a clean index on startup.
             if self.db_path.exists():
-                corrupt = self.db_path.with_name(f"{self.db_path.name}.corrupt-{int(time.time() * 1000)}")
+                corrupt = self.db_path.with_name(
+                    f"{self.db_path.name}.corrupt-{int(time.time() * 1000)}"
+                )
                 self.db_path.replace(corrupt)
             for suffix in ("-wal", "-shm"):
                 Path(f"{self.db_path}{suffix}").unlink(missing_ok=True)
@@ -355,7 +363,9 @@ class DurableCoordinationStore:
         self.close()
 
     def _block_path(self, cid: str) -> Path:
-        if not cid.startswith("b") or any(char not in "abcdefghijklmnopqrstuvwxyz234567" for char in cid):
+        if not cid.startswith("b") or any(
+            char not in "abcdefghijklmnopqrstuvwxyz234567" for char in cid
+        ):
             raise ValueError("CID must be lowercase base32")
         directory = self.blocks_dir / cid[1:3]
         directory.mkdir(parents=True, exist_ok=True)
@@ -405,7 +415,9 @@ class DurableCoordinationStore:
         data = _canonical_json(value)
         cid = cid_for_bytes(data, codec)
         if expected_cid is not None and expected_cid != cid:
-            raise ArtifactIntegrityError(f"artifact CID {cid} does not match expected {expected_cid}")
+            raise ArtifactIntegrityError(
+                f"artifact CID {cid} does not match expected {expected_cid}"
+            )
         stored_at = int(self._clock_ms())
         with self._lock:
             created = self._write_block(cid, data)
@@ -429,7 +441,9 @@ class DurableCoordinationStore:
             "durable": True,
         }
 
-    def put_profile_g(self, kind: str, artifact: Mapping[str, Any], *, expected_cid: Optional[str] = None) -> Dict[str, Any]:
+    def put_profile_g(
+        self, kind: str, artifact: Mapping[str, Any], *, expected_cid: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Store a canonical Profile G artifact and verify its declared kind."""
 
         actual_kind = _artifact_kind(artifact)
@@ -491,10 +505,16 @@ class DurableCoordinationStore:
                    VALUES(?,?,?,?,?,?,?,?,COALESCE((SELECT state FROM claims WHERE claim_cid=?),'pending'),
                           (SELECT resolution_cid FROM claims WHERE claim_cid=?))""",
                 (
-                    cid, _require_string(artifact, "task_cid"), _require_string(artifact, "proposal_cid"),
-                    _require_string(artifact, "claimant_did"), _require_integer(artifact, "logical_epoch", 1),
-                    _require_integer(artifact, "requested_lease_ms", 1), _require_integer(artifact, "attempt", 1),
-                    _require_integer(artifact, "created_at_ms"), cid, cid,
+                    cid,
+                    _require_string(artifact, "task_cid"),
+                    _require_string(artifact, "proposal_cid"),
+                    _require_string(artifact, "claimant_did"),
+                    _require_integer(artifact, "logical_epoch", 1),
+                    _require_integer(artifact, "requested_lease_ms", 1),
+                    _require_integer(artifact, "attempt", 1),
+                    _require_integer(artifact, "created_at_ms"),
+                    cid,
+                    cid,
                 ),
             )
         elif kind == "ClaimResolution":
@@ -502,7 +522,9 @@ class DurableCoordinationStore:
         elif kind in ("NeighborhoodRecord", "DaemonHealth"):
             self._index_health(connection, cid, kind, artifact)
 
-    def _index_resolution(self, connection: sqlite3.Connection, cid: str, artifact: Mapping[str, Any]) -> None:
+    def _index_resolution(
+        self, connection: sqlite3.Connection, cid: str, artifact: Mapping[str, Any]
+    ) -> None:
         task_cid = _require_string(artifact, "task_cid")
         outcome = _require_string(artifact, "outcome")
         accepted = artifact.get("accepted_claim_cid")
@@ -519,7 +541,10 @@ class DurableCoordinationStore:
                    ORDER BY logical_epoch DESC,fencing_token DESC LIMIT 1""",
                 (task_cid,),
             ).fetchone()
-            if current is not None and (epoch, token) <= (current["logical_epoch"], current["fencing_token"]):
+            if current is not None and (epoch, token) <= (
+                current["logical_epoch"],
+                current["fencing_token"],
+            ):
                 connection.execute(
                     "INSERT OR REPLACE INTO leases VALUES(?,?,?,?,?,?,?,?,?)",
                     (cid, task_cid, accepted, epoch, token, expires, "stale", 0, created),
@@ -540,26 +565,36 @@ class DurableCoordinationStore:
                 (cid, task_cid, accepted, epoch, token, expires, outcome, 1, created),
             )
             connection.execute(
-                "UPDATE claims SET state='accepted', resolution_cid=? WHERE claim_cid=?", (cid, accepted)
+                "UPDATE claims SET state='accepted', resolution_cid=? WHERE claim_cid=?",
+                (cid, accepted),
             )
             considered = artifact.get("considered_claim_cids", [])
             for claim_cid in considered if isinstance(considered, list) else []:
                 if claim_cid != accepted:
                     connection.execute(
-                        "UPDATE claims SET state='conflict', resolution_cid=? WHERE claim_cid=?", (cid, claim_cid)
+                        "UPDATE claims SET state='conflict', resolution_cid=? WHERE claim_cid=?",
+                        (cid, claim_cid),
                     )
         else:
-            connection.execute("UPDATE leases SET active=0, outcome=? WHERE task_cid=? AND active=1", (outcome, task_cid))
+            connection.execute(
+                "UPDATE leases SET active=0, outcome=? WHERE task_cid=? AND active=1",
+                (outcome, task_cid),
+            )
             for claim_cid in artifact.get("considered_claim_cids", []):
                 connection.execute(
-                    "UPDATE claims SET state=?, resolution_cid=? WHERE claim_cid=?", (outcome, cid, claim_cid)
+                    "UPDATE claims SET state=?, resolution_cid=? WHERE claim_cid=?",
+                    (outcome, cid, claim_cid),
                 )
 
     def _index_health(
         self, connection: sqlite3.Connection, cid: str, kind: str, artifact: Mapping[str, Any]
     ) -> None:
         peer = _require_string(artifact, "peer_did")
-        observed = int(artifact.get("observed_at_ms", artifact.get("valid_from_ms", artifact.get("created_at_ms", 0))))
+        observed = int(
+            artifact.get(
+                "observed_at_ms", artifact.get("valid_from_ms", artifact.get("created_at_ms", 0))
+            )
+        )
         expires = _require_integer(artifact, "expires_at_ms", 1)
         capacity = _require_integer(artifact, "capacity_millionths")
         status = str(artifact.get("status", "healthy" if capacity > 0 else "unavailable"))
@@ -574,8 +609,16 @@ class DurableCoordinationStore:
         value = dict(record)
         value.setdefault("schema", DAEMON_HEALTH_SCHEMA)
         required = (
-            "peer_did", "status", "observed_at_ms", "expires_at_ms", "capacity_millionths",
-            "resource_classes", "health_evidence_cid", "signer_did", "signature_alg", "signature",
+            "peer_did",
+            "status",
+            "observed_at_ms",
+            "expires_at_ms",
+            "capacity_millionths",
+            "resource_classes",
+            "health_evidence_cid",
+            "signer_did",
+            "signature_alg",
+            "signature",
         )
         missing = [name for name in required if name not in value]
         if missing:
@@ -601,7 +644,9 @@ class DurableCoordinationStore:
         with self._lock:
             return self._rows(self._connection.execute(sql, parameters))
 
-    def active_lease(self, task_cid: str, *, at_ms: Optional[int] = None) -> Optional[Dict[str, Any]]:
+    def active_lease(
+        self, task_cid: str, *, at_ms: Optional[int] = None
+    ) -> Optional[Dict[str, Any]]:
         now = int(self._clock_ms() if at_ms is None else at_ms)
         with self._lock, self._connection:
             self._connection.execute(
@@ -611,7 +656,8 @@ class DurableCoordinationStore:
                 (now,),
             )
             self._connection.execute(
-                "UPDATE leases SET active=0, outcome='expired' WHERE active=1 AND expires_at_ms<=?", (now,)
+                "UPDATE leases SET active=0, outcome='expired' WHERE active=1 AND expires_at_ms<=?",
+                (now,),
             )
             row = self._connection.execute(
                 """SELECT leases.*, claims.claimant_did FROM leases
@@ -622,7 +668,9 @@ class DurableCoordinationStore:
             ).fetchone()
             return dict(row) if row else None
 
-    def daemon_health(self, peer_did: Optional[str] = None, *, at_ms: Optional[int] = None) -> list[Dict[str, Any]]:
+    def daemon_health(
+        self, peer_did: Optional[str] = None, *, at_ms: Optional[int] = None
+    ) -> list[Dict[str, Any]]:
         now = int(self._clock_ms() if at_ms is None else at_ms)
         sql = "SELECT * FROM daemon_health WHERE expires_at_ms>?"
         params: list[Any] = [now]
@@ -641,15 +689,22 @@ class DurableCoordinationStore:
         lease_before = now - self.retention.expired_lease_ms
         health_before = now - self.retention.expired_health_ms
         with self._lock:
-            claims = self._rows(self._connection.execute(
-                "SELECT * FROM claims WHERE state NOT IN ('pending','accepted') AND created_at_ms<=?", (claim_before,)
-            ))
-            leases = self._rows(self._connection.execute(
-                "SELECT * FROM leases WHERE active=0 AND expires_at_ms<=?", (lease_before,)
-            ))
-            health = self._rows(self._connection.execute(
-                "SELECT * FROM daemon_health WHERE expires_at_ms<=?", (health_before,)
-            ))
+            claims = self._rows(
+                self._connection.execute(
+                    "SELECT * FROM claims WHERE state NOT IN ('pending','accepted') AND created_at_ms<=?",
+                    (claim_before,),
+                )
+            )
+            leases = self._rows(
+                self._connection.execute(
+                    "SELECT * FROM leases WHERE active=0 AND expires_at_ms<=?", (lease_before,)
+                )
+            )
+            health = self._rows(
+                self._connection.execute(
+                    "SELECT * FROM daemon_health WHERE expires_at_ms<=?", (health_before,)
+                )
+            )
         if not (claims or leases or health):
             return {"compacted": False, "reason": "no_eligible_index_rows", "row_count": 0}
         artifact = {
@@ -664,17 +719,27 @@ class DurableCoordinationStore:
             "claims": claims,
             "leases": leases,
             "daemon_health": health,
-            "artifact_cids": sorted({
-                *(row["claim_cid"] for row in claims),
-                *(row["resolution_cid"] for row in leases),
-                *(row["health_cid"] for row in health),
-            }),
+            "artifact_cids": sorted(
+                {
+                    *(row["claim_cid"] for row in claims),
+                    *(row["resolution_cid"] for row in leases),
+                    *(row["health_cid"] for row in health),
+                }
+            ),
         }
         stored = self.put(artifact)
         with self._lock, self._connection:
-            self._connection.executemany("DELETE FROM claims WHERE claim_cid=?", [(row["claim_cid"],) for row in claims])
-            self._connection.executemany("DELETE FROM leases WHERE resolution_cid=?", [(row["resolution_cid"],) for row in leases])
-            self._connection.executemany("DELETE FROM daemon_health WHERE health_cid=?", [(row["health_cid"],) for row in health])
+            self._connection.executemany(
+                "DELETE FROM claims WHERE claim_cid=?", [(row["claim_cid"],) for row in claims]
+            )
+            self._connection.executemany(
+                "DELETE FROM leases WHERE resolution_cid=?",
+                [(row["resolution_cid"],) for row in leases],
+            )
+            self._connection.executemany(
+                "DELETE FROM daemon_health WHERE health_cid=?",
+                [(row["health_cid"],) for row in health],
+            )
             self._connection.execute(
                 "INSERT OR REPLACE INTO index_archives VALUES(?,?,?)",
                 (stored["cid"], now, len(claims) + len(leases) + len(health)),
@@ -717,12 +782,21 @@ class DurableCoordinationStore:
                 self._connection.execute("DELETE FROM artifacts")
                 # Creation order is stable so claims precede resolutions in the
                 # normal case. A second resolution pass handles arbitrary scans.
-                ordered = sorted(verified, key=lambda row: (int(row[1].get("created_at_ms", 0)), row[0]))
+                ordered = sorted(
+                    verified, key=lambda row: (int(row[1].get("created_at_ms", 0)), row[0])
+                )
                 for cid, value, data in ordered:
                     kind = _artifact_kind(value)
                     self._connection.execute(
                         "INSERT INTO artifacts VALUES(?,?,?,?,?,?)",
-                        (cid, kind, str(value["schema"]), _codec_from_cid(cid), len(data), int(value.get("created_at_ms", 0))),
+                        (
+                            cid,
+                            kind,
+                            str(value["schema"]),
+                            _codec_from_cid(cid),
+                            len(data),
+                            int(value.get("created_at_ms", 0)),
+                        ),
                     )
                     if kind != "ClaimResolution":
                         self._index_artifact(self._connection, cid, kind, value)
@@ -731,7 +805,10 @@ class DurableCoordinationStore:
                         self._index_artifact(self._connection, cid, "ClaimResolution", value)
                 for cid, value, _ in ordered:
                     if _artifact_kind(value) == "CoordinationArchive":
-                        row_count = sum(len(value.get(name, [])) for name in ("claims", "leases", "daemon_health"))
+                        row_count = sum(
+                            len(value.get(name, []))
+                            for name in ("claims", "leases", "daemon_health")
+                        )
                         self._connection.executemany(
                             "DELETE FROM claims WHERE claim_cid=?",
                             [(row["claim_cid"],) for row in value.get("claims", [])],

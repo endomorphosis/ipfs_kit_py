@@ -6,8 +6,11 @@ Fix the registration order in direct_mcp_server.py
 import re
 import logging
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def fix_mcp_server():
     """Fix the MCP server file to add IPFS tools in the correct order"""
@@ -18,19 +21,21 @@ def fix_mcp_server():
     # Add import if not already present
     if "from ipfs_mcp_tools_integration import register_ipfs_tools" not in content:
         # Find a good spot to add the import (after other imports)
-        import_match = re.search(r'(^from .* import .*$)', content, re.MULTILINE)
+        import_match = re.search(r"(^from .* import .*$)", content, re.MULTILINE)
         if import_match:
             last_import_pos = content.rindex(import_match.group(0)) + len(import_match.group(0))
-            content = (content[:last_import_pos] +
-                      "\nfrom ipfs_mcp_tools_integration import register_ipfs_tools" +
-                      content[last_import_pos:])
+            content = (
+                content[:last_import_pos]
+                + "\nfrom ipfs_mcp_tools_integration import register_ipfs_tools"
+                + content[last_import_pos:]
+            )
             logger.info("✅ Added import statement")
 
     # Remove any incorrect registration calls
-    content = re.sub(r'# Register IPFS tools\s*\nregister_ipfs_tools\(\s*server\s*\)', '', content)
+    content = re.sub(r"# Register IPFS tools\s*\nregister_ipfs_tools\(\s*server\s*\)", "", content)
 
     # Find the server initialization
-    server_match = re.search(r'server\s*=\s*FastMCP\([^)]*\)', content)
+    server_match = re.search(r"server\s*=\s*FastMCP\([^)]*\)", content)
     if not server_match:
         logger.error("❌ Could not find server initialization")
         return False
@@ -47,6 +52,7 @@ def fix_mcp_server():
 
     logger.info("✅ Successfully fixed registration call order")
     return True
+
 
 if __name__ == "__main__":
     fix_mcp_server()

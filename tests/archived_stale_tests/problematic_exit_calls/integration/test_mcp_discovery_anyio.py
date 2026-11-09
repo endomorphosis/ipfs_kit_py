@@ -9,12 +9,15 @@ import pytest
 import traceback
 import sys
 
+
 def test_mcp_discovery_controller_anyio_import():
     """Test if MCPDiscoveryControllerAnyIO can be imported correctly."""
     try:
         # Just check if the module can be imported
-        from ipfs_kit_py.mcp.controllers.mcp_discovery_controller_anyio import MCPDiscoveryControllerAnyIO
-        
+        from ipfs_kit_py.mcp.controllers.mcp_discovery_controller_anyio import (
+            MCPDiscoveryControllerAnyIO,
+        )
+
         print("Successfully imported MCPDiscoveryControllerAnyIO!")
         print("Import check passed!")
         # The test passes if we reach this point
@@ -28,10 +31,14 @@ def test_mcp_discovery_controller_anyio_import():
         traceback.print_exc()
         pytest.fail(f"Unexpected error during import: {e}")
 
+
 if __name__ == "__main__":
     # This allows the file to be run directly, outside of pytest
     try:
-        from ipfs_kit_py.mcp.controllers.mcp_discovery_controller_anyio import MCPDiscoveryControllerAnyIO
+        from ipfs_kit_py.mcp.controllers.mcp_discovery_controller_anyio import (
+            MCPDiscoveryControllerAnyIO,
+        )
+
         print("Successfully imported MCPDiscoveryControllerAnyIO!")
         print("Import check passed!")
         sys.exit(0)

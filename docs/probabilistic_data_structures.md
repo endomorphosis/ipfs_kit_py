@@ -247,16 +247,11 @@ pds_manager = ProbabilisticDataStructureManager()
 
 # Create a managed Bloom filter
 content_filter = pds_manager.create_bloom_filter(
-    name="local_content",
-    capacity=1_000_000,
-    false_positive_rate=0.01
+    name="local_content", capacity=1_000_000, false_positive_rate=0.01
 )
 
 # Create a managed HyperLogLog counter
-peer_counter = pds_manager.create_hyperloglog(
-    name="unique_peers", 
-    precision=14
-)
+peer_counter = pds_manager.create_hyperloglog(name="unique_peers", precision=14)
 
 # Access existing structures by name
 existing_filter = pds_manager.get_structure("local_content")

@@ -10,12 +10,13 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 
+
 def archive_legacy_features():
     """Archive legacy MCP dashboard features."""
     project_root = Path(__file__).parent
     archive_dir = project_root / "archived_mcp_features" / datetime.now().strftime("%Y%m%d_%H%M%S")
     archive_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Files to archive
     legacy_files = [
         "deprecated_dashboards/comprehensive_mcp_dashboard.py",
@@ -23,11 +24,11 @@ def archive_legacy_features():
         "deprecated_dashboards/enhanced_dashboard.py",
         "deprecated_dashboards/dashboard_templates_extra.py",
         "examples/unified_observability_mcp_server.py",
-        "mcp/unified_mcp_server_with_full_observability.py"
+        "mcp/unified_mcp_server_with_full_observability.py",
     ]
-    
+
     print(f"📁 Creating archive directory: {archive_dir}")
-    
+
     for file_path in legacy_files:
         source = project_root / file_path
         if source.exists():
@@ -36,7 +37,7 @@ def archive_legacy_features():
             print(f"✅ Archived: {file_path} -> {dest}")
         else:
             print(f"⚠️  Missing: {file_path}")
-    
+
     # Create archive manifest
     manifest_content = f"""# MCP Dashboard Features Archive
 Archive Date: {datetime.now().isoformat()}
@@ -58,11 +59,12 @@ Archive Date: {datetime.now().isoformat()}
 Use enhance_unified_mcp_dashboard.py to restore these features
 to the current UnifiedMCPDashboard implementation.
 """
-    
+
     (archive_dir / "README.md").write_text(manifest_content)
     print(f"📋 Archive manifest created: {archive_dir / 'README.md'}")
-    
+
     return archive_dir
+
 
 if __name__ == "__main__":
     archive_dir = archive_legacy_features()

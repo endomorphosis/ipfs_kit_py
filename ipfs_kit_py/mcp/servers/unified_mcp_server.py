@@ -24,7 +24,7 @@ Total: 93+ MCP tools registered in one place.
 
 Usage:
     from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
-    
+
     server = create_mcp_server(
         host="127.0.0.1",
         port=8004,
@@ -69,11 +69,11 @@ except Exception:
 class UnifiedMCPServer:
     """
     Unified MCP Server that registers all IPFS Kit MCP tools.
-    
+
     This server consolidates all functionality previously scattered across
     multiple server implementations into a single, maintainable server.
     """
-    
+
     DEFAULT_TOOL_NAMES = [
         "ipfs_add",
         "ipfs_cat",
@@ -181,7 +181,7 @@ class UnifiedMCPServer:
     ):
         """
         Initialize the unified MCP server.
-        
+
         Args:
             host: Host address to bind to
             port: Port number to listen on
@@ -200,14 +200,14 @@ class UnifiedMCPServer:
         self.iroh_permissions = iroh_permissions
         self.iroh_actor = iroh_actor
         self.iroh_controller = iroh_controller
-        
+
         # Ensure data directory exists
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Configure logging
         log_level = logging.DEBUG if debug else logging.INFO
         logging.basicConfig(level=log_level)
-        
+
         # Tool registry
         self.tools: Dict[str, Any] = {
             name: self._make_default_tool(name) for name in self.DEFAULT_TOOL_NAMES
@@ -215,103 +215,114 @@ class UnifiedMCPServer:
 
         # Small compatibility surface for tests expecting an integration object.
         self.ipfs_integration = _UnifiedIPFSIntegration()
-        
+
         # Register all MCP tools (can be disabled for fast stdio test startup)
         if self.register_all_tools:
             self._register_all_tools()
-        
+
         logger.info(f"Unified MCP Server initialized with {len(self.tools)} tools")
-    
+
     def _register_all_tools(self):
         """Register all MCP tools from all modules."""
-        
+
         # Import and register Journal tools (12 tools)
         try:
             from ipfs_kit_py.mcp.servers import fs_journal_mcp_tools
+
             self._register_module_tools(fs_journal_mcp_tools, "Journal")
         except ImportError as e:
             logger.warning(f"Could not import journal tools: {e}")
-        
+
         # Import and register Audit tools (9 tools)
         try:
             from ipfs_kit_py.mcp.servers import audit_mcp_tools
+
             self._register_module_tools(audit_mcp_tools, "Audit")
         except ImportError as e:
             logger.warning(f"Could not import audit tools: {e}")
-        
+
         # Import and register Audit Analytics tools (10 tools) - Phase 8
         try:
             from ipfs_kit_py.mcp.servers import audit_analytics_mcp_tools
+
             self._register_module_tools(audit_analytics_mcp_tools, "Audit Analytics")
         except ImportError as e:
             logger.warning(f"Could not import audit analytics tools: {e}")
-        
+
         # Import and register Performance tools (13 tools) - Phase 9
         try:
             from ipfs_kit_py.mcp.servers import performance_mcp_tools
+
             self._register_module_tools(performance_mcp_tools, "Performance")
         except ImportError as e:
             logger.warning(f"Could not import performance tools: {e}")
-        
+
         # Import and register WAL tools (8 tools)
         try:
             from ipfs_kit_py.mcp.servers import wal_mcp_tools
+
             self._register_module_tools(wal_mcp_tools, "WAL")
         except ImportError as e:
             logger.warning(f"Could not import WAL tools: {e}")
-        
+
         # Import and register Pin tools (8 tools)
         try:
             from ipfs_kit_py.mcp.servers import pin_mcp_tools
+
             self._register_module_tools(pin_mcp_tools, "Pin")
         except ImportError as e:
             logger.warning(f"Could not import pin tools: {e}")
-        
+
         # Import and register Backend tools (8 tools)
         try:
             from ipfs_kit_py.mcp.servers import backend_mcp_tools
+
             self._register_module_tools(backend_mcp_tools, "Backend")
         except ImportError as e:
             logger.warning(f"Could not import backend tools: {e}")
-        
+
         # Import and register Bucket VFS tools (~10 tools)
         try:
             from ipfs_kit_py.mcp.servers import bucket_vfs_mcp_tools
+
             self._register_module_tools(bucket_vfs_mcp_tools, "Bucket VFS")
         except ImportError as e:
             logger.warning(f"Could not import bucket VFS tools: {e}")
-        
+
         # Import and register VFS Versioning tools (~8 tools)
         try:
             from ipfs_kit_py.mcp.servers import vfs_version_mcp_tools
+
             self._register_module_tools(vfs_version_mcp_tools, "VFS Versioning")
         except ImportError as e:
             logger.warning(f"Could not import VFS versioning tools: {e}")
-        
+
         # Import and register Secrets tools (8 tools)
         try:
             from ipfs_kit_py.mcp.servers import secrets_mcp_tools
+
             self._register_module_tools(secrets_mcp_tools, "Secrets")
         except ImportError as e:
             logger.warning(f"Could not import secrets tools: {e}")
 
         try:
             from ipfs_kit_py.mcp.servers import iroh_mcp_tools
+
             self._register_module_tools(iroh_mcp_tools, "Iroh")
         except ImportError as e:
             logger.warning(f"Could not import Iroh tools: {e}")
-    
+
     def _register_module_tools(self, module, category: str):
         """
         Register tools from a module.
-        
+
         Args:
             module: The module containing MCP tool definitions
             category: Category name for logging
         """
         # Look for common patterns in tool modules
         tool_count = 0
-        
+
         # Pattern 0: *_MCP_TOOLS lists (common in this repo)
         for attr_name in dir(module):
             if not attr_name.endswith("_MCP_TOOLS"):
@@ -325,54 +336,54 @@ class UnifiedMCPServer:
                         tool_count += 1
 
         # Pattern 1: tools list
-        if hasattr(module, 'tools'):
-            tools = getattr(module, 'tools')
+        if hasattr(module, "tools"):
+            tools = getattr(module, "tools")
             for tool in tools:
-                tool_name = tool.get('name', 'unknown')
+                tool_name = tool.get("name", "unknown")
                 self.tools[tool_name] = tool
                 tool_count += 1
-        
+
         # Pattern 2: get_tools function
-        elif hasattr(module, 'get_tools'):
+        elif hasattr(module, "get_tools"):
             tools = module.get_tools()
             for tool in tools:
-                tool_name = tool.get('name', 'unknown')
+                tool_name = tool.get("name", "unknown")
                 self.tools[tool_name] = tool
                 tool_count += 1
-        
+
         # Pattern 3: Individual tool functions
         else:
             for attr_name in dir(module):
-                if not attr_name.startswith('_'):
+                if not attr_name.startswith("_"):
                     attr = getattr(module, attr_name)
                     if callable(attr) and not isinstance(attr, type):
                         # This is a function, might be a tool handler
                         self.tools[attr_name] = attr
                         tool_count += 1
-        
+
         if tool_count > 0:
             logger.info(f"Registered {tool_count} {category} tools")
         else:
             logger.debug(f"No tools found in {category} module")
-    
+
     def run(self):
         """Start the MCP server."""
         logger.info(f"Starting Unified MCP Server on {self.host}:{self.port}")
         logger.info(f"Data directory: {self.data_dir}")
         logger.info(f"Registered {len(self.tools)} total MCP tools")
-        
+
         # Tool categories summary
         categories = {
-            'journal': [t for t in self.tools.keys() if t.startswith('journal_')],
-            'audit': [t for t in self.tools.keys() if t.startswith('audit_')],
-            'wal': [t for t in self.tools.keys() if t.startswith('wal_')],
-            'pin': [t for t in self.tools.keys() if t.startswith('pin_')],
-            'backend': [t for t in self.tools.keys() if t.startswith('backend_')],
-            'bucket': [t for t in self.tools.keys() if 'bucket' in t.lower()],
-            'vfs': [t for t in self.tools.keys() if t.startswith('vfs_')],
-            'secrets': [t for t in self.tools.keys() if t.startswith('secrets_')],
+            "journal": [t for t in self.tools.keys() if t.startswith("journal_")],
+            "audit": [t for t in self.tools.keys() if t.startswith("audit_")],
+            "wal": [t for t in self.tools.keys() if t.startswith("wal_")],
+            "pin": [t for t in self.tools.keys() if t.startswith("pin_")],
+            "backend": [t for t in self.tools.keys() if t.startswith("backend_")],
+            "bucket": [t for t in self.tools.keys() if "bucket" in t.lower()],
+            "vfs": [t for t in self.tools.keys() if t.startswith("vfs_")],
+            "secrets": [t for t in self.tools.keys() if t.startswith("secrets_")],
         }
-        
+
         logger.info("Tool categories:")
         for category, tools in categories.items():
             if tools:
@@ -384,7 +395,9 @@ class UnifiedMCPServer:
             return
 
         # HTTP/websocket transports are intentionally not wired in this harness.
-        logger.warning("No transport configured for interactive run(); use stdio mode or embed handle_tools_call().")
+        logger.warning(
+            "No transport configured for interactive run(); use stdio mode or embed handle_tools_call()."
+        )
         logger.info("Server initialized successfully. Ready to handle in-process MCP requests.")
 
     def get_all_configs(self) -> Dict[str, Any]:
@@ -475,19 +488,19 @@ class UnifiedMCPServer:
         configs = self.get_all_configs()
         return {
             "bucket": {"configured": bool(configs.get("bucket"))},
-            "daemon": {"configured": bool(configs.get("daemon"))}
+            "daemon": {"configured": bool(configs.get("daemon"))},
         }
-    
+
     def stop(self):
         """Stop the MCP server."""
         logger.info("Stopping Unified MCP Server")
         # Stdio loop exits when input stream closes. This method remains
         # intentionally lightweight for in-process harnesses.
-    
+
     def get_tool_list(self):
         """Get list of all registered tools."""
         return [name for name in self.tools.keys() if self._is_tool_executable(name)]
-    
+
     def get_tool_info(self, tool_name: str):
         """Get information about a specific tool."""
         return self.tools.get(tool_name)
@@ -594,11 +607,17 @@ class UnifiedMCPServer:
                 bool(arguments.get("auto_replicate", False)),
             )
         if tool_name == "vfs_copy":
-            return await anyio.to_thread.run_sync(vfs_copy, arguments.get("src"), arguments.get("dst"))
+            return await anyio.to_thread.run_sync(
+                vfs_copy, arguments.get("src"), arguments.get("dst")
+            )
         if tool_name == "vfs_move":
-            return await anyio.to_thread.run_sync(vfs_move, arguments.get("src"), arguments.get("dst"))
+            return await anyio.to_thread.run_sync(
+                vfs_move, arguments.get("src"), arguments.get("dst")
+            )
         if tool_name == "vfs_mkdir":
-            return await anyio.to_thread.run_sync(vfs_mkdir, arguments.get("path"), bool(arguments.get("parents", False)))
+            return await anyio.to_thread.run_sync(
+                vfs_mkdir, arguments.get("path"), bool(arguments.get("parents", False))
+            )
         if tool_name == "vfs_rmdir":
             return await anyio.to_thread.run_sync(vfs_rmdir, arguments.get("path"))
         if tool_name == "vfs_ls":
@@ -617,7 +636,9 @@ class UnifiedMCPServer:
             "code": "vfs_not_supported",
         }
 
-    async def _execute_non_vfs_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_non_vfs_tool(
+        self, tool_name: str, arguments: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Best-effort dispatch for selected non-VFS tools plus stable placeholders.
 
         The unified server intentionally keeps broad tool execution conservative;
@@ -669,7 +690,9 @@ class UnifiedMCPServer:
             "code": "not_implemented",
         }
 
-    async def execute_tool(self, tool_name: str, arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def execute_tool(
+        self, tool_name: str, arguments: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Compatibility shim for tests that call server.execute_tool()."""
         resp = await self.handle_tools_call({"name": tool_name, "arguments": arguments or {}})
         return resp
@@ -746,18 +769,18 @@ def create_mcp_server(
 ) -> UnifiedMCPServer:
     """
     Create and return a unified MCP server instance.
-    
+
     This is the recommended way to create an MCP server for IPFS Kit.
-    
+
     Args:
         host: Host address to bind to (default: 127.0.0.1)
         port: Port number to listen on (default: 8004)
         data_dir: Data directory for server state (default: ~/.ipfs_kit)
         debug: Enable debug logging (default: False)
-    
+
     Returns:
         UnifiedMCPServer instance ready to run
-    
+
     Example:
         >>> server = create_mcp_server(port=8004, debug=True)
         >>> server.run()
@@ -843,13 +866,13 @@ class IPFSKitIntegration:
 def main():
     """Main entry point for running the server directly."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Unified IPFS Kit MCP Server")
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
     parser.add_argument("--port", type=int, default=8004, help="Port to listen on")
     parser.add_argument("--data-dir", help="Data directory")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    
+
     args = parser.parse_args()
 
     # If launched with stdin piped (like the test harness), run stdio JSON-RPC.

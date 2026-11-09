@@ -5,6 +5,7 @@ hierarchical meta-tools. Transports: stdio (default), HTTP via Hypercorn+Trio,
 and optional libp2p P2P. Runtime is anyio (trio backend), so all surfaces share
 one async core.
 """
+
 from __future__ import annotations
 
 import json
@@ -26,14 +27,21 @@ def _profile_g_rest_binding(http_method: str, path: str):
     """Resolve normative Profile G REST paths without changing wire semantics."""
     static = {
         ("GET", "/mcp/risk/profile"): "mcp++/risk/profile",
-        ("POST", "/mcp/goals"): "mcp++/goals/create", ("GET", "/mcp/goals"): "mcp++/goals/list",
-        ("POST", "/mcp/tasks"): "mcp++/tasks/create", ("GET", "/mcp/tasks"): "mcp++/tasks/list",
+        ("POST", "/mcp/goals"): "mcp++/goals/create",
+        ("GET", "/mcp/goals"): "mcp++/goals/list",
+        ("POST", "/mcp/tasks"): "mcp++/tasks/create",
+        ("GET", "/mcp/tasks"): "mcp++/tasks/list",
         ("GET", "/mcp/tasks/ready"): "mcp++/tasks/ready",
-        ("POST", "/mcp/risk/assess"): "mcp++/risk/assess", ("GET", "/mcp/risk/evidence"): "mcp++/risk/evidence",
-        ("GET", "/mcp/risk/history"): "mcp++/risk/history", ("POST", "/mcp/neighborhood/query"): "mcp++/neighborhood/query",
-        ("POST", "/mcp/neighborhood/attest"): "mcp++/neighborhood/attest", ("GET", "/mcp/schedule/frontier"): "mcp++/schedule/frontier",
-        ("POST", "/mcp/schedule/proposals"): "mcp++/schedule/propose", ("POST", "/mcp/schedule/claims"): "mcp++/schedule/claim",
-        ("POST", "/mcp/schedule/resolutions"): "mcp++/schedule/resolve", ("POST", "/mcp/schedule/reconcile"): "mcp++/schedule/reconcile",
+        ("POST", "/mcp/risk/assess"): "mcp++/risk/assess",
+        ("GET", "/mcp/risk/evidence"): "mcp++/risk/evidence",
+        ("GET", "/mcp/risk/history"): "mcp++/risk/history",
+        ("POST", "/mcp/neighborhood/query"): "mcp++/neighborhood/query",
+        ("POST", "/mcp/neighborhood/attest"): "mcp++/neighborhood/attest",
+        ("GET", "/mcp/schedule/frontier"): "mcp++/schedule/frontier",
+        ("POST", "/mcp/schedule/proposals"): "mcp++/schedule/propose",
+        ("POST", "/mcp/schedule/claims"): "mcp++/schedule/claim",
+        ("POST", "/mcp/schedule/resolutions"): "mcp++/schedule/resolve",
+        ("POST", "/mcp/schedule/reconcile"): "mcp++/schedule/reconcile",
     }
     method = static.get((http_method, path))
     if method:
@@ -60,6 +68,7 @@ def _agent_supervisor_rest_binding(http_method: str, path: str):
     match = re.fullmatch(r"/mcp/agent-supervisor/receipts/([^/]+)", path)
     if http_method == "GET" and match:
         from urllib.parse import unquote
+
         return "agent_supervisor.receipts.read", {"receipt_ids": [unquote(match.group(1))]}
     return None
 
@@ -73,6 +82,7 @@ class MCPServer:
         self.tm = HierarchicalToolManager()
         self._dag = EventDAGStore()
         from .agent_supervisor_receipts import AgentSupervisorReceiptResolver
+
         self._agent_supervisor_receipts = receipt_resolver or AgentSupervisorReceiptResolver()
 
     async def handle(self, msg: Dict[str, Any]):
@@ -93,6 +103,7 @@ class MCPServer:
             return {"jsonrpc": "2.0", "id": mid, "result": result}
         except Exception as e:
             from .mcplusplus.profile_g_transport import ERROR_NUMBERS
+
             wire_code = ERROR_NUMBERS.get(getattr(e, "code", ""), -32000)
             error = {"code": wire_code, "message": str(e)}
             if getattr(e, "code", None):
@@ -111,21 +122,28 @@ class MCPServer:
                 experimental["mcp++/event-dag"] = True
             if requested.get("mcp++/risk-scheduling") is True:
                 from .mcplusplus.profile_g_transport import get_dispatcher
+
                 experimental["mcp++/risk-scheduling"] = get_dispatcher().metadata
             return {
                 "protocolVersion": PROTOCOL_VERSION,
                 "serverInfo": SERVER_INFO,
-                "capabilities": {"tools": {}, "experimental": experimental, "mcpPlusPlusProfiles": ["mcp++/event-dag", "mcp++/risk-scheduling"]},
+                "capabilities": {
+                    "tools": {},
+                    "experimental": experimental,
+                    "mcpPlusPlusProfiles": ["mcp++/event-dag", "mcp++/risk-scheduling"],
+                },
                 "profile_metadata": {
                     "mcp++/event-dag": self._dag.profile_metadata(),
                     "agent_supervisor.receipts.read": {
-                        "owner": "ipfs_kit_py", "access": "read",
+                        "owner": "ipfs_kit_py",
+                        "access": "read",
                         "transports": ["mcp", "mcp++", "libp2p"],
                     },
                 },
             }
         if method == "tools/list":
             from .agent_supervisor_receipts import descriptor
+
             return {"tools": [*self.tm.all_tool_schemas(), descriptor()]}
         if method == "mcp++/interfaces":
             return {"interfaces": self._interface_descriptors()}
@@ -137,6 +155,7 @@ class MCPServer:
             return {"frontier": frontier, "count": len(self._dag)}
         if method in ("mcp++/ucan/validate", "mcp++/ucan/delegate"):
             from .mcplusplus import delegation
+
             return delegation.validate_raw_delegation_chain(
                 raw_chain=params.get("chain") or params.get("delegations") or [],
                 resource=params.get("resource", "*"),
@@ -145,14 +164,24 @@ class MCPServer:
             )
         if method == "mcp++/policy/evaluate":
             from .mcplusplus import delegation
+
             return delegation.evaluate_policy(
                 tool=params.get("tool", ""),
                 deny=params.get("deny", []),
                 risk=float(params.get("risk", 0.0)),
                 threshold=float(params.get("threshold", 0.7)),
             )
-        if method.startswith(("mcp++/goals/", "mcp++/tasks/", "mcp++/risk/", "mcp++/neighborhood/", "mcp++/schedule/")):
+        if method.startswith(
+            (
+                "mcp++/goals/",
+                "mcp++/tasks/",
+                "mcp++/risk/",
+                "mcp++/neighborhood/",
+                "mcp++/schedule/",
+            )
+        ):
             from .mcplusplus.profile_g_transport import get_dispatcher
+
             return get_dispatcher().dispatch(method, params)
         if method == "tools/call":
             name = params.get("name", "")
@@ -171,6 +200,7 @@ class MCPServer:
             result = await self.tm.dispatch(category, tool, args)
             if params.get("profile_b") or envelope is not None:
                 from .mcplusplus import artifacts
+
                 parents = [n["event_cid"] for n in self._dag[-1:]]
                 meta = artifacts.envelope_from_payloads(
                     interface_cid=self._interface_cid(),
@@ -200,22 +230,26 @@ class MCPServer:
     def _interface_cid(self) -> str:
         """Kubo CIDv1 over the canonical interface descriptor set (Profile A)."""
         from .mcplusplus import artifacts
+
         return artifacts.compute_artifact_cid({"interfaces": self._interface_descriptors()})
 
     def _interface_descriptors(self):
         """Profile A: canonical interface descriptors derived from the registry."""
         out = []
         for s in self.tm.all_tool_schemas():
-            out.append({
-                "namespace": f"ipfs_kit/{s['category']}",
-                "name": s["name"],
-                "input_schema": s.get("inputSchema", {}),
-                "output_schema": {"type": "object"},
-                "errors": ["IPFSError", "ToolNotFound"],
-                "semantic_tags": s.get("tags", []),
-                "compatibility": {"mcp": True, "mcp++": True},
-            })
+            out.append(
+                {
+                    "namespace": f"ipfs_kit/{s['category']}",
+                    "name": s["name"],
+                    "input_schema": s.get("inputSchema", {}),
+                    "output_schema": {"type": "object"},
+                    "errors": ["IPFSError", "ToolNotFound"],
+                    "semantic_tags": s.get("tags", []),
+                    "compatibility": {"mcp": True, "mcp++": True},
+                }
+            )
         from .agent_supervisor_receipts import descriptor
+
         out.append(descriptor())
         return out
 
@@ -256,10 +290,12 @@ def create_http_app(server: MCPServer | None = None):
             if not ev.get("more_body"):
                 break
         path = scope.get("path", "")
-        binding = (_agent_supervisor_rest_binding(scope.get("method", "GET"), path)
-                   or _profile_g_rest_binding(scope.get("method", "GET"), path))
+        binding = _agent_supervisor_rest_binding(
+            scope.get("method", "GET"), path
+        ) or _profile_g_rest_binding(scope.get("method", "GET"), path)
         if binding is not None:
             from urllib.parse import parse_qsl
+
             method, path_params = binding
             params = dict(parse_qsl(scope.get("query_string", b"").decode()))
             decoded = None
@@ -288,8 +324,13 @@ def create_http_app(server: MCPServer | None = None):
             await send({"type": "http.response.body", "body": b""})
             return
         data = json.dumps(resp).encode()
-        await send({"type": "http.response.start", "status": 200,
-                    "headers": [(b"content-type", b"application/json")]})
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [(b"content-type", b"application/json")],
+            }
+        )
         await send({"type": "http.response.body", "body": data})
 
     return app
@@ -306,12 +347,14 @@ async def serve_http(host: str = "127.0.0.1", port: int = 8004) -> None:
 
 async def serve_p2p() -> None:
     from .p2p_transport import serve_p2p as _serve
+
     server = MCPServer()
     await _serve(server.handle)
 
 
 def main(argv=None) -> None:
     import argparse
+
     p = argparse.ArgumentParser("ipfs-kit-mcp")
     p.add_argument("--transport", choices=["stdio", "http", "p2p"], default="stdio")
     p.add_argument("--host", default="127.0.0.1")
