@@ -3,7 +3,6 @@
 Test MCP server initialize request.
 This script specifically tests the initialize request that VS Code is attempting to make.
 """
-
 import requests
 import json
 import time
@@ -40,8 +39,13 @@ init_payload = {
         "capabilities": {},
         "processId": 12345,
         "rootUri": "file:///home/barberb/ipfs_kit_py",
-        "workspaceFolders": [{"uri": "file:///home/barberb/ipfs_kit_py", "name": "ipfs_kit_py"}],
-    },
+        "workspaceFolders": [
+            {
+                "uri": "file:///home/barberb/ipfs_kit_py",
+                "name": "ipfs_kit_py"
+            }
+        ]
+    }
 }
 
 # Send the initialize request to the server
@@ -51,12 +55,12 @@ try:
         "http://localhost:9994/api/v0/jsonrpc",
         json=init_payload,
         headers={"Content-Type": "application/json"},
-        timeout=10,
+        timeout=10
     )
-
+    
     print(f"Initialize request status: {response.status_code}")
     print(f"Response headers: {dict(response.headers)}")
-
+    
     if response.status_code == 200:
         print("✅ Initialize endpoint is available!")
         try:
@@ -77,9 +81,9 @@ try:
         "http://localhost:9994/jsonrpc",
         json=init_payload,
         headers={"Content-Type": "application/json"},
-        timeout=10,
+        timeout=10
     )
-
+    
     print(f"Initialize request status: {response.status_code}")
     if response.status_code == 200:
         print("✅ Initialize endpoint is available!")

@@ -169,9 +169,10 @@ This script tests:
 result = call_mcp_method("ipfs_files_mkdir", {"path": "/mydir"})
 
 # Write a file to the virtual filesystem
-result = call_mcp_method(
-    "ipfs_files_write", {"path": "/mydir/myfile.txt", "content": "Hello, IPFS!"}
-)
+result = call_mcp_method("ipfs_files_write", {
+    "path": "/mydir/myfile.txt",
+    "content": "Hello, IPFS!"
+})
 
 # Read the file
 result = call_mcp_method("ipfs_files_read", {"path": "/mydir/myfile.txt"})
@@ -182,41 +183,48 @@ print(result)  # Output: Hello, IPFS!
 
 ```python
 # Store a file on Filecoin
-result = call_mcp_method(
-    "filecoin_store_file", {"local_path": "/path/to/local/file.txt", "replication": 3}
-)
+result = call_mcp_method("filecoin_store_file", {
+    "local_path": "/path/to/local/file.txt",
+    "replication": 3
+})
 
 # Retrieve a file from Storacha
-result = call_mcp_method(
-    "storacha_retrieve",
-    {"content_id": "storacha-content-id", "output_path": "/path/to/output/file.txt"},
-)
+result = call_mcp_method("storacha_retrieve", {
+    "content_id": "storacha-content-id",
+    "output_path": "/path/to/output/file.txt"
+})
 ```
 
 ### Example 3: Working with IPFS PubSub
 
 ```python
 # Publish a message to a topic
-result = call_mcp_method("ipfs_pubsub_publish", {"topic": "my-topic", "message": "Hello, PubSub!"})
+result = call_mcp_method("ipfs_pubsub_publish", {
+    "topic": "my-topic",
+    "message": "Hello, PubSub!"
+})
 
 # Subscribe to a topic (with 30-second timeout)
-result = call_mcp_method("ipfs_pubsub_subscribe", {"topic": "my-topic", "timeout": 30})
+result = call_mcp_method("ipfs_pubsub_subscribe", {
+    "topic": "my-topic",
+    "timeout": 30
+})
 ```
 
 ### Example 4: Managing AI Models
 
 ```python
 # Register an AI model
-result = call_mcp_method(
-    "ai_model_register",
-    {
-        "model_path": "/path/to/model",
-        "model_name": "My Image Classifier",
-        "model_type": "classification",
-        "version": "1.0.0",
-        "metadata": {"accuracy": 0.95, "framework": "PyTorch"},
-    },
-)
+result = call_mcp_method("ai_model_register", {
+    "model_path": "/path/to/model",
+    "model_name": "My Image Classifier",
+    "model_type": "classification",
+    "version": "1.0.0",
+    "metadata": {
+        "accuracy": 0.95,
+        "framework": "PyTorch"
+    }
+})
 ```
 
 ## Troubleshooting

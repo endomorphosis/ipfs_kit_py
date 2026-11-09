@@ -139,9 +139,9 @@ class NewBackendClient(BackendClient):
     async def health_check(self):
         # Implementation
         pass
-
+    
     async def get_status(self):
-        # Implementation
+        # Implementation  
         pass
 ```
 

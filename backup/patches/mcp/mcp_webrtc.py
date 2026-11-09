@@ -22,37 +22,29 @@ logger = logging.getLogger(__name__)
 # Check for WebSocket module which we depend on
 try:
     from mcp_websocket import get_websocket_service
-
     WEBSOCKET_AVAILABLE = True
 except ImportError:
     WEBSOCKET_AVAILABLE = False
     logger.error("WebSocket module not available. WebRTC requires WebSocket support.")
 
-
 # Models for WebRTC signaling
 class RTCSessionDescription(BaseModel):
     """WebRTC Session Description Protocol message."""
-
     type: str  # "offer" or "answer"
     sdp: str
 
-
 class RTCIceCandidate(BaseModel):
     """WebRTC ICE candidate."""
-
     candidate: str
     sdpMLineIndex: int
     sdpMid: str
 
-
 class PeerInfo(BaseModel):
     """Information about a WebRTC peer."""
-
     peer_id: str
     room_id: str
     joined_at: float
     metadata: Optional[Dict[str, Any]] = None
-
 
 # WebRTC signaling server
 class WebRTCSignalingServer:
@@ -80,9 +72,7 @@ class WebRTCSignalingServer:
         self.messages_count = 0
         self.start_time = time.time()
 
-    def create_room(
-        self, room_id: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None
-    ) -> str:
+    def create_room(self, room_id: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> str:
         """
         Create a new room or get an existing one.
 
@@ -108,9 +98,7 @@ class WebRTCSignalingServer:
 
         return room_id
 
-    def join_room(
-        self, room_id: str, peer_id: str, metadata: Optional[Dict[str, Any]] = None
-    ) -> List[str]:
+    def join_room(self, room_id: str, peer_id: str, metadata: Optional[Dict[str, Any]] = None) -> List[str]:
         """
         Add a peer to a room.
 
@@ -133,7 +121,10 @@ class WebRTCSignalingServer:
 
         # Store peer information
         self.peers[peer_id] = PeerInfo(
-            peer_id=peer_id, room_id=room_id, joined_at=time.time(), metadata=metadata or {}
+            peer_id=peer_id,
+            room_id=room_id,
+            joined_at=time.time(),
+            metadata=metadata or {}
         )
 
         self.connections_count += 1
@@ -186,7 +177,11 @@ class WebRTCSignalingServer:
         if room_id not in self.rooms:
             return []
 
-        return [self.peers[peer_id] for peer_id in self.rooms[room_id] if peer_id in self.peers]
+        return [
+            self.peers[peer_id]
+            for peer_id in self.rooms[room_id]
+            if peer_id in self.peers
+        ]
 
     def get_room_info(self, room_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -209,10 +204,10 @@ class WebRTCSignalingServer:
                 {
                     "peer_id": peer_id,
                     "joined_at": self.peers[peer_id].joined_at if peer_id in self.peers else None,
-                    "metadata": self.peers[peer_id].metadata if peer_id in self.peers else {},
+                    "metadata": self.peers[peer_id].metadata if peer_id in self.peers else {}
                 }
                 for peer_id in self.rooms[room_id]
-            ],
+            ]
         }
 
     def get_stats(self) -> Dict[str, Any]:
@@ -231,7 +226,7 @@ class WebRTCSignalingServer:
             "total_rooms": self.rooms_count,
             "messages_count": self.messages_count,
             "uptime": uptime,
-            "msgs_per_second": self.messages_count / uptime if uptime > 0 else 0,
+            "msgs_per_second": self.messages_count / uptime if uptime > 0 else 0
         }
 
     async def handle_signaling(
@@ -239,7 +234,7 @@ class WebRTCSignalingServer:
         websocket: WebSocket,
         room_id: str,
         peer_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Any]] = None
     ) -> None:
         """
         Handle WebRTC signaling for a peer.
@@ -262,23 +257,19 @@ class WebRTCSignalingServer:
             existing_peers = self.join_room(room_id, peer_id, metadata)
 
             # Send welcome message with peer ID and room information
-            await websocket.send_json(
-                {
-                    "type": "welcome",
-                    "peer_id": peer_id,
-                    "room_id": room_id,
-                    "peers": [
-                        {
-                            "peer_id": existing_peer,
-                            "metadata": self.peers[existing_peer].metadata
-                            if existing_peer in self.peers
-                            else {},
-                        }
-                        for existing_peer in existing_peers
-                    ],
-                    "timestamp": time.time(),
-                }
-            )
+            await websocket.send_json({
+                "type": "welcome",
+                "peer_id": peer_id,
+                "room_id": room_id,
+                "peers": [
+                    {
+                        "peer_id": existing_peer,
+                        "metadata": self.peers[existing_peer].metadata if existing_peer in self.peers else {}
+                    }
+                    for existing_peer in existing_peers
+                ],
+                "timestamp": time.time()
+            })
 
             # Notify other peers about the new peer
             if WEBSOCKET_AVAILABLE:
@@ -289,9 +280,9 @@ class WebRTCSignalingServer:
                         "peer_id": peer_id,
                         "room_id": room_id,
                         "metadata": metadata or {},
-                        "timestamp": time.time(),
+                        "timestamp": time.time()
                     },
-                    f"webrtc:room:{room_id}",
+                    f"webrtc:room:{room_id}"
                 )
 
             # Handle messages
@@ -333,65 +324,59 @@ class WebRTCSignalingServer:
                                         "from": peer_id,
                                         "room_id": room_id,
                                         "data": data.get("data", {}),
-                                        "timestamp": time.time(),
+                                        "timestamp": time.time()
                                     },
-                                    f"webrtc:room:{room_id}",
+                                    f"webrtc:room:{room_id}"
                                 )
 
                         # Handle direct message to a specific peer
                         elif data["type"] == "peer_message" and "target" in data:
                             target_peer_id = data["target"]
                             # Forward the message to the target peer
-                            await self._forward_message(
-                                room_id,
-                                peer_id,
-                                target_peer_id,
-                                {
-                                    "type": "peer_message",
-                                    "from": peer_id,
-                                    "data": data.get("data", {}),
-                                    "timestamp": time.time(),
-                                },
-                            )
+                            await self._forward_message(room_id, peer_id, target_peer_id, {
+                                "type": "peer_message",
+                                "from": peer_id,
+                                "data": data.get("data", {}),
+                                "timestamp": time.time()
+                            })
 
                         # Handle ping message
                         elif data["type"] == "ping":
-                            await websocket.send_json({"type": "pong", "timestamp": time.time()})
+                            await websocket.send_json({
+                                "type": "pong",
+                                "timestamp": time.time()
+                            })
 
                         # Handle unknown message type
                         else:
-                            await websocket.send_json(
-                                {
-                                    "type": "error",
-                                    "error": "Unknown message type",
-                                    "timestamp": time.time(),
-                                }
-                            )
-                    else:
-                        await websocket.send_json(
-                            {
+                            await websocket.send_json({
                                 "type": "error",
-                                "error": "Message missing type field",
-                                "timestamp": time.time(),
-                            }
-                        )
+                                "error": "Unknown message type",
+                                "timestamp": time.time()
+                            })
+                    else:
+                        await websocket.send_json({
+                            "type": "error",
+                            "error": "Message missing type field",
+                            "timestamp": time.time()
+                        })
 
                 except WebSocketDisconnect:
                     break
                 except json.JSONDecodeError:
-                    await websocket.send_json(
-                        {"type": "error", "error": "Invalid JSON message", "timestamp": time.time()}
-                    )
+                    await websocket.send_json({
+                        "type": "error",
+                        "error": "Invalid JSON message",
+                        "timestamp": time.time()
+                    })
                 except Exception as e:
                     logger.error(f"Error handling WebRTC signaling message: {e}")
                     try:
-                        await websocket.send_json(
-                            {
-                                "type": "error",
-                                "error": f"Server error: {str(e)}",
-                                "timestamp": time.time(),
-                            }
-                        )
+                        await websocket.send_json({
+                            "type": "error",
+                            "error": f"Server error: {str(e)}",
+                            "timestamp": time.time()
+                        })
                     except:
                         break
 
@@ -407,14 +392,12 @@ class WebRTCSignalingServer:
                         "type": "peer_left",
                         "peer_id": peer_id,
                         "room_id": room_id,
-                        "timestamp": time.time(),
+                        "timestamp": time.time()
                     },
-                    f"webrtc:room:{room_id}",
+                    f"webrtc:room:{room_id}"
                 )
 
-    async def _forward_message(
-        self, room_id: str, from_peer_id: str, to_peer_id: str, message: Dict[str, Any]
-    ) -> bool:
+    async def _forward_message(self, room_id: str, from_peer_id: str, to_peer_id: str, message: Dict[str, Any]) -> bool:
         """
         Forward a message from one peer to another.
 
@@ -429,9 +412,9 @@ class WebRTCSignalingServer:
         """
         # Make sure both peers are in the same room
         if (
-            room_id not in self.rooms
-            or from_peer_id not in self.rooms[room_id]
-            or to_peer_id not in self.rooms[room_id]
+            room_id not in self.rooms or
+            from_peer_id not in self.rooms[room_id] or
+            to_peer_id not in self.rooms[room_id]
         ):
             return False
 
@@ -441,7 +424,10 @@ class WebRTCSignalingServer:
         # Use WebSocket service to forward the message
         if WEBSOCKET_AVAILABLE:
             websocket_service = get_websocket_service()
-            await websocket_service.manager.broadcast(message, f"webrtc:peer:{to_peer_id}")
+            await websocket_service.manager.broadcast(
+                message,
+                f"webrtc:peer:{to_peer_id}"
+            )
             return True
 
         return False
@@ -449,7 +435,6 @@ class WebRTCSignalingServer:
 
 # Create global signaling server instance
 signaling_server = WebRTCSignalingServer()
-
 
 # Create FastAPI router for WebRTC endpoints
 def create_webrtc_router(api_prefix: str) -> APIRouter:
@@ -467,7 +452,11 @@ def create_webrtc_router(api_prefix: str) -> APIRouter:
     @router.get("/status")
     async def webrtc_status():
         """Get WebRTC signaling server status."""
-        return {"success": True, "status": "available", "stats": signaling_server.get_stats()}
+        return {
+            "success": True,
+            "status": "available",
+            "stats": signaling_server.get_stats()
+        }
 
     @router.get("/rooms")
     async def list_rooms():
@@ -478,10 +467,10 @@ def create_webrtc_router(api_prefix: str) -> APIRouter:
                 {
                     "room_id": room_id,
                     "peer_count": len(peers),
-                    "metadata": signaling_server.room_metadata.get(room_id, {}),
+                    "metadata": signaling_server.room_metadata.get(room_id, {})
                 }
                 for room_id, peers in signaling_server.rooms.items()
-            ],
+            ]
         }
 
     @router.get("/rooms/{room_id}")
@@ -490,10 +479,17 @@ def create_webrtc_router(api_prefix: str) -> APIRouter:
         room_info = signaling_server.get_room_info(room_id)
 
         if room_info:
-            return {"success": True, "room": room_info}
+            return {
+                "success": True,
+                "room": room_info
+            }
         else:
             return JSONResponse(
-                status_code=404, content={"success": False, "error": f"Room {room_id} not found"}
+                status_code=404,
+                content={
+                    "success": False,
+                    "error": f"Room {room_id} not found"
+                }
             )
 
     @router.post("/rooms")
@@ -505,7 +501,7 @@ def create_webrtc_router(api_prefix: str) -> APIRouter:
             "success": True,
             "room_id": room_id,
             "metadata": signaling_server.room_metadata.get(room_id, {}),
-            "created_at": time.time(),
+            "created_at": time.time()
         }
 
     @router.websocket("/signal/{room_id}")

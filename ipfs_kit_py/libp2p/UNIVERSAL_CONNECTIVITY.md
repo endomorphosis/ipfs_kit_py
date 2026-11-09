@@ -20,7 +20,7 @@ from ipfs_kit_py.libp2p.pubsub_peer_discovery import PubsubPeerDiscovery
 discovery = PubsubPeerDiscovery(
     host,
     topics=["_peer-discovery._p2p._pubsub"],
-    interval=10.0,  # Announce every 10 seconds
+    interval=10.0  # Announce every 10 seconds
 )
 await discovery.start()
 ```
@@ -73,7 +73,10 @@ dcutr = DCUtR(host)
 await dcutr.start()
 
 # Attempt hole punch
-success = await dcutr.attempt_hole_punch(remote_peer_id=peer_id, relay_peer_id=relay_id)
+success = await dcutr.attempt_hole_punch(
+    remote_peer_id=peer_id,
+    relay_peer_id=relay_id
+)
 ```
 
 ## Universal Connectivity Manager
@@ -83,7 +86,7 @@ The easiest way to use all features is through the Universal Connectivity Manage
 ```python
 from ipfs_kit_py.libp2p.universal_connectivity import (
     UniversalConnectivityManager,
-    ConnectivityConfig,
+    ConnectivityConfig
 )
 
 # Configure
@@ -92,11 +95,13 @@ config = ConnectivityConfig(
     enable_mdns=True,
     enable_pubsub_discovery=True,
     enable_dht_discovery=True,
+    
     # NAT traversal
     enable_autonat=True,
     enable_relay_client=True,
     enable_relay_server=False,  # Set True to act as relay
     enable_dcutr=True,
+    
     # Bootstrap peers
     connect_to_bootstrap=True,
     # Uses IPFS bootstrap peers by default
@@ -121,7 +126,7 @@ for peer in peers:
 success = await manager.dial_peer(
     peer_id="QmPeer...",
     addrs=["/ip4/1.2.3.4/tcp/4001"],
-    use_relay=True,  # Fallback to relay if direct fails
+    use_relay=True  # Fallback to relay if direct fails
 )
 ```
 
@@ -131,38 +136,38 @@ success = await manager.dial_peer(
 import anyio
 from ipfs_kit_py.libp2p.universal_connectivity import (
     setup_universal_connectivity,
-    ConnectivityConfig,
+    ConnectivityConfig
 )
-
 
 async def main():
     # Assume you have a libp2p host
     # host = await create_libp2p_host()
-
+    
     # Setup universal connectivity with defaults
     config = ConnectivityConfig(
         # Enable all discovery mechanisms
         enable_mdns=True,
         enable_pubsub_discovery=True,
         enable_dht_discovery=True,
+        
         # Enable NAT traversal
         enable_autonat=True,
         enable_relay_client=True,
         enable_dcutr=True,
+        
         # Callbacks
         on_peer_discovered=lambda peer: print(f"Discovered: {peer.peer_id}"),
-        on_connection_established=lambda peer_id, addr: print(f"Connected: {peer_id}"),
+        on_connection_established=lambda peer_id, addr: print(f"Connected: {peer_id}")
     )
-
+    
     # Start connectivity manager
     manager = await setup_universal_connectivity(host, config)
-
+    
     # Your application logic here
     await anyio.sleep(3600)  # Run for 1 hour
-
+    
     # Cleanup
     await manager.stop()
-
 
 if __name__ == "__main__":
     anyio.run(main)

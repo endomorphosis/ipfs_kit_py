@@ -58,7 +58,9 @@ class TestFirstRunInitialization(unittest.TestCase):
 
         # Apply patches
         with patch("os.path.exists", side_effect=mock_exists):
-            with patch("ipfs_kit_py.download_binaries", side_effect=mock_download) as mock_download:
+            with patch(
+                "ipfs_kit_py.download_binaries", side_effect=mock_download
+            ) as mock_download:
                 # Create a custom IPFSKit that will trigger the download
                 from ipfs_kit_py import download_binaries
 
@@ -120,7 +122,6 @@ class TestFirstRunInitialization(unittest.TestCase):
         # Create a custom exists function that returns True for binaries
         # and for the ipfs_path directory
         original_exists = os.path.exists
-
         def mock_exists(path):
             if "bin/ipfs" in path or "bin\\ipfs" in path:
                 return True
@@ -174,7 +175,9 @@ class TestFirstRunInitialization(unittest.TestCase):
 
         # Apply patches
         with patch("os.path.exists", side_effect=mock_exists):
-            with patch("ipfs_kit_py.download_binaries", side_effect=mock_download) as mock_download:
+            with patch(
+                "ipfs_kit_py.download_binaries", side_effect=mock_download
+            ) as mock_download:
                 # Create a custom IPFSKit that will trigger the download
                 from ipfs_kit_py import download_binaries
 

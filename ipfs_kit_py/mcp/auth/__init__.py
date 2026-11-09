@@ -19,27 +19,15 @@ from typing import Optional
 
 # Import core RBAC components
 from .rbac_enhanced import (
-    RBACService,
-    Permission,
-    Role,
-    ResourceType,
-    Action,
-    ApiKey,
-    ApiKeyManager,
-    BackendAuthorization,
-    RequestAuthenticator,
-    require_permission,
-    AuthorizationResult,
+    RBACService, Permission, Role, ResourceType, Action,
+    ApiKey, ApiKeyManager, BackendAuthorization, RequestAuthenticator,
+    require_permission, AuthorizationResult
 )
 
 # Import OAuth integration
 from .oauth_integration import (
-    OAuthManager,
-    OAuthProvider,
-    OAuthConfig,
-    OAuthToken,
-    OAuthUserInfo,
-    OAuthUserManager,
+    OAuthManager, OAuthProvider, OAuthConfig, OAuthToken,
+    OAuthUserInfo, OAuthUserManager
 )
 
 # Import API endpoints
@@ -70,55 +58,55 @@ auth_handler: Optional[AuthHandler] = None
 def initialize(config=None):
     """
     Initialize the authentication and authorization system.
-
+    
     Args:
         config: Configuration dictionary
     """
     global rbac_service, oauth_manager, audit_logger, auth_handler
-
+    
     # Merge with default config
     if config is None:
         config = {}
-
+    
     merged_config = DEFAULT_CONFIG.copy()
     merged_config.update(config)
-
+    
     # Ensure directories exist
     for path_key in ["audit_log_path", "api_keys_path", "oauth_state_path"]:
         path = merged_config[path_key]
         if path:
             os.makedirs(os.path.dirname(path), exist_ok=True)
-
+    
     # Initialize audit logger
     audit_logger = AuditLogger(merged_config["audit_log_path"])
-
+    
     # Initialize RBAC service
     rbac_service = RBACService(merged_config["api_keys_path"])
-
+    
     # Initialize OAuth manager if enabled
     if merged_config["enable_oauth"]:
         oauth_manager = OAuthManager(merged_config["oauth_state_path"])
-
+        
         # Register OAuth providers
         for provider_name, provider_config in merged_config["oauth_providers"].items():
             oauth_config = OAuthConfig(**provider_config)
             oauth_manager.register_provider(oauth_config)
-
+    
     # Initialize auth handler
     auth_handler = AuthHandler(rbac_service, oauth_manager)
-
+    
     logger.info("Authentication and authorization system initialized")
     audit_logger.log(
-        AuditEventType.SYSTEM,
+        AuditEventType.SYSTEM, 
         "auth_system_initialized",
-        details={"config": {k: v for k, v in merged_config.items() if "secret" not in k}},
+        details={"config": {k: v for k, v in merged_config.items() if "secret" not in k}}
     )
-
+    
     return {
         "rbac_service": rbac_service,
         "oauth_manager": oauth_manager,
         "audit_logger": audit_logger,
-        "auth_handler": auth_handler,
+        "auth_handler": auth_handler
     }
 
 
@@ -153,34 +141,21 @@ def get_auth_handler():
 # Convenience exports
 __all__ = [
     # Core RBAC components
-    "RBACService",
-    "Permission",
-    "Role",
-    "ResourceType",
-    "Action",
-    "ApiKey",
-    "ApiKeyManager",
-    "BackendAuthorization",
-    "RequestAuthenticator",
-    "require_permission",
-    "AuthorizationResult",
+    "RBACService", "Permission", "Role", "ResourceType", "Action",
+    "ApiKey", "ApiKeyManager", "BackendAuthorization", "RequestAuthenticator",
+    "require_permission", "AuthorizationResult",
+    
     # OAuth integration
-    "OAuthManager",
-    "OAuthProvider",
-    "OAuthConfig",
-    "OAuthToken",
-    "OAuthUserInfo",
-    "OAuthUserManager",
+    "OAuthManager", "OAuthProvider", "OAuthConfig", "OAuthToken",
+    "OAuthUserInfo", "OAuthUserManager",
+    
     # API endpoints
     "AuthHandler",
+    
     # Audit logging
-    "AuditLogger",
-    "AuditEvent",
-    "AuditEventType",
+    "AuditLogger", "AuditEvent", "AuditEventType",
+    
     # Module functions
-    "initialize",
-    "get_rbac_service",
-    "get_oauth_manager",
-    "get_audit_logger",
-    "get_auth_handler",
+    "initialize", "get_rbac_service", "get_oauth_manager", 
+    "get_audit_logger", "get_auth_handler"
 ]

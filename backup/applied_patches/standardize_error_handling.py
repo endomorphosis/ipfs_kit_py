@@ -25,11 +25,9 @@ from http import HTTPStatus
 # Configure logging
 logger = logging.getLogger(__name__)
 
-
 # Define standard error categories
 class ErrorCategory(str, Enum):
     """Standard error categories for classification."""
-
     VALIDATION = "validation"  # Input validation errors
     AUTHENTICATION = "authentication"  # Auth-related errors
     AUTHORIZATION = "authorization"  # Permission-related errors
@@ -48,7 +46,6 @@ class ErrorCategory(str, Enum):
 # Define standard error codes with categories, HTTP status codes, and messages
 class ErrorCode(str, Enum):
     """Standard error codes with associated metadata."""
-
     # Validation errors (400)
     INVALID_INPUT = "invalid_input"
     MISSING_REQUIRED_FIELD = "missing_required_field"
@@ -120,236 +117,248 @@ ERROR_METADATA = {
         "category": ErrorCategory.VALIDATION,
         "status_code": HTTPStatus.BAD_REQUEST,
         "message": "The provided input is invalid.",
-        "suggestion": "Please check the input data and try again.",
+        "suggestion": "Please check the input data and try again."
     },
     ErrorCode.MISSING_REQUIRED_FIELD: {
         "category": ErrorCategory.VALIDATION,
         "status_code": HTTPStatus.BAD_REQUEST,
         "message": "A required field is missing.",
-        "suggestion": "Please ensure all required fields are provided.",
+        "suggestion": "Please ensure all required fields are provided."
     },
     ErrorCode.INVALID_FORMAT: {
         "category": ErrorCategory.VALIDATION,
         "status_code": HTTPStatus.BAD_REQUEST,
         "message": "The format of the provided data is invalid.",
-        "suggestion": "Please check the format of your input data.",
+        "suggestion": "Please check the format of your input data."
     },
     ErrorCode.VALUE_OUT_OF_RANGE: {
         "category": ErrorCategory.VALIDATION,
         "status_code": HTTPStatus.BAD_REQUEST,
         "message": "A value is outside the allowed range.",
-        "suggestion": "Please ensure all values are within acceptable ranges.",
+        "suggestion": "Please ensure all values are within acceptable ranges."
     },
     ErrorCode.INVALID_CID: {
         "category": ErrorCategory.VALIDATION,
         "status_code": HTTPStatus.BAD_REQUEST,
         "message": "The provided CID is invalid.",
-        "suggestion": "Please provide a valid IPFS CID.",
+        "suggestion": "Please provide a valid IPFS CID."
     },
+
     # Authentication errors
     ErrorCode.UNAUTHORIZED: {
         "category": ErrorCategory.AUTHENTICATION,
         "status_code": HTTPStatus.UNAUTHORIZED,
         "message": "Authentication is required for this operation.",
-        "suggestion": "Please provide valid authentication credentials.",
+        "suggestion": "Please provide valid authentication credentials."
     },
     ErrorCode.INVALID_CREDENTIALS: {
         "category": ErrorCategory.AUTHENTICATION,
         "status_code": HTTPStatus.UNAUTHORIZED,
         "message": "The provided authentication credentials are invalid.",
-        "suggestion": "Please check your credentials and try again.",
+        "suggestion": "Please check your credentials and try again."
     },
     ErrorCode.EXPIRED_TOKEN: {
         "category": ErrorCategory.AUTHENTICATION,
         "status_code": HTTPStatus.UNAUTHORIZED,
         "message": "The authentication token has expired.",
-        "suggestion": "Please refresh your token or login again.",
+        "suggestion": "Please refresh your token or login again."
     },
+
     # Authorization errors
     ErrorCode.FORBIDDEN: {
         "category": ErrorCategory.AUTHORIZATION,
         "status_code": HTTPStatus.FORBIDDEN,
         "message": "You do not have permission to perform this operation.",
-        "suggestion": "Please contact an administrator if you need access.",
+        "suggestion": "Please contact an administrator if you need access."
     },
     ErrorCode.INSUFFICIENT_PERMISSIONS: {
         "category": ErrorCategory.AUTHORIZATION,
         "status_code": HTTPStatus.FORBIDDEN,
         "message": "You do not have sufficient permissions for this operation.",
-        "suggestion": "Please request additional permissions or contact an administrator.",
+        "suggestion": "Please request additional permissions or contact an administrator."
     },
+
     # Not found errors
     ErrorCode.RESOURCE_NOT_FOUND: {
         "category": ErrorCategory.NOT_FOUND,
         "status_code": HTTPStatus.NOT_FOUND,
         "message": "The requested resource was not found.",
-        "suggestion": "Please check that the resource identifier is correct.",
+        "suggestion": "Please check that the resource identifier is correct."
     },
     ErrorCode.CONTENT_NOT_FOUND: {
         "category": ErrorCategory.NOT_FOUND,
         "status_code": HTTPStatus.NOT_FOUND,
         "message": "The requested content was not found.",
-        "suggestion": "Please check that the content identifier is correct.",
+        "suggestion": "Please check that the content identifier is correct."
     },
     ErrorCode.ENDPOINT_NOT_FOUND: {
         "category": ErrorCategory.NOT_FOUND,
         "status_code": HTTPStatus.NOT_FOUND,
         "message": "The requested endpoint was not found.",
-        "suggestion": "Please check the API documentation for available endpoints.",
+        "suggestion": "Please check the API documentation for available endpoints."
     },
+
     # Resource conflict errors
     ErrorCode.RESOURCE_ALREADY_EXISTS: {
         "category": ErrorCategory.RESOURCE_CONFLICT,
         "status_code": HTTPStatus.CONFLICT,
         "message": "The resource already exists.",
-        "suggestion": "Please use a different identifier or update the existing resource.",
+        "suggestion": "Please use a different identifier or update the existing resource."
     },
     ErrorCode.RESOURCE_IN_USE: {
         "category": ErrorCategory.RESOURCE_CONFLICT,
         "status_code": HTTPStatus.CONFLICT,
         "message": "The resource is currently in use and cannot be modified.",
-        "suggestion": "Please try again later when the resource is not in use.",
+        "suggestion": "Please try again later when the resource is not in use."
     },
     ErrorCode.CONCURRENT_MODIFICATION: {
         "category": ErrorCategory.RESOURCE_CONFLICT,
         "status_code": HTTPStatus.CONFLICT,
         "message": "The resource was modified concurrently.",
-        "suggestion": "Please refresh and try again.",
+        "suggestion": "Please refresh and try again."
     },
+
     # Dependency errors
     ErrorCode.UPSTREAM_SERVICE_ERROR: {
         "category": ErrorCategory.DEPENDENCY_ERROR,
         "status_code": HTTPStatus.BAD_GATEWAY,
         "message": "An upstream service returned an error.",
-        "suggestion": "Please try again later or contact support if the problem persists.",
+        "suggestion": "Please try again later or contact support if the problem persists."
     },
     ErrorCode.DEPENDENCY_UNAVAILABLE: {
         "category": ErrorCategory.DEPENDENCY_ERROR,
         "status_code": HTTPStatus.SERVICE_UNAVAILABLE,
         "message": "A required dependency is unavailable.",
-        "suggestion": "Please try again later or check system status.",
+        "suggestion": "Please try again later or check system status."
     },
     ErrorCode.GATEWAY_ERROR: {
         "category": ErrorCategory.DEPENDENCY_ERROR,
         "status_code": HTTPStatus.BAD_GATEWAY,
         "message": "The gateway encountered an error.",
-        "suggestion": "Please try again later or contact support if the problem persists.",
+        "suggestion": "Please try again later or contact support if the problem persists."
     },
+
     # Internal errors
     ErrorCode.INTERNAL_SERVER_ERROR: {
         "category": ErrorCategory.INTERNAL_ERROR,
         "status_code": HTTPStatus.INTERNAL_SERVER_ERROR,
         "message": "An internal server error occurred.",
-        "suggestion": "Please try again later or contact support if the problem persists.",
+        "suggestion": "Please try again later or contact support if the problem persists."
     },
     ErrorCode.UNEXPECTED_ERROR: {
         "category": ErrorCategory.INTERNAL_ERROR,
         "status_code": HTTPStatus.INTERNAL_SERVER_ERROR,
         "message": "An unexpected error occurred.",
-        "suggestion": "Please try again later or contact support if the problem persists.",
+        "suggestion": "Please try again later or contact support if the problem persists."
     },
     ErrorCode.CONFIGURATION_ERROR: {
         "category": ErrorCategory.INTERNAL_ERROR,
         "status_code": HTTPStatus.INTERNAL_SERVER_ERROR,
         "message": "A configuration error occurred.",
-        "suggestion": "Please contact support to resolve this issue.",
+        "suggestion": "Please contact support to resolve this issue."
     },
+
     # Network errors
     ErrorCode.CONNECTION_ERROR: {
         "category": ErrorCategory.NETWORK_ERROR,
         "status_code": HTTPStatus.BAD_GATEWAY,
         "message": "A connection error occurred.",
-        "suggestion": "Please check your network connection and try again.",
+        "suggestion": "Please check your network connection and try again."
     },
     ErrorCode.DNS_ERROR: {
         "category": ErrorCategory.NETWORK_ERROR,
         "status_code": HTTPStatus.BAD_GATEWAY,
         "message": "A DNS resolution error occurred.",
-        "suggestion": "Please check your DNS configuration or try again later.",
+        "suggestion": "Please check your DNS configuration or try again later."
     },
     ErrorCode.TLS_ERROR: {
         "category": ErrorCategory.NETWORK_ERROR,
         "status_code": HTTPStatus.BAD_GATEWAY,
         "message": "A TLS/SSL error occurred.",
-        "suggestion": "Please check your SSL/TLS configuration or certificates.",
+        "suggestion": "Please check your SSL/TLS configuration or certificates."
     },
+
     # Timeout errors
     ErrorCode.REQUEST_TIMEOUT: {
         "category": ErrorCategory.TIMEOUT_ERROR,
         "status_code": HTTPStatus.REQUEST_TIMEOUT,
         "message": "The request timed out.",
-        "suggestion": "Please try again later or with a longer timeout.",
+        "suggestion": "Please try again later or with a longer timeout."
     },
     ErrorCode.OPERATION_TIMEOUT: {
         "category": ErrorCategory.TIMEOUT_ERROR,
         "status_code": HTTPStatus.GATEWAY_TIMEOUT,
         "message": "The operation timed out.",
-        "suggestion": "Please try again later or with a longer timeout.",
+        "suggestion": "Please try again later or with a longer timeout."
     },
     ErrorCode.GATEWAY_TIMEOUT: {
         "category": ErrorCategory.TIMEOUT_ERROR,
         "status_code": HTTPStatus.GATEWAY_TIMEOUT,
         "message": "The gateway timed out.",
-        "suggestion": "Please try again later or check system status.",
+        "suggestion": "Please try again later or check system status."
     },
+
     # Storage errors
     ErrorCode.STORAGE_FULL: {
         "category": ErrorCategory.STORAGE_ERROR,
         "status_code": HTTPStatus.INSUFFICIENT_STORAGE,
         "message": "The storage is full.",
-        "suggestion": "Please free up some space or contact an administrator.",
+        "suggestion": "Please free up some space or contact an administrator."
     },
     ErrorCode.IO_ERROR: {
         "category": ErrorCategory.STORAGE_ERROR,
         "status_code": HTTPStatus.INTERNAL_SERVER_ERROR,
         "message": "An I/O error occurred.",
-        "suggestion": "Please try again later or contact support if the problem persists.",
+        "suggestion": "Please try again later or contact support if the problem persists."
     },
     ErrorCode.STORAGE_UNAVAILABLE: {
         "category": ErrorCategory.STORAGE_ERROR,
         "status_code": HTTPStatus.SERVICE_UNAVAILABLE,
         "message": "The storage service is unavailable.",
-        "suggestion": "Please try again later or check system status.",
+        "suggestion": "Please try again later or check system status."
     },
+
     # Rate limiting
     ErrorCode.RATE_LIMIT_EXCEEDED: {
         "category": ErrorCategory.RATE_LIMIT,
         "status_code": HTTPStatus.TOO_MANY_REQUESTS,
         "message": "Rate limit exceeded.",
-        "suggestion": "Please reduce your request rate or try again later.",
+        "suggestion": "Please reduce your request rate or try again later."
     },
     ErrorCode.TOO_MANY_REQUESTS: {
         "category": ErrorCategory.RATE_LIMIT,
         "status_code": HTTPStatus.TOO_MANY_REQUESTS,
         "message": "Too many requests.",
-        "suggestion": "Please reduce your request rate or try again later.",
+        "suggestion": "Please reduce your request rate or try again later."
     },
+
     # Format errors
     ErrorCode.UNSUPPORTED_MEDIA_TYPE: {
         "category": ErrorCategory.FORMAT_ERROR,
         "status_code": HTTPStatus.UNSUPPORTED_MEDIA_TYPE,
         "message": "The media type is not supported.",
-        "suggestion": "Please use a supported media type.",
+        "suggestion": "Please use a supported media type."
     },
     ErrorCode.CONTENT_TYPE_MISMATCH: {
         "category": ErrorCategory.FORMAT_ERROR,
         "status_code": HTTPStatus.UNSUPPORTED_MEDIA_TYPE,
         "message": "The content type does not match the expected format.",
-        "suggestion": "Please use the correct content type for this operation.",
+        "suggestion": "Please use the correct content type for this operation."
     },
     ErrorCode.SERIALIZATION_ERROR: {
         "category": ErrorCategory.FORMAT_ERROR,
         "status_code": HTTPStatus.BAD_REQUEST,
         "message": "Failed to serialize or deserialize the data.",
-        "suggestion": "Please check the format of your data.",
+        "suggestion": "Please check the format of your data."
     },
+
     # Unknown errors
     ErrorCode.UNKNOWN_ERROR: {
         "category": ErrorCategory.UNKNOWN,
         "status_code": HTTPStatus.INTERNAL_SERVER_ERROR,
         "message": "An unknown error occurred.",
-        "suggestion": "Please try again later or contact support if the problem persists.",
-    },
+        "suggestion": "Please try again later or contact support if the problem persists."
+    }
 }
 
 
@@ -434,8 +443,8 @@ class MCPError(Exception):
                 "message": self.message,
                 "category": self.category,
                 "correlation_id": self.correlation_id,
-                "timestamp": self.timestamp,
-            },
+                "timestamp": self.timestamp
+            }
         }
 
         # Add optional fields if available
@@ -462,47 +471,50 @@ class MCPError(Exception):
             "error": self.message,
             "error_code": self.code.value,
             "correlation_id": self.correlation_id,
-            "details": self.details,
+            "details": self.details
         }
 
 
 # Define specific error classes for common error types
 class ValidationError(MCPError):
     """Error for input validation failures."""
-
     def __init__(self, message: Optional[str] = None, **kwargs):
         super().__init__(ErrorCode.INVALID_INPUT, message, **kwargs)
 
 
 class MissingRequiredFieldError(ValidationError):
     """Error for missing required fields."""
-
     def __init__(self, field_name: str, message: Optional[str] = None, **kwargs):
         details = kwargs.get("details", {})
         details["field_name"] = field_name
         message = message or f"Missing required field: {field_name}"
         super().__init__(
-            code=ErrorCode.MISSING_REQUIRED_FIELD, message=message, details=details, **kwargs
+            code=ErrorCode.MISSING_REQUIRED_FIELD,
+            message=message,
+            details=details,
+            **kwargs
         )
 
 
 class ResourceNotFoundError(MCPError):
     """Error for resource not found."""
-
-    def __init__(
-        self, resource_type: str, resource_id: str, message: Optional[str] = None, **kwargs
-    ):
+    def __init__(self, resource_type: str, resource_id: str, message: Optional[str] = None, **kwargs):
         details = kwargs.get("details", {})
-        details.update({"resource_type": resource_type, "resource_id": resource_id})
+        details.update({
+            "resource_type": resource_type,
+            "resource_id": resource_id
+        })
         message = message or f"{resource_type} not found: {resource_id}"
         super().__init__(
-            code=ErrorCode.RESOURCE_NOT_FOUND, message=message, details=details, **kwargs
+            code=ErrorCode.RESOURCE_NOT_FOUND,
+            message=message,
+            details=details,
+            **kwargs
         )
 
 
 class ContentNotFoundError(ResourceNotFoundError):
     """Error for content not found."""
-
     def __init__(self, content_id: str, message: Optional[str] = None, **kwargs):
         message = message or f"Content not found: {content_id}"
         super().__init__(
@@ -510,67 +522,75 @@ class ContentNotFoundError(ResourceNotFoundError):
             resource_id=content_id,
             code=ErrorCode.CONTENT_NOT_FOUND,
             message=message,
-            **kwargs,
+            **kwargs
         )
 
 
 class DependencyError(MCPError):
     """Error for dependency failures."""
-
     def __init__(self, dependency_name: str, message: Optional[str] = None, **kwargs):
         details = kwargs.get("details", {})
         details["dependency_name"] = dependency_name
         message = message or f"Dependency error: {dependency_name}"
         super().__init__(
-            code=ErrorCode.DEPENDENCY_UNAVAILABLE, message=message, details=details, **kwargs
+            code=ErrorCode.DEPENDENCY_UNAVAILABLE,
+            message=message,
+            details=details,
+            **kwargs
         )
 
 
 class StorageError(MCPError):
     """Error for storage-related issues."""
-
     def __init__(self, storage_type: str, message: Optional[str] = None, **kwargs):
         details = kwargs.get("details", {})
         details["storage_type"] = storage_type
         message = message or f"Storage error with {storage_type}"
         super().__init__(
-            code=ErrorCode.STORAGE_UNAVAILABLE, message=message, details=details, **kwargs
+            code=ErrorCode.STORAGE_UNAVAILABLE,
+            message=message,
+            details=details,
+            **kwargs
         )
 
 
 class TimeoutError(MCPError):
     """Error for operation timeouts."""
-
-    def __init__(
-        self, operation: str, timeout_seconds: float, message: Optional[str] = None, **kwargs
-    ):
+    def __init__(self, operation: str, timeout_seconds: float, message: Optional[str] = None, **kwargs):
         details = kwargs.get("details", {})
-        details.update({"operation": operation, "timeout_seconds": timeout_seconds})
+        details.update({
+            "operation": operation,
+            "timeout_seconds": timeout_seconds
+        })
         message = message or f"Operation timed out after {timeout_seconds} seconds: {operation}"
         super().__init__(
             code=ErrorCode.OPERATION_TIMEOUT,
             message=message,
             details=details,
             operation=operation,
-            **kwargs,
+            **kwargs
         )
 
 
 class RateLimitError(MCPError):
     """Error for rate limiting."""
-
     def __init__(self, limit: int, reset_after: float, message: Optional[str] = None, **kwargs):
         details = kwargs.get("details", {})
-        details.update({"limit": limit, "reset_after": reset_after})
+        details.update({
+            "limit": limit,
+            "reset_after": reset_after
+        })
         message = message or f"Rate limit exceeded. Try again after {reset_after} seconds."
         super().__init__(
-            code=ErrorCode.RATE_LIMIT_EXCEEDED, message=message, details=details, **kwargs
+            code=ErrorCode.RATE_LIMIT_EXCEEDED,
+            message=message,
+            details=details,
+            **kwargs
         )
 
 
 class ConfigurationError(MCPError):
     """Error for configuration issues."""
-
     def __init__(self, config_key: Optional[str] = None, message: Optional[str] = None, **kwargs):
         details = kwargs.get("details", {})
         if config_key:
@@ -580,19 +600,21 @@ class ConfigurationError(MCPError):
             message = message or "Configuration error"
 
         super().__init__(
-            code=ErrorCode.CONFIGURATION_ERROR, message=message, details=details, **kwargs
+            code=ErrorCode.CONFIGURATION_ERROR,
+            message=message,
+            details=details,
+            **kwargs
         )
 
 
 # Utility functions for error handling
-
 
 def error_from_exception(
     exception: Exception,
     default_code: ErrorCode = ErrorCode.UNEXPECTED_ERROR,
     include_traceback: bool = False,
     correlation_id: Optional[str] = None,
-    operation: Optional[str] = None,
+    operation: Optional[str] = None
 ) -> MCPError:
     """
     Convert a regular exception to an MCPError.
@@ -649,7 +671,7 @@ def error_from_exception(
         details=details,
         original_error=exception,
         correlation_id=correlation_id,
-        operation=operation,
+        operation=operation
     )
 
 
@@ -679,7 +701,7 @@ def classify_error_code(status_code: int) -> ErrorCode:
         HTTPStatus.BAD_GATEWAY: ErrorCode.UPSTREAM_SERVICE_ERROR,
         HTTPStatus.SERVICE_UNAVAILABLE: ErrorCode.DEPENDENCY_UNAVAILABLE,
         HTTPStatus.GATEWAY_TIMEOUT: ErrorCode.GATEWAY_TIMEOUT,
-        HTTPStatus.INSUFFICIENT_STORAGE: ErrorCode.STORAGE_FULL,
+        HTTPStatus.INSUFFICIENT_STORAGE: ErrorCode.STORAGE_FULL
     }
 
     # Return mapped error code or default to unknown error
@@ -687,7 +709,8 @@ def classify_error_code(status_code: int) -> ErrorCode:
 
 
 def handle_error_response(
-    response_dict: Dict[str, Any], correlation_id: Optional[str] = None
+    response_dict: Dict[str, Any],
+    correlation_id: Optional[str] = None
 ) -> MCPError:
     """
     Convert an error response dictionary to an MCPError.
@@ -720,7 +743,7 @@ def handle_error_response(
             details=details,
             correlation_id=correlation_id or response_correlation_id,
             suggestion=suggestion,
-            operation=operation,
+            operation=operation
         )
 
     # Handle legacy error format
@@ -735,7 +758,7 @@ def handle_error_response(
             code=code,
             message=message,
             details=details,
-            correlation_id=correlation_id or response_correlation_id,
+            correlation_id=correlation_id or response_correlation_id
         )
 
     # Handle unknown error format
@@ -744,7 +767,7 @@ def handle_error_response(
             code=ErrorCode.UNKNOWN_ERROR,
             message="Unknown error occurred",
             details={"raw_response": response_dict},
-            correlation_id=correlation_id,
+            correlation_id=correlation_id
         )
 
 
@@ -756,7 +779,7 @@ def safe_execute(
     log_errors: bool = True,
     correlation_id: Optional[str] = None,
     operation: Optional[str] = None,
-    **kwargs,
+    **kwargs
 ) -> Tuple[bool, Any, Optional[MCPError]]:
     """
     Safely execute a function with error handling.
@@ -784,7 +807,11 @@ def safe_execute(
 
     except Exception as e:
         # Convert to MCPError
-        error = error_from_exception(e, correlation_id=correlation_id, operation=operation)
+        error = error_from_exception(
+            e,
+            correlation_id=correlation_id,
+            operation=operation
+        )
 
         # Log the error if requested
         if log_errors:
@@ -794,8 +821,8 @@ def safe_execute(
                     "correlation_id": error.correlation_id,
                     "error_code": error.code.value,
                     "error_category": error.category,
-                    "error_details": error.details,
-                },
+                    "error_details": error.details
+                }
             )
 
         # Call custom error handler if provided
@@ -817,7 +844,7 @@ async def async_safe_execute(
     log_errors: bool = True,
     correlation_id: Optional[str] = None,
     operation: Optional[str] = None,
-    **kwargs,
+    **kwargs
 ) -> Tuple[bool, Any, Optional[MCPError]]:
     """
     Safely execute an async function with error handling.
@@ -845,7 +872,11 @@ async def async_safe_execute(
 
     except Exception as e:
         # Convert to MCPError
-        error = error_from_exception(e, correlation_id=correlation_id, operation=operation)
+        error = error_from_exception(
+            e,
+            correlation_id=correlation_id,
+            operation=operation
+        )
 
         # Log the error if requested
         if log_errors:
@@ -855,8 +886,8 @@ async def async_safe_execute(
                     "correlation_id": error.correlation_id,
                     "error_code": error.code.value,
                     "error_category": error.category,
-                    "error_details": error.details,
-                },
+                    "error_details": error.details
+                }
             )
 
         # Call custom error handler if provided
@@ -889,7 +920,6 @@ try:
         Args:
             app: FastAPI application instance
         """
-
         # Handle validation errors
         @app.exception_handler(RequestValidationError)
         async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -910,7 +940,10 @@ try:
 
             # Create MCPError
             error = MCPError(
-                code=ErrorCode.INVALID_INPUT, message=message, details=details, original_error=exc
+                code=ErrorCode.INVALID_INPUT,
+                message=message,
+                details=details,
+                original_error=exc
             )
 
             # Log the error
@@ -920,12 +953,15 @@ try:
                     "correlation_id": error.correlation_id,
                     "path": request.url.path,
                     "method": request.method,
-                    "validation_errors": errors,
-                },
+                    "validation_errors": errors
+                }
             )
 
             # Return error response
-            return JSONResponse(status_code=error.status_code, content=error.to_dict())
+            return JSONResponse(
+                status_code=error.status_code,
+                content=error.to_dict()
+            )
 
         # Handle Pydantic validation errors
         @app.exception_handler(ValidationError)
@@ -945,7 +981,10 @@ try:
 
             # Create MCPError
             error = MCPError(
-                code=ErrorCode.INVALID_INPUT, message=message, details=details, original_error=exc
+                code=ErrorCode.INVALID_INPUT,
+                message=message,
+                details=details,
+                original_error=exc
             )
 
             # Log the error
@@ -955,12 +994,15 @@ try:
                     "correlation_id": error.correlation_id,
                     "path": request.url.path,
                     "method": request.method,
-                    "validation_errors": errors,
-                },
+                    "validation_errors": errors
+                }
             )
 
             # Return error response
-            return JSONResponse(status_code=error.status_code, content=error.to_dict())
+            return JSONResponse(
+                status_code=error.status_code,
+                content=error.to_dict()
+            )
 
         # Handle MCPError exceptions
         @app.exception_handler(MCPError)
@@ -979,18 +1021,24 @@ try:
                     "error_category": exc.category,
                     "path": request.url.path,
                     "method": request.method,
-                    "details": exc.details,
-                },
+                    "details": exc.details
+                }
             )
 
             # Return error response
-            return JSONResponse(status_code=exc.status_code, content=exc.to_dict())
+            return JSONResponse(
+                status_code=exc.status_code,
+                content=exc.to_dict()
+            )
 
         # Handle generic exceptions
         @app.exception_handler(Exception)
         async def generic_exception_handler(request: Request, exc: Exception):
             # Convert to MCPError
-            error = error_from_exception(exc, include_traceback=True)
+            error = error_from_exception(
+                exc,
+                include_traceback=True
+            )
 
             # Log the error
             logger.error(
@@ -1001,12 +1049,15 @@ try:
                     "error_category": error.category,
                     "path": request.url.path,
                     "method": request.method,
-                    "details": error.details,
-                },
+                    "details": error.details
+                }
             )
 
             # Return error response
-            return JSONResponse(status_code=error.status_code, content=error.to_dict())
+            return JSONResponse(
+                status_code=error.status_code,
+                content=error.to_dict()
+            )
 
         # Add middleware to ensure correlation IDs and handle exceptions
         @app.middleware("http")
@@ -1027,7 +1078,9 @@ try:
                 # This should only catch exceptions not handled by the exception handlers
                 # Convert to MCPError
                 error = error_from_exception(
-                    exc, correlation_id=correlation_id, include_traceback=True
+                    exc,
+                    correlation_id=correlation_id,
+                    include_traceback=True
                 )
 
                 # Log the error
@@ -1039,15 +1092,15 @@ try:
                         "error_category": error.category,
                         "path": request.url.path,
                         "method": request.method,
-                        "details": error.details,
-                    },
+                        "details": error.details
+                    }
                 )
 
                 # Return error response
                 return JSONResponse(
                     status_code=error.status_code,
                     headers={"X-Correlation-ID": correlation_id},
-                    content=error.to_dict(),
+                    content=error.to_dict()
                 )
 
         # Log successful FastAPI setup
@@ -1080,7 +1133,7 @@ if __name__ == "__main__":
         code=ErrorCode.RESOURCE_NOT_FOUND,
         message="User profile not found",
         details={"user_id": "12345"},
-        operation="get_user_profile",
+        operation="get_user_profile"
     )
     print("Example 2 - Custom error with details:")
     print(json.dumps(custom_error.to_dict(), indent=2))

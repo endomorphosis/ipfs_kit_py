@@ -6,11 +6,8 @@ Fix the IPFS tools integration to use the correct tool registration approach
 import re
 import logging
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
 
 def fix_integration_file():
     """Fix the IPFS MCP tools integration file"""
@@ -18,7 +15,7 @@ def fix_integration_file():
         # Read the current file
         with open("ipfs_mcp_tools_integration.py", "r") as f:
             content = f.read()
-
+        
         # Create the fixed version
         fixed_content = """\"\"\"IPFS MCP Tools Integration - Fixed for FastMCP decorator pattern\"\"\"
 
@@ -53,17 +50,16 @@ def register_ipfs_tools(mcp_server):
     logger.info("✅ Successfully registered all IPFS tools")
     return True
 """
-
+        
         # Write the fixed content back
         with open("ipfs_mcp_tools_integration.py", "w") as f:
             f.write(fixed_content)
-
+        
         logger.info("✅ Successfully fixed the IPFS tools integration file")
         return True
     except Exception as e:
         logger.error(f"❌ Error fixing integration file: {e}")
         return False
-
 
 if __name__ == "__main__":
     fix_integration_file()

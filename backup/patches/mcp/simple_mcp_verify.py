@@ -3,7 +3,6 @@
 Enhanced MCP server verification.
 Tests MCP server endpoints and tools functionality.
 """
-
 import requests
 import json
 import time
@@ -58,7 +57,10 @@ try:
         "jsonrpc": "2.0",
         "id": 1,
         "method": "initialize",
-        "params": {"capabilities": {}, "processId": 12345},
+        "params": {
+            "capabilities": {},
+            "processId": 12345
+        }
     }
 
     # Try the endpoint at the API prefix
@@ -66,7 +68,7 @@ try:
         "http://localhost:9994/api/v0/jsonrpc",
         json=jsonrpc_payload,
         headers={"Content-Type": "application/json"},
-        timeout=5,
+        timeout=5
     )
 
     print(f"MCP JSON-RPC endpoint status: {response.status_code}")
@@ -89,7 +91,7 @@ try:
         "http://localhost:9995/jsonrpc",
         json=jsonrpc_payload,
         headers={"Content-Type": "application/json"},
-        timeout=5,
+        timeout=5
     )
 
     print(f"\nJSON-RPC proxy endpoint status: {response.status_code}")
@@ -112,35 +114,41 @@ print("\nTesting MCP tools functionality:")
 try:
     print("\nTesting IPFS add...")
     test_content = f"Test content {uuid.uuid4()}"
-    files = {"file": ("test.txt", test_content)}
+    files = {'file': ('test.txt', test_content)}
 
-    response = requests.post("http://localhost:9994/api/v0/ipfs/add", files=files, timeout=10)
+    response = requests.post(
+        "http://localhost:9994/api/v0/ipfs/add",
+        files=files,
+        timeout=10
+    )
 
     if response.status_code == 200:
         data = response.json()
-        cid = data.get("cid")
+        cid = data.get('cid')
         print(f"✅ IPFS add successful! CID: {cid}")
 
         # Now test IPFS cat using the CID
         if cid:
             print("\nTesting IPFS cat...")
-            cat_response = requests.get(f"http://localhost:9994/api/v0/ipfs/cat/{cid}", timeout=10)
+            cat_response = requests.get(
+                f"http://localhost:9994/api/v0/ipfs/cat/{cid}",
+                timeout=10
+            )
 
             if cat_response.status_code == 200:
                 # Verify content matches
                 if cat_response.text == test_content:
                     print(f"✅ IPFS cat successful! Content matches.")
                 else:
-                    print(
-                        f"❌ IPFS cat returned different content. Expected: '{test_content}', Got: '{cat_response.text}'"
-                    )
+                    print(f"❌ IPFS cat returned different content. Expected: '{test_content}', Got: '{cat_response.text}'")
             else:
                 print(f"❌ IPFS cat failed: {cat_response.status_code} - {cat_response.text[:100]}")
 
             # Test IPFS pin
             print("\nTesting IPFS pin add...")
             pin_response = requests.post(
-                f"http://localhost:9994/api/v0/ipfs/pin/add/{cid}", timeout=10
+                f"http://localhost:9994/api/v0/ipfs/pin/add/{cid}",
+                timeout=10
             )
 
             if pin_response.status_code == 200:
@@ -149,24 +157,21 @@ try:
                 # Test pin list
                 print("\nTesting IPFS pin list...")
                 pin_ls_response = requests.get(
-                    f"http://localhost:9994/api/v0/ipfs/pin/ls", timeout=10
+                    f"http://localhost:9994/api/v0/ipfs/pin/ls",
+                    timeout=10
                 )
 
                 if pin_ls_response.status_code == 200:
                     pin_data = pin_ls_response.json()
-                    pins = pin_data.get("pins", [])
+                    pins = pin_data.get('pins', [])
                     if cid in pins:
                         print(f"✅ IPFS pin list successful! Found our CID.")
                     else:
                         print(f"❌ IPFS pin list doesn't contain our CID. Pins: {pins[:5]}...")
                 else:
-                    print(
-                        f"❌ IPFS pin list failed: {pin_ls_response.status_code} - {pin_ls_response.text[:100]}"
-                    )
+                    print(f"❌ IPFS pin list failed: {pin_ls_response.status_code} - {pin_ls_response.text[:100]}")
             else:
-                print(
-                    f"❌ IPFS pin add failed: {pin_response.status_code} - {pin_response.text[:100]}"
-                )
+                print(f"❌ IPFS pin add failed: {pin_response.status_code} - {pin_response.text[:100]}")
     else:
         print(f"❌ IPFS add failed: {response.status_code} - {response.text[:100]}")
 except Exception as e:

@@ -14,62 +14,55 @@ import time
 # Add the project root to path
 sys.path.insert(0, ".")
 
-from ipfs_kit_py.mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import (
-    EnhancedMCPServerWithDaemonMgmt,
-)
+from ipfs_kit_py.mcp.ipfs_kit.mcp.enhanced_mcp_server_with_daemon_mgmt import EnhancedMCPServerWithDaemonMgmt
 
 
 async def test_key_tools():
     """Test a subset of key tools to validate fixes."""
-
+    
     print("🚀 Quick MCP Server Tool Validation")
     print("=" * 50)
-
+    
     # Initialize server
     print("🚀 Initializing MCP server...")
     server = EnhancedMCPServerWithDaemonMgmt()
-
+    
     # Test key operations that were previously failing
     test_cases = [
         # Core operations
-        (
-            "ipfs_get",
-            {
-                "cid": "bafkreie5u4kxabn5qh6kfeq3afhe4b3bfrjfxiuq2mfvz3o7ajqgoxmhji",
-                "output_path": "/tmp/test_ipfs_get",
-            },
-        ),
+        ("ipfs_get", {"cid": "bafkreie5u4kxabn5qh6kfeq3afhe4b3bfrjfxiuq2mfvz3o7ajqgoxmhji", "output_path": "/tmp/test_ipfs_get"}),
         ("ipfs_ls", {"path": "/ipfs/bafkreie5u4kxabn5qh6kfeq3afhe4b3bfrjfxiuq2mfvz3o7ajqgoxmhji"}),
         ("ipfs_version", {}),
         ("ipfs_stats", {"stat_type": "repo"}),
+        
         # Advanced operations (should use mock)
         ("ipfs_dht_query", {"peer_id": "12D3KooWTest123"}),
-        (
-            "ipfs_name_publish",
-            {"cid": "bafkreie5u4kxabn5qh6kfeq3afhe4b3bfrjfxiuq2mfvz3o7ajqgoxmhji"},
-        ),
+        ("ipfs_name_publish", {"cid": "bafkreie5u4kxabn5qh6kfeq3afhe4b3bfrjfxiuq2mfvz3o7ajqgoxmhji"}),
+        
         # MFS operations (should use mock)
         ("ipfs_files_mkdir", {"path": "/test_dir"}),
         ("ipfs_files_ls", {"path": "/"}),
+        
         # VFS operations (should use mock)
         ("vfs_mount", {"ipfs_path": "/ipfs/test", "mount_point": "/tmp/test"}),
         ("vfs_list_mounts", {}),
+        
         # System tool
-        ("system_health", {}),
+        ("system_health", {})
     ]
-
+    
     results = {"success": 0, "failed": 0, "total": len(test_cases)}
-
+    
     print(f"🧪 Testing {len(test_cases)} key tools...\n")
-
+    
     for tool_name, args in test_cases:
         print(f"  🔧 Testing {tool_name}...", end="")
-
+        
         try:
             start_time = time.time()
             result = await server.execute_tool(tool_name, args)
             duration = time.time() - start_time
-
+            
             if result.get("success", True):
                 results["success"] += 1
                 print(f" ✅ SUCCESS ({duration:.2f}s)")
@@ -83,37 +76,35 @@ async def test_key_tools():
                     print(f"      Entries: {len(result['entries'])} items")
                 elif "mounts" in result:
                     print(f"      Mounts: {len(result['mounts'])} items")
-
+                
             else:
                 results["failed"] += 1
                 print(f" ❌ FAILED ({duration:.2f}s)")
                 print(f"      Error: {result.get('error', 'Unknown error')}")
-
+                
         except Exception as e:
             results["failed"] += 1
             print(f" 💥 EXCEPTION: {str(e)}")
-
+    
     print("\n" + "=" * 50)
     print("📊 QUICK VALIDATION RESULTS")
     print("=" * 50)
-
+    
     print(f"🎯 OVERALL RESULTS:")
     print(f"   Total tools tested: {results['total']}")
-    print(
-        f"   Successful: {results['success']} ({results['success'] / results['total'] * 100:.1f}%)"
-    )
-    print(f"   Failed: {results['failed']} ({results['failed'] / results['total'] * 100:.1f}%)")
-
+    print(f"   Successful: {results['success']} ({results['success']/results['total']*100:.1f}%)")
+    print(f"   Failed: {results['failed']} ({results['failed']/results['total']*100:.1f}%)")
+    
     # Determine status
-    success_rate = results["success"] / results["total"]
+    success_rate = results['success'] / results['total']
     if success_rate >= 0.9:
-        print(f"\n🏆 EXCELLENT: Validation passed with {success_rate * 100:.1f}% success rate!")
+        print(f"\n🏆 EXCELLENT: Validation passed with {success_rate*100:.1f}% success rate!")
         return True
     elif success_rate >= 0.7:
-        print(f"\n✅ GOOD: Validation mostly passed with {success_rate * 100:.1f}% success rate.")
+        print(f"\n✅ GOOD: Validation mostly passed with {success_rate*100:.1f}% success rate.")
         return True
     else:
-        print(f"\n❌ POOR: Validation failed with only {success_rate * 100:.1f}% success rate.")
+        print(f"\n❌ POOR: Validation failed with only {success_rate*100:.1f}% success rate.")
         return False
 
 

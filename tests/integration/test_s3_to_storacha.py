@@ -75,9 +75,8 @@ def migration_setup():
     }
 
     # Create migration instance
-    with (
-        patch("ipfs_kit_py.s3_kit.s3_kit", return_value=mock_s3_kit),
-        patch("ipfs_kit_py.storacha_kit.storacha_kit", return_value=mock_storacha_kit),
+    with patch("ipfs_kit_py.s3_kit.s3_kit", return_value=mock_s3_kit), patch(
+        "ipfs_kit_py.storacha_kit.storacha_kit", return_value=mock_storacha_kit
     ):
         migration = s3_to_storacha(resources, metadata)
 

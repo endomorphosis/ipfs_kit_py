@@ -26,7 +26,6 @@ import argparse
 import logging
 import importlib
 
-
 def main():
     """Run the MCP server with the specified configuration."""
     # Parse command line arguments
@@ -34,21 +33,10 @@ def main():
     parser.add_argument("--port", type=int, default=9994, help="Port number to use (default: 9994)")
     parser.add_argument("--debug", dest="debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--no-debug", dest="debug", action="store_false", help="Disable debug mode")
-    parser.add_argument(
-        "--isolation", dest="isolation", action="store_true", help="Enable isolation mode"
-    )
-    parser.add_argument(
-        "--no-isolation", dest="isolation", action="store_false", help="Disable isolation mode"
-    )
-    parser.add_argument(
-        "--skip-daemon", dest="skip_daemon", action="store_true", help="Skip daemon initialization"
-    )
-    parser.add_argument(
-        "--no-skip-daemon",
-        dest="skip_daemon",
-        action="store_false",
-        help="Don't skip daemon initialization",
-    )
+    parser.add_argument("--isolation", dest="isolation", action="store_true", help="Enable isolation mode")
+    parser.add_argument("--no-isolation", dest="isolation", action="store_false", help="Disable isolation mode")
+    parser.add_argument("--skip-daemon", dest="skip_daemon", action="store_true", help="Skip daemon initialization")
+    parser.add_argument("--no-skip-daemon", dest="skip_daemon", action="store_false", help="Don't skip daemon initialization")
     parser.add_argument("--api-prefix", type=str, default="/api/v0", help="API prefix to use")
     parser.add_argument("--log-file", type=str, default="mcp_server.log", help="Log file to use")
 
@@ -61,8 +49,8 @@ def main():
     # Configure logging
     logging.basicConfig(
         level=logging.DEBUG if args.debug else logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        filename=args.log_file,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        filename=args.log_file
     )
     logger = logging.getLogger("mcp_server")
 
@@ -97,7 +85,7 @@ def main():
             host="0.0.0.0",
             port=args.port,
             reload=False,
-            log_level="debug" if args.debug else "info",
+            log_level="debug" if args.debug else "info"
         )
     except ImportError as e:
         logger.error(f"Failed to import MCP server module: {e}")
@@ -107,7 +95,6 @@ def main():
         logger.error(f"Error starting MCP server: {e}")
         print(f"Error: Failed to start MCP server: {e}")
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

@@ -11,26 +11,23 @@ import sys
 import re
 from pathlib import Path
 
-
 def read_file(path):
     """Read a file's contents."""
-    with open(path, "r") as f:
+    with open(path, 'r') as f:
         return f.read()
-
 
 def write_file(path, content):
     """Write content to a file."""
-    with open(path, "w") as f:
+    with open(path, 'w') as f:
         f.write(content)
-
 
 def add_imports(content):
     """Add required imports for SSE support."""
     # Find the existing imports section
-    import_section = re.search(r"import .*?\n\n", content, re.DOTALL)
+    import_section = re.search(r'import .*?\n\n', content, re.DOTALL)
     if not import_section:
         return content
-
+    
     # Add our new imports
     new_imports = [
         "from typing import Dict, Any, List, Optional, AsyncGenerator",
@@ -39,23 +36,23 @@ def add_imports(content):
         "import uuid",
         "import json",
         "import time",
-        "import anyio",
+        "import anyio"
     ]
-
+    
     # Check which imports already exist
     for imp in new_imports:
         if imp not in content:
             content = content.replace(
-                import_section.group(0), import_section.group(0).rstrip() + f"\n{imp}\n\n"
+                import_section.group(0),
+                import_section.group(0).rstrip() + f"\n{imp}\n\n"
             )
-
+    
     return content
-
 
 def add_sse_endpoint(content):
     """Add SSE endpoint for MCP protocol."""
     # Use a cleaner approach to avoid docstring issues
-    sse_code = """
+    sse_code = '''
 # SSE connections and events
 sse_connections = {}
 
@@ -189,60 +186,59 @@ async def process_message(session_id: str, message: Dict[str, Any]):
             logger.warning(f"Unknown message type: {message}")
     except Exception as e:
         logger.error(f"Error processing message: {e}")
-"""
-
+'''
+    
     # Check if the SSE endpoint already exists
-    if '@app.get("/sse")' in content:
+    if "@app.get(\"/sse\")" in content:
         return content
-
+    
     # Find a good place to insert the SSE endpoint (after the @app routes)
-    routes_section = re.search(r"# Add CORS middleware.*?\n\n", content, re.DOTALL)
+    routes_section = re.search(r'# Add CORS middleware.*?\n\n', content, re.DOTALL)
     if routes_section:
         position = routes_section.end()
         content = content[:position] + sse_code + content[position:]
-
+    
     return content
-
 
 def add_sse_starlette_requirement(content):
     """Add sse-starlette requirement for StreamResponse."""
     if "sse-starlette" not in content:
-        requirements = ["sse-starlette>=1.0.0"]
-
+        requirements = [
+            "sse-starlette>=1.0.0"
+        ]
+        
         for req in requirements:
             if req not in content:
                 content += f"\n{req}"
-
+    
     return content
-
 
 def fix_mcp_proxy_server():
     """Apply fixes to the IPFS MCP Proxy Server."""
     proxy_server_path = "ipfs_mcp_proxy_server.py"
     requirements_path = "requirements.txt"
-
+    
     # Read files
     proxy_server_content = read_file(proxy_server_path)
     requirements_content = read_file(requirements_path) if os.path.exists(requirements_path) else ""
-
+    
     # Apply fixes
     proxy_server_content = add_imports(proxy_server_content)
     proxy_server_content = add_sse_endpoint(proxy_server_content)
     requirements_content = add_sse_starlette_requirement(requirements_content)
-
+    
     # Write files back
     write_file(proxy_server_path, proxy_server_content)
     write_file(requirements_path, requirements_content)
-
+    
     print(f"✅ Added SSE endpoint to {proxy_server_path}")
     print(f"✅ Updated {requirements_path} with sse-starlette requirement")
-
+    
     # Install sse-starlette
     print("Installing sse-starlette...")
     os.system("pip install sse-starlette>=1.0.0")
-
+    
     print("\nFixes applied. Please restart the IPFS MCP Proxy Server.")
-
 
 if __name__ == "__main__":
     fix_mcp_proxy_server()

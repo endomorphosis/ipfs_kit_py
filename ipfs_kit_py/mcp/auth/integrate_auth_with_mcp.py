@@ -20,7 +20,10 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("auth_integration")
 
 # Default MCP server path
@@ -127,146 +130,148 @@ AUTH_CONFIG = """
 ENDPOINT_MODIFICATIONS = [
     {
         "pattern": r"@app\.get\(\"\/api\/v0\/ipfs\/version\"\)\nasync def ipfs_version\(\):",
-        "replacement": '@app.get("/api/v0/ipfs/version")\nasync def ipfs_version(current_user: User = Depends(get_current_user)):',
+        "replacement": '@app.get("/api/v0/ipfs/version")\nasync def ipfs_version(current_user: User = Depends(get_current_user)):'
     },
     {
         "pattern": r"@app\.post\(\"\/api\/v0\/ipfs\/add\"\)\nasync def ipfs_add\(\s*file: UploadFile = File\(\.\.\.\),\s*pin: bool = Form\(True\)\s*\):",
-        "replacement": '@app.post("/api/v0/ipfs/add")\nasync def ipfs_add(\n    file: UploadFile = File(...),\n    pin: bool = Form(True),\n    current_user: User = Depends(get_current_user)\n):',
+        "replacement": '@app.post("/api/v0/ipfs/add")\nasync def ipfs_add(\n    file: UploadFile = File(...),\n    pin: bool = Form(True),\n    current_user: User = Depends(get_current_user)\n):'
     },
     {
         "pattern": r"@app\.get\(\"\/api\/v0\/ipfs\/cat\/\{cid\}\"\)\nasync def ipfs_cat\(cid: str\):",
-        "replacement": '@app.get("/api/v0/ipfs/cat/{cid}")\nasync def ipfs_cat(cid: str, current_user: User = Depends(get_current_user)):',
-    },
+        "replacement": '@app.get("/api/v0/ipfs/cat/{cid}")\nasync def ipfs_cat(cid: str, current_user: User = Depends(get_current_user)):'
+    }
 ]
 
 # Admin endpoint modifications
 ADMIN_ENDPOINT_MODIFICATIONS = [
     {
         "pattern": r"@app\.get\(\"\/api\/v0\/admin\/system\/status\"\)\nasync def admin_system_status\(\):",
-        "replacement": '@app.get("/api/v0/admin/system/status")\nasync def admin_system_status(current_user: User = Depends(get_admin_user)):',
+        "replacement": '@app.get("/api/v0/admin/system/status")\nasync def admin_system_status(current_user: User = Depends(get_admin_user)):'
     }
 ]
-
 
 def create_backup(file_path: str) -> str:
     """
     Create a backup of the original server file.
-
+    
     Args:
         file_path: Path to the server file
-
+        
     Returns:
         Path to the backup file
     """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_path = f"{file_path}.bak_{timestamp}"
-
+    
     shutil.copy2(file_path, backup_path)
     logger.info(f"Created backup at: {backup_path}")
-
+    
     return backup_path
-
 
 def modify_server_file(file_path: str) -> bool:
     """
     Modify the server file to integrate the auth system.
-
+    
     Args:
         file_path: Path to the server file
-
+        
     Returns:
         Success flag
     """
     try:
         # Read the original file
-        with open(file_path, "r") as f:
+        with open(file_path, 'r') as f:
             content = f.read()
-
+        
         # Add auth imports
         if "# Advanced Authentication & Authorization" not in content:
             # Find import section
             import_pattern = r"# Import MCP components\s+try:"
             import_match = re.search(import_pattern, content)
-
+            
             if import_match:
                 # Add auth imports before the closing "try:"
                 position = import_match.end()
-                modified_content = content[:position] + AUTH_IMPORTS + content[position:]
+                modified_content = (
+                    content[:position] + 
+                    AUTH_IMPORTS + 
+                    content[position:]
+                )
                 content = modified_content
                 logger.info("Added auth imports")
             else:
                 logger.warning("Could not find import section")
-
+        
         # Add auth initialization
         if "auth_system = await setup_mcp_auth" not in content:
             # Find initialization section in startup_event
             init_pattern = r"async def initialize_components\(\):.+?logger\.info\(\"All MCP components initialized"
             init_match = re.search(init_pattern, content, re.DOTALL)
-
+            
             if init_match:
                 # Find the position before "All MCP components initialized"
                 init_text = init_match.group(0)
                 position = init_match.start() + init_text.rfind("logger.info")
-
+                
                 # Add auth initialization before this line
-                modified_content = content[:position] + AUTH_CONFIG + "    " + content[position:]
+                modified_content = (
+                    content[:position] + 
+                    AUTH_CONFIG + 
+                    "    " + content[position:]
+                )
                 content = modified_content
                 logger.info("Added auth initialization code")
             else:
                 logger.warning("Could not find initialization section")
-
+        
         # Modify endpoint dependencies
         for mod in ENDPOINT_MODIFICATIONS + ADMIN_ENDPOINT_MODIFICATIONS:
             pattern = mod["pattern"]
             replacement = mod["replacement"]
-
+            
             if re.search(pattern, content):
                 content = re.sub(pattern, replacement, content)
                 logger.info(f"Modified endpoint: {pattern}")
-
+        
         # Write the modified content back to the file
-        with open(file_path, "w") as f:
+        with open(file_path, 'w') as f:
             f.write(content)
-
+        
         logger.info(f"Successfully modified server file: {file_path}")
         return True
-
+    
     except Exception as e:
         logger.error(f"Error modifying server file: {e}")
         return False
-
 
 def main():
     """Main function."""
     # Parse arguments
     parser = argparse.ArgumentParser(description="MCP Auth Integration Script")
     parser.add_argument("--backup", action="store_true", help="Create backup before modifying")
-    parser.add_argument(
-        "--server-path", default=DEFAULT_SERVER_PATH, help="Path to MCP server file"
-    )
+    parser.add_argument("--server-path", default=DEFAULT_SERVER_PATH, help="Path to MCP server file")
     args = parser.parse_args()
-
+    
     # Resolve server path
     server_path = os.path.abspath(args.server_path)
     if not os.path.exists(server_path):
         logger.error(f"Server file not found: {server_path}")
         return 1
-
+    
     # Create backup if requested
     if args.backup:
         backup_path = create_backup(server_path)
         logger.info(f"Backup created at: {backup_path}")
-
+    
     # Modify server file
     success = modify_server_file(server_path)
-
+    
     if success:
         logger.info("Auth system integration completed successfully")
         return 0
     else:
         logger.error("Auth system integration failed")
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

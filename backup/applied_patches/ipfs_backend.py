@@ -24,7 +24,10 @@ from pathlib import Path
 from typing import Any, BinaryIO, Dict, List, Optional, Tuple, Union
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("ipfs_backend")
 
 # Import the standardized error handling
@@ -33,15 +36,13 @@ try:
         create_error_response,
         handle_backend_error,
         handle_daemon_error,
-        handle_exception,
+        handle_exception
     )
-
     STANDARD_ERROR_HANDLING = True
     logger.info("Using standardized MCP error handling")
 except ImportError:
     STANDARD_ERROR_HANDLING = False
     logger.warning("Standardized MCP error handling not available, using internal handlers")
-
 
 class IPFSErrorHandler:
     """
@@ -68,13 +69,11 @@ class IPFSErrorHandler:
         VALIDATION_ERROR: "VALIDATION_ERROR",
         DEPENDENCY_ERROR: "DAEMON_ERROR",
         INTERNAL_ERROR: "INTERNAL_ERROR",
-        UNKNOWN_ERROR: "INTERNAL_ERROR",
+        UNKNOWN_ERROR: "INTERNAL_ERROR"
     }
 
     @staticmethod
-    def format_error(
-        error_type: str, message: str, details: Optional[Any] = None
-    ) -> Dict[str, Any]:
+    def format_error(error_type: str, message: str, details: Optional[Any] = None) -> Dict[str, Any]:
         """
         Format an error response in a standardized structure.
 
@@ -94,7 +93,7 @@ class IPFSErrorHandler:
                 code=mcp_error_code,
                 message_override=message,
                 details=details,
-                doc_category="storage",
+                doc_category="storage"
             )
 
         # Fall back to original format if standardized handling not available
@@ -102,7 +101,7 @@ class IPFSErrorHandler:
             "success": False,
             "error_type": error_type,
             "error": message,
-            "timestamp": time.time(),
+            "timestamp": time.time()
         }
 
         if details:
@@ -130,10 +129,7 @@ class IPFSErrorHandler:
         error_type = IPFSErrorHandler.UNKNOWN_ERROR
 
         # Categorize based on exception type
-        if isinstance(
-            e,
-            (ConnectionError, ConnectionRefusedError, ConnectionResetError, ConnectionAbortedError),
-        ):
+        if isinstance(e, (ConnectionError, ConnectionRefusedError, ConnectionResetError, ConnectionAbortedError)):
             error_type = IPFSErrorHandler.NETWORK_ERROR
         elif isinstance(e, TimeoutError):
             error_type = IPFSErrorHandler.TIMEOUT_ERROR
@@ -157,9 +153,11 @@ class IPFSErrorHandler:
         return IPFSErrorHandler.format_error(
             error_type=error_type,
             message=f"Error during {operation}: {str(e)}",
-            details={"exception_type": e.__class__.__name__, "stack_trace": stack_trace},
+            details={
+                "exception_type": e.__class__.__name__,
+                "stack_trace": stack_trace
+            }
         )
-
 
 class IPFSStorageBackend:
     """Storage backend implementation for IPFS."""
@@ -235,8 +233,7 @@ class IPFSStorageBackend:
         """
         # First attempt: direct import
         try:
-            import ipfs_py  # type: ignore
-
+            import ipfs_py # type: ignore
             logger.info("Successfully imported ipfs_py directly")
             return ipfs_py
         except ImportError:
@@ -270,8 +267,7 @@ class IPFSStorageBackend:
                             logger.warning(f"Failed to import as module {module_name}: {e}")
 
                             # Fall back to direct file execution
-                            import importlib.util  # type: ignore
-
+                            import importlib.util # type: ignore
                             spec = importlib.util.spec_from_file_location("ipfs_module", ipfs_file)
                             if spec and spec.loader:
                                 ipfs_module = importlib.util.module_from_spec(spec)
@@ -297,14 +293,11 @@ class IPFSStorageBackend:
 
         class MockIPFSPy:
             """Mock implementation of ipfs_py for when the real one can't be imported."""
-
             _mock_implementation = True
 
             def __init__(self):
                 self.logger = logging.getLogger("mock_ipfs_py")
-                self.logger.warning(
-                    "Using mock IPFS implementation - limited functionality available"
-                )
+                self.logger.warning("Using mock IPFS implementation - limited functionality available")
 
                 # Add some mock data to simulate a minimally functional implementation
                 self.mock_pins: Dict[str, str] = {}
@@ -316,7 +309,7 @@ class IPFSStorageBackend:
                 return IPFSErrorHandler.format_error(
                     IPFSErrorHandler.DEPENDENCY_ERROR,
                     "IPFS implementation unavailable (mock mode)",
-                    {"mock_cid": mock_cid, "method": "ipfs_add_file"},
+                    {"mock_cid": mock_cid, "method": "ipfs_add_file"}
                 )
 
             def ipfs_add_bytes(self, data, *args, **kwargs):
@@ -325,7 +318,7 @@ class IPFSStorageBackend:
                 return IPFSErrorHandler.format_error(
                     IPFSErrorHandler.DEPENDENCY_ERROR,
                     "IPFS implementation unavailable (mock mode)",
-                    {"mock_cid": mock_cid, "method": "ipfs_add_bytes"},
+                    {"mock_cid": mock_cid, "method": "ipfs_add_bytes"}
                 )
 
             def ipfs_cat(self, cid, *args, **kwargs):
@@ -333,21 +326,21 @@ class IPFSStorageBackend:
                 return IPFSErrorHandler.format_error(
                     IPFSErrorHandler.DEPENDENCY_ERROR,
                     "IPFS implementation unavailable (mock mode)",
-                    {"mock_cid": cid, "method": "ipfs_cat"},
+                    {"mock_cid": cid, "method": "ipfs_cat"}
                 )
 
             # Explicitly define methods to satisfy Pylance, returning standard error
-            def ipfs_pin_add(self, cid, *args, **kwargs):  # type: ignore
+            def ipfs_pin_add(self, cid, *args, **kwargs): # type: ignore
                 """Mock pin add that simulates success but warns about mock mode."""
                 self.mock_pins[cid] = "recursive"
                 return {
                     "success": True,
                     "pins": [cid],
                     "warning": "This is a mock implementation. Content is not actually pinned.",
-                    "error_type": "MockImplementation",
+                    "error_type": "MockImplementation"
                 }
 
-            def ipfs_pin_rm(self, cid, *args, **kwargs):  # type: ignore
+            def ipfs_pin_rm(self, cid, *args, **kwargs): # type: ignore
                 """Mock pin removal that simulates success for user experience."""
                 if cid in self.mock_pins:
                     del self.mock_pins[cid]
@@ -355,59 +348,53 @@ class IPFSStorageBackend:
                     "success": True,
                     "pins": [cid],
                     "warning": "This is a mock implementation. No actual pin was removed.",
-                    "error_type": "MockImplementation",
+                    "error_type": "MockImplementation"
                 }
 
-            def ipfs_pin_ls(self, *args, **kwargs):  # type: ignore
-                """Mock pin list that returns mock pins."""
-                return {"success": True, "pins": self.mock_pins, "error_type": "MockImplementation"}
+            def ipfs_pin_ls(self, *args, **kwargs): # type: ignore
+                 """Mock pin list that returns mock pins."""
+                 return { "success": True, "pins": self.mock_pins, "error_type": "MockImplementation" }
 
-            def ipfs_object_stat(self, cid, *args, **kwargs):  # type: ignore
-                """Mock object stat that returns placeholder data."""
-                return {
-                    "success": True,
-                    "stats": {
-                        "NumLinks": 0,
-                        "BlockSize": 0,
-                        "LinksSize": 0,
-                        "DataSize": 0,
-                        "CumulativeSize": 0,
-                    },
-                    "warning": "This is a mock implementation. Stats are not accurate.",
-                    "error_type": "MockImplementation",
-                }
+            def ipfs_object_stat(self, cid, *args, **kwargs): # type: ignore
+                 """Mock object stat that returns placeholder data."""
+                 return {
+                     "success": True,
+                     "stats": {"NumLinks": 0, "BlockSize": 0, "LinksSize": 0, "DataSize": 0, "CumulativeSize": 0},
+                     "warning": "This is a mock implementation. Stats are not accurate.",
+                     "error_type": "MockImplementation"
+                 }
 
             def ipfs_add_metadata(self, *args, **kwargs):
                 """Mock metadata addition."""
                 return IPFSErrorHandler.format_error(
                     IPFSErrorHandler.DEPENDENCY_ERROR,
                     "IPFS implementation unavailable (mock mode)",
-                    {"method": "ipfs_add_metadata"},
+                    {"method": "ipfs_add_metadata"}
                 )
 
             # Explicitly define DHT methods
             def ipfs_dht_provide(self, *args, **kwargs):
-                return self.__getattr__("ipfs_dht_provide")(*args, **kwargs)
+                return self.__getattr__('ipfs_dht_provide')(*args, **kwargs)
 
             def ipfs_dht_find_providers(self, *args, **kwargs):
                 return IPFSErrorHandler.format_error(
                     IPFSErrorHandler.DEPENDENCY_ERROR,
                     "IPFS implementation unavailable (mock mode)",
-                    {"method": "ipfs_dht_find_providers"},
+                    {"method": "ipfs_dht_find_providers"}
                 )
 
             def ipfs_dht_find_peer(self, *args, **kwargs):
                 return IPFSErrorHandler.format_error(
                     IPFSErrorHandler.DEPENDENCY_ERROR,
                     "IPFS implementation unavailable (mock mode)",
-                    {"method": "ipfs_dht_find_peer"},
+                    {"method": "ipfs_dht_find_peer"}
                 )
 
             def ipfs_dht_query(self, *args, **kwargs):
                 return IPFSErrorHandler.format_error(
                     IPFSErrorHandler.DEPENDENCY_ERROR,
                     "IPFS implementation unavailable (mock mode)",
-                    {"method": "ipfs_dht_query"},
+                    {"method": "ipfs_dht_query"}
                 )
 
             def __getattr__(self, name):
@@ -415,14 +402,12 @@ class IPFSStorageBackend:
                 Handle any method call with a standardized error response.
                 This ensures all API calls have a consistent response format.
                 """
-
                 def method(*args, **kwargs):
                     return IPFSErrorHandler.format_error(
                         IPFSErrorHandler.DEPENDENCY_ERROR,
                         f"IPFS implementation unavailable (mock mode) - method: {name}",
-                        {"method": name},
+                        {"method": name}
                     )
-
                 return method
 
         return MockIPFSPy()
@@ -435,6 +420,7 @@ class IPFSStorageBackend:
         count = stats["count"]
         if count > 0:
             stats["avg_time"] = float(stats["total_time"]) / count
+
 
     def store(
         self,
@@ -471,7 +457,7 @@ class IPFSStorageBackend:
                 # Assume it's a file-like object
                 result = self.ipfs.ipfs_add_file(data)
 
-            cid = result.get("cid")  # Get CID early for pinning
+            cid = result.get("cid") # Get CID early for pinning
             success = result.get("success", False)
 
             if success and cid and options.get("pin", True):
@@ -528,9 +514,7 @@ class IPFSStorageBackend:
                 "data": data_content,
                 "backend": self.get_name(),
                 "identifier": identifier,
-                "details": result
-                if not success
-                else {"message": "Data retrieved"},  # Avoid duplicating data
+                "details": result if not success else {"message": "Data retrieved"}, # Avoid duplicating data
             }
         except Exception as e:
             return IPFSErrorHandler.handle_exception(e, "retrieve")
@@ -607,10 +591,8 @@ class IPFSStorageBackend:
             items = []
             if success:
                 pins = result.get("pins", {})
-                for cid, pin_info in pins.items():  # Adapt to potential dict format
-                    pin_type = (
-                        pin_info.get("Type", "unknown") if isinstance(pin_info, dict) else pin_info
-                    )
+                for cid, pin_info in pins.items(): # Adapt to potential dict format
+                    pin_type = pin_info.get("Type", "unknown") if isinstance(pin_info, dict) else pin_info
                     # Apply prefix filter if provided
                     if prefix and not cid.startswith(prefix):
                         continue
@@ -620,9 +602,7 @@ class IPFSStorageBackend:
                 "success": success,
                 "items": items,
                 "backend": self.get_name(),
-                "details": result
-                if not success
-                else {"count": len(items)},  # Avoid large pin list in details
+                "details": result if not success else {"count": len(items)}, # Avoid large pin list in details
             }
         except Exception as e:
             return IPFSErrorHandler.handle_exception(e, "list")
@@ -654,9 +634,9 @@ class IPFSStorageBackend:
             # Check if the result indicates the pin exists.
             # The exact structure might vary, check common patterns.
             if result.get("success", False):
-                pins = result.get("pins", {})
-                # Check if the identifier is a key in the pins dictionary
-                return identifier in pins
+                 pins = result.get("pins", {})
+                 # Check if the identifier is a key in the pins dictionary
+                 return identifier in pins
             return False
         except Exception as e:
             logger.error(f"Error during exists check for {identifier}: {e}", exc_info=True)
@@ -789,7 +769,9 @@ class IPFSStorageBackend:
         try:
             # Call the DHT find providers method
             result = self.ipfs.ipfs_dht_find_providers(
-                identifier, num_providers=num_providers, timeout=timeout
+                identifier,
+                num_providers=num_providers,
+                timeout=timeout
             )
 
             # Update performance stats
@@ -896,10 +878,8 @@ class IPFSStorageBackend:
         except Exception as e:
             return IPFSErrorHandler.handle_exception(e, "dht_query")
 
-
 # Singleton instance
 _instance = None
-
 
 def get_instance(config=None):
     """Get or create a singleton instance of the backend."""

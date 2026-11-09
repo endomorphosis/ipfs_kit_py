@@ -7,4 +7,4 @@ and other content discovery mechanisms.
 
 from .ipni_client import IPNIClient
 
-__all__ = ["IPNIClient"]
+__all__ = ['IPNIClient']

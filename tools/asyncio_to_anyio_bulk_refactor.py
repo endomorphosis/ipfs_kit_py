@@ -44,10 +44,7 @@ SAFE_REWRITES: List[Tuple[str, str]] = [
     # Awaited to_thread
     (r"\bawait\s+asyncio\.to_thread\(", "await anyio.to_thread.run_sync("),
     # Mis-migrations: anyio.get_event_loop().run_in_executor(None, ...) -> anyio.to_thread.run_sync(...)
-    (
-        r"\bawait\s+anyio\.get_event_loop\(\)\.run_in_executor\(\s*None\s*,\s*",
-        "await anyio.to_thread.run_sync(",
-    ),
+    (r"\bawait\s+anyio\.get_event_loop\(\)\.run_in_executor\(\s*None\s*,\s*", "await anyio.to_thread.run_sync("),
     # Cancellation exception
     (r"\bexcept\s+asyncio\.CancelledError\s*:\s*$", "except anyio.get_cancelled_exc_class():"),
     # Basic primitives
@@ -88,12 +85,12 @@ SYNC_BRIDGE_HELPER_RE = re.compile(r"^\s*def\s+_run_async_from_sync\s*\(", re.M)
 SYNC_BRIDGE_HELPER = (
     "\n\n"
     "def _run_async_from_sync(async_fn, *args, **kwargs):\n"
-    '    """Run an async callable from sync code.\n\n'
+    "    \"\"\"Run an async callable from sync code.\n\n"
     "    - If called from an AnyIO worker thread, uses `anyio.from_thread.run`.\n"
     "    - If called from plain sync code, uses `anyio.run`.\n"
     "    - If called while an async library is running in this thread, runs the\n"
     "      call in a dedicated helper thread.\n"
-    '    """\n'
+    "    \"\"\"\n"
     "    try:\n"
     "        return anyio.from_thread.run(async_fn, *args, **kwargs)\n"
     "    except RuntimeError:\n"
@@ -135,7 +132,7 @@ def _insert_import(source: str, import_line: str) -> str:
 
     # Skip module docstring
     if insert_at < len(lines) and re.match(r"^\\s*(\"\"\"|''')", lines[insert_at]):
-        quote = '"""' if '"""' in lines[insert_at] else "'''"
+        quote = "\"\"\"" if "\"\"\"" in lines[insert_at] else "'''"
         insert_at += 1
         while insert_at < len(lines):
             if quote in lines[insert_at]:
@@ -179,7 +176,7 @@ def _ensure_sync_bridge_helper(source: str) -> str:
 
     # Skip module docstring
     if insert_at < len(lines) and re.match(r"^\\s*(\"\"\"|''')", lines[insert_at]):
-        quote = '"""' if '"""' in lines[insert_at] else "'''"
+        quote = "\"\"\"" if "\"\"\"" in lines[insert_at] else "'''"
         insert_at += 1
         while insert_at < len(lines):
             if quote in lines[insert_at]:
@@ -260,7 +257,12 @@ def _apply_sync_bridge_rewrites(source: str) -> Tuple[str, Dict[str, int]]:
         arg_lines = [line.lstrip() for line in arg_lines]
         args_block = "\n".join(f"{indent}    {line}" if line else "" for line in arg_lines)
 
-        return f"{indent}_run_async_from_sync(\n{indent}    {call},\n{args_block}\n{indent})"
+        return (
+            f"{indent}_run_async_from_sync(\n"
+            f"{indent}    {call},\n"
+            f"{args_block}\n"
+            f"{indent})"
+        )
 
     # Keep regexes fast: allow only a few optional comment/blank lines.
     spacer = r"(?:(?P=indent)[ \t]*(?:#.*)?\n){0,6}"
@@ -427,7 +429,7 @@ def _insert_anyio_import(source: str) -> str:
 
     # If a docstring exists, insert after it.
     if insert_at < len(lines) and re.match(r"^\s*(\"\"\"|''')", lines[insert_at]):
-        quote = '"""' if '"""' in lines[insert_at] else "'''"
+        quote = "\"\"\"" if "\"\"\"" in lines[insert_at] else "'''"
         insert_at += 1
         while insert_at < len(lines):
             if quote in lines[insert_at]:
@@ -481,9 +483,7 @@ def _scan_hard_patterns(source: str) -> Dict[str, int]:
 
 def process_file(path: Path, apply: bool) -> FileResult:
     original = path.read_text(encoding="utf-8")
-    rewritten, applied = _apply_rewrites(
-        path, original, bridges=getattr(process_file, "_bridges", False)
-    )
+    rewritten, applied = _apply_rewrites(path, original, bridges=getattr(process_file, "_bridges", False))
     hard_hits = _scan_hard_patterns(rewritten)
 
     changed = rewritten != original
@@ -501,9 +501,7 @@ def process_file(path: Path, apply: bool) -> FileResult:
 def main(argv: List[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument(
-        "--check", action="store_true", help="Report changes/hard patterns; do not edit"
-    )
+    mode.add_argument("--check", action="store_true", help="Report changes/hard patterns; do not edit")
     mode.add_argument("--apply", action="store_true", help="Apply safe rewrites in-place")
 
     parser.add_argument(
@@ -538,10 +536,7 @@ def main(argv: List[str]) -> int:
 
     for path in _iter_python_files(DEFAULT_ROOT, args.include):
         # Skip vendored/virtualenv folders if user points include too wide
-        if any(
-            part in {".venv", ".venv_zt_validate", ".pytest_cache", "__pycache__"}
-            for part in path.parts
-        ):
+        if any(part in {".venv", ".venv_zt_validate", ".pytest_cache", "__pycache__"} for part in path.parts):
             continue
         try:
             res = process_file(path, apply=args.apply)

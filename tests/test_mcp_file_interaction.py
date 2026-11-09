@@ -4,7 +4,6 @@ import shutil
 from pathlib import Path
 from unittest import mock
 
-
 @pytest.fixture(scope="module", autouse=True)
 def setup_test_environment(tmp_path_factory):
     old_home = os.environ.get("HOME")
@@ -24,42 +23,27 @@ def setup_test_environment(tmp_path_factory):
         # Create dummy pin metadata file
         (test_ipfs_kit_path / "pin_metadata" / "parquet_storage").mkdir(parents=True, exist_ok=True)
         import pandas as pd
-
-        df_pins = pd.DataFrame(
-            [
-                {"cid": "QmTestPin1", "name": "test_file1"},
-                {"cid": "QmTestPin2", "name": "test_file2"},
-            ]
-        )
-        df_pins.to_parquet(
-            test_ipfs_kit_path / "pin_metadata" / "parquet_storage" / "pins.parquet",
-            engine="pyarrow",
-        )
+        df_pins = pd.DataFrame([
+            {"cid": "QmTestPin1", "name": "test_file1"},
+            {"cid": "QmTestPin2", "name": "test_file2"},
+        ])
+        df_pins.to_parquet(test_ipfs_kit_path / "pin_metadata" / "parquet_storage" / "pins.parquet", engine="pyarrow")
 
         # Create dummy program state data
         (test_ipfs_kit_path / "program_state" / "parquet").mkdir(parents=True, exist_ok=True)
-        df_state = pd.DataFrame(
-            [
-                {"state_key": "state_value1"},
-                {"state_key": "state_value2"},
-            ]
-        )
-        df_state.to_parquet(
-            test_ipfs_kit_path / "program_state" / "parquet" / "test_state.parquet",
-            engine="pyarrow",
-        )
+        df_state = pd.DataFrame([
+            {"state_key": "state_value1"},
+            {"state_key": "state_value2"},
+        ])
+        df_state.to_parquet(test_ipfs_kit_path / "program_state" / "parquet" / "test_state.parquet", engine="pyarrow")
 
         # Create dummy bucket registry
         (test_ipfs_kit_path / "bucket_index").mkdir(parents=True, exist_ok=True)
-        df_buckets = pd.DataFrame(
-            [
-                {"name": "bucket1", "cid": "QmBucket1"},
-                {"name": "bucket2", "cid": "QmBucket2"},
-            ]
-        )
-        df_buckets.to_parquet(
-            test_ipfs_kit_path / "bucket_index" / "bucket_registry.parquet", engine="pyarrow"
-        )
+        df_buckets = pd.DataFrame([
+            {"name": "bucket1", "cid": "QmBucket1"},
+            {"name": "bucket2", "cid": "QmBucket2"},
+        ])
+        df_buckets.to_parquet(test_ipfs_kit_path / "bucket_index" / "bucket_registry.parquet", engine="pyarrow")
 
         yield
 
@@ -68,10 +52,8 @@ def setup_test_environment(tmp_path_factory):
     else:
         os.environ["HOME"] = old_home
 
-
 def test_get_all_configs():
     from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
-
     server = create_mcp_server()
     configs = server.get_all_configs()
     assert "bucket" in configs
@@ -79,37 +61,29 @@ def test_get_all_configs():
     assert "daemon" in configs
     assert configs["daemon"]["daemon_port"] == 5001
 
-
 def test_get_pin_metadata():
     from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
-
     server = create_mcp_server()
     pin_metadata = server.get_pin_metadata()
     assert len(pin_metadata) == 2
     assert pin_metadata[0]["cid"] == "QmTestPin1"
 
-
 def test_get_program_state_data():
     from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
-
     server = create_mcp_server()
     program_state = server.get_program_state_data()
     assert "test_state" in program_state
-    assert program_state["test_state"]["state_key"] == "state_value2"  # Should get the last entry
-
+    assert program_state["test_state"]["state_key"] == "state_value2" # Should get the last entry
 
 def test_get_bucket_registry():
     from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
-
     server = create_mcp_server()
     bucket_registry = server.get_bucket_registry()
     assert len(bucket_registry) == 2
     assert bucket_registry[0]["name"] == "bucket1"
 
-
 def test_get_backend_status_data():
     from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
-
     server = create_mcp_server()
     backend_status = server.get_backend_status_data()
     assert "bucket" in backend_status

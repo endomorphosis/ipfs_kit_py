@@ -9,7 +9,6 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-
 class EnhancedDaemonManager:
     def __init__(self, ipfs_path=None, api_port=5001):
         self.ipfs_path = ipfs_path or os.path.expanduser("~/.ipfs")
@@ -22,9 +21,9 @@ class EnhancedDaemonManager:
         self._index_thread = None
 
     def _get_ipfs_daemon_process(self):
-        for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
             try:
-                if "ipfs" in proc.name().lower() and "daemon" in " ".join(proc.cmdline()).lower():
+                if 'ipfs' in proc.name().lower() and 'daemon' in ' '.join(proc.cmdline()).lower():
                     return proc
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 continue
@@ -172,17 +171,13 @@ class EnhancedDaemonManager:
                 env = os.environ.copy()
                 env.setdefault("IPFS_PATH", self.ipfs_path)
                 if os.name == "nt":
-                    creationflags = (
-                        subprocess.CREATE_NEW_PROCESS_GROUP
-                        | subprocess.DETACHED_PROCESS
-                        | subprocess.CREATE_NO_WINDOW
-                    )
+                    creationflags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW
                     subprocess.Popen(
                         command,
                         creationflags=creationflags,
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
-                        env=env,
+                        env=env
                     )
                 else:
                     subprocess.Popen(
@@ -190,7 +185,7 @@ class EnhancedDaemonManager:
                         preexec_fn=os.setsid,
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
-                        env=env,
+                        env=env
                     )
                 logger.info("IPFS daemon started in detached mode.")
                 return {"status": "started", "detached": True}
@@ -199,15 +194,11 @@ class EnhancedDaemonManager:
                 return {"status": "error", "message": str(e)}
         else:
             # For non-detached mode, you might want to capture output or run in foreground
-            logger.info(
-                "Starting IPFS daemon in foreground mode (not recommended for production)..."
-            )
+            logger.info("Starting IPFS daemon in foreground mode (not recommended for production)...")
             try:
                 env = os.environ.copy()
                 env.setdefault("IPFS_PATH", self.ipfs_path)
-                process = subprocess.Popen(
-                    command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env
-                )
+                process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
                 self.ipfs_daemon_process = process
                 logger.info("IPFS daemon started in foreground.")
                 return {"status": "started", "detached": False}
@@ -226,12 +217,7 @@ class EnhancedDaemonManager:
                     proc.wait(timeout=5)
                 logger.info("IPFS daemon stopped.")
                 return {"status": "stopped"}
-            except (
-                psutil.NoSuchProcess,
-                psutil.AccessDenied,
-                psutil.ZombieProcess,
-                psutil.TimeoutExpired,
-            ) as e:
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, psutil.TimeoutExpired) as e:
                 logger.error(f"Error stopping IPFS daemon: {e}")
                 return {"status": "error", "message": str(e)}
         else:
@@ -254,7 +240,7 @@ class EnhancedDaemonManager:
             "peer_count": 0,
             "repo_size": None,
             "ipfs_version": None,
-            "error": None,
+            "error": None
         }
 
         proc = self._get_ipfs_daemon_process()
@@ -272,9 +258,7 @@ class EnhancedDaemonManager:
             try:
                 # Use subprocess to call `ipfs id` and `ipfs repo stat`
                 # This assumes `ipfs` CLI is in the PATH and daemon is running
-                id_output = subprocess.run(
-                    ["ipfs", "id"], capture_output=True, text=True, check=True, timeout=5
-                )
+                id_output = subprocess.run(["ipfs", "id"], capture_output=True, text=True, check=True, timeout=5)
                 id_data = json.loads(id_output.stdout)
                 status["api_reachable"] = True
                 status["peer_id"] = id_data.get("ID")
@@ -282,43 +266,22 @@ class EnhancedDaemonManager:
                 status["agent_version"] = id_data.get("AgentVersion")
                 status["protocol_version"] = id_data.get("ProtocolVersion")
 
-                repo_stat_output = subprocess.run(
-                    ["ipfs", "repo", "stat"], capture_output=True, text=True, check=True, timeout=5
-                )
+                repo_stat_output = subprocess.run(["ipfs", "repo", "stat"], capture_output=True, text=True, check=True, timeout=5)
                 repo_stat_data = json.loads(repo_stat_output.stdout)
                 status["repo_size"] = repo_stat_data.get("RepoSize")
                 status["num_objects"] = repo_stat_data.get("NumObjects")
 
                 # Get connected peers
-                swarm_peers_output = subprocess.run(
-                    ["ipfs", "swarm", "peers"],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                    timeout=5,
-                )
+                swarm_peers_output = subprocess.run(["ipfs", "swarm", "peers"], capture_output=True, text=True, check=True, timeout=5)
                 # Each line is a peer address, count them
-                status["peer_count"] = len(
-                    [line for line in swarm_peers_output.stdout.strip().split("\n") if line]
-                )
+                status["peer_count"] = len([line for line in swarm_peers_output.stdout.strip().split('\n') if line])
 
                 # Get IPFS version
-                version_output = subprocess.run(
-                    ["ipfs", "version", "--enc=json"],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                    timeout=5,
-                )
+                version_output = subprocess.run(["ipfs", "version", "--enc=json"], capture_output=True, text=True, check=True, timeout=5)
                 version_data = json.loads(version_output.stdout)
                 status["ipfs_version"] = version_data.get("Version")
 
-            except (
-                subprocess.CalledProcessError,
-                FileNotFoundError,
-                json.JSONDecodeError,
-                subprocess.TimeoutExpired,
-            ) as e:
+            except (subprocess.CalledProcessError, FileNotFoundError, json.JSONDecodeError, subprocess.TimeoutExpired) as e:
                 status["api_reachable"] = False
                 status["error"] = f"IPFS API/CLI error: {e}"
         else:

@@ -43,17 +43,16 @@ class S3ControllerAnyIO(S3Controller):
     the business logic to the S3 model, supporting both async-io
     and trio backends through AnyIO compatibility.
     """
-
     @staticmethod
     def get_backend():
         """
-        import sys
-        import os
-        # Add the parent directory to sys.path to allow importing mcp_error_handling
-        sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-        import mcp_error_handling
+import sys
+import os
+# Add the parent directory to sys.path to allow importing mcp_error_handling
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+import mcp_error_handling
 
-        Get the current async backend being used."""
+Get the current async backend being used."""
         try:
             return sniffio.current_async_library()
         except sniffio.AsyncLibraryNotFoundError:
@@ -219,8 +218,8 @@ class S3ControllerAnyIO(S3Controller):
                     message_override={
                         "error": "Bucket name is required",
                         "endpoint": "/api/v0/s3_anyio",
-                        "doc_category": "storage",
-                    },
+                        "doc_category": "storage"
+                    }
                 )
 
             # Use filename as key if not provided
@@ -238,8 +237,8 @@ class S3ControllerAnyIO(S3Controller):
                         message_override={
                             "error": "Invalid metadata JSON",
                             "endpoint": "/api/v0/s3_anyio",
-                            "doc_category": "storage",
-                        },
+                            "doc_category": "storage"
+                        }
                     )
 
             # Use anyio for temporary file handling
@@ -269,8 +268,8 @@ class S3ControllerAnyIO(S3Controller):
                     message_override={
                         "error": "Missing request data",
                         "endpoint": "/api/v0/s3_anyio",
-                        "doc_category": "storage",
-                    },
+                        "doc_category": "storage"
+                    }
                 )
 
             # Delegate to S3 model using anyio.to_thread.run_sync
@@ -290,8 +289,8 @@ class S3ControllerAnyIO(S3Controller):
                     "error": result.get("error", "Unknown error"),
                     "error_type": result.get("error_type", "UnknownError"),
                     "endpoint": "/api/v0/s3_anyio",
-                    "doc_category": "storage",
-                },
+                    "doc_category": "storage"
+                }
             )
 
         # Add duration if not already present
@@ -327,8 +326,8 @@ class S3ControllerAnyIO(S3Controller):
                     "error": result.get("error", "Unknown error"),
                     "error_type": result.get("error_type", "UnknownError"),
                     "endpoint": "/api/v0/s3_anyio",
-                    "doc_category": "storage",
-                },
+                    "doc_category": "storage"
+                }
             )
 
         # Return successful response
@@ -358,8 +357,8 @@ class S3ControllerAnyIO(S3Controller):
                     "error": result.get("error", "Unknown error"),
                     "error_type": result.get("error_type", "UnknownError"),
                     "endpoint": "/api/v0/s3_anyio",
-                    "doc_category": "storage",
-                },
+                    "doc_category": "storage"
+                }
             )
 
         # Return successful response
@@ -388,8 +387,8 @@ class S3ControllerAnyIO(S3Controller):
                     "error": result.get("error", "Unknown error"),
                     "error_type": result.get("error_type", "UnknownError"),
                     "endpoint": "/api/v0/s3_anyio",
-                    "doc_category": "storage",
-                },
+                    "doc_category": "storage"
+                }
             )
 
         # Return successful response
@@ -422,8 +421,8 @@ class S3ControllerAnyIO(S3Controller):
                     "error": result.get("error", "Unknown error"),
                     "error_type": result.get("error_type", "UnknownError"),
                     "endpoint": "/api/v0/s3_anyio",
-                    "doc_category": "storage",
-                },
+                    "doc_category": "storage"
+                }
             )
 
         # Return successful response
@@ -455,8 +454,8 @@ class S3ControllerAnyIO(S3Controller):
                     "error": result.get("error", "Unknown error"),
                     "error_type": result.get("error_type", "UnknownError"),
                     "endpoint": "/api/v0/s3_anyio",
-                    "doc_category": "storage",
-                },
+                    "doc_category": "storage"
+                }
             )
 
         # Return successful response
@@ -503,8 +502,8 @@ class S3ControllerAnyIO(S3Controller):
                     "error": result.get("error", "Unknown error"),
                     "error_type": result.get("error_type", "UnknownError"),
                     "endpoint": "/api/v0/s3_anyio",
-                    "doc_category": "storage",
-                },
+                    "doc_category": "storage"
+                }
             )
 
         # Add duration if not already present

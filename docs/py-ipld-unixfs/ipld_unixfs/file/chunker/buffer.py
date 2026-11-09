@@ -119,7 +119,9 @@ def extend(buffer: BufferSlice, bytes: memoryview) -> BufferView:
         return (
             buffer
             if isinstance(buffer, BufferView)
-            else BufferView._create(buffer.segments, buffer.byte_offset, buffer.byte_length)
+            else BufferView._create(
+                buffer.segments, buffer.byte_offset, buffer.byte_length
+            )
         )
     view = BufferView._create(
         list(buffer.segments), buffer.byte_offset, buffer.byte_length + len(bytes)
@@ -145,7 +147,9 @@ def slice_(buffer: BufferSlice, bounds: slice) -> BufferView:
         return (
             buffer
             if isinstance(buffer, BufferView)
-            else BufferView._create(buffer.segments, buffer.byte_offset, buffer.byte_length)
+            else BufferView._create(
+                buffer.segments, buffer.byte_offset, buffer.byte_length
+            )
         )
 
     # If range is not within the current buffer just create an empty slice.

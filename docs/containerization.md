@@ -1574,7 +1574,13 @@ from ipfs_kit_py.ipfs_kit import ipfs_kit
 import sensor_library  # Example IoT sensor library
 
 # Initialize IPFS Kit in leecher mode with offline capabilities
-kit = ipfs_kit(role="leecher", metadata={"enable_offline_mode": True, "sync_on_connect": True})
+kit = ipfs_kit(
+    role="leecher",
+    metadata={
+        "enable_offline_mode": True,
+        "sync_on_connect": True
+    }
+)
 
 # Configure the sensors
 sensors = sensor_library.initialize_sensors()
@@ -1588,22 +1594,29 @@ while True:
             readings[sensor_id] = sensor.read()
         except Exception as e:
             print(f"Error reading sensor {sensor_id}: {e}")
-
+    
     # Add metadata
-    data = {"device_id": "gateway-123", "timestamp": time.time(), "readings": readings}
-
+    data = {
+        "device_id": "gateway-123",
+        "timestamp": time.time(),
+        "readings": readings
+    }
+    
     # Store in IPFS
     result = kit.ipfs_add_json(data)
-
+    
     if result["success"]:
         print(f"Data stored with CID: {result['cid']}")
-
+        
         # Publish to data topic if online
         if kit.is_online():
-            kit.ipfs_pubsub_publish("iot/sensor/readings", json.dumps({"cid": result["cid"]}))
+            kit.ipfs_pubsub_publish(
+                "iot/sensor/readings",
+                json.dumps({"cid": result["cid"]})
+            )
     else:
         print(f"Failed to store data: {result['error']}")
-
+    
     # Sleep until next reading
     time.sleep(60)
 ```

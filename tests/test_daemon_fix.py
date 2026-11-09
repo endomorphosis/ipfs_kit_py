@@ -2,10 +2,7 @@
 """Legacy daemon management test (skipped)."""
 
 import pytest
-
-pytest.skip(
-    "Daemon management integration refactored; legacy test skipped", allow_module_level=True
-)
+pytest.skip("Daemon management integration refactored; legacy test skipped", allow_module_level=True)
 
 import sys
 import os
@@ -19,9 +16,7 @@ sys.path.insert(0, str(repo_root))
 import logging
 
 # Set up logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # (Original functional test removed)

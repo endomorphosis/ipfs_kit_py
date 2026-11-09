@@ -21,7 +21,8 @@ from typing import Dict, Any, Optional, List
 
 # Set up logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("mcp_blue_green_runner")
 
@@ -33,7 +34,6 @@ if parent_dir not in sys.path:
 # Try to import necessary components
 try:
     from ipfs_kit_py.mcp_server.blue_green_proxy import AsyncMCPServerProxy, DeploymentMode
-
     PROXY_AVAILABLE = True
 except ImportError as e:
     logger.error(f"Failed to import AsyncMCPServerProxy: {e}")
@@ -41,7 +41,6 @@ except ImportError as e:
 
 try:
     from aiohttp import web
-
     AIOHTTP_AVAILABLE = True
 except ImportError:
     logger.warning("aiohttp not available. Install with: pip install aiohttp")
@@ -52,11 +51,10 @@ server_proxy = None
 app_runner = None
 shutdown_requested = False
 
-
 def load_config(config_path: str) -> Dict[str, Any]:
     """Load configuration from file."""
     try:
-        with open(config_path, "r") as f:
+        with open(config_path, 'r') as f:
             config = json.load(f)
         logger.info(f"Loaded configuration from {config_path}")
         return config
@@ -64,10 +62,8 @@ def load_config(config_path: str) -> Dict[str, Any]:
         logger.error(f"Failed to load configuration: {e}")
         sys.exit(1)
 
-
 def setup_signal_handlers():
     """Set up signal handlers for graceful shutdown."""
-
     def handle_signal(sig, frame):
         global shutdown_requested
         logger.info(f"Received signal {sig}, shutting down...")
@@ -75,7 +71,6 @@ def setup_signal_handlers():
 
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
-
 
 async def shutdown():
     """Shut down the server gracefully."""
@@ -91,7 +86,6 @@ async def shutdown():
         logger.info("Stopping server proxy...")
         await server_proxy.stop()
 
-
 async def health_monitoring(interval: int = 60):
     """Periodically check server health and log statistics."""
     global server_proxy
@@ -105,9 +99,7 @@ async def health_monitoring(interval: int = 60):
                 # Log traffic split if available
                 if "traffic_split" in health:
                     split = health["traffic_split"]
-                    logger.info(
-                        f"Traffic split: Blue {split['blue_percentage']}%, Green {split['green_percentage']}%"
-                    )
+                    logger.info(f"Traffic split: Blue {split['blue_percentage']}%, Green {split['green_percentage']}%")
 
                 # Log metrics if available
                 if "metrics" in health:
@@ -115,27 +107,19 @@ async def health_monitoring(interval: int = 60):
                     blue_stats = metrics.get("blue", {})
                     green_stats = metrics.get("green", {})
 
-                    logger.info(
-                        f"Blue: {blue_stats.get('requests', 0)} requests, {blue_stats.get('success_rate', 0):.1f}% success"
-                    )
-                    logger.info(
-                        f"Green: {green_stats.get('requests', 0)} requests, {green_stats.get('success_rate', 0):.1f}% success"
-                    )
+                    logger.info(f"Blue: {blue_stats.get('requests', 0)} requests, {blue_stats.get('success_rate', 0):.1f}% success")
+                    logger.info(f"Green: {green_stats.get('requests', 0)} requests, {green_stats.get('success_rate', 0):.1f}% success")
 
                 # Log validation stats if available
                 if "validation" in health:
                     validation = health["validation"]
-                    logger.info(
-                        f"Compatibility: {validation.get('compatible_rate', 0):.1f}%, "
-                        f"Identical: {validation.get('identical_rate', 0):.1f}%"
-                    )
+                    logger.info(f"Compatibility: {validation.get('compatible_rate', 0):.1f}%, "
+                                f"Identical: {validation.get('identical_rate', 0):.1f}%")
 
                     # Log recommendation if available
                     if "recommendations" in validation:
                         recommendation = validation["recommendations"]
-                        logger.info(
-                            f"Recommendation: {recommendation.get('action')} - {recommendation.get('message')}"
-                        )
+                        logger.info(f"Recommendation: {recommendation.get('action')} - {recommendation.get('message')}")
 
             await anyio.sleep(interval)
 
@@ -144,7 +128,6 @@ async def health_monitoring(interval: int = 60):
         except Exception as e:
             logger.error(f"Error in health monitoring: {e}")
             await anyio.sleep(interval)
-
 
 async def setup_web_dashboard(config: Dict[str, Any], host: str = "localhost", port: int = 8090):
     """Set up a web dashboard for monitoring the blue/green deployment."""
@@ -519,12 +502,12 @@ async def setup_web_dashboard(config: Dict[str, Any], host: str = "localhost", p
         </body>
         </html>
         """
-        return web.Response(text=html, content_type="text/html")
+        return web.Response(text=html, content_type='text/html')
 
     # Set up routes
-    app.router.add_get("/", index_handler)
-    app.router.add_get("/api/health", health_handler)
-    app.router.add_post("/api/set_mode", set_mode_handler)
+    app.router.add_get('/', index_handler)
+    app.router.add_get('/api/health', health_handler)
+    app.router.add_post('/api/set_mode', set_mode_handler)
 
     # Start the web application
     runner = web.AppRunner(app)
@@ -538,7 +521,6 @@ async def setup_web_dashboard(config: Dict[str, Any], host: str = "localhost", p
     app_runner = runner
 
     return runner
-
 
 async def run_server(args):
     """Run the MCP server with blue/green deployment."""
@@ -578,9 +560,7 @@ async def run_server(args):
         if "file" in log_config:
             os.makedirs(os.path.dirname(log_config["file"]), exist_ok=True)
             file_handler = logging.FileHandler(log_config["file"])
-            file_handler.setFormatter(
-                logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-            )
+            file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
             logging.getLogger().addHandler(file_handler)
 
     # Initialize and start the server proxy
@@ -632,32 +612,18 @@ async def run_server(args):
 
     return 0
 
-
 def main():
     """Main entry point."""
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Run MCP Server with blue/green deployment")
-    parser.add_argument(
-        "--config", "-c", default="config/blue_green_config.json", help="Path to configuration file"
-    )
-    parser.add_argument(
-        "--mode",
-        "-m",
-        choices=["blue", "green", "gradual", "parallel", "auto"],
-        help="Deployment mode to use (overrides config)",
-    )
-    parser.add_argument(
-        "--green-percentage",
-        "-p",
-        type=int,
-        help="Percentage of traffic to route to green for gradual mode",
-    )
-    parser.add_argument(
-        "--no-dashboard",
-        "-n",
-        action="store_true",
-        help="Disable web dashboard even if enabled in config",
-    )
+    parser.add_argument("--config", "-c", default="config/blue_green_config.json",
+                        help="Path to configuration file")
+    parser.add_argument("--mode", "-m", choices=["blue", "green", "gradual", "parallel", "auto"],
+                        help="Deployment mode to use (overrides config)")
+    parser.add_argument("--green-percentage", "-p", type=int,
+                        help="Percentage of traffic to route to green for gradual mode")
+    parser.add_argument("--no-dashboard", "-n", action="store_true",
+                        help="Disable web dashboard even if enabled in config")
     args = parser.parse_args()
 
     # Set up signal handlers
@@ -669,7 +635,6 @@ def main():
         sys.exit(exit_code)
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
-
 
 if __name__ == "__main__":
     main()

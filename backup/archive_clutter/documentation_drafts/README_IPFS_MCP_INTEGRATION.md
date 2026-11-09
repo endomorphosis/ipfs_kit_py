@@ -104,24 +104,23 @@ print(result)
 ### Writing to MFS
 
 ```python
-result = await context.use_tool(
-    "ipfs_files_write",
-    {"path": "/hello.txt", "content": "Hello, IPFS!", "create": True, "truncate": True},
-)
+result = await context.use_tool("ipfs_files_write", {
+    "path": "/hello.txt",
+    "content": "Hello, IPFS!",
+    "create": True,
+    "truncate": True
+})
 print(result)
 ```
 
 ### Publishing to IPNS
 
 ```python
-result = await context.use_tool(
-    "ipfs_name_publish",
-    {
-        "path": "/ipfs/QmXarR6rgkQ2fDSHjSY5nM2kuCXKYGViky5nohtwgF65Ec",
-        "resolve": True,
-        "lifetime": "24h",
-    },
-)
+result = await context.use_tool("ipfs_name_publish", {
+    "path": "/ipfs/QmXarR6rgkQ2fDSHjSY5nM2kuCXKYGViky5nohtwgF65Ec",
+    "resolve": True,
+    "lifetime": "24h"
+})
 print(result)
 ```
 

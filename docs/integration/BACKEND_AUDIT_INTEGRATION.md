@@ -250,14 +250,21 @@ logger = AuditLogger()
 
 # Get all operations for a specific user
 events = logger.query_events(
-    user_id="alice", event_types=["backend_operation", "vfs_operation", "wal_operation"]
+    user_id="alice",
+    event_types=["backend_operation", "vfs_operation", "wal_operation"]
 )
 
 # Get all operations on a specific resource
-events = logger.query_events(resource_id="bucket-123", event_types=["vfs_operation"])
+events = logger.query_events(
+    resource_id="bucket-123",
+    event_types=["vfs_operation"]
+)
 
 # Get all failed operations
-events = logger.query_events(status="failure", time_range=(start_time, end_time))
+events = logger.query_events(
+    status="failure",
+    time_range=(start_time, end_time)
+)
 ```
 
 ---
@@ -375,21 +382,21 @@ def test_backend_create_emits_audit_event():
 async def test_full_operation_audit_trail():
     # Create backend
     backend_id = await backend_manager.create_backend(...)
-
+    
     # Create bucket
     bucket_id = await vfs_manager.create_bucket(...)
-
+    
     # Write file
     await vfs_manager.write_file(bucket_id, "/file.txt", "data")
-
+    
     # Query audit log
     events = audit_logger.query_events(resource_id=bucket_id)
-
+    
     # Verify complete trail
     assert len(events) == 3
     assert events[0].action == "create"  # backend
     assert events[1].action == "create"  # bucket
-    assert events[2].action == "write"  # file
+    assert events[2].action == "write"   # file
 ```
 
 ---

@@ -28,16 +28,14 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s: %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s: %(message)s')
 logger = logging.getLogger("mcp_simulation_server")
 
 # Create FastAPI app
 app = FastAPI(
     title="IPFS MCP Simulation Server",
     description="Simulation server for IPFS MCP storage backends",
-    version="1.0.0",
+    version="1.0.0"
 )
 
 # Add CORS middleware
@@ -55,9 +53,8 @@ storage_backends = {
     "s3": True,
     "huggingface": True,
     "storacha": True,
-    "lassie": True,
+    "lassie": True
 }
-
 
 # Add routes for storage backends
 @app.get("/api/v0/mcp/health")
@@ -84,11 +81,10 @@ async def health_check():
             "distributed": True,
             "fs_journal": True,
             "peer_websocket": True,
-            "webrtc": True,
+            "webrtc": True
         },
-        "simulation_mode": True,
+        "simulation_mode": True
     }
-
 
 @app.get("/api/v0/mcp/filecoin/status")
 async def filecoin_status():
@@ -101,9 +97,8 @@ async def filecoin_status():
         "backend": "filecoin",
         "version": "Simulation v1.0",
         "connected": True,
-        "simulation_mode": True,
+        "simulation_mode": True
     }
-
 
 @app.get("/api/v0/mcp/storage/huggingface/status")
 async def huggingface_status():
@@ -116,9 +111,8 @@ async def huggingface_status():
         "backend": "huggingface",
         "version": "Simulation v1.0",
         "connected": True,
-        "simulation_mode": True,
+        "simulation_mode": True
     }
-
 
 @app.get("/api/v0/mcp/storage/storacha/status")
 async def storacha_status():
@@ -131,9 +125,8 @@ async def storacha_status():
         "backend": "storacha",
         "version": "Simulation v1.0",
         "connected": True,
-        "simulation_mode": True,
+        "simulation_mode": True
     }
-
 
 @app.get("/api/v0/mcp/storage/lassie/status")
 async def lassie_status():
@@ -146,9 +139,8 @@ async def lassie_status():
         "backend": "lassie",
         "version": "Simulation v1.0",
         "connected": True,
-        "simulation_mode": True,
+        "simulation_mode": True
     }
-
 
 @app.get("/api/v0/mcp/storage/{storage_name}/status")
 async def generic_storage_status(storage_name: str):
@@ -162,7 +154,7 @@ async def generic_storage_status(storage_name: str):
             "backend": storage_name,
             "version": "Simulation v1.0",
             "connected": True,
-            "simulation_mode": True,
+            "simulation_mode": True
         }
     else:
         storage_backends[storage_name] = True
@@ -174,9 +166,8 @@ async def generic_storage_status(storage_name: str):
             "backend": storage_name,
             "version": "Simulation v1.0",
             "connected": True,
-            "simulation_mode": True,
+            "simulation_mode": True
         }
-
 
 @app.get("/api/v0/mcp/storage/status")
 async def overall_storage_status():
@@ -186,17 +177,16 @@ async def overall_storage_status():
         backends[name] = {
             "available": available,
             "simulation_mode": True,
-            "version": "Simulation v1.0",
+            "version": "Simulation v1.0"
         }
-
+    
     return {
         "success": True,
         "operation_id": f"status-{int(time.time())}",
         "timestamp": time.time(),
         "backends": backends,
-        "simulation_mode": True,
+        "simulation_mode": True
     }
-
 
 def main():
     # Run the server
@@ -209,12 +199,11 @@ def main():
     else:
         # When run under pytest, use default values
         args = parser.parse_args([])
-
+    
     logger.info(f"Starting MCP Simulation Server on {args.host}:{args.port}")
     logger.info("All storage backends are simulated and will report as working")
-
+    
     uvicorn.run(app, host=args.host, port=args.port)
-
 
 if __name__ == "__main__":
     main()

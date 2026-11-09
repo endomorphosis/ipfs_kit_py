@@ -108,8 +108,8 @@ libp2p_peer = IPFSLibp2pPeer(
     role="worker",
     bootstrap_peers=[
         "/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN",
-        "/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa",
-    ],
+        "/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa"
+    ]
 )
 
 # Register with IPFS Kit
@@ -159,7 +159,7 @@ print(f"Cache misses handled: {stats.get('cache_misses_handled', 0)}")
 print(f"Success rate: {stats.get('success_rate', 0):.2f}")
 
 # Get discovery metrics
-discovery_metrics = stats.get("discovery_metrics", {})
+discovery_metrics = stats.get('discovery_metrics', {})
 print(f"Successful retrievals: {discovery_metrics.get('successful_retrievals', 0)}")
 ```
 
@@ -203,36 +203,36 @@ master_kit = ipfs_kit(role="master")
 for task_data in tasks:
     # Store task data in IPFS
     task_cid = master_kit.ipfs_add_json(task_data)["Hash"]
-
+    
     # Publish task to workers
-    master_kit.ipfs_pubsub_publish(
-        "task_queue", json.dumps({"task_cid": task_cid, "timestamp": time.time()})
-    )
+    master_kit.ipfs_pubsub_publish("task_queue", json.dumps({
+        "task_cid": task_cid,
+        "timestamp": time.time()
+    }))
 
 # Worker nodes process tasks
 worker_kit = ipfs_kit(role="worker")
 worker_fs = worker_kit.get_filesystem(use_libp2p=True)
 
-
 def process_task_message(message):
     task_data = json.loads(message["data"])
     task_cid = task_data["task_cid"]
-
+    
     # Get task data using libp2p if needed
     task = json.loads(worker_fs.cat(task_cid))
-
+    
     # Process task
     result = process_task(task)
-
+    
     # Store result in IPFS
     result_cid = worker_kit.ipfs_add_json(result)["Hash"]
-
+    
     # Publish result
-    worker_kit.ipfs_pubsub_publish(
-        "task_results",
-        json.dumps({"task_cid": task_cid, "result_cid": result_cid, "timestamp": time.time()}),
-    )
-
+    worker_kit.ipfs_pubsub_publish("task_results", json.dumps({
+        "task_cid": task_cid,
+        "result_cid": result_cid,
+        "timestamp": time.time()
+    }))
 
 # Subscribe to task queue
 worker_kit.ipfs_pubsub_subscribe("task_queue", process_task_message)
@@ -250,12 +250,11 @@ from ipfs_kit_py.libp2p_peer import IPFSLibp2pPeer
 peer = IPFSLibp2pPeer(
     role="messaging",
     listen_addrs=["/ip4/0.0.0.0/tcp/4001", "/ip4/0.0.0.0/udp/4001/quic"],
-    security_options={"noise": {"static_key": True}},
+    security_options={"noise": {"static_key": True}}
 )
 
 # Start discovery to find other messaging peers
 peer.start_discovery(rendezvous_string="secure-messaging")
-
 
 # Send a message to a specific peer
 def send_message(receiver_id, message):
@@ -264,13 +263,11 @@ def send_message(receiver_id, message):
     stream.write(encrypted_message)
     stream.close()
 
-
 # Handle incoming messages
 def handle_message_stream(stream):
     message_data = await stream.read()
     decrypted_message = decrypt_message(message_data)
     print(f"Received message: {decrypted_message}")
-
 
 # Register protocol handler
 peer.host.set_stream_handler("/messaging/1.0.0", handle_message_stream)

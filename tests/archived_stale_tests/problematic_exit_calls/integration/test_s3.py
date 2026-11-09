@@ -11,12 +11,11 @@ from test_all_backends import test_s3, create_test_file
 CONFIG_DIR = os.path.expanduser("~/.ipfs_kit")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
 
-
 def get_stored_credentials():
     """Get credentials from secure storage."""
     if os.path.exists(CONFIG_FILE):
         try:
-            with open(CONFIG_FILE, "r") as f:
+            with open(CONFIG_FILE, 'r') as f:
                 config = json.load(f)
                 return config.get("credentials", {})
         except json.JSONDecodeError:
@@ -25,7 +24,6 @@ def get_stored_credentials():
     else:
         print(f"No configuration file found at {CONFIG_FILE}")
         return {}
-
 
 # Load credentials from secure storage
 creds = get_stored_credentials()

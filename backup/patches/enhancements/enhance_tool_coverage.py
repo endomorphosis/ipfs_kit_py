@@ -14,9 +14,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 # List of new tools to add
@@ -28,11 +26,17 @@ ADDITIONAL_TOOLS = [
         "schema": {
             "type": "object",
             "properties": {
-                "topic": {"type": "string", "description": "The topic to publish to"},
-                "message": {"type": "string", "description": "The message content to publish"},
+                "topic": {
+                    "type": "string",
+                    "description": "The topic to publish to"
+                },
+                "message": {
+                    "type": "string",
+                    "description": "The message content to publish"
+                }
             },
-            "required": ["topic", "message"],
-        },
+            "required": ["topic", "message"]
+        }
     },
     {
         "name": "ipfs_pubsub_subscribe",
@@ -40,15 +44,18 @@ ADDITIONAL_TOOLS = [
         "schema": {
             "type": "object",
             "properties": {
-                "topic": {"type": "string", "description": "The topic to subscribe to"},
+                "topic": {
+                    "type": "string",
+                    "description": "The topic to subscribe to"
+                },
                 "timeout": {
                     "type": "integer",
                     "description": "Timeout in seconds (0 for no timeout)",
-                    "default": 30,
-                },
+                    "default": 30
+                }
             },
-            "required": ["topic"],
-        },
+            "required": ["topic"]
+        }
     },
     {
         "name": "ipfs_dht_findpeer",
@@ -56,11 +63,18 @@ ADDITIONAL_TOOLS = [
         "schema": {
             "type": "object",
             "properties": {
-                "peer_id": {"type": "string", "description": "The peer ID to find"},
-                "timeout": {"type": "integer", "description": "Timeout in seconds", "default": 30},
+                "peer_id": {
+                    "type": "string",
+                    "description": "The peer ID to find"
+                },
+                "timeout": {
+                    "type": "integer",
+                    "description": "Timeout in seconds",
+                    "default": 30
+                }
             },
-            "required": ["peer_id"],
-        },
+            "required": ["peer_id"]
+        }
     },
     {
         "name": "ipfs_dht_findprovs",
@@ -68,16 +82,20 @@ ADDITIONAL_TOOLS = [
         "schema": {
             "type": "object",
             "properties": {
-                "cid": {"type": "string", "description": "The CID to find providers for"},
+                "cid": {
+                    "type": "string",
+                    "description": "The CID to find providers for"
+                },
                 "num_providers": {
                     "type": "integer",
                     "description": "Maximum number of providers to find",
-                    "default": 20,
-                },
+                    "default": 20
+                }
             },
-            "required": ["cid"],
-        },
+            "required": ["cid"]
+        }
     },
+
     # IPFS Cluster Integration
     {
         "name": "ipfs_cluster_pin",
@@ -85,16 +103,22 @@ ADDITIONAL_TOOLS = [
         "schema": {
             "type": "object",
             "properties": {
-                "cid": {"type": "string", "description": "The CID to pin in the cluster"},
-                "name": {"type": "string", "description": "Optional name for the pinned item"},
+                "cid": {
+                    "type": "string",
+                    "description": "The CID to pin in the cluster"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Optional name for the pinned item"
+                },
                 "replication_factor": {
                     "type": "integer",
                     "description": "Number of nodes to replicate the pin to",
-                    "default": -1,
-                },
+                    "default": -1
+                }
             },
-            "required": ["cid"],
-        },
+            "required": ["cid"]
+        }
     },
     {
         "name": "ipfs_cluster_status",
@@ -102,21 +126,28 @@ ADDITIONAL_TOOLS = [
         "schema": {
             "type": "object",
             "properties": {
-                "cid": {"type": "string", "description": "The CID to check status for"},
+                "cid": {
+                    "type": "string",
+                    "description": "The CID to check status for"
+                },
                 "local": {
                     "type": "boolean",
                     "description": "Show only local information",
-                    "default": False,
-                },
+                    "default": False
+                }
             },
-            "required": ["cid"],
-        },
+            "required": ["cid"]
+        }
     },
     {
         "name": "ipfs_cluster_peers",
         "description": "List peers in the IPFS cluster",
-        "schema": {"type": "object", "properties": {}},
+        "schema": {
+            "type": "object",
+            "properties": {}
+        }
     },
+
     # Lassie Content Retrieval Tools
     {
         "name": "lassie_fetch",
@@ -124,20 +155,27 @@ ADDITIONAL_TOOLS = [
         "schema": {
             "type": "object",
             "properties": {
-                "cid": {"type": "string", "description": "The CID to fetch"},
+                "cid": {
+                    "type": "string",
+                    "description": "The CID to fetch"
+                },
                 "output_path": {
                     "type": "string",
-                    "description": "Local path to save the fetched content",
+                    "description": "Local path to save the fetched content"
                 },
-                "timeout": {"type": "integer", "description": "Timeout in seconds", "default": 300},
+                "timeout": {
+                    "type": "integer",
+                    "description": "Timeout in seconds",
+                    "default": 300
+                },
                 "include_ipni": {
                     "type": "boolean",
                     "description": "Include IPNI indexers in retrieval",
-                    "default": True,
-                },
+                    "default": True
+                }
             },
-            "required": ["cid", "output_path"],
-        },
+            "required": ["cid", "output_path"]
+        }
     },
     {
         "name": "lassie_fetch_with_providers",
@@ -145,20 +183,26 @@ ADDITIONAL_TOOLS = [
         "schema": {
             "type": "object",
             "properties": {
-                "cid": {"type": "string", "description": "The CID to fetch"},
+                "cid": {
+                    "type": "string",
+                    "description": "The CID to fetch"
+                },
                 "providers": {
                     "type": "array",
                     "description": "List of provider addresses",
-                    "items": {"type": "string"},
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "output_path": {
                     "type": "string",
-                    "description": "Local path to save the fetched content",
-                },
+                    "description": "Local path to save the fetched content"
+                }
             },
-            "required": ["cid", "providers", "output_path"],
-        },
+            "required": ["cid", "providers", "output_path"]
+        }
     },
+
     # AI/ML Model Integration Tools
     {
         "name": "ai_model_register",
@@ -168,18 +212,28 @@ ADDITIONAL_TOOLS = [
             "properties": {
                 "model_path": {
                     "type": "string",
-                    "description": "Path to the model file or directory",
+                    "description": "Path to the model file or directory"
                 },
-                "model_name": {"type": "string", "description": "Name of the model"},
+                "model_name": {
+                    "type": "string",
+                    "description": "Name of the model"
+                },
                 "model_type": {
                     "type": "string",
-                    "description": "Type of model (classification, segmentation, etc.)",
+                    "description": "Type of model (classification, segmentation, etc.)"
                 },
-                "version": {"type": "string", "description": "Model version", "default": "1.0.0"},
-                "metadata": {"type": "object", "description": "Additional model metadata"},
+                "version": {
+                    "type": "string",
+                    "description": "Model version",
+                    "default": "1.0.0"
+                },
+                "metadata": {
+                    "type": "object",
+                    "description": "Additional model metadata"
+                }
             },
-            "required": ["model_path", "model_name", "model_type"],
-        },
+            "required": ["model_path", "model_name", "model_type"]
+        }
     },
     {
         "name": "ai_dataset_register",
@@ -189,19 +243,30 @@ ADDITIONAL_TOOLS = [
             "properties": {
                 "dataset_path": {
                     "type": "string",
-                    "description": "Path to the dataset file or directory",
+                    "description": "Path to the dataset file or directory"
                 },
-                "dataset_name": {"type": "string", "description": "Name of the dataset"},
+                "dataset_name": {
+                    "type": "string",
+                    "description": "Name of the dataset"
+                },
                 "dataset_type": {
                     "type": "string",
-                    "description": "Type of dataset (images, text, etc.)",
+                    "description": "Type of dataset (images, text, etc.)"
                 },
-                "version": {"type": "string", "description": "Dataset version", "default": "1.0.0"},
-                "metadata": {"type": "object", "description": "Additional dataset metadata"},
+                "version": {
+                    "type": "string",
+                    "description": "Dataset version",
+                    "default": "1.0.0"
+                },
+                "metadata": {
+                    "type": "object",
+                    "description": "Additional dataset metadata"
+                }
             },
-            "required": ["dataset_path", "dataset_name", "dataset_type"],
-        },
+            "required": ["dataset_path", "dataset_name", "dataset_type"]
+        }
     },
+
     # Search Tools
     {
         "name": "search_content",
@@ -209,25 +274,29 @@ ADDITIONAL_TOOLS = [
         "schema": {
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "Search query"},
+                "query": {
+                    "type": "string",
+                    "description": "Search query"
+                },
                 "content_types": {
                     "type": "array",
                     "description": "Content types to search for",
                     "items": {
                         "type": "string",
-                        "enum": ["document", "image", "video", "audio", "code", "all"],
+                        "enum": ["document", "image", "video", "audio", "code", "all"]
                     },
-                    "default": ["all"],
+                    "default": ["all"]
                 },
                 "max_results": {
                     "type": "integer",
                     "description": "Maximum number of results",
-                    "default": 50,
-                },
+                    "default": 50
+                }
             },
-            "required": ["query"],
-        },
+            "required": ["query"]
+        }
     },
+
     # Storacha Integration
     {
         "name": "storacha_store",
@@ -235,20 +304,23 @@ ADDITIONAL_TOOLS = [
         "schema": {
             "type": "object",
             "properties": {
-                "content_path": {"type": "string", "description": "Path to the content to store"},
+                "content_path": {
+                    "type": "string",
+                    "description": "Path to the content to store"
+                },
                 "replication": {
                     "type": "integer",
                     "description": "Replication factor",
-                    "default": 3,
+                    "default": 3
                 },
                 "encryption": {
                     "type": "boolean",
                     "description": "Whether to encrypt the content",
-                    "default": True,
-                },
+                    "default": True
+                }
             },
-            "required": ["content_path"],
-        },
+            "required": ["content_path"]
+        }
     },
     {
         "name": "storacha_retrieve",
@@ -256,15 +328,19 @@ ADDITIONAL_TOOLS = [
         "schema": {
             "type": "object",
             "properties": {
-                "content_id": {"type": "string", "description": "Storacha content ID"},
+                "content_id": {
+                    "type": "string",
+                    "description": "Storacha content ID"
+                },
                 "output_path": {
                     "type": "string",
-                    "description": "Path to save the retrieved content",
-                },
+                    "description": "Path to save the retrieved content"
+                }
             },
-            "required": ["content_id", "output_path"],
-        },
+            "required": ["content_id", "output_path"]
+        }
     },
+
     # Multi-Backend Management
     {
         "name": "multi_backend_add_backend",
@@ -275,26 +351,24 @@ ADDITIONAL_TOOLS = [
                 "backend_type": {
                     "type": "string",
                     "description": "Type of backend",
-                    "enum": [
-                        "ipfs",
-                        "filecoin",
-                        "s3",
-                        "storacha",
-                        "huggingface",
-                        "ipfs_cluster",
-                        "local",
-                    ],
+                    "enum": ["ipfs", "filecoin", "s3", "storacha", "huggingface", "ipfs_cluster", "local"]
                 },
-                "backend_name": {"type": "string", "description": "Name for the backend"},
+                "backend_name": {
+                    "type": "string",
+                    "description": "Name for the backend"
+                },
                 "mount_point": {
                     "type": "string",
                     "description": "Virtual filesystem mount point",
-                    "default": "/",
+                    "default": "/"
                 },
-                "config": {"type": "object", "description": "Backend-specific configuration"},
+                "config": {
+                    "type": "object",
+                    "description": "Backend-specific configuration"
+                }
             },
-            "required": ["backend_type", "backend_name"],
-        },
+            "required": ["backend_type", "backend_name"]
+        }
     },
     {
         "name": "multi_backend_list_backends",
@@ -305,16 +379,17 @@ ADDITIONAL_TOOLS = [
                 "include_status": {
                     "type": "boolean",
                     "description": "Include status information",
-                    "default": True,
+                    "default": True
                 },
                 "include_stats": {
                     "type": "boolean",
                     "description": "Include usage statistics",
-                    "default": False,
-                },
-            },
-        },
+                    "default": False
+                }
+            }
+        }
     },
+
     # Streaming Tools
     {
         "name": "streaming_create_stream",
@@ -322,17 +397,23 @@ ADDITIONAL_TOOLS = [
         "schema": {
             "type": "object",
             "properties": {
-                "stream_name": {"type": "string", "description": "Name for the stream"},
+                "stream_name": {
+                    "type": "string",
+                    "description": "Name for the stream"
+                },
                 "stream_type": {
                     "type": "string",
                     "description": "Type of stream",
                     "enum": ["pubsub", "unidir", "bidir"],
-                    "default": "pubsub",
+                    "default": "pubsub"
                 },
-                "metadata": {"type": "object", "description": "Stream metadata"},
+                "metadata": {
+                    "type": "object",
+                    "description": "Stream metadata"
+                }
             },
-            "required": ["stream_name"],
-        },
+            "required": ["stream_name"]
+        }
     },
     {
         "name": "streaming_publish",
@@ -340,17 +421,24 @@ ADDITIONAL_TOOLS = [
         "schema": {
             "type": "object",
             "properties": {
-                "stream_name": {"type": "string", "description": "Name of the stream"},
-                "data": {"type": "string", "description": "Data to publish"},
+                "stream_name": {
+                    "type": "string",
+                    "description": "Name of the stream"
+                },
+                "data": {
+                    "type": "string",
+                    "description": "Data to publish"
+                },
                 "content_type": {
                     "type": "string",
                     "description": "Content type of the data",
-                    "default": "text/plain",
-                },
+                    "default": "text/plain"
+                }
             },
-            "required": ["stream_name", "data"],
-        },
+            "required": ["stream_name", "data"]
+        }
     },
+
     # Monitoring and Metrics Tools
     {
         "name": "monitoring_get_metrics",
@@ -362,16 +450,16 @@ ADDITIONAL_TOOLS = [
                     "type": "string",
                     "description": "Type of metrics to retrieve",
                     "enum": ["system", "ipfs", "filecoin", "storage", "all"],
-                    "default": "all",
+                    "default": "all"
                 },
                 "time_range": {
                     "type": "string",
                     "description": "Time range for metrics",
                     "enum": ["1h", "24h", "7d", "30d"],
-                    "default": "24h",
-                },
-            },
-        },
+                    "default": "24h"
+                }
+            }
+        }
     },
     {
         "name": "monitoring_create_alert",
@@ -379,25 +467,33 @@ ADDITIONAL_TOOLS = [
         "schema": {
             "type": "object",
             "properties": {
-                "alert_name": {"type": "string", "description": "Name for the alert"},
-                "metric": {"type": "string", "description": "Metric to monitor"},
-                "condition": {"type": "string", "description": "Alert condition (e.g., '> 90%')"},
+                "alert_name": {
+                    "type": "string",
+                    "description": "Name for the alert"
+                },
+                "metric": {
+                    "type": "string",
+                    "description": "Metric to monitor"
+                },
+                "condition": {
+                    "type": "string",
+                    "description": "Alert condition (e.g., '> 90%')"
+                },
                 "notification_channel": {
                     "type": "string",
                     "description": "Channel for notifications",
                     "enum": ["email", "slack", "webhook", "console"],
-                    "default": "console",
+                    "default": "console"
                 },
                 "notification_config": {
                     "type": "object",
-                    "description": "Channel-specific configuration",
-                },
+                    "description": "Channel-specific configuration"
+                }
             },
-            "required": ["alert_name", "metric", "condition"],
-        },
-    },
+            "required": ["alert_name", "metric", "condition"]
+        }
+    }
 ]
-
 
 def backup_file(file_path):
     """Create a backup of the file"""
@@ -405,12 +501,10 @@ def backup_file(file_path):
 
     if os.path.exists(file_path):
         import shutil
-
         shutil.copy2(file_path, backup_path)
         logger.info(f"Created backup at {backup_path}")
 
     return backup_path
-
 
 def update_tools_registry():
     """Update the IPFS tools registry with additional tools"""
@@ -421,7 +515,7 @@ def update_tools_registry():
 
     try:
         # Read the current registry
-        with open(tools_registry_path, "r") as f:
+        with open(tools_registry_path, 'r') as f:
             content = f.read()
 
         # Find the position to insert the new tools
@@ -435,16 +529,16 @@ def update_tools_registry():
         new_tools_str = ""
         for tool in ADDITIONAL_TOOLS:
             new_tools_str += f",\n\n    # {tool['name']}\n    {{\n"
-            new_tools_str += f'        "name": "{tool["name"]}",\n'
-            new_tools_str += f'        "description": "{tool["description"]}",\n'
-            new_tools_str += f'        "schema": {json.dumps(tool["schema"], indent=4).replace("{", "{{").replace("}", "}}").replace("\n", "\n        ")}\n'
+            new_tools_str += f"        \"name\": \"{tool['name']}\",\n"
+            new_tools_str += f"        \"description\": \"{tool['description']}\",\n"
+            new_tools_str += f"        \"schema\": {json.dumps(tool['schema'], indent=4).replace('{', '{{').replace('}', '}}').replace('\n', '\n        ')}\n"
             new_tools_str += f"    }}"
 
         # Insert the new tools
         updated_content = content[:tools_list_end] + new_tools_str + content[tools_list_end:]
 
         # Write the updated content
-        with open(tools_registry_path, "w") as f:
+        with open(tools_registry_path, 'w') as f:
             f.write(updated_content)
 
         logger.info(f"✅ Successfully added {len(ADDITIONAL_TOOLS)} new tools to the registry")
@@ -454,13 +548,12 @@ def update_tools_registry():
         logger.error(f"Error updating tools registry: {e}")
         return False
 
-
 def create_tool_implementations():
     """Create implementations for the new tools"""
     implementations_path = "enhanced_tool_implementations.py"
 
     try:
-        with open(implementations_path, "w") as f:
+        with open(implementations_path, 'w') as f:
             f.write('''#!/usr/bin/env python3
 \"\"\"
 Enhanced Tool Implementations for IPFS Kit
@@ -767,7 +860,6 @@ async def storacha_retrieve(ctx: Any, content_id: str, output_path: str) -> Dict
         logger.error(f"Error creating implementations file: {e}")
         return False
 
-
 def main():
     """Main function to enhance tool coverage"""
     logger.info("Starting tool coverage enhancement...")
@@ -789,7 +881,6 @@ def main():
     else:
         logger.error("\n❌ Tool coverage enhancement failed")
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

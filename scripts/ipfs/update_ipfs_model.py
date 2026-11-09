@@ -1,4 +1,4 @@
-# \!/usr/bin/env python3
+#\!/usr/bin/env python3
 """
 Script to update the ipfs_name_resolve method in the IPFS model file.
 """
@@ -7,20 +7,20 @@ import re
 import os
 import sys
 
-file_path = "ipfs_kit_py/mcp/models/ipfs_model.py"
+file_path = 'ipfs_kit_py/mcp/models/ipfs_model.py'
 
 # Read the original file
-with open(file_path, "r") as f:
+with open(file_path, 'r') as f:
     content = f.read()
 
 # First, manually find and check if the method exists
-start_pos = content.find("def ipfs_name_resolve")
+start_pos = content.find('def ipfs_name_resolve')
 if start_pos == -1:
     print("ERROR: Could not find ipfs_name_resolve method")
     sys.exit(1)
 
 # Find the end of the method by looking for the next method definition
-next_def_pos = content.find("\n    def ", start_pos + 1)
+next_def_pos = content.find('\n    def ', start_pos + 1)
 if next_def_pos == -1:
     # If no next method found, go to end of file
     method_content = content[start_pos:]
@@ -30,8 +30,8 @@ else:
 print(f"Found ipfs_name_resolve at position {start_pos}, length {len(method_content)}")
 
 # Backup the file before modifying
-backup_path = file_path + ".manual_backup"
-with open(backup_path, "w") as f:
+backup_path = file_path + '.manual_backup'
+with open(backup_path, 'w') as f:
     f.write(content)
 print(f"Created backup: {backup_path}")
 
@@ -204,7 +204,7 @@ new_method = """    def ipfs_name_resolve(self, name: str, recursive: bool = Tru
 new_content = content[:start_pos] + new_method + content[next_def_pos:]
 
 # Write the new content back to the file
-with open(file_path, "w") as f:
+with open(file_path, 'w') as f:
     f.write(new_content)
 
 print(f"Successfully updated ipfs_name_resolve method")
@@ -212,7 +212,6 @@ print(f"Successfully updated ipfs_name_resolve method")
 # Verify the file syntax
 try:
     import py_compile
-
     py_compile.compile(file_path, doraise=True)
     print("Syntax check passed\!")
 except Exception as e:

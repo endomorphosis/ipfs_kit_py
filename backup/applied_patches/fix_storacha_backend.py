@@ -44,13 +44,12 @@ class StorachaConnectionManager:
     4. Providing detailed error information
     5. Supporting connection pooling for performance
     """
-
     DEFAULT_ENDPOINTS = ["https://api.web3.storage/", "https://w3s.link/"]
 
     def __init__(
         self,
-        api_endpoints=None,
-        api_key=None,
+        api_endpoints = None,
+        api_key = None,
         max_retries=DEFAULT_MAX_RETRIES,
         mock_mode=False,
         connection_timeout=DEFAULT_CONNECTION_TIMEOUT,
@@ -345,7 +344,6 @@ class StorachaBackend(BackendStorage):
     4. Cross-backend migration capabilities
     5. Enhanced error handling and monitoring
     """
-
     def __init__(self, resources: Dict[str, Any], metadata: Dict[str, Any]):
         """Initialize Storacha backend with advanced features."""
         super().__init__(StorageBackendType.STORACHA, resources, metadata)
@@ -533,9 +531,7 @@ class StorachaBackend(BackendStorage):
         return hasattr(obj, "read") and callable(obj.read)
 
     # Implement required abstract method
-    def add_content(
-        self, content: Union[str, bytes, BinaryIO], metadata: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def add_content(self, content: Union[str, bytes, BinaryIO], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Add content to Storacha storage.
 
@@ -1398,7 +1394,7 @@ class StorachaBackend(BackendStorage):
         # Store in Storacha
         store_result = self.store(
             data,
-            container=None,  # Not used in Storacha
+            container = None,  # Not used in Storacha
             path=target_path,
             options=storage_options,
         )
@@ -1426,7 +1422,7 @@ class StorachaBackend(BackendStorage):
             # Retrieve content from Storacha to verify
             target_retrieve = self.retrieve(
                 target_identifier,
-                container=None,
+                container = None,
                 options=options.get("verification_options", {}),
             )
 

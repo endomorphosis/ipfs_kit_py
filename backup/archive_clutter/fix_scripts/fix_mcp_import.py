@@ -12,19 +12,19 @@ import logging
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("fix-mcp-import")
-
 
 def fix_import_in_final_mcp_server():
     """Fix the import issue in final_mcp_server.py"""
     logger.info("Fixing import issue in final_mcp_server.py")
-
+    
     # Read the current content of final_mcp_server.py
     with open("final_mcp_server.py", "r") as f:
         content = f.read()
-
+    
     # Replace the import_required_modules function with a more robust version
     old_import_function = """def import_required_modules():
     \"\"\"Import required modules after setting up paths.\"\"\"
@@ -54,7 +54,7 @@ def fix_import_in_final_mcp_server():
     except ImportError as e:
         logger.error(f"Failed to import required modules: {e}")
         return False"""
-
+    
     new_import_function = """def import_required_modules():
     \"\"\"Import required modules after setting up paths.\"\"\"
     global server, FastMCP, Context, JSONResponse, Starlette, CORSMiddleware
@@ -112,10 +112,10 @@ def fix_import_in_final_mcp_server():
         logger.error(f"Failed to import required modules: {e}")
         logger.error("Detailed import error:", exc_info=True)
         return False"""
-
+    
     # Replace the function in the content
     updated_content = content.replace(old_import_function, new_import_function)
-
+    
     # Also improve the setup_python_paths function to include the actual MCP path
     old_setup_paths = """def setup_python_paths():
     \"\"\"Set up Python paths for proper module imports.\"\"\"
@@ -141,7 +141,7 @@ def fix_import_in_final_mcp_server():
 
     # Return True if successful
     return True"""
-
+    
     new_setup_paths = """def setup_python_paths():
     \"\"\"Set up Python paths for proper module imports.\"\"\"
     logger.info("Setting up Python paths for module imports...")
@@ -177,16 +177,15 @@ def fix_import_in_final_mcp_server():
     
     # Return True if successful
     return True"""
-
+    
     # Replace the function in the content
     updated_content = updated_content.replace(old_setup_paths, new_setup_paths)
-
+    
     # Write the updated content back to the file
     with open("final_mcp_server.py", "w") as f:
         f.write(updated_content)
-
+    
     logger.info("Successfully updated final_mcp_server.py")
-
 
 if __name__ == "__main__":
     fix_import_in_final_mcp_server()

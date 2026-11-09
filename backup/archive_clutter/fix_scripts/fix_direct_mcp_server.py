@@ -8,11 +8,8 @@ import sys
 import logging
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
 
 def fix_syntax_error():
     """Fix the syntax error in direct_mcp_server_with_tools.py"""
@@ -46,17 +43,17 @@ def fix_syntax_error():
                 bracket_count = 1
                 pos = tools_start + len("tools = [")
                 while pos < len(content) and bracket_count > 0:
-                    if content[pos] == "[":
+                    if content[pos] == '[':
                         bracket_count += 1
-                    elif content[pos] == "]":
+                    elif content[pos] == ']':
                         bracket_count -= 1
                     pos += 1
 
                 if pos < len(content):
                     # We found the closing bracket, now check if there's an extra parenthesis
-                    if pos < len(content) and content[pos] == ")":
+                    if pos < len(content) and content[pos] == ')':
                         # Remove the extra parenthesis
-                        fixed_content = content[:pos] + content[pos + 1 :]
+                        fixed_content = content[:pos] + content[pos+1:]
 
                         # Write the fixed content back to the file
                         with open("direct_mcp_server_with_tools.py", "w") as f:
@@ -66,15 +63,15 @@ def fix_syntax_error():
                         return True
 
             # If we still can't fix it, let's try to find the unmatched parenthesis
-            lines = content.split("\n")
+            lines = content.split('\n')
             for i, line in enumerate(lines):
-                if line.strip() == ")":
+                if line.strip() == ')':
                     # This is likely the unmatched parenthesis
-                    lines[i] = "# Removed unmatched parenthesis"
+                    lines[i] = '# Removed unmatched parenthesis'
 
                     # Write the fixed content back to the file
                     with open("direct_mcp_server_with_tools.py", "w") as f:
-                        f.write("\n".join(lines))
+                        f.write('\n'.join(lines))
 
                     logger.info("✅ Fixed syntax error in direct_mcp_server_with_tools.py")
                     return True
@@ -85,7 +82,6 @@ def fix_syntax_error():
     except Exception as e:
         logger.error(f"Error fixing syntax error: {e}")
         return False
-
 
 def main():
     """Main function"""
@@ -99,7 +95,6 @@ def main():
     logger.info("\n✅ Successfully fixed syntax error in direct_mcp_server_with_tools.py")
     logger.info("You can now run the server with './restart_mcp_with_tools.sh'")
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

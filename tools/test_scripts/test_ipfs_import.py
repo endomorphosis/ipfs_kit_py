@@ -8,9 +8,8 @@ print("Testing IPFS Kit import...")
 
 try:
     from ipfs_kit_py import IPFSKit
-
     print("✅ Successfully imported IPFSKit")
-
+    
     try:
         kit = IPFSKit()
         print("✅ Successfully created IPFSKit instance")
@@ -22,7 +21,7 @@ try:
         except Exception as e2:
             print(f"❌ Error creating IPFSKit instance even in mock mode: {e2}")
             traceback.print_exc()
-
+            
 except ImportError as e:
     print(f"❌ Failed to import IPFSKit: {e}")
     traceback.print_exc()

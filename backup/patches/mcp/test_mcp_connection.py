@@ -10,7 +10,6 @@ import json
 base_url = "http://localhost:9994"
 api_url = f"{base_url}/api/v0"
 
-
 def test_server_root():
     """Test the server root endpoint."""
     print("Testing server root...")
@@ -24,7 +23,6 @@ def test_server_root():
         print(f"Failed to connect to server at {base_url}")
         return False
 
-
 def test_jsonrpc():
     """Test the JSON-RPC endpoint."""
     print("\nTesting JSON-RPC endpoint...")
@@ -34,7 +32,11 @@ def test_jsonrpc():
         "jsonrpc": "2.0",
         "id": 1,
         "method": "initialize",
-        "params": {"processId": 12345, "rootUri": None, "capabilities": {}},
+        "params": {
+            "processId": 12345,
+            "rootUri": None,
+            "capabilities": {}
+        }
     }
 
     response = requests.post(jsonrpc_url, json=initialize_request)
@@ -46,7 +48,6 @@ def test_jsonrpc():
     else:
         print(f"Failed to connect to JSON-RPC endpoint at {jsonrpc_url}")
         return False
-
 
 def test_sse():
     """Test the SSE endpoint."""
@@ -71,7 +72,6 @@ def test_sse():
     except requests.RequestException as e:
         print(f"Error connecting to SSE endpoint: {e}")
         return False
-
 
 if __name__ == "__main__":
     print("=" * 60)

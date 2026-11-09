@@ -38,12 +38,8 @@ print("4. System health tool works with real system data")
 print("5. All mock operations now provide clear failure reasons")
 
 print("\n📊 TOOL STATUS:")
-print(
-    "- ✅ REAL DATA: ipfs_version, ipfs_id, ipfs_list_pins, ipfs_swarm_peers, ipfs_stats, ipfs_refs_local, ipfs_files_ls, system_health"
-)
-print(
-    "- ⚠️  CLEAR ERRORS: vfs_mount, vfs_unmount, vfs_list_mounts, vfs_read, vfs_write, vfs_copy, vfs_move, vfs_mkdir, vfs_rmdir, vfs_ls, vfs_stat, vfs_sync_*"
-)
+print("- ✅ REAL DATA: ipfs_version, ipfs_id, ipfs_list_pins, ipfs_swarm_peers, ipfs_stats, ipfs_refs_local, ipfs_files_ls, system_health")
+print("- ⚠️  CLEAR ERRORS: vfs_mount, vfs_unmount, vfs_list_mounts, vfs_read, vfs_write, vfs_copy, vfs_move, vfs_mkdir, vfs_rmdir, vfs_ls, vfs_stat, vfs_sync_*")
 
 print("\n🎯 MISSION ACCOMPLISHED:")
 print("All tools now either:")

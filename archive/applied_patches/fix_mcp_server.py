@@ -20,21 +20,20 @@ from pathlib import Path
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()],
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
-
 
 def stop_existing_servers():
     """Stop any running MCP server processes."""
     logger.info("Stopping any existing MCP server processes...")
-
+    
     try:
         # Find all MCP server processes
         ps_cmd = ["ps", "-ef"]
         ps_output = subprocess.check_output(ps_cmd, text=True)
-
+        
         # Look for MCP server processes
         server_processes = []
         for line in ps_output.splitlines():
@@ -46,7 +45,7 @@ def stop_existing_servers():
                         server_processes.append(pid)
                     except ValueError:
                         continue
-
+        
         # Kill the processes
         for pid in server_processes:
             logger.info(f"Stopping process with PID {pid}")
@@ -57,35 +56,34 @@ def stop_existing_servers():
                 pass  # Process already gone
             except Exception as e:
                 logger.error(f"Error stopping process {pid}: {e}")
-
+        
         # Wait a bit to ensure processes are stopped
         if server_processes:
             logger.info(f"Stopped {len(server_processes)} MCP server processes")
             time.sleep(2)
         else:
             logger.info("No MCP server processes found")
-
+            
     except Exception as e:
         logger.error(f"Error stopping MCP servers: {e}")
-
 
 def setup_mock_environment():
     """Set up the mock environment for storage backends."""
     logger.info("Setting up mock environment for storage backends...")
-
+    
     # Create mock directories
     mock_dirs = [
         os.path.expanduser("~/.ipfs_kit/mock_huggingface"),
         os.path.expanduser("~/.ipfs_kit/mock_s3/ipfs-storage-demo"),
         os.path.expanduser("~/.ipfs_kit/mock_filecoin/deals"),
         os.path.expanduser("~/.ipfs_kit/mock_storacha"),
-        os.path.expanduser("~/.ipfs_kit/mock_lassie"),
+        os.path.expanduser("~/.ipfs_kit/mock_lassie")
     ]
-
+    
     for directory in mock_dirs:
         os.makedirs(directory, exist_ok=True)
         logger.info(f"Created mock directory: {directory}")
-
+    
     # Set environment variables for mock mode
     os.environ["MCP_USE_MOCK_MODE"] = "true"
     os.environ["HUGGINGFACE_TOKEN"] = "mock_huggingface_token"
@@ -99,69 +97,67 @@ def setup_mock_environment():
     os.environ["LASSIE_API_URL"] = "http://127.0.0.1:5000"
     os.environ["LASSIE_ENABLED"] = "true"
 
-
 def ensure_ipfs_daemon():
     """Ensure the IPFS daemon is running."""
     logger.info("Checking IPFS daemon...")
-
+    
     try:
         # Check if IPFS daemon is running
         result = subprocess.run(["ipfs", "id"], capture_output=True, text=True)
-
+        
         if result.returncode == 0:
             logger.info("IPFS daemon is already running")
             return True
-
+        
         # Try to start the daemon
         logger.info("Starting IPFS daemon...")
         subprocess.Popen(
             ["ipfs", "daemon", "--routing=dhtclient"],
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
         )
-
+        
         # Wait for it to start
         time.sleep(3)
-
+        
         # Verify it's running
         check_result = subprocess.run(["ipfs", "id"], capture_output=True, text=True)
-
+        
         if check_result.returncode == 0:
             logger.info("IPFS daemon started successfully")
             return True
         else:
             logger.error("Failed to start IPFS daemon")
             return False
-
+            
     except Exception as e:
         logger.error(f"Error with IPFS daemon: {e}")
         return False
-
 
 def start_enhanced_mcp_server():
     """Start the enhanced MCP server."""
     logger.info("Starting enhanced MCP server...")
     pid_file = Path("mcp_server.pid")
     server_process = None
-
+    
     try:
         # Make sure logs directory exists
         os.makedirs("logs", exist_ok=True)
-
+        
         # Start enhanced_mcp_server.py
         server_process = subprocess.Popen(
             [sys.executable, "enhanced_mcp_server.py", "--port", "9997", "--debug"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
+            text=True
         )
-
+        
         # Save PID
         with pid_file.open("w") as f:
             f.write(str(server_process.pid))
-
+        
         logger.info(f"Started enhanced MCP server (PID: {server_process.pid})")
-
+        
         # Wait a bit for the server to start
         time.sleep(3)
 
@@ -174,9 +170,9 @@ def start_enhanced_mcp_server():
             raise RuntimeError(
                 f"Enhanced MCP server exited early with code {server_process.returncode}"
             )
-
+        
         return server_process.pid
-
+        
     except (OSError, subprocess.SubprocessError, RuntimeError):
         logger.exception("Error starting enhanced MCP server")
         if server_process is not None and server_process.poll() is None:
@@ -196,7 +192,9 @@ def start_enhanced_mcp_server():
                     server_process.kill()
                     server_process.wait(timeout=5)
                 except (OSError, subprocess.TimeoutExpired):
-                    logger.exception("Failed to kill partially started enhanced MCP server")
+                    logger.exception(
+                        "Failed to kill partially started enhanced MCP server"
+                    )
 
         if server_process is not None:
             try:
@@ -204,9 +202,10 @@ def start_enhanced_mcp_server():
             except FileNotFoundError:
                 pass
             except OSError:
-                logger.warning("Failed to remove stale PID file: %s", pid_file, exc_info=True)
+                logger.warning(
+                    "Failed to remove stale PID file: %s", pid_file, exc_info=True
+                )
         return None
-
 
 def check_server_health(port=9997):
     """Check the health of the MCP server."""
@@ -225,9 +224,7 @@ def check_server_health(port=9997):
             response = requests.get(f"http://localhost:{port}/api/v0/health", timeout=5)
         except requests.RequestException as e:
             if attempt < max_attempts - 1:
-                logger.info(
-                    f"Retrying health check in 2 seconds... (attempt {attempt + 1}/{max_attempts})"
-                )
+                logger.info(f"Retrying health check in 2 seconds... (attempt {attempt+1}/{max_attempts})")
                 time.sleep(2)
             else:
                 logger.error(f"Failed to connect to server: {e}")
@@ -253,7 +250,7 @@ def check_server_health(port=9997):
         logger.info(f"Server status: {health_data.get('status', 'unknown')}")
 
         # Check storage backends
-        backends = health_data.get("storage_backends", {})
+        backends = health_data.get('storage_backends', {})
         if not isinstance(backends, dict):
             logger.error(
                 "Health endpoint storage_backends payload is %s instead of an object",
@@ -262,7 +259,7 @@ def check_server_health(port=9997):
             return None
 
         for backend, status in backends.items():
-            if backend in ["ipfs", "local"]:
+            if backend in ['ipfs', 'local']:
                 continue  # Skip IPFS and local which should work by default
 
             if not isinstance(status, dict):
@@ -273,9 +270,9 @@ def check_server_health(port=9997):
                 )
                 continue
 
-            available = status.get("available", False)
-            simulation = status.get("simulation", True)
-            mock = status.get("mock", False)
+            available = status.get('available', False)
+            simulation = status.get('simulation', True)
+            mock = status.get('mock', False)
 
             if available and not simulation:
                 if mock:
@@ -283,53 +280,52 @@ def check_server_health(port=9997):
                 else:
                     logger.info(f"✓ {backend}: Fully functional with real connection")
             else:
-                error = status.get("error", "Unknown error")
+                error = status.get('error', 'Unknown error')
                 logger.warning(f"✗ {backend}: Not functioning properly - {error}")
 
         return health_data
 
     return None
 
-
 def main():
     """Main function to fix the MCP server."""
     logger.info("Starting MCP server fix process...")
-
+    
     # Stop existing servers
     stop_existing_servers()
-
+    
     # Setup mock environment
     setup_mock_environment()
-
+    
     # Ensure IPFS daemon is running
     if not ensure_ipfs_daemon():
         logger.error("Failed to ensure IPFS daemon is running. Aborting.")
         return
-
+    
     # Start the enhanced MCP server
     server_pid = start_enhanced_mcp_server()
-
+    
     if server_pid:
         # Check server health
         health_data = check_server_health()
-
+        
         if health_data:
             logger.info("MCP server is running with the following storage backends:")
-
+            
             # Print backends status
-            backends = health_data.get("storage_backends", {})
+            backends = health_data.get('storage_backends', {})
             all_working = True
-
+            
             for backend, status in backends.items():
-                available = status.get("available", False)
-                simulation = status.get("simulation", True)
-
+                available = status.get('available', False)
+                simulation = status.get('simulation', True)
+                
                 if available and not simulation:
                     logger.info(f"✓ {backend}: Working")
                 else:
                     logger.warning(f"✗ {backend}: Not working")
                     all_working = False
-
+            
             if all_working:
                 logger.info("SUCCESS: All MCP features are working!")
             else:
@@ -339,7 +335,6 @@ def main():
             logger.error("Failed to verify MCP server health")
     else:
         logger.error("Failed to start MCP server")
-
 
 if __name__ == "__main__":
     main()

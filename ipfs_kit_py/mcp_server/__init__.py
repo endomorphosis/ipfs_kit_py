@@ -8,7 +8,6 @@ A single tool registry powers four interoperable surfaces:
 
 Aligned to the Mcp-Plus-Plus canonical packet spec for third-party interop.
 """
-
 from .hierarchical_tool_manager import HierarchicalToolManager
 from .tools import TOOL_GROUPS
 

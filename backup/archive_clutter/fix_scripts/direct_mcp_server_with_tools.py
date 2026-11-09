@@ -26,11 +26,9 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 import fnmatch
 from ipfs_mcp_tools_integration import register_ipfs_tools
-
 # FS Journal and IPFS Bridge integration
 import ipfs_mcp_fs_integration
 from register_all_backend_tools import register_all_tools
-
 # Store global port
 global PORT
 # --- Global Variables ---
@@ -39,17 +37,13 @@ PORT = 3000  # Default port, will be overridden by args.port in main
 # --- Early Setup: Logging and Path ---
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("direct-mcp")
 
 # Add a file handler for more persistent logging
 try:
-    file_handler = logging.FileHandler("direct_mcp_server.log")
-    file_handler.setFormatter(
-        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    )
+    file_handler = logging.FileHandler('direct_mcp_server.log')
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
     logger.addHandler(file_handler)
     logger.info("File logging initialized to direct_mcp_server.log")
 except Exception as e:
@@ -68,7 +62,7 @@ if os.path.isdir(sdk_path):
         logger.info("SDK path already in sys.path: %s", sdk_path)
         sdk_added_to_path = True
 else:
-    logger.warning("MCP SDK path not found: %s. MCP features might fail.", sdk_path)
+     logger.warning("MCP SDK path not found: %s. MCP features might fail.", sdk_path)
 
 # --- Import Modules (AFTER adding SDK path) ---
 imports_succeeded = False
@@ -82,16 +76,13 @@ try:
     from starlette.requests import Request
     from mcp import types as mcp_types
     import json
-
     # Import JSON-RPC libraries
     # Import removed: # Import removed: # Import removed: # Import removed: # Import removed: from jsonrpc.dispatcher import Dispatcher
     # Import removed: # Import removed: # Import removed: # Import removed: # Import removed: from jsonrpc.exceptions import JSONRPCDispatchException
     imports_succeeded = True
     logger.info("Successfully imported MCP and Starlette modules.")
 except ImportError as e:
-    logger.error(
-        "Failed to import required MCP/Starlette modules even after adding SDK path: %s", e
-    )
+    logger.error("Failed to import required MCP/Starlette modules even after adding SDK path: %s", e)
     # Exit if core imports fail
     sys.exit(1)
 
@@ -102,7 +93,7 @@ DEPLOYMENT_CONFIG = {
     "active_version_file": "direct_mcp_server_active.txt",
     "blue_port": 8000,
     "green_port": 8001,
-    "test_suite": [],  # Removed non-existent test files
+    "test_suite": [], # Removed non-existent test files
     "max_deployment_time": 300,  # 5 minutes max for deployment process
     "health_check_interval": 5,  # Check health every 5 seconds during rollout
 }
@@ -133,9 +124,7 @@ except OSError as e:
     logger.warning("Error reading/writing active version file: %s. Defaulting to BLUE.", e)
 
 # Write PID file for this instance
-current_pid_file = (
-    DEPLOYMENT_CONFIG["blue_pid_file"] if is_blue else DEPLOYMENT_CONFIG["green_pid_file"]
-)
+current_pid_file = DEPLOYMENT_CONFIG["blue_pid_file"] if is_blue else DEPLOYMENT_CONFIG["green_pid_file"]
 try:
     with open(current_pid_file, "w") as f:
         f.write(str(os.getpid()))
@@ -156,11 +145,13 @@ register_all_tools(server)
 logger.info("✅ Tool registration complete")
 
 
+
+
+
 # Server initialization state
 server_initialized = False
 initialization_lock = anyio.Lock()
 initialization_event = anyio.Event()
-
 
 # --- Utility Functions ---
 def _cleanup_temp_files(*paths):
@@ -173,7 +164,6 @@ def _cleanup_temp_files(*paths):
             except OSError as e:
                 logger.error("Error removing temporary file %s: %s", path, e)
 
-
 async def delayed_shutdown(pid: int, delay: float):
     """Waits for a delay then sends SIGTERM."""
     await anyio.sleep(delay)
@@ -185,12 +175,9 @@ async def delayed_shutdown(pid: int, delay: float):
     except Exception as e:
         logger.error("Error sending SIGTERM to process %s: %s", pid, e)
 
-
 def get_other_instance_pid():
     """Get the PID of the other instance (blue if we're green, green if we're blue)."""
-    other_pid_file = (
-        DEPLOYMENT_CONFIG["green_pid_file"] if is_blue else DEPLOYMENT_CONFIG["blue_pid_file"]
-    )
+    other_pid_file = DEPLOYMENT_CONFIG["green_pid_file"] if is_blue else DEPLOYMENT_CONFIG["blue_pid_file"]
     try:
         if os.path.exists(other_pid_file):
             with open(other_pid_file, "r") as f:
@@ -198,7 +185,6 @@ def get_other_instance_pid():
     except Exception as e:
         logger.error("Error reading other instance PID file: %s", e)
     return None
-
 
 def is_process_running(pid):
     """Check if a process with the given PID is running."""
@@ -210,7 +196,6 @@ def is_process_running(pid):
     except Exception:
         return False
 
-
 def run_syntax_check(file_path):
     """Run syntax check on the given Python file."""
     try:
@@ -221,7 +206,6 @@ def run_syntax_check(file_path):
     except Exception as e:
         return False, str(e)
 
-
 def run_pytest(test_paths=None):
     """Run pytest on specific test paths or all tests."""
     try:
@@ -229,11 +213,16 @@ def run_pytest(test_paths=None):
         if test_paths:
             cmd.extend(test_paths)
 
-        result = subprocess.run(cmd, cwd=os.getcwd(), capture_output=True, text=True, timeout=120)
+        result = subprocess.run(
+            cmd,
+            cwd=os.getcwd(),
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
         return result.returncode == 0, f"Output:\n{result.stdout}\n{result.stderr}"
     except Exception as e:
         return False, str(e)
-
 
 async def start_other_instance(port):
     """Start the other instance of the server."""
@@ -243,20 +232,23 @@ async def start_other_instance(port):
     env["PORT"] = str(port)
 
     try:
-        process = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(
+            cmd,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
         logger.info("Started other instance with PID %s on port %s", process.pid, port)
         return process.pid
     except Exception as e:
         logger.error("Failed to start other instance: %s", e)
         return None
 
-
 async def perform_health_check(port):
     """Check if the server on the given port is healthy."""
     url = f"http://localhost:{port}/"
     try:
         import aiohttp
-
         async with aiohttp.ClientSession() as session:
             async with session.get(url, timeout=5) as response:
                 if response.status == 200:
@@ -265,7 +257,6 @@ async def perform_health_check(port):
                     return False, f"HTTP {response.status}"
     except Exception as e:
         return False, str(e)
-
 
 async def switch_active_version(new_color):
     """Switch the active version to the given color."""
@@ -277,7 +268,6 @@ async def switch_active_version(new_color):
     except Exception as e:
         logger.error("Failed to switch active version: %s", e)
         return False
-
 
 async def perform_blue_green_deployment(modified_file=None):
     """
@@ -298,7 +288,7 @@ async def perform_blue_green_deployment(modified_file=None):
     deployment_status = {
         "status": "starting",
         "details": f"Starting deployment of {modified_file if modified_file else 'server'}",
-        "start_time": time.time(),
+        "start_time": time.time()
     }
 
     # Determine the target color and port
@@ -316,7 +306,7 @@ async def perform_blue_green_deployment(modified_file=None):
                 deployment_status = {
                     "status": "failed",
                     "details": f"Syntax check failed: {syntax_output}",
-                    "start_time": deployment_status["start_time"],
+                    "start_time": deployment_status["start_time"]
                 }
                 logger.error("Syntax check failed for %s: %s", modified_file, syntax_output)
                 deployment_in_progress = False
@@ -329,7 +319,7 @@ async def perform_blue_green_deployment(modified_file=None):
                     deployment_status = {
                         "status": "failed",
                         "details": f"Tests failed: {pytest_output[:500]}...",
-                        "start_time": deployment_status["start_time"],
+                        "start_time": deployment_status["start_time"]
                     }
                     logger.error("Tests failed for %s", modified_file)
                     deployment_in_progress = False
@@ -342,7 +332,7 @@ async def perform_blue_green_deployment(modified_file=None):
             deployment_status = {
                 "status": "failed",
                 "details": "Failed to start new instance",
-                "start_time": deployment_status["start_time"],
+                "start_time": deployment_status["start_time"]
             }
             deployment_in_progress = False
             return {"success": False, "message": "Failed to start new instance"}
@@ -351,9 +341,7 @@ async def perform_blue_green_deployment(modified_file=None):
         deployment_status["status"] = "health_checks"
         max_attempts = 10
         for i in range(max_attempts):
-            logger.info(
-                "Performing health check %s/%s on port %s", i + 1, max_attempts, target_port
-            )
+            logger.info("Performing health check %s/%s on port %s", i+1, max_attempts, target_port)
             health_ok, health_output = await perform_health_check(target_port)
             if health_ok:
                 break
@@ -361,7 +349,7 @@ async def perform_blue_green_deployment(modified_file=None):
                 deployment_status = {
                     "status": "failed",
                     "details": f"Health checks failed: {health_output}",
-                    "start_time": deployment_status["start_time"],
+                    "start_time": deployment_status["start_time"]
                 }
                 deployment_in_progress = False
                 return {"success": False, "message": f"Health checks failed: {health_output}"}
@@ -374,7 +362,7 @@ async def perform_blue_green_deployment(modified_file=None):
             deployment_status = {
                 "status": "failed",
                 "details": "Failed to switch active version",
-                "start_time": deployment_status["start_time"],
+                "start_time": deployment_status["start_time"]
             }
             deployment_in_progress = False
             return {"success": False, "message": "Failed to switch active version"}
@@ -388,12 +376,12 @@ async def perform_blue_green_deployment(modified_file=None):
             "status": "succeeded",
             "details": f"Deployment completed successfully. Switched from {server_color} to {target_color}.",
             "start_time": deployment_status["start_time"],
-            "end_time": time.time(),
+            "end_time": time.time()
         }
 
         return {
             "success": True,
-            "message": f"Deployment completed successfully. Switched from {server_color} to {target_color}.",
+            "message": f"Deployment completed successfully. Switched from {server_color} to {target_color}."
         }
 
     except Exception as e:
@@ -401,25 +389,16 @@ async def perform_blue_green_deployment(modified_file=None):
         deployment_status = {
             "status": "failed",
             "details": f"Deployment error: {str(e)}",
-            "start_time": deployment_status["start_time"],
+            "start_time": deployment_status["start_time"]
         }
         deployment_in_progress = False
         return {"success": False, "message": f"Deployment error: {str(e)}"}
 
-
 # --- MCP Tools (Define only if imports succeeded) ---
 if imports_succeeded:
-
-    @server.tool(
-        name="list_files", description="Lists files and directories with detailed information"
-    )
-    async def list_files(
-        ctx: Context,
-        directory: str = ".",
-        recursive: bool = False,
-        include_hidden: bool = False,
-        filter_pattern: str = None,
-    ) -> Dict[str, Any]:
+    @server.tool(name="list_files", description="Lists files and directories with detailed information")
+    async def list_files(ctx: Context, directory: str = ".", recursive: bool = False,
+                        include_hidden: bool = False, filter_pattern: str = None) -> Dict[str, Any]:
         """
         Lists files and directories with detailed information.
 
@@ -433,13 +412,7 @@ if imports_succeeded:
         Returns:
             A dictionary containing file listing information and statistics
         """
-        logger.info(
-            "Received request to list files in %s (recursive=%s, include_hidden=%s, filter_pattern=%s)",
-            directory,
-            recursive,
-            include_hidden,
-            filter_pattern,
-        )
+        logger.info("Received request to list files in %s (recursive=%s, include_hidden=%s, filter_pattern=%s)", directory, recursive, include_hidden, filter_pattern)
         await ctx.info(f"Listing files in {directory}")
 
         project_root = os.getcwd()
@@ -447,9 +420,7 @@ if imports_succeeded:
 
         # Security check to prevent directory traversal
         if not absolute_dir.startswith(project_root):
-            error_msg = (
-                f"Error: Directory path '{directory}' is outside the allowed project directory."
-            )
+            error_msg = f"Error: Directory path '{directory}' is outside the allowed project directory."
             logger.error(error_msg)
             await ctx.error(error_msg)
             return {"error": error_msg}
@@ -475,8 +446,8 @@ if imports_succeeded:
                     "total_files": 0,
                     "total_directories": 0,
                     "total_size_bytes": 0,
-                    "extensions": {},
-                },
+                    "extensions": {}
+                }
             }
 
             # Function to process a file or directory
@@ -489,7 +460,7 @@ if imports_succeeded:
                 }
 
                 # Skip hidden files if not include_hidden
-                if not include_hidden and os.path.basename(path).startswith("."):
+                if not include_hidden and os.path.basename(path).startswith('.'):
                     return None
 
                 # Apply filter pattern if specified
@@ -515,22 +486,23 @@ if imports_succeeded:
                     if ext:
                         ext = ext.lower()
                         if ext not in result["statistics"]["extensions"]:
-                            result["statistics"]["extensions"][ext] = {"count": 0, "total_size": 0}
+                            result["statistics"]["extensions"][ext] = {
+                                "count": 0,
+                                "total_size": 0
+                            }
                         result["statistics"]["extensions"][ext]["count"] += 1
                         result["statistics"]["extensions"][ext]["total_size"] += size
 
                     # Try to detect if binary file
                     try:
                         if size > 0:
-                            with open(path, "rb") as f:
+                            with open(path, 'rb') as f:
                                 # Read first 1024 bytes or entire file if smaller
                                 sample = f.read(min(1024, size))
                                 # Check for null bytes or high ratio of non-printable chars
                                 null_count = sample.count(0)
                                 binary_threshold = 0.3  # 30% binary characters threshold
-                                is_likely_binary = (
-                                    null_count / len(sample) > 0.01 if sample else False
-                                )
+                                is_likely_binary = null_count / len(sample) > 0.01 if sample else False
                                 item["is_binary"] = is_likely_binary
                     except Exception as e:
                         logger.warning("Error checking if file is binary: %s", str(e))
@@ -575,9 +547,7 @@ if imports_succeeded:
                 total_size /= 1024
                 size_index += 1
 
-            result["statistics"]["human_readable_size"] = (
-                f"{total_size:.2f} {size_units[size_index]}"
-            )
+            result["statistics"]["human_readable_size"] = f"{total_size:.2f} {size_units[size_index]}"
 
             # Format the extensions in a more readable way
             for ext in result["statistics"]["extensions"]:
@@ -589,14 +559,8 @@ if imports_succeeded:
                     ext_size_index += 1
                 ext_data["human_readable_size"] = f"{ext_size:.2f} {size_units[ext_size_index]}"
 
-            await ctx.info(
-                f"Found {result['statistics']['total_files']} files and {result['statistics']['total_directories']} directories in {directory}"
-            )
-            logger.info(
-                "Successfully listed files in %s with %s files",
-                directory,
-                result["statistics"]["total_files"],
-            )
+            await ctx.info(f"Found {result['statistics']['total_files']} files and {result['statistics']['total_directories']} directories in {directory}")
+            logger.info("Successfully listed files in %s with %s files", directory, result['statistics']['total_files'])
             return result
 
         except Exception as e:
@@ -641,29 +605,21 @@ if imports_succeeded:
                 "exists": exists,
                 "is_directory": is_dir,
                 "is_file": is_file,
-                "is_symlink": is_symlink,
+                "is_symlink": is_symlink
             }
 
             # Add additional information if file exists
             if exists:
                 if is_file:
                     result["size_bytes"] = os.path.getsize(abs_path)
-                    result["size_human"] = (
-                        f"{result['size_bytes'] / 1024:.1f} KB"
-                        if result["size_bytes"] < 1024 * 1024
-                        else f"{result['size_bytes'] / (1024 * 1024):.1f} MB"
-                    )
+                    result["size_human"] = f"{result['size_bytes'] / 1024:.1f} KB" if result['size_bytes'] < 1024 * 1024 else f"{result['size_bytes'] / (1024 * 1024):.1f} MB"
                 elif is_dir:
                     result["is_empty"] = not bool(os.listdir(abs_path))
 
-                result["modified_time"] = datetime.fromtimestamp(
-                    os.path.getmtime(abs_path)
-                ).isoformat()
+                result["modified_time"] = datetime.fromtimestamp(os.path.getmtime(abs_path)).isoformat()
 
-            await ctx.info(
-                f"Path {path} {'exists' if exists else 'does not exist'}"
-                + (f" (is a {'directory' if is_dir else 'file'})" if exists else "")
-            )
+            await ctx.info(f"Path {path} {'exists' if exists else 'does not exist'}" +
+                          (f" (is a {'directory' if is_dir else 'file'})" if exists else ""))
             logger.info("Checked existence for %s: %s", path, exists)
             return result
 
@@ -673,9 +629,7 @@ if imports_succeeded:
             await ctx.error(error_msg)
             return {"error": error_msg}
 
-    @server.tool(
-        name="get_file_stats", description="Get detailed statistics about a file or directory"
-    )
+    @server.tool(name="get_file_stats", description="Get detailed statistics about a file or directory")
     async def get_file_stats(ctx: Context, path: str) -> Dict[str, Any]:
         """
         Gets detailed statistics about a file or directory.
@@ -723,7 +677,7 @@ if imports_succeeded:
                 "gid": stats.st_gid,
                 "access_time": datetime.fromtimestamp(stats.st_atime).isoformat(),
                 "modify_time": datetime.fromtimestamp(stats.st_mtime).isoformat(),
-                "create_time": datetime.fromtimestamp(stats.st_ctime).isoformat(),
+                "create_time": datetime.fromtimestamp(stats.st_ctime).isoformat()
             }
 
             # Format size in human-readable form
@@ -743,12 +697,11 @@ if imports_succeeded:
                 # Try to detect file type
                 try:
                     import magic
-
                     result["mime_type"] = magic.from_file(abs_path, mime=True)
                 except ImportError:
                     # Fallback to basic binary detection if python-magic isn't installed
                     if stats.st_size > 0:
-                        with open(abs_path, "rb") as f:
+                        with open(abs_path, 'rb') as f:
                             sample = f.read(min(1024, stats.st_size))
                             null_count = sample.count(0)
                             result["is_binary"] = null_count > 0
@@ -759,12 +712,8 @@ if imports_succeeded:
             if is_dir:
                 contents = os.listdir(abs_path)
                 result["item_count"] = len(contents)
-                result["file_count"] = len(
-                    [i for i in contents if os.path.isfile(os.path.join(abs_path, i))]
-                )
-                result["dir_count"] = len(
-                    [i for i in contents if os.path.isdir(os.path.join(abs_path, i))]
-                )
+                result["file_count"] = len([i for i in contents if os.path.isfile(os.path.join(abs_path, i))])
+                result["dir_count"] = len([i for i in contents if os.path.isdir(os.path.join(abs_path, i))])
                 result["is_empty"] = len(contents) == 0
 
                 # For small directories, include item list
@@ -775,7 +724,6 @@ if imports_succeeded:
             try:
                 import pwd
                 import grp
-
                 result["owner"] = pwd.getpwuid(stats.st_uid).pw_name
                 result["group"] = grp.getgrgid(stats.st_gid).gr_name
             except ImportError:
@@ -798,9 +746,8 @@ if imports_succeeded:
             return {"error": error_msg}
 
     @server.tool(name="copy_file", description="Copy a file from one location to another")
-    async def copy_file(
-        ctx: Context, source_path: str, destination_path: str, overwrite: bool = False
-    ) -> Dict[str, Any]:
+    async def copy_file(ctx: Context, source_path: str, destination_path: str,
+                      overwrite: bool = False) -> Dict[str, Any]:
         """
         Copies a file from source path to destination path.
 
@@ -817,12 +764,7 @@ if imports_succeeded:
         abs_source = os.path.abspath(os.path.join(project_root, source_path))
         abs_destination = os.path.abspath(os.path.join(project_root, destination_path))
 
-        logger.info(
-            "Received request to copy file from %s to %s (overwrite=%s)",
-            source_path,
-            destination_path,
-            overwrite,
-        )
+        logger.info("Received request to copy file from %s to %s (overwrite=%s)", source_path, destination_path, overwrite)
         await ctx.info(f"Copying file from {source_path} to {destination_path}")
 
         # Security check to prevent directory traversal
@@ -880,11 +822,9 @@ if imports_succeeded:
                 "source_path": source_path,
                 "destination_path": destination_path,
                 "size_bytes": file_size,
-                "size_human": f"{file_size / 1024:.1f} KB"
-                if file_size < 1024 * 1024
-                else f"{file_size / (1024 * 1024):.1f} MB",
+                "size_human": f"{file_size / 1024:.1f} KB" if file_size < 1024 * 1024 else f"{file_size / (1024 * 1024):.1f} MB",
                 "created": datetime.fromtimestamp(file_stats.st_ctime).isoformat(),
-                "overwritten": os.path.exists(abs_destination) and overwrite,
+                "overwritten": os.path.exists(abs_destination) and overwrite
             }
 
             logger.info("Successfully copied file from %s to %s", source_path, destination_path)
@@ -898,9 +838,8 @@ if imports_succeeded:
             return {"error": error_msg}
 
     @server.tool(name="move_file", description="Move a file from one location to another")
-    async def move_file(
-        ctx: Context, source_path: str, destination_path: str, overwrite: bool = False
-    ) -> Dict[str, Any]:
+    async def move_file(ctx: Context, source_path: str, destination_path: str,
+                      overwrite: bool = False) -> Dict[str, Any]:
         """
         Moves a file from source path to destination path.
 
@@ -917,12 +856,7 @@ if imports_succeeded:
         abs_source = os.path.abspath(os.path.join(project_root, source_path))
         abs_destination = os.path.abspath(os.path.join(project_root, destination_path))
 
-        logger.info(
-            "Received request to move file from %s to %s (overwrite=%s)",
-            source_path,
-            destination_path,
-            overwrite,
-        )
+        logger.info("Received request to move file from %s to %s (overwrite=%s)", source_path, destination_path, overwrite)
         await ctx.info(f"Moving file from {source_path} to {destination_path}")
 
         # Security check to prevent directory traversal
@@ -987,12 +921,10 @@ if imports_succeeded:
                 "source_path": source_path,
                 "destination_path": destination_path,
                 "size_bytes": file_size,
-                "size_human": f"{file_size / 1024:.1f} KB"
-                if file_size < 1024 * 1024
-                else f"{file_size / (1024 * 1024):.1f} MB",
+                "size_human": f"{file_size / 1024:.1f} KB" if file_size < 1024 * 1024 else f"{file_size / (1024 * 1024):.1f} MB",
                 "created": datetime.fromtimestamp(file_stats.st_ctime).isoformat(),
                 "overwritten": os.path.exists(abs_destination) and overwrite,
-                "source_removed": not os.path.exists(abs_source),
+                "source_removed": not os.path.exists(abs_source)
             }
 
             logger.info("Successfully moved file from %s to %s", source_path, destination_path)
@@ -1017,45 +949,33 @@ if imports_succeeded:
 # --- Custom Raw SSE Implementation ---
 # Removed custom SSE implementation to rely on FastMCP default
 
-
 # --- Homepage ---
 async def homepage(request):
     """Simple homepage handler."""
-    return JSONResponse(
-        {
-            "message": f"Direct MCP Server ({server_color}) is running",
-            "version": "unknown"
-            if not imports_succeeded
-            else (server._mcp_server.version or "dev"),
-            "color": server_color,
-            "pid": os.getpid(),
-            "endpoints": {
-                "/": "This homepage",
-                "/mcp": "MCP SSE connection endpoint (handled by FastMCP)",
-                "/jsonrpc": "JSON-RPC endpoint for VS Code integration",
-                "/api/v0/jsonrpc": "Alternative JSON-RPC endpoint",
-                "/api/v0/health": "Health check endpoint",
-                "/api/v0/initialize": "VS Code initialize endpoint",
-            },
-            "deployment_status": deployment_status["status"] if deployment_status else "unknown",
-        }
-    )
-
+    return JSONResponse({
+        "message": f"Direct MCP Server ({server_color}) is running",
+        "version": "unknown" if not imports_succeeded else (server._mcp_server.version or "dev"),
+        "color": server_color,
+        "pid": os.getpid(),
+        "endpoints": {
+            "/": "This homepage",
+            "/mcp": "MCP SSE connection endpoint (handled by FastMCP)",
+            "/jsonrpc": "JSON-RPC endpoint for VS Code integration",
+            "/api/v0/jsonrpc": "Alternative JSON-RPC endpoint",
+            "/api/v0/health": "Health check endpoint",
+            "/api/v0/initialize": "VS Code initialize endpoint"
+        },
+        "deployment_status": deployment_status["status"] if deployment_status else "unknown"
+    })
 
 # --- JSON-RPC Implementation ---
 # Initialize JSON-RPC dispatcher
 # Removed: # Removed: # Removed: # Removed: # Removed: jsonrpc_dispatcher = Dispatcher()
 
-
 # Removed: # Removed: # Removed: # Removed: # Removed: @jsonrpc_dispatcher.add_method
 async def ping(**kwargs):
     """Simple ping method to test JSON-RPC connection."""
-    return {
-        "status": "ok",
-        "server": f"direct-mcp-{server_color}",
-        "timestamp": datetime.now().isoformat(),
-    }
-
+    return {"status": "ok", "server": f"direct-mcp-{server_color}", "timestamp": datetime.now().isoformat()}
 
 # Removed: # Removed: # Removed: # Removed: # Removed: @jsonrpc_dispatcher.add_method
 async def initialize(client_info=None, **kwargs):
@@ -1063,20 +983,21 @@ async def initialize(client_info=None, **kwargs):
     logger.info("Received initialize request from client: %s", client_info)
     return {
         "server": f"direct-mcp-{server_color}",
-        "version": server._mcp_server.version
-        if hasattr(server, "_mcp_server") and hasattr(server._mcp_server, "version")
-        else "dev",
+        "version": server._mcp_server.version if hasattr(server, '_mcp_server') and hasattr(server._mcp_server, 'version') else "dev",
         "supported_models": ["default"],
-        "capabilities": {"streaming": True, "jsonrpc": True, "tooling": True, "ipfs": True},
+        "capabilities": {
+            "streaming": True,
+            "jsonrpc": True,
+            "tooling": True,
+            "ipfs": True
+        }
     }
-
 
 # Removed: # Removed: # Removed: # Removed: # Removed: @jsonrpc_dispatcher.add_method
 async def shutdown(**kwargs):
     """Handle shutdown request from client."""
     logger.info("Received shutdown request, will continue running but client is disconnecting")
     return {"status": "ok"}
-
 
 # JSON-RPC request handler
 async def handle_jsonrpc(request):
@@ -1085,575 +1006,722 @@ async def handle_jsonrpc(request):
         request_json = await request.json()
         logger.debug("Received JSON-RPC request: %s", request_json)
 
-        method = request_json.get("method")
-        params = request_json.get("params", {})
-        req_id = request_json.get("id", None)
+        method = request_json.get('method')
+        params = request_json.get('params', {})
+        req_id = request_json.get('id', None)
 
         if not method:
-            return JSONResponse(
-                {
-                    "jsonrpc": "2.0",
-                    "error": {"code": -32600, "message": "Invalid Request - method missing"},
-                    "id": req_id,
-                }
-            )
+            return JSONResponse({
+                'jsonrpc': '2.0',
+                'error': {'code': -32600, 'message': 'Invalid Request - method missing'},
+                'id': req_id
+            })
 
         # Handle specific methods
-        if method == "get_tools":
+        if method == 'get_tools':
             # Get all registered tools
             # Enhanced IPFS tools registered
             tools = [
                 {
-                    "name": "ipfs_add",
-                    "description": "Add content to IPFS",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "content": {"type": "string", "description": "Content to add to IPFS"},
-                            "filename": {
-                                "type": "string",
-                                "description": "Optional filename for the content",
-                            },
-                            "pin": {
-                                "type": "boolean",
-                                "description": "Whether to pin the content",
-                                "default": true,
-                            },
-                        },
-                        "required": ["content"],
-                    },
+                "name": "ipfs_add",
+                "description": "Add content to IPFS",
+                "schema": {
+                "type": "object",
+                "properties": {
+                "content": {
+                "type": "string",
+                "description": "Content to add to IPFS"
                 },
-                {
-                    "name": "ipfs_cat",
-                    "description": "Retrieve content from IPFS",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "cid": {
-                                "type": "string",
-                                "description": "CID of the content to retrieve",
-                            }
-                        },
-                        "required": ["cid"],
-                    },
+                "filename": {
+                "type": "string",
+                "description": "Optional filename for the content"
                 },
-                {
-                    "name": "ipfs_ls",
-                    "description": "List directory contents in IPFS",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "cid": {
-                                "type": "string",
-                                "description": "CID of the directory to list",
-                            },
-                            "recursive": {
-                                "type": "boolean",
-                                "description": "Whether to list recursively",
-                                "default": false,
-                            },
-                        },
-                        "required": ["cid"],
-                    },
+                "pin": {
+                "type": "boolean",
+                "description": "Whether to pin the content",
+                "default": true
+                }
                 },
-                {
-                    "name": "ipfs_files_ls",
-                    "description": "List files in the MFS",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "path": {
-                                "type": "string",
-                                "description": "Path in the MFS to list",
-                                "default": "/",
-                            },
-                            "long": {
-                                "type": "boolean",
-                                "description": "Whether to use long listing format",
-                                "default": false,
-                            },
-                        },
-                    },
-                },
-                {
-                    "name": "ipfs_files_mkdir",
-                    "description": "Create a directory in the MFS",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "path": {"type": "string", "description": "Path in the MFS to create"},
-                            "parents": {
-                                "type": "boolean",
-                                "description": "Whether to create parent directories",
-                                "default": true,
-                            },
-                        },
-                        "required": ["path"],
-                    },
-                },
-                {
-                    "name": "ipfs_files_write",
-                    "description": "Write to a file in the MFS",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "path": {
-                                "type": "string",
-                                "description": "Path in the MFS to write to",
-                            },
-                            "content": {"type": "string", "description": "Content to write"},
-                            "create": {
-                                "type": "boolean",
-                                "description": "Whether to create the file if it doesn't exist",
-                                "default": true,
-                            },
-                            "truncate": {
-                                "type": "boolean",
-                                "description": "Whether to truncate the file",
-                                "default": true,
-                            },
-                        },
-                        "required": ["path", "content"],
-                    },
-                },
-                {
-                    "name": "ipfs_files_read",
-                    "description": "Read a file from the MFS",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "path": {"type": "string", "description": "Path in the MFS to read"},
-                            "offset": {
-                                "type": "integer",
-                                "description": "Offset to start reading from",
-                                "default": 0,
-                            },
-                            "count": {
-                                "type": "integer",
-                                "description": "Number of bytes to read",
-                                "default": -1,
-                            },
-                        },
-                        "required": ["path"],
-                    },
-                },
-                {
-                    "name": "ipfs_files_rm",
-                    "description": "Remove a file or directory from the MFS",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "path": {"type": "string", "description": "Path in the MFS to remove"},
-                            "recursive": {
-                                "type": "boolean",
-                                "description": "Whether to remove recursively",
-                                "default": false,
-                            },
-                        },
-                        "required": ["path"],
-                    },
-                },
-                {
-                    "name": "ipfs_files_stat",
-                    "description": "Get stats for a file or directory in the MFS",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "path": {
-                                "type": "string",
-                                "description": "Path in the MFS to get stats for",
-                            }
-                        },
-                        "required": ["path"],
-                    },
-                },
-                {
-                    "name": "ipfs_files_cp",
-                    "description": "Copy files in the MFS",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "source": {"type": "string", "description": "Source path in the MFS"},
-                            "dest": {
-                                "type": "string",
-                                "description": "Destination path in the MFS",
-                            },
-                        },
-                        "required": ["source", "dest"],
-                    },
-                },
-                {
-                    "name": "ipfs_files_mv",
-                    "description": "Move files in the MFS",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "source": {"type": "string", "description": "Source path in the MFS"},
-                            "dest": {
-                                "type": "string",
-                                "description": "Destination path in the MFS",
-                            },
-                        },
-                        "required": ["source", "dest"],
-                    },
-                },
-                {
-                    "name": "ipfs_files_flush",
-                    "description": "Flush the MFS",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "path": {
-                                "type": "string",
-                                "description": "Path in the MFS to flush",
-                                "default": "/",
-                            }
-                        },
-                    },
-                },
-                {
-                    "name": "ipfs_pubsub_publish",
-                    "description": "Publish a message to a pubsub topic",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "topic": {"type": "string", "description": "Topic to publish to"},
-                            "message": {"type": "string", "description": "Message to publish"},
-                        },
-                        "required": ["topic", "message"],
-                    },
-                },
-                {
-                    "name": "ipfs_pubsub_subscribe",
-                    "description": "Subscribe to messages on a pubsub topic",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "topic": {"type": "string", "description": "Topic to subscribe to"},
-                            "timeout": {
-                                "type": "integer",
-                                "description": "Timeout in seconds",
-                                "default": 10,
-                            },
-                        },
-                        "required": ["topic"],
-                    },
-                },
-                {
-                    "name": "ipfs_dht_findpeer",
-                    "description": "Find a peer in the DHT",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "peer_id": {"type": "string", "description": "Peer ID to find"}
-                        },
-                        "required": ["peer_id"],
-                    },
-                },
-                {
-                    "name": "ipfs_dht_findprovs",
-                    "description": "Find providers for a CID in the DHT",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "cid": {"type": "string", "description": "CID to find providers for"},
-                            "num_providers": {
-                                "type": "integer",
-                                "description": "Number of providers to find",
-                                "default": 20,
-                            },
-                        },
-                        "required": ["cid"],
-                    },
-                },
-                {
-                    "name": "fs_journal_get_history",
-                    "description": "Get the operation history for a path in the virtual filesystem",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "ctx": {"type": "string", "description": "Context for the operation"},
-                            "path": {
-                                "type": "string",
-                                "description": "Path to get history for",
-                                "default": null,
-                            },
-                            "limit": {
-                                "type": "integer",
-                                "description": "Maximum number of operations to return",
-                                "default": 100,
-                            },
-                        },
-                        "required": ["ctx"],
-                    },
-                },
-                {
-                    "name": "fs_journal_sync",
-                    "description": "Force synchronization between virtual filesystem and actual storage",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "ctx": {"type": "string", "description": "Context for the operation"},
-                            "path": {
-                                "type": "string",
-                                "description": "Path to synchronize",
-                                "default": null,
-                            },
-                        },
-                        "required": ["ctx"],
-                    },
-                },
-                {
-                    "name": "ipfs_fs_bridge_status",
-                    "description": "Get the status of the IPFS-FS bridge",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "ctx": {"type": "string", "description": "Context for the operation"}
-                        },
-                        "required": ["ctx"],
-                    },
-                },
-                {
-                    "name": "ipfs_fs_bridge_sync",
-                    "description": "Sync between IPFS and virtual filesystem",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "ctx": {"type": "string", "description": "Context for the operation"},
-                            "direction": {
-                                "type": "string",
-                                "description": "Direction of synchronization (ipfs_to_fs, fs_to_ipfs, or both)",
-                                "default": "both",
-                            },
-                        },
-                        "required": ["ctx"],
-                    },
-                },
-                {
-                    "name": "init_huggingface_backend",
-                    "description": "Initialize HuggingFace backend for the virtual filesystem",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "ctx": {"type": "string", "description": "Context for the operation"},
-                            "name": {
-                                "type": "string",
-                                "description": "Name for the backend",
-                                "default": "huggingface",
-                            },
-                            "root_path": {
-                                "type": "string",
-                                "description": "Root path for the backend",
-                                "default": "/hf",
-                            },
-                        },
-                        "required": ["ctx"],
-                    },
-                },
-                {
-                    "name": "init_filecoin_backend",
-                    "description": "Initialize Filecoin backend for the virtual filesystem",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "ctx": {"type": "string", "description": "Context for the operation"},
-                            "name": {
-                                "type": "string",
-                                "description": "Name for the backend",
-                                "default": "filecoin",
-                            },
-                            "root_path": {
-                                "type": "string",
-                                "description": "Root path for the backend",
-                                "default": "/fil",
-                            },
-                        },
-                        "required": ["ctx"],
-                    },
-                },
-                {
-                    "name": "init_s3_backend",
-                    "description": "Initialize S3 backend for the virtual filesystem",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "ctx": {"type": "string", "description": "Context for the operation"},
-                            "name": {
-                                "type": "string",
-                                "description": "Name for the backend",
-                                "default": "s3",
-                            },
-                            "root_path": {
-                                "type": "string",
-                                "description": "Root path for the backend",
-                                "default": "/s3",
-                            },
-                            "bucket": {
-                                "type": "string",
-                                "description": "S3 bucket to use",
-                                "default": null,
-                            },
-                        },
-                        "required": ["ctx"],
-                    },
-                },
-                {
-                    "name": "init_storacha_backend",
-                    "description": "Initialize Storacha backend for the virtual filesystem",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "ctx": {"type": "string", "description": "Context for the operation"},
-                            "name": {
-                                "type": "string",
-                                "description": "Name for the backend",
-                                "default": "storacha",
-                            },
-                            "root_path": {
-                                "type": "string",
-                                "description": "Root path for the backend",
-                                "default": "/storacha",
-                            },
-                        },
-                        "required": ["ctx"],
-                    },
-                },
-                {
-                    "name": "init_ipfs_cluster_backend",
-                    "description": "Initialize IPFS Cluster backend for the virtual filesystem",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "ctx": {"type": "string", "description": "Context for the operation"},
-                            "name": {
-                                "type": "string",
-                                "description": "Name for the backend",
-                                "default": "ipfs_cluster",
-                            },
-                            "root_path": {
-                                "type": "string",
-                                "description": "Root path for the backend",
-                                "default": "/ipfs_cluster",
-                            },
-                        },
-                        "required": ["ctx"],
-                    },
-                },
-                {
-                    "name": "multi_backend_map",
-                    "description": "Map a backend path to a local filesystem path",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "ctx": {"type": "string", "description": "Context for the operation"},
-                            "backend_path": {
-                                "type": "string",
-                                "description": "Path in the backend",
-                            },
-                            "local_path": {
-                                "type": "string",
-                                "description": "Path in the local filesystem",
-                            },
-                        },
-                        "required": ["ctx", "backend_path", "local_path"],
-                    },
-                },
-                {
-                    "name": "multi_backend_unmap",
-                    "description": "Remove a mapping between backend and local filesystem",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "ctx": {"type": "string", "description": "Context for the operation"},
-                            "backend_path": {
-                                "type": "string",
-                                "description": "Path in the backend",
-                            },
-                        },
-                        "required": ["ctx", "backend_path"],
-                    },
-                },
-                {
-                    "name": "multi_backend_list_mappings",
-                    "description": "List all mappings between backends and local filesystem",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "ctx": {"type": "string", "description": "Context for the operation"}
-                        },
-                        "required": ["ctx"],
-                    },
-                },
-                {
-                    "name": "multi_backend_status",
-                    "description": "Get status of the multi-backend filesystem",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "ctx": {"type": "string", "description": "Context for the operation"}
-                        },
-                        "required": ["ctx"],
-                    },
-                },
-                {
-                    "name": "multi_backend_sync",
-                    "description": "Synchronize all mapped paths",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "ctx": {"type": "string", "description": "Context for the operation"}
-                        },
-                        "required": ["ctx"],
-                    },
-                },
-                {
-                    "name": "multi_backend_search",
-                    "description": "Search indexed content",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "ctx": {"type": "string", "description": "Context for the operation"},
-                            "query": {"type": "string", "description": "Search query"},
-                            "limit": {
-                                "type": "integer",
-                                "description": "Maximum number of results to return",
-                                "default": 100,
-                            },
-                        },
-                        "required": ["ctx", "query"],
-                    },
-                },
+                "required": [
+                "content"
             ]
-    # Removed unmatched parenthesis
+        }
+    },
+    {
+        "name": "ipfs_cat",
+        "description": "Retrieve content from IPFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cid": {
+                    "type": "string",
+                    "description": "CID of the content to retrieve"
+                }
+            },
+            "required": [
+                "cid"
+            ]
+        }
+    },
+    {
+        "name": "ipfs_ls",
+        "description": "List directory contents in IPFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cid": {
+                    "type": "string",
+                    "description": "CID of the directory to list"
+                },
+                "recursive": {
+                    "type": "boolean",
+                    "description": "Whether to list recursively",
+                    "default": false
+                }
+            },
+            "required": [
+                "cid"
+            ]
+        }
+    },
+    {
+        "name": "ipfs_files_ls",
+        "description": "List files in the MFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path in the MFS to list",
+                    "default": "/"
+                },
+                "long": {
+                    "type": "boolean",
+                    "description": "Whether to use long listing format",
+                    "default": false
+                }
+            }
+        }
+    },
+    {
+        "name": "ipfs_files_mkdir",
+        "description": "Create a directory in the MFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path in the MFS to create"
+                },
+                "parents": {
+                    "type": "boolean",
+                    "description": "Whether to create parent directories",
+                    "default": true
+                }
+            },
+            "required": [
+                "path"
+            ]
+        }
+    },
+    {
+        "name": "ipfs_files_write",
+        "description": "Write to a file in the MFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path in the MFS to write to"
+                },
+                "content": {
+                    "type": "string",
+                    "description": "Content to write"
+                },
+                "create": {
+                    "type": "boolean",
+                    "description": "Whether to create the file if it doesn't exist",
+                    "default": true
+                },
+                "truncate": {
+                    "type": "boolean",
+                    "description": "Whether to truncate the file",
+                    "default": true
+                }
+            },
+            "required": [
+                "path",
+                "content"
+            ]
+        }
+    },
+    {
+        "name": "ipfs_files_read",
+        "description": "Read a file from the MFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path in the MFS to read"
+                },
+                "offset": {
+                    "type": "integer",
+                    "description": "Offset to start reading from",
+                    "default": 0
+                },
+                "count": {
+                    "type": "integer",
+                    "description": "Number of bytes to read",
+                    "default": -1
+                }
+            },
+            "required": [
+                "path"
+            ]
+        }
+    },
+    {
+        "name": "ipfs_files_rm",
+        "description": "Remove a file or directory from the MFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path in the MFS to remove"
+                },
+                "recursive": {
+                    "type": "boolean",
+                    "description": "Whether to remove recursively",
+                    "default": false
+                }
+            },
+            "required": [
+                "path"
+            ]
+        }
+    },
+    {
+        "name": "ipfs_files_stat",
+        "description": "Get stats for a file or directory in the MFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path in the MFS to get stats for"
+                }
+            },
+            "required": [
+                "path"
+            ]
+        }
+    },
+    {
+        "name": "ipfs_files_cp",
+        "description": "Copy files in the MFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "source": {
+                    "type": "string",
+                    "description": "Source path in the MFS"
+                },
+                "dest": {
+                    "type": "string",
+                    "description": "Destination path in the MFS"
+                }
+            },
+            "required": [
+                "source",
+                "dest"
+            ]
+        }
+    },
+    {
+        "name": "ipfs_files_mv",
+        "description": "Move files in the MFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "source": {
+                    "type": "string",
+                    "description": "Source path in the MFS"
+                },
+                "dest": {
+                    "type": "string",
+                    "description": "Destination path in the MFS"
+                }
+            },
+            "required": [
+                "source",
+                "dest"
+            ]
+        }
+    },
+    {
+        "name": "ipfs_files_flush",
+        "description": "Flush the MFS",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path in the MFS to flush",
+                    "default": "/"
+                }
+            }
+        }
+    },
+    {
+        "name": "ipfs_pubsub_publish",
+        "description": "Publish a message to a pubsub topic",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "topic": {
+                    "type": "string",
+                    "description": "Topic to publish to"
+                },
+                "message": {
+                    "type": "string",
+                    "description": "Message to publish"
+                }
+            },
+            "required": [
+                "topic",
+                "message"
+            ]
+        }
+    },
+    {
+        "name": "ipfs_pubsub_subscribe",
+        "description": "Subscribe to messages on a pubsub topic",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "topic": {
+                    "type": "string",
+                    "description": "Topic to subscribe to"
+                },
+                "timeout": {
+                    "type": "integer",
+                    "description": "Timeout in seconds",
+                    "default": 10
+                }
+            },
+            "required": [
+                "topic"
+            ]
+        }
+    },
+    {
+        "name": "ipfs_dht_findpeer",
+        "description": "Find a peer in the DHT",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "peer_id": {
+                    "type": "string",
+                    "description": "Peer ID to find"
+                }
+            },
+            "required": [
+                "peer_id"
+            ]
+        }
+    },
+    {
+        "name": "ipfs_dht_findprovs",
+        "description": "Find providers for a CID in the DHT",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cid": {
+                    "type": "string",
+                    "description": "CID to find providers for"
+                },
+                "num_providers": {
+                    "type": "integer",
+                    "description": "Number of providers to find",
+                    "default": 20
+                }
+            },
+            "required": [
+                "cid"
+            ]
+        }
+    },
+    {
+        "name": "fs_journal_get_history",
+        "description": "Get the operation history for a path in the virtual filesystem",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ctx": {
+                    "type": "string",
+                    "description": "Context for the operation"
+                },
+                "path": {
+                    "type": "string",
+                    "description": "Path to get history for",
+                    "default": null
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of operations to return",
+                    "default": 100
+                }
+            },
+            "required": [
+                "ctx"
+            ]
+        }
+    },
+    {
+        "name": "fs_journal_sync",
+        "description": "Force synchronization between virtual filesystem and actual storage",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ctx": {
+                    "type": "string",
+                    "description": "Context for the operation"
+                },
+                "path": {
+                    "type": "string",
+                    "description": "Path to synchronize",
+                    "default": null
+                }
+            },
+            "required": [
+                "ctx"
+            ]
+        }
+    },
+    {
+        "name": "ipfs_fs_bridge_status",
+        "description": "Get the status of the IPFS-FS bridge",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ctx": {
+                    "type": "string",
+                    "description": "Context for the operation"
+                }
+            },
+            "required": [
+                "ctx"
+            ]
+        }
+    },
+    {
+        "name": "ipfs_fs_bridge_sync",
+        "description": "Sync between IPFS and virtual filesystem",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ctx": {
+                    "type": "string",
+                    "description": "Context for the operation"
+                },
+                "direction": {
+                    "type": "string",
+                    "description": "Direction of synchronization (ipfs_to_fs, fs_to_ipfs, or both)",
+                    "default": "both"
+                }
+            },
+            "required": [
+                "ctx"
+            ]
+        }
+    },
+    {
+        "name": "init_huggingface_backend",
+        "description": "Initialize HuggingFace backend for the virtual filesystem",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ctx": {
+                    "type": "string",
+                    "description": "Context for the operation"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name for the backend",
+                    "default": "huggingface"
+                },
+                "root_path": {
+                    "type": "string",
+                    "description": "Root path for the backend",
+                    "default": "/hf"
+                }
+            },
+            "required": [
+                "ctx"
+            ]
+        }
+    },
+    {
+        "name": "init_filecoin_backend",
+        "description": "Initialize Filecoin backend for the virtual filesystem",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ctx": {
+                    "type": "string",
+                    "description": "Context for the operation"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name for the backend",
+                    "default": "filecoin"
+                },
+                "root_path": {
+                    "type": "string",
+                    "description": "Root path for the backend",
+                    "default": "/fil"
+                }
+            },
+            "required": [
+                "ctx"
+            ]
+        }
+    },
+    {
+        "name": "init_s3_backend",
+        "description": "Initialize S3 backend for the virtual filesystem",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ctx": {
+                    "type": "string",
+                    "description": "Context for the operation"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name for the backend",
+                    "default": "s3"
+                },
+                "root_path": {
+                    "type": "string",
+                    "description": "Root path for the backend",
+                    "default": "/s3"
+                },
+                "bucket": {
+                    "type": "string",
+                    "description": "S3 bucket to use",
+                    "default": null
+                }
+            },
+            "required": [
+                "ctx"
+            ]
+        }
+    },
+    {
+        "name": "init_storacha_backend",
+        "description": "Initialize Storacha backend for the virtual filesystem",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ctx": {
+                    "type": "string",
+                    "description": "Context for the operation"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name for the backend",
+                    "default": "storacha"
+                },
+                "root_path": {
+                    "type": "string",
+                    "description": "Root path for the backend",
+                    "default": "/storacha"
+                }
+            },
+            "required": [
+                "ctx"
+            ]
+        }
+    },
+    {
+        "name": "init_ipfs_cluster_backend",
+        "description": "Initialize IPFS Cluster backend for the virtual filesystem",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ctx": {
+                    "type": "string",
+                    "description": "Context for the operation"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name for the backend",
+                    "default": "ipfs_cluster"
+                },
+                "root_path": {
+                    "type": "string",
+                    "description": "Root path for the backend",
+                    "default": "/ipfs_cluster"
+                }
+            },
+            "required": [
+                "ctx"
+            ]
+        }
+    },
+    {
+        "name": "multi_backend_map",
+        "description": "Map a backend path to a local filesystem path",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ctx": {
+                    "type": "string",
+                    "description": "Context for the operation"
+                },
+                "backend_path": {
+                    "type": "string",
+                    "description": "Path in the backend"
+                },
+                "local_path": {
+                    "type": "string",
+                    "description": "Path in the local filesystem"
+                }
+            },
+            "required": [
+                "ctx",
+                "backend_path",
+                "local_path"
+            ]
+        }
+    },
+    {
+        "name": "multi_backend_unmap",
+        "description": "Remove a mapping between backend and local filesystem",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ctx": {
+                    "type": "string",
+                    "description": "Context for the operation"
+                },
+                "backend_path": {
+                    "type": "string",
+                    "description": "Path in the backend"
+                }
+            },
+            "required": [
+                "ctx",
+                "backend_path"
+            ]
+        }
+    },
+    {
+        "name": "multi_backend_list_mappings",
+        "description": "List all mappings between backends and local filesystem",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ctx": {
+                    "type": "string",
+                    "description": "Context for the operation"
+                }
+            },
+            "required": [
+                "ctx"
+            ]
+        }
+    },
+    {
+        "name": "multi_backend_status",
+        "description": "Get status of the multi-backend filesystem",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ctx": {
+                    "type": "string",
+                    "description": "Context for the operation"
+                }
+            },
+            "required": [
+                "ctx"
+            ]
+        }
+    },
+    {
+        "name": "multi_backend_sync",
+        "description": "Synchronize all mapped paths",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ctx": {
+                    "type": "string",
+                    "description": "Context for the operation"
+                }
+            },
+            "required": [
+                "ctx"
+            ]
+        }
+    },
+    {
+        "name": "multi_backend_search",
+        "description": "Search indexed content",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "ctx": {
+                    "type": "string",
+                    "description": "Context for the operation"
+                },
+                "query": {
+                    "type": "string",
+                    "description": "Search query"
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of results to return",
+                    "default": 100
+                }
+            },
+            "required": [
+                "ctx",
+                "query"
+            ]
+        }
+    }
+]
+# Removed unmatched parenthesis
     except Exception as e:
         logger.error(f"JSON-RPC request handling error: {e}")
-        return JSONResponse(
-            {
-                "jsonrpc": "2.0",
-                "error": {"code": -32603, "message": f"Internal error: {str(e)}"},
-                "id": req_id if "req_id" in locals() else None,
-            }
-        )
+        return JSONResponse({
+            'jsonrpc': '2.0',
+            'error': {'code': -32603, 'message': f'Internal error: {str(e)}'},
+            'id': req_id if 'req_id' in locals() else None
+        })
+
+
 
     PORT = args.port
 
     # Write PID file
-    with open(args.pid_file, "w") as f:
+    with open(args.pid_file, 'w') as f:
         f.write(str(os.getpid()))
 
     # Initialize services
     app = server.sse_app()
 
     # Add CORS middleware for VS Code integration
-    app.add_middleware(
-        CORSMiddleware,
+    app.add_middleware(CORSMiddleware,
         allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-    )
-    # Removed unmatched parenthesis
+)
+# Removed unmatched parenthesis
 
     # Setup routes - Core API endpoints
     app.routes.append(Route("/", endpoint=homepage))
@@ -1700,4 +1768,9 @@ async def handle_jsonrpc(request):
         logger.info("MCP server services stopped")
 
     logger.info("Starting MCP server on %s:%s", args.host, args.port)
-    uvicorn.run(app, host=args.host, port=args.port, log_level="debug" if args.debug else "info")
+    uvicorn.run(
+        app,
+        host=args.host,
+        port=args.port,
+        log_level="debug" if args.debug else "info"
+    )

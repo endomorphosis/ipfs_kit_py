@@ -105,15 +105,18 @@ async def handle_ipfs_add(ctx):
     """Custom handler for ipfs_add with direct parameter mapping"""
     wrapped_ctx = ToolContext(ctx)
     arguments = wrapped_ctx.arguments
-
+    
     # Extract parameters with fallbacks
-    content = arguments.get("content", arguments.get("data", arguments.get("text")))
-    filename = arguments.get("filename", arguments.get("name"))
-    pin = arguments.get("pin", True)
-
+    content = arguments.get('content', arguments.get('data', arguments.get('text')))
+    filename = arguments.get('filename', arguments.get('name'))
+    pin = arguments.get('pin', True)
+    
     if not content:
-        return {"success": False, "error": "Missing required parameter: content"}
-
+        return {
+            "success": False,
+            "error": "Missing required parameter: content"
+        }
+    
     # Call the implementation function with correct parameters
     result = await add_content(content, filename, pin)
     return result
@@ -122,7 +125,10 @@ async def handle_ipfs_add(ctx):
 ### Using the Parameter Adapter Decorator
 
 ```python
-@adapt_parameters(mappings={"filename": ["name", "file_name"], "pin": ["should_pin", "keep"]})
+@adapt_parameters(mappings={
+    'filename': ['name', 'file_name'],
+    'pin': ['should_pin', 'keep']
+})
 async def ipfs_add_content(content, filename=None, pin=True):
     """Add content to IPFS"""
     # Implementation that uses the correctly mapped parameters

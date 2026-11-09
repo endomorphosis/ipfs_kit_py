@@ -6,9 +6,8 @@ Fix docstring formatting issues in libp2p_model.py
 import re
 import sys
 
-
 def fix_docstrings(file_path):
-    with open(file_path, "r") as f:
+    with open(file_path, 'r') as f:
         content = f.read()
 
     # Pattern: Find docstrings with a newline right after opening quotes
@@ -20,11 +19,10 @@ def fix_docstrings(file_path):
     fixed_content = re.sub(pattern, replacement, content)
 
     # Write the fixed content back
-    with open(file_path, "w") as f:
+    with open(file_path, 'w') as f:
         f.write(fixed_content)
 
     print(f"Fixed docstring formatting in {file_path}")
-
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:

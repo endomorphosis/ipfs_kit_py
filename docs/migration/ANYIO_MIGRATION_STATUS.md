@@ -105,17 +105,15 @@ If you want to eliminate ALL async-io usage:
    # Before
    @app.on_event("startup")
    async def startup():
-       async_io.create_task(background_task())
-
-
-   # After
+    async_io.create_task(background_task())
+   
+   # After  
    @asynccontextmanager
    async def lifespan(app: FastAPI):
        async with anyio.create_task_group() as tg:
            tg.start_soon(background_task)
            yield
-
-
+   
    app = FastAPI(lifespan=lifespan)
    ```
 

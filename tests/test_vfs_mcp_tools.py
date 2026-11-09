@@ -27,7 +27,7 @@ pytestmark = pytest.mark.anyio
 # List of all VFS tools that should be available
 EXPECTED_VFS_TOOLS = [
     "vfs_mount",
-    "vfs_unmount",
+    "vfs_unmount", 
     "vfs_list_mounts",
     "vfs_read",
     "vfs_write",
@@ -38,15 +38,14 @@ EXPECTED_VFS_TOOLS = [
     "vfs_ls",
     "vfs_stat",
     "vfs_sync_to_ipfs",
-    "vfs_sync_from_ipfs",
+    "vfs_sync_from_ipfs"
 ]
-
 
 def test_vfs_tools_availability():
     """Test that all VFS tools are available in the MCP server."""
     print("\n📋 Testing VFS Tools Availability")
     print("-" * 40)
-
+    
     # Import the MCP server
     try:
         from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
@@ -75,12 +74,11 @@ def test_vfs_tools_availability():
 
     print(f"\n✅ All {len(EXPECTED_VFS_TOOLS)} expected VFS tools are available!")
 
-
 def test_vfs_tool_schemas():
     """Test that all VFS tools have proper schema definitions."""
     print("\n🔧 Testing VFS Tool Schemas")
     print("-" * 40)
-
+    
     try:
         from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
     except Exception as e:
@@ -120,14 +118,12 @@ def test_vfs_tool_schemas():
 
     print("✅ All VFS tool schemas are properly defined!")
 
-
 def test_vfs_core_integration():
     """Test the VFS core integration."""
     print("\n🔌 Testing VFS Core Integration")
     print("-" * 40)
-
+    
     import ipfs_kit_py.ipfs_fsspec as ipfs_fsspec
-
     if not hasattr(ipfs_fsspec, "get_vfs"):
         pytest.skip("ipfs_fsspec.get_vfs not available")
 
@@ -141,42 +137,30 @@ def test_vfs_core_integration():
     # Test basic VFS operations
     print("📂 Testing basic VFS operations...")
 
-    if not hasattr(vfs, "registry"):
+    if not hasattr(vfs, 'registry'):
         pytest.skip("VFS registry not found")
     print("✅ VFS registry available")
 
-    if not hasattr(vfs, "cache_manager"):
+    if not hasattr(vfs, 'cache_manager'):
         pytest.skip("VFS cache manager not found")
     print("✅ VFS cache manager available")
 
-    if not hasattr(vfs, "replication_manager"):
+    if not hasattr(vfs, 'replication_manager'):
         pytest.skip("VFS replication manager not found")
     print("✅ VFS replication manager available")
 
     print("✅ VFS core integration verified!")
 
-
 async def test_vfs_async_functions():
     """Test the async VFS functions."""
     print("\n⚡ Testing VFS Async Functions")
     print("-" * 40)
-
+    
     import ipfs_kit_py.ipfs_fsspec as ipfs_fsspec
-
     required = [
-        "vfs_mount",
-        "vfs_unmount",
-        "vfs_list_mounts",
-        "vfs_read",
-        "vfs_write",
-        "vfs_ls",
-        "vfs_stat",
-        "vfs_mkdir",
-        "vfs_rmdir",
-        "vfs_copy",
-        "vfs_move",
-        "vfs_sync_to_ipfs",
-        "vfs_sync_from_ipfs",
+        "vfs_mount", "vfs_unmount", "vfs_list_mounts", "vfs_read", "vfs_write",
+        "vfs_ls", "vfs_stat", "vfs_mkdir", "vfs_rmdir", "vfs_copy", "vfs_move",
+        "vfs_sync_to_ipfs", "vfs_sync_from_ipfs",
     ]
     missing = [name for name in required if not hasattr(ipfs_fsspec, name)]
     if missing:
@@ -200,19 +184,9 @@ async def test_vfs_async_functions():
 
     # Test that functions are callable
     async_functions = [
-        vfs_mount,
-        vfs_unmount,
-        vfs_list_mounts,
-        vfs_read,
-        vfs_write,
-        vfs_ls,
-        vfs_stat,
-        vfs_mkdir,
-        vfs_rmdir,
-        vfs_copy,
-        vfs_move,
-        vfs_sync_to_ipfs,
-        vfs_sync_from_ipfs,
+        vfs_mount, vfs_unmount, vfs_list_mounts, vfs_read, vfs_write,
+        vfs_ls, vfs_stat, vfs_mkdir, vfs_rmdir, vfs_copy, vfs_move,
+        vfs_sync_to_ipfs, vfs_sync_from_ipfs
     ]
 
     for func in async_functions:
@@ -220,12 +194,11 @@ async def test_vfs_async_functions():
 
     print("✅ All VFS async functions are callable!")
 
-
 def test_vfs_tool_execution():
     """Test VFS tool execution through the MCP server."""
     print("\n🏃 Testing VFS Tool Execution")
     print("-" * 40)
-
+    
     try:
         from ipfs_kit_py.mcp.servers.unified_mcp_server import create_mcp_server
     except Exception as e:
@@ -234,28 +207,26 @@ def test_vfs_tool_execution():
     server = create_mcp_server()
 
     # Test that execute_tool method exists
-    if not hasattr(server, "execute_tool"):
+    if not hasattr(server, 'execute_tool'):
         pytest.skip("execute_tool method not found")
     print("✅ execute_tool method available")
 
     # Test that VFS operations are handled
-    if not hasattr(server.ipfs_integration, "execute_vfs_operation"):
+    if not hasattr(server.ipfs_integration, 'execute_vfs_operation'):
         pytest.skip("execute_vfs_operation method not found")
     print("✅ execute_vfs_operation method available")
 
     # Test that VFS is integrated
-    if not hasattr(server.ipfs_integration, "vfs_enabled"):
+    if not hasattr(server.ipfs_integration, 'vfs_enabled'):
         pytest.skip("vfs_enabled attribute not found")
     print("✅ VFS integration flag available")
-
 
 def test_vfs_backend_support():
     """Test VFS backend support."""
     print("\n🔧 Testing VFS Backend Support")
     print("-" * 40)
-
+    
     import ipfs_kit_py.ipfs_fsspec as ipfs_fsspec
-
     if not hasattr(ipfs_fsspec, "VFSBackendRegistry"):
         pytest.skip("ipfs_fsspec.VFSBackendRegistry not available")
 
@@ -283,13 +254,12 @@ def test_vfs_backend_support():
         pytest.skip(f"Insufficient backend support ({len(available_backends)} backends)")
     print(f"✅ VFS backend support verified ({len(available_backends)} backends)")
 
-
 def run_all_tests():
     """Run all VFS MCP integration tests."""
     print(f"\n🚀 Starting VFS MCP Integration Tests")
     print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 50)
-
+    
     tests = [
         ("VFS Tools Availability", test_vfs_tools_availability),
         ("VFS Tool Schemas", test_vfs_tool_schemas),
@@ -298,14 +268,14 @@ def run_all_tests():
         ("VFS Tool Execution", test_vfs_tool_execution),
         ("VFS Backend Support", test_vfs_backend_support),
     ]
-
+    
     results = []
-
+    
     for test_name, test_func in tests:
-        print(f"\n{'=' * 60}")
+        print(f"\n{'='*60}")
         print(f"Running: {test_name}")
-        print("=" * 60)
-
+        print('='*60)
+        
         try:
             if inspect.iscoroutinefunction(test_func):
                 anyio.run(test_func)
@@ -317,29 +287,28 @@ def run_all_tests():
         except Exception as e:
             print(f"❌ Test '{test_name}' failed with exception: {e}")
             results.append((test_name, False))
-
+    
     # Summary
-    print("\n" + "=" * 60)
+    print("\n" + "="*60)
     print("📊 TEST SUMMARY")
-    print("=" * 60)
-
+    print("="*60)
+    
     passed = sum(1 for _, result in results if result)
     total = len(results)
-
+    
     for test_name, result in results:
         status = "✅ PASS" if result else "❌ FAIL"
         print(f"{status} {test_name}")
-
+    
     print(f"\n🎯 Results: {passed}/{total} tests passed")
-
+    
     if passed == total:
         print("🎉 All VFS MCP integration tests PASSED!")
         print("✅ VFS tools are fully integrated and working correctly!")
     else:
         print("⚠️  Some tests failed. VFS integration may need attention.")
-
+    
     return passed == total
-
 
 if __name__ == "__main__":
     success = run_all_tests()

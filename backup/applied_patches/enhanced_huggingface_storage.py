@@ -22,19 +22,15 @@ logger = logging.getLogger(__name__)
 try:
     from huggingface_hub import HfApi, hf_hub_download, upload_file, create_repo, Repository
     from huggingface_hub.utils import RepositoryNotFoundError, RevisionNotFoundError, HfHubHTTPError
-
     HUGGINGFACE_AVAILABLE = True
     logger.info("HuggingFace Hub SDK is available")
 except ImportError:
     HUGGINGFACE_AVAILABLE = False
-    logger.warning(
-        "HuggingFace Hub SDK is not available. Install with: pip install huggingface_hub"
-    )
+    logger.warning("HuggingFace Hub SDK is not available. Install with: pip install huggingface_hub")
 
 # Default repository settings
 DEFAULT_REPO_NAME = "ipfs-storage"
 DEFAULT_REPO_TYPE = "dataset"  # Other options: "model", "space"
-
 
 class HuggingFaceStorage:
     """
@@ -56,23 +52,15 @@ class HuggingFaceStorage:
         """
         # Get configuration from environment variables or parameters
         self.token = token or os.environ.get("HUGGINGFACE_TOKEN") or os.environ.get("HF_TOKEN")
-        self.organization = (
-            organization
-            or os.environ.get("HUGGINGFACE_ORGANIZATION")
-            or os.environ.get("HF_ORGANIZATION")
-        )
-        self.repo_name = (
-            repo_name
-            or os.environ.get("HUGGINGFACE_REPO")
-            or os.environ.get("HF_REPO")
-            or DEFAULT_REPO_NAME
-        )
-        self.repo_type = (
-            repo_type
-            or os.environ.get("HUGGINGFACE_REPO_TYPE")
-            or os.environ.get("HF_REPO_TYPE")
-            or DEFAULT_REPO_TYPE
-        )
+        self.organization = organization or os.environ.get("HUGGINGFACE_ORGANIZATION") or os.environ.get("HF_ORGANIZATION")
+        self.repo_name = (repo_name or
+                         os.environ.get("HUGGINGFACE_REPO") or
+                         os.environ.get("HF_REPO") or
+                         DEFAULT_REPO_NAME)
+        self.repo_type = (repo_type or
+                         os.environ.get("HUGGINGFACE_REPO_TYPE") or
+                         os.environ.get("HF_REPO_TYPE") or
+                         DEFAULT_REPO_TYPE)
 
         # Initialize state variables
         self.api = None
@@ -143,7 +131,7 @@ class HuggingFaceStorage:
             "available": HUGGINGFACE_AVAILABLE and (self.api is not None or self.mock_mode),
             "simulation": self.simulation_mode,
             "mock": self.mock_mode,
-            "timestamp": time.time(),
+            "timestamp": time.time()
         }
 
         if self.simulation_mode:
@@ -175,12 +163,12 @@ class HuggingFaceStorage:
                         status_info["repository"] = {
                             "id": self._get_repository_name(),
                             "type": repo_info.get("type"),
-                            "private": repo_info.get("private", False),
+                            "private": repo_info.get("private", False)
                         }
                     else:
                         status_info["repository"] = {
                             "id": self._get_repository_name(),
-                            "exists": False,
+                            "exists": False
                         }
                 except Exception as e:
                     status_info["error"] = str(e)
@@ -229,7 +217,7 @@ class HuggingFaceStorage:
                     "id": self._get_repository_name(),
                     "type": self.repo_type,
                     "private": True,
-                    "files": self._list_mock_files(repo_dir),
+                    "files": self._list_mock_files(repo_dir)
                 }
                 return True, self.repo_info
             return False, None
@@ -296,7 +284,7 @@ class HuggingFaceStorage:
                     "id": repo_name,
                     "type": self.repo_type,
                     "private": True,
-                    "files": [],
+                    "files": []
                 }
                 return True
 
@@ -317,7 +305,7 @@ class HuggingFaceStorage:
                 organization=namespace,
                 private=True,
                 repo_type=self.repo_type,
-                exist_ok=True,
+                exist_ok=True
             )
 
             # Verify repository was created
@@ -342,7 +330,11 @@ class HuggingFaceStorage:
         Returns:
             Dict with structured error information
         """
-        result = {"original_message": error_message, "possible_causes": [], "suggested_actions": []}
+        result = {
+            "original_message": error_message,
+            "possible_causes": [],
+            "suggested_actions": []
+        }
 
         # Repository not found
         if "Repository Not Found" in error_message:
@@ -360,12 +352,8 @@ class HuggingFaceStorage:
 
                 # Check if there's a repo type mismatch
                 if result["repo_type"] != self.repo_type:
-                    result["possible_causes"].append(
-                        f"Repository type mismatch: API expects '{result['repo_type']}' but configured for '{self.repo_type}'"
-                    )
-                    result["suggested_actions"].append(
-                        f"Set HUGGINGFACE_REPO_TYPE environment variable to '{result['repo_type']}'"
-                    )
+                    result["possible_causes"].append(f"Repository type mismatch: API expects '{result['repo_type']}' but configured for '{self.repo_type}'")
+                    result["suggested_actions"].append(f"Set HUGGINGFACE_REPO_TYPE environment variable to '{result['repo_type']}'")
 
         # Authentication issues
         elif "401 Client Error" in error_message or "unauthorized" in error_message.lower():
@@ -373,9 +361,7 @@ class HuggingFaceStorage:
             result["possible_causes"].append("Invalid API token")
             result["possible_causes"].append("Token expired or revoked")
             result["suggested_actions"].append("Check your HuggingFace token")
-            result["suggested_actions"].append(
-                "Generate a new token at https://huggingface.co/settings/tokens"
-            )
+            result["suggested_actions"].append("Generate a new token at https://huggingface.co/settings/tokens")
 
         # Permission issues
         elif "403 Client Error" in error_message or "permission" in error_message.lower():
@@ -414,7 +400,7 @@ class HuggingFaceStorage:
             return {
                 "success": False,
                 "simulation": True,
-                "error": "HuggingFace backend is in simulation mode",
+                "error": "HuggingFace backend is in simulation mode"
             }
 
         # If in mock mode, simulate the operation with local storage
@@ -432,12 +418,14 @@ class HuggingFaceStorage:
                         "success": False,
                         "mock": True,
                         "error": f"File not found in mock storage: {file_path}",
-                        "repository": repo_name,
+                        "repository": repo_name
                     }
 
                 # Add the file to IPFS
                 result = subprocess.run(
-                    ["ipfs", "add", "-q", mock_file_path], capture_output=True, text=True
+                    ["ipfs", "add", "-q", mock_file_path],
+                    capture_output=True,
+                    text=True
                 )
 
                 if result.returncode != 0:
@@ -445,7 +433,7 @@ class HuggingFaceStorage:
                         "success": False,
                         "mock": True,
                         "error": f"Failed to add to IPFS: {result.stderr}",
-                        "repository": repo_name,
+                        "repository": repo_name
                     }
 
                 new_cid = result.stdout.strip()
@@ -456,7 +444,7 @@ class HuggingFaceStorage:
                         "success": False,
                         "mock": True,
                         "error": f"CID mismatch: expected {cid}, got {new_cid}",
-                        "repository": repo_name,
+                        "repository": repo_name
                     }
 
                 return {
@@ -465,12 +453,16 @@ class HuggingFaceStorage:
                     "message": "Added content from mock HuggingFace storage to IPFS",
                     "cid": new_cid,
                     "source": f"mock_huggingface:{repo_name}/{file_path}",
-                    "repository": repo_name,
+                    "repository": repo_name
                 }
 
             except Exception as e:
                 logger.error(f"Error in mock to_ipfs: {e}")
-                return {"success": False, "mock": True, "error": str(e)}
+                return {
+                    "success": False,
+                    "mock": True,
+                    "error": str(e)
+                }
 
         try:
             # Ensure repository exists
@@ -478,7 +470,7 @@ class HuggingFaceStorage:
                 return {
                     "success": False,
                     "error": "Failed to ensure repository exists",
-                    "repository": self._get_repository_name(),
+                    "repository": self._get_repository_name()
                 }
 
             # Download from HuggingFace
@@ -496,12 +488,14 @@ class HuggingFaceStorage:
                     token=self.token,
                     repo_type=self.repo_type,
                     local_dir=os.path.dirname(temp_path),
-                    local_dir_use_symlinks=False,
+                    local_dir_use_symlinks=False
                 )
 
                 # Upload to IPFS
                 result = subprocess.run(
-                    ["ipfs", "add", "-q", local_path], capture_output=True, text=True
+                    ["ipfs", "add", "-q", local_path],
+                    capture_output=True,
+                    text=True
                 )
 
                 # Clean up the temporary file
@@ -516,20 +510,20 @@ class HuggingFaceStorage:
                         return {
                             "success": False,
                             "error": f"CID mismatch: expected {cid}, got {new_cid}",
-                            "repository": repo_name,
+                            "repository": repo_name
                         }
 
                     return {
                         "success": True,
                         "cid": new_cid,
                         "source": f"huggingface:{repo_name}/{file_path}",
-                        "repository": repo_name,
+                        "repository": repo_name
                     }
                 else:
                     return {
                         "success": False,
                         "error": f"Failed to add to IPFS: {result.stderr}",
-                        "repository": repo_name,
+                        "repository": repo_name
                     }
             except RepositoryNotFoundError as e:
                 error_info = self._parse_error_message(str(e))
@@ -537,7 +531,7 @@ class HuggingFaceStorage:
                     "success": False,
                     "error": f"Repository not found: {repo_name}",
                     "repository": repo_name,
-                    "error_details": error_info,
+                    "error_details": error_info
                 }
             except HfHubHTTPError as e:
                 error_info = self._parse_error_message(str(e))
@@ -545,7 +539,7 @@ class HuggingFaceStorage:
                     "success": False,
                     "error": f"HuggingFace API error: {str(e)}",
                     "repository": repo_name,
-                    "error_details": error_info,
+                    "error_details": error_info
                 }
 
         except Exception as e:
@@ -555,7 +549,7 @@ class HuggingFaceStorage:
                 "success": False,
                 "error": str(e),
                 "error_details": error_info,
-                "repository": self._get_repository_name(),
+                "repository": self._get_repository_name()
             }
 
     def from_ipfs(self, cid: str, path: Optional[str] = None) -> Dict[str, Any]:
@@ -573,7 +567,7 @@ class HuggingFaceStorage:
             return {
                 "success": False,
                 "simulation": True,
-                "error": "HuggingFace backend is in simulation mode",
+                "error": "HuggingFace backend is in simulation mode"
             }
 
         # If in mock mode, simulate the operation with local storage
@@ -586,14 +580,17 @@ class HuggingFaceStorage:
                 os.makedirs(repo_dir, exist_ok=True)
 
                 # Get content from IPFS
-                result = subprocess.run(["ipfs", "cat", cid], capture_output=True)
+                result = subprocess.run(
+                    ["ipfs", "cat", cid],
+                    capture_output=True
+                )
 
                 if result.returncode != 0:
                     return {
                         "success": False,
                         "mock": True,
                         "error": f"Failed to get content from IPFS: {result.stderr.decode('utf-8')}",
-                        "repository": repo_name,
+                        "repository": repo_name
                     }
 
                 # Determine storage path
@@ -615,7 +612,7 @@ class HuggingFaceStorage:
                     "cid": cid,
                     "path": file_path,
                     "mock_path": full_path,
-                    "repository": repo_name,
+                    "repository": repo_name
                 }
 
             except Exception as e:
@@ -624,7 +621,7 @@ class HuggingFaceStorage:
                     "success": False,
                     "mock": True,
                     "error": str(e),
-                    "repository": self._get_repository_name(),
+                    "repository": self._get_repository_name()
                 }
 
         # Real implementation for when we have proper credentials
@@ -633,7 +630,7 @@ class HuggingFaceStorage:
             return {
                 "success": False,
                 "error": "Failed to ensure repository exists",
-                "repository": self._get_repository_name(),
+                "repository": self._get_repository_name()
             }
 
         try:
@@ -642,13 +639,16 @@ class HuggingFaceStorage:
                 temp_path = temp_file.name
 
             # Get content from IPFS
-            result = subprocess.run(["ipfs", "cat", cid], capture_output=True)
+            result = subprocess.run(
+                ["ipfs", "cat", cid],
+                capture_output=True
+            )
 
             if result.returncode != 0:
                 return {
                     "success": False,
                     "error": f"Failed to get content from IPFS: {result.stderr.decode('utf-8')}",
-                    "repository": self._get_repository_name(),
+                    "repository": self._get_repository_name()
                 }
 
             # Write content to temporary file
@@ -662,15 +662,13 @@ class HuggingFaceStorage:
             repo_name = self._get_repository_name()
 
             try:
-                logger.info(
-                    f"Uploading to HuggingFace repo {repo_name} (type: {self.repo_type}): {file_path}"
-                )
+                logger.info(f"Uploading to HuggingFace repo {repo_name} (type: {self.repo_type}): {file_path}")
                 response = upload_file(
                     path_or_fileobj=temp_path,
                     path_in_repo=file_path,
                     repo_id=repo_name,
                     token=self.token,
-                    repo_type=self.repo_type,
+                    repo_type=self.repo_type
                 )
 
                 # Clean up temporary file
@@ -682,7 +680,7 @@ class HuggingFaceStorage:
                     "cid": cid,
                     "path": file_path,
                     "repository": repo_name,
-                    "type": self.repo_type,
+                    "type": self.repo_type
                 }
             except RepositoryNotFoundError as e:
                 # Clean up temporary file
@@ -696,9 +694,7 @@ class HuggingFaceStorage:
                     # If the API is expecting a different repo type, let's try that
                     expected_type = error_info.get("repo_type")
                     if expected_type and expected_type != self.repo_type:
-                        logger.warning(
-                            f"Repository type mismatch. API expects '{expected_type}' but configured for '{self.repo_type}'. Trying with expected type."
-                        )
+                        logger.warning(f"Repository type mismatch. API expects '{expected_type}' but configured for '{self.repo_type}'. Trying with expected type.")
 
                         # Switch to the expected repo type and try again
                         original_type = self.repo_type
@@ -717,27 +713,23 @@ class HuggingFaceStorage:
                                         path_in_repo=file_path,
                                         repo_id=repo_name,
                                         token=self.token,
-                                        repo_type=self.repo_type,
+                                        repo_type=self.repo_type
                                     )
 
                                     # Clean up temporary file
                                     if os.path.exists(temp_path):
                                         os.unlink(temp_path)
 
-                                    logger.info(
-                                        f"Successfully uploaded to repository with type '{expected_type}'"
-                                    )
+                                    logger.info(f"Successfully uploaded to repository with type '{expected_type}'")
 
                                     return {
                                         "success": True,
-                                        "url": response.url
-                                        if hasattr(response, "url")
-                                        else str(response),
+                                        "url": response.url if hasattr(response, "url") else str(response),
                                         "cid": cid,
                                         "path": file_path,
                                         "repository": repo_name,
                                         "type": self.repo_type,
-                                        "note": f"Used repository type '{expected_type}' instead of configured '{original_type}'",
+                                        "note": f"Used repository type '{expected_type}' instead of configured '{original_type}'"
                                     }
                                 except Exception as upload_error:
                                     # If upload fails, revert back to original repo type
@@ -747,29 +739,23 @@ class HuggingFaceStorage:
                                     if os.path.exists(temp_path):
                                         os.unlink(temp_path)
 
-                                    logger.error(
-                                        f"Failed upload with expected type '{expected_type}': {upload_error}"
-                                    )
+                                    logger.error(f"Failed upload with expected type '{expected_type}': {upload_error}")
 
                                     # Continue to return the original error
                             else:
                                 # Revert back to original repo type
                                 self.repo_type = original_type
-                                logger.error(
-                                    f"Failed to create repository with type '{expected_type}'"
-                                )
+                                logger.error(f"Failed to create repository with type '{expected_type}'")
                         except Exception as type_error:
                             # Revert back to original repo type
                             self.repo_type = original_type
-                            logger.error(
-                                f"Error trying with expected type '{expected_type}': {type_error}"
-                            )
+                            logger.error(f"Error trying with expected type '{expected_type}': {type_error}")
 
                 return {
                     "success": False,
                     "error": f"Repository not found or access denied: {repo_name}",
                     "repository": repo_name,
-                    "error_details": error_info,
+                    "error_details": error_info
                 }
 
             except HfHubHTTPError as e:
@@ -782,7 +768,7 @@ class HuggingFaceStorage:
                     "success": False,
                     "error": f"HuggingFace API error: {str(e)}",
                     "repository": repo_name,
-                    "error_details": error_info,
+                    "error_details": error_info
                 }
 
         except Exception as e:
@@ -792,7 +778,7 @@ class HuggingFaceStorage:
                 "success": False,
                 "error": str(e),
                 "error_details": error_info,
-                "repository": self._get_repository_name(),
+                "repository": self._get_repository_name()
             }
 
     def list_files(self) -> Dict[str, Any]:
@@ -806,7 +792,7 @@ class HuggingFaceStorage:
             return {
                 "success": False,
                 "simulation": True,
-                "error": "HuggingFace backend is in simulation mode",
+                "error": "HuggingFace backend is in simulation mode"
             }
 
         # Ensure repository exists
@@ -814,7 +800,7 @@ class HuggingFaceStorage:
             return {
                 "success": False,
                 "error": "Failed to ensure repository exists",
-                "repository": self._get_repository_name(),
+                "repository": self._get_repository_name()
             }
 
         # If in mock mode, list files from local directory
@@ -829,7 +815,7 @@ class HuggingFaceStorage:
                         "success": False,
                         "mock": True,
                         "error": f"Mock repository directory not found: {repo_dir}",
-                        "repository": repo_name,
+                        "repository": repo_name
                     }
 
                 files = self._list_mock_files(repo_dir)
@@ -839,7 +825,7 @@ class HuggingFaceStorage:
                     "mock": True,
                     "files": files,
                     "count": len(files),
-                    "repository": repo_name,
+                    "repository": repo_name
                 }
 
             except Exception as e:
@@ -848,14 +834,19 @@ class HuggingFaceStorage:
                     "success": False,
                     "mock": True,
                     "error": str(e),
-                    "repository": self._get_repository_name(),
+                    "repository": self._get_repository_name()
                 }
 
         try:
             repo_name = self._get_repository_name()
             files = self.api.list_repo_files(repo_id=repo_name, repo_type=self.repo_type)
 
-            return {"success": True, "files": files, "count": len(files), "repository": repo_name}
+            return {
+                "success": True,
+                "files": files,
+                "count": len(files),
+                "repository": repo_name
+            }
 
         except RepositoryNotFoundError as e:
             error_info = self._parse_error_message(str(e))
@@ -863,7 +854,7 @@ class HuggingFaceStorage:
                 "success": False,
                 "error": f"Repository not found: {repo_name}",
                 "repository": repo_name,
-                "error_details": error_info,
+                "error_details": error_info
             }
 
         except HfHubHTTPError as e:
@@ -872,9 +863,13 @@ class HuggingFaceStorage:
                 "success": False,
                 "error": f"HuggingFace API error: {str(e)}",
                 "repository": self._get_repository_name(),
-                "error_details": error_info,
+                "error_details": error_info
             }
 
         except Exception as e:
             logger.error(f"Error listing files from HuggingFace: {e}")
-            return {"success": False, "error": str(e), "repository": self._get_repository_name()}
+            return {
+                "success": False,
+                "error": str(e),
+                "repository": self._get_repository_name()
+            }

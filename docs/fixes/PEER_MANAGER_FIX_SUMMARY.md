@@ -22,9 +22,8 @@ The peer-to-peer manager dashboard was not working due to two critical issues:
 # Inject multiformats.multihash as 'multihash' module
 from multiformats import multihash as mf_multihash
 import sys
-
-if "multihash" not in sys.modules:
-    sys.modules["multihash"] = mf_multihash
+if 'multihash' not in sys.modules:
+    sys.modules['multihash'] = mf_multihash
 ```
 
 ### 2. Implemented Thread-Safe Singleton Pattern
@@ -39,11 +38,10 @@ if "multihash" not in sys.modules:
 ```python
 _peer_manager_lock = anyio.Lock()
 
-
 async def start_peer_manager(config_dir: Path = None, ipfs_kit=None):
     async with _peer_manager_lock:
         manager = get_peer_manager(config_dir=config_dir, ipfs_kit=ipfs_kit)
-        if not hasattr(manager, "_started") or not manager._started:
+        if not hasattr(manager, '_started') or not manager._started:
             await manager.start()
             manager._started = True
         return manager
@@ -62,8 +60,7 @@ async def start_peer_manager(config_dir: Path = None, ipfs_kit=None):
 ```python
 def __init__(self, backend_monitor):
     self.peer_manager = None  # ❌ Instance variable
-
-
+    
 async def get_peers_summary(self):
     if not self.peer_manager:  # ❌ Checking instance variable
         await self._initialize_peer_manager()
@@ -73,12 +70,10 @@ async def get_peers_summary(self):
 ```python
 _init_lock = anyio.Lock()  # ✅ Class-level lock
 
-
 async def _ensure_peer_manager(self):
     if not PeerEndpoints._initialized:
         await self._initialize_peer_manager()
     return get_peer_manager()  # ✅ Always return singleton
-
 
 async def get_peers_summary(self):
     peer_manager = await self._ensure_peer_manager()  # ✅ Get singleton

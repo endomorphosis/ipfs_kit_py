@@ -150,7 +150,7 @@ class TestDataScienceIntegration(unittest.TestCase):
     def test_pyarrow_integration(self):
         """Test reading data directly with PyArrow from IPFS."""
         # Skip the test if real integration is not available
-        if not hasattr(self, "df"):
+        if not hasattr(self, 'df'):
             self.skipTest("Test dataframe not available")
 
         # Use a completely different approach that doesn't involve actually reading from IPFS
@@ -165,15 +165,14 @@ class TestDataScienceIntegration(unittest.TestCase):
 
         # Create a custom table for testing
         test_data = {
-            "id": list(range(100)),
-            "category": ["A", "B", "C", "D", "E"] * 20,
-            "value": list(range(100, 200)),
+            'id': list(range(100)),
+            'category': ['A', 'B', 'C', 'D', 'E'] * 20,
+            'value': list(range(100, 200))
         }
 
         # Test that we can create a PyArrow table from the data
         try:
             import pyarrow as pa
-
             test_table = pa.Table.from_pydict(test_data)
 
             # Verify the table properties
@@ -195,7 +194,7 @@ class TestDataScienceIntegration(unittest.TestCase):
     def test_parquet_dataset_integration(self):
         """Test creating a PyArrow dataset from IPFS files."""
         # Skip the test if real integration is not available
-        if not hasattr(self, "local_dir"):
+        if not hasattr(self, 'local_dir'):
             self.skipTest("Local directory for testing not available")
 
         try:
@@ -212,9 +211,9 @@ class TestDataScienceIntegration(unittest.TestCase):
 
             # Create test data for filtering
             test_data = {
-                "id": list(range(100)),
-                "category": ["A", "B", "C", "D", "E"] * 20,
-                "value": list(range(100, 200)),
+                'id': list(range(100)),
+                'category': ['A', 'B', 'C', 'D', 'E'] * 20,
+                'value': list(range(100, 200))
             }
 
             # Create a PyArrow table and save it to a test file

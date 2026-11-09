@@ -53,11 +53,7 @@ class WorkflowValidator:
                                 info["architectures"].add("amd64")
                             if "arm64" in runner or "aarch64" in runner:
                                 info["architectures"].add("arm64")
-                            if (
-                                "ubuntu" in runner
-                                and "amd64" not in runner
-                                and "arm64" not in runner
-                            ):
+                            if "ubuntu" in runner and "amd64" not in runner and "arm64" not in runner:
                                 info["architectures"].add("amd64")  # Default
 
                     # Check for strategy matrix
@@ -119,9 +115,9 @@ class WorkflowValidator:
 
     def print_summary(self):
         """Print validation summary"""
-        print(f"\n{'=' * 70}")
+        print(f"\n{'='*70}")
         print("CI/CD Workflow Validation Summary")
-        print(f"{'=' * 70}\n")
+        print(f"{'='*70}\n")
 
         print(f"Total Workflows: {self.results['total_workflows']}")
         print(f"Valid Workflows: {self.results['valid_workflows']}")
@@ -152,7 +148,7 @@ class WorkflowValidator:
                 print(f"   {error}")
             print()
 
-        print(f"{'=' * 70}")
+        print(f"{'='*70}")
         if len(self.results["errors"]) == 0:
             print("✅ ALL WORKFLOWS ARE VALID!")
             return True
@@ -170,9 +166,9 @@ def main():
         print(f"❌ Workflows directory not found: {workflows_dir}")
         sys.exit(1)
 
-    print(f"\n{'=' * 70}")
+    print(f"\n{'='*70}")
     print("CI/CD Workflow Validation")
-    print(f"{'=' * 70}\n")
+    print(f"{'='*70}\n")
     print(f"Workflows directory: {workflows_dir}")
 
     validator = WorkflowValidator(workflows_dir)

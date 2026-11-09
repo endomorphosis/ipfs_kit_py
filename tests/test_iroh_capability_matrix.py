@@ -82,7 +82,9 @@ def test_classification_vocabulary_is_closed_and_fail_closed() -> None:
         "## Classification vocabulary",
         "## Required operation capability matrix",
     )
-    classifications = re.findall(r"^\| `(native|emulated|unsupported)` \|", section, re.MULTILINE)
+    classifications = re.findall(
+        r"^\| `(native|emulated|unsupported)` \|", section, re.MULTILINE
+    )
     assert classifications == ["native", "emulated", "unsupported"]
     assert "IROH_UNSUPPORTED_OPERATION" in section
     assert "never process-local bookkeeping" in section
@@ -197,8 +199,9 @@ def test_sync_matrix_forbids_local_fallback_and_last_writer_wins() -> None:
         assert f"`{code}`" in section
     assert "MUST NOT fall back" in section
     assert "never choose by wall clock, arrival order, or last-writer-wins" in section
-    assert "does not mean that every referenced file blob has been eagerly downloaded" in _compact(
-        section
+    assert (
+        "does not mean that every referenced file blob has been eagerly downloaded"
+        in _compact(section)
     )
 
 

@@ -21,12 +21,13 @@ import uuid
 import aiohttp
 from enum import Enum
 from typing import Dict, Any, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import (
+    APIRouter,
+    HTTPException)
 from pydantic import BaseModel
 
 # Import anyio with fallback
 import anyio
-
 # NOTE: Background tasks should be started via AnyIO.
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -63,7 +64,6 @@ storage_backends = {
 # Node status enum
 class NodeStatus(str, Enum):
     """Node status values."""
-
     ACTIVE = "active"
     STANDBY = "standby"
     UNAVAILABLE = "unavailable"
@@ -76,7 +76,6 @@ class NodeStatus(str, Enum):
 # Event type enum
 class EventType(str, Enum):
     """High availability event types."""
-
     NODE_JOINED = "node_joined"
     NODE_LEFT = "node_left"
     LEADER_ELECTED = "leader_elected"
@@ -184,7 +183,6 @@ http_session = None
 # Data models
 class HAStatus(BaseModel):
     """High availability status model."""
-
     enabled: bool
     initialized: bool
     leader_id: Optional[str]
@@ -203,7 +201,6 @@ class HAStatus(BaseModel):
 
 class HAConfig(BaseModel):
     """High availability configuration model."""
-
     enabled: bool
     node_name: str
     region: str
@@ -219,7 +216,6 @@ class HAConfig(BaseModel):
 
 class NodeInfo(BaseModel):
     """Node information model."""
-
     id: str
     name: str
     region: str
@@ -234,7 +230,6 @@ class NodeInfo(BaseModel):
 
 class RegionInfo(BaseModel):
     """Region information model."""
-
     id: str
     name: str
     priority: int
@@ -245,7 +240,6 @@ class RegionInfo(BaseModel):
 
 class HAEvent(BaseModel):
     """High availability event model."""
-
     id: str
     event_type: str
     timestamp: float
@@ -256,7 +250,6 @@ class HAEvent(BaseModel):
 
 class FailoverRequest(BaseModel):
     """Failover request model."""
-
     target_node_id: Optional[str] = None
     target_region_id: Optional[str] = None
     reason: str
@@ -265,7 +258,6 @@ class FailoverRequest(BaseModel):
 
 class RegionConfig(BaseModel):
     """Region configuration model."""
-
     id: str
     name: str
     priority: int = 100
@@ -800,7 +792,7 @@ async def handle_failover():
             if time_since_failover > config["failover"]["cooldown_seconds"]:
                 await perform_failover(
                     reason="automatic_leader_unavailable",
-                    target_node_id=None,  # Election will choose new leader
+                    target_node_id = None,  # Election will choose new leader
                 )
 
 
@@ -1274,7 +1266,7 @@ def create_ha_router(api_prefix: str) -> APIRouter:
 
         # If this node is the leader, trigger failover
         if ha_status["leader_id"] == this_node["id"]:
-            await perform_failover(reason="maintenance_mode", target_node_id=None)
+            await perform_failover(reason="maintenance_mode", target_node_id = None)
 
         # Update status
         old_status = this_node["status"]
@@ -1331,7 +1323,6 @@ def create_ha_router(api_prefix: str) -> APIRouter:
 # Start background tasks
 def start_background_tasks(app):
     """Start background tasks for the high availability extension."""
-
     @app.on_event("startup")
     async def startup_event():
         # Initialize HTTP session

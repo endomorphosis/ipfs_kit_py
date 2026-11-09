@@ -17,17 +17,15 @@ import signal
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
 
 def verify_mcp_config():
     """Verify that the MCP configuration is correct."""
     # Define the path to the settings file
-    settings_path = os.path.expanduser(
-        "~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"
-    )
+    settings_path = os.path.expanduser("~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json")
 
     if not os.path.exists(settings_path):
         logger.error(f"Settings file not found: {settings_path}")
@@ -35,29 +33,29 @@ def verify_mcp_config():
 
     try:
         # Read existing settings
-        with open(settings_path, "r") as f:
+        with open(settings_path, 'r') as f:
             settings = json.load(f)
 
         # Check if mcpServers is an object
-        if "mcpServers" not in settings or not isinstance(settings["mcpServers"], dict):
+        if 'mcpServers' not in settings or not isinstance(settings['mcpServers'], dict):
             logger.error("mcpServers is not an object in the settings file")
             return False
 
         # Check if at least one server is defined
-        if not settings["mcpServers"]:
+        if not settings['mcpServers']:
             logger.error("No MCP servers defined in the settings file")
             return False
 
         # Check each server for tools
-        for server_name, server in settings["mcpServers"].items():
-            if "tools" not in server or not isinstance(server["tools"], list):
+        for server_name, server in settings['mcpServers'].items():
+            if 'tools' not in server or not isinstance(server['tools'], list):
                 logger.warning(f"Server '{server_name}' has no tools defined")
-            elif not server["tools"]:
+            elif not server['tools']:
                 logger.warning(f"Server '{server_name}' has an empty tools list")
             else:
                 logger.info(f"Server '{server_name}' has {len(server['tools'])} tools defined")
 
-            if "url" not in server:
+            if 'url' not in server:
                 logger.warning(f"Server '{server_name}' has no URL defined")
             else:
                 logger.info(f"Server '{server_name}' URL: {server['url']}")
@@ -67,10 +65,8 @@ def verify_mcp_config():
     except Exception as e:
         logger.error(f"Error verifying MCP configuration: {e}")
         import traceback
-
         logger.error(traceback.format_exc())
         return False
-
 
 def stop_mcp_server():
     """Stop any running MCP server processes."""
@@ -78,10 +74,10 @@ def stop_mcp_server():
     try:
         # Get PIDs of running MCP server processes
         ps_cmd = "ps aux | grep 'enhanced_mcp_server_fixed.py' | grep -v grep | awk '{print $2}'"
-        ps_output = subprocess.check_output(ps_cmd, shell=True).decode("utf-8").strip()
+        ps_output = subprocess.check_output(ps_cmd, shell=True).decode('utf-8').strip()
 
         if ps_output:
-            for pid in ps_output.split("\n"):
+            for pid in ps_output.split('\n'):
                 if pid:
                     logger.info(f"Killing MCP server process with PID: {pid}")
                     try:
@@ -101,10 +97,8 @@ def stop_mcp_server():
     except Exception as e:
         logger.error(f"Error stopping MCP server processes: {e}")
         import traceback
-
         logger.error(traceback.format_exc())
         return False
-
 
 def start_mcp_server():
     """Start the MCP server."""
@@ -116,7 +110,7 @@ def start_mcp_server():
 
         # Wait for the server to start
         for i in range(5):
-            logger.info(f"Waiting for MCP server to start (attempt {i + 1}/5)...")
+            logger.info(f"Waiting for MCP server to start (attempt {i+1}/5)...")
             time.sleep(2)
             try:
                 response = requests.get("http://localhost:9994/")
@@ -131,10 +125,8 @@ def start_mcp_server():
     except Exception as e:
         logger.error(f"Error starting MCP server: {e}")
         import traceback
-
         logger.error(traceback.format_exc())
         return False
-
 
 def verify_mcp_server():
     """Verify that the MCP server is running and responding correctly."""
@@ -162,10 +154,8 @@ def verify_mcp_server():
     except Exception as e:
         logger.error(f"Error verifying MCP server: {e}")
         import traceback
-
         logger.error(traceback.format_exc())
         return False
-
 
 def main():
     """Main function."""
@@ -201,7 +191,6 @@ def main():
     print("✅ Please reload the VSCode window if the tools are still not showing.")
     print("✅ MCP server is running at: http://localhost:9994/")
     sys.exit(0)
-
 
 if __name__ == "__main__":
     main()

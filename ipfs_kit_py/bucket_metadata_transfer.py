@@ -15,7 +15,6 @@ from typing import Any, Dict, List, Optional
 
 try:
     import cbor2
-
     HAS_CBOR = True
 except ImportError:
     HAS_CBOR = False
@@ -26,7 +25,7 @@ logger = logging.getLogger(__name__)
 class BucketMetadataExporter:
     """
     Export complete bucket metadata to IPFS for sharing and backup.
-
+    
     Exports include:
     - Bucket configuration (type, structure, settings)
     - File manifest with CIDs and paths
@@ -34,7 +33,7 @@ class BucketMetadataExporter:
     - Vector index metadata
     - Statistics and analytics
     """
-
+    
     def __init__(self, ipfs_client=None):
         """Initialize bucket metadata exporter."""
         self.ipfs_client = ipfs_client
@@ -63,7 +62,7 @@ class BucketMetadataExporter:
             return getattr(obj, name)
         except Exception:
             return default
-
+    
     async def export_bucket_metadata(
         self,
         bucket,
@@ -77,21 +76,19 @@ class BucketMetadataExporter:
     ) -> Dict[str, Any]:
         """
         Export comprehensive bucket metadata.
-
+        
         Args:
             bucket: BucketVFS instance to export
             include_files: Include file manifest
             include_knowledge_graph: Include knowledge graph data
             include_vector_index: Include vector index metadata
             format: Export format ("json" or "cbor")
-
+        
         Returns:
             Dict with export results including metadata CID
         """
         try:
-            logger.info(
-                f"Exporting metadata for bucket: {self._safe_attr(bucket, 'name', 'unknown')}"
-            )
+            logger.info(f"Exporting metadata for bucket: {self._safe_attr(bucket, 'name', 'unknown')}")
 
             bucket_name = self._safe_attr(bucket, "name", "unknown")
             bucket_type = self._safe_attr(bucket, "bucket_type", "standard")
@@ -99,88 +96,80 @@ class BucketMetadataExporter:
             created_at = self._safe_attr(bucket, "created_at", None)
             root_cid = self._safe_attr(bucket, "root_cid", None)
             bucket_metadata = self._safe_attr(bucket, "metadata", {})
-
+            
             # Build metadata structure
             metadata = {
                 "version": "1.0",
                 "exported_at": time.time(),
                 "bucket_info": {
                     "name": bucket_name,
-                    "type": (getattr(bucket_type, "value", None) or str(bucket_type)),
-                    "vfs_structure": (getattr(vfs_structure, "value", None) or str(vfs_structure)),
+                    "type": (
+                        getattr(bucket_type, "value", None)
+                        or str(bucket_type)
+                    ),
+                    "vfs_structure": (
+                        getattr(vfs_structure, "value", None)
+                        or str(vfs_structure)
+                    ),
                     "created_at": created_at,
                     "root_cid": root_cid,
                     "metadata": bucket_metadata if isinstance(bucket_metadata, dict) else {},
-                },
+                }
             }
-
+            
             # Export file manifest
             if include_files:
                 metadata["files"] = await self._export_file_manifest(bucket)
-
+            
             # Export knowledge graph
-            knowledge_graph = (
-                knowledge_graph
-                if knowledge_graph is not None
-                else self._safe_attr(bucket, "knowledge_graph", None)
-            )
+            knowledge_graph = knowledge_graph if knowledge_graph is not None else self._safe_attr(bucket, "knowledge_graph", None)
             if include_knowledge_graph and knowledge_graph:
-                metadata["knowledge_graph"] = await self._export_knowledge_graph(
-                    bucket, knowledge_graph=knowledge_graph
-                )
-
+                metadata["knowledge_graph"] = await self._export_knowledge_graph(bucket, knowledge_graph=knowledge_graph)
+            
             # Export vector index metadata
-            vector_index = (
-                vector_index
-                if vector_index is not None
-                else self._safe_attr(bucket, "vector_index", None)
-            )
+            vector_index = vector_index if vector_index is not None else self._safe_attr(bucket, "vector_index", None)
             if include_vector_index and vector_index:
-                metadata["vector_index"] = await self._export_vector_index(
-                    bucket, vector_index=vector_index
-                )
-
+                metadata["vector_index"] = await self._export_vector_index(bucket, vector_index=vector_index)
+            
             # Export statistics
             metadata["statistics"] = await self._export_statistics(bucket)
-
+            
             # Serialize metadata
             if format == "cbor" and HAS_CBOR:
                 metadata_bytes = cbor2.dumps(metadata)
                 content_type = "application/cbor"
             else:
-                metadata_bytes = json.dumps(metadata, indent=2).encode("utf-8")
+                metadata_bytes = json.dumps(metadata, indent=2).encode('utf-8')
                 content_type = "application/json"
-
+            
             # Upload to IPFS by default when a client is available (many callers/tests
             # expect a CID to be returned without having to opt in).
             metadata_cid = None
             export_path = None
-
+            
             if self.ipfs_client and upload_to_ipfs:
                 try:
                     result = await self._upload_to_ipfs(metadata_bytes, content_type)
                     metadata_cid = result.get("cid")
                 except Exception as e:
                     logger.warning(f"IPFS upload failed; continuing with local export: {e}")
-
+            
             # Always save to local file as backup
             storage_path = self._safe_attr(bucket, "storage_path", None)
             if storage_path is None:
-                storage_path = (
-                    Path.cwd() / ".cache" / "bucket_exports" / str(bucket_name or "bucket")
-                )
+                storage_path = (Path.cwd() / ".cache" / "bucket_exports" / str(bucket_name or "bucket"))
             else:
                 storage_path = Path(storage_path)
 
             ext = "cbor" if (format == "cbor" and HAS_CBOR) else "json"
             export_path = storage_path / f"metadata_export_{int(time.time())}.{ext}"
             export_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(export_path, "wb") as f:
+            with open(export_path, 'wb') as f:
                 f.write(metadata_bytes)
-
+            
             if not self.ipfs_client:
                 logger.warning("No IPFS client available, saved to local file only")
-
+            
             result_payload: Dict[str, Any] = {
                 "success": True,
                 "metadata_cid": metadata_cid,
@@ -190,8 +179,8 @@ class BucketMetadataExporter:
                 "includes": {
                     "files": include_files,
                     "knowledge_graph": include_knowledge_graph,
-                    "vector_index": include_vector_index,
-                },
+                    "vector_index": include_vector_index
+                }
             }
 
             # Some test suites expect a top-level file manifest summary.
@@ -202,15 +191,19 @@ class BucketMetadataExporter:
                     result_payload["file_count"] = files_manifest.get("file_count")
 
             return result_payload
-
+            
         except Exception as e:
             logger.error(f"Error exporting bucket metadata: {e}")
             return {"success": False, "error": str(e)}
-
+    
     async def _export_file_manifest(self, bucket) -> Dict[str, Any]:
         """Export file manifest with CIDs and paths."""
         try:
-            manifest = {"file_count": 0, "total_size": 0, "files": []}
+            manifest = {
+                "file_count": 0,
+                "total_size": 0,
+                "files": []
+            }
 
             files = await self._get_file_manifest(bucket)
             if isinstance(files, dict):
@@ -226,9 +219,9 @@ class BucketMetadataExporter:
                     manifest["files"].append(item)
                     manifest["file_count"] += 1
                     manifest["total_size"] += int(item.get("size") or 0)
-
+            
             return manifest
-
+            
         except Exception as e:
             logger.error(f"Error exporting file manifest: {e}")
             return {"error": str(e)}
@@ -262,17 +255,11 @@ class BucketMetadataExporter:
             except Exception:
                 manifest[rel] = {}
         return manifest
-
-    async def _export_knowledge_graph(
-        self, bucket, *, knowledge_graph: Any = None
-    ) -> Dict[str, Any]:
+    
+    async def _export_knowledge_graph(self, bucket, *, knowledge_graph: Any = None) -> Dict[str, Any]:
         """Export knowledge graph structure."""
         try:
-            kg = (
-                knowledge_graph
-                if knowledge_graph is not None
-                else self._safe_attr(bucket, "knowledge_graph", None)
-            )
+            kg = knowledge_graph if knowledge_graph is not None else self._safe_attr(bucket, "knowledge_graph", None)
             if not kg:
                 return {"error": "No knowledge graph available"}
 
@@ -292,44 +279,34 @@ class BucketMetadataExporter:
                 "nodes": nodes,
                 "edges": edges,
             }
-
+            
             return graph_data
-
+            
         except Exception as e:
             logger.error(f"Error exporting knowledge graph: {e}")
             return {"error": str(e)}
-
+    
     async def _export_vector_index(self, bucket, *, vector_index: Any = None) -> Dict[str, Any]:
         """Export vector index metadata (not the actual vectors, just metadata)."""
         try:
-            vi = (
-                vector_index
-                if vector_index is not None
-                else self._safe_attr(bucket, "vector_index", None)
-            )
+            vi = vector_index if vector_index is not None else self._safe_attr(bucket, "vector_index", None)
             if not vi:
                 return {"error": "No vector index available"}
-
+            
             # Export index metadata (not full vectors to save space)
             index_meta = {
-                "dimension": vi.get("dimension", 0)
-                if isinstance(vi, dict)
-                else getattr(vi, "dimension", 0),
+                "dimension": vi.get("dimension", 0) if isinstance(vi, dict) else getattr(vi, "dimension", 0),
                 "count": vi.get("count", 0) if isinstance(vi, dict) else getattr(vi, "count", 0),
-                "model": vi.get("model", "unknown")
-                if isinstance(vi, dict)
-                else getattr(vi, "model", "unknown"),
-                "indexed_at": vi.get("indexed_at")
-                if isinstance(vi, dict)
-                else getattr(vi, "indexed_at", None),
+                "model": vi.get("model", "unknown") if isinstance(vi, dict) else getattr(vi, "model", "unknown"),
+                "indexed_at": vi.get("indexed_at") if isinstance(vi, dict) else getattr(vi, "indexed_at", None),
             }
-
+            
             return index_meta
-
+            
         except Exception as e:
             logger.error(f"Error exporting vector index: {e}")
             return {"error": str(e)}
-
+    
     async def _export_statistics(self, bucket) -> Dict[str, Any]:
         """Export bucket statistics."""
         try:
@@ -338,30 +315,30 @@ class BucketMetadataExporter:
                 "root_cid": self._safe_attr(bucket, "root_cid", None),
                 "storage_path": str(self._safe_attr(bucket, "storage_path", "")),
             }
-
+            
             return stats
-
+            
         except Exception as e:
             logger.error(f"Error exporting statistics: {e}")
             return {"error": str(e)}
-
+    
     async def _upload_to_ipfs(self, content: bytes, content_type: str) -> Dict[str, Any]:
         """Upload content to IPFS."""
         try:
             if not self.ipfs_client:
                 return {"success": False, "error": "No IPFS client available"}
-
+            
             # Upload to IPFS
             # This is a simplified version - actual implementation depends on ipfs_client interface
-            if hasattr(self.ipfs_client, "add"):
+            if hasattr(self.ipfs_client, 'add'):
                 result = await self.ipfs_client.add(content)
                 return {"success": True, "cid": result.get("Hash") or result.get("cid")}
-            elif hasattr(self.ipfs_client, "files") and hasattr(self.ipfs_client.files, "add"):
+            elif hasattr(self.ipfs_client, 'files') and hasattr(self.ipfs_client.files, 'add'):
                 result = self.ipfs_client.files.add(content)
                 return {"success": True, "cid": result}
             else:
                 return {"success": False, "error": "IPFS client does not support add operation"}
-
+                
         except Exception as e:
             logger.error(f"Error uploading to IPFS: {e}")
             return {"success": False, "error": str(e)}
@@ -381,16 +358,19 @@ class BucketMetadataImporter:
         logger.info("Bucket metadata importer initialized")
 
     async def import_bucket_metadata(
-        self, metadata_cid: str, new_bucket_name: Optional[str] = None, fetch_files: bool = False
+        self,
+        metadata_cid: str,
+        new_bucket_name: Optional[str] = None,
+        fetch_files: bool = False
     ) -> Dict[str, Any]:
         """
         Import bucket from metadata CID.
-
+        
         Args:
             metadata_cid: IPFS CID of metadata to import
             new_bucket_name: Optional new name for imported bucket
             fetch_files: Whether to fetch actual files from IPFS
-
+        
         Returns:
             Dict with import results
         """
@@ -445,22 +425,22 @@ class BucketMetadataImporter:
         except Exception as e:
             logger.error(f"Error importing bucket metadata: {e}")
             return {"success": False, "error": str(e)}
-
+    
     async def _fetch_metadata_from_ipfs(self, cid: str) -> Optional[Dict[str, Any]]:
         """Fetch metadata from IPFS."""
         try:
             if not self.ipfs_client:
                 logger.error("No IPFS client available")
                 return None
-
+            
             # Fetch from IPFS (prefer `cat` for small metadata blobs; tests stub both)
             content = None
-            if hasattr(self.ipfs_client, "cat"):
+            if hasattr(self.ipfs_client, 'cat'):
                 try:
                     content = await self.ipfs_client.cat(cid)
                 except Exception:
                     content = None
-            if content is None and hasattr(self.ipfs_client, "get"):
+            if content is None and hasattr(self.ipfs_client, 'get'):
                 try:
                     content = await self.ipfs_client.get(cid)
                 except Exception:
@@ -468,11 +448,11 @@ class BucketMetadataImporter:
             if content is None:
                 logger.error("IPFS client does not support get/cat operation")
                 return None
-
+            
             # Try to parse as JSON first, then CBOR
             try:
                 if isinstance(content, bytes):
-                    metadata = json.loads(content.decode("utf-8"))
+                    metadata = json.loads(content.decode('utf-8'))
                 else:
                     metadata = json.loads(content)
                 return metadata
@@ -500,22 +480,22 @@ class BucketMetadataImporter:
                 # Otherwise, treat as a soft parse failure and let the caller
                 # handle it gracefully.
                 return None
-
+                
         except BucketMetadataParseError:
             raise
         except Exception as e:
             logger.error(f"Error fetching metadata from IPFS: {e}")
             return None
-
+    
     def _validate_metadata(self, metadata: Dict[str, Any]) -> bool:
         """Validate metadata structure."""
         required_fields = ["version", "bucket_info"]
-
+        
         for field in required_fields:
             if field not in metadata:
                 logger.error(f"Missing required field: {field}")
                 return False
-
+        
         # Validate bucket_info
         bucket_info = metadata.get("bucket_info", {})
         if not isinstance(bucket_info, dict):
@@ -529,37 +509,35 @@ class BucketMetadataImporter:
                 return False
 
         return True
-
-    async def _create_bucket_from_metadata(
-        self, bucket_name: str, metadata: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    
+    async def _create_bucket_from_metadata(self, bucket_name: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
         """Create bucket structure from metadata."""
         try:
             bucket_info = metadata.get("bucket_info", {})
-
+            
             # Create bucket using bucket manager
             # This depends on the actual bucket manager interface
-            if hasattr(self.bucket_manager, "create_bucket"):
+            if hasattr(self.bucket_manager, 'create_bucket'):
                 result = await self.bucket_manager.create_bucket(
                     name=bucket_name,
                     bucket_type=bucket_info.get("type"),
                     vfs_structure=bucket_info.get("vfs_structure"),
-                    metadata=bucket_info.get("metadata", {}),
+                    metadata=bucket_info.get("metadata", {})
                 )
                 return result
-
+            
             return {"success": False, "error": "Bucket manager does not support create_bucket"}
-
+            
         except Exception as e:
             logger.error(f"Error creating bucket from metadata: {e}")
             return {"success": False, "error": str(e)}
-
+    
     async def _fetch_files(self, bucket_name: str, file_manifest: Dict[str, Any]) -> Dict[str, Any]:
         """Fetch files from IPFS based on manifest."""
         try:
             fetched_count = 0
             errors = []
-
+            
             for file_info in file_manifest.get("files", []):
                 try:
                     # If file has CID, fetch it from IPFS
@@ -567,14 +545,18 @@ class BucketMetadataImporter:
                         # Fetch file content
                         # This is simplified and would need proper implementation
                         pass
-
+                    
                     fetched_count += 1
-
+                    
                 except Exception as e:
                     errors.append({"file": file_info.get("path"), "error": str(e)})
-
-            return {"success": True, "fetched_count": fetched_count, "errors": errors}
-
+            
+            return {
+                "success": True,
+                "fetched_count": fetched_count,
+                "errors": errors
+            }
+            
         except Exception as e:
             logger.error(f"Error fetching files: {e}")
             return {"success": False, "error": str(e)}

@@ -23,7 +23,10 @@ import logging
 from importlib.util import find_spec
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s: %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 # List of required dependencies
@@ -44,11 +47,10 @@ OPTIONAL_DEPENDENCIES = [
     "tokenizers",  # For working with tokenizers
 ]
 
-
 def check_dependency(package):
     """
     Check if a dependency is installed.
-
+    
     Args:
         package: Package name or requirement spec to check.
 
@@ -66,7 +68,9 @@ def check_dependency(package):
         except Exception:
             package_name = package
 
-        module_name = package_to_module.get(package_name, package_name.replace("-", "_"))
+        module_name = package_to_module.get(
+            package_name, package_name.replace("-", "_")
+        )
 
         # Try importing the module
         module = importlib.import_module(module_name)
@@ -77,58 +81,57 @@ def check_dependency(package):
     except (ImportError, ModuleNotFoundError):
         return False, None
 
-
 def install_dependencies(force=False, verbose=False):
     """
     Install required and optional Hugging Face Hub dependencies.
-
+    
     Args:
         force: Force reinstallation even if already installed
         verbose: Enable verbose output
-
+        
     Returns:
         bool: True if installation was successful, False otherwise
     """
     # Set pip verbosity
     pip_args = ["-v"] if verbose else []
-
+    
     # Initialize results
     required_results = {}
     optional_results = {}
-
+    
     # Check current state
     logger.info("Checking current dependency status...")
     all_required_installed = True
-
+    
     for dep in REQUIRED_DEPENDENCIES:
         installed, version = check_dependency(dep)
         required_results[dep] = {"installed": installed, "version": version}
         if not installed:
             all_required_installed = False
-
+            
     if all_required_installed and not force:
         logger.info("All required dependencies are already installed.")
         logger.info("Use --force to reinstall.")
-
+        
         # Display versions
         for dep, result in required_results.items():
             logger.info(f"  {dep}: {result['version']}")
-
+            
         return True
-
+    
     # Install required dependencies
     try:
         logger.info("Installing required dependencies...")
         cmd = [sys.executable, "-m", "pip", "install"] + pip_args
-
+        
         if force:
             cmd.append("--upgrade")
-
+            
         cmd.extend(REQUIRED_DEPENDENCIES)
-
+        
         logger.info(f"Running: {' '.join(cmd)}")
         subprocess.check_call(cmd)
-
+        
         # Verify installation
         all_installed = True
         for dep in REQUIRED_DEPENDENCIES:
@@ -138,30 +141,30 @@ def install_dependencies(force=False, verbose=False):
                 all_installed = False
             else:
                 logger.info(f"Successfully installed {dep} {version}")
-
+                
         # If some dependencies couldn't be installed, report failure
         if not all_installed:
             return False
-
+            
         # Otherwise, all required dependencies were successfully installed
         logger.info("All required dependencies successfully installed.")
     except subprocess.CalledProcessError as e:
         logger.error(f"Error installing required dependencies: {e}")
         return False
-
+    
     # Install optional dependencies
     try:
         logger.info("Installing optional dependencies...")
         cmd = [sys.executable, "-m", "pip", "install"] + pip_args
-
+        
         if force:
             cmd.append("--upgrade")
-
+            
         cmd.extend(OPTIONAL_DEPENDENCIES)
-
+        
         logger.info(f"Running: {' '.join(cmd)}")
         subprocess.check_call(cmd)
-
+        
         # Report on optional dependencies
         all_optionals_installed = True
         for dep in OPTIONAL_DEPENDENCIES:
@@ -171,79 +174,69 @@ def install_dependencies(force=False, verbose=False):
             else:
                 logger.warning(f"Optional dependency {dep} not installed")
                 all_optionals_installed = False
-
+                
         if all_optionals_installed:
             logger.info("All optional dependencies successfully installed.")
         else:
-            logger.warning(
-                "Some optional dependencies were not installed. This is not a critical issue."
-            )
+            logger.warning("Some optional dependencies were not installed. This is not a critical issue.")
     except subprocess.CalledProcessError as e:
         logger.warning(f"Error installing optional dependencies: {e}")
         logger.warning("Some optional functionality may not be available.")
-
+    
     return True
-
 
 def verify_huggingface_hub_functionality():
     """
     Verify that Hugging Face Hub is properly installed and functioning.
-
+    
     Returns:
         bool: True if verification passes, False otherwise
     """
     logger.info("Verifying Hugging Face Hub functionality...")
-
+    
     # First verify the core module imports
     try:
         # Try to import core modules
         import huggingface_hub
         from huggingface_hub import HfApi, HfFolder
-
+        
         logger.info("Hugging Face Hub verification: Core imports successful")
-        logger.info(
-            f"Hugging Face Hub version: {getattr(huggingface_hub, '__version__', 'unknown')}"
-        )
-
+        logger.info(f"Hugging Face Hub version: {getattr(huggingface_hub, '__version__', 'unknown')}")
+        
         # Check if credentials configuration is possible
         try:
-            token_path = (
-                HfFolder.path_token if hasattr(HfFolder, "path_token") else HfFolder().path_token
-            )
+            token_path = HfFolder.path_token if hasattr(HfFolder, 'path_token') else HfFolder().path_token
             logger.info(f"Hugging Face Hub token path: {token_path}")
         except Exception as e:
             # This is non-critical, may happen with newer versions
             logger.warning(f"Could not determine token path: {e}")
             token_path = "~/.huggingface/token"
             logger.info(f"Default token path should be: {token_path}")
-
+            
         logger.info("Note: You can set up authentication using `huggingface-cli login`")
-
+        
         # Verify additional modules
         try:
             from huggingface_hub import Repository
-
             logger.info("Hugging Face Hub Repository functionality: Available")
         except (ImportError, Exception) as e:
             logger.warning(f"Hugging Face Hub Repository verification: Failed - {e}")
-
+            
         # Try to verify API access (but don't let this fail verification if network issues)
         try:
             # Verify API access works
             api = HfApi()
-
+            
             # Try a simple API call that doesn't require authentication
             models = api.list_models(limit=1)
             logger.info("Hugging Face Hub verification: API access successful")
         except Exception as e:
             logger.warning(f"Hugging Face Hub API access verification: Failed - {e}")
-            logger.warning(
-                "This may be due to network issues and does not indicate an installation problem."
-            )
+            logger.warning("This may be due to network issues and does not indicate an installation problem.")
             # Continue with imports verified
-
+            
         return True
-
+        
     except ImportError as e:
         logger.error(f"Hugging Face Hub core imports failed: {e}")
         return False
@@ -251,18 +244,17 @@ def verify_huggingface_hub_functionality():
         logger.error(f"Hugging Face Hub verification failed: {e}")
         return False
 
-
 def install_dependencies_auto(force=False, verbose=False):
     """
     Install all required dependencies for Hugging Face Hub functionality.
-
+    
     This function can be imported and called directly by other modules
     to ensure dependencies are installed without running the script.
-
+    
     Args:
         force: Force reinstallation even if already installed
         verbose: Enable verbose output
-
+        
     Returns:
         bool: True if installation successful, False otherwise
     """
@@ -270,15 +262,15 @@ def install_dependencies_auto(force=False, verbose=False):
     orig_level = logger.level
     if verbose:
         logger.setLevel(logging.DEBUG)
-
+    
     try:
         # Install dependencies
         install_success = install_dependencies(force=force, verbose=verbose)
-
+        
         if install_success:
             # Verify installation
             verify_success = verify_huggingface_hub_functionality()
-
+            
             if verify_success:
                 logger.info("Hugging Face Hub installation completed successfully!")
                 return True
@@ -292,31 +284,26 @@ def install_dependencies_auto(force=False, verbose=False):
         # Restore original log level
         logger.setLevel(orig_level)
 
-
 def main():
     """
     Main function to parse arguments and install dependencies.
     """
-    parser = argparse.ArgumentParser(
-        description="Install Hugging Face Hub dependencies for IPFS Kit"
-    )
-    parser.add_argument(
-        "--force", action="store_true", help="Force reinstallation even if already installed"
-    )
+    parser = argparse.ArgumentParser(description="Install Hugging Face Hub dependencies for IPFS Kit")
+    parser.add_argument("--force", action="store_true", help="Force reinstallation even if already installed")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     args = parser.parse_args()
-
+    
     # Set log level
     if args.verbose:
         logger.setLevel(logging.DEBUG)
-
+    
     # Print welcome message
     logger.info("IPFS Kit - Hugging Face Hub Dependency Installer")
     logger.info("=============================================")
-
+    
     # Use the common function for installation
     success = install_dependencies_auto(force=args.force, verbose=args.verbose)
-
+    
     if success:
         logger.info("=============================================")
         logger.info("Hugging Face Hub installation completed successfully!")
@@ -331,7 +318,6 @@ def main():
         logger.error("Please try installing the dependencies manually:")
         logger.error(f"pip install {' '.join(REQUIRED_DEPENDENCIES)}")
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

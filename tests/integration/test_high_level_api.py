@@ -114,11 +114,9 @@ timeouts:
         self.mock_kit.ipfs_add_file.return_value = {"success": True, "cid": "QmTest"}
 
         # Test
-        with (
-            patch("os.path.exists", return_value=False),
-            patch("tempfile.NamedTemporaryFile", MagicMock()),
-            patch("os.unlink", MagicMock()),
-        ):
+        with patch("os.path.exists", return_value=False), patch(
+            "tempfile.NamedTemporaryFile", MagicMock()
+        ), patch("os.unlink", MagicMock()):
             result = self.api.add("Test content")
 
         # Verify
@@ -390,9 +388,7 @@ class TestPluginSystem(unittest.TestCase):
         # Create a plugin module in memory
         self.module_name = "test_plugin_module"
         sys.modules[self.module_name] = MagicMock()
-        sys.modules[
-            self.module_name
-        ].TestPlugin = SamplePlugin  # Use SamplePlugin with original name in module
+        sys.modules[self.module_name].TestPlugin = SamplePlugin  # Use SamplePlugin with original name in module
 
         # Create API instance with plugin configuration
         with patch("ipfs_kit_py.high_level_api.ipfs_kit", return_value=self.mock_kit):

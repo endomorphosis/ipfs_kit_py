@@ -13,14 +13,13 @@ import logging
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
 # VS Code MCP configuration path
-CONFIG_PATH = os.path.expanduser(
-    "~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"
-)
+CONFIG_PATH = os.path.expanduser("~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json")
 
 # The server configuration to add
 IPFS_MCP_CONFIG = {
@@ -33,18 +32,21 @@ IPFS_MCP_CONFIG = {
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "directory": {"type": "string", "description": "Directory to list files from"},
+                    "directory": {
+                        "type": "string",
+                        "description": "Directory to list files from"
+                    },
                     "recursive": {
                         "type": "boolean",
-                        "description": "Whether to list files recursively",
+                        "description": "Whether to list files recursively"
                     },
                     "include_hidden": {
                         "type": "boolean",
-                        "description": "Whether to include hidden files",
-                    },
+                        "description": "Whether to include hidden files"
+                    }
                 },
-                "required": [],
-            },
+                "required": []
+            }
         },
         {
             "name": "read_file",
@@ -52,10 +54,13 @@ IPFS_MCP_CONFIG = {
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string", "description": "Path to the file to read"}
+                    "path": {
+                        "type": "string",
+                        "description": "Path to the file to read"
+                    }
                 },
-                "required": ["path"],
-            },
+                "required": ["path"]
+            }
         },
         {
             "name": "write_file",
@@ -63,11 +68,17 @@ IPFS_MCP_CONFIG = {
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string", "description": "Path to the file to write"},
-                    "content": {"type": "string", "description": "Content to write to the file"},
+                    "path": {
+                        "type": "string",
+                        "description": "Path to the file to write"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Content to write to the file"
+                    }
                 },
-                "required": ["path", "content"],
-            },
+                "required": ["path", "content"]
+            }
         },
         {
             "name": "ipfs_add",
@@ -75,12 +86,21 @@ IPFS_MCP_CONFIG = {
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "content": {"type": "string", "description": "Content to add to IPFS"},
-                    "filename": {"type": "string", "description": "Name of the file in IPFS"},
-                    "pin": {"type": "boolean", "description": "Whether to pin the content"},
+                    "content": {
+                        "type": "string",
+                        "description": "Content to add to IPFS"
+                    },
+                    "filename": {
+                        "type": "string",
+                        "description": "Name of the file in IPFS"
+                    },
+                    "pin": {
+                        "type": "boolean",
+                        "description": "Whether to pin the content"
+                    }
                 },
-                "required": ["content"],
-            },
+                "required": ["content"]
+            }
         },
         {
             "name": "ipfs_cat",
@@ -88,10 +108,13 @@ IPFS_MCP_CONFIG = {
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "cid": {"type": "string", "description": "CID of the content to retrieve"}
+                    "cid": {
+                        "type": "string",
+                        "description": "CID of the content to retrieve"
+                    }
                 },
-                "required": ["cid"],
-            },
+                "required": ["cid"]
+            }
         },
         {
             "name": "ipfs_pin",
@@ -99,11 +122,17 @@ IPFS_MCP_CONFIG = {
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "cid": {"type": "string", "description": "CID of the content to pin"},
-                    "recursive": {"type": "boolean", "description": "Whether to pin recursively"},
+                    "cid": {
+                        "type": "string",
+                        "description": "CID of the content to pin"
+                    },
+                    "recursive": {
+                        "type": "boolean",
+                        "description": "Whether to pin recursively"
+                    }
                 },
-                "required": ["cid"],
-            },
+                "required": ["cid"]
+            }
         },
         {
             "name": "ipfs_unpin",
@@ -111,11 +140,17 @@ IPFS_MCP_CONFIG = {
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "cid": {"type": "string", "description": "CID of the content to unpin"},
-                    "recursive": {"type": "boolean", "description": "Whether to unpin recursively"},
+                    "cid": {
+                        "type": "string",
+                        "description": "CID of the content to unpin"
+                    },
+                    "recursive": {
+                        "type": "boolean",
+                        "description": "Whether to unpin recursively"
+                    }
                 },
-                "required": ["cid"],
-            },
+                "required": ["cid"]
+            }
         },
         {
             "name": "ipfs_list_pins",
@@ -125,16 +160,20 @@ IPFS_MCP_CONFIG = {
                 "properties": {
                     "type": {
                         "type": "string",
-                        "description": "Type of pins to list (all, direct, recursive, indirect)",
+                        "description": "Type of pins to list (all, direct, recursive, indirect)"
                     }
                 },
-                "required": [],
-            },
+                "required": []
+            }
         },
         {
             "name": "ipfs_version",
             "description": "Get IPFS version information",
-            "parameters": {"type": "object", "properties": {}, "required": []},
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
         },
         {
             "name": "ipfs_files_ls",
@@ -142,10 +181,13 @@ IPFS_MCP_CONFIG = {
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string", "description": "Path in the MFS to list files from"}
+                    "path": {
+                        "type": "string",
+                        "description": "Path in the MFS to list files from"
+                    }
                 },
-                "required": [],
-            },
+                "required": []
+            }
         },
         {
             "name": "ipfs_files_mkdir",
@@ -155,15 +197,15 @@ IPFS_MCP_CONFIG = {
                 "properties": {
                     "path": {
                         "type": "string",
-                        "description": "Path in the MFS to create the directory",
+                        "description": "Path in the MFS to create the directory"
                     },
                     "parents": {
                         "type": "boolean",
-                        "description": "Whether to create parent directories if they don't exist",
-                    },
+                        "description": "Whether to create parent directories if they don't exist"
+                    }
                 },
-                "required": ["path"],
-            },
+                "required": ["path"]
+            }
         },
         {
             "name": "ipfs_files_write",
@@ -171,19 +213,25 @@ IPFS_MCP_CONFIG = {
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string", "description": "Path in the MFS to write to"},
-                    "content": {"type": "string", "description": "Content to write to the file"},
+                    "path": {
+                        "type": "string",
+                        "description": "Path in the MFS to write to"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Content to write to the file"
+                    },
                     "create": {
                         "type": "boolean",
-                        "description": "Whether to create the file if it doesn't exist",
+                        "description": "Whether to create the file if it doesn't exist"
                     },
                     "truncate": {
                         "type": "boolean",
-                        "description": "Whether to truncate the file if it exists",
-                    },
+                        "description": "Whether to truncate the file if it exists"
+                    }
                 },
-                "required": ["path", "content"],
-            },
+                "required": ["path", "content"]
+            }
         },
         {
             "name": "ipfs_files_read",
@@ -191,24 +239,26 @@ IPFS_MCP_CONFIG = {
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string", "description": "Path in the MFS to read from"}
+                    "path": {
+                        "type": "string",
+                        "description": "Path in the MFS to read from"
+                    }
                 },
-                "required": ["path"],
-            },
-        },
-    ],
+                "required": ["path"]
+            }
+        }
+    ]
 }
-
 
 def update_vscode_mcp_config():
     """Update the VS Code MCP configuration."""
     try:
         # Ensure the configuration directory exists
         os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
-
+        
         # Load existing configuration if it exists
         if os.path.exists(CONFIG_PATH):
-            with open(CONFIG_PATH, "r") as f:
+            with open(CONFIG_PATH, 'r') as f:
                 try:
                     config = json.load(f)
                     logger.info(f"Loaded existing configuration from {CONFIG_PATH}")
@@ -218,30 +268,25 @@ def update_vscode_mcp_config():
         else:
             logger.info(f"No existing configuration found at {CONFIG_PATH}, creating a new one")
             config = {"servers": []}
-
+        
         # Remove any existing IPFS MCP server configuration
-        config["servers"] = [
-            s for s in config.get("servers", []) if s.get("name") != "ipfs-mcp-server"
-        ]
-
+        config["servers"] = [s for s in config.get("servers", []) if s.get("name") != "ipfs-mcp-server"]
+        
         # Add the new IPFS MCP server configuration
         config["servers"].append(IPFS_MCP_CONFIG)
-
+        
         # Save the updated configuration
-        with open(CONFIG_PATH, "w") as f:
+        with open(CONFIG_PATH, 'w') as f:
             json.dump(config, f, indent=2)
             logger.info(f"Updated configuration saved to {CONFIG_PATH}")
-
+        
         logger.info("VS Code MCP configuration updated successfully")
-        logger.info(
-            f"The IPFS MCP server is now registered with {len(IPFS_MCP_CONFIG['tools'])} tools"
-        )
-
+        logger.info(f"The IPFS MCP server is now registered with {len(IPFS_MCP_CONFIG['tools'])} tools")
+        
         return True
     except Exception as e:
         logger.error(f"Error updating VS Code MCP configuration: {e}")
         return False
-
 
 if __name__ == "__main__":
     if update_vscode_mcp_config():

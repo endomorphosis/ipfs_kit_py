@@ -26,7 +26,6 @@ except ImportError:
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try:
     from mcp_streaming import create_streaming_router, StreamingOperations
-
     STREAMING_AVAILABLE = True
     logger.info("Streaming module successfully imported")
 except ImportError as e:
@@ -35,7 +34,6 @@ except ImportError as e:
 
 # Initialize streaming operations
 _streaming_ops = None
-
 
 def get_streaming_ops():
     """Get or initialize the streaming operations."""
@@ -47,7 +45,6 @@ def get_streaming_ops():
         except Exception as e:
             logger.error(f"Error initializing streaming operations: {e}")
     return _streaming_ops
-
 
 def create_streaming_router_wrapper(api_prefix: str) -> APIRouter:
     """
@@ -71,7 +68,7 @@ def create_streaming_router_wrapper(api_prefix: str) -> APIRouter:
                 "success": False,
                 "status": "unavailable",
                 "error": "Streaming functionality is not available",
-                "message": "Ensure IPFS daemon is running and accessible",
+                "message": "Ensure IPFS daemon is running and accessible"
             }
 
         return router
@@ -79,13 +76,13 @@ def create_streaming_router_wrapper(api_prefix: str) -> APIRouter:
     try:
         # Initialize streaming operations
         get_streaming_ops()
-
+        
         # Create the streaming router
         router = create_streaming_router(api_prefix)
         logger.info(f"Successfully created streaming router with prefix: {router.prefix}")
-
+        
         # Add additional status endpoint
-
+        
         @router.get("/status")
         async def streaming_status(streaming_ops=get_streaming_ops()):
             """Return status of streaming functionality."""
@@ -95,58 +92,58 @@ def create_streaming_router_wrapper(api_prefix: str) -> APIRouter:
                     return mcp_error_handling.create_error_response(
                         code="EXTENSION_NOT_AVAILABLE",
                         message_override=error_message,
-                        doc_category="streaming",
+                        doc_category="streaming"
                     )
                 return {"success": False, "error": error_message}
-
+            
             try:
                 # Check if IPFS daemon is running
                 import subprocess
                 import json
-
+                
                 process = subprocess.run(
-                    ["ipfs", "id", "--format=json"], capture_output=True, text=True, timeout=5
+                    ["ipfs", "id", "--format=json"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
                 )
-
+                
                 if process.returncode != 0:
                     return {
                         "success": False,
                         "status": "daemon_error",
                         "error": "IPFS daemon is not running or not accessible",
-                        "details": process.stderr.strip(),
+                        "details": process.stderr.strip()
                     }
-
+                
                 # Parse IPFS ID info
                 id_info = json.loads(process.stdout.strip())
-
+                
                 return {
                     "success": True,
                     "status": "available",
                     "ipfs_node": {
                         "id": id_info.get("ID"),
                         "addresses": id_info.get("Addresses", []),
-                        "agent_version": id_info.get("AgentVersion"),
+                        "agent_version": id_info.get("AgentVersion")
                     },
                     "features": {
                         "streaming_upload": True,
                         "streaming_download": True,
                         "background_pinning": True,
                         "dag_import_export": True,
-                        "progress_tracking": True,
+                        "progress_tracking": True
                     },
-                    "chunk_size": streaming_ops.chunk_size,
+                    "chunk_size": streaming_ops.chunk_size
                 }
             except Exception as e:
                 logger.error(f"Error checking streaming status: {e}")
                 if mcp_error_handling:
                     return mcp_error_handling.handle_exception(
-                        e,
-                        code="INTERNAL_ERROR",
-                        endpoint="/stream/status",
-                        doc_category="streaming",
+                        e, code="INTERNAL_ERROR", endpoint="/stream/status", doc_category="streaming"
                     )
                 return {"success": False, "error": str(e)}
-
+                
         return router
     except Exception as e:
         logger.error(f"Error creating streaming router: {e}")
@@ -158,7 +155,9 @@ def create_streaming_router_wrapper(api_prefix: str) -> APIRouter:
             error_message = f"Error initializing streaming: {str(e)}"
             if mcp_error_handling:
                 return mcp_error_handling.create_error_response(
-                    code="EXTENSION_ERROR", message_override=error_message, doc_category="streaming"
+                    code="EXTENSION_ERROR",
+                    message_override=error_message,
+                    doc_category="streaming"
                 )
             return {"success": False, "status": "error", "error": error_message}
 
@@ -181,7 +180,7 @@ def update_streaming_status(storage_backends: Dict[str, Any]) -> None:
             "streaming_download": True,
             "background_pinning": True,
             "dag_import_export": True,
-            "progress_tracking": True,
+            "progress_tracking": True
         },
         "version": "1.0.0",
         "endpoints": [
@@ -192,8 +191,8 @@ def update_streaming_status(storage_backends: Dict[str, Any]) -> None:
             "/stream/pin",
             "/stream/unpin",
             "/stream/dag/export/{cid}",
-            "/stream/dag/import",
-        ],
+            "/stream/dag/import"
+        ]
     }
     logger.info("Updated streaming status in storage backends")
 
@@ -201,12 +200,12 @@ def update_streaming_status(storage_backends: Dict[str, Any]) -> None:
 def on_startup(app: Optional[FastAPI] = None) -> None:
     """
     Initialize the streaming extension on server startup.
-
+    
     Args:
         app: The FastAPI application instance
     """
     logger.info("Initializing streaming extension")
-
+    
     # Initialize streaming operations in background
     get_streaming_ops()
 
@@ -214,12 +213,12 @@ def on_startup(app: Optional[FastAPI] = None) -> None:
 def on_shutdown(app: Optional[FastAPI] = None) -> None:
     """
     Clean up the streaming extension on server shutdown.
-
+    
     Args:
         app: The FastAPI application instance
     """
     logger.info("Shutting down streaming extension")
-
+    
     # No specific cleanup required for streaming operations
     global _streaming_ops
     _streaming_ops = None

@@ -30,11 +30,11 @@ log_dir.mkdir(exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stderr),
-        logging.FileHandler(log_dir / "simplified_unified_mcp.log", mode="a"),
-    ],
+        logging.FileHandler(log_dir / 'simplified_unified_mcp.log', mode='a')
+    ]
 )
 logger = logging.getLogger("simplified-unified-mcp")
 
@@ -48,23 +48,15 @@ COMPONENTS = {
     "web_framework": False,
     "dashboard": False,
     "backend_monitor": False,
-    "mcp_tools": True,  # Always available as we implement them directly
+    "mcp_tools": True  # Always available as we implement them directly
 }
 
 # Import web framework
 try:
-    from fastapi import (
-        FastAPI,
-        Request,
-        WebSocket,
-        WebSocketDisconnect,
-        HTTPException,
-        BackgroundTasks,
-    )
+    from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
     from fastapi.responses import JSONResponse, PlainTextResponse, HTMLResponse
     from fastapi.middleware.cors import CORSMiddleware
     import uvicorn
-
     COMPONENTS["web_framework"] = True
     logger.info("✓ Web framework imported")
 except ImportError as e:
@@ -74,35 +66,32 @@ except ImportError as e:
 try:
     from dashboard.comprehensive_backend_monitor import (
         get_comprehensive_backend_status as _get_backend_status_async,
-        get_backend_recommendations as _get_backend_recommendations_async,
+        get_backend_recommendations as _get_backend_recommendations_async
     )
-
     # Temporarily disable backend monitor due to hanging issues
     COMPONENTS["backend_monitor"] = False
     logger.info("⚠️  Backend monitor temporarily disabled")
-
+    
     # Fallback functions
     async def get_comprehensive_backend_status():
         return {"backends": {}, "summary": {"health_score": 75, "status": "simplified_mode"}}
-
+    
     async def get_backend_recommendations():
         return [{"type": "info", "title": "Backend monitoring in simplified mode"}]
-
+        
 except ImportError as e:
     logger.warning(f"⚠️  Backend monitor import failed: {e}")
     COMPONENTS["backend_monitor"] = False
-
+    
     # Fallback functions
     async def get_comprehensive_backend_status():
         return {"backends": {}, "summary": {"health_score": 0}}
-
+    
     async def get_backend_recommendations():
         return [{"type": "info", "title": "Backend monitoring not available"}]
 
-
 try:
     from dashboard.config import DashboardConfig
-
     COMPONENTS["dashboard"] = True
     logger.info("✓ Dashboard config imported")
 except ImportError as e:
@@ -111,17 +100,17 @@ except ImportError as e:
 
 class SimplifiedMCPTool:
     """Simplified MCP tool representation."""
-
+    
     def __init__(self, name: str, description: str, input_schema: Dict[str, Any]):
         self.name = name
         self.description = description
         self.input_schema = input_schema
-
+    
     def to_dict(self) -> Dict[str, Any]:
         return {
             "name": self.name,
             "description": self.description,
-            "inputSchema": self.input_schema,
+            "inputSchema": self.input_schema
         }
 
 
@@ -130,12 +119,12 @@ class SimplifiedUnifiedMCPServer:
     Simplified unified MCP server with full observability.
     Avoids problematic imports while providing comprehensive functionality.
     """
-
+    
     def __init__(self, host: str = "127.0.0.1", port: int = 8766):
         self.host = host
         self.port = port
         self.start_time = time.time()
-
+        
         # Server state for observability
         self.server_state = {
             "initialization_time": datetime.now().isoformat(),
@@ -143,7 +132,7 @@ class SimplifiedUnifiedMCPServer:
             "connections": {
                 "websocket_active": 0,  # Changed from set to count
                 "http_sessions": 0,
-                "mcp_clients": 0,
+                "mcp_clients": 0
             },
             "metrics": {
                 "requests_total": 0,
@@ -154,39 +143,43 @@ class SimplifiedUnifiedMCPServer:
                 "last_request_time": None,
                 "average_response_time": 0.0,
                 "backend_checks": 0,
-                "alerts_generated": 0,
+                "alerts_generated": 0
             },
             "errors": [],
             "alerts": [],
-            "performance": {"memory_usage_mb": 0, "cpu_usage_percent": 0, "uptime_seconds": 0},
+            "performance": {
+                "memory_usage_mb": 0,
+                "cpu_usage_percent": 0,
+                "uptime_seconds": 0
+            },
             "ipfs_integration": {
                 "daemon_status": "unknown",
                 "last_check": None,
                 "operations_count": 0,
-                "errors_count": 0,
-            },
+                "errors_count": 0
+            }
         }
-
+        
         # Keep websocket connections separately
         self.websocket_connections = set()
-
+        
         # MCP Tools
         self.mcp_tools = self._create_mcp_tools()
-
+        
         # Background monitoring
         self.monitoring_active = False
-
+        
         logger.info(f"🚀 Initializing Simplified Unified MCP Server on {host}:{port}")
-
+        
         # Initialize web server
         if COMPONENTS["web_framework"]:
             self._setup_web_server()
         else:
             logger.error("❌ Cannot start server without web framework")
-
+    
     def _create_mcp_tools(self) -> List[SimplifiedMCPTool]:
         """Create MCP tools."""
-
+        
         return [
             SimplifiedMCPTool(
                 name="system_health",
@@ -194,41 +187,53 @@ class SimplifiedUnifiedMCPServer:
                 input_schema={
                     "type": "object",
                     "properties": {},
-                },
+                }
             ),
             SimplifiedMCPTool(
                 name="get_backend_status",
                 description="Get comprehensive backend status and monitoring data",
-                input_schema={"type": "object", "properties": {}},
+                input_schema={
+                    "type": "object",
+                    "properties": {}
+                }
             ),
             SimplifiedMCPTool(
                 name="get_observability_data",
                 description="Get full observability data including metrics, errors, and performance",
-                input_schema={"type": "object", "properties": {}},
+                input_schema={
+                    "type": "object",
+                    "properties": {}
+                }
             ),
             SimplifiedMCPTool(
                 name="ipfs_status_check",
                 description="Check IPFS daemon and backend status",
-                input_schema={"type": "object", "properties": {}},
+                input_schema={
+                    "type": "object",
+                    "properties": {}
+                }
             ),
             SimplifiedMCPTool(
                 name="performance_metrics",
                 description="Get detailed performance metrics and system information",
-                input_schema={"type": "object", "properties": {}},
-            ),
+                input_schema={
+                    "type": "object",
+                    "properties": {}
+                }
+            )
         ]
-
+    
     def _setup_web_server(self):
         """Setup FastAPI web server."""
-
+        
         self.app = FastAPI(
             title="Simplified Unified IPFS Kit MCP Server",
             description="MCP server with comprehensive monitoring and full observability",
             version="2.1.0",
             docs_url="/docs",
-            redoc_url="/redoc",
+            redoc_url="/redoc"
         )
-
+        
         # CORS middleware
         self.app.add_middleware(
             CORSMiddleware,
@@ -237,53 +242,51 @@ class SimplifiedUnifiedMCPServer:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-
+        
         # Request tracking middleware
         @self.app.middleware("http")
         async def track_requests(request: Request, call_next):
             start_time = time.time()
             self.server_state["connections"]["http_sessions"] += 1
-
+            
             try:
                 response = await call_next(request)
                 self.server_state["metrics"]["requests_success"] += 1
                 return response
             except Exception as e:
                 self.server_state["metrics"]["requests_error"] += 1
-                self.server_state["errors"].append(
-                    {
-                        "timestamp": datetime.now().isoformat(),
-                        "component": "web_server",
-                        "error": str(e),
-                        "path": str(request.url),
-                    }
-                )
+                self.server_state["errors"].append({
+                    "timestamp": datetime.now().isoformat(),
+                    "component": "web_server",
+                    "error": str(e),
+                    "path": str(request.url)
+                })
                 raise
             finally:
                 duration = time.time() - start_time
                 self.server_state["metrics"]["requests_total"] += 1
                 self.server_state["metrics"]["last_request_time"] = datetime.now().isoformat()
-
+                
                 # Update average response time
                 current_avg = self.server_state["metrics"]["average_response_time"]
                 total_requests = self.server_state["metrics"]["requests_total"]
                 if total_requests > 0:
                     self.server_state["metrics"]["average_response_time"] = (
-                        current_avg * (total_requests - 1) + duration
-                    ) / total_requests
-
+                        (current_avg * (total_requests - 1) + duration) / total_requests
+                    )
+        
         self._setup_routes()
         logger.info("✓ Web server configured")
-
+    
     def _setup_routes(self):
         """Setup all web server routes."""
-
+        
         # Root endpoint - comprehensive dashboard
         @self.app.get("/")
         async def root():
             self.server_state["metrics"]["dashboard_views"] += 1
             return HTMLResponse(self._get_comprehensive_dashboard_html())
-
+        
         # MCP JSON-RPC endpoint
         @self.app.post("/mcp")
         async def mcp_endpoint(request: Request):
@@ -295,7 +298,7 @@ class SimplifiedUnifiedMCPServer:
             except Exception as e:
                 logger.error(f"MCP request failed: {e}")
                 return JSONResponse({"error": str(e)}, status_code=500)
-
+        
         # MCP WebSocket endpoint
         @self.app.websocket("/mcp/ws")
         async def mcp_websocket(websocket: WebSocket):
@@ -303,7 +306,7 @@ class SimplifiedUnifiedMCPServer:
             self.websocket_connections.add(websocket)
             self.server_state["connections"]["websocket_active"] = len(self.websocket_connections)
             self.server_state["connections"]["mcp_clients"] += 1
-
+            
             try:
                 while True:
                     data = await websocket.receive_json()
@@ -315,90 +318,77 @@ class SimplifiedUnifiedMCPServer:
                 logger.error(f"WebSocket error: {e}")
             finally:
                 self.websocket_connections.discard(websocket)
-                self.server_state["connections"]["websocket_active"] = len(
-                    self.websocket_connections
-                )
-                self.server_state["connections"]["mcp_clients"] = max(
-                    0, self.server_state["connections"]["mcp_clients"] - 1
-                )
-
+                self.server_state["connections"]["websocket_active"] = len(self.websocket_connections)
+                self.server_state["connections"]["mcp_clients"] = max(0, 
+                    self.server_state["connections"]["mcp_clients"] - 1)
+        
         # Health endpoint
         @self.app.get("/health")
         async def health():
             return JSONResponse(await self._get_health_status())
-
+        
         # Dashboard status API
         @self.app.get("/dashboard/api/status")
         async def dashboard_status():
             return JSONResponse(await self._get_comprehensive_status())
-
+        
         # Backend status API
         @self.app.get("/dashboard/api/backends")
         async def backend_status():
             return JSONResponse(await self._get_backend_status())
-
+        
         # Add missing API endpoints for dashboard compatibility
         @self.app.get("/api/health")
         async def api_health():
             return JSONResponse(await self._get_health_status())
-
+        
         @self.app.get("/api/backends")
         async def api_backends():
             return JSONResponse(await self._get_backend_status())
-
+        
         @self.app.get("/api/insights")
         async def api_insights():
             return JSONResponse(await self._get_system_insights())
-
+        
         @self.app.get("/api/logs")
         async def api_logs():
-            return JSONResponse(
-                {"logs": "System logs functionality not implemented in simplified server"}
-            )
-
+            return JSONResponse({"logs": "System logs functionality not implemented in simplified server"})
+        
         @self.app.get("/api/vfs/statistics")
         async def api_vfs_statistics():
-            return JSONResponse(
-                {
-                    "total_files": 150,
-                    "total_size": 1024**3,
-                    "cache_size": 50 * 1024**2,
-                    "index_size": 10 * 1024**2,
-                }
-            )
-
+            return JSONResponse({
+                "total_files": 150,
+                "total_size": 1024**3,
+                "cache_size": 50 * 1024**2,
+                "index_size": 10 * 1024**2
+            })
+        
         @self.app.get("/api/vfs/vector-index")
         async def api_vfs_vector_index():
-            return JSONResponse(
-                {
-                    "total_vectors": 1000,
-                    "dimensions": 384,
-                    "index_type": "HNSW",
-                    "memory_usage": 25 * 1024**2,
-                }
-            )
-
+            return JSONResponse({
+                "total_vectors": 1000,
+                "dimensions": 384,
+                "index_type": "HNSW",
+                "memory_usage": 25 * 1024**2
+            })
+        
         @self.app.get("/api/vfs/knowledge-base")
         async def api_vfs_knowledge_base():
-            return JSONResponse(
-                {
-                    "total_documents": 75,
-                    "processed_chunks": 300,
-                    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
-                    "last_updated": datetime.now().isoformat(),
-                }
-            )
-
+            return JSONResponse({
+                "total_documents": 75,
+                "processed_chunks": 300,
+                "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+                "last_updated": datetime.now().isoformat()
+            })
+        
         @self.app.get("/api/vfs/cache")
         async def api_vfs_cache():
-            return JSONResponse(
-                {
-                    "cache_hits": 850,
-                    "cache_misses": 150,
-                    "hit_ratio": 0.85,
-                    "total_size": 50 * 1024**2,
-                }
-            )
+            return JSONResponse({
+                "cache_hits": 850,
+                "cache_misses": 150,
+                "hit_ratio": 0.85,
+                "total_size": 50 * 1024**2
+            })
 
         @self.app.post("/api/vfs/vector-search")
         async def api_vfs_vector_search(request: Request):
@@ -407,7 +397,7 @@ class SimplifiedUnifiedMCPServer:
                 query = data.get("query")
                 if not query:
                     raise HTTPException(status_code=400, detail="Query parameter is required")
-
+                
                 # Simulate a vector search
                 results = self._simulate_vector_search(query)
                 return JSONResponse({"success": True, "results": results})
@@ -421,46 +411,46 @@ class SimplifiedUnifiedMCPServer:
                 entity_id = data.get("entity_id")
                 if not entity_id:
                     raise HTTPException(status_code=400, detail="Entity ID parameter is required")
-
+                
                 # Simulate a knowledge graph search
                 results = self._simulate_kb_search(entity_id)
                 return JSONResponse({"success": True, "results": results})
             except Exception as e:
                 return JSONResponse({"success": False, "error": str(e)}, status_code=500)
-
+        
         # Metrics endpoint
         @self.app.get("/metrics")
         async def metrics():
             return PlainTextResponse(self._get_prometheus_metrics())
-
+        
         # Observability endpoint
         @self.app.get("/observability")
         async def observability():
             return JSONResponse(self._get_full_observability_data())
-
+        
         # Debug endpoint
         @self.app.get("/debug")
         async def debug():
-            return JSONResponse(
-                {
-                    "server_state": self.server_state,
-                    "components": COMPONENTS,
-                    "system_info": self._get_system_info(),
-                    "mcp_tools": [tool.to_dict() for tool in self.mcp_tools],
-                }
-            )
-
+            return JSONResponse({
+                "server_state": self.server_state,
+                "components": COMPONENTS,
+                "system_info": self._get_system_info(),
+                "mcp_tools": [tool.to_dict() for tool in self.mcp_tools]
+            })
+    
     async def _handle_mcp_request(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Handle MCP JSON-RPC requests."""
-
+        
         try:
             method = data.get("method")
             params = data.get("params", {})
-
+            
             if method == "tools/list":
                 return {
                     "id": data.get("id"),
-                    "result": {"tools": [tool.to_dict() for tool in self.mcp_tools]},
+                    "result": {
+                        "tools": [tool.to_dict() for tool in self.mcp_tools]
+                    }
                 }
             elif method == "tools/call":
                 tool_name = params.get("name")
@@ -468,24 +458,29 @@ class SimplifiedUnifiedMCPServer:
                 result = await self._execute_mcp_tool(tool_name, arguments)
                 return {
                     "id": data.get("id"),
-                    "result": {"content": [{"type": "text", "text": json.dumps(result, indent=2)}]},
+                    "result": {
+                        "content": [{
+                            "type": "text",
+                            "text": json.dumps(result, indent=2)
+                        }]
+                    }
                 }
             else:
                 return {
                     "id": data.get("id"),
-                    "error": {"code": -32601, "message": f"Method not found: {method}"},
+                    "error": {"code": -32601, "message": f"Method not found: {method}"}
                 }
-
+        
         except Exception as e:
             logger.error(f"MCP request handling failed: {e}")
             return {
                 "id": data.get("id", None),
-                "error": {"code": -32603, "message": f"Internal error: {str(e)}"},
+                "error": {"code": -32603, "message": f"Internal error: {str(e)}"}
             }
-
+    
     async def _execute_mcp_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Execute an MCP tool."""
-
+        
         try:
             if tool_name == "system_health":
                 return await self._get_health_status()
@@ -499,44 +494,38 @@ class SimplifiedUnifiedMCPServer:
                 return self._get_performance_metrics()
             else:
                 return {"error": f"Unknown tool: {tool_name}"}
-
+        
         except Exception as e:
             error_msg = f"Tool {tool_name} failed: {str(e)}"
             logger.error(error_msg)
-            self.server_state["errors"].append(
-                {
-                    "timestamp": datetime.now().isoformat(),
-                    "component": "mcp_tool",
-                    "tool": tool_name,
-                    "error": str(e),
-                    "arguments": arguments,
-                }
-            )
+            self.server_state["errors"].append({
+                "timestamp": datetime.now().isoformat(),
+                "component": "mcp_tool",
+                "tool": tool_name,
+                "error": str(e),
+                "arguments": arguments
+            })
             return {"error": error_msg, "traceback": traceback.format_exc()}
-
+    
     async def _get_health_status(self) -> Dict[str, Any]:
         """Get comprehensive health status."""
-
+        
         self._update_performance_metrics()
         health_score = self._calculate_health_score()
-
+        
         return {
-            "status": "healthy"
-            if health_score > 70
-            else "degraded"
-            if health_score > 40
-            else "unhealthy",
+            "status": "healthy" if health_score > 70 else "degraded" if health_score > 40 else "unhealthy",
             "health_score": health_score,
             "uptime_seconds": time.time() - self.start_time,
             "components": COMPONENTS,
             "server_state": self.server_state,
             "system_info": self._get_system_info(),
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now().isoformat()
         }
-
+    
     async def _get_backend_status(self) -> Dict[str, Any]:
         """Get backend status using available monitoring."""
-
+        
         if COMPONENTS["backend_monitor"]:
             try:
                 status = await get_comprehensive_backend_status()
@@ -546,39 +535,38 @@ class SimplifiedUnifiedMCPServer:
                     "success": True,
                     "comprehensive_status": status,
                     "recommendations": recommendations,
-                    "timestamp": datetime.now().isoformat(),
+                    "timestamp": datetime.now().isoformat()
                 }
             except Exception as e:
                 logger.error(f"Backend monitoring failed: {e}")
                 return {"success": False, "error": str(e)}
         else:
             return {
-                "success": False,
+                "success": False, 
                 "error": "Backend monitoring not available",
-                "basic_status": self._get_basic_system_status(),
+                "basic_status": self._get_basic_system_status()
             }
-
+    
     async def _check_ipfs_status(self) -> Dict[str, Any]:
         """Check IPFS daemon status."""
-
+        
         try:
             # Check if IPFS daemon is running
             ipfs_running = False
             ipfs_api_available = False
-
+            
             # Check for IPFS process
-            for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
                 try:
-                    if "ipfs" in proc.info["name"].lower():
+                    if 'ipfs' in proc.info['name'].lower():
                         ipfs_running = True
                         break
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     pass
-
+            
             # Try to connect to IPFS API
             try:
                 import requests
-
                 response = requests.get("http://127.0.0.1:5001/api/v0/version", timeout=5)
                 if response.status_code == 200:
                     ipfs_api_available = True
@@ -587,69 +575,66 @@ class SimplifiedUnifiedMCPServer:
                     ipfs_version = "unknown"
             except Exception:
                 ipfs_version = "unknown"
-
+            
             return {
                 "daemon_running": ipfs_running,
                 "api_available": ipfs_api_available,
                 "version": ipfs_version,
                 "status": "running" if ipfs_running and ipfs_api_available else "stopped",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now().isoformat()
             }
-
+        
         except Exception as e:
             return {
                 "error": f"IPFS status check failed: {e}",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now().isoformat()
             }
-
+    
     def _get_performance_metrics(self) -> Dict[str, Any]:
         """Get detailed performance metrics."""
-
+        
         self._update_performance_metrics()
-
+        
         return {
             "system": self.server_state["performance"],
             "connections": self.server_state["connections"],
             "metrics": self.server_state["metrics"],
-            "recent_errors": len(
-                [
-                    e
-                    for e in self.server_state["errors"]
-                    if (datetime.now() - datetime.fromisoformat(e["timestamp"])).seconds < 300
-                ]
-            ),
+            "recent_errors": len([
+                e for e in self.server_state["errors"]
+                if (datetime.now() - datetime.fromisoformat(e["timestamp"])).seconds < 300
+            ]),
             "health_score": self._calculate_health_score(),
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now().isoformat()
         }
-
+    
     def _update_performance_metrics(self):
         """Update performance metrics."""
-
+        
         try:
             # Memory usage
             memory = psutil.virtual_memory()
             self.server_state["performance"]["memory_usage_mb"] = memory.used / (1024 * 1024)
-
+            
             # CPU usage
             self.server_state["performance"]["cpu_usage_percent"] = psutil.cpu_percent()
-
+            
             # Uptime
             self.server_state["performance"]["uptime_seconds"] = time.time() - self.start_time
-
+            
         except Exception as e:
             logger.warning(f"Failed to update performance metrics: {e}")
             self.server_state["performance"]["uptime_seconds"] = time.time() - self.start_time
-
+    
     def _calculate_health_score(self) -> float:
         """Calculate overall health score (0-100)."""
-
+        
         score = 100.0
-
+        
         # Component availability
         available_components = sum(1 for available in COMPONENTS.values() if available)
         total_components = len(COMPONENTS)
         component_score = (available_components / total_components) * 50
-
+        
         # Error rate
         total_requests = self.server_state["metrics"]["requests_total"]
         if total_requests > 0:
@@ -657,65 +642,64 @@ class SimplifiedUnifiedMCPServer:
             error_score = max(0, 30 - (error_rate * 100))
         else:
             error_score = 30
-
+        
         # Recent errors (last 5 minutes)
         recent_errors = [
-            e
-            for e in self.server_state["errors"]
+            e for e in self.server_state["errors"]
             if (datetime.now() - datetime.fromisoformat(e["timestamp"])).seconds < 300
         ]
         recent_error_penalty = min(20, len(recent_errors) * 2)
-
+        
         return max(0, component_score + error_score - recent_error_penalty)
-
+    
     def _get_basic_system_status(self) -> Dict[str, Any]:
         """Get basic system status as fallback."""
-
+        
         try:
             return {
                 "memory_usage_percent": psutil.virtual_memory().percent,
                 "cpu_usage_percent": psutil.cpu_percent(),
-                "disk_usage_percent": psutil.disk_usage("/").percent,
-                "load_average": os.getloadavg() if hasattr(os, "getloadavg") else [0, 0, 0],
-                "timestamp": datetime.now().isoformat(),
+                "disk_usage_percent": psutil.disk_usage('/').percent,
+                "load_average": os.getloadavg() if hasattr(os, 'getloadavg') else [0, 0, 0],
+                "timestamp": datetime.now().isoformat()
             }
         except Exception as e:
             return {"error": f"System status failed: {e}"}
-
+    
     async def _get_comprehensive_status(self) -> Dict[str, Any]:
         """Get comprehensive server status."""
-
+        
         backend_status = await self._get_backend_status()
         health_status = await self._get_health_status()
-
+        
         return {
             "server_info": {
                 "host": self.host,
                 "port": self.port,
                 "uptime_seconds": time.time() - self.start_time,
-                "version": "2.1.0",
+                "version": "2.1.0"
             },
             "health": health_status,
             "backends": backend_status,
             "observability": self._get_full_observability_data(),
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now().isoformat()
         }
-
+    
     async def _get_system_insights(self) -> Dict[str, Any]:
         """Get system insights and performance metrics."""
-
+        
         # Calculate performance scores
         health_score = self._calculate_health_score()
-
+        
         # Get storage utilization
         storage_info = self._get_storage_info()
-
+        
         # Backend health
         backend_status = await self._get_backend_status()
         healthy_backends = sum(1 for b in backend_status["backends"] if b["status"] == "healthy")
         total_backends = len(backend_status["backends"])
         backend_health_score = (healthy_backends / max(total_backends, 1)) * 100
-
+        
         # Generate recommendations
         recommendations = []
         if health_score < 80:
@@ -724,59 +708,60 @@ class SimplifiedUnifiedMCPServer:
             recommendations.append("Some backends are unhealthy. Review backend status.")
         if storage_info["usage_percent"] > 85:
             recommendations.append("Storage usage is high. Consider cleanup.")
-
+        
         return {
             "performance_score": health_score,
             "storage_utilization": storage_info["usage_percent"],
             "backend_health": backend_health_score,
             "active_connections": self.server_state["connections"]["websocket_active"],
             "total_requests": self.server_state["requests"]["total"],
-            "error_rate": (
-                self.server_state["requests"]["failed"]
-                / max(self.server_state["requests"]["total"], 1)
-            )
-            * 100,
+            "error_rate": (self.server_state["requests"]["failed"] / 
+                          max(self.server_state["requests"]["total"], 1)) * 100,
             "uptime_hours": (time.time() - self.start_time) / 3600,
             "memory_usage": psutil.virtual_memory().percent,
             "cpu_usage": psutil.cpu_percent(),
             "recommendations": recommendations,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now().isoformat()
         }
-
+    
     def _get_storage_info(self) -> Dict[str, Any]:
         """Get storage utilization information."""
         try:
-            disk_usage = psutil.disk_usage("/")
+            disk_usage = psutil.disk_usage('/')
             return {
                 "total": disk_usage.total,
                 "used": disk_usage.used,
                 "free": disk_usage.free,
-                "usage_percent": (disk_usage.used / disk_usage.total) * 100,
+                "usage_percent": (disk_usage.used / disk_usage.total) * 100
             }
         except Exception as e:
             logger.error(f"Failed to get storage info: {e}")
-            return {"total": 0, "used": 0, "free": 0, "usage_percent": 0}
-
+            return {
+                "total": 0,
+                "used": 0,
+                "free": 0,
+                "usage_percent": 0
+            }
+    
     def _get_full_observability_data(self) -> Dict[str, Any]:
         """Get complete observability data."""
-
+        
         return {
             "server_state": self.server_state,
             "components": COMPONENTS,
             "health_score": self._calculate_health_score(),
             "system_info": self._get_system_info(),
             "recent_errors": [
-                e
-                for e in self.server_state["errors"]
+                e for e in self.server_state["errors"]
                 if (datetime.now() - datetime.fromisoformat(e["timestamp"])).seconds < 3600
             ],
             "mcp_tools_available": len(self.mcp_tools),
-            "performance_snapshot": self._get_performance_metrics(),
+            "performance_snapshot": self._get_performance_metrics()
         }
-
+    
     def _get_system_info(self) -> Dict[str, Any]:
         """Get system information."""
-
+        
         return {
             "platform": platform.platform(),
             "python_version": platform.python_version(),
@@ -785,7 +770,7 @@ class SimplifiedUnifiedMCPServer:
             "working_directory": os.getcwd(),
             "process_id": os.getpid(),
             "available_memory_gb": psutil.virtual_memory().total / (1024**3),
-            "cpu_count": psutil.cpu_count(),
+            "cpu_count": psutil.cpu_count()
         }
 
     def _simulate_vector_search(self, query: str) -> List[Dict[str, Any]]:
@@ -795,9 +780,8 @@ class SimplifiedUnifiedMCPServer:
             {
                 "id": f"doc_{i}",
                 "score": 0.9 - (i * 0.1),
-                "text": f"This is a simulated search result for '{query}' number {i}",
-            }
-            for i in range(5)
+                "text": f"This is a simulated search result for '{query}' number {i}"
+            } for i in range(5)
         ]
 
     def _simulate_kb_search(self, entity_id: str) -> Dict[str, Any]:
@@ -808,67 +792,51 @@ class SimplifiedUnifiedMCPServer:
             "label": "Simulated Entity",
             "properties": {
                 "description": f"This is a simulated entity with ID {entity_id}",
-                "type": "Simulated",
+                "type": "Simulated"
             },
             "relations": [
                 {
                     "type": "RELATED_TO",
                     "target_id": "related_entity_1",
-                    "target_label": "Another Entity",
+                    "target_label": "Another Entity"
                 }
-            ],
+            ]
         }
-
+    
     def _get_prometheus_metrics(self) -> str:
         """Generate Prometheus-style metrics."""
-
+        
         metrics = []
-
+        
         # Server metrics
-        metrics.append(
-            f"ipfs_kit_mcp_requests_total {self.server_state['metrics']['requests_total']}"
-        )
-        metrics.append(
-            f"ipfs_kit_mcp_requests_success {self.server_state['metrics']['requests_success']}"
-        )
-        metrics.append(
-            f"ipfs_kit_mcp_requests_error {self.server_state['metrics']['requests_error']}"
-        )
-        metrics.append(
-            f"ipfs_kit_mcp_tools_calls {self.server_state['metrics']['mcp_tools_calls']}"
-        )
-        metrics.append(
-            f"ipfs_kit_mcp_websocket_connections {len(self.server_state['connections']['websocket_active'])}"
-        )
+        metrics.append(f"ipfs_kit_mcp_requests_total {self.server_state['metrics']['requests_total']}")
+        metrics.append(f"ipfs_kit_mcp_requests_success {self.server_state['metrics']['requests_success']}")
+        metrics.append(f"ipfs_kit_mcp_requests_error {self.server_state['metrics']['requests_error']}")
+        metrics.append(f"ipfs_kit_mcp_tools_calls {self.server_state['metrics']['mcp_tools_calls']}")
+        metrics.append(f"ipfs_kit_mcp_websocket_connections {len(self.server_state['connections']['websocket_active'])}")
         metrics.append(f"ipfs_kit_mcp_uptime_seconds {time.time() - self.start_time}")
-
+        
         # Component status
         for component, available in COMPONENTS.items():
-            metrics.append(
-                f'ipfs_kit_component_available{{component="{component}"}} {1 if available else 0}'
-            )
-
+            metrics.append(f"ipfs_kit_component_available{{component=\"{component}\"}} {1 if available else 0}")
+        
         # Health score
         metrics.append(f"ipfs_kit_health_score {self._calculate_health_score()}")
-
+        
         # Performance metrics
         self._update_performance_metrics()
-        metrics.append(
-            f"ipfs_kit_memory_usage_mb {self.server_state['performance']['memory_usage_mb']}"
-        )
-        metrics.append(
-            f"ipfs_kit_cpu_usage_percent {self.server_state['performance']['cpu_usage_percent']}"
-        )
+        metrics.append(f"ipfs_kit_memory_usage_mb {self.server_state['performance']['memory_usage_mb']}")
+        metrics.append(f"ipfs_kit_cpu_usage_percent {self.server_state['performance']['cpu_usage_percent']}")
         metrics.append(f"ipfs_kit_websocket_connections {len(self.websocket_connections)}")
-
+        
         return "\n".join(metrics)
-
+    
     def _get_comprehensive_dashboard_html(self) -> str:
         """Generate comprehensive dashboard HTML."""
-
+        
         health_score = self._calculate_health_score()
         uptime = time.time() - self.start_time
-
+        
         # Component status indicators
         component_indicators = ""
         for component, available in COMPONENTS.items():
@@ -876,18 +844,17 @@ class SimplifiedUnifiedMCPServer:
             indicator = "✓" if available else "✗"
             component_indicators += f"""
             <div class="component-status {status_class}">
-                <strong>{component.replace("_", " ").title()}:</strong>
+                <strong>{component.replace('_', ' ').title()}:</strong>
                 <span class="status-indicator">{indicator}</span>
             </div>
             """
-
+        
         # Recent errors
         recent_errors = [
-            e
-            for e in self.server_state["errors"]
+            e for e in self.server_state["errors"]
             if (datetime.now() - datetime.fromisoformat(e["timestamp"])).seconds < 300
         ]
-
+        
         return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -971,7 +938,7 @@ class SimplifiedUnifiedMCPServer:
             font-size: 3.5rem; 
             font-weight: bold; 
             margin: 20px 0;
-            color: {("#48bb78" if health_score > 70 else "#ed8936" if health_score > 40 else "#f56565")};
+            color: {('#48bb78' if health_score > 70 else '#ed8936' if health_score > 40 else '#f56565')};
         }}
         .component-status {{ 
             margin: 10px 0; 
@@ -1061,11 +1028,11 @@ class SimplifiedUnifiedMCPServer:
                 <div class="health-score">{health_score:.1f}%</div>
                 <div class="metric">
                     <span class="metric-label">Overall Health Score</span>
-                    <span class="metric-value {("status-good" if health_score > 70 else "status-warning" if health_score > 40 else "status-error")}">{health_score:.1f}%</span>
+                    <span class="metric-value {('status-good' if health_score > 70 else 'status-warning' if health_score > 40 else 'status-error')}">{health_score:.1f}%</span>
                 </div>
                 <div class="metric">
                     <span class="metric-label">Uptime:</span>
-                    <span class="metric-value">{uptime / 3600:.1f}h {(uptime % 3600) / 60:.0f}m</span>
+                    <span class="metric-value">{uptime/3600:.1f}h {(uptime%3600)/60:.0f}m</span>
                 </div>
                 <div class="metric">
                     <span class="metric-label">Total Requests:</span>
@@ -1079,7 +1046,7 @@ class SimplifiedUnifiedMCPServer:
                     <span class="metric-label">Active WebSocket:</span>
                     <span class="metric-value">{len(self.websocket_connections)}</span>
                 </div>
-                {f'<div class="metric"><span class="metric-label">Recent Errors:</span><span class="error-count">{len(recent_errors)}</span></div>' if recent_errors else ""}
+                {f'<div class="metric"><span class="metric-label">Recent Errors:</span><span class="error-count">{len(recent_errors)}</span></div>' if recent_errors else ''}
             </div>
             
             <div class="card">
@@ -1239,78 +1206,80 @@ class SimplifiedUnifiedMCPServer:
     </script>
 </body>
 </html>"""
-
+    
     async def start_background_monitoring(self):
         """Start background monitoring services."""
-
+        
         self.monitoring_active = True
-
+        
         # Start periodic health checks
         asyncio.create_task(self._periodic_health_check())
-
+        
         logger.info("✓ Background monitoring started")
-
+    
     async def _periodic_health_check(self):
         """Periodic health monitoring."""
-
+        
         while self.monitoring_active:
             try:
                 await asyncio.sleep(60)  # Check every minute
-
+                
                 # Update performance metrics
                 self._update_performance_metrics()
-
+                
                 # Check for alerts
                 health_score = self._calculate_health_score()
                 if health_score < 50:
-                    self.server_state["alerts"].append(
-                        {
-                            "timestamp": datetime.now().isoformat(),
-                            "severity": "warning" if health_score > 30 else "critical",
-                            "message": f"Low health score: {health_score:.1f}%",
-                            "component": "health_monitor",
-                        }
-                    )
+                    self.server_state["alerts"].append({
+                        "timestamp": datetime.now().isoformat(),
+                        "severity": "warning" if health_score > 30 else "critical",
+                        "message": f"Low health score: {health_score:.1f}%",
+                        "component": "health_monitor"
+                    })
                     self.server_state["metrics"]["alerts_generated"] += 1
-
+                
                 # Limit stored errors and alerts to last 100 entries
                 self.server_state["errors"] = self.server_state["errors"][-100:]
                 self.server_state["alerts"] = self.server_state["alerts"][-100:]
-
+                
             except Exception as e:
                 logger.error(f"Health check failed: {e}")
-
+    
     async def stop_background_monitoring(self):
         """Stop background monitoring."""
-
+        
         self.monitoring_active = False
         logger.info("✓ Background monitoring stopped")
-
+    
     async def run(self):
         """Run the simplified unified server."""
-
+        
         if not COMPONENTS["web_framework"]:
             logger.error("❌ Web framework not available - cannot start server")
             return
-
+        
         try:
             # Start background services
             await self.start_background_monitoring()
-
+            
             logger.info(f"🚀 Starting Simplified Unified MCP Server on {self.host}:{self.port}")
             logger.info(f"📊 Component Status: {COMPONENTS}")
             logger.info(f"🌐 Dashboard: http://{self.host}:{self.port}/")
             logger.info(f"📡 MCP Endpoint: http://{self.host}:{self.port}/mcp")
             logger.info(f"🔌 WebSocket: ws://{self.host}:{self.port}/mcp/ws")
             logger.info(f"🛠️  Available MCP Tools: {len(self.mcp_tools)}")
-
+            
             # Run the server
             config = uvicorn.Config(
-                app=self.app, host=self.host, port=self.port, log_level="info", access_log=True
+                app=self.app,
+                host=self.host,
+                port=self.port,
+                log_level="info",
+                access_log=True
             )
             server = uvicorn.Server(config)
             await server.serve()
-
+            
         except Exception as e:
             logger.error(f"❌ Server failed to start: {e}")
             raise
@@ -1320,28 +1289,28 @@ class SimplifiedUnifiedMCPServer:
 
 async def main():
     """Main entry point."""
-
+    
     parser = argparse.ArgumentParser(description="Simplified Unified IPFS Kit MCP Server")
     parser.add_argument("--host", default="127.0.0.1", help="Server host")
     parser.add_argument("--port", type=int, default=8766, help="Server port")
-
+    
     args = parser.parse_args()
-
+    
     # Handle shutdown gracefully
     def signal_handler(signum, frame):
         logger.info("🛑 Shutdown signal received")
         raise KeyboardInterrupt
-
+    
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
-
+    
     logger.info("🚀 Initializing Simplified Unified IPFS Kit MCP Server")
     logger.info(f"📊 Available Components: {[k for k, v in COMPONENTS.items() if v]}")
     logger.info(f"⚠️  Missing Components: {[k for k, v in COMPONENTS.items() if not v]}")
-
+    
     # Create and run server
     server = SimplifiedUnifiedMCPServer(host=args.host, port=args.port)
-
+    
     try:
         await server.run()
     except KeyboardInterrupt:

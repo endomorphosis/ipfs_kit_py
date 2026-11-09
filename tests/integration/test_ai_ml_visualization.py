@@ -12,7 +12,7 @@ import os
 import sys
 import tempfile
 import unittest
-import time  # Added for simulating time
+import time # Added for simulating time
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -74,7 +74,7 @@ class TestAIMLVisualization(unittest.TestCase):
                     model_id=model_id,
                     epoch=epoch,
                     loss=(1.0 - epoch * 0.2),
-                    learning_rate=(0.01 * (0.9**epoch)),
+                    learning_rate=(0.01 * (0.9**epoch))
                     # Removed accuracy=(0.6 + epoch * 0.08)
                 )
 
@@ -82,24 +82,24 @@ class TestAIMLVisualization(unittest.TestCase):
         for i in range(10):
             # Use track_inference context manager
             with self.metrics.track_inference(model_id, batch_size=1, track_memory=False):
-                # Simulate inference duration (latency)
-                time.sleep((20 + i * 3) / 1000.0)  # Convert ms to s
+                 # Simulate inference duration (latency)
+                 time.sleep((20 + i * 3) / 1000.0) # Convert ms to s
 
         # Simulate Worker metrics
         for worker_id_num in range(3):
             worker_id = f"worker-{worker_id_num}"
             for i in range(10):
-                # Use record_worker_utilization
-                self.metrics.record_worker_utilization(worker_id, utilization=(0.5 + i * 0.05))
-                # Other worker metrics (memory, tasks) are not directly supported by AIMLMetrics
+                 # Use record_worker_utilization
+                 self.metrics.record_worker_utilization(worker_id, utilization=(0.5 + i * 0.05))
+                 # Other worker metrics (memory, tasks) are not directly supported by AIMLMetrics
 
         # Simulate Dataset metrics
         for dataset_id in ["train", "val", "test"]:
             for i in range(5):
-                # Use track_dataset_load context manager
-                with self.metrics.track_dataset_load(dataset_id, format="parquet"):
-                    # Simulate load duration
-                    time.sleep((50 + i * 10) / 1000.0)  # Convert ms to s
+                 # Use track_dataset_load context manager
+                 with self.metrics.track_dataset_load(dataset_id, format="parquet"):
+                      # Simulate load duration
+                      time.sleep((50 + i * 10) / 1000.0) # Convert ms to s
 
         # Create visualization object - Pass the AIMLMetrics instance
         self.viz = create_visualization(self.metrics, theme="light", interactive=True)
@@ -136,6 +136,7 @@ class TestAIMLVisualization(unittest.TestCase):
         # Check the effective interactive state based on library availability
         self.assertEqual(viz4.interactive, False if PLOTLY_AVAILABLE else False)
 
+
     def test_library_detection(self):
         """Test visualization library detection."""
         # Instantiate the class to call the method
@@ -144,7 +145,7 @@ class TestAIMLVisualization(unittest.TestCase):
         self.assertIsInstance(libraries, dict)
         self.assertIn("matplotlib", libraries)
         self.assertIn("plotly", libraries)
-        self.assertIn("in_notebook", libraries)  # Check for correct keys
+        self.assertIn("in_notebook", libraries) # Check for correct keys
         self.assertIn("interactive", libraries)
         self.assertIn("theme", libraries)
 
@@ -161,7 +162,7 @@ class TestAIMLVisualization(unittest.TestCase):
         # Check that we got a figure back
         self.assertIsNotNone(fig)
         # Check if it's a Matplotlib figure
-        self.assertTrue(hasattr(fig, "savefig"))
+        self.assertTrue(hasattr(fig, 'savefig'))
 
         # Removed incorrect call to viz.export_plot
 
@@ -171,7 +172,7 @@ class TestAIMLVisualization(unittest.TestCase):
         """Test interactive training metrics visualization with Plotly."""
         # Skip this test due to compatibility issues between Plotly and Pandas
         self.skipTest("Skipping interactive plot test due to Plotly/Pandas compatibility issues")
-
+        
         # This test is skipped to avoid the following error:
         # TypeError: isinstance() arg 2 must be a type, a tuple of types, or a union
         # Occurs in Plotly's basevalidators.py when checking for pandas types
@@ -186,7 +187,7 @@ class TestAIMLVisualization(unittest.TestCase):
 
         # Check that we got a figure back
         self.assertIsNotNone(fig)
-        self.assertTrue(hasattr(fig, "savefig"))
+        self.assertTrue(hasattr(fig, 'savefig'))
 
         # Removed incorrect call to viz.export_plot
 
@@ -200,7 +201,7 @@ class TestAIMLVisualization(unittest.TestCase):
 
         # Check that we got a figure back
         self.assertIsNotNone(fig)
-        self.assertTrue(hasattr(fig, "savefig"))
+        self.assertTrue(hasattr(fig, 'savefig'))
 
         # Removed incorrect call to viz.export_plot
 
@@ -214,7 +215,7 @@ class TestAIMLVisualization(unittest.TestCase):
 
         # Check that we got a figure back
         self.assertIsNotNone(fig)
-        self.assertTrue(hasattr(fig, "savefig"))
+        self.assertTrue(hasattr(fig, 'savefig'))
 
         # Removed incorrect call to viz.export_plot
 
@@ -228,7 +229,7 @@ class TestAIMLVisualization(unittest.TestCase):
 
         # Check that we got a figure back
         self.assertIsNotNone(fig)
-        self.assertTrue(hasattr(fig, "savefig"))
+        self.assertTrue(hasattr(fig, 'savefig'))
 
         # Removed incorrect call to viz.export_plot
 
@@ -237,37 +238,19 @@ class TestAIMLVisualization(unittest.TestCase):
         """Test HTML report generation."""
         # Skip this test due to compatibility issues between Plotly and Pandas
         self.skipTest("Skipping HTML report test due to Plotly/Pandas compatibility issues")
-
+        
         # This test is skipped to avoid the following error:
         # TypeError: isinstance() arg 2 must be a type, a tuple of types, or a union
         # Occurs in Plotly's basevalidators.py when checking for pandas types
 
     # Mock internal plotting functions called by export_visualizations
-    @patch(
-        "ipfs_kit_py.ai_ml_visualization.AIMLVisualization.plot_training_metrics",
-        MagicMock(return_value=MagicMock()),
-    )
-    @patch(
-        "ipfs_kit_py.ai_ml_visualization.AIMLVisualization.plot_inference_latency",
-        MagicMock(return_value=MagicMock()),
-    )
-    @patch(
-        "ipfs_kit_py.ai_ml_visualization.AIMLVisualization.plot_dataset_load_times",
-        MagicMock(return_value=MagicMock()),
-    )
-    @patch(
-        "ipfs_kit_py.ai_ml_visualization.AIMLVisualization.plot_worker_utilization",
-        MagicMock(return_value=MagicMock()),
-    )
-    @patch(
-        "ipfs_kit_py.ai_ml_visualization.AIMLVisualization.plot_comprehensive_dashboard",
-        MagicMock(return_value=MagicMock()),
-    )
+    @patch('ipfs_kit_py.ai_ml_visualization.AIMLVisualization.plot_training_metrics', MagicMock(return_value=MagicMock()))
+    @patch('ipfs_kit_py.ai_ml_visualization.AIMLVisualization.plot_inference_latency', MagicMock(return_value=MagicMock()))
+    @patch('ipfs_kit_py.ai_ml_visualization.AIMLVisualization.plot_dataset_load_times', MagicMock(return_value=MagicMock()))
+    @patch('ipfs_kit_py.ai_ml_visualization.AIMLVisualization.plot_worker_utilization', MagicMock(return_value=MagicMock()))
+    @patch('ipfs_kit_py.ai_ml_visualization.AIMLVisualization.plot_comprehensive_dashboard', MagicMock(return_value=MagicMock()))
     # Mock generate_html_report as it requires Plotly and is tested separately
-    @patch(
-        "ipfs_kit_py.ai_ml_visualization.AIMLVisualization.generate_html_report",
-        MagicMock(return_value="mock_html"),
-    )
+    @patch('ipfs_kit_py.ai_ml_visualization.AIMLVisualization.generate_html_report', MagicMock(return_value="mock_html"))
     def test_export_visualizations(self):
         """Test exporting all visualizations."""
         # Export all visualizations
@@ -286,10 +269,11 @@ class TestAIMLVisualization(unittest.TestCase):
         json_path = self.output_dir / "ai_ml_metrics.json"
         # Check if the file exists before asserting it's in the list
         if json_path.exists():
-            self.assertIn(str(json_path), result["exported_files"])
+             self.assertIn(str(json_path), result["exported_files"])
         else:
-            # If JSON export failed for some reason (e.g., permissions), log it
-            print(f"Warning: JSON export file not found at {json_path}")
+             # If JSON export failed for some reason (e.g., permissions), log it
+             print(f"Warning: JSON export file not found at {json_path}")
+
 
     @patch("ipfs_kit_py.ai_ml_visualization.MATPLOTLIB_AVAILABLE", False)
     @patch("ipfs_kit_py.ai_ml_visualization.PLOTLY_AVAILABLE", False)
@@ -302,7 +286,7 @@ class TestAIMLVisualization(unittest.TestCase):
         fig = viz.plot_training_metrics(model_id="test_model", show_plot=False)
 
         # Check that we got None back (or appropriate fallback)
-        self.assertIsNone(fig)  # Assuming it returns None when libs are missing
+        self.assertIsNone(fig) # Assuming it returns None when libs are missing
 
     def test_factory_function(self):
         """Test the visualization factory function."""

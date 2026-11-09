@@ -13,26 +13,26 @@ import sys
 server_bridge_path = "./ipfs_kit_py/mcp/server_bridge.py"
 
 # Read the file content
-with open(server_bridge_path, "r") as f:
+with open(server_bridge_path, 'r') as f:
     content = f.read()
 
 # Find the problematic line
-old_init = """            ipfs_model = IPFSModel(
+old_init = '''            ipfs_model = IPFSModel(
                 ipfs_backend=None,  # Will be initialized later if needed
                 debug_mode=self.debug_mode,
-                log_level=self.log_level,"""
+                log_level=self.log_level,'''
 
 # New version without ipfs_backend
-new_init = """            ipfs_model = IPFSModel(
+new_init = '''            ipfs_model = IPFSModel(
                 debug_mode=self.debug_mode,
-                log_level=self.log_level,"""
+                log_level=self.log_level,'''
 
 # Replace the problematic line
 if old_init in content:
     modified_content = content.replace(old_init, new_init)
 
     # Write the modified content back to the file
-    with open(server_bridge_path, "w") as f:
+    with open(server_bridge_path, 'w') as f:
         f.write(modified_content)
 
     print(f"✅ Successfully fixed IPFSModel initialization in {server_bridge_path}")

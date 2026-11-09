@@ -15,10 +15,10 @@ import logging
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("add-missing-endpoints")
-
 
 def add_endpoints_to_server(server_path):
     """Add missing endpoints to the MCP server."""
@@ -136,11 +136,9 @@ def add_endpoints_to_server(server_path):
     logger.info("Successfully added missing endpoints to the server")
     return True
 
-
 if __name__ == "__main__":
-    server_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "ipfs_kit_py", "mcp", "server.py"
-    )
+    server_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "ipfs_kit_py", "mcp", "server.py")
 
     if len(sys.argv) > 1:
         server_path = sys.argv[1]

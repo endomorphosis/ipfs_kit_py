@@ -25,39 +25,38 @@ import uvicorn
 
 logger = logging.getLogger(__name__)
 
-
 class StandaloneEnhancedDashboard:
     """Standalone version of enhanced MCP dashboard for testing."""
-
+    
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """Initialize the standalone enhanced dashboard."""
         if config is None:
             config = {
-                "host": "127.0.0.1",
-                "port": 8004,
-                "data_dir": "~/.ipfs_kit_test",
-                "debug": True,
+                'host': '127.0.0.1',
+                'port': 8004,
+                'data_dir': '~/.ipfs_kit_test',
+                'debug': True
             }
-
+        
         self.config = config
-        self.host = config.get("host", "127.0.0.1")
-        self.port = config.get("port", 8004)
-        self.data_dir = Path(config.get("data_dir", "~/.ipfs_kit_test")).expanduser()
-        self.debug = config.get("debug", True)
-
+        self.host = config.get('host', '127.0.0.1')
+        self.port = config.get('port', 8004)
+        self.data_dir = Path(config.get('data_dir', '~/.ipfs_kit_test')).expanduser()
+        self.debug = config.get('debug', True)
+        
         # Create data directories
         self.data_dir.mkdir(parents=True, exist_ok=True)
         (self.data_dir / "buckets").mkdir(exist_ok=True)
         (self.data_dir / "bucket_configs").mkdir(exist_ok=True)
         (self.data_dir / "bucket_index").mkdir(exist_ok=True)
-
+        
         # Initialize FastAPI app
         self.app = FastAPI(
             title="Enhanced MCP Dashboard - Standalone",
             description="Testing enhanced bucket management features",
-            version="1.0.0",
+            version="1.0.0"
         )
-
+        
         # Add CORS middleware
         self.app.add_middleware(
             CORSMiddleware,
@@ -66,44 +65,42 @@ class StandaloneEnhancedDashboard:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-
+        
         # Set up routes
         self._setup_routes()
-
+        
         # Create sample data
         self._create_sample_data()
-
+    
     def _setup_routes(self):
         """Set up FastAPI routes."""
-
+        
         # Serve static files
         current_dir = Path(__file__).parent
         dashboard_dir = current_dir / "ipfs_kit_py" / "mcp" / "dashboard"
-
+        
         if not dashboard_dir.exists():
             # Try different path structure
             dashboard_dir = Path("ipfs_kit_py/mcp/dashboard")
-
+        
         if dashboard_dir.exists():
-            self.app.mount(
-                "/static", StaticFiles(directory=str(dashboard_dir / "static")), name="static"
-            )
+            self.app.mount("/static", StaticFiles(directory=str(dashboard_dir / "static")), name="static")
             templates = Jinja2Templates(directory=str(dashboard_dir / "templates"))
         else:
             print(f"Warning: Dashboard directory not found at {dashboard_dir}")
             print("Creating minimal inline templates...")
             templates = None
-
+        
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard_home(request: Request):
             """Serve the main dashboard."""
             if templates:
                 return templates.TemplateResponse(
-                    "dashboard.html", {"request": request, "port": self.port}
+                    "dashboard.html", 
+                    {"request": request, "port": self.port}
                 )
             else:
-                return HTMLResponse(
-                    content="""
+                return HTMLResponse(content="""
                 <!DOCTYPE html>
                 <html><head><title>Enhanced Dashboard - Static Files Not Found</title></head>
                 <body><h1>Enhanced MCP Dashboard</h1>
@@ -114,9 +111,8 @@ class StandaloneEnhancedDashboard:
                     <li><a href="/api/system/overview">/api/system/overview</a> - System overview</li>
                 </ul>
                 </body></html>
-                """
-                )
-
+                """)
+        
         # API Routes
         @self.app.get("/api/system/overview")
         async def api_system_overview():
@@ -127,20 +123,16 @@ class StandaloneEnhancedDashboard:
                 "uptime": 3600,
                 "counts": {
                     "buckets": len(list((self.data_dir / "buckets").iterdir())),
-                    "files": sum(
-                        len(list(bucket.rglob("*")))
-                        for bucket in (self.data_dir / "buckets").iterdir()
-                        if bucket.is_dir()
-                    ),
-                    "backends": 3,
-                },
+                    "files": sum(len(list(bucket.rglob('*'))) for bucket in (self.data_dir / "buckets").iterdir() if bucket.is_dir()),
+                    "backends": 3
+                }
             }
-
+        
         @self.app.get("/api/buckets")
         async def api_buckets():
             """Get buckets data."""
             return await self._get_buckets_data()
-
+        
         @self.app.post("/api/buckets")
         async def api_create_bucket(request: Request):
             """Create a new bucket."""
@@ -149,18 +141,20 @@ class StandaloneEnhancedDashboard:
                 bucket_name = data.get("name") or data.get("bucket_name")
                 bucket_type = data.get("backend", data.get("bucket_type", "local"))
                 description = data.get("description", "")
-
+                
                 if not bucket_name:
                     return JSONResponse(
-                        status_code=400, content={"error": "Bucket name is required"}
+                        status_code=400,
+                        content={"error": "Bucket name is required"}
                     )
-
+                
                 result = await self._create_bucket(bucket_name, bucket_type, description)
                 return JSONResponse(content=result)
             except Exception as e:
                 logger.error(f"Error in create_bucket API: {e}")
                 return JSONResponse(
-                    status_code=500, content={"error": f"Failed to create bucket: {str(e)}"}
+                    status_code=500,
+                    content={"error": f"Failed to create bucket: {str(e)}"}
                 )
 
         @self.app.delete("/api/buckets/{bucket_name}")
@@ -172,7 +166,8 @@ class StandaloneEnhancedDashboard:
             except Exception as e:
                 logger.error(f"Error in delete_bucket API: {e}")
                 return JSONResponse(
-                    status_code=500, content={"error": f"Failed to delete bucket: {str(e)}"}
+                    status_code=500,
+                    content={"error": f"Failed to delete bucket: {str(e)}"}
                 )
 
         @self.app.get("/api/buckets/{bucket_name}")
@@ -184,7 +179,8 @@ class StandaloneEnhancedDashboard:
             except Exception as e:
                 logger.error(f"Error in get_bucket_details API: {e}")
                 return JSONResponse(
-                    status_code=500, content={"error": f"Failed to get bucket details: {str(e)}"}
+                    status_code=500,
+                    content={"error": f"Failed to get bucket details: {str(e)}"}
                 )
 
         @self.app.get("/api/buckets/{bucket_name}/files")
@@ -196,7 +192,8 @@ class StandaloneEnhancedDashboard:
             except Exception as e:
                 logger.error(f"Error in get_bucket_files API: {e}")
                 return JSONResponse(
-                    status_code=500, content={"error": f"Failed to get bucket files: {str(e)}"}
+                    status_code=500,
+                    content={"error": f"Failed to get bucket files: {str(e)}"}
                 )
 
         @self.app.post("/api/buckets/{bucket_name}/upload")
@@ -208,7 +205,8 @@ class StandaloneEnhancedDashboard:
             except Exception as e:
                 logger.error(f"Error in upload_to_bucket API: {e}")
                 return JSONResponse(
-                    status_code=500, content={"error": f"Failed to upload file: {str(e)}"}
+                    status_code=500,
+                    content={"error": f"Failed to upload file: {str(e)}"}
                 )
 
         @self.app.get("/api/buckets/{bucket_name}/download/{file_path:path}")
@@ -231,7 +229,8 @@ class StandaloneEnhancedDashboard:
             except Exception as e:
                 logger.error(f"Error in delete_file API: {e}")
                 return JSONResponse(
-                    status_code=500, content={"error": f"Failed to delete file: {str(e)}"}
+                    status_code=500,
+                    content={"error": f"Failed to delete file: {str(e)}"}
                 )
 
         @self.app.put("/api/buckets/{bucket_name}/settings")
@@ -245,7 +244,7 @@ class StandaloneEnhancedDashboard:
                 logger.error(f"Error in update_bucket_settings API: {e}")
                 return JSONResponse(
                     status_code=500,
-                    content={"error": f"Failed to update bucket settings: {str(e)}"},
+                    content={"error": f"Failed to update bucket settings: {str(e)}"}
                 )
 
     def _create_sample_data(self):
@@ -253,76 +252,75 @@ class StandaloneEnhancedDashboard:
         sample_buckets = [
             {
                 "name": "demo-bucket",
-                "backend": "local",
+                "backend": "local", 
                 "description": "Demo bucket with sample files",
                 "settings": {
                     "cache_enabled": True,
                     "vector_search": True,
                     "knowledge_graph": False,
-                    "storage_quota": 1000,
-                },
+                    "storage_quota": 1000
+                }
             },
             {
-                "name": "test-uploads",
+                "name": "test-uploads", 
                 "backend": "s3",
                 "description": "Test bucket for file uploads",
                 "settings": {
                     "cache_enabled": False,
-                    "vector_search": False,
+                    "vector_search": False, 
                     "knowledge_graph": True,
-                    "storage_quota": 500,
-                },
-            },
+                    "storage_quota": 500
+                }
+            }
         ]
-
+        
         for bucket_data in sample_buckets:
             bucket_path = self.data_dir / "buckets" / bucket_data["name"]
             bucket_path.mkdir(parents=True, exist_ok=True)
-
+            
             # Create sample files
             if bucket_data["name"] == "demo-bucket":
-                (bucket_path / "readme.txt").write_text(
-                    f"This is a sample file in {bucket_data['name']}"
-                )
-                (bucket_path / "data.json").write_text(
-                    '{"sample": "data", "created": "' + datetime.now().isoformat() + '"}'
-                )
-
+                (bucket_path / "readme.txt").write_text(f"This is a sample file in {bucket_data['name']}")
+                (bucket_path / "data.json").write_text('{"sample": "data", "created": "' + datetime.now().isoformat() + '"}')
+            
             # Create bucket config
             config_path = self.data_dir / "bucket_configs" / f"{bucket_data['name']}.yaml"
-            bucket_config = {**bucket_data, "created_at": datetime.now().isoformat()}
-            with open(config_path, "w") as f:
+            bucket_config = {
+                **bucket_data,
+                "created_at": datetime.now().isoformat()
+            }
+            with open(config_path, 'w') as f:
                 yaml.dump(bucket_config, f)
 
     # Backend implementation methods (simplified versions from main dashboard)
     async def _get_buckets_data(self):
         """Get buckets data with enhanced information."""
         buckets = []
-
+        
         for bucket_dir in (self.data_dir / "buckets").iterdir():
             if bucket_dir.is_dir():
                 bucket_name = bucket_dir.name
-
+                
                 # Calculate storage usage
-                total_size = sum(f.stat().st_size for f in bucket_dir.rglob("*") if f.is_file())
-                file_count = len(list(bucket_dir.rglob("*")))
-
+                total_size = sum(f.stat().st_size for f in bucket_dir.rglob('*') if f.is_file())
+                file_count = len(list(bucket_dir.rglob('*')))
+                
                 # Load bucket config
                 bucket_config_file = self.data_dir / "bucket_configs" / f"{bucket_name}.yaml"
                 settings = {}
                 backend = "local"
                 description = ""
-
+                
                 if bucket_config_file.exists():
                     try:
-                        with open(bucket_config_file, "r") as f:
+                        with open(bucket_config_file, 'r') as f:
                             config = yaml.safe_load(f) or {}
                             settings = config.get("settings", {})
                             backend = config.get("backend", "local")
                             description = config.get("description", "")
                     except Exception as e:
                         logger.warning(f"Could not load bucket config for {bucket_name}: {e}")
-
+                
                 bucket = {
                     "name": bucket_name,
                     "backend": backend,
@@ -333,10 +331,10 @@ class StandaloneEnhancedDashboard:
                     "knowledge_graph": settings.get("knowledge_graph", False),
                     "cache_enabled": settings.get("cache_enabled", False),
                     "settings": settings,
-                    "created_at": datetime.now().isoformat(),
+                    "created_at": datetime.now().isoformat()
                 }
                 buckets.append(bucket)
-
+        
         return {"buckets": buckets}
 
     async def _create_bucket(self, bucket_name, bucket_type, description):
@@ -345,9 +343,9 @@ class StandaloneEnhancedDashboard:
             bucket_path = self.data_dir / "buckets" / bucket_name
             if bucket_path.exists():
                 return {"success": False, "error": "Bucket already exists"}
-
+                
             bucket_path.mkdir(parents=True)
-
+            
             # Create bucket configuration
             bucket_config = {
                 "name": bucket_name,
@@ -364,16 +362,16 @@ class StandaloneEnhancedDashboard:
                     "storage_quota": None,
                     "max_files": None,
                     "max_file_size": 500,
-                    "retention_days": None,
-                },
+                    "retention_days": None
+                }
             }
-
+            
             config_path = self.data_dir / "bucket_configs" / f"{bucket_name}.yaml"
-            with open(config_path, "w") as f:
+            with open(config_path, 'w') as f:
                 yaml.dump(bucket_config, f)
-
+            
             return {"success": True, "message": f"Bucket '{bucket_name}' created successfully"}
-
+            
         except Exception as e:
             logger.error(f"Error creating bucket: {e}")
             return {"success": False, "error": str(e)}
@@ -382,17 +380,17 @@ class StandaloneEnhancedDashboard:
         """Delete bucket and clean up all associated data."""
         try:
             import shutil
-
+            
             bucket_path = self.data_dir / "buckets" / bucket_name
             if bucket_path.exists():
                 shutil.rmtree(bucket_path)
-
+            
             config_path = self.data_dir / "bucket_configs" / f"{bucket_name}.yaml"
             if config_path.exists():
                 config_path.unlink()
-
+            
             return {"success": True, "message": f"Bucket '{bucket_name}' deleted successfully"}
-
+            
         except Exception as e:
             logger.error(f"Error deleting bucket: {e}")
             return {"success": False, "error": str(e)}
@@ -403,29 +401,27 @@ class StandaloneEnhancedDashboard:
             bucket_path = self.data_dir / "buckets" / bucket_name
             if not bucket_path.exists():
                 return {"success": False, "error": "Bucket not found"}
-
+            
             config_path = self.data_dir / "bucket_configs" / f"{bucket_name}.yaml"
             bucket_info = {"name": bucket_name, "backend": "local"}
-
+            
             if config_path.exists():
-                with open(config_path, "r") as f:
+                with open(config_path, 'r') as f:
                     config = yaml.safe_load(f) or {}
                     bucket_info.update(config)
-
+            
             # Calculate stats
-            total_size = sum(f.stat().st_size for f in bucket_path.rglob("*") if f.is_file())
-            file_count = len(list(bucket_path.glob("*")))
-
-            bucket_info.update(
-                {
-                    "storage_used": total_size,
-                    "file_count": file_count,
-                    "last_accessed": datetime.now().isoformat(),
-                }
-            )
-
+            total_size = sum(f.stat().st_size for f in bucket_path.rglob('*') if f.is_file())
+            file_count = len(list(bucket_path.glob('*')))
+            
+            bucket_info.update({
+                "storage_used": total_size,
+                "file_count": file_count,
+                "last_accessed": datetime.now().isoformat()
+            })
+            
             return {"success": True, "bucket": bucket_info}
-
+            
         except Exception as e:
             logger.error(f"Error getting bucket details: {e}")
             return {"success": False, "error": str(e)}
@@ -436,23 +432,21 @@ class StandaloneEnhancedDashboard:
             bucket_path = self.data_dir / "buckets" / bucket_name
             if not bucket_path.exists():
                 return {"success": False, "error": "Bucket not found", "files": []}
-
+            
             files = []
             for file_path in bucket_path.iterdir():
                 if file_path.is_file():
                     stat = file_path.stat()
-                    files.append(
-                        {
-                            "name": file_path.name,
-                            "size": stat.st_size,
-                            "last_modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                            "path": file_path.name,
-                            "type": "file",
-                        }
-                    )
-
+                    files.append({
+                        "name": file_path.name,
+                        "size": stat.st_size,
+                        "last_modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                        "path": file_path.name,
+                        "type": "file"
+                    })
+            
             return {"success": True, "files": files}
-
+            
         except Exception as e:
             logger.error(f"Error getting bucket files: {e}")
             return {"success": False, "error": str(e), "files": []}
@@ -463,15 +457,15 @@ class StandaloneEnhancedDashboard:
             bucket_path = self.data_dir / "buckets" / bucket_name
             if not bucket_path.exists():
                 return {"success": False, "error": "Bucket not found"}
-
+            
             content = await file.read()
             file_path = bucket_path / file.filename
-
-            with open(file_path, "wb") as f:
+            
+            with open(file_path, 'wb') as f:
                 f.write(content)
-
+            
             return {"success": True, "message": f"File '{file.filename}' uploaded successfully"}
-
+            
         except Exception as e:
             logger.error(f"Error uploading file: {e}")
             return {"success": False, "error": str(e)}
@@ -481,16 +475,16 @@ class StandaloneEnhancedDashboard:
         try:
             bucket_path = self.data_dir / "buckets" / bucket_name
             full_file_path = bucket_path / file_path
-
+            
             if not full_file_path.exists():
                 raise HTTPException(status_code=404, detail="File not found")
-
+            
             return FileResponse(
                 path=str(full_file_path),
                 filename=full_file_path.name,
-                media_type="application/octet-stream",
+                media_type='application/octet-stream'
             )
-
+            
         except HTTPException:
             raise
         except Exception as e:
@@ -502,13 +496,13 @@ class StandaloneEnhancedDashboard:
         try:
             bucket_path = self.data_dir / "buckets" / bucket_name
             file_path = bucket_path / file_name
-
+            
             if not file_path.exists():
                 return {"success": False, "error": "File not found"}
-
+            
             file_path.unlink()
             return {"success": True, "message": f"File '{file_name}' deleted successfully"}
-
+            
         except Exception as e:
             logger.error(f"Error deleting file: {e}")
             return {"success": False, "error": str(e)}
@@ -517,28 +511,28 @@ class StandaloneEnhancedDashboard:
         """Update bucket settings."""
         try:
             config_path = self.data_dir / "bucket_configs" / f"{bucket_name}.yaml"
-
+            
             if config_path.exists():
-                with open(config_path, "r") as f:
+                with open(config_path, 'r') as f:
                     config = yaml.safe_load(f) or {}
             else:
                 config = {"name": bucket_name, "backend": "local"}
-
+            
             if "settings" not in config:
                 config["settings"] = {}
-
+            
             config["settings"].update(settings)
             config["updated_at"] = datetime.now().isoformat()
-
+            
             # Update description if provided
             if "description" in settings:
                 config["description"] = settings["description"]
-
-            with open(config_path, "w") as f:
+            
+            with open(config_path, 'w') as f:
                 yaml.dump(config, f)
-
+            
             return {"success": True, "message": "Bucket settings updated successfully"}
-
+            
         except Exception as e:
             logger.error(f"Error updating bucket settings: {e}")
             return {"success": False, "error": str(e)}
@@ -549,22 +543,20 @@ class StandaloneEnhancedDashboard:
         print(f"📍 URL: http://{self.host}:{self.port}")
         print(f"💾 Data directory: {self.data_dir}")
         print("=" * 50)
-
+        
         uvicorn.run(
             self.app,
             host=self.host,
             port=self.port,
-            log_level="info" if not self.debug else "debug",
+            log_level="info" if not self.debug else "debug"
         )
-
 
 def main():
     """Main entry point."""
     logging.basicConfig(level=logging.INFO)
-
+    
     dashboard = StandaloneEnhancedDashboard()
     dashboard.run()
-
 
 if __name__ == "__main__":
     main()

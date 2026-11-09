@@ -15,9 +15,7 @@ from pathlib import Path
 import pytest
 
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 pytestmark = pytest.mark.anyio
@@ -78,3 +76,4 @@ def test_intelligent_daemon_manager_smoke(tmp_path: Path, monkeypatch: pytest.Mo
     import pandas as pd
 
     assert isinstance(backend_index, pd.DataFrame)
+

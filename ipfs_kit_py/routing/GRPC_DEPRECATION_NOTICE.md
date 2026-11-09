@@ -54,27 +54,23 @@ Result: Runtime validation failures and import crashes
 ```python
 # OLD: gRPC client (deprecated)
 from ipfs_kit_py.routing.grpc_client import RoutingClient
-
 client = await RoutingClient.create("localhost:50051")
 result = await client.select_backend(content_type="image/jpeg")
 
 # NEW: Direct API usage (recommended)
 from ipfs_kit_py.high_level_api import select_optimal_backend
-
 result = await select_optimal_backend(content_type="image/jpeg")
 ```
 
 ### Instead of gRPC Server:
 
 ```python
-# OLD: gRPC server (deprecated)
+# OLD: gRPC server (deprecated)  
 from ipfs_kit_py.routing.grpc_server import GRPCServer
-
 server = GRPCServer(host="0.0.0.0", port=50051)
 
 # NEW: HTTP API server (available)
 from ipfs_kit_py.routing.http_server import HTTPRoutingServer
-
 server = HTTPRoutingServer(host="0.0.0.0", port=8080)
 ```
 

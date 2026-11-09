@@ -20,7 +20,10 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # Constants
@@ -28,13 +31,18 @@ IPFS_KIT_PATH = Path("./ipfs_kit_py")
 STORAGE_MODELS_PATH = IPFS_KIT_PATH / "mcp/models/storage"
 STORAGE_CONTROLLERS_PATH = IPFS_KIT_PATH / "mcp/controllers/storage"
 
-
 class StorageBackendFixer:
     """Fix storage backends in IPFS Kit."""
 
     def __init__(self):
         """Initialize the fixer."""
-        self.backends = ["huggingface", "storacha", "filecoin", "lassie", "s3"]
+        self.backends = [
+            "huggingface",
+            "storacha",
+            "filecoin",
+            "lassie",
+            "s3"
+        ]
 
         self.models = {}
         self.controllers = {}
@@ -53,7 +61,7 @@ class StorageBackendFixer:
 
             self.models[backend] = {
                 "sync": self._scan_file(model_path),
-                "async": self._scan_file(model_anyio_path),
+                "async": self._scan_file(model_anyio_path)
             }
 
         # Scan controller files
@@ -64,7 +72,7 @@ class StorageBackendFixer:
 
             self.controllers[backend] = {
                 "sync": self._scan_file(controller_path),
-                "async": self._scan_file(controller_anyio_path),
+                "async": self._scan_file(controller_anyio_path)
             }
 
         # Analyze issues
@@ -79,7 +87,7 @@ class StorageBackendFixer:
             "size": 0,
             "last_modified": None,
             "content": None,
-            "issues": [],
+            "issues": []
         }
 
         if result["exists"]:
@@ -112,12 +120,12 @@ class StorageBackendFixer:
             self.issues[backend] = {
                 "model": {
                     "sync": self.models[backend]["sync"]["issues"],
-                    "async": self.models[backend]["async"]["issues"],
+                    "async": self.models[backend]["async"]["issues"]
                 },
                 "controller": {
                     "sync": self.controllers[backend]["sync"]["issues"],
-                    "async": self.controllers[backend]["async"]["issues"],
-                },
+                    "async": self.controllers[backend]["async"]["issues"]
+                }
             }
 
     def fix_storage_backends(self):
@@ -130,12 +138,12 @@ class StorageBackendFixer:
             self.fixes[backend] = {
                 "model": {
                     "sync": self._fix_model(backend, "sync"),
-                    "async": self._fix_model(backend, "async"),
+                    "async": self._fix_model(backend, "async")
                 },
                 "controller": {
                     "sync": self._fix_controller(backend, "sync"),
-                    "async": self._fix_controller(backend, "async"),
-                },
+                    "async": self._fix_controller(backend, "async")
+                }
             }
 
         # Fix storage manager integration
@@ -164,7 +172,7 @@ class StorageBackendFixer:
         if "simulation = True" in updated_content:
             updated_content = updated_content.replace(
                 "simulation = True",
-                "simulation = False  # Changed to use real implementation by default",
+                "simulation = False  # Changed to use real implementation by default"
             )
 
         # Backend-specific fixes
@@ -209,13 +217,16 @@ class StorageBackendFixer:
 
         # Common fixes for all controllers
         if "def status(" in updated_content and "simulation=True" in updated_content:
-            updated_content = updated_content.replace("simulation=True", "simulation=False")
+            updated_content = updated_content.replace(
+                "simulation=True",
+                "simulation=False"
+            )
 
         # Ensure we check if simulation is requested in endpoints
         if "simulation = kwargs.get('simulation', True)" in updated_content:
             updated_content = updated_content.replace(
                 "simulation = kwargs.get('simulation', True)",
-                "simulation = kwargs.get('simulation', False)  # Default to real implementation",
+                "simulation = kwargs.get('simulation', False)  # Default to real implementation"
             )
 
         # Backend-specific controller fixes
@@ -250,7 +261,7 @@ class StorageBackendFixer:
             IPFS_KIT_PATH / "mcp/models/storage_manager.py",
             IPFS_KIT_PATH / "mcp/models/storage_manager_anyio.py",
             IPFS_KIT_PATH / "mcp/controllers/storage_manager_controller.py",
-            IPFS_KIT_PATH / "mcp/controllers/storage_manager_controller_anyio.py",
+            IPFS_KIT_PATH / "mcp/controllers/storage_manager_controller_anyio.py"
         ]
 
         results = {}
@@ -316,9 +327,9 @@ class StorageBackendFixer:
                                     end_idx = updated_content.find(backends_block_end, start_idx)
                                     if end_idx != -1:
                                         updated_content = (
-                                            updated_content[:end_idx]
-                                            + backend_init
-                                            + updated_content[end_idx:]
+                                            updated_content[:end_idx] +
+                                            backend_init +
+                                            updated_content[end_idx:]
                                         )
 
             # Write the updated file if changes were made
@@ -545,9 +556,7 @@ from huggingface_hub import HfApi, HfFolder"""
 
         return await self._handle_operation_result_async(result, "from_ipfs", start_time)"""
 
-                updated_content = updated_content.replace(
-                    async_method_pattern, async_implementation
-                )
+                updated_content = updated_content.replace(async_method_pattern, async_implementation)
 
         # Similar fixes for to_ipfs method
         # ... (not showing all implementations for brevity)
@@ -1416,7 +1425,6 @@ if __name__ == "__main__":
 
         return test_file
 
-
 def main():
     """Main function to run storage backend fixer."""
     logging.info("Starting storage backend fixer...")
@@ -1448,7 +1456,6 @@ def main():
     print(f"2. Test the fixed storage backends: python {test_file}")
     print("\nNote: Some backends may require additional setup (credentials, etc.)")
     print("      See documentation for each backend for setup instructions.")
-
 
 if __name__ == "__main__":
     main()

@@ -15,26 +15,25 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("daemon_config_patch")
 
-
 def patch_install_ipfs():
     """Patch the install_ipfs module to include configuration checks."""
-
+    
     # Read the current install_ipfs.py file
     install_ipfs_path = Path("ipfs_kit_py/install_ipfs.py")
-
+    
     if not install_ipfs_path.exists():
         logger.error("install_ipfs.py not found")
         return False
-
+    
     # Read the current content
-    with open(install_ipfs_path, "r") as f:
+    with open(install_ipfs_path, 'r') as f:
         content = f.read()
-
+    
     # Check if patch is already applied
     if "daemon_config_manager" in content:
         logger.info("install_ipfs.py already patched")
         return True
-
+    
     # Create the patch
     patch_code = """
     def ensure_daemon_configured(self):
@@ -65,38 +64,37 @@ def patch_install_ipfs():
             print(f"Error ensuring IPFS configuration: {e}")
             return False
 """
-
+    
     # Insert the patch before the last line
-    lines = content.split("\n")
+    lines = content.split('\n')
     lines.insert(-1, patch_code)
-
+    
     # Write the patched content
-    with open(install_ipfs_path, "w") as f:
-        f.write("\n".join(lines))
-
+    with open(install_ipfs_path, 'w') as f:
+        f.write('\n'.join(lines))
+    
     logger.info("install_ipfs.py patched successfully")
     return True
 
-
 def patch_install_lotus():
     """Patch the install_lotus module to include configuration checks."""
-
+    
     # Read the current install_lotus.py file
     install_lotus_path = Path("ipfs_kit_py/install_lotus.py")
-
+    
     if not install_lotus_path.exists():
         logger.error("install_lotus.py not found")
         return False
-
+    
     # Read the current content
-    with open(install_lotus_path, "r") as f:
+    with open(install_lotus_path, 'r') as f:
         content = f.read()
-
+    
     # Check if patch is already applied
     if "ensure_daemon_configured" in content:
         logger.info("install_lotus.py already patched")
         return True
-
+    
     # Create the patch
     patch_code = """
     def ensure_daemon_configured(self):
@@ -127,84 +125,80 @@ def patch_install_lotus():
             print(f"Error ensuring Lotus configuration: {e}")
             return False
 """
-
+    
     # Insert the patch before the last line
-    lines = content.split("\n")
+    lines = content.split('\n')
     lines.insert(-1, patch_code)
-
+    
     # Write the patched content
-    with open(install_lotus_path, "w") as f:
-        f.write("\n".join(lines))
-
+    with open(install_lotus_path, 'w') as f:
+        f.write('\n'.join(lines))
+    
     logger.info("install_lotus.py patched successfully")
     return True
 
-
 def patch_ipfs_kit_daemon_start():
     """Patch the ipfs_kit module to include configuration checks in daemon start methods."""
-
+    
     # Read the current ipfs_kit.py file
     ipfs_kit_path = Path("ipfs_kit_py/ipfs_kit.py")
-
+    
     if not ipfs_kit_path.exists():
         logger.error("ipfs_kit.py not found")
         return False
-
+    
     # Read the current content
-    with open(ipfs_kit_path, "r") as f:
+    with open(ipfs_kit_path, 'r') as f:
         content = f.read()
-
+    
     # Check if patch is already applied
     if "daemon_config_manager" in content:
         logger.info("ipfs_kit.py already patched")
         return True
-
+    
     # Find the start_required_daemons method and add configuration checks
     start_method_found = False
-    lines = content.split("\n")
+    lines = content.split('\n')
     patched_lines = []
-
+    
     for i, line in enumerate(lines):
         patched_lines.append(line)
-
+        
         # Look for the start_required_daemons method
         if "def start_required_daemons(self)" in line:
             start_method_found = True
             # Add configuration check after the method definition
-            patched_lines.extend(
-                [
-                    "        # Ensure all daemons are properly configured before starting",
-                    "        try:",
-                    "            from .daemon_config_manager import DaemonConfigManager",
-                    "            config_manager = DaemonConfigManager(self)",
-                    "            config_result = config_manager.check_and_configure_all_daemons()",
-                    "            if not config_result.get('overall_success', False):",
-                    "                self.logger.warning('Some daemon configurations failed, but continuing...')",
-                    '                self.logger.warning(f\'Config summary: {config_result.get("summary", "No summary")}\')',
-                    "            else:",
-                    "                self.logger.info('All daemon configurations validated successfully')",
-                    "        except Exception as config_error:",
-                    "            self.logger.warning(f'Daemon configuration check failed: {config_error}')",
-                    "            self.logger.warning('Continuing with daemon startup...')",
-                    "",
-                ]
-            )
-
+            patched_lines.extend([
+                "        # Ensure all daemons are properly configured before starting",
+                "        try:",
+                "            from .daemon_config_manager import DaemonConfigManager",
+                "            config_manager = DaemonConfigManager(self)",
+                "            config_result = config_manager.check_and_configure_all_daemons()",
+                "            if not config_result.get('overall_success', False):",
+                "                self.logger.warning('Some daemon configurations failed, but continuing...')",
+                "                self.logger.warning(f'Config summary: {config_result.get(\"summary\", \"No summary\")}')",
+                "            else:",
+                "                self.logger.info('All daemon configurations validated successfully')",
+                "        except Exception as config_error:",
+                "            self.logger.warning(f'Daemon configuration check failed: {config_error}')",
+                "            self.logger.warning('Continuing with daemon startup...')",
+                ""
+            ])
+    
     if not start_method_found:
         logger.warning("start_required_daemons method not found in ipfs_kit.py")
         return False
-
+    
     # Write the patched content
-    with open(ipfs_kit_path, "w") as f:
-        f.write("\n".join(patched_lines))
-
+    with open(ipfs_kit_path, 'w') as f:
+        f.write('\n'.join(patched_lines))
+    
     logger.info("ipfs_kit.py patched successfully")
     return True
 
-
 def create_integration_test():
     """Create a test to verify the configuration integration works."""
-
+    
     test_code = '''#!/usr/bin/env python3
 """
 Test daemon configuration integration
@@ -338,55 +332,54 @@ def main():
 if __name__ == "__main__":
     sys.exit(main())
 '''
-
+    
     # Write the test file
-    with open("test_daemon_config_integration.py", "w") as f:
+    with open("test_daemon_config_integration.py", 'w') as f:
         f.write(test_code)
-
+    
     logger.info("Integration test created: test_daemon_config_integration.py")
     return True
-
 
 def main():
     """Main function to apply all patches."""
     print("🔧 Applying daemon configuration patches...")
-
+    
     patches = [
         ("install_ipfs.py", patch_install_ipfs),
         ("install_lotus.py", patch_install_lotus),
         ("ipfs_kit.py", patch_ipfs_kit_daemon_start),
         ("Integration test", create_integration_test),
     ]
-
+    
     results = {}
-
+    
     for patch_name, patch_func in patches:
-        print(f"\n{'=' * 50}")
+        print(f"\n{'='*50}")
         print(f"Applying: {patch_name}")
-        print(f"{'=' * 50}")
-
+        print(f"{'='*50}")
+        
         result = patch_func()
         results[patch_name] = result
-
+        
         if result:
             print(f"✅ {patch_name} patched successfully")
         else:
             print(f"❌ {patch_name} patch failed")
-
+    
     # Summary
-    print(f"\n{'=' * 50}")
+    print(f"\n{'='*50}")
     print("PATCH SUMMARY")
-    print(f"{'=' * 50}")
-
+    print(f"{'='*50}")
+    
     passed = sum(1 for result in results.values() if result)
     total = len(results)
-
+    
     print(f"Patches applied: {passed}/{total}")
-
+    
     for patch_name, result in results.items():
         status = "SUCCESS" if result else "FAILED"
         print(f"  {patch_name}: {status}")
-
+    
     if passed == total:
         print("\n🎉 All patches applied successfully!")
         print("\n💡 Next steps:")
@@ -396,7 +389,6 @@ def main():
     else:
         print("\n❌ Some patches failed.")
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

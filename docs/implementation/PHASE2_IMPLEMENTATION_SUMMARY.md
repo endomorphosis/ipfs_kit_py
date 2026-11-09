@@ -35,7 +35,11 @@ from ipfs_kit_py.mcp.storage_manager.discovery import IPNIClient
 client = IPNIClient()
 
 # Find providers for a CID
-providers = await client.find_providers(cid="bafybeib...", protocol="bitswap", limit=20)
+providers = await client.find_providers(
+    cid="bafybeib...",
+    protocol="bitswap",
+    limit=20
+)
 
 # Get provider details
 provider_info = await client.get_provider_info("12D3KooW...")
@@ -94,7 +98,10 @@ Advanced gateway chain extending Phase 1's basic implementation:
 ```python
 from ipfs_kit_py.mcp.storage_manager.retrieval import EnhancedGatewayChain
 
-chain = EnhancedGatewayChain(enable_ipni=True, enable_saturn=True)
+chain = EnhancedGatewayChain(
+    enable_ipni=True,
+    enable_saturn=True
+)
 
 # Fetch with intelligent provider discovery
 content, metrics = await chain.fetch_with_discovery("bafybeib...")
@@ -218,7 +225,7 @@ from ipfs_kit_py.mcp.storage_manager.backends import SaturnBackend
 backend = SaturnBackend(resources={}, metadata={})
 result = backend.get_content("bafybeib...")
 
-if result["success"]:
+if result['success']:
     print(f"Retrieved from Saturn node: {result['node']}")
     print(f"Content size: {result['size']} bytes")
 ```
@@ -239,8 +246,8 @@ print(f"Time: {metrics['duration_ms']}ms")
 # Check provider performance
 provider_metrics = chain.get_provider_metrics()
 for provider_id, metrics in provider_metrics.items():
-    success_rate = metrics["success_count"] / (metrics["success_count"] + metrics["fail_count"])
-    print(f"{provider_id}: {success_rate * 100:.1f}% success, {metrics['avg_time_ms']:.0f}ms avg")
+    success_rate = metrics['success_count'] / (metrics['success_count'] + metrics['fail_count'])
+    print(f"{provider_id}: {success_rate*100:.1f}% success, {metrics['avg_time_ms']:.0f}ms avg")
 ```
 
 ---
@@ -375,13 +382,11 @@ Phase 2 seamlessly integrates with Phase 1 components:
 ```python
 # Phase 1: Basic gateway chain
 from ipfs_kit_py.mcp.storage_manager.retrieval import GatewayChain
-
 chain = GatewayChain()
 content = await chain.fetch("bafybeib...")
 
 # Phase 2: Enhanced with IPNI and Saturn
 from ipfs_kit_py.mcp.storage_manager.retrieval import EnhancedGatewayChain
-
 chain = EnhancedGatewayChain(enable_ipni=True, enable_saturn=True)
 content, metrics = await chain.fetch_with_discovery("bafybeib...")
 ```
@@ -390,15 +395,13 @@ content, metrics = await chain.fetch_with_discovery("bafybeib...")
 ```python
 # Use Filecoin Pin (Phase 1) for storage
 from ipfs_kit_py.mcp.storage_manager.backends import FilecoinPinBackend
-
 pin_backend = FilecoinPinBackend(resources={"api_key": "..."}, metadata={})
 result = pin_backend.add_content(b"data", metadata={"name": "my-file"})
 
 # Use Saturn (Phase 2) for fast retrieval
 from ipfs_kit_py.mcp.storage_manager.backends import SaturnBackend
-
 saturn = SaturnBackend(resources={}, metadata={})
-content = saturn.get_content(result["cid"])
+content = saturn.get_content(result['cid'])
 ```
 
 ---

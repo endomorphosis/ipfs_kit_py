@@ -2,18 +2,21 @@
 """
 Very direct test of API stability by importing the module file directly.
 """
-
 import sys
 import os
 import importlib.util
 
 # Get the absolute path to the api_stability.py file
 api_stability_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "ipfs_kit_py", "api_stability.py"
+    os.path.dirname(os.path.abspath(__file__)),
+    "ipfs_kit_py",
+    "api_stability.py"
 )
 
 high_level_api_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "ipfs_kit_py", "high_level_api.py"
+    os.path.dirname(os.path.abspath(__file__)),
+    "ipfs_kit_py",
+    "high_level_api.py"
 )
 
 # Load the modules directly
@@ -32,20 +35,18 @@ try:
 except Exception as e:
     print(f"Error loading high_level_api.py: {e}")
 
-
 def print_stability_summary():
     """Print a summary of API stability decorators."""
     print("\n=== API Stability Summary ===\n")
-
+    
     total_apis = sum(len(apis) for apis in api_stability.API_REGISTRY.values())
     print(f"Total decorated APIs: {total_apis}")
-
+    
     for stability_level, apis in api_stability.API_REGISTRY.items():
         if apis:
             print(f"\n{stability_level.upper()} APIs ({len(apis)}):")
             for func_id, metadata in sorted(apis.items()):
                 print(f"  - {metadata['name']} (since {metadata['since']})")
-
 
 if __name__ == "__main__":
     print_stability_summary()

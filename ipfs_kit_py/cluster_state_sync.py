@@ -419,7 +419,7 @@ class StateCRDT:
                 if part in current:
                     current = current[part]
                 else:
-                    raise KeyError(f"Path '{'/'.join(path_parts[: i + 1])}' does not exist")
+                    raise KeyError(f"Path '{'/'.join(path_parts[:i+1])}' does not exist")
             elif isinstance(current, list):
                 # Handle array indices
                 if part.isdigit():

@@ -15,7 +15,6 @@ import json
 import time
 import subprocess
 
-
 def test_mcp_server():
     print("Testing MCP server...")
     try:
@@ -31,7 +30,6 @@ def test_mcp_server():
         print(f"❌ Failed to connect to MCP server: {e}")
         return False
 
-
 def test_sse_endpoint():
     print("\nTesting SSE endpoint...")
     try:
@@ -40,14 +38,12 @@ def test_sse_endpoint():
             ["curl", "-s", "-N", "--max-time", "2", "http://localhost:9994/api/v0/sse"],
             capture_output=True,
             text=True,
-            timeout=3,
+            timeout=3
         )
 
         # If curl returns anything, consider it a success
         if result.stdout:
-            print(
-                f"✅ SSE endpoint is responding: {result.stdout.splitlines()[0] if result.stdout.splitlines() else 'Connected'}"
-            )
+            print(f"✅ SSE endpoint is responding: {result.stdout.splitlines()[0] if result.stdout.splitlines() else 'Connected'}")
             return True
 
         # If no output but endpoint exists (curl doesn't return error), consider it a success
@@ -60,7 +56,7 @@ def test_sse_endpoint():
             ["curl", "-s", "-I", "http://localhost:9994/api/v0/sse"],
             capture_output=True,
             text=True,
-            timeout=2,
+            timeout=2
         )
 
         if "200 OK" in head_result.stdout:
@@ -73,7 +69,6 @@ def test_sse_endpoint():
         print(f"❌ Failed to connect to SSE endpoint: {e}")
         return False
 
-
 def test_jsonrpc_endpoint():
     print("\nTesting JSON-RPC endpoint...")
     try:
@@ -82,11 +77,18 @@ def test_jsonrpc_endpoint():
             "jsonrpc": "2.0",
             "id": 1,
             "method": "initialize",
-            "params": {"processId": 12345, "rootUri": None, "capabilities": {}},
+            "params": {
+                "processId": 12345,
+                "rootUri": None,
+                "capabilities": {}
+            }
         }
 
         # Send request to the endpoint
-        response = requests.post("http://localhost:9995/jsonrpc", json=payload)
+        response = requests.post(
+            "http://localhost:9995/jsonrpc",
+            json=payload
+        )
 
         if response.status_code == 200:
             data = response.json()
@@ -103,7 +105,6 @@ def test_jsonrpc_endpoint():
         print(f"❌ Failed to connect to JSON-RPC endpoint: {e}")
         return False
 
-
 def test_ipfs_version():
     print("\nTesting IPFS version endpoint...")
     try:
@@ -119,11 +120,10 @@ def test_ipfs_version():
         print(f"❌ Failed to connect to IPFS version endpoint: {e}")
         return False
 
-
 def test_simple_add():
     print("\nTesting IPFS add endpoint...")
     try:
-        files = {"file": ("test.txt", b"Test content for IPFS add operation")}
+        files = {'file': ('test.txt', b'Test content for IPFS add operation')}
         response = requests.post("http://localhost:9994/api/v0/ipfs/add", files=files)
         if response.status_code == 200:
             data = response.json()
@@ -139,7 +139,6 @@ def test_simple_add():
     except Exception as e:
         print(f"❌ Failed to connect to IPFS add endpoint: {e}")
         return False
-
 
 def verify_vs_code_settings():
     print("\nVerifying VS Code settings...")
@@ -167,7 +166,6 @@ def verify_vs_code_settings():
         print(f"❌ Failed to verify VS Code settings: {e}")
         return False
 
-
 def main():
     print("=" * 60)
     print("MCP Server Verification")
@@ -180,7 +178,7 @@ def main():
         test_jsonrpc_endpoint,
         test_ipfs_version,
         test_simple_add,
-        verify_vs_code_settings,
+        verify_vs_code_settings
     ]
 
     successes = 0
@@ -199,7 +197,7 @@ def main():
             ["curl", "-s", "-I", "http://localhost:9994/api/v0/sse"],
             capture_output=True,
             text=True,
-            timeout=2,
+            timeout=2
         )
 
         if "200" in head_result.stdout:
@@ -223,7 +221,6 @@ def main():
     else:
         print("\n❌ Some tests failed. Please fix the issues before continuing.")
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

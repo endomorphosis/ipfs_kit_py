@@ -71,9 +71,12 @@ from ipfs_kit_py.mcp.storage_manager.backends import FilecoinPinBackend
 backend = FilecoinPinBackend(
     resources={
         "api_key": "your_api_key",  # Or set FILECOIN_PIN_API_KEY env var
-        "timeout": 60,
+        "timeout": 60
     },
-    metadata={"default_replication": 3, "auto_renew": True},
+    metadata={
+        "default_replication": 3,
+        "auto_renew": True
+    }
 )
 
 # Pin content
@@ -83,8 +86,8 @@ result = backend.add_content(
         "name": "my-dataset",
         "description": "Machine learning training data",
         "tags": ["ml", "training"],
-        "replication": 3,
-    },
+        "replication": 3
+    }
 )
 
 print(f"Pinned! CID: {result['cid']}")
@@ -92,22 +95,22 @@ print(f"Status: {result['status']}")
 print(f"Deal IDs: {result['deal_ids']}")
 
 # Check pin status
-status = backend.get_metadata(result["cid"])
+status = backend.get_metadata(result['cid'])
 print(f"Status: {status['status']}")
 print(f"Deals: {len(status['deals'])}")
 
 # List all pins
 pins = backend.list_pins(status="pinned", limit=100)
-for pin in pins["pins"]:
+for pin in pins['pins']:
     print(f"- {pin['name']}: {pin['cid']}")
 
 # Retrieve content
-content_result = backend.get_content(result["cid"])
-data = content_result["data"]
+content_result = backend.get_content(result['cid'])
+data = content_result['data']
 print(f"Retrieved {len(data)} bytes from {content_result['source']}")
 
 # Remove pin
-remove_result = backend.remove_content(result["cid"])
+remove_result = backend.remove_content(result['cid'])
 print(f"Unpinned: {remove_result['success']}")
 ```
 
@@ -115,7 +118,10 @@ print(f"Unpinned: {remove_result['success']}")
 
 ```python
 # Backend automatically enters mock mode if no API key provided
-backend = FilecoinPinBackend(resources={"api_key": None}, metadata={})
+backend = FilecoinPinBackend(
+    resources={"api_key": None},
+    metadata={}
+)
 
 # All operations work in mock mode for testing
 result = backend.add_content(b"Test content", {"name": "test"})
@@ -249,7 +255,9 @@ service = UnifiedPinService()
 
 # Pin to multiple backends including Filecoin Pin
 await service.pin(
-    cid="bafybeib...", name="important-data", backends=["ipfs", "filecoin_pin", "storacha"]
+    cid="bafybeib...",
+    name="important-data",
+    backends=["ipfs", "filecoin_pin", "storacha"]
 )
 
 # Check status across all backends
@@ -284,13 +292,13 @@ Control how many copies of your data are stored:
 # High redundancy for critical data
 backend.add_content(
     content=critical_data,
-    metadata={"replication": 5},  # 5 copies
+    metadata={"replication": 5}  # 5 copies
 )
 
 # Standard redundancy
 backend.add_content(
     content=normal_data,
-    metadata={"replication": 3},  # Default: 3 copies
+    metadata={"replication": 3}  # Default: 3 copies
 )
 ```
 
@@ -301,7 +309,7 @@ Monitor Filecoin storage deals:
 ```python
 status = backend.get_metadata(cid)
 
-for deal in status["deals"]:
+for deal in status['deals']:
     print(f"Deal ID: {deal['id']}")
     print(f"Provider: {deal['provider']}")
     print(f"Status: {deal.get('status', 'active')}")
@@ -316,8 +324,8 @@ backend = FilecoinPinBackend(
     resources={"api_key": api_key},
     metadata={
         "auto_renew": True,
-        "deal_duration_days": 540,  # ~18 months
-    },
+        "deal_duration_days": 540  # ~18 months
+    }
 )
 ```
 
@@ -329,7 +337,7 @@ Configure custom gateways for content retrieval:
 custom_gateways = [
     {"url": "http://localhost:8080/ipfs/", "priority": 1},
     {"url": "https://ipfs.io/ipfs/", "priority": 2},
-    {"url": "https://dweb.link/ipfs/", "priority": 3},
+    {"url": "https://dweb.link/ipfs/", "priority": 3}
 ]
 
 chain = GatewayChain(gateways=custom_gateways)
@@ -348,9 +356,11 @@ config = {
         "memory": {"type": "memory", "priority": 1},
         "disk": {"type": "disk", "priority": 2},
         "ipfs": {"type": "ipfs", "priority": 3},
-        "filecoin_pin": {"type": "filecoin_pin", "priority": 4},
+        "filecoin_pin": {"type": "filecoin_pin", "priority": 4}
     },
-    "replication_policy": {"backends": ["memory", "disk", "ipfs", "filecoin_pin"]},
+    "replication_policy": {
+        "backends": ["memory", "disk", "ipfs", "filecoin_pin"]
+    }
 }
 
 cache_manager = TieredCacheManager(config)
@@ -371,7 +381,7 @@ replication_config = {
     "mode": "selective",
     "min_redundancy": 3,
     "max_redundancy": 5,
-    "backends": ["ipfs", "ipfs_cluster", "filecoin_pin", "storacha"],
+    "backends": ["ipfs", "ipfs_cluster", "filecoin_pin", "storacha"]
 }
 
 # Replication manager ensures content is replicated across backends
@@ -411,7 +421,10 @@ If gateway retrieval times out:
 
 ```python
 # Increase timeout
-backend = FilecoinPinBackend(resources={"api_key": api_key, "timeout": 120}, metadata={})
+backend = FilecoinPinBackend(
+    resources={"api_key": api_key, "timeout": 120},
+    metadata={}
+)
 ```
 
 ### Deal Status

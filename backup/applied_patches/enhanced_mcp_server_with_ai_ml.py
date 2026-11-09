@@ -16,22 +16,17 @@ import argparse
 from pathlib import Path
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("enhanced-mcp")
 
 # Try to add file handler for persistent logging
 try:
-    file_handler = logging.FileHandler("enhanced_mcp_server.log")
-    file_handler.setFormatter(
-        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    )
+    file_handler = logging.FileHandler('enhanced_mcp_server.log')
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
     logger.addHandler(file_handler)
     logger.info("File logging initialized to enhanced_mcp_server.log")
 except Exception as e:
     logger.warning(f"Could not set up file logging: {e}")
-
 
 def import_module_from_path(module_name, module_path):
     """Import a module from a specific path."""
@@ -49,7 +44,6 @@ def import_module_from_path(module_name, module_path):
     except Exception as e:
         logger.error(f"Error importing {module_name} from {module_path}: {e}")
         return None
-
 
 def main():
     """Main entry point for the enhanced MCP server."""
@@ -123,12 +117,15 @@ def main():
     # Run the uvicorn server
     try:
         import uvicorn
-
-        uvicorn.run(app, host="0.0.0.0", port=args.port, log_level="info")
+        uvicorn.run(
+            app,
+            host="0.0.0.0",
+            port=args.port,
+            log_level="info"
+        )
     except Exception as e:
         logger.error(f"Error starting server: {e}")
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

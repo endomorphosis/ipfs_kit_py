@@ -18,26 +18,27 @@ from pathlib import Path
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("logs/improved_mcp_server.log"), logging.StreamHandler()],
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("logs/improved_mcp_server.log"),
+        logging.StreamHandler()
+    ]
 )
 logger = logging.getLogger(__name__)
 
 # Parse arguments
 parser = argparse.ArgumentParser(description="Start Improved MCP Server")
-parser.add_argument(
-    "--port", type=int, default=9998, help="Port to run the server on (default: 9998)"
-)
-parser.add_argument(
-    "--host", type=str, default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)"
-)
-parser.add_argument("--mock", action="store_true", help="Force mock mode for all backends")
-parser.add_argument(
-    "--real", action="store_true", help="Attempt to use real credentials only (no mock fallback)"
-)
-parser.add_argument("--restart", action="store_true", help="Restart any running MCP server")
+parser.add_argument("--port", type=int, default=9998,
+                    help="Port to run the server on (default: 9998)")
+parser.add_argument("--host", type=str, default="0.0.0.0",
+                    help="Host to bind to (default: 0.0.0.0)")
+parser.add_argument("--mock", action="store_true",
+                    help="Force mock mode for all backends")
+parser.add_argument("--real", action="store_true",
+                    help="Attempt to use real credentials only (no mock fallback)")
+parser.add_argument("--restart", action="store_true",
+                    help="Restart any running MCP server")
 args = parser.parse_args()
-
 
 def setup_environment():
     """Set up the environment for the MCP server."""
@@ -50,7 +51,7 @@ def setup_environment():
         os.path.expanduser("~/.ipfs_kit/mock_s3/ipfs-storage-demo"),
         os.path.expanduser("~/.ipfs_kit/mock_filecoin/deals"),
         os.path.expanduser("~/.ipfs_kit/mock_storacha"),
-        os.path.expanduser("~/.ipfs_kit/mock_lassie"),
+        os.path.expanduser("~/.ipfs_kit/mock_lassie")
     ]
 
     for directory in mock_dirs:
@@ -68,7 +69,9 @@ def setup_environment():
         logger.info("Sourcing credentials from mcp_credentials.sh")
         # Execute the script and capture the exported variables
         result = subprocess.run(
-            ["bash", "-c", f"source {credentials_script} && env"], capture_output=True, text=True
+            ["bash", "-c", f"source {credentials_script} && env"],
+            capture_output=True,
+            text=True
         )
 
         # Update environment with the variables from the script
@@ -77,14 +80,13 @@ def setup_environment():
                 key, value = line.split("=", 1)
                 os.environ[key] = value
 
-
 def find_running_mcp_servers():
     """Find running MCP server processes."""
     try:
         result = subprocess.run(
             ["pgrep", "-f", "mcp_server|enhanced_mcp_server|run_mcp"],
             capture_output=True,
-            text=True,
+            text=True
         )
 
         if result.returncode == 0:
@@ -93,7 +95,6 @@ def find_running_mcp_servers():
     except Exception as e:
         logger.error(f"Error finding running MCP servers: {e}")
         return []
-
 
 def stop_running_servers(pids):
     """Stop running MCP server processes."""
@@ -107,11 +108,14 @@ def stop_running_servers(pids):
         except Exception as e:
             logger.error(f"Error stopping MCP server with PID {pid}: {e}")
 
-
 def check_ipfs_daemon():
     """Check if IPFS daemon is running and start it if needed."""
     try:
-        result = subprocess.run(["ipfs", "version"], capture_output=True, text=True)
+        result = subprocess.run(
+            ["ipfs", "version"],
+            capture_output=True,
+            text=True
+        )
 
         if result.returncode == 0:
             logger.info("IPFS daemon is already running")
@@ -122,14 +126,18 @@ def check_ipfs_daemon():
         subprocess.Popen(
             ["ipfs", "daemon", "--routing=dhtclient"],
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
 
         # Wait for daemon to start
         time.sleep(3)
 
         # Verify it started
-        check_result = subprocess.run(["ipfs", "version"], capture_output=True, text=True)
+        check_result = subprocess.run(
+            ["ipfs", "version"],
+            capture_output=True,
+            text=True
+        )
 
         if check_result.returncode == 0:
             logger.info("IPFS daemon started successfully")
@@ -141,19 +149,27 @@ def check_ipfs_daemon():
         logger.error(f"Error with IPFS daemon: {e}")
         return False
 
-
 def start_enhanced_mcp_server():
     """Start the enhanced MCP server."""
     try:
         # Use the enhanced_mcp_server.py script
-        cmd = ["python", "enhanced_mcp_server.py", "--port", str(args.port), "--host", args.host]
+        cmd = [
+            "python",
+            "enhanced_mcp_server.py",
+            "--port", str(args.port),
+            "--host", args.host
+        ]
 
         if args.mock:
             cmd.append("--debug")
 
         logger.info(f"Starting enhanced MCP server: {' '.join(cmd)}")
 
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
 
         # Write PID file
         with open("improved_mcp_server.pid", "w") as f:
@@ -176,7 +192,6 @@ def start_enhanced_mcp_server():
         logger.error(f"Error starting enhanced MCP server: {e}")
         return False
 
-
 def verify_server_health():
     """Verify that the MCP server is healthy and all backends are working."""
     try:
@@ -195,8 +210,8 @@ def verify_server_health():
 
             # Check if any backends are in simulation mode
             simulation_backends = []
-            for backend, status in health_data.get("storage_backends", {}).items():
-                if status.get("simulation", False):
+            for backend, status in health_data.get('storage_backends', {}).items():
+                if status.get('simulation', False):
                     simulation_backends.append(backend)
 
             if simulation_backends:
@@ -210,7 +225,6 @@ def verify_server_health():
     except Exception as e:
         logger.error(f"Error verifying server health: {e}")
         return False
-
 
 def main():
     """Main function to start the improved MCP server."""
@@ -247,7 +261,6 @@ def main():
             logger.info("Check logs or server health endpoint for details")
     else:
         logger.error("Failed to start MCP server")
-
 
 if __name__ == "__main__":
     main()

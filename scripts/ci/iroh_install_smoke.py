@@ -23,11 +23,7 @@ def run_smoke(*, fsspec_mode: str, iroh_extra: str, bin_dir: Path) -> dict[str, 
 
     os.environ.pop("IPFS_KIT_AUTO_INSTALL_BINARIES", None)
     os.environ["IPFS_KIT_BIN_DIR"] = str(bin_dir)
-    before = (
-        sorted(str(path.relative_to(bin_dir)) for path in bin_dir.rglob("*"))
-        if bin_dir.exists()
-        else []
-    )
+    before = sorted(str(path.relative_to(bin_dir)) for path in bin_dir.rglob("*")) if bin_dir.exists() else []
 
     distribution = metadata.distribution("ipfs_kit_py")
     extras = {value for value in distribution.metadata.get_all("Provides-Extra", [])}
@@ -45,10 +41,8 @@ def run_smoke(*, fsspec_mode: str, iroh_extra: str, bin_dir: Path) -> dict[str, 
     optional_modules = {
         name: importlib.util.find_spec(name) is not None for name in ("blake3", "duckdb")
     }
-    expected_optional = (
-        all(optional_modules.values())
-        if iroh_extra == "present"
-        else not any(optional_modules.values())
+    expected_optional = all(optional_modules.values()) if iroh_extra == "present" else not any(
+        optional_modules.values()
     )
     if not expected_optional:
         raise RuntimeError("installed environment does not match the requested Iroh extra mode")
@@ -98,11 +92,7 @@ def run_smoke(*, fsspec_mode: str, iroh_extra: str, bin_dir: Path) -> dict[str, 
 
     if shutil.which("ipfs-kit-iroh-sidecar") or shutil.which("ipfs-kit-iroh-sidecar.exe"):
         raise RuntimeError("minimal install unexpectedly exposes an Iroh sidecar")
-    after = (
-        sorted(str(path.relative_to(bin_dir)) for path in bin_dir.rglob("*"))
-        if bin_dir.exists()
-        else []
-    )
+    after = sorted(str(path.relative_to(bin_dir)) for path in bin_dir.rglob("*")) if bin_dir.exists() else []
     if after != before:
         raise RuntimeError("ordinary package import created binary runtime state")
 

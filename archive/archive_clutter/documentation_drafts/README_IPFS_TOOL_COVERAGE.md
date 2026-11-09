@@ -134,14 +134,20 @@ else:
 
 ```python
 # Using the MCP tools to work with IPFS MFS
-await server.execute_tool("ipfs_files_mkdir", {"path": "/my_directory", "parents": True})
+await server.execute_tool("ipfs_files_mkdir", {
+    "path": "/my_directory",
+    "parents": True
+})
 
-await server.execute_tool(
-    "ipfs_files_write",
-    {"path": "/my_directory/hello.txt", "content": "Hello, IPFS!", "create": True},
-)
+await server.execute_tool("ipfs_files_write", {
+    "path": "/my_directory/hello.txt",
+    "content": "Hello, IPFS!",
+    "create": True
+})
 
-result = await server.execute_tool("ipfs_files_read", {"path": "/my_directory/hello.txt"})
+result = await server.execute_tool("ipfs_files_read", {
+    "path": "/my_directory/hello.txt"
+})
 print(result["content"])  # Output: Hello, IPFS!
 ```
 
@@ -149,10 +155,11 @@ print(result["content"])  # Output: Hello, IPFS!
 
 ```python
 # Map a local directory to IPFS
-await server.execute_tool(
-    "ipfs_fs_bridge_map",
-    {"fs_path": "/path/to/local/dir", "ipfs_path": "/ipfs-fs/my-data", "recursive": True},
-)
+await server.execute_tool("ipfs_fs_bridge_map", {
+    "fs_path": "/path/to/local/dir",
+    "ipfs_path": "/ipfs-fs/my-data",
+    "recursive": True
+})
 
 # Synchronize changes to IPFS
 await server.execute_tool("ipfs_fs_bridge_sync")
@@ -166,27 +173,40 @@ print(f"Mapped {status['mappings_count']} paths")
 
 ```python
 # Register IPFS and S3 backends
-await server.execute_tool(
-    "mbfs_register_backend", {"backend_id": "my-ipfs", "backend_type": "ipfs", "make_default": True}
-)
+await server.execute_tool("mbfs_register_backend", {
+    "backend_id": "my-ipfs",
+    "backend_type": "ipfs",
+    "make_default": True
+})
 
-await server.execute_tool(
-    "mbfs_register_backend",
-    {"backend_id": "my-s3", "backend_type": "s3", "config": {"bucket": "my-data-bucket"}},
-)
+await server.execute_tool("mbfs_register_backend", {
+    "backend_id": "my-s3",
+    "backend_type": "s3",
+    "config": {
+        "bucket": "my-data-bucket"
+    }
+})
 
 # Store content on S3
-s3_result = await server.execute_tool(
-    "mbfs_store", {"content": "Hello from S3!", "backend_id": "my-s3", "path": "hello.txt"}
-)
+s3_result = await server.execute_tool("mbfs_store", {
+    "content": "Hello from S3!",
+    "backend_id": "my-s3",
+    "path": "hello.txt"
+})
 
 # Store content on IPFS (using default backend)
-ipfs_result = await server.execute_tool("mbfs_store", {"content": "Hello from IPFS!"})
+ipfs_result = await server.execute_tool("mbfs_store", {
+    "content": "Hello from IPFS!"
+})
 
 # Retrieve content from anywhere using URI
-s3_content = await server.execute_tool("mbfs_retrieve", {"uri": s3_result["uri"]})
+s3_content = await server.execute_tool("mbfs_retrieve", {
+    "uri": s3_result["uri"]
+})
 
-ipfs_content = await server.execute_tool("mbfs_retrieve", {"uri": ipfs_result["uri"]})
+ipfs_content = await server.execute_tool("mbfs_retrieve", {
+    "uri": ipfs_result["uri"]
+})
 ```
 
 ## Using the Verification Script

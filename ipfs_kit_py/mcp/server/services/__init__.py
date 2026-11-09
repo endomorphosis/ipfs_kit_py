@@ -8,5 +8,5 @@ This package contains services for the MCP server:
 from .mcp_daemon_service import MCPDaemonService
 
 __all__ = [
-    "MCPDaemonService",
+    'MCPDaemonService',
 ]

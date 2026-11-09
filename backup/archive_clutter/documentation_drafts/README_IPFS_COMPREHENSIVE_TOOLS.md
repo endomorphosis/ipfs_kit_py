@@ -383,7 +383,10 @@ The installation and setup process has been simplified with the `patch_direct_mc
 
 ```python
 # Store a text file in IPFS
-result = await ipfs_add(content="Hello, IPFS!", filename="hello.txt")
+result = await ipfs_add(
+    content="Hello, IPFS!",
+    filename="hello.txt"
+)
 cid = result["hash"]
 print(f"Content added to IPFS with CID: {cid}")
 ```
@@ -392,7 +395,10 @@ print(f"Content added to IPFS with CID: {cid}")
 
 ```python
 # Start tracking a directory
-result = await fs_journal_track(path="/path/to/watch", recursive=True)
+result = await fs_journal_track(
+    path="/path/to/watch",
+    recursive=True
+)
 print(f"Tracking {result['files_tracked']} files and {result['directories_tracked']} directories")
 
 # Sync to detect changes
@@ -406,14 +412,19 @@ for change in changes["changes"]:
 ```python
 # Register S3 backend
 await mbfs_register_backend(
-    backend_id="my-s3", backend_type="s3", config={"bucket": "my-bucket", "region": "us-east-1"}
+    backend_id="my-s3",
+    backend_type="s3",
+    config={
+        "bucket": "my-bucket",
+        "region": "us-east-1"
+    }
 )
 
 # Store content using IPFS backend
 result = await mbfs_store(
     content="Multi-backend storage example",
     path="/examples/multi-backend.txt",
-    backend_id="ipfs-default",
+    backend_id="ipfs-default"
 )
 ipfs_uri = result["uri"]
 

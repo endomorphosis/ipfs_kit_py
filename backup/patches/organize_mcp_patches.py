@@ -8,7 +8,6 @@ import shutil
 import sys
 from pathlib import Path
 
-
 def organize_mcp_patches():
     """Move MCP-related patch files to the patches/mcp directory."""
     # Ensure we're in the project root
@@ -24,11 +23,7 @@ def organize_mcp_patches():
     # Find all MCP-related patch files in the root patches directory
     mcp_patch_files = []
     for filename in os.listdir(patches_dir):
-        if (
-            filename.endswith(".py")
-            and "mcp" in filename.lower()
-            and os.path.isfile(os.path.join(patches_dir, filename))
-        ):
+        if filename.endswith(".py") and "mcp" in filename.lower() and os.path.isfile(os.path.join(patches_dir, filename)):
             # Skip the current script and files already in the mcp directory
             if filename != "organize_mcp_patches.py" and filename != "organize_patches.py":
                 mcp_patch_files.append(filename)
@@ -52,7 +47,6 @@ def organize_mcp_patches():
             print(f"Error moving {filename}: {e}")
 
     print(f"Moved {len(mcp_patch_files)} MCP patch files to patches/mcp/")
-
 
 if __name__ == "__main__":
     organize_mcp_patches()

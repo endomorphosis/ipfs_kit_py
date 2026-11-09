@@ -15,9 +15,11 @@ from pathlib import Path
 import shutil
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
-
 
 def get_ipfs_path():
     """Get the IPFS repository path."""
@@ -29,7 +31,6 @@ def get_ipfs_path():
     # Default path
     return os.path.expanduser("~/.ipfs")
 
-
 def get_ipfs_cluster_path():
     """Get the IPFS Cluster service repository path."""
     # Check environment variable first
@@ -39,7 +40,6 @@ def get_ipfs_cluster_path():
 
     # Default path
     return os.path.expanduser("~/.ipfs-cluster")
-
 
 def get_lotus_path():
     """Get the Lotus repository path."""
@@ -51,7 +51,6 @@ def get_lotus_path():
     # Default path
     return os.path.expanduser("~/.lotus")
 
-
 def check_daemon_process_by_pid(pid):
     """Check if a process with given PID exists."""
     try:
@@ -61,7 +60,6 @@ def check_daemon_process_by_pid(pid):
     except OSError:
         return False
 
-
 def clean_lock_files():
     """Clean up any stale lock files."""
     locks_cleaned = 0
@@ -70,7 +68,7 @@ def clean_lock_files():
     ipfs_lock = os.path.join(get_ipfs_path(), "repo.lock")
     if os.path.exists(ipfs_lock):
         try:
-            with open(ipfs_lock, "r") as f:
+            with open(ipfs_lock, 'r') as f:
                 try:
                     pid = int(f.read().strip())
                     logger.info(f"Found IPFS lock file with PID: {pid}")
@@ -93,7 +91,7 @@ def clean_lock_files():
     cluster_lock = os.path.join(get_ipfs_cluster_path(), "service.lock")
     if os.path.exists(cluster_lock):
         try:
-            with open(cluster_lock, "r") as f:
+            with open(cluster_lock, 'r') as f:
                 try:
                     pid = int(f.read().strip())
                     logger.info(f"Found IPFS Cluster lock file with PID: {pid}")
@@ -116,7 +114,7 @@ def clean_lock_files():
     lotus_lock = os.path.join(get_lotus_path(), "repo.lock")
     if os.path.exists(lotus_lock):
         try:
-            with open(lotus_lock, "r") as f:
+            with open(lotus_lock, 'r') as f:
                 try:
                     pid = int(f.read().strip())
                     logger.info(f"Found Lotus lock file with PID: {pid}")
@@ -137,7 +135,6 @@ def clean_lock_files():
 
     return locks_cleaned
 
-
 def ensure_ipfs_initialized():
     """Ensure IPFS repository is initialized."""
     ipfs_path = get_ipfs_path()
@@ -153,7 +150,7 @@ def ensure_ipfs_initialized():
                 ["ipfs", "init", "--profile=lowpower"],
                 env={"IPFS_PATH": ipfs_path, "PATH": os.environ["PATH"]},
                 capture_output=True,
-                text=True,
+                text=True
             )
 
             if result.returncode != 0:
@@ -169,7 +166,6 @@ def ensure_ipfs_initialized():
     logger.info(f"IPFS repository already initialized at {ipfs_path}")
     return True
 
-
 def check_ipfs_api():
     """Check if IPFS API is responsive."""
     try:
@@ -178,24 +174,25 @@ def check_ipfs_api():
             ["curl", "-s", "http://127.0.0.1:5001/api/v0/version"],
             check=False,
             capture_output=True,
-            text=True,
+            text=True
         )
         return result.returncode == 0 and len(result.stdout) > 0
     except Exception:
         return False
-
 
 def check_ipfs_cluster_api():
     """Check if IPFS Cluster API is responsive."""
     try:
         # Use subprocess to run curl instead of requests library
         result = subprocess.run(
-            ["curl", "-s", "http://127.0.0.1:9094/id"], check=False, capture_output=True, text=True
+            ["curl", "-s", "http://127.0.0.1:9094/id"],
+            check=False,
+            capture_output=True,
+            text=True
         )
         return result.returncode == 0 and len(result.stdout) > 0
     except Exception:
         return False
-
 
 def start_ipfs_daemon():
     """Start the IPFS daemon."""
@@ -221,7 +218,7 @@ def start_ipfs_daemon():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            start_new_session=True,  # Detach from parent process
+            start_new_session=True  # Detach from parent process
         )
 
         # Give it a moment to start
@@ -231,7 +228,7 @@ def start_ipfs_daemon():
         # Check every second for 30 seconds if the daemon is running
         for i in range(30):
             if check_ipfs_api():
-                logger.info(f"IPFS daemon started successfully after {i + 5} seconds")
+                logger.info(f"IPFS daemon started successfully after {i+5} seconds")
                 return True
             time.sleep(1)
 
@@ -241,7 +238,6 @@ def start_ipfs_daemon():
     except Exception as e:
         logger.error(f"Error starting IPFS daemon: {e}")
         return False
-
 
 def ensure_ipfs_cluster_initialized():
     """Ensure IPFS Cluster repository is initialized."""
@@ -259,7 +255,7 @@ def ensure_ipfs_cluster_initialized():
                 ["ipfs-cluster-service", "init"],
                 env={"IPFS_CLUSTER_PATH": cluster_path, "PATH": os.environ["PATH"]},
                 capture_output=True,
-                text=True,
+                text=True
             )
 
             if result.returncode != 0:
@@ -274,7 +270,6 @@ def ensure_ipfs_cluster_initialized():
 
     logger.info(f"IPFS Cluster repository already initialized at {cluster_path}")
     return True
-
 
 def start_ipfs_cluster_service():
     """Start the IPFS Cluster service."""
@@ -307,7 +302,7 @@ def start_ipfs_cluster_service():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            start_new_session=True,  # Detach from parent process
+            start_new_session=True  # Detach from parent process
         )
 
         # Give it a moment to start
@@ -317,7 +312,7 @@ def start_ipfs_cluster_service():
         # Check every second for 30 seconds if the daemon is running
         for i in range(30):
             if check_ipfs_cluster_api():
-                logger.info(f"IPFS Cluster service started successfully after {i + 5} seconds")
+                logger.info(f"IPFS Cluster service started successfully after {i+5} seconds")
                 return True
             time.sleep(1)
 
@@ -327,7 +322,6 @@ def start_ipfs_cluster_service():
     except Exception as e:
         logger.error(f"Error starting IPFS Cluster service: {e}")
         return False
-
 
 def check_lotus_api():
     """Check if Lotus API is responsive."""
@@ -343,12 +337,11 @@ def check_lotus_api():
             env={"LOTUS_PATH": get_lotus_path(), "PATH": os.environ["PATH"]},
             check=False,
             capture_output=True,
-            text=True,
+            text=True
         )
         return result.returncode == 0
     except Exception:
         return False
-
 
 def start_lotus_daemon():
     """Start the Lotus daemon."""
@@ -369,7 +362,7 @@ def start_lotus_daemon():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            start_new_session=True,  # Detach from parent process
+            start_new_session=True  # Detach from parent process
         )
 
         # Give it a moment to start
@@ -379,7 +372,7 @@ def start_lotus_daemon():
         # Check every 2 seconds for 60 seconds if the daemon is running
         for i in range(30):
             if check_lotus_api():
-                logger.info(f"Lotus daemon started successfully after {i * 2 + 10} seconds")
+                logger.info(f"Lotus daemon started successfully after {i*2+10} seconds")
                 return True
             time.sleep(2)
 
@@ -389,7 +382,6 @@ def start_lotus_daemon():
     except Exception as e:
         logger.error(f"Error starting Lotus daemon: {e}")
         return False
-
 
 def create_mcp_server_script():
     """Create a script to start MCP server with daemon support."""
@@ -407,17 +399,13 @@ def create_mcp_server_script():
 
         f.write("# Import helper functions\n")
         f.write("try:\n")
-        f.write(
-            "    from fix_mcp_simple import start_ipfs_daemon, start_ipfs_cluster_service, start_lotus_daemon\n"
-        )
+        f.write("    from fix_mcp_simple import start_ipfs_daemon, start_ipfs_cluster_service, start_lotus_daemon\n")
         f.write("except ImportError:\n")
         f.write("    print('Could not import daemon helper functions')\n")
         f.write("    sys.exit(1)\n\n")
 
         f.write("# Configure logging\n")
-        f.write(
-            "logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')\n"
-        )
+        f.write("logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')\n")
         f.write("logger = logging.getLogger(__name__)\n\n")
 
         f.write("def setup_daemons():\n")
@@ -427,16 +415,12 @@ def create_mcp_server_script():
         f.write("        return False\n\n")
         f.write("    # Start IPFS Cluster service\n")
         f.write("    if not start_ipfs_cluster_service():\n")
-        f.write(
-            "        logger.warning('Failed to start IPFS Cluster service - continuing anyway')\n\n"
-        )
+        f.write("        logger.warning('Failed to start IPFS Cluster service - continuing anyway')\n\n")
         f.write("    # Try to start Lotus daemon\n")
         f.write("    try:\n")
         f.write("        start_lotus_daemon()\n")
         f.write("    except Exception as e:\n")
-        f.write(
-            "        logger.warning(f'Error starting Lotus daemon: {e} - continuing anyway')\n\n"
-        )
+        f.write("        logger.warning(f'Error starting Lotus daemon: {e} - continuing anyway')\n\n")
         f.write("    return True\n\n")
 
         f.write("def find_mcp_server_script():\n")
@@ -463,34 +447,24 @@ def create_mcp_server_script():
         f.write("        return False\n\n")
         f.write("    logger.info(f'Starting MCP server using {server_script}')\n\n")
         f.write("    # Build command line with appropriate parameters\n")
-        f.write(
-            "    cmd = ['python', server_script, '--debug', '--isolation', '--port', '8002', '--host', 'localhost']\n\n"
-        )
+        f.write("    cmd = ['python', server_script, '--debug', '--isolation', '--port', '8002', '--host', 'localhost']\n\n")
         f.write("    # Start the server\n")
         f.write("    try:\n")
         f.write("        process = subprocess.Popen(\n")
-        f.write(
-            "            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True\n"
-        )
+        f.write("            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True\n")
         f.write("        )\n\n")
         f.write("        # Give it a moment to start\n")
         f.write("        logger.info('Waiting for MCP server to start...')\n")
         f.write("        time.sleep(5)\n\n")
         f.write("        # Check if the server started successfully\n")
         f.write("        try:\n")
-        f.write(
-            "            check_cmd = ['curl', '-s', 'http://localhost:8002/api/v0/mcp/health']\n"
-        )
-        f.write(
-            "            result = subprocess.run(check_cmd, check=False, capture_output=True, text=True)\n\n"
-        )
+        f.write("            check_cmd = ['curl', '-s', 'http://localhost:8002/api/v0/mcp/health']\n")
+        f.write("            result = subprocess.run(check_cmd, check=False, capture_output=True, text=True)\n\n")
         f.write("            if result.returncode == 0 and 'success' in result.stdout:\n")
         f.write("                logger.info('MCP server started successfully')\n")
         f.write("                return True\n")
         f.write("            else:\n")
-        f.write(
-            "                logger.warning(f'MCP server may not have started properly: {result.stdout}')\n"
-        )
+        f.write("                logger.warning(f'MCP server may not have started properly: {result.stdout}')\n")
         f.write("                return False\n")
         f.write("        except Exception as e:\n")
         f.write("            logger.warning(f'Error checking MCP server: {e}')\n")
@@ -503,9 +477,7 @@ def create_mcp_server_script():
         f.write("    logger.info('Setting up daemons and MCP server')\n\n")
         f.write("    # Set up daemons\n")
         f.write("    if not setup_daemons():\n")
-        f.write(
-            "        logger.error('Failed to set up daemons, MCP server may not work properly')\n\n"
-        )
+        f.write("        logger.error('Failed to set up daemons, MCP server may not work properly')\n\n")
         f.write("    # Start MCP server\n")
         f.write("    if start_mcp_server():\n")
         f.write("        logger.info('MCP server is running with daemon support')\n")
@@ -524,7 +496,6 @@ def create_mcp_server_script():
 
     logger.info(f"Created MCP server script at {script_path}")
     return script_path
-
 
 def main():
     """Main function to fix and start daemons."""
@@ -563,7 +534,6 @@ def main():
     print("This will start a new instance of the MCP server on port 8002")
     print("The existing server on port 9990 will continue to run")
     print("----------------------------------------------------------\n")
-
 
 if __name__ == "__main__":
     main()

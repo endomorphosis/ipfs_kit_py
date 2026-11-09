@@ -70,25 +70,9 @@ All CLI commands now support SSHFS backend:
 
 **Backend Choices Updated:**
 ```python
-choices = [
-    "daemon",
-    "s3",
-    "lotus",
-    "storacha",
-    "gdrive",
-    "synapse",
-    "huggingface",
-    "github",
-    "ipfs_cluster",
-    "cluster_follow",
-    "parquet",
-    "arrow",
-    "sshfs",
-    "package",
-    "wal",
-    "fs_journal",
-    "all",
-]
+choices=['daemon', 's3', 'lotus', 'storacha', 'gdrive', 'synapse', 
+         'huggingface', 'github', 'ipfs_cluster', 'cluster_follow',
+         'parquet', 'arrow', 'sshfs', 'package', 'wal', 'fs_journal', 'all']
 ```
 
 ## 🎯 Integration Benefits

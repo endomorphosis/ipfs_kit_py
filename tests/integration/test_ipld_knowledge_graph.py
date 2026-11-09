@@ -263,10 +263,9 @@ class TestIPLDKnowledgeGraph(unittest.TestCase):
             self.assertIn("Context", prompt)
 
         # Test with mocked embeddings stack available (should log recommendation)
-        with (
-            patch("ipfs_kit_py.ipld_knowledge_graph.EMBEDDINGS_AVAILABLE", True),
-            patch("ipfs_kit_py.ipld_knowledge_graph.logger") as mock_logger,
-        ):
+        with patch("ipfs_kit_py.ipld_knowledge_graph.EMBEDDINGS_AVAILABLE", True), patch(
+            "ipfs_kit_py.ipld_knowledge_graph.logger"
+        ) as mock_logger:
             rag = GraphRAG(graph_db=self.graph_db, embedding_model=embedding_model)
             embedding = rag.generate_embedding("test text")
             self.assertIsNotNone(embedding)

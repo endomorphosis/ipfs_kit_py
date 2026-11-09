@@ -15,30 +15,22 @@ import subprocess
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
 
 def find_mcp_settings():
     """Find all possible locations of MCP settings files."""
     possible_paths = [
         # For VS Code stable
-        os.path.expanduser(
-            "~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"
-        ),
+        os.path.expanduser("~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
         # For VS Code Insiders
-        os.path.expanduser(
-            "~/.config/Code - Insiders/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"
-        ),
+        os.path.expanduser("~/.config/Code - Insiders/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
         # For VS Code on macOS
-        os.path.expanduser(
-            "~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"
-        ),
+        os.path.expanduser("~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
         # For VS Code Insiders on macOS
-        os.path.expanduser(
-            "~/Library/Application Support/Code - Insiders/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"
-        ),
+        os.path.expanduser("~/Library/Application Support/Code - Insiders/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"),
     ]
 
     # Also try to find by globbing
@@ -46,7 +38,7 @@ def find_mcp_settings():
         home = os.path.expanduser("~")
         for pattern in [
             f"{home}/.config/Code*/User/globalStorage/*/settings/cline_mcp_settings.json",
-            f"{home}/Library/Application Support/Code*/User/globalStorage/*/settings/cline_mcp_settings.json",
+            f"{home}/Library/Application Support/Code*/User/globalStorage/*/settings/cline_mcp_settings.json"
         ]:
             possible_paths.extend(glob.glob(pattern))
     except Exception as e:
@@ -55,12 +47,11 @@ def find_mcp_settings():
     found_paths = [p for p in possible_paths if os.path.exists(p)]
     return found_paths
 
-
 def fix_mcp_settings(settings_path):
     """Fix MCP settings by adding jsonRpcUrl and ensuring proper configuration."""
     try:
         # Read existing settings
-        with open(settings_path, "r") as f:
+        with open(settings_path, 'r') as f:
             try:
                 settings = json.load(f)
             except json.JSONDecodeError:
@@ -96,23 +87,20 @@ def fix_mcp_settings(settings_path):
     server_config = settings["mcpServers"][server_key]
 
     # Update configuration with required fields
-    server_config.update(
-        {
-            "disabled": False,
-            "timeout": 60,
-            "url": "http://localhost:9994/api/v0/sse",
-            "transportType": "sse",
-            "jsonRpcUrl": "http://localhost:9994/api/v0/jsonrpc",
-        }
-    )
+    server_config.update({
+        "disabled": False,
+        "timeout": 60,
+        "url": "http://localhost:9994/api/v0/sse",
+        "transportType": "sse",
+        "jsonRpcUrl": "http://localhost:9994/api/v0/jsonrpc"
+    })
 
     # Write updated settings back
-    with open(settings_path, "w") as f:
+    with open(settings_path, 'w') as f:
         json.dump(settings, f, indent=2)
 
     logger.info(f"Updated MCP settings at {settings_path}")
     return True
-
 
 def restart_mcp_server():
     """Restart the MCP server to apply changes."""
@@ -121,23 +109,13 @@ def restart_mcp_server():
         subprocess.run(["pkill", "-f", "enhanced_mcp_server_fixed.py"], stderr=subprocess.DEVNULL)
 
         # Start enhanced MCP server
-        subprocess.Popen(
-            [
-                "python",
-                "./enhanced_mcp_server_fixed.py",
-                "--port",
-                "9994",
-                "--api-prefix",
-                "/api/v0",
-            ]
-        )
+        subprocess.Popen(["python", "./enhanced_mcp_server_fixed.py", "--port", "9994", "--api-prefix", "/api/v0"])
 
         logger.info("Restarted MCP server")
         return True
     except Exception as e:
         logger.error(f"Error restarting MCP server: {e}")
         return False
-
 
 def main():
     """Main function."""
@@ -147,11 +125,7 @@ def main():
     if not settings_paths:
         logger.warning("No existing MCP settings files found, creating a new one")
         # Create default path
-        settings_paths = [
-            os.path.expanduser(
-                "~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"
-            )
-        ]
+        settings_paths = [os.path.expanduser("~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json")]
 
         # Ensure directory exists
         os.makedirs(os.path.dirname(settings_paths[0]), exist_ok=True)
@@ -171,7 +145,6 @@ def main():
     else:
         print("\n❌ Failed to fix VS Code MCP connection.")
         print("   Please check the logs for details.")
-
 
 if __name__ == "__main__":
     main()

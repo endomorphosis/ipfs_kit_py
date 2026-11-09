@@ -26,7 +26,6 @@ except ImportError:
 # Import advanced Filecoin features
 try:
     from advanced_filecoin_mcp import create_advanced_filecoin_router
-
     ADVANCED_FILECOIN_AVAILABLE = True
     logger.info("Advanced Filecoin features are available")
 except ImportError:

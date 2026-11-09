@@ -209,8 +209,8 @@ hf_kit = huggingface_kit()
 
 # Analyze repository for VFS mapping
 analysis_result = hf_kit.analyze_huggingface_repo_metadata("user/model", "model")
-if analysis_result["success"]:
-    analysis = analysis_result["analysis"]
+if analysis_result['success']:
+    analysis = analysis_result['analysis']
     print(f"Content type: {analysis['content_addressing']['content_type']}")
     print(f"VFS mount point: {analysis['content_addressing']['vfs_mount_point']}")
 ```
@@ -222,21 +222,21 @@ from ipfs_kit_py.sshfs_backend import create_sshfs_backend
 
 # Create SSHFS backend
 config = {
-    "hostname": "example.com",
-    "username": "user",
-    "private_key_path": "/path/to/key",
-    "remote_base_path": "/storage/ipfs_kit",
+    'hostname': 'example.com',
+    'username': 'user',
+    'private_key_path': '/path/to/key',
+    'remote_base_path': '/storage/ipfs_kit'
 }
 
 backend = create_sshfs_backend(config)
 await backend.initialize()
 
 # Store data
-success = await backend.store("my_key", b"Hello, World!")
+success = await backend.store('my_key', b'Hello, World!')
 print(f"Store successful: {success}")
 
 # Retrieve data
-data = await backend.retrieve("my_key")
+data = await backend.retrieve('my_key')
 print(f"Retrieved: {data.decode()}")
 
 # Health check
@@ -361,7 +361,6 @@ Enable debug logging for detailed troubleshooting:
 
 ```python
 import logging
-
 logging.basicConfig(level=logging.DEBUG)
 ```
 

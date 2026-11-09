@@ -135,12 +135,12 @@ await engine.add_relationship(
     source_cid="Qm1",
     target_cid="Qm2",
     relationship_type="similar_to",
-    confidence=0.85,  # 85% confidence
+    confidence=0.85  # 85% confidence
 )
 
 # Check relationship statistics
 stats = engine.get_stats()
-print(stats["stats"]["avg_confidence_by_type"])
+print(stats['stats']['avg_confidence_by_type'])
 # {"references": 1.0, "similar_to": 0.85}
 ```
 
@@ -187,7 +187,7 @@ print(f"Total edges: {analysis['stats']['edges']}")
 print(f"Graph density: {analysis['stats']['density']:.3f}")
 
 # Top nodes by degree
-for node in analysis["top_nodes_by_degree"][:5]:
+for node in analysis['top_nodes_by_degree'][:5]:
     print(f"  {node['cid']}: {node['centrality']:.3f}")
 
 # Communities
@@ -210,13 +210,13 @@ results = await engine.hybrid_search(
     query="machine learning tutorial",
     limit=10,
     weights={
-        "vector": 0.5,  # 50% weight on semantic similarity
-        "graph": 0.3,  # 30% weight on graph relationships
-        "text": 0.2,  # 20% weight on keyword matching
-    },
+        'vector': 0.5,  # 50% weight on semantic similarity
+        'graph': 0.3,   # 30% weight on graph relationships
+        'text': 0.2     # 20% weight on keyword matching
+    }
 )
 
-for result in results["results"]:
+for result in results['results']:
     print(f"{result['cid']}: score={result['score']:.3f}, sources={result['sources']}")
     # Example: QmABC: score=0.827, sources=['vector', 'graph', 'text']
 ```
@@ -233,12 +233,12 @@ print(f"Total documents: {stats['stats']['document_count']}")
 print(f"Total relationships: {stats['stats']['relationship_count']}")
 
 # Relationship types
-for rel_type, count in stats["stats"]["relationship_types"].items():
-    avg_conf = stats["stats"]["avg_confidence_by_type"][rel_type]
+for rel_type, count in stats['stats']['relationship_types'].items():
+    avg_conf = stats['stats']['avg_confidence_by_type'][rel_type]
     print(f"  {rel_type}: {count} relationships, avg confidence: {avg_conf:.2f}")
 
 # Cache statistics
-cache = stats["stats"]["cache"]
+cache = stats['stats']['cache']
 print(f"Cache enabled: {cache['enabled']}")
 print(f"Cache size: {cache['size']} embeddings")
 print(f"Cache hit rate: {cache['hit_rate']:.2%}")
@@ -310,16 +310,16 @@ result = await exporter.export_bucket_metadata(
     include_files=True,
     include_knowledge_graph=True,
     include_vector_index=True,
-    format="json",  # or "cbor"
+    format="json"  # or "cbor"
 )
 
 if result["success"]:
     print(f"Metadata CID: {result['metadata_cid']}")
     print(f"Export size: {result['size_bytes']} bytes")
     print(f"Format: {result['format']}")
-
+    
     # Share this CID with others!
-    share_cid = result["metadata_cid"]
+    share_cid = result['metadata_cid']
 ```
 
 #### Export Options
@@ -327,7 +327,10 @@ if result["success"]:
 ```python
 # Minimal export (just configuration)
 result = await exporter.export_bucket_metadata(
-    bucket=my_bucket, include_files=False, include_knowledge_graph=False, include_vector_index=False
+    bucket=my_bucket,
+    include_files=False,
+    include_knowledge_graph=False,
+    include_vector_index=False
 )
 
 # Full export with CBOR format (smaller size)
@@ -336,7 +339,7 @@ result = await exporter.export_bucket_metadata(
     include_files=True,
     include_knowledge_graph=True,
     include_vector_index=True,
-    format="cbor",  # Requires: pip install cbor2
+    format="cbor"  # Requires: pip install cbor2
 )
 ```
 
@@ -361,13 +364,16 @@ print(f"Saved to: {result['export_path']}")
 from ipfs_kit_py.bucket_metadata_transfer import BucketMetadataImporter
 
 # Initialize importer
-importer = BucketMetadataImporter(ipfs_client=ipfs, bucket_manager=bucket_mgr)
+importer = BucketMetadataImporter(
+    ipfs_client=ipfs,
+    bucket_manager=bucket_mgr
+)
 
 # Import bucket from CID
 result = await importer.import_bucket_metadata(
     metadata_cid="QmMetadataCID",
     new_bucket_name="imported-bucket",  # Optional: rename on import
-    fetch_files=False,  # Don't fetch actual files yet
+    fetch_files=False  # Don't fetch actual files yet
 )
 
 if result["success"]:
@@ -382,7 +388,7 @@ if result["success"]:
 result = await importer.import_bucket_metadata(
     metadata_cid="QmMetadataCID",
     new_bucket_name="imported-bucket",
-    fetch_files=True,  # Fetch files from IPFS
+    fetch_files=True  # Fetch files from IPFS
 )
 
 print(f"Files fetched: {result['files_fetched']}")
@@ -409,7 +415,7 @@ if not result["success"]:
 # Researcher A exports bucket
 exporter = BucketMetadataExporter(ipfs_client=ipfs_a)
 result = await exporter.export_bucket_metadata(research_bucket)
-metadata_cid = result["metadata_cid"]
+metadata_cid = result['metadata_cid']
 
 # Share CID via email, paper, or chat
 print(f"Share this CID: {metadata_cid}")
@@ -417,7 +423,9 @@ print(f"Share this CID: {metadata_cid}")
 # Researcher B imports bucket
 importer = BucketMetadataImporter(ipfs_client=ipfs_b, bucket_manager=mgr_b)
 await importer.import_bucket_metadata(
-    metadata_cid=metadata_cid, new_bucket_name="research-data", fetch_files=True
+    metadata_cid=metadata_cid,
+    new_bucket_name="research-data",
+    fetch_files=True
 )
 ```
 
@@ -428,26 +436,27 @@ await importer.import_bucket_metadata(
 async def backup_all_buckets():
     exporter = BucketMetadataExporter(ipfs_client=ipfs)
     backup_cids = {}
-
+    
     for bucket_name, bucket in bucket_manager.buckets.items():
         result = await exporter.export_bucket_metadata(bucket)
-        backup_cids[bucket_name] = result["metadata_cid"]
-
+        backup_cids[bucket_name] = result['metadata_cid']
+    
     # Save CIDs to safe location
-    with open("bucket_backups.json", "w") as f:
+    with open('bucket_backups.json', 'w') as f:
         json.dump(backup_cids, f)
-
 
 # Recovery
 async def restore_from_backup():
-    with open("bucket_backups.json", "r") as f:
+    with open('bucket_backups.json', 'r') as f:
         backup_cids = json.load(f)
-
+    
     importer = BucketMetadataImporter(ipfs_client=ipfs, bucket_manager=mgr)
-
+    
     for bucket_name, cid in backup_cids.items():
         await importer.import_bucket_metadata(
-            metadata_cid=cid, new_bucket_name=bucket_name, fetch_files=True
+            metadata_cid=cid,
+            new_bucket_name=bucket_name,
+            fetch_files=True
         )
 ```
 
@@ -463,12 +472,13 @@ exporter = BucketMetadataExporter(ipfs_client=ipfs)
 result = await exporter.export_bucket_metadata(project_bucket)
 
 # Share CID with team via Slack/Email
-team_metadata_cid = result["metadata_cid"]
+team_metadata_cid = result['metadata_cid']
 
 # Team members import
 importer = BucketMetadataImporter(ipfs_client=their_ipfs, bucket_manager=their_mgr)
 await importer.import_bucket_metadata(
-    metadata_cid=team_metadata_cid, new_bucket_name="project-x-local"
+    metadata_cid=team_metadata_cid,
+    new_bucket_name="project-x-local"
 )
 ```
 

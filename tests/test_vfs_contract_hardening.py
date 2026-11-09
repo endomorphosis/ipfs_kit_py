@@ -24,6 +24,7 @@ from ipfs_kit_py.ipfs_fsspec import (
 )
 
 
+
 def test_vfs_mount_and_resolve_path_success():
     vfs = get_vfs()
 
@@ -48,11 +49,13 @@ def test_vfs_unmount_nonexistent_is_explicit_failure():
     assert result["unmounted"] is False
 
 
+
 def test_vfs_mount_invalid_backend_fails_explicitly():
     vfs = get_vfs()
     result = vfs.mount("/tmp/invalid-backend", "unsupported_backend", "/")
     assert result["success"] is False
     assert "unsupported backend" in result["error"]
+
 
 
 def test_vfs_observability_snapshot_tracks_operations():
@@ -61,6 +64,7 @@ def test_vfs_observability_snapshot_tracks_operations():
     assert "metrics" in snapshot
     assert "mount" in snapshot["metrics"]
     assert "resolve_path" in snapshot["metrics"]
+
 
 
 def test_vfs_list_mounts_shape():
@@ -99,10 +103,7 @@ def test_vfs_write_triggers_dataset_and_accelerate_hooks():
     assert write_result["integration"]["accelerate"]["attempted"] is True
     assert write_result["integration"]["accelerate"]["success"] is True
     assert write_result["integration"]["accelerate"]["adapter"] == "accelerate_discovery_v1"
-    assert (
-        write_result["integration"]["accelerate"]["fallback_order"][0]
-        == "discover_embedding_models"
-    )
+    assert write_result["integration"]["accelerate"]["fallback_order"][0] == "discover_embedding_models"
     assert "operation_id" in write_result["integration"]["metadata"]
     assert write_result["integration"]["metadata"]["operation_id"].startswith("op-")
     assert "accelerate_models" in write_result["integration"]["metadata"]

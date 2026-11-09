@@ -642,7 +642,6 @@ async def test_full_content_lifecycle():
 def benchmark_gateway_retrieval():
     """Compare retrieval times across gateways"""
 
-
 def benchmark_backend_throughput():
     """Measure upload/download throughput per backend"""
 ```
@@ -668,25 +667,22 @@ storage_cost_per_backend
 
 ```python
 # Structured logging with context
-logger.info(
-    "Content pinned",
-    extra={
-        "cid": cid,
-        "backend": "filecoin_pin",
-        "size_bytes": size,
-        "duration_ms": duration,
-        "cost_estimate": cost,
-    },
-)
+logger.info("Content pinned", extra={
+    "cid": cid,
+    "backend": "filecoin_pin",
+    "size_bytes": size,
+    "duration_ms": duration,
+    "cost_estimate": cost
+})
 ```
 
 ### Health Checks
 
 ```python
 # Health check endpoints
-GET / api / health / backend / filecoin_pin
-GET / api / health / gateways
-GET / api / health / ipni
+GET /api/health/backend/filecoin_pin
+GET /api/health/gateways
+GET /api/health/ipni
 ```
 
 ---
@@ -830,11 +826,18 @@ GET / api / health / ipni
 from ipfs_kit_py.mcp.storage_manager.backends import FilecoinPinBackend
 
 # Initialize backend
-backend = FilecoinPinBackend(resources={"api_key": "your_key"}, metadata={"replication": 3})
+backend = FilecoinPinBackend(
+    resources={"api_key": "your_key"},
+    metadata={"replication": 3}
+)
 
 # Pin content
 result = await backend.add_content(
-    content=file_bytes, metadata={"name": "my-dataset", "tags": ["ml", "training-data"]}
+    content=file_bytes,
+    metadata={
+        "name": "my-dataset",
+        "tags": ["ml", "training-data"]
+    }
 )
 # Returns: {"cid": "bafybeib...", "status": "pinned", "deal_ids": [...]}
 
@@ -859,7 +862,7 @@ result = await pin_service.pin(
     cid="bafybeib...",
     name="my-content",
     metadata={"description": "Important dataset"},
-    backends=["ipfs", "filecoin_pin", "storacha"],
+    backends=["ipfs", "filecoin_pin", "storacha"]
 )
 # Returns: {
 #   "ipfs": {"status": "pinned", "cid": "..."},
@@ -892,10 +895,10 @@ gateway = GatewayChain(
     gateways=[
         {"url": "https://ipfs.io/ipfs/", "priority": 1},
         {"url": "https://w3s.link/ipfs/", "priority": 2},
-        {"url": "https://dweb.link/ipfs/", "priority": 3},
+        {"url": "https://dweb.link/ipfs/", "priority": 3}
     ],
     enable_lassie=True,
-    enable_saturn=True,
+    enable_saturn=True
 )
 
 # Fetch with automatic fallback
@@ -1047,21 +1050,20 @@ import anyio
 from ipfs_kit_py.mcp.storage_manager import UnifiedStorageManager
 from ipfs_kit_py.mcp.storage_manager.formats import CARManager
 
-
 async def pin_large_dataset():
     # Initialize managers
     storage = UnifiedStorageManager()
     car_manager = CARManager()
-
+    
     # Create CAR file from directory
     print("Creating CAR file...")
     car_result = car_manager.create_car(
         path="./my-dataset",
         output="my-dataset.car",
-        codec="dag-cbor",  # Filecoin preferred format
+        codec="dag-cbor"  # Filecoin preferred format
     )
     print(f"Created CAR: {car_result['cid']}, size: {car_result['size']} bytes")
-
+    
     # Upload to Filecoin Pin
     print("Pinning to Filecoin...")
     pin_result = await storage.add_content(
@@ -1071,23 +1073,25 @@ async def pin_large_dataset():
             "name": "my-dataset",
             "description": "ML training dataset",
             "tags": ["ml", "training"],
-            "replication": 5,
-        },
+            "replication": 5
+        }
     )
     print(f"Pinned! CID: {pin_result['cid']}")
     print(f"Deal IDs: {pin_result['deal_ids']}")
-
+    
     # Monitor pin status
     while True:
-        status = await storage.get_metadata(identifier=pin_result["cid"], backend="filecoin_pin")
+        status = await storage.get_metadata(
+            identifier=pin_result['cid'],
+            backend="filecoin_pin"
+        )
         print(f"Status: {status['status']}, Active deals: {len(status['deals'])}")
-
-        if status["status"] == "active":
+        
+        if status['status'] == 'active':
             print("Dataset is now active on Filecoin!")
             break
-
+        
         await anyio.sleep(60)  # Check every minute
-
 
 anyio.run(pin_large_dataset)
 ```
@@ -1098,35 +1102,33 @@ anyio.run(pin_large_dataset)
 from ipfs_kit_py.mcp.storage_manager.retrieval import GatewayChain
 from ipfs_kit_py.mcp.storage_manager.discovery import IPNIClient
 
-
 async def retrieve_with_best_performance():
     # Initialize clients
     gateway = GatewayChain()
     ipni = IPNIClient()
-
+    
     cid = "bafybeib..."
-
+    
     # Find providers via IPNI
     print("Discovering providers...")
     providers = await ipni.find_providers(cid, protocol="bitswap")
     print(f"Found {len(providers)} providers")
-
+    
     # Test gateway health
     print("Testing gateways...")
     gateway_health = await gateway.test_all()
-    available = [g for g, h in gateway_health.items() if h["available"]]
+    available = [g for g, h in gateway_health.items() if h['available']]
     print(f"Available gateways: {len(available)}")
-
+    
     # Fetch content with automatic fallback
     print("Fetching content...")
     content, metrics = await gateway.fetch_with_metrics(cid)
-
+    
     print(f"Retrieved {len(content)} bytes in {metrics['duration_ms']}ms")
     print(f"Source: {metrics['source']}")
     print(f"Gateway: {metrics['gateway_used']}")
-
+    
     return content
-
 
 content = anyio.run(retrieve_with_best_performance)
 ```
@@ -1137,59 +1139,62 @@ content = anyio.run(retrieve_with_best_performance)
 from ipfs_kit_py.mcp.storage_manager import UnifiedStorageManager
 from ipfs_kit_py.mcp.storage_manager.pinning import UnifiedPinService
 
-
 async def optimize_storage_costs():
     storage = UnifiedStorageManager()
     pin_service = UnifiedPinService()
-
+    
     # List all pins across backends
     all_pins = await pin_service.list_pins(backend="all")
-
+    
     # Analyze costs
     total_cost = 0
     migrations = []
-
+    
     for pin in all_pins:
         # Calculate current cost
         current_cost = calculate_cost(pin)
-
+        
         # Determine optimal backend
         optimal_backend = determine_optimal_backend(pin)
-
-        if optimal_backend != pin["current_backend"]:
-            estimated_savings = current_cost - calculate_cost_for_backend(pin, optimal_backend)
-
+        
+        if optimal_backend != pin['current_backend']:
+            estimated_savings = current_cost - calculate_cost_for_backend(
+                pin, optimal_backend
+            )
+            
             if estimated_savings > 0.01:  # Minimum $0.01 savings
-                migrations.append(
-                    {
-                        "cid": pin["cid"],
-                        "from": pin["current_backend"],
-                        "to": optimal_backend,
-                        "savings": estimated_savings,
-                    }
-                )
-
+                migrations.append({
+                    'cid': pin['cid'],
+                    'from': pin['current_backend'],
+                    'to': optimal_backend,
+                    'savings': estimated_savings
+                })
+    
     # Sort by savings
-    migrations.sort(key=lambda x: x["savings"], reverse=True)
-
+    migrations.sort(key=lambda x: x['savings'], reverse=True)
+    
     print(f"Found {len(migrations)} optimization opportunities")
     print(f"Potential monthly savings: ${sum(m['savings'] for m in migrations):.2f}")
-
+    
     # Execute migrations
     for migration in migrations[:10]:  # Top 10 savings
         print(f"Migrating {migration['cid']} from {migration['from']} to {migration['to']}")
-
+        
         # Pin to new backend
         await pin_service.pin(
-            cid=migration["cid"], backends=[migration["to"]], metadata={"migration": True}
+            cid=migration['cid'],
+            backends=[migration['to']],
+            metadata={"migration": True}
         )
-
+        
         # Unpin from old backend (after verification)
         await anyio.sleep(60)  # Wait for pin to stabilize
-        await pin_service.unpin(cid=migration["cid"], backends=[migration["from"]])
-
+        await pin_service.unpin(
+            cid=migration['cid'],
+            backends=[migration['from']]
+        )
+        
         print(f"  ✓ Saved ${migration['savings']:.4f}/month")
-
 
 anyio.run(optimize_storage_costs)
 ```

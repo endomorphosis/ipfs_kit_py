@@ -177,7 +177,6 @@ print(f"Package detects: {platform_str}")
 **Solution**: Verify platform detection:
 ```python
 from ipfs_kit_py.install_ipfs import install_ipfs
-
 installer = install_ipfs()
 print(installer.get_hardware_info())
 ```

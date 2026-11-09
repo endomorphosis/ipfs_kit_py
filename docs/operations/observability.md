@@ -198,7 +198,11 @@ export IPFS_KIT_METRICS_PORT=9100
 ```python
 from ipfs_kit_py.ipfs_kit import ipfs_kit
 
-kit = ipfs_kit(metadata={"metrics_enabled": True, "metrics_path": "/metrics", "metrics_port": 9100})
+kit = ipfs_kit(metadata={
+    "metrics_enabled": True,
+    "metrics_path": "/metrics",
+    "metrics_port": 9100
+})
 ```
 
 ### Standalone Metrics Server
@@ -217,7 +221,9 @@ metrics = kit.performance_metrics
 
 # Create exporter with custom labels
 exporter = PrometheusExporter(
-    metrics, prefix="ipfs", labels={"node_type": "master", "environment": "production"}
+    metrics, 
+    prefix="ipfs", 
+    labels={"node_type": "master", "environment": "production"}
 )
 
 # Start a metrics server
@@ -377,38 +383,38 @@ metrics = kit.performance_metrics
 exporter = PrometheusExporter(
     metrics,
     prefix="ipfs_app",  # Custom prefix for your application
-    labels={"app": "my_ipfs_app", "environment": "production"},
+    labels={"app": "my_ipfs_app", "environment": "production"}
 )
 
 # Create custom metrics directly
 content_size_gauge = exporter.registry.gauge(
-    "content_size_bytes_total", "Total size of all content stored", labelnames=["content_type"]
+    "content_size_bytes_total",
+    "Total size of all content stored",
+    labelnames=["content_type"]
 )
 
 request_counter = exporter.registry.counter(
-    "client_requests_total", "Total number of client requests", labelnames=["endpoint", "method"]
+    "client_requests_total",
+    "Total number of client requests",
+    labelnames=["endpoint", "method"]
 )
 
 processing_time = exporter.registry.histogram(
     "processing_time_seconds",
     "Time taken to process requests",
     labelnames=["operation_type"],
-    buckets=(0.1, 0.5, 1.0, 2.5, 5.0, 10.0),
+    buckets=(0.1, 0.5, 1.0, 2.5, 5.0, 10.0)
 )
-
 
 # Use the metrics in your application
 def track_content_addition(content_type, size):
     content_size_gauge.labels(content_type=content_type).inc(size)
 
-
 def track_request(endpoint, method):
     request_counter.labels(endpoint=endpoint, method=method).inc()
 
-
 def track_processing(operation_type, duration):
     processing_time.labels(operation_type=operation_type).observe(duration)
-
 
 # Example usage
 track_content_addition("image", 1024 * 1024)  # 1MB image
@@ -425,23 +431,26 @@ Here are examples of custom metrics for common IPFS use cases:
 ```python
 # Initialize metrics
 content_by_type = exporter.registry.gauge(
-    "content_by_type_bytes", "Content size by type in bytes", labelnames=["content_type"]
+    "content_by_type_bytes", 
+    "Content size by type in bytes",
+    labelnames=["content_type"]
 )
 
 content_count_by_type = exporter.registry.gauge(
-    "content_count_by_type", "Number of items by content type", labelnames=["content_type"]
+    "content_count_by_type", 
+    "Number of items by content type",
+    labelnames=["content_type"]
 )
-
 
 # Update metrics when adding content
 def on_content_add(cid, size, mime_type):
     # Map MIME type to general category
-    content_type = mime_type.split("/")[0]  # e.g., 'image/jpeg' -> 'image'
-
+    content_type = mime_type.split('/')[0]  # e.g., 'image/jpeg' -> 'image'
+    
     # Update metrics
     content_by_type.labels(content_type=content_type).inc(size)
     content_count_by_type.labels(content_type=content_type).inc()
-
+    
     # Return CID to caller
     return cid
 ```
@@ -450,37 +459,41 @@ def on_content_add(cid, size, mime_type):
 
 ```python
 # Initialize metrics
-connected_peers = exporter.registry.gauge("connected_peers", "Number of connected peers")
+connected_peers = exporter.registry.gauge(
+    "connected_peers",
+    "Number of connected peers"
+)
 
 peer_connection_quality = exporter.registry.gauge(
-    "peer_connection_quality", "Connection quality score with peers (0-100)", labelnames=["peer_id"]
+    "peer_connection_quality",
+    "Connection quality score with peers (0-100)",
+    labelnames=["peer_id"]
 )
 
 peer_latency = exporter.registry.histogram(
     "peer_latency_seconds",
     "Latency between peers in seconds",
     labelnames=["peer_id"],
-    buckets=(0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0),
+    buckets=(0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0)
 )
-
 
 # Update metrics periodically
 def update_peer_metrics():
     # Get current peer connections
     peers = kit.get_peers()
-
+    
     # Update total count
     connected_peers.set(len(peers))
-
+    
     # Update per-peer metrics
     for peer in peers:
         # Ping peer to get latency
         ping_result = kit.ping_peer(peer["id"])
-
+        
         if ping_result["success"]:
             latency = ping_result["latency"]
             peer_latency.labels(peer_id=peer["id"]).observe(latency)
-
+            
             # Calculate quality score based on latency and other factors
             quality_score = max(0, min(100, 100 - (latency * 50)))
             peer_connection_quality.labels(peer_id=peer["id"]).set(quality_score)
@@ -490,12 +503,16 @@ def update_peer_metrics():
 
 ```python
 # Initialize metrics
-service_health = exporter.registry.gauge("service_health", "Overall health of IPFS service (0-100)")
-
-service_up = exporter.registry.gauge(
-    "service_up", "Whether the service is up (1) or down (0)", labelnames=["component"]
+service_health = exporter.registry.gauge(
+    "service_health",
+    "Overall health of IPFS service (0-100)"
 )
 
+service_up = exporter.registry.gauge(
+    "service_up",
+    "Whether the service is up (1) or down (0)",
+    labelnames=["component"]
+)
 
 # Update metrics in health check function
 def check_health():
@@ -503,18 +520,18 @@ def check_health():
         "ipfs_daemon": kit.is_daemon_running(),
         "api_server": kit.is_api_available(),
         "gateway": kit.is_gateway_available(),
-        "cluster": kit.is_cluster_available(),
+        "cluster": kit.is_cluster_available()
     }
-
+    
     # Update individual component status
     for component, is_up in components.items():
         service_up.labels(component=component).set(1 if is_up else 0)
-
+    
     # Calculate overall health score (percentage of components up)
     up_count = sum(1 for status in components.values() if status)
     health_score = (up_count / len(components)) * 100
     service_health.set(health_score)
-
+    
     return health_score > 50  # Return True if health score above 50%
 ```
 
@@ -533,27 +550,26 @@ Example for managing CID cardinality:
 ```python
 # Instead of this (very high cardinality)
 # content_size = exporter.registry.gauge(
-#     "content_size_bytes",
+#     "content_size_bytes", 
 #     "Content size in bytes",
 #     labelnames=["cid"]  # Potentially millions of values!
 # )
 
 # Do this instead (controlled cardinality)
 content_size_by_range = exporter.registry.gauge(
-    "content_size_bytes",
+    "content_size_bytes", 
     "Content size in bytes",
-    labelnames=["size_range"],  # Limited set of values
+    labelnames=["size_range"]  # Limited set of values
 )
 
 # Size ranges
 SIZE_RANGES = {
-    "tiny": (0, 1024),  # 0-1KB
-    "small": (1024, 1024 * 10),  # 1KB-10KB
-    "medium": (1024 * 10, 1024 * 100),  # 10KB-100KB
-    "large": (1024 * 100, 1024 * 1024),  # 100KB-1MB
-    "huge": (1024 * 1024, float("inf")),  # >1MB
+    "tiny": (0, 1024),                # 0-1KB
+    "small": (1024, 1024*10),         # 1KB-10KB
+    "medium": (1024*10, 1024*100),    # 10KB-100KB
+    "large": (1024*100, 1024*1024),   # 100KB-1MB
+    "huge": (1024*1024, float('inf')) # >1MB
 }
-
 
 def categorize_size(size_bytes):
     """Categorize a size into a range."""
@@ -561,7 +577,6 @@ def categorize_size(size_bytes):
         if min_size <= size_bytes < max_size:
             return range_name
     return "unknown"
-
 
 # Update metrics when adding content
 def track_content_size(size_bytes):

@@ -30,7 +30,7 @@ packaged_candidates = [
     pkg_base / "mcp" / "dashboard" / "consolidated_server.py",
     pkg_base / "mcp" / "dashboard" / "refactored_unified_mcp_dashboard.py",  # ← Where I applied fix
     pkg_base / "mcp" / "dashboard" / "launch_refactored_dashboard.py",
-    ...,
+    ...
 ]
 ```
 
@@ -60,7 +60,7 @@ backend_info = {
     "health": current_health,
     "category": v.get("category", "storage"),
     "policy": v.get("policy", {...}),
-    "stats": v.get("stats", {...}),
+    "stats": v.get("stats", {...})
 }
 ```
 

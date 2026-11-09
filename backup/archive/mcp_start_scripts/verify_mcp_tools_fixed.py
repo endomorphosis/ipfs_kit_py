@@ -13,10 +13,7 @@ import argparse
 import requests
 from typing import Dict, List, Any
 
-
-def test_endpoint(
-    base_url: str, endpoint: str, method: str = "GET", data: Dict = None, files: Dict = None
-) -> Dict:
+def test_endpoint(base_url: str, endpoint: str, method: str = "GET", data: Dict = None, files: Dict = None) -> Dict:
     """
     Test an endpoint and return the response.
 
@@ -50,7 +47,7 @@ def test_endpoint(
         except:
             # Return raw content if not JSON
             print(f"  Status: {response.status_code}")
-            content = response.content.decode("utf-8")
+            content = response.content.decode('utf-8')
             if len(content) > 100:
                 content = content[:100] + "... (truncated)"
             print(f"  Response: {content}")
@@ -59,7 +56,6 @@ def test_endpoint(
     except Exception as e:
         print(f"  Error: {e}")
         return {"success": False, "error": str(e)}
-
 
 def test_storage_backend(base_url: str, backend: str) -> Dict:
     """
@@ -78,7 +74,6 @@ def test_storage_backend(base_url: str, backend: str) -> Dict:
     results["status"] = test_endpoint(base_url, f"/api/v0/{backend}/status")
 
     return results
-
 
 def test_ipfs_endpoints(base_url: str) -> Dict:
     """
@@ -100,13 +95,10 @@ def test_ipfs_endpoints(base_url: str) -> Dict:
 
     return results
 
-
 def main():
     """Run the verification script."""
     parser = argparse.ArgumentParser(description="Verify MCP server tools and endpoints")
-    parser.add_argument(
-        "--url", type=str, default="http://localhost:9997", help="Base URL of the MCP server"
-    )
+    parser.add_argument("--url", type=str, default="http://localhost:9997", help="Base URL of the MCP server")
     parser.add_argument("--skip-storage", action="store_true", help="Skip testing storage backends")
     parser.add_argument("--skip-ipfs", action="store_true", help="Skip testing IPFS endpoints")
 

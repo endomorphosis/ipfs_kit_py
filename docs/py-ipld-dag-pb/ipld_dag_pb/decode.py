@@ -53,12 +53,18 @@ def decode_link(buf: BytesLike) -> RawPBLink:
                 raise Exception("protobuf: (PBLink) duplicate Hash section")
             if wire_type != 2:
                 raise ValueError(
-                    "protobuf: (PBLink) wrong wire type (" + str(wire_type) + ") for Hash"
+                    "protobuf: (PBLink) wrong wire type ("
+                    + str(wire_type)
+                    + ") for Hash"
                 )
             if hasattr(link, "name"):
-                raise Exception("protobuf: (PBLink) invalid order, found Name before Hash")
+                raise Exception(
+                    "protobuf: (PBLink) invalid order, found Name before Hash"
+                )
             if hasattr(link, "t_size"):
-                raise Exception("protobuf: (PBLink) invalid order, found Tsize before Hash")
+                raise Exception(
+                    "protobuf: (PBLink) invalid order, found Tsize before Hash"
+                )
 
             link.hash, index = decode_bytes(buf, index)
         elif field_num == 2:
@@ -66,10 +72,14 @@ def decode_link(buf: BytesLike) -> RawPBLink:
                 raise Exception("protobuf: (PBLink) duplicate Name section")
             if wire_type != 2:
                 raise ValueError(
-                    "protobuf: (PBLink) wrong wire type (" + str(wire_type) + ") for Name"
+                    "protobuf: (PBLink) wrong wire type ("
+                    + str(wire_type)
+                    + ") for Name"
                 )
             if hasattr(link, "t_size"):
-                raise Exception("protobuf: (PBLink) invalid order, found Tsize before Name")
+                raise Exception(
+                    "protobuf: (PBLink) invalid order, found Tsize before Name"
+                )
 
             byts, index = decode_bytes(buf, index)
             link.name = str(byts, "utf-8")
@@ -78,13 +88,16 @@ def decode_link(buf: BytesLike) -> RawPBLink:
                 raise Exception("protobuf: (PBLink) duplicate Tsize section")
             if wire_type != 0:
                 raise ValueError(
-                    "protobuf: (PBLink) wrong wire type (" + str(wire_type) + ") for Tsize"
+                    "protobuf: (PBLink) wrong wire type ("
+                    + str(wire_type)
+                    + ") for Tsize"
                 )
 
             link.t_size, index = decode_varint(buf, index)
         else:
             raise Exception(
-                "protobuf: (PBLink) invalid field number, expected 1, 2 or 3, got " + str(field_num)
+                "protobuf: (PBLink) invalid field number, expected 1, 2 or 3, got "
+                + str(field_num)
             )
 
     if index > l:
@@ -105,7 +118,8 @@ def decode_node(buf: BytesLike) -> RawPBNode:
 
         if wire_type != 2:
             raise Exception(
-                "protobuf: (PBNode) invalid wire type, expected 2, got " + str(wire_type)
+                "protobuf: (PBNode) invalid wire type, expected 2, got "
+                + str(wire_type)
             )
 
         if field_num == 1:
@@ -125,7 +139,8 @@ def decode_node(buf: BytesLike) -> RawPBNode:
             links.append(decode_link(byts))
         else:
             raise Exception(
-                "protobuf: (PBNode) invalid fieldNumber, expected 1 or 2, got " + str(field_num)
+                "protobuf: (PBNode) invalid fieldNumber, expected 1 or 2, got "
+                + str(field_num)
             )
 
     if index > l:

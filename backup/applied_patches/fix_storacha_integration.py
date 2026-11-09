@@ -16,10 +16,10 @@ from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
 
 def ensure_enhanced_implementation():
     """
@@ -52,7 +52,6 @@ def ensure_enhanced_implementation():
     logger.info("Enhanced Storacha implementation is properly set up")
     return True
 
-
 def test_storacha_integration():
     """
     Test the Storacha integration to verify it's working properly.
@@ -66,7 +65,7 @@ def test_storacha_integration():
             ["curl", "http://localhost:9997/api/v0/health"],
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=5
         )
 
         if health_output.returncode != 0:
@@ -78,7 +77,7 @@ def test_storacha_integration():
             ["curl", "http://localhost:9997/api/v0/storacha/status"],
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=5
         )
 
         if storacha_output.returncode != 0:
@@ -107,7 +106,6 @@ def test_storacha_integration():
         logger.error(f"Error testing Storacha integration: {e}")
         return False
 
-
 def restart_mcp_server():
     """
     Restart the MCP server with the updated Storacha integration.
@@ -127,7 +125,10 @@ def restart_mcp_server():
                 logger.info(f"Stopped MCP server with PID {pid}")
 
         # Also try to kill by process name
-        subprocess.run(["pkill", "-f", "enhanced_mcp_server.py"], check=False)
+        subprocess.run(
+            ["pkill", "-f", "enhanced_mcp_server.py"],
+            check=False
+        )
 
         # Wait for it to stop
         time.sleep(2)
@@ -137,7 +138,10 @@ def restart_mcp_server():
     # Start the MCP server using the start script
     logger.info("Starting MCP server...")
     try:
-        subprocess.run(["./start_mcp_server.sh"], check=True)
+        subprocess.run(
+            ["./start_mcp_server.sh"],
+            check=True
+        )
 
         # Wait for it to start
         time.sleep(5)
@@ -147,7 +151,7 @@ def restart_mcp_server():
             ["curl", "http://localhost:9997/api/v0/health"],
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=5
         )
 
         if health_output.returncode != 0:
@@ -160,7 +164,6 @@ def restart_mcp_server():
     except Exception as e:
         logger.error(f"Error starting MCP server: {e}")
         return False
-
 
 def main():
     """
@@ -185,7 +188,6 @@ def main():
 
     logger.info("=== Storacha Integration Fixed Successfully ===")
     return True
-
 
 if __name__ == "__main__":
     success = main()

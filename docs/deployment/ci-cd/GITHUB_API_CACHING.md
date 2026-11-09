@@ -176,7 +176,10 @@ With IPFS/P2P caching:
 ```python
 from ipfs_kit_py.auto_heal import AutoHealConfig, GitHubIssueCreator
 
-config = AutoHealConfig(enabled=True, github_repo="owner/repo")
+config = AutoHealConfig(
+    enabled=True,
+    github_repo='owner/repo'
+)
 
 # Cache is automatically enabled
 creator = GitHubIssueCreator(config)
@@ -229,10 +232,10 @@ Configure gossipsub for optimal performance:
 ```python
 # In your config
 peer_config = {
-    "gossipsub_d": 6,  # Desired peer connections
-    "gossipsub_dlo": 4,  # Low watermark
-    "gossipsub_dhi": 12,  # High watermark
-    "heartbeat_interval": 1.0,  # Seconds
+    'gossipsub_d': 6,          # Desired peer connections
+    'gossipsub_dlo': 4,        # Low watermark
+    'gossipsub_dhi': 12,       # High watermark
+    'heartbeat_interval': 1.0, # Seconds
 }
 ```
 

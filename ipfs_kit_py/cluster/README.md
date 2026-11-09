@@ -48,7 +48,7 @@ role_manager = RoleManager(
     initial_role="worker",
     resources={"memory_available_mb": 2048, "disk_available_gb": 20},
     auto_detect=True,
-    role_switching_enabled=True,
+    role_switching_enabled=True
 )
 
 # Check if role can handle a capability
@@ -75,7 +75,9 @@ from ipfs_kit_py.cluster.distributed_coordination import ClusterCoordinator, Mem
 
 # Create membership manager
 membership_manager = MembershipManager(
-    cluster_id="my-cluster", node_id="node-123", heartbeat_interval=30
+    cluster_id="my-cluster",
+    node_id="node-123",
+    heartbeat_interval=30
 )
 
 # Create cluster coordinator
@@ -83,16 +85,18 @@ coordinator = ClusterCoordinator(
     cluster_id="my-cluster",
     node_id="node-123",
     is_master=True,
-    membership_manager=membership_manager,
+    membership_manager=membership_manager
 )
 
 # Create a new cluster
 coordinator.create_cluster()
 
 # Submit a task for execution
-task_id = coordinator.submit_task(
-    {"type": "process_content", "cid": "QmExample123", "parameters": {"transform": "resize"}}
-)
+task_id = coordinator.submit_task({
+    "type": "process_content",
+    "cid": "QmExample123",
+    "parameters": {"transform": "resize"}
+})
 ```
 
 ### Monitoring (`monitoring.py`)
@@ -108,18 +112,22 @@ Provides monitoring and metrics collection:
 from ipfs_kit_py.cluster.monitoring import ClusterMonitor, MetricsCollector
 
 # Create metrics collector
-metrics_collector = MetricsCollector(node_id="node-123", metrics_dir="~/.ipfs/metrics")
+metrics_collector = MetricsCollector(
+    node_id="node-123",
+    metrics_dir="~/.ipfs/metrics"
+)
 
 # Register custom metrics source
 metrics_collector.register_metric_source(
-    "resources", lambda: {"cpu_percent": 25, "memory_percent": 40}
+    "resources", 
+    lambda: {"cpu_percent": 25, "memory_percent": 40}
 )
 
 # Create cluster monitor
 monitor = ClusterMonitor(
     node_id="node-123",
     metrics_collector=metrics_collector,
-    alert_callback=lambda source, alert: print(f"ALERT: {alert['message']}"),
+    alert_callback=lambda source, alert: print(f"ALERT: {alert['message']}")
 )
 
 # Get cluster health
