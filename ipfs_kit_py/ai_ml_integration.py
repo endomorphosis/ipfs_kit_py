@@ -14,6 +14,7 @@ from unittest.mock import MagicMock
 # Try to import pandas, but make it optional
 try:
     import pandas as pd
+
     PANDAS_AVAILABLE = True
 except ImportError:
     PANDAS_AVAILABLE = False
@@ -24,6 +25,7 @@ except ImportError:
 # Some integration tests patch/inspect TORCH_AVAILABLE.
 try:
     import torch  # type: ignore
+
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
@@ -34,6 +36,7 @@ except ImportError:
 # Some integration tests patch/inspect TF_AVAILABLE.
 try:
     import tensorflow as tf  # type: ignore
+
     TF_AVAILABLE = True
 except ImportError:
     TF_AVAILABLE = False
@@ -43,7 +46,7 @@ except ImportError:
 # Custom JSON encoder to handle MagicMock objects
 class MockAwareJSONEncoder(json.JSONEncoder):
     """JSON encoder that handles MagicMock objects by replacing them with placeholders."""
-    
+
     def default(self, obj):
         """Convert non-serializable objects to serializable ones."""
         if isinstance(obj, MagicMock):
@@ -70,12 +73,15 @@ class nullcontext:
     def __exit__(self, *excinfo):
         pass
 
+
 try:
     import pydantic
     from pydantic import BaseModel, Field
+
     # Import the appropriate validator depending on Pydantic version
-    if pydantic.__version__.startswith('2.'):
+    if pydantic.__version__.startswith("2."):
         from pydantic import field_validator
+
         # Use field_validator, but provide backward compatibility
         validator = field_validator
     else:
@@ -83,20 +89,25 @@ try:
     PYDANTIC_AVAILABLE = True
 except ImportError:
     PYDANTIC_AVAILABLE = False
+
     # Create dummy BaseModel if pydantic is not available
     class BaseModel:
         """Dummy BaseModel when Pydantic is not available."""
+
         pass
 
 
 # Define our Pydantic models if available
 if PYDANTIC_AVAILABLE:
     # Handle Pydantic v1 vs v2 for model configuration
-    if pydantic.__version__.startswith('2.'):
+    if pydantic.__version__.startswith("2."):
         # Pydantic v2 style
         class ModelMetadata(BaseModel):
             """Metadata for machine learning models."""
-            framework: str = Field(..., description="ML framework used (pytorch, tensorflow, sklearn, etc.)")
+
+            framework: str = Field(
+                ..., description="ML framework used (pytorch, tensorflow, sklearn, etc.)"
+            )
             version: Optional[str] = Field(None, description="Model version identifier")
             name: Optional[str] = Field(None, description="Model name")
             description: Optional[str] = Field(None, description="Model description")
@@ -107,7 +118,7 @@ if PYDANTIC_AVAILABLE:
             tags: Optional[List[str]] = Field(None, description="Tags for searchability")
             license: Optional[str] = Field(None, description="Model license")
             dataset_id: Optional[str] = Field(None, description="ID of dataset used for training")
-            
+
             model_config = {
                 "extra": "allow"  # Allow extra fields
             }
@@ -115,7 +126,10 @@ if PYDANTIC_AVAILABLE:
         # Pydantic v1 style
         class ModelMetadata(BaseModel):
             """Metadata for machine learning models."""
-            framework: str = Field(..., description="ML framework used (pytorch, tensorflow, sklearn, etc.)")
+
+            framework: str = Field(
+                ..., description="ML framework used (pytorch, tensorflow, sklearn, etc.)"
+            )
             version: Optional[str] = Field(None, description="Model version identifier")
             name: Optional[str] = Field(None, description="Model name")
             description: Optional[str] = Field(None, description="Model description")
@@ -126,19 +140,25 @@ if PYDANTIC_AVAILABLE:
             tags: Optional[List[str]] = Field(None, description="Tags for searchability")
             license: Optional[str] = Field(None, description="Model license")
             dataset_id: Optional[str] = Field(None, description="ID of dataset used for training")
-            
+
             class Config:
                 extra = "allow"  # Allow extra fields
 
     class StoreModelRequest(BaseModel):
         """Request model for storing ML models."""
+
         name: str = Field(..., description="Name to identify the model")
         version: Optional[str] = Field("1.0.0", description="Version string")
-        framework: Optional[str] = Field(None, description="Framework name (detected automatically if not provided)")
-        metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata to store with the model")
+        framework: Optional[str] = Field(
+            None, description="Framework name (detected automatically if not provided)"
+        )
+        metadata: Optional[Dict[str, Any]] = Field(
+            None, description="Additional metadata to store with the model"
+        )
 
     class StoreModelResponse(BaseModel):
         """Response model for model storage operations."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("store_model", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
@@ -152,19 +172,25 @@ if PYDANTIC_AVAILABLE:
 
     class LoadModelRequest(BaseModel):
         """Request model for loading ML models."""
+
         name: Optional[str] = Field(None, description="Model name to load")
-        version: Optional[str] = Field(None, description="Model version (loads latest if not specified)")
+        version: Optional[str] = Field(
+            None, description="Model version (loads latest if not specified)"
+        )
         cid: Optional[str] = Field(None, description="CID to load (alternative to name/version)")
-        
-        @validator('name', 'cid', mode='before')  # mode='before' for compatibility with field_validator
+
+        @validator(
+            "name", "cid", mode="before"
+        )  # mode='before' for compatibility with field_validator
         def validate_name_or_cid(cls, v, info):
-            values = info.data if hasattr(info, 'data') else info
-            if not v and 'name' not in values and 'cid' not in values:
+            values = info.data if hasattr(info, "data") else info
+            if not v and "name" not in values and "cid" not in values:
                 raise ValueError("Either name or cid must be provided")
             return v
 
     class LoadModelResponse(BaseModel):
         """Response model for model loading operations (error case)."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("load_model", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
@@ -173,35 +199,44 @@ if PYDANTIC_AVAILABLE:
 
     class ListModelsResponse(BaseModel):
         """Response model for listing models."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("list_models", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
-        models: Optional[Dict[str, Dict[str, Any]]] = Field(None, description="Dictionary of models and versions")
+        models: Optional[Dict[str, Dict[str, Any]]] = Field(
+            None, description="Dictionary of models and versions"
+        )
         count: Optional[int] = Field(None, description="Number of models")
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
 
     class ShareModelRequest(BaseModel):
         """Request model for sharing ML models."""
+
         name: Optional[str] = Field(None, description="Model name")
         version: Optional[str] = Field(None, description="Model version (latest if not specified)")
         cid: Optional[str] = Field(None, description="Model CID (alternative to name/version)")
-        
-        @validator('name', 'cid', mode='before')  # mode='before' for compatibility with field_validator
+
+        @validator(
+            "name", "cid", mode="before"
+        )  # mode='before' for compatibility with field_validator
         def validate_name_or_cid(cls, v, info):
-            values = info.data if hasattr(info, 'data') else info
-            if not v and 'name' not in values and 'cid' not in values:
+            values = info.data if hasattr(info, "data") else info
+            if not v and "name" not in values and "cid" not in values:
                 raise ValueError("Either name or cid must be provided")
             return v
 
     class ShareModelResponse(BaseModel):
         """Response model for model sharing operations."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("share_model", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
         cid: Optional[str] = Field(None, description="Content identifier for the model")
         ipfs_uri: Optional[str] = Field(None, description="IPFS URI for the model")
-        gateway_links: Optional[List[str]] = Field(None, description="Gateway links for accessing the model")
+        gateway_links: Optional[List[str]] = Field(
+            None, description="Gateway links for accessing the model"
+        )
         share_command: Optional[str] = Field(None, description="IPFS command to retrieve the model")
         model_name: Optional[str] = Field(None, description="Model name")
         version: Optional[str] = Field(None, description="Model version")
@@ -210,12 +245,14 @@ if PYDANTIC_AVAILABLE:
 
     class UpdateModelMetadataRequest(BaseModel):
         """Request model for updating model metadata."""
+
         name: str = Field(..., description="Model name")
         version: str = Field(..., description="Model version")
         metadata_update: Dict[str, Any] = Field(..., description="Dictionary of metadata to update")
 
     class UpdateModelMetadataResponse(BaseModel):
         """Response model for metadata update operations."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("update_model_metadata", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
@@ -227,27 +264,35 @@ if PYDANTIC_AVAILABLE:
 
     class DeleteModelRequest(BaseModel):
         """Request model for deleting models."""
+
         name: str = Field(..., description="Model name")
-        version: Optional[str] = Field(None, description="Specific version to delete (all versions if None)")
+        version: Optional[str] = Field(
+            None, description="Specific version to delete (all versions if None)"
+        )
 
     class DeleteModelResponse(BaseModel):
         """Response model for model deletion operations."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("delete_model", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
         model_name: Optional[str] = Field(None, description="Model name")
         deleted_versions: Optional[List[str]] = Field(None, description="List of deleted versions")
-        all_versions_deleted: Optional[bool] = Field(None, description="Whether all versions were deleted")
+        all_versions_deleted: Optional[bool] = Field(
+            None, description="Whether all versions were deleted"
+        )
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
 
     class GetModelCIDRequest(BaseModel):
         """Request model for retrieving model CIDs."""
+
         name: str = Field(..., description="Model name")
         version: Optional[str] = Field(None, description="Model version (latest if not specified)")
 
     class GetModelCIDResponse(BaseModel):
         """Response model for CID retrieval operations."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("get_model_cid", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
@@ -260,27 +305,39 @@ if PYDANTIC_AVAILABLE:
     # Dataset Manager related models
     class LoadDatasetRequest(BaseModel):
         """Request model for loading a dataset from the registry."""
+
         name: Optional[str] = Field(None, description="Dataset name to load from registry")
-        version: Optional[str] = Field(None, description="Dataset version (loads latest version if not specified)")
-        cid: Optional[str] = Field(None, description="Content identifier to load directly (alternative to name/version)")
-        format: Optional[str] = Field(None, description="Optional format to convert the dataset to after loading")
-        return_metadata: bool = Field(True, description="Whether to return metadata along with the dataset")
-        
-        @validator('name', 'cid', mode='before')  # mode='before' for compatibility with field_validator
+        version: Optional[str] = Field(
+            None, description="Dataset version (loads latest version if not specified)"
+        )
+        cid: Optional[str] = Field(
+            None, description="Content identifier to load directly (alternative to name/version)"
+        )
+        format: Optional[str] = Field(
+            None, description="Optional format to convert the dataset to after loading"
+        )
+        return_metadata: bool = Field(
+            True, description="Whether to return metadata along with the dataset"
+        )
+
+        @validator(
+            "name", "cid", mode="before"
+        )  # mode='before' for compatibility with field_validator
         def validate_name_or_cid(cls, v, info):
             """Ensure that either name or cid is provided."""
             # Only validate when this is the field being validated
             # This avoids duplicate errors when both name and cid are missing
-            values = info.data if hasattr(info, 'data') else info
-            if 'name' in values or 'cid' in values:
+            values = info.data if hasattr(info, "data") else info
+            if "name" in values or "cid" in values:
                 return v
-                
-            if not v and 'name' not in values and 'cid' not in values:
+
+            if not v and "name" not in values and "cid" not in values:
                 raise ValueError("Either name or cid must be provided")
             return v
 
     class LoadDatasetResponse(BaseModel):
         """Response model for dataset loading operations."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("load_dataset", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
@@ -290,17 +347,23 @@ if PYDANTIC_AVAILABLE:
         cid: Optional[str] = Field(None, description="Content identifier of the dataset")
         format: Optional[str] = Field(None, description="Format of the dataset")
         metadata: Optional[Dict[str, Any]] = Field(None, description="Dataset metadata")
-        warnings: Optional[List[str]] = Field(None, description="Non-critical warnings during loading")
+        warnings: Optional[List[str]] = Field(
+            None, description="Non-critical warnings during loading"
+        )
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
-        
+
     class GetDatasetCIDRequest(BaseModel):
         """Request model for retrieving dataset CIDs."""
+
         name: str = Field(..., description="Dataset name")
-        version: Optional[str] = Field(None, description="Dataset version (latest if not specified)")
+        version: Optional[str] = Field(
+            None, description="Dataset version (latest if not specified)"
+        )
 
     class GetDatasetCIDResponse(BaseModel):
         """Response model for dataset CID retrieval operations."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("get_dataset_cid", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
@@ -309,39 +372,51 @@ if PYDANTIC_AVAILABLE:
         cid: Optional[str] = Field(None, description="Content identifier for the dataset")
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
-        
+
     class DeleteDatasetRequest(BaseModel):
         """Request model for deleting datasets."""
+
         name: str = Field(..., description="Dataset name to delete")
-        version: Optional[str] = Field(None, description="Specific version to delete (all versions if None)")
+        version: Optional[str] = Field(
+            None, description="Specific version to delete (all versions if None)"
+        )
 
     class DeleteDatasetResponse(BaseModel):
         """Response model for dataset deletion operations."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("delete_dataset", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
         dataset_name: Optional[str] = Field(None, description="Dataset name")
         deleted_versions: Optional[List[str]] = Field(None, description="List of deleted versions")
-        all_versions_deleted: Optional[bool] = Field(None, description="Whether all versions were deleted")
+        all_versions_deleted: Optional[bool] = Field(
+            None, description="Whether all versions were deleted"
+        )
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
-        
+
     class ShareDatasetRequest(BaseModel):
         """Request model for sharing datasets."""
+
         name: Optional[str] = Field(None, description="Dataset name")
-        version: Optional[str] = Field(None, description="Dataset version (latest if not specified)")
+        version: Optional[str] = Field(
+            None, description="Dataset version (latest if not specified)"
+        )
         cid: Optional[str] = Field(None, description="Dataset CID (alternative to name/version)")
-        
-        @validator('name', 'cid', mode='before')  # mode='before' for compatibility with field_validator
+
+        @validator(
+            "name", "cid", mode="before"
+        )  # mode='before' for compatibility with field_validator
         def validate_name_or_cid(cls, v, info):
             """Ensure that either name or cid is provided."""
-            values = info.data if hasattr(info, 'data') else info
-            if not v and 'name' not in values and 'cid' not in values:
+            values = info.data if hasattr(info, "data") else info
+            if not v and "name" not in values and "cid" not in values:
                 raise ValueError("Either name or cid must be provided")
             return v
 
     class ShareDatasetResponse(BaseModel):
         """Response model for dataset sharing operations."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("share_dataset", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
@@ -349,33 +424,44 @@ if PYDANTIC_AVAILABLE:
         dataset_name: Optional[str] = Field(None, description="Dataset name")
         version: Optional[str] = Field(None, description="Dataset version")
         ipfs_uri: Optional[str] = Field(None, description="IPFS URI for the dataset")
-        gateway_links: Optional[List[str]] = Field(None, description="Gateway links for accessing the dataset")
-        share_command: Optional[str] = Field(None, description="IPFS command to retrieve the dataset")
+        gateway_links: Optional[List[str]] = Field(
+            None, description="Gateway links for accessing the dataset"
+        )
+        share_command: Optional[str] = Field(
+            None, description="IPFS command to retrieve the dataset"
+        )
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
-        
+
     class ListDatasetsResponse(BaseModel):
         """Response model for listing datasets from the registry."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("list_datasets", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
-        datasets: Optional[Dict[str, Dict[str, Any]]] = Field(None, description="Dictionary of datasets organized by name and version")
+        datasets: Optional[Dict[str, Dict[str, Any]]] = Field(
+            None, description="Dictionary of datasets organized by name and version"
+        )
         count: Optional[int] = Field(None, description="Number of unique dataset names")
         version_count: Optional[int] = Field(None, description="Total number of dataset versions")
         registry_cid: Optional[str] = Field(None, description="Content identifier for the registry")
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
-        
+
     # IPFSDataLoader related models - keep these separate for backward compatibility
     class IPFSDataLoaderRequest(BaseModel):
         """Request model for loading a dataset via IPFSDataLoader."""
+
         dataset_cid: str = Field(..., description="CID of the dataset to load")
 
     class IPFSDataLoaderResponse(BaseModel):
         """Response model for IPFSDataLoader operations."""
+
         success: bool = Field(..., description="Operation success status")
         dataset_cid: str = Field(..., description="Dataset CID")
-        total_samples: Optional[int] = Field(None, description="Total number of samples in the dataset")
+        total_samples: Optional[int] = Field(
+            None, description="Total number of samples in the dataset"
+        )
         format: Optional[str] = Field(None, description="Dataset format (embedded, referenced)")
         metadata: Optional[Dict[str, Any]] = Field(None, description="Dataset metadata")
         load_time_ms: Optional[float] = Field(None, description="Load time in milliseconds")
@@ -385,19 +471,23 @@ if PYDANTIC_AVAILABLE:
         mocked: Optional[bool] = Field(None, description="Whether this is a mock dataset")
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
-        
+
     class ClearResponse(BaseModel):
         """Response model for clearing IPFSDataLoader cache."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("clear_cache", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
-        cache_items_removed: Optional[int] = Field(None, description="Number of cache items removed")
+        cache_items_removed: Optional[int] = Field(
+            None, description="Number of cache items removed"
+        )
         memory_freed: Optional[int] = Field(None, description="Approximate memory freed in bytes")
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
 
     class ToTensorflowResponse(BaseModel):
         """Response model for converting IPFSDataLoader to TensorFlow dataset."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("to_tensorflow", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
@@ -405,13 +495,18 @@ if PYDANTIC_AVAILABLE:
         batch_size: Optional[int] = Field(None, description="Batch size used")
         shuffle: Optional[bool] = Field(None, description="Whether shuffling is enabled")
         prefetch_size: Optional[int] = Field(None, description="Prefetch buffer size")
-        num_parallel_calls: Optional[int] = Field(None, description="Number of parallel calls for preprocessing")
-        tensorflow_dataset_type: Optional[str] = Field(None, description="Type of TensorFlow dataset created")
+        num_parallel_calls: Optional[int] = Field(
+            None, description="Number of parallel calls for preprocessing"
+        )
+        tensorflow_dataset_type: Optional[str] = Field(
+            None, description="Type of TensorFlow dataset created"
+        )
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
 
     class ToPytorchResponse(BaseModel):
         """Response model for converting IPFSDataLoader to PyTorch DataLoader."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("to_pytorch", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
@@ -419,13 +514,18 @@ if PYDANTIC_AVAILABLE:
         batch_size: Optional[int] = Field(None, description="Batch size used")
         shuffle: Optional[bool] = Field(None, description="Whether shuffling is enabled")
         num_workers: Optional[int] = Field(None, description="Number of worker processes")
-        pin_memory: Optional[bool] = Field(None, description="Whether pin_memory is enabled for GPU transfer")
-        collate_fn_type: Optional[str] = Field(None, description="Type of collate function used, if any")
+        pin_memory: Optional[bool] = Field(
+            None, description="Whether pin_memory is enabled for GPU transfer"
+        )
+        collate_fn_type: Optional[str] = Field(
+            None, description="Type of collate function used, if any"
+        )
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
-        
+
     class CloseResponse(BaseModel):
         """Response model for closing IPFSDataLoader and releasing resources."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("close", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
@@ -433,16 +533,18 @@ if PYDANTIC_AVAILABLE:
         queue_items_cleared: int = Field(0, description="Number of items cleared from the queue")
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
-        
+
     class CreateVectorStoreRequest(BaseModel):
         """Request model for creating vector stores."""
+
         documents: Any = Field(..., description="Documents to add to the vector store")
         embedding_model: Optional[str] = Field(None, description="Embedding model to use")
         collection_name: Optional[str] = Field(None, description="Name for the vector collection")
         metadata: Optional[Dict[str, Any]] = Field({}, description="Additional metadata to store")
-        
+
     class CreateVectorStoreResponse(BaseModel):
         """Response model for vector store creation operations."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("create_vector_store", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
@@ -450,17 +552,23 @@ if PYDANTIC_AVAILABLE:
         vector_store_id: Optional[str] = Field(None, description="Identifier for the vector store")
         document_count: Optional[int] = Field(None, description="Number of documents in the store")
         embedding_model: Optional[str] = Field(None, description="Embedding model used")
-        processing_time_seconds: Optional[float] = Field(None, description="Processing time in seconds")
-        warnings: Optional[List[str]] = Field(None, description="Non-critical warnings during creation")
+        processing_time_seconds: Optional[float] = Field(
+            None, description="Processing time in seconds"
+        )
+        warnings: Optional[List[str]] = Field(
+            None, description="Non-critical warnings during creation"
+        )
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
 
     class EmbeddedDatasetRequest(BaseModel):
         """Request model for loading an embedded dataset."""
+
         data_array: List[Any] = Field(..., description="List of data samples to use")
 
     class EmbeddedDatasetResponse(BaseModel):
         """Response model for embedded dataset loading operations."""
+
         success: bool = Field(..., description="Operation success status")
         total_samples: Optional[int] = Field(None, description="Total number of samples")
         format: Optional[str] = Field(None, description="Dataset format")
@@ -470,10 +578,13 @@ if PYDANTIC_AVAILABLE:
 
     class PerformanceMetrics(BaseModel):
         """Model for performance metrics from the data loader."""
+
         cache_hits: int = Field(0, description="Number of successful cache retrievals")
         cache_misses: int = Field(0, description="Number of cache misses requiring IPFS fetches")
         cache_hit_rate: float = Field(0.0, description="Ratio of hits to total access attempts")
-        avg_batch_time_ms: Optional[float] = Field(None, description="Average time to load a batch in milliseconds")
+        avg_batch_time_ms: Optional[float] = Field(
+            None, description="Average time to load a batch in milliseconds"
+        )
         min_batch_time_ms: Optional[float] = Field(None, description="Minimum batch loading time")
         max_batch_time_ms: Optional[float] = Field(None, description="Maximum batch loading time")
         avg_load_time_ms: Optional[float] = Field(None, description="Average dataset loading time")
@@ -483,19 +594,25 @@ if PYDANTIC_AVAILABLE:
         prefetch_queue_size: int = Field(2, description="Current prefetch queue size setting")
         samples_processed: int = Field(0, description="Number of samples processed so far")
         total_prefetch_time: float = Field(0.0, description="Total time spent in prefetching")
-    
+
     # DatasetManager-specific models
     class StoreDatasetRequest(BaseModel):
         """Request model for storing datasets."""
+
         name: str = Field(..., description="Name to identify the dataset")
         version: Optional[str] = Field("1.0.0", description="Version string")
-        format: Optional[str] = Field(None, description="Dataset format (detected automatically if not provided)")
+        format: Optional[str] = Field(
+            None, description="Dataset format (detected automatically if not provided)"
+        )
         chunk_size: Optional[int] = Field(None, description="Size of chunks for large datasets")
         convert_to: Optional[str] = Field(None, description="Format to convert the dataset to")
-        metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata to store with the dataset")
-    
+        metadata: Optional[Dict[str, Any]] = Field(
+            None, description="Additional metadata to store with the dataset"
+        )
+
     class StoreDatasetResponse(BaseModel):
         """Response model for dataset storage operations."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("store_dataset", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
@@ -508,23 +625,29 @@ if PYDANTIC_AVAILABLE:
         local_path: Optional[str] = Field(None, description="Local path to the dataset")
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
-    
+
     class DatasetLoadRequest(BaseModel):
         """Request model for loading a dataset by name/version or CID."""
+
         name: Optional[str] = Field(None, description="Dataset name to load")
-        version: Optional[str] = Field(None, description="Dataset version (loads latest if not specified)")
+        version: Optional[str] = Field(
+            None, description="Dataset version (loads latest if not specified)"
+        )
         cid: Optional[str] = Field(None, description="CID to load (alternative to name/version)")
         format: Optional[str] = Field(None, description="Format to convert the dataset to")
-        
-        @validator('name', 'cid', mode='before')  # mode='before' for compatibility with field_validator
+
+        @validator(
+            "name", "cid", mode="before"
+        )  # mode='before' for compatibility with field_validator
         def validate_name_or_cid(cls, v, info):
-            values = info.data if hasattr(info, 'data') else info
-            if not v and 'name' not in values and 'cid' not in values:
+            values = info.data if hasattr(info, "data") else info
+            if not v and "name" not in values and "cid" not in values:
                 raise ValueError("Either name or cid must be provided")
             return v
-    
+
     class DatasetLoadResponse(BaseModel):
         """Response model for dataset loading operations."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("load_dataset", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
@@ -537,24 +660,31 @@ if PYDANTIC_AVAILABLE:
         metadata: Optional[Dict[str, Any]] = Field(None, description="Dataset metadata")
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
-    
+
     class ListDatasetsResponse(BaseModel):
         """Response model for listing datasets."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("list_datasets", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
-        datasets: Optional[Dict[str, Dict[str, Any]]] = Field(None, description="Dictionary of datasets and versions")
+        datasets: Optional[Dict[str, Dict[str, Any]]] = Field(
+            None, description="Dictionary of datasets and versions"
+        )
         count: Optional[int] = Field(None, description="Number of datasets")
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
-    
+
     class GetDatasetCIDRequest(BaseModel):
         """Request model for retrieving dataset CIDs."""
+
         name: str = Field(..., description="Dataset name")
-        version: Optional[str] = Field(None, description="Dataset version (latest if not specified)")
-    
+        version: Optional[str] = Field(
+            None, description="Dataset version (latest if not specified)"
+        )
+
     class GetDatasetCIDResponse(BaseModel):
         """Response model for dataset CID retrieval operations."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("get_dataset_cid", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
@@ -563,67 +693,91 @@ if PYDANTIC_AVAILABLE:
         cid: Optional[str] = Field(None, description="Content identifier for the dataset")
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
-    
+
     class ShareDatasetRequest(BaseModel):
         """Request model for sharing datasets."""
+
         name: Optional[str] = Field(None, description="Dataset name")
-        version: Optional[str] = Field(None, description="Dataset version (latest if not specified)")
+        version: Optional[str] = Field(
+            None, description="Dataset version (latest if not specified)"
+        )
         cid: Optional[str] = Field(None, description="Dataset CID (alternative to name/version)")
-        
-        @validator('name', 'cid', mode='before')  # mode='before' for compatibility with field_validator
+
+        @validator(
+            "name", "cid", mode="before"
+        )  # mode='before' for compatibility with field_validator
         def validate_name_or_cid(cls, v, info):
-            values = info.data if hasattr(info, 'data') else info
-            if not v and 'name' not in values and 'cid' not in values:
+            values = info.data if hasattr(info, "data") else info
+            if not v and "name" not in values and "cid" not in values:
                 raise ValueError("Either name or cid must be provided")
             return v
-    
+
     class ShareDatasetResponse(BaseModel):
         """Response model for dataset sharing operations."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("share_dataset", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
         cid: Optional[str] = Field(None, description="Content identifier for the dataset")
         ipfs_uri: Optional[str] = Field(None, description="IPFS URI for the dataset")
-        gateway_links: Optional[List[str]] = Field(None, description="Gateway links for accessing the dataset")
-        share_command: Optional[str] = Field(None, description="IPFS command to retrieve the dataset")
+        gateway_links: Optional[List[str]] = Field(
+            None, description="Gateway links for accessing the dataset"
+        )
+        share_command: Optional[str] = Field(
+            None, description="IPFS command to retrieve the dataset"
+        )
         dataset_name: Optional[str] = Field(None, description="Dataset name")
         version: Optional[str] = Field(None, description="Dataset version")
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
-    
+
     class DeleteDatasetRequest(BaseModel):
         """Request model for deleting datasets."""
+
         name: str = Field(..., description="Dataset name")
-        version: Optional[str] = Field(None, description="Specific version to delete (all versions if None)")
-    
+        version: Optional[str] = Field(
+            None, description="Specific version to delete (all versions if None)"
+        )
+
     class DeleteDatasetResponse(BaseModel):
         """Response model for dataset deletion operations."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("delete_dataset", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
         dataset_name: Optional[str] = Field(None, description="Dataset name")
         deleted_versions: Optional[List[str]] = Field(None, description="List of deleted versions")
-        all_versions_deleted: Optional[bool] = Field(None, description="Whether all versions were deleted")
+        all_versions_deleted: Optional[bool] = Field(
+            None, description="Whether all versions were deleted"
+        )
         error: Optional[str] = Field(None, description="Error message if operation failed")
         error_type: Optional[str] = Field(None, description="Type of error if operation failed")
-    
+
     class TrainTestSplitRequest(BaseModel):
         """Request model for creating train/test splits."""
+
         name: str = Field(..., description="Name for the resulting datasets")
-        test_size: float = Field(0.2, description="Proportion of the dataset to include in the test split")
+        test_size: float = Field(
+            0.2, description="Proportion of the dataset to include in the test split"
+        )
         random_state: Optional[int] = Field(None, description="Controls the shuffling of the data")
         stratify: Optional[str] = Field(None, description="Column to use for stratified split")
         split_column: Optional[str] = Field(None, description="Column to use as split identifier")
         format: Optional[str] = Field(None, description="Format for the resulting datasets")
         metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata to store")
-    
+
     class TrainTestSplitResponse(BaseModel):
         """Response model for train/test split operations."""
+
         success: bool = Field(..., description="Operation success status")
         operation: str = Field("create_train_test_split", description="Operation name")
         timestamp: float = Field(..., description="Operation timestamp")
-        train_dataset: Optional[Dict[str, Any]] = Field(None, description="Training dataset information")
-        test_dataset: Optional[Dict[str, Any]] = Field(None, description="Testing dataset information")
+        train_dataset: Optional[Dict[str, Any]] = Field(
+            None, description="Training dataset information"
+        )
+        test_dataset: Optional[Dict[str, Any]] = Field(
+            None, description="Testing dataset information"
+        )
         train_samples: Optional[int] = Field(None, description="Number of training samples")
         test_samples: Optional[int] = Field(None, description="Number of testing samples")
         test_size: Optional[float] = Field(None, description="Actual test proportion achieved")
@@ -645,12 +799,6 @@ try:
     LLAMA_INDEX_AVAILABLE = True
 except ImportError:
     LLAMA_INDEX_AVAILABLE = False
-
-
-
-
-
-
 
 
 class AIMLIntegration:
@@ -677,7 +825,7 @@ class ModelRegistry:
     and distributing machine learning models using IPFS. It supports automatic
     model serialization/deserialization, framework detection, version tracking,
     metadata storage, and model discovery.
-    
+
     Features:
         - Framework-agnostic model storage and retrieval
         - Automatic framework detection for common ML libraries
@@ -693,23 +841,23 @@ class ModelRegistry:
           - XGBoost
           - LightGBM
           - Hugging Face Transformers
-    
+
     Typical usage:
         ```python
         from ipfs_kit_py import ipfs_kit
-        
+
         # Initialize IPFS Kit
         kit = ipfs_kit()
-        
+
         # Get model registry
         registry = kit.get_model_registry()
-        
+
         # Store a model
         result = registry.store_model(my_model, "my_classifier", version="1.0.0")
-        
+
         # Load a model
         model, metadata = registry.load_model(name="my_classifier")
-        
+
         # Share a model
         share_info = registry.share_model(name="my_classifier")
         print(f"Model available at: {share_info['ipfs_uri']}")
@@ -717,10 +865,7 @@ class ModelRegistry:
     """
 
     def __init__(
-        self, 
-        ipfs_client: Optional[Any] = None, 
-        base_path: Optional[str] = None, 
-        **kwargs: Any
+        self, ipfs_client: Optional[Any] = None, base_path: Optional[str] = None, **kwargs: Any
     ) -> None:
         """Initialize the model registry.
 
@@ -763,11 +908,11 @@ class ModelRegistry:
 
     def _create_new_registry(self) -> Dict[str, Any]:
         """Create a new registry structure with default values.
-        
+
         Creates a fresh model registry with initial metadata and empty models dictionary.
         The registry follows a structured format with versioning and timestamp tracking,
         making it suitable for distributed synchronization.
-        
+
         Returns:
             Dictionary containing the new registry structure with:
             - Empty models dictionary
@@ -784,27 +929,27 @@ class ModelRegistry:
 
     def _save_registry(self) -> Optional[str]:
         """Save the registry to disk and optionally to IPFS.
-        
+
         Updates the registry timestamp, writes it to the local filesystem,
         and if an IPFS client is available, publishes the registry to IPFS
         for distributed access. The CID of the published registry is stored
         for future reference.
-        
+
         Implements consistent error handling with appropriate logging for
         failure cases. Creates backups of previous registry versions if
         backup_enabled is True.
-        
+
         Returns:
             The CID of the published registry if successful, None otherwise
         """
         # Update timestamp
         self.registry["updated_at"] = datetime.now().isoformat()
-        
+
         # Create backup if enabled
         if self.backup_enabled and os.path.exists(self.registry_path):
             backup_dir = os.path.join(self.base_path, "backups")
             os.makedirs(backup_dir, exist_ok=True)
-            
+
             timestamp = int(time.time())
             backup_path = os.path.join(backup_dir, f"registry_{timestamp}.json")
             try:
@@ -814,16 +959,17 @@ class ModelRegistry:
 
         # For unittest.mock.MagicMock objects in testing
         from unittest.mock import MagicMock
+
         def is_mock_object(obj):
             return isinstance(obj, MagicMock)
-            
+
         # Custom JSON encoder to handle mock objects
         class MockSafeEncoder(json.JSONEncoder):
             def default(self, obj):
                 if is_mock_object(obj):
                     return f"<Mock:{id(obj)}>"
                 return super().default(obj)
-        
+
         # Save to file
         try:
             with open(self.registry_path, "w") as f:
@@ -835,7 +981,7 @@ class ModelRegistry:
             # This might happen during testing with mock objects
             self.logger.error(f"Failed to serialize registry: {e}")
             # Return a fake CID for testing purposes
-            if hasattr(self.ipfs, '_testing_mode') and self.ipfs._testing_mode:
+            if hasattr(self.ipfs, "_testing_mode") and self.ipfs._testing_mode:
                 return "mock-registry-cid-error"
             return None
 
@@ -843,7 +989,7 @@ class ModelRegistry:
         if self.ipfs and hasattr(self.ipfs, "ipfs_add_json"):
             try:
                 # In testing mode with mocks, skip the actual IPFS call
-                if hasattr(self.ipfs, '_testing_mode') and self.ipfs._testing_mode:
+                if hasattr(self.ipfs, "_testing_mode") and self.ipfs._testing_mode:
                     result = {"success": True, "cid": f"mock-registry-cid-{uuid.uuid4().hex[:8]}"}
                 else:
                     try:
@@ -852,26 +998,29 @@ class ModelRegistry:
                         result = self.ipfs.ipfs_add_json(registry_copy)
                     except TypeError:
                         # Fall back to a mock result if serialization fails
-                        result = {"success": True, "cid": f"mock-registry-cid-{uuid.uuid4().hex[:8]}"}
-                
+                        result = {
+                            "success": True,
+                            "cid": f"mock-registry-cid-{uuid.uuid4().hex[:8]}",
+                        }
+
                 if result.get("success", False):
                     registry_cid = result.get("cid") or result.get("Hash")
                     self.registry["registry_cid"] = registry_cid
                     # Save updated registry with CID
                     with open(self.registry_path, "w") as f:
                         json.dump(self.registry, f, indent=2, cls=MockSafeEncoder)
-                    
+
                     # Attempt to pin if auto_pin is enabled
                     if self.auto_pin and hasattr(self.ipfs, "pin_add"):
                         try:
                             self.ipfs.pin_add(registry_cid)
                         except Exception as e:
                             self.logger.warning(f"Failed to pin registry: {e}")
-                    
+
                     return registry_cid
             except Exception as e:
                 self.logger.error(f"Failed to publish registry to IPFS: {e}")
-        
+
         return None
 
     def _get_framework_serializer(self, framework: str) -> Dict[str, Any]:
@@ -911,7 +1060,7 @@ class ModelRegistry:
         def safe_pickle_save(model: Any, path: str) -> None:
             with open(path, "wb") as f:
                 pickle.dump(model, f)
-                
+
         def safe_pickle_load(path: str) -> Any:
             with open(path, "rb") as f:
                 return pickle.load(f)
@@ -926,6 +1075,7 @@ class ModelRegistry:
         # PyTorch serializer
         if framework == "pytorch":
             import torch
+
             return {
                 "save": lambda model, path: torch.save(model, path),
                 "load": lambda path: torch.load(path),
@@ -935,6 +1085,7 @@ class ModelRegistry:
         # TensorFlow serializer
         elif framework == "tensorflow":
             import tensorflow as tf
+
             return {
                 "save": lambda model, path: model.save(path),
                 "load": lambda path: tf.keras.models.load_model(path),
@@ -952,6 +1103,7 @@ class ModelRegistry:
         # XGBoost serializer
         elif framework == "xgboost":
             import xgboost
+
             return {
                 "save": lambda model, path: model.save_model(path),
                 "load": lambda path: xgboost.Booster(model_file=path),
@@ -961,6 +1113,7 @@ class ModelRegistry:
         # LightGBM serializer
         elif framework == "lightgbm":
             import lightgbm
+
             return {
                 "save": lambda model, path: model.save_model(path),
                 "load": lambda path: lightgbm.Booster(model_file=path),
@@ -970,25 +1123,26 @@ class ModelRegistry:
         # Hugging Face serializer
         elif framework == "transformers":
             from transformers import AutoModel
+
             return {
                 "save": lambda model, path: model.save_pretrained(path),
                 "load": lambda path: AutoModel.from_pretrained(path),
                 "file_ext": "",  # HF save creates a directory
             }
-        
+
         # JAX/Flax serializer
         elif framework == "flax" or framework == "jax":
             try:
                 import flax
-                
+
                 def save_flax_model(model, path):
                     with open(path, "wb") as f:
                         f.write(flax.serialization.to_bytes(model))
-                
+
                 def load_flax_model(path):
                     with open(path, "rb") as f:
                         return flax.serialization.from_bytes(model, f.read())
-                
+
                 return {
                     "save": save_flax_model,
                     "load": load_flax_model,
@@ -1007,10 +1161,10 @@ class ModelRegistry:
         Inspects the model object using type checking and attribute examination to
         determine which ML framework it belongs to. This enables automatic handling
         of different model types without requiring the user to specify the framework.
-        
+
         The detection follows a priority order, checking for framework-specific
         signatures. It handles common ML libraries including PyTorch, TensorFlow,
-        scikit-learn, XGBoost, LightGBM, and Hugging Face Transformers. For 
+        scikit-learn, XGBoost, LightGBM, and Hugging Face Transformers. For
         unsupported or custom model types, it attempts to make an educated guess
         based on naming patterns.
 
@@ -1044,7 +1198,7 @@ class ModelRegistry:
             if isinstance(model, tf.keras.Model) or isinstance(model, tf.Module):
                 return "tensorflow"
             # Check for SavedModel dictionary
-            if isinstance(model, dict) and 'keras_version' in model:
+            if isinstance(model, dict) and "keras_version" in model:
                 return "tensorflow"
 
         # Check if it's a scikit-learn model
@@ -1083,21 +1237,21 @@ class ModelRegistry:
                 return "transformers"
         except ImportError:
             pass
-            
+
         # Check if it's a JAX/Flax model
         try:
             import flax
-            
-            if isinstance(model, flax.linen.Module) or hasattr(model, 'params'):
+
+            if isinstance(model, flax.linen.Module) or hasattr(model, "params"):
                 return "flax"
         except ImportError:
             pass
-        
+
         try:
             import jax
-            
+
             # Check for typical JAX model patterns (state dict with params)
-            if isinstance(model, dict) and 'params' in model:
+            if isinstance(model, dict) and "params" in model:
                 return "jax"
         except ImportError:
             pass
@@ -1105,13 +1259,13 @@ class ModelRegistry:
         # Look for framework-specific attributes
         if hasattr(model, "state_dict") and callable(getattr(model, "state_dict", None)):
             return "pytorch"  # Likely PyTorch
-            
+
         if hasattr(model, "get_weights") and callable(getattr(model, "get_weights", None)):
             return "tensorflow"  # Likely TensorFlow/Keras
-            
+
         if hasattr(model, "get_params") and callable(getattr(model, "get_params", None)):
             return "sklearn"  # Likely scikit-learn
-            
+
         if hasattr(model, "feature_importances_"):
             return "sklearn"  # Common in scikit-learn and tree-based models
 
@@ -1140,47 +1294,43 @@ class ModelRegistry:
         return "unknown"
 
     def add_model(
-        self, 
-        model: Any, 
-        model_name: str, 
-        version: Optional[str] = None, 
-        framework: Optional[str] = None, 
-        metadata: Optional[Dict[str, Any]] = None
+        self,
+        model: Any,
+        model_name: str,
+        version: Optional[str] = None,
+        framework: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Union[Dict[str, Any], "StoreModelResponse"]:
         """Add a model to the registry (alias for store_model).
-        
+
         This method provides backward compatibility with the test suite and older code.
         It simply calls the store_model method with the same parameters.
-        
+
         Args:
             model: Machine learning model object to store
             model_name: Name to identify the model (used for retrieval)
             version: Version string (defaults to "1.0.0" if not provided)
             framework: Framework name (detected automatically if not provided)
             metadata: Additional metadata to store with the model
-            
+
         Returns:
             Same as store_model
         """
         return self.store_model(
-            model=model,
-            name=model_name,
-            version=version,
-            framework=framework,
-            metadata=metadata
+            model=model, name=model_name, version=version, framework=framework, metadata=metadata
         )
-        
+
     def store_model(
-        self, 
-        model: Any, 
-        name: str, 
-        version: Optional[str] = None, 
-        framework: Optional[str] = None, 
-        metadata: Optional[Dict[str, Any]] = None
+        self,
+        model: Any,
+        name: str,
+        version: Optional[str] = None,
+        framework: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Union[Dict[str, Any], "StoreModelResponse"]:
         """Store a machine learning model in the registry.
 
-        Serializes and stores a model with versioning, automatically detecting its 
+        Serializes and stores a model with versioning, automatically detecting its
         framework type if not specified. The model is saved locally and optionally
         uploaded to IPFS with content addressing. Model metadata is preserved and
         extended with system information.
@@ -1244,10 +1394,7 @@ class ModelRegistry:
             # Validate parameters using Pydantic if available
             if PYDANTIC_AVAILABLE:
                 request_model = StoreModelRequest(
-                    name=name,
-                    version=version,
-                    framework=framework,
-                    metadata=metadata
+                    name=name, version=version, framework=framework, metadata=metadata
                 )
                 # Extract validated values
                 name = request_model.name
@@ -1291,7 +1438,7 @@ class ModelRegistry:
 
             # Prepare and validate metadata
             metadata = metadata or {}
-            
+
             # Structure the metadata for validation if Pydantic is available
             if PYDANTIC_AVAILABLE:
                 try:
@@ -1305,24 +1452,30 @@ class ModelRegistry:
                     # Validate with ModelMetadata schema
                     validated_metadata = ModelMetadata(
                         framework=framework,
-                        **{k: v for k, v in combined_metadata.items() if k != "framework"}
+                        **{k: v for k, v in combined_metadata.items() if k != "framework"},
                     ).model_dump(exclude_unset=True)
                     metadata = validated_metadata
                 except Exception as e:
-                    self.logger.warning(f"Metadata validation failed, using unvalidated version: {e}")
+                    self.logger.warning(
+                        f"Metadata validation failed, using unvalidated version: {e}"
+                    )
                     # Fall back to unvalidated metadata
-                    metadata.update({
+                    metadata.update(
+                        {
+                            "framework": framework,
+                            "stored_at": time.time(),
+                            "stored_by": os.environ.get("USER", "unknown"),
+                        }
+                    )
+            else:
+                # Without Pydantic, just update with required fields
+                metadata.update(
+                    {
                         "framework": framework,
                         "stored_at": time.time(),
                         "stored_by": os.environ.get("USER", "unknown"),
-                    })
-            else:
-                # Without Pydantic, just update with required fields
-                metadata.update({
-                    "framework": framework,
-                    "stored_at": time.time(),
-                    "stored_by": os.environ.get("USER", "unknown"),
-                })
+                    }
+                )
 
             # Save metadata
             metadata_path = os.path.join(model_dir, "metadata.json")
@@ -1339,7 +1492,7 @@ class ModelRegistry:
                         cid = add_result.get("cid") or add_result.get("Hash")
                         self.logger.info(f"Model {name} v{version} added to IPFS with CID: {cid}")
                     else:
-                        error_msg = add_result.get('error', 'Unknown error')
+                        error_msg = add_result.get("error", "Unknown error")
                         self.logger.warning(f"Failed to add model to IPFS: {error_msg}")
                 else:
                     self.logger.warning("IPFS client does not support ipfs_add_path method")
@@ -1355,7 +1508,9 @@ class ModelRegistry:
                     self.logger.debug(f"Pinning model CID: {cid}")
                     pin_result = self.ipfs.pin_add(cid)
                     if not pin_result.get("success", False):
-                        self.logger.warning(f"Failed to pin model: {pin_result.get('error', 'Unknown error')}")
+                        self.logger.warning(
+                            f"Failed to pin model: {pin_result.get('error', 'Unknown error')}"
+                        )
                 except Exception as e:
                     self.logger.warning(f"Failed to pin model: {e}")
 
@@ -1381,34 +1536,41 @@ class ModelRegistry:
                         "mime_type": "application/x-ml-model",
                         "filename": f"{name}_{version}",
                         "path": f"/ipfs/{cid}",
-                        "size_bytes": metadata.get("size_bytes"), # Get size if available
+                        "size_bytes": metadata.get("size_bytes"),  # Get size if available
                         "tags": ["model", framework, name] + metadata.get("tags", []),
                         "properties": {
                             "model_name": name,
                             "model_version": version,
                             "framework": framework,
                             "type": "ml_model",
-                            **{k: str(v) for k, v in metadata.items() if k not in ["framework", "stored_at", "stored_by", "tags"]}
-                        }
+                            **{
+                                k: str(v)
+                                for k, v in metadata.items()
+                                if k not in ["framework", "stored_at", "stored_by", "tags"]
+                            },
+                        },
                     }
                     # Remove None values from index_record before adding
                     index_record = {k: v for k, v in index_record.items() if v is not None}
                     index_result = self.ipfs.metadata_index.add(index_record)
                     if not index_result.get("success"):
-                        self.logger.warning(f"Failed to add model metadata to index: {index_result.get('error')}")
+                        self.logger.warning(
+                            f"Failed to add model metadata to index: {index_result.get('error')}"
+                        )
                 except Exception as idx_e:
                     self.logger.warning(f"Error adding model metadata to index: {idx_e}")
 
-
             # Success result
-            result.update({
-                "success": True,
-                "model_name": name,
-                "version": version,
-                "framework": framework,
-                "cid": cid,
-                "local_path": model_dir,
-            })
+            result.update(
+                {
+                    "success": True,
+                    "model_name": name,
+                    "version": version,
+                    "framework": framework,
+                    "cid": cid,
+                    "local_path": model_dir,
+                }
+            )
 
             # Return Pydantic model if available
             if PYDANTIC_AVAILABLE:
@@ -1419,26 +1581,23 @@ class ModelRegistry:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error storing model: {e}")
-            
+
             # Return Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return StoreModelResponse(**result)
             return result
 
     def load_model(
-        self, 
-        name: Optional[str] = None, 
-        version: Optional[str] = None, 
-        cid: Optional[str] = None
+        self, name: Optional[str] = None, version: Optional[str] = None, cid: Optional[str] = None
     ) -> Union[Tuple[Any, Dict[str, Any]], Dict[str, Any], "LoadModelResponse"]:
         """Load a model from the registry.
 
-        Retrieves a model by name/version or directly by CID. The method attempts to 
+        Retrieves a model by name/version or directly by CID. The method attempts to
         load from local cache first for performance, falling back to IPFS retrieval
         if necessary. Successfully retrieved models from IPFS are cached locally
         for future use.
 
-        The method handles framework-specific deserialization automatically, using the 
+        The method handles framework-specific deserialization automatically, using the
         appropriate loading method based on the model's framework. It supports all
         major ML frameworks and provides consistent error handling.
 
@@ -1456,7 +1615,7 @@ class ModelRegistry:
 
             If failed and Pydantic is available:
                 LoadModelResponse with error information
-                
+
             If failed without Pydantic:
                 Dictionary with error information including:
                 - success: False
@@ -1476,11 +1635,11 @@ class ModelRegistry:
             except Exception as e:
                 # Return validation error as LoadModelResponse
                 error_result = {
-                    "success": False, 
-                    "operation": "load_model", 
+                    "success": False,
+                    "operation": "load_model",
                     "timestamp": time.time(),
                     "error": f"Validation error: {str(e)}",
-                    "error_type": "ValidationError"
+                    "error_type": "ValidationError",
                 }
                 return LoadModelResponse(**error_result)
 
@@ -1509,7 +1668,9 @@ class ModelRegistry:
                         break
 
                 if not found:
-                    self.logger.debug(f"CID {cid} not found in registry, will attempt direct loading")
+                    self.logger.debug(
+                        f"CID {cid} not found in registry, will attempt direct loading"
+                    )
                     model_cid = cid  # Use provided CID even if not in registry
 
             elif name:
@@ -1518,7 +1679,7 @@ class ModelRegistry:
                     error_msg = f"Model '{name}' not found in registry"
                     self.logger.warning(error_msg)
                     result["error"] = error_msg
-                    
+
                     # Return as Pydantic model if available
                     if PYDANTIC_AVAILABLE:
                         return LoadModelResponse(**result)
@@ -1538,7 +1699,7 @@ class ModelRegistry:
                         self.logger.error(error_msg)
                         result["error"] = error_msg
                         result["error_type"] = type(e).__name__
-                        
+
                         # Return as Pydantic model if available
                         if PYDANTIC_AVAILABLE:
                             return LoadModelResponse(**result)
@@ -1549,7 +1710,7 @@ class ModelRegistry:
                     error_msg = f"Version '{version}' not found for model '{name}'"
                     self.logger.warning(error_msg)
                     result["error"] = error_msg
-                    
+
                     # Return as Pydantic model if available
                     if PYDANTIC_AVAILABLE:
                         return LoadModelResponse(**result)
@@ -1558,13 +1719,15 @@ class ModelRegistry:
                 # Get CID and framework info
                 model_cid = self.registry["models"][name][version]["cid"]
                 model_framework = self.registry["models"][name][version]["framework"]
-                self.logger.debug(f"Found model {name} v{version} with CID {model_cid}, framework: {model_framework}")
+                self.logger.debug(
+                    f"Found model {name} v{version} with CID {model_cid}, framework: {model_framework}"
+                )
 
             else:
                 error_msg = "Either name or cid must be provided"
                 self.logger.warning(error_msg)
                 result["error"] = error_msg
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return LoadModelResponse(**result)
@@ -1591,7 +1754,7 @@ class ModelRegistry:
                             error_msg = "Could not determine model framework type for loading"
                             self.logger.warning(error_msg)
                             result["error"] = error_msg
-                            
+
                             # Return as Pydantic model if available
                             if PYDANTIC_AVAILABLE:
                                 return LoadModelResponse(**result)
@@ -1607,9 +1770,13 @@ class ModelRegistry:
                                 self.logger.debug(f"Loading model from {model_path}")
                                 try:
                                     local_model = serializer["load"](model_path)
-                                    self.logger.info(f"Successfully loaded model {name} v{version} from local cache")
+                                    self.logger.info(
+                                        f"Successfully loaded model {name} v{version} from local cache"
+                                    )
                                 except Exception as e:
-                                    self.logger.warning(f"Error loading model with {model_framework} serializer: {e}")
+                                    self.logger.warning(
+                                        f"Error loading model with {model_framework} serializer: {e}"
+                                    )
                                     # Don't fail yet, try other methods
                         else:
                             # For frameworks that save to a directory (TF, HF, etc.)
@@ -1618,9 +1785,13 @@ class ModelRegistry:
                                 self.logger.debug(f"Loading model from directory {model_path}")
                                 try:
                                     local_model = serializer["load"](model_path)
-                                    self.logger.info(f"Successfully loaded model {name} v{version} from local cache")
+                                    self.logger.info(
+                                        f"Successfully loaded model {name} v{version} from local cache"
+                                    )
                                 except Exception as e:
-                                    self.logger.warning(f"Error loading model with {model_framework} serializer: {e}")
+                                    self.logger.warning(
+                                        f"Error loading model with {model_framework} serializer: {e}"
+                                    )
                                     # Don't fail yet, try other methods
                     except Exception as e:
                         self.logger.warning(f"Failed to load model locally: {e}")
@@ -1639,7 +1810,7 @@ class ModelRegistry:
                         self.logger.debug(f"Retrieving model with CID {model_cid} from IPFS")
                         get_result = self.ipfs.get(model_cid, temp_dir)
                         if not get_result.get("success", False):
-                            error_msg = get_result.get('error', 'Unknown error')
+                            error_msg = get_result.get("error", "Unknown error")
                             raise ValueError(f"Failed to get model from IPFS: {error_msg}")
                     else:
                         # Fallback for clients without get method
@@ -1662,7 +1833,9 @@ class ModelRegistry:
                     if not model_framework:
                         model_framework = self._infer_framework_from_files(model_dir)
                         if model_framework:
-                            self.logger.info(f"Inferred framework {model_framework} from model files")
+                            self.logger.info(
+                                f"Inferred framework {model_framework} from model files"
+                            )
                         else:
                             model_framework = "unknown"  # Default fallback
 
@@ -1679,10 +1852,14 @@ class ModelRegistry:
                         else:
                             model_path = os.path.join(model_dir, "model")
                             if os.path.exists(model_path):
-                                self.logger.debug(f"Loading model from IPFS directory at {model_path}")
+                                self.logger.debug(
+                                    f"Loading model from IPFS directory at {model_path}"
+                                )
                                 local_model = serializer["load"](model_path)
                     except Exception as e:
-                        self.logger.error(f"Failed to load model with {model_framework} serializer: {e}")
+                        self.logger.error(
+                            f"Failed to load model with {model_framework} serializer: {e}"
+                        )
                         # Try fallback to pickle if primary serializer fails
                         if model_framework != "unknown":
                             try:
@@ -1691,9 +1868,13 @@ class ModelRegistry:
                                 pickle_path = os.path.join(model_dir, "model.pkl")
                                 if os.path.exists(pickle_path):
                                     local_model = fallback["load"](pickle_path)
-                                    self.logger.info("Successfully loaded model with fallback serializer")
+                                    self.logger.info(
+                                        "Successfully loaded model with fallback serializer"
+                                    )
                             except Exception as fallback_e:
-                                self.logger.error(f"Fallback serialization also failed: {fallback_e}")
+                                self.logger.error(
+                                    f"Fallback serialization also failed: {fallback_e}"
+                                )
 
                     # If model loaded successfully, save to local cache if name and version provided
                     if local_model is not None and name and version:
@@ -1750,14 +1931,16 @@ class ModelRegistry:
                 error_msg = "Failed to load model from both local cache and IPFS"
                 self.logger.error(error_msg)
                 result["error"] = error_msg
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return LoadModelResponse(**result)
                 return result
 
             # Add information about the loading to metadata
-            model_metadata["_loaded_from"] = "local" if "local_path" in locals() and os.path.exists(local_path) else "ipfs"
+            model_metadata["_loaded_from"] = (
+                "local" if "local_path" in locals() and os.path.exists(local_path) else "ipfs"
+            )
             model_metadata["_loaded_at"] = time.time()
             model_metadata["_framework"] = model_framework
 
@@ -1768,70 +1951,70 @@ class ModelRegistry:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error loading model: {e}")
-            
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return LoadModelResponse(**result)
             return result
-            
+
     def _infer_framework_from_files(self, model_dir: str) -> Optional[str]:
         """Attempt to infer the ML framework from files in the model directory.
-        
+
         Args:
             model_dir: Path to directory containing model files
-            
+
         Returns:
             Inferred framework name or None if can't be determined
         """
         if not os.path.isdir(model_dir):
             return None
-            
+
         # List all files
         try:
             files = os.listdir(model_dir)
         except Exception:
             return None
-            
+
         # Look for framework-specific file patterns
         if "model.pt" in files or "model.pth" in files:
             return "pytorch"
-            
+
         if "saved_model.pb" in files:
             return "tensorflow"
-            
+
         if "model.h5" in files:
             return "tensorflow"
-            
+
         if "model.sklearn" in files:
             return "sklearn"
-            
+
         if "model.joblib" in files:
             return "sklearn"
-            
+
         if "model.xgb" in files:
             return "xgboost"
-            
+
         if "model.lgb" in files:
             return "lightgbm"
-            
+
         if "pytorch_model.bin" in files or "config.json" in files:
             return "transformers"
-            
+
         if "model.pkl" in files:
             # Generic pickle - could be any framework
             return "unknown"
-            
+
         if "model" in files and os.path.isdir(os.path.join(model_dir, "model")):
             # Directory-based model (TF, HF, etc.)
             subdir = os.path.join(model_dir, "model")
             subdir_files = os.listdir(subdir)
-            
+
             if "saved_model.pb" in subdir_files:
                 return "tensorflow"
-                
+
             if "pytorch_model.bin" in subdir_files:
                 return "transformers"
-                
+
         return None
 
     def list_models(self) -> Union[Dict[str, Any], "ListModelsResponse"]:
@@ -1840,10 +2023,10 @@ class ModelRegistry:
         Retrieves a comprehensive listing of all models stored in the registry,
         including their versions, frameworks, and associated metadata. The models
         are organized hierarchically by name and version.
-        
+
         This method provides a centralized view of all available models, making it
         easier to discover and select models for loading, sharing, or management.
-        
+
         Returns:
             If Pydantic is available:
                 ListModelsResponse with models information including:
@@ -1851,10 +2034,10 @@ class ModelRegistry:
                 - models: Dictionary of models organized by name and version
                 - count: Total number of unique model names
                 - timestamp: Operation timestamp
-                
+
             Otherwise:
                 Dictionary with the same fields
-                
+
             In case of error, the response includes:
                 - success: False
                 - error: Error message
@@ -1877,19 +2060,19 @@ class ModelRegistry:
                         "cid": data.get("cid", ""),
                         "added_at": data.get("added_at", 0),
                     }
-                    
+
                     # Add metadata if available
                     if "metadata" in data:
                         # Include key metadata fields for easy access
                         metadata = data["metadata"]
                         model_info["metadata"] = metadata
-                        
+
                         # Extract common metadata fields as top-level properties for convenience
                         if isinstance(metadata, dict):
                             for key in ["description", "metrics", "tags", "parameters"]:
                                 if key in metadata:
                                     model_info[key] = metadata[key]
-                    
+
                     # Add local path information if available
                     local_path = os.path.join(self.models_dir, model_name, version)
                     if os.path.exists(local_path):
@@ -1897,22 +2080,26 @@ class ModelRegistry:
                         model_info["available_locally"] = True
                     else:
                         model_info["available_locally"] = False
-                        
+
                     models[model_name][version] = model_info
 
             # Count unique model names (not including versions)
             model_count = len(models)
-            
+
             # Update result with success information
-            result.update({
-                "success": True, 
-                "models": models, 
-                "count": model_count,
-                "registry_cid": self.registry.get("registry_cid")
-            })
-            
+            result.update(
+                {
+                    "success": True,
+                    "models": models,
+                    "count": model_count,
+                    "registry_cid": self.registry.get("registry_cid"),
+                }
+            )
+
             # Log success
-            self.logger.debug(f"Listed {model_count} models with {sum(len(versions) for versions in models.values())} total versions")
+            self.logger.debug(
+                f"Listed {model_count} models with {sum(len(versions) for versions in models.values())} total versions"
+            )
 
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
@@ -1924,42 +2111,40 @@ class ModelRegistry:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error listing models: {e}")
-            
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return ListModelsResponse(**result)
             return result
 
     def get_model_cid(
-        self, 
-        name: str, 
-        version: Optional[str] = None
+        self, name: str, version: Optional[str] = None
     ) -> Union[str, Dict[str, Any], "GetModelCIDResponse"]:
         """Get the CID for a specific model version.
-        
+
         Retrieves the content identifier (CID) for a machine learning model stored
         in the registry. If version is not specified, returns the CID for the latest
         version of the model.
-        
+
         Args:
             name: Model name to look up
             version: Model version (latest if not specified)
-            
+
         Returns:
             If Pydantic is available, returns GetModelCIDResponse with CID and metadata.
             Otherwise returns either a CID string or result dictionary with operation details.
-        
+
         Raises:
             No exceptions raised, errors are captured in result dictionary or response model.
         """
         # Initialize result tracking
         result = {
-            "success": False, 
-            "operation": "get_model_cid", 
+            "success": False,
+            "operation": "get_model_cid",
             "timestamp": time.time(),
-            "model_name": name
+            "model_name": name,
         }
-        
+
         # Validate request if Pydantic available
         if PYDANTIC_AVAILABLE:
             try:
@@ -1971,22 +2156,22 @@ class ModelRegistry:
             except Exception as e:
                 # Return validation error as GetModelCIDResponse
                 error_result = {
-                    "success": False, 
-                    "operation": "get_model_cid", 
+                    "success": False,
+                    "operation": "get_model_cid",
                     "timestamp": time.time(),
                     "model_name": name,
                     "error": f"Validation error: {str(e)}",
-                    "error_type": "ValidationError"
+                    "error_type": "ValidationError",
                 }
                 return GetModelCIDResponse(**error_result)
-        
+
         try:
             if name not in self.registry["models"]:
                 error_msg = f"Model '{name}' not found in registry"
                 self.logger.warning(error_msg)
                 result["error"] = error_msg
                 result["error_type"] = "NotFoundError"
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return GetModelCIDResponse(**result)
@@ -2005,7 +2190,7 @@ class ModelRegistry:
                     self.logger.error(error_msg)
                     result["error"] = error_msg
                     result["error_type"] = type(e).__name__
-                    
+
                     # Return as Pydantic model if available
                     if PYDANTIC_AVAILABLE:
                         return GetModelCIDResponse(**result)
@@ -2016,7 +2201,7 @@ class ModelRegistry:
                 self.logger.warning(error_msg)
                 result["error"] = error_msg
                 result["error_type"] = "NotFoundError"
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return GetModelCIDResponse(**result)
@@ -2024,15 +2209,10 @@ class ModelRegistry:
 
             # Get the CID
             cid = self.registry["models"][name][version]["cid"]
-            
+
             # Update result with success information
-            result.update({
-                "success": True,
-                "model_name": name,
-                "version": version,
-                "cid": cid
-            })
-            
+            result.update({"success": True, "model_name": name, "version": version, "cid": cid})
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return GetModelCIDResponse(**result)
@@ -2043,38 +2223,35 @@ class ModelRegistry:
             self.logger.error(error_msg)
             result["error"] = error_msg
             result["error_type"] = type(e).__name__
-            
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return GetModelCIDResponse(**result)
             return result
 
     def share_model(
-        self, 
-        name: Optional[str] = None, 
-        version: Optional[str] = None, 
-        cid: Optional[str] = None
+        self, name: Optional[str] = None, version: Optional[str] = None, cid: Optional[str] = None
     ) -> Union[Dict[str, Any], "ShareModelResponse"]:
         """Generate shareable link for a model.
-        
+
         Creates publicly accessible links for a model from IPFS gateways.
         The model can be specified either by name/version or directly by CID.
-        
+
         Args:
             name: Model name
             version: Model version (latest if not specified)
             cid: Model CID (alternative to name/version)
-            
+
         Returns:
             If Pydantic is available, returns ShareModelResponse with sharing information.
             Otherwise returns dictionary with sharing details.
-            
+
         Raises:
             No exceptions raised, errors are captured in result dictionary or response model.
         """
         # Initialize result tracking
         result = {"success": False, "operation": "share_model", "timestamp": time.time()}
-        
+
         # Validate request if Pydantic available
         if PYDANTIC_AVAILABLE:
             try:
@@ -2087,11 +2264,11 @@ class ModelRegistry:
             except Exception as e:
                 # Return validation error as ShareModelResponse
                 error_result = {
-                    "success": False, 
-                    "operation": "share_model", 
+                    "success": False,
+                    "operation": "share_model",
                     "timestamp": time.time(),
                     "error": f"Validation error: {str(e)}",
-                    "error_type": "ValidationError"
+                    "error_type": "ValidationError",
                 }
                 return ShareModelResponse(**error_result)
 
@@ -2102,14 +2279,14 @@ class ModelRegistry:
             if not model_cid and name:
                 # Use the updated get_model_cid method
                 get_result = self.get_model_cid(name, version)
-                
+
                 # Handle different return types from get_model_cid
                 if isinstance(get_result, dict):
                     if not get_result.get("success", False):
                         # Propagate error from get_model_cid
                         result["error"] = get_result.get("error", "Could not determine model CID")
                         result["error_type"] = get_result.get("error_type", "UnknownError")
-                        
+
                         # Return as Pydantic model if available
                         if PYDANTIC_AVAILABLE:
                             return ShareModelResponse(**result)
@@ -2118,12 +2295,12 @@ class ModelRegistry:
                 else:
                     # Direct CID return
                     model_cid = get_result
-                    
+
             if not model_cid:
                 result["error"] = "Could not determine model CID"
                 result["error_type"] = "ValidationError"
                 self.logger.warning("Failed to share model: Could not determine CID")
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return ShareModelResponse(**result)
@@ -2144,20 +2321,22 @@ class ModelRegistry:
                 gateway_links.append(f"{gateway}{model_cid}")
 
             # Generate sharing info
-            result.update({
-                "success": True,
-                "cid": model_cid,
-                "ipfs_uri": f"ipfs://{model_cid}",
-                "gateway_links": gateway_links,
-                "share_command": f"ipfs cat {model_cid}",
-            })
+            result.update(
+                {
+                    "success": True,
+                    "cid": model_cid,
+                    "ipfs_uri": f"ipfs://{model_cid}",
+                    "gateway_links": gateway_links,
+                    "share_command": f"ipfs cat {model_cid}",
+                }
+            )
 
             # Add name and version if provided
             if name:
                 result["model_name"] = name
                 if version:
                     result["version"] = version
-            
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return ShareModelResponse(**result)
@@ -2168,47 +2347,42 @@ class ModelRegistry:
             self.logger.exception(error_msg)
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return ShareModelResponse(**result)
             return result
 
     def update_model_metadata(
-        self, 
-        name: str, 
-        version: str, 
-        metadata_update: Dict[str, Any]
+        self, name: str, version: str, metadata_update: Dict[str, Any]
     ) -> Union[Dict[str, Any], "UpdateModelMetadataResponse"]:
         """Update metadata for a model.
-        
+
         Updates the metadata associated with a specific model version. The update
         is applied both to the in-memory registry and the persisted metadata file
         if it exists locally.
-        
+
         Args:
             name: Model name
             version: Model version
             metadata_update: Dictionary of metadata fields to update
-            
+
         Returns:
             If Pydantic is available, returns UpdateModelMetadataResponse with operation result.
             Otherwise returns dictionary with operation details.
-            
+
         Raises:
             No exceptions raised, errors are captured in result dictionary or response model.
         """
         # Initialize result tracking
         result = {"success": False, "operation": "update_model_metadata", "timestamp": time.time()}
-        
+
         # Validate request if Pydantic available
         if PYDANTIC_AVAILABLE:
             try:
                 # Validate parameters with Pydantic
                 request = UpdateModelMetadataRequest(
-                    name=name, 
-                    version=version, 
-                    metadata_update=metadata_update
+                    name=name, version=version, metadata_update=metadata_update
                 )
                 # Update validated values
                 name = request.name
@@ -2217,11 +2391,11 @@ class ModelRegistry:
             except Exception as e:
                 # Return validation error as UpdateModelMetadataResponse
                 error_result = {
-                    "success": False, 
-                    "operation": "update_model_metadata", 
+                    "success": False,
+                    "operation": "update_model_metadata",
                     "timestamp": time.time(),
                     "error": f"Validation error: {str(e)}",
-                    "error_type": "ValidationError"
+                    "error_type": "ValidationError",
                 }
                 return UpdateModelMetadataResponse(**error_result)
 
@@ -2232,7 +2406,7 @@ class ModelRegistry:
                 self.logger.warning(error_msg)
                 result["error"] = error_msg
                 result["error_type"] = "NotFoundError"
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return UpdateModelMetadataResponse(**result)
@@ -2244,7 +2418,7 @@ class ModelRegistry:
                 self.logger.warning(error_msg)
                 result["error"] = error_msg
                 result["error_type"] = "NotFoundError"
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return UpdateModelMetadataResponse(**result)
@@ -2252,11 +2426,13 @@ class ModelRegistry:
 
             # Validate metadata_update is a dictionary
             if not isinstance(metadata_update, dict):
-                error_msg = f"metadata_update must be a dictionary, got {type(metadata_update).__name__}"
+                error_msg = (
+                    f"metadata_update must be a dictionary, got {type(metadata_update).__name__}"
+                )
                 self.logger.warning(error_msg)
                 result["error"] = error_msg
                 result["error_type"] = "ValidationError"
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return UpdateModelMetadataResponse(**result)
@@ -2287,20 +2463,22 @@ class ModelRegistry:
                 self.logger.error(error_msg)
                 result["error"] = error_msg
                 result["error_type"] = "PersistenceError"
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return UpdateModelMetadataResponse(**result)
                 return result
 
             # Update result with success information
-            result.update({
-                "success": True,
-                "model_name": name,
-                "version": version,
-                "metadata": current_metadata,
-            })
-            
+            result.update(
+                {
+                    "success": True,
+                    "model_name": name,
+                    "version": version,
+                    "metadata": current_metadata,
+                }
+            )
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return UpdateModelMetadataResponse(**result)
@@ -2311,36 +2489,34 @@ class ModelRegistry:
             self.logger.exception(error_msg)
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return UpdateModelMetadataResponse(**result)
             return result
 
     def delete_model(
-        self, 
-        name: str, 
-        version: Optional[str] = None
+        self, name: str, version: Optional[str] = None
     ) -> Union[Dict[str, Any], "DeleteModelResponse"]:
         """Delete a model from the registry.
-        
+
         Removes a model (or specific version) from the registry, unpins the content
         from IPFS if possible, and deletes any local files associated with the model.
-        
+
         Args:
             name: Model name to delete
             version: Specific version to delete (all versions if None)
-            
+
         Returns:
             If Pydantic is available, returns DeleteModelResponse with operation result.
             Otherwise returns dictionary with deletion details.
-            
+
         Raises:
             No exceptions raised, errors are captured in result dictionary or response model.
         """
         # Initialize result tracking
         result = {"success": False, "operation": "delete_model", "timestamp": time.time()}
-        
+
         # Validate request if Pydantic available
         if PYDANTIC_AVAILABLE:
             try:
@@ -2352,11 +2528,11 @@ class ModelRegistry:
             except Exception as e:
                 # Return validation error as DeleteModelResponse
                 error_result = {
-                    "success": False, 
-                    "operation": "delete_model", 
+                    "success": False,
+                    "operation": "delete_model",
                     "timestamp": time.time(),
                     "error": f"Validation error: {str(e)}",
-                    "error_type": "ValidationError"
+                    "error_type": "ValidationError",
                 }
                 return DeleteModelResponse(**error_result)
 
@@ -2368,7 +2544,7 @@ class ModelRegistry:
                 result["error"] = error_msg
                 result["error_type"] = "NotFoundError"
                 result["model_name"] = name
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return DeleteModelResponse(**result)
@@ -2387,24 +2563,24 @@ class ModelRegistry:
                     result["error"] = error_msg
                     result["error_type"] = "NotFoundError"
                     result["model_name"] = name
-                    
+
                     # Return as Pydantic model if available
                     if PYDANTIC_AVAILABLE:
                         return DeleteModelResponse(**result)
                     return result
-                    
+
                 versions_to_delete = [version]
                 self.logger.info(f"Deleting version '{version}' of model '{name}'")
 
             # Delete local files and unpin from IPFS
             deleted_versions = []
             deletion_errors = []
-            
+
             for ver in versions_to_delete:
                 try:
                     # Get CID for unpinning
                     cid = self.registry["models"][name][ver]["cid"]
-                    
+
                     # Unpin from IPFS if client available
                     if self.ipfs and hasattr(self.ipfs, "pin_rm"):
                         try:
@@ -2429,7 +2605,7 @@ class ModelRegistry:
                     # Remove from registry
                     del self.registry["models"][name][ver]
                     deleted_versions.append(ver)
-                    
+
                 except Exception as e:
                     error_msg = f"Error deleting version '{ver}': {str(e)}"
                     self.logger.error(error_msg)
@@ -2465,24 +2641,27 @@ class ModelRegistry:
                 result["error"] = error_msg
                 result["error_type"] = "DeleteError"
                 result["model_name"] = name
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return DeleteModelResponse(**result)
                 return result
 
             # Update result with success information
-            result.update({
-                "success": True,
-                "model_name": name,
-                "deleted_versions": deleted_versions,
-                "all_versions_deleted": version is None or len(deleted_versions) == len(versions_to_delete),
-            })
-            
+            result.update(
+                {
+                    "success": True,
+                    "model_name": name,
+                    "deleted_versions": deleted_versions,
+                    "all_versions_deleted": version is None
+                    or len(deleted_versions) == len(versions_to_delete),
+                }
+            )
+
             # Add any non-critical errors as warnings
             if deletion_errors:
                 result["warnings"] = deletion_errors
-                
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return DeleteModelResponse(**result)
@@ -2494,7 +2673,7 @@ class ModelRegistry:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             result["model_name"] = name
-            
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return DeleteModelResponse(**result)
@@ -2578,16 +2757,17 @@ class DatasetManager:
             # Use MockSafeEncoder to handle MagicMock objects
             # For unittest.mock.MagicMock objects in testing
             from unittest.mock import MagicMock
+
             def is_mock_object(obj):
                 return isinstance(obj, MagicMock)
-                
+
             # Custom JSON encoder to handle mock objects
             class MockSafeEncoder(json.JSONEncoder):
                 def default(self, obj):
                     if is_mock_object(obj):
                         return f"<Mock:{id(obj)}>"
                     return super().default(obj)
-            
+
             json.dump(self.registry, f, indent=2, cls=MockSafeEncoder)
 
         # Update registry in IPFS if client available
@@ -2830,7 +3010,7 @@ class DatasetManager:
             if PANDAS_AVAILABLE:
                 # Only read first 1000 rows for stats to avoid memory issues
                 df = pd.read_csv(path, nrows=1000)
-                
+
                 stats = {
                     "num_rows": self._count_lines(path) - 1,  # Subtract header
                     "num_columns": len(df.columns),
@@ -2849,7 +3029,9 @@ class DatasetManager:
             self.logger.warning(f"Failed to get CSV stats: {e}")
             try:
                 return {
-                    "num_rows": self._count_lines(path) - 1 if self._count_lines(path) > 0 else 0,  # Subtract header
+                    "num_rows": self._count_lines(path) - 1
+                    if self._count_lines(path) > 0
+                    else 0,  # Subtract header
                     "num_columns": len(self._read_csv_header(path)) if os.path.exists(path) else 0,
                 }
             except Exception:
@@ -3255,12 +3437,12 @@ class DatasetManager:
         convert_to: Optional[str] = None,
     ) -> Union[Dict[str, Any], "StoreDatasetResponse"]:
         """Store a dataset in the registry with IPFS-backed persistence.
-        
+
         Takes a dataset object or path to a dataset file, stores it in the local
         filesystem, adds it to IPFS for content-addressed storage, and registers
         it in the dataset registry with metadata. Supports automatic format detection,
         format conversion, and chunking for large datasets.
-        
+
         Args:
             dataset: Dataset object (pandas DataFrame, numpy array, etc.) to store
             dataset_path: Path to dataset file or directory (alternative to dataset object)
@@ -3270,7 +3452,7 @@ class DatasetManager:
             chunk_size: Maximum size in bytes for dataset chunks (defaults to 100MB)
             metadata: Additional metadata to store with the dataset
             convert_to: Target format to convert the dataset to
-        
+
         Returns:
             If Pydantic is available, returns StoreDatasetResponse with storage details.
             Otherwise returns dictionary with storage results including:
@@ -3281,18 +3463,18 @@ class DatasetManager:
               - version: Version string
               - format: Dataset format
               - stats: Dataset statistics
-        
+
         Raises:
             No exceptions raised, errors are captured in result dictionary or response model.
-            
+
         Examples:
             # Store DataFrame
             >>> df = pd.DataFrame({'col1': [1, 2], 'col2': [3, 4]})
             >>> result = dataset_manager.store_dataset(df, name="example_data")
-            
+
             # Store from file path
             >>> result = dataset_manager.store_dataset(
-            ...     dataset_path="/path/to/data.csv", 
+            ...     dataset_path="/path/to/data.csv",
             ...     name="example_data",
             ...     convert_to="parquet"
             ... )
@@ -3303,10 +3485,10 @@ class DatasetManager:
         import tempfile
         import time
         import uuid
-        
+
         # Initialize result tracking
         result = {"success": False, "operation": "store_dataset", "timestamp": time.time()}
-        
+
         # Validate request if Pydantic available
         if PYDANTIC_AVAILABLE:
             try:
@@ -3317,7 +3499,7 @@ class DatasetManager:
                     format=format,
                     chunk_size=chunk_size,
                     convert_to=convert_to,
-                    metadata=metadata or {}
+                    metadata=metadata or {},
                 )
                 # Update validated values
                 name = request.name or None  # Convert empty string back to None
@@ -3329,11 +3511,11 @@ class DatasetManager:
             except Exception as e:
                 # Return validation error
                 error_result = {
-                    "success": False, 
-                    "operation": "store_dataset", 
+                    "success": False,
+                    "operation": "store_dataset",
                     "timestamp": time.time(),
                     "error": f"Validation error: {str(e)}",
-                    "error_type": "ValidationError"
+                    "error_type": "ValidationError",
                 }
                 return StoreDatasetResponse(**error_result) if PYDANTIC_AVAILABLE else error_result
 
@@ -3406,10 +3588,12 @@ class DatasetManager:
                         dataset.to_json(dataset_path, orient="records")
                     elif format == "numpy" and hasattr(dataset, "save"):
                         import numpy as np
+
                         np.save(dataset_path, dataset)
                     else:
                         # Fallback to pickle
                         import pickle
+
                         with open(dataset_path, "wb") as f:
                             pickle.dump(dataset, f)
                         format = "pickle"
@@ -3458,7 +3642,9 @@ class DatasetManager:
                                 converter_found = True
                                 self.logger.info(f"Converted dataset using format handler")
                         except Exception as conv_err:
-                            self.logger.warning(f"Format handler conversion failed: {str(conv_err)}")
+                            self.logger.warning(
+                                f"Format handler conversion failed: {str(conv_err)}"
+                            )
 
                 if not converter_found:
                     # Try generic conversion via pandas
@@ -3498,7 +3684,7 @@ class DatasetManager:
                         self.logger.error(error_msg)
                         result["error"] = error_msg
                         result["error_type"] = "ConversionError"
-                        
+
                         # Continue with original format but add warning
                         format = orig_format
                         if "warnings" not in result:
@@ -3515,7 +3701,9 @@ class DatasetManager:
                 stats = self._get_dataset_stats(dataset_path, format)
                 self.logger.debug(f"Collected dataset statistics: {len(stats)} properties")
             except Exception as stats_err:
-                self.logger.warning(f"Failed to collect complete dataset statistics: {str(stats_err)}")
+                self.logger.warning(
+                    f"Failed to collect complete dataset statistics: {str(stats_err)}"
+                )
                 stats = {"error": str(stats_err)}
 
             # Copy dataset to final location
@@ -3526,7 +3714,9 @@ class DatasetManager:
                     # Create chunks directory
                     chunks_dir = os.path.join(dataset_dir, "chunks")
                     os.makedirs(chunks_dir, exist_ok=True)
-                    self.logger.info(f"Dataset size ({file_size} bytes) exceeds chunk size ({chunk_size} bytes), chunking enabled")
+                    self.logger.info(
+                        f"Dataset size ({file_size} bytes) exceeds chunk size ({chunk_size} bytes), chunking enabled"
+                    )
 
                     try:
                         # Split file into chunks
@@ -3553,7 +3743,7 @@ class DatasetManager:
                         if "warnings" not in result:
                             result["warnings"] = []
                         result["warnings"].append(error_msg)
-                        
+
                         # Continue with direct copy as fallback
                         dest_path = os.path.join(dataset_dir, os.path.basename(dataset_path))
                         shutil.copy2(dataset_path, dest_path)
@@ -3616,7 +3806,9 @@ class DatasetManager:
                 self.logger.warning(f"Using placeholder CID for dataset: {cid}")
                 if "warnings" not in result:
                     result["warnings"] = []
-                result["warnings"].append("Using placeholder CID - dataset not actually added to IPFS")
+                result["warnings"].append(
+                    "Using placeholder CID - dataset not actually added to IPFS"
+                )
 
             # Pin the content if pinning is available
             if self.ipfs and hasattr(self.ipfs, "pin_add"):
@@ -3624,7 +3816,9 @@ class DatasetManager:
                     self.logger.debug(f"Pinning dataset with CID: {cid}")
                     pin_result = self.ipfs.pin_add(cid)
                     if not pin_result.get("success", False):
-                        error_msg = f"Failed to pin dataset: {pin_result.get('error', 'Unknown error')}"
+                        error_msg = (
+                            f"Failed to pin dataset: {pin_result.get('error', 'Unknown error')}"
+                        )
                         self.logger.warning(error_msg)
                         if "warnings" not in result:
                             result["warnings"] = []
@@ -3641,39 +3835,49 @@ class DatasetManager:
                 try:
                     # Prepare combined metadata
                     combined_metadata = metadata or {}
-                    combined_metadata.update({
-                        "format": format,
-                        "stored_at": time.time(),
-                        "stored_by": os.environ.get("USER", "unknown"),
-                        "stats": stats,
-                    })
-                    
+                    combined_metadata.update(
+                        {
+                            "format": format,
+                            "stored_at": time.time(),
+                            "stored_by": os.environ.get("USER", "unknown"),
+                            "stats": stats,
+                        }
+                    )
+
                     # Create DatasetMetadata model if it exists
-                    if 'DatasetMetadata' in globals():
+                    if "DatasetMetadata" in globals():
                         # Validate with Pydantic model
-                        validated_metadata = DatasetMetadata(**combined_metadata).model_dump(exclude_unset=True)
+                        validated_metadata = DatasetMetadata(**combined_metadata).model_dump(
+                            exclude_unset=True
+                        )
                         metadata = validated_metadata
                     else:
                         metadata = combined_metadata
                 except Exception as e:
-                    self.logger.warning(f"Metadata validation failed, using unvalidated version: {e}")
+                    self.logger.warning(
+                        f"Metadata validation failed, using unvalidated version: {e}"
+                    )
                     # Fall back to unvalidated metadata
                     metadata = metadata or {}
-                    metadata.update({
+                    metadata.update(
+                        {
+                            "format": format,
+                            "stored_at": time.time(),
+                            "stored_by": os.environ.get("USER", "unknown"),
+                            "stats": stats,
+                        }
+                    )
+            else:
+                # Without Pydantic, just use basic metadata
+                metadata = metadata or {}
+                metadata.update(
+                    {
                         "format": format,
                         "stored_at": time.time(),
                         "stored_by": os.environ.get("USER", "unknown"),
                         "stats": stats,
-                    })
-            else:
-                # Without Pydantic, just use basic metadata
-                metadata = metadata or {}
-                metadata.update({
-                    "format": format,
-                    "stored_at": time.time(),
-                    "stored_by": os.environ.get("USER", "unknown"),
-                    "stats": stats,
-                })
+                    }
+                )
 
             # Write metadata to file
             metadata_path = os.path.join(dataset_dir, "metadata.json")
@@ -3699,20 +3903,23 @@ class DatasetManager:
             self.logger.debug("Saved updated registry")
 
             # Return success
-            result.update({
-                "success": True,
-                "dataset_name": name,
-                "dataset_cid": cid,
-                "cid": cid,  # Include both dataset_cid and cid for backward compatibility
-                "version": version,
-                "format": format,
-                "stats": stats,
-            })
-            
+            result.update(
+                {
+                    "success": True,
+                    "dataset_name": name,
+                    "dataset_cid": cid,
+                    "cid": cid,  # Include both dataset_cid and cid for backward compatibility
+                    "version": version,
+                    "format": format,
+                    "stats": stats,
+                }
+            )
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 # Handle MockMock objects for testing
                 from unittest.mock import MagicMock
+
                 if isinstance(result.get("cid"), MagicMock):
                     result["cid"] = f"mock-dataset-cid-{uuid.uuid4().hex[:8]}"
                 return StoreDatasetResponse(**result)
@@ -3723,11 +3930,12 @@ class DatasetManager:
             self.logger.exception(error_msg)
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 # Handle MockMock objects for testing
                 from unittest.mock import MagicMock
+
                 if isinstance(result.get("cid"), MagicMock):
                     result["cid"] = f"mock-dataset-cid-{uuid.uuid4().hex[:8]}"
                 return StoreDatasetResponse(**result)
@@ -3778,55 +3986,55 @@ class DatasetManager:
         return chunks
 
     def load_dataset(
-        self, 
-        name: Optional[str] = None, 
-        version: Optional[str] = None, 
-        cid: Optional[str] = None, 
+        self,
+        name: Optional[str] = None,
+        version: Optional[str] = None,
+        cid: Optional[str] = None,
         format: Optional[str] = None,
-        return_metadata: bool = True
+        return_metadata: bool = True,
     ) -> Union[Tuple[Any, Dict[str, Any]], Dict[str, Any], "LoadDatasetResponse"]:
         """Load a dataset from the registry with consistent error handling.
-        
+
         Retrieves a dataset by name/version or directly by CID. This method attempts to
         load from local cache first for performance, falling back to IPFS retrieval if
         necessary. Successfully retrieved datasets from IPFS are cached locally for
         future use.
-        
+
         The method handles different dataset formats and chunked datasets, automatically
         reassembling chunked data. It supports format conversion if requested and provides
         comprehensive metadata about the loaded dataset.
-        
+
         Args:
             name: Dataset name to load from registry. Either name or cid must be provided.
             version: Dataset version (loads latest version if not specified)
             cid: Content identifier to load directly (alternative to name/version)
             format: Optional format to convert the dataset to after loading
             return_metadata: Whether to return metadata along with the dataset
-            
+
         Returns:
             If Pydantic is available and error occurs, returns LoadDatasetResponse with error details.
             If successful with return_metadata=True, returns tuple of (dataset_object, metadata_dict)
             If successful with return_metadata=False, returns just the dataset object
             If an error occurs and Pydantic is not available, returns error dict
-            
+
         Raises:
             No exceptions raised directly; errors are captured in result dictionary or response model.
-            
+
         Examples:
             # Load dataset by name (latest version)
             >>> dataset, metadata = dataset_manager.load_dataset(name="my_dataset")
-            
+
             # Load specific version
             >>> dataset, metadata = dataset_manager.load_dataset(
-            ...     name="my_dataset", 
+            ...     name="my_dataset",
             ...     version="1.0.0"
             ... )
-            
+
             # Load by CID directly
             >>> dataset, metadata = dataset_manager.load_dataset(
             ...     cid="QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx"
             ... )
-            
+
             # Load with format conversion
             >>> dataset, metadata = dataset_manager.load_dataset(
             ...     name="my_dataset",
@@ -3842,22 +4050,22 @@ class DatasetManager:
 
         # Initialize result tracking
         result = {
-            "success": False, 
-            "operation": "load_dataset", 
+            "success": False,
+            "operation": "load_dataset",
             "timestamp": time.time(),
-            "warnings": []
+            "warnings": [],
         }
-        
+
         # Validate request if Pydantic available
         if PYDANTIC_AVAILABLE:
             try:
                 # Validate parameters with Pydantic
                 request = LoadDatasetRequest(
-                    name=name, 
-                    version=version, 
-                    cid=cid, 
+                    name=name,
+                    version=version,
+                    cid=cid,
                     format=format,
-                    return_metadata=return_metadata
+                    return_metadata=return_metadata,
                 )
                 # Update validated values
                 name = request.name
@@ -3865,26 +4073,26 @@ class DatasetManager:
                 cid = request.cid
                 format = request.format
                 return_metadata = request.return_metadata
-                
+
                 # Validate that at least one identifier is provided
                 if not name and not cid:
                     error_result = {
-                        "success": False, 
-                        "operation": "load_dataset", 
+                        "success": False,
+                        "operation": "load_dataset",
                         "timestamp": time.time(),
                         "error": "Either name or cid must be provided",
-                        "error_type": "ValidationError"
+                        "error_type": "ValidationError",
                     }
                     return LoadDatasetResponse(**error_result)
-                    
+
             except Exception as e:
                 # Return validation error as LoadDatasetResponse
                 error_result = {
-                    "success": False, 
-                    "operation": "load_dataset", 
+                    "success": False,
+                    "operation": "load_dataset",
                     "timestamp": time.time(),
                     "error": f"Validation error: {str(e)}",
-                    "error_type": "ValidationError"
+                    "error_type": "ValidationError",
                 }
                 return LoadDatasetResponse(**error_result)
         else:
@@ -3901,7 +4109,7 @@ class DatasetManager:
             dataset_format: Optional[str] = format
             dataset_name: Optional[str] = name
             dataset_version: Optional[str] = version
-            
+
             # Track local path for caching info
             local_path_used = False
 
@@ -3918,13 +4126,17 @@ class DatasetManager:
                             if not dataset_format:
                                 dataset_format = data.get("format")
                             found = True
-                            self.logger.debug(f"Found dataset in registry: {name} (version {version})")
+                            self.logger.debug(
+                                f"Found dataset in registry: {name} (version {version})"
+                            )
                             break
                     if found:
                         break
 
                 if not found:
-                    self.logger.info(f"CID {cid} not found in registry, will attempt direct loading")
+                    self.logger.info(
+                        f"CID {cid} not found in registry, will attempt direct loading"
+                    )
                     dataset_cid = cid  # Use provided CID even if not in registry
 
             elif name:
@@ -3935,7 +4147,7 @@ class DatasetManager:
                     self.logger.warning(error_msg)
                     result["error"] = error_msg
                     result["error_type"] = "NotFoundError"
-                    
+
                     # Return as Pydantic model if available
                     if PYDANTIC_AVAILABLE:
                         return LoadDatasetResponse(**result)
@@ -3952,11 +4164,13 @@ class DatasetManager:
                         dataset_version = version
                         self.logger.debug(f"Using latest version {version} for dataset {name}")
                     except Exception as e:
-                        error_msg = f"Error determining latest version for dataset '{name}': {str(e)}"
+                        error_msg = (
+                            f"Error determining latest version for dataset '{name}': {str(e)}"
+                        )
                         self.logger.error(error_msg)
                         result["error"] = error_msg
                         result["error_type"] = type(e).__name__
-                        
+
                         # Return as Pydantic model if available
                         if PYDANTIC_AVAILABLE:
                             return LoadDatasetResponse(**result)
@@ -3968,7 +4182,7 @@ class DatasetManager:
                     self.logger.warning(error_msg)
                     result["error"] = error_msg
                     result["error_type"] = "NotFoundError"
-                    
+
                     # Return as Pydantic model if available
                     if PYDANTIC_AVAILABLE:
                         return LoadDatasetResponse(**result)
@@ -3978,13 +4192,13 @@ class DatasetManager:
                 dataset_cid = self.registry["datasets"][name][version]["cid"]
                 if not dataset_format:
                     dataset_format = self.registry["datasets"][name][version].get("format")
-                    
+
                 self.logger.debug(f"Dataset {name} (version {version}) has CID: {dataset_cid}")
 
             # Try to load locally first if possible for better performance
             dataset = None
             dataset_metadata: Dict[str, Any] = {}
-            
+
             if name and version:
                 local_path = os.path.join(self.datasets_dir, name, version)
                 if os.path.exists(local_path):
@@ -3997,7 +4211,9 @@ class DatasetManager:
                                 dataset_metadata = json.load(f)
                                 if not dataset_format:
                                     dataset_format = dataset_metadata.get("format")
-                                self.logger.debug(f"Loaded metadata from local cache, format: {dataset_format}")
+                                self.logger.debug(
+                                    f"Loaded metadata from local cache, format: {dataset_format}"
+                                )
 
                         # Check if dataset is chunked
                         chunks_path = os.path.join(local_path, "chunks.json")
@@ -4010,7 +4226,7 @@ class DatasetManager:
                             # Create temporary file for reassembled data
                             temp_file = tempfile.NamedTemporaryFile(delete=False)
                             temp_file.close()
-                            
+
                             # Track reassembled chunks for logging
                             chunk_count = 0
                             total_size = 0
@@ -4031,11 +4247,13 @@ class DatasetManager:
                                         self.logger.warning(warning_msg)
                                         result["warnings"].append(warning_msg)
 
-                            self.logger.debug(f"Reassembled {chunk_count} chunks ({total_size} bytes)")
-                            
+                            self.logger.debug(
+                                f"Reassembled {chunk_count} chunks ({total_size} bytes)"
+                            )
+
                             # Load from reassembled file
                             dataset = self._load_dataset_file(temp_file.name, dataset_format)
-                            
+
                             # Clean up temporary file
                             os.unlink(temp_file.name)
                         else:
@@ -4064,12 +4282,14 @@ class DatasetManager:
                                     warning_msg = "Image format handler not available"
                                     self.logger.warning(warning_msg)
                                     result["warnings"].append(warning_msg)
-                        
+
                         # If we got here and dataset is not None, we successfully loaded locally
                         if dataset is not None:
                             local_path_used = True
-                            self.logger.info(f"Successfully loaded dataset {name} (version {version}) from local cache")
-                            
+                            self.logger.info(
+                                f"Successfully loaded dataset {name} (version {version}) from local cache"
+                            )
+
                     except Exception as e:
                         local_load_error = f"Failed to load dataset locally: {str(e)}"
                         self.logger.warning(local_load_error)
@@ -4105,7 +4325,9 @@ class DatasetManager:
                             dataset_metadata = json.load(f)
                             if not dataset_format:
                                 dataset_format = dataset_metadata.get("format")
-                            self.logger.debug(f"Loaded metadata from IPFS, format: {dataset_format}")
+                            self.logger.debug(
+                                f"Loaded metadata from IPFS, format: {dataset_format}"
+                            )
 
                     # Check if dataset is chunked
                     chunks_path = os.path.join(dataset_dir, "chunks.json")
@@ -4118,7 +4340,7 @@ class DatasetManager:
                         # Create temporary file for reassembled data
                         temp_file = tempfile.NamedTemporaryFile(delete=False)
                         temp_file.close()
-                        
+
                         # Track reassembled chunks for logging
                         chunk_count = 0
                         total_size = 0
@@ -4139,11 +4361,13 @@ class DatasetManager:
                                     self.logger.warning(warning_msg)
                                     result["warnings"].append(warning_msg)
 
-                        self.logger.debug(f"Reassembled {chunk_count} chunks from IPFS ({total_size} bytes)")
-                        
+                        self.logger.debug(
+                            f"Reassembled {chunk_count} chunks from IPFS ({total_size} bytes)"
+                        )
+
                         # Load from reassembled file
                         dataset = self._load_dataset_file(temp_file.name, dataset_format)
-                        
+
                         # Clean up temporary file
                         os.unlink(temp_file.name)
                     else:
@@ -4201,11 +4425,13 @@ class DatasetManager:
                                 "metadata": dataset_metadata,
                                 "added_at": time.time(),
                             }
-                            self.logger.info(f"Added dataset {name} (version {version}) to registry")
+                            self.logger.info(
+                                f"Added dataset {name} (version {version}) to registry"
+                            )
 
                             # Save registry
                             self._save_registry()
-                        
+
                         self.logger.info(f"Successfully cached dataset from IPFS to local storage")
 
                 except Exception as e:
@@ -4213,7 +4439,7 @@ class DatasetManager:
                     self.logger.error(error_msg)
                     result["error"] = error_msg
                     result["error_type"] = type(e).__name__
-                    
+
                     # Return as Pydantic model if available
                     if PYDANTIC_AVAILABLE:
                         return LoadDatasetResponse(**result)
@@ -4235,7 +4461,7 @@ class DatasetManager:
                 self.logger.error(error_msg)
                 result["error"] = error_msg
                 result["error_type"] = "LoadError"
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return LoadDatasetResponse(**result)
@@ -4244,27 +4470,29 @@ class DatasetManager:
             # Add information about the loading to metadata
             dataset_metadata["_loaded_from"] = "local" if local_path_used else "ipfs"
             dataset_metadata["_loaded_at"] = time.time()
-            
+
             # Add dataset info to result dict
-            result.update({
-                "success": True,
-                "dataset": dataset,
-                "metadata": dataset_metadata,
-                "cid": dataset_cid,
-                "format": dataset_format
-            })
-            
+            result.update(
+                {
+                    "success": True,
+                    "dataset": dataset,
+                    "metadata": dataset_metadata,
+                    "cid": dataset_cid,
+                    "format": dataset_format,
+                }
+            )
+
             # Add name and version if available
             if name:
                 result["dataset_name"] = name
             if version:
                 result["version"] = version
-                
+
             # Return appropriate response format
             if PYDANTIC_AVAILABLE:
                 # Return as Pydantic model
                 response = LoadDatasetResponse(**result)
-                
+
                 if return_metadata:
                     return response
                 else:
@@ -4281,35 +4509,31 @@ class DatasetManager:
             self.logger.exception(error_msg)
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return LoadDatasetResponse(**result)
             return result
 
-    def _load_dataset_file(
-        self, 
-        file_path: str, 
-        format: Optional[str] = None
-    ) -> Any:
+    def _load_dataset_file(self, file_path: str, format: Optional[str] = None) -> Any:
         """Load a dataset file based on format with comprehensive error handling.
-        
+
         This internal method loads dataset files of various formats using the appropriate
         loader functions. It first tries to use any registered custom format handlers, then
         falls back to built-in handlers for common formats, and finally treats the file as
         binary data if no handler is available.
-        
+
         The method handles import errors gracefully when optional dependencies are not
         available, providing informative warnings and fallback options when possible.
-        
+
         Args:
             file_path: Path to the dataset file to load
             format: Explicit format to use for loading (if not provided, will infer from file extension)
-            
+
         Returns:
             The loaded dataset object (type depends on format - DataFrame, ndarray, dict, bytes, etc.)
             Returns None if the file cannot be loaded due to missing dependencies
-            
+
         Raises:
             FileNotFoundError: If the file doesn't exist
             PermissionError: If the file cannot be accessed
@@ -4317,7 +4541,7 @@ class DatasetManager:
         """
         import os
         from typing import Dict, Any, Optional, Callable, Union
-        
+
         self.logger.debug(f"Loading dataset file: {file_path} (format: {format})")
 
         # Ensure file exists
@@ -4325,7 +4549,7 @@ class DatasetManager:
             error_msg = f"Dataset file not found: {file_path}"
             self.logger.error(error_msg)
             raise FileNotFoundError(error_msg)
-        
+
         # Use appropriate loader based on format
         if format in self.format_handlers and "load" in self.format_handlers[format]:
             self.logger.debug(f"Using registered format handler for {format}")
@@ -4334,22 +4558,22 @@ class DatasetManager:
             except Exception as e:
                 self.logger.warning(f"Error using format handler for {format}: {str(e)}")
                 # Continue to fallback handlers
-        
+
         # Use extension to infer format if not explicitly provided
         ext = os.path.splitext(file_path)[1].lower()
         if not format:
             self.logger.debug(f"Inferring format from file extension: {ext}")
             # Map extension to format name
             format_map = {
-                '.csv': 'csv',
-                '.parquet': 'parquet',
-                '.json': 'json',
-                '.npy': 'numpy',
-                '.npz': 'numpy',
-                '.pkl': 'pickle',
-                '.pickle': 'pickle',
-                '.h5': 'hdf5',
-                '.hdf5': 'hdf5'
+                ".csv": "csv",
+                ".parquet": "parquet",
+                ".json": "json",
+                ".npy": "numpy",
+                ".npz": "numpy",
+                ".pkl": "pickle",
+                ".pickle": "pickle",
+                ".h5": "hdf5",
+                ".hdf5": "hdf5",
             }
             format = format_map.get(ext)
             if format:
@@ -4366,7 +4590,8 @@ class DatasetManager:
                 # Fallback to basic CSV parsing
                 try:
                     import csv
-                    with open(file_path, 'r', newline='') as f:
+
+                    with open(file_path, "r", newline="") as f:
                         reader = csv.DictReader(f)
                         return list(reader)
                 except Exception as e:
@@ -4382,6 +4607,7 @@ class DatasetManager:
                 self.logger.debug("pandas not available, trying pyarrow")
                 try:
                     import pyarrow.parquet as pq
+
                     self.logger.debug("Loading Parquet file with pyarrow")
                     return pq.read_table(file_path)
                 except ImportError:
@@ -4393,6 +4619,7 @@ class DatasetManager:
 
         elif ext == ".json" or format == "json":
             import json
+
             self.logger.debug("Loading JSON file")
             try:
                 with open(file_path, "r") as f:
@@ -4404,6 +4631,7 @@ class DatasetManager:
         elif ext in [".npy", ".npz"] or format == "numpy":
             try:
                 import numpy as np
+
                 self.logger.debug("Loading NumPy file")
                 return np.load(file_path, allow_pickle=True)
             except ImportError:
@@ -4415,6 +4643,7 @@ class DatasetManager:
 
         elif ext in [".pkl", ".pickle"] or format == "pickle":
             import pickle
+
             self.logger.debug("Loading Pickle file")
             try:
                 with open(file_path, "rb") as f:
@@ -4426,6 +4655,7 @@ class DatasetManager:
         elif ext in [".h5", ".hdf5"] or format == "hdf5":
             try:
                 import h5py
+
                 self.logger.debug("Loading HDF5 file")
                 return h5py.File(file_path, "r")
             except ImportError:
@@ -4447,14 +4677,14 @@ class DatasetManager:
 
     def list_datasets(self) -> Union[Dict[str, Any], "ListDatasetsResponse"]:
         """List all datasets in the registry with their versions and metadata.
-        
+
         Retrieves a comprehensive listing of all datasets stored in the registry,
         including their versions, formats, and associated metadata. The datasets
         are organized hierarchically by name and version.
-        
+
         This method provides a centralized view of all available datasets, making it
         easier to discover and select datasets for loading, sharing, or management.
-        
+
         Returns:
             If Pydantic is available:
                 ListDatasetsResponse with datasets information including:
@@ -4462,15 +4692,15 @@ class DatasetManager:
                 - datasets: Dictionary of datasets organized by name and version
                 - count: Total number of unique dataset names
                 - timestamp: Operation timestamp
-                
+
             Otherwise:
                 Dictionary with the same fields
-                
+
             In case of error, the response includes:
                 - success: False
                 - error: Error message
                 - error_type: Type of error
-                
+
         Examples:
             # List all datasets in the registry
             >>> result = dataset_manager.list_datasets()
@@ -4491,8 +4721,10 @@ class DatasetManager:
             # Collect dataset information in nested dictionary
             datasets: Dict[str, Dict[str, Dict[str, Any]]] = {}
             registry_datasets = self.registry.get("datasets", {})
-            self.logger.debug(f"Listing datasets from registry with {len(registry_datasets)} entries")
-            
+            self.logger.debug(
+                f"Listing datasets from registry with {len(registry_datasets)} entries"
+            )
+
             for dataset_name, versions in registry_datasets.items():
                 if dataset_name not in datasets:
                     datasets[dataset_name] = {}
@@ -4504,29 +4736,29 @@ class DatasetManager:
                         "cid": data.get("cid", ""),
                         "added_at": data.get("added_at", 0),
                     }
-                    
+
                     # Add statistics if available
                     if "stats" in data:
                         dataset_info["stats"] = data["stats"]
-                    
+
                     # Add metadata if available
                     if "metadata" in data:
                         # Include key metadata fields for easy access
                         metadata = data["metadata"]
                         dataset_info["metadata"] = metadata
-                        
+
                         # Extract common metadata fields as top-level properties for convenience
                         if isinstance(metadata, dict):
                             for key in ["description", "tags", "source", "created_by", "license"]:
                                 if key in metadata:
                                     dataset_info[key] = metadata[key]
-                    
+
                     # Add local path information if available
                     local_path = os.path.join(self.datasets_dir, dataset_name, version)
                     if os.path.exists(local_path):
                         dataset_info["local_path"] = local_path
                         dataset_info["available_locally"] = True
-                        
+
                         # Get disk size if available locally
                         try:
                             total_size = 0
@@ -4536,29 +4768,35 @@ class DatasetManager:
                                     total_size += os.path.getsize(fp)
                             dataset_info["size_bytes"] = total_size
                         except Exception as e:
-                            self.logger.debug(f"Error calculating local size for {dataset_name}: {e}")
+                            self.logger.debug(
+                                f"Error calculating local size for {dataset_name}: {e}"
+                            )
                     else:
                         dataset_info["available_locally"] = False
-                        
+
                     datasets[dataset_name][version] = dataset_info
 
             # Count unique dataset names (not including versions)
             dataset_count = len(datasets)
-            
+
             # Calculate total version count
             version_count = sum(len(versions) for versions in datasets.values())
-            
+
             # Update result with success information
-            result.update({
-                "success": True, 
-                "datasets": datasets, 
-                "count": dataset_count,
-                "version_count": version_count,
-                "registry_cid": self.registry.get("registry_cid")
-            })
-            
+            result.update(
+                {
+                    "success": True,
+                    "datasets": datasets,
+                    "count": dataset_count,
+                    "version_count": version_count,
+                    "registry_cid": self.registry.get("registry_cid"),
+                }
+            )
+
             # Log success
-            self.logger.debug(f"Listed {dataset_count} datasets with {version_count} total versions")
+            self.logger.debug(
+                f"Listed {dataset_count} datasets with {version_count} total versions"
+            )
 
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
@@ -4571,42 +4809,40 @@ class DatasetManager:
             self.logger.exception(error_msg)
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return ListDatasetsResponse(**result)
             return result
 
     def get_dataset_cid(
-        self, 
-        name: str, 
-        version: Optional[str] = None
+        self, name: str, version: Optional[str] = None
     ) -> Union[str, Dict[str, Any], "GetDatasetCIDResponse"]:
         """Get the CID for a specific dataset version.
-        
+
         Retrieves the content identifier (CID) for a dataset stored
         in the registry. If version is not specified, returns the CID for the latest
         version of the dataset.
-        
+
         Args:
             name: Dataset name to look up
             version: Dataset version (latest if not specified)
-            
+
         Returns:
             If Pydantic is available, returns GetDatasetCIDResponse with CID and metadata.
             Otherwise returns either a CID string or result dictionary with operation details.
-        
+
         Raises:
             No exceptions raised, errors are captured in result dictionary or response model.
         """
         # Initialize result tracking
         result = {
-            "success": False, 
-            "operation": "get_dataset_cid", 
+            "success": False,
+            "operation": "get_dataset_cid",
             "timestamp": time.time(),
-            "dataset_name": name
+            "dataset_name": name,
         }
-        
+
         # Validate request if Pydantic available
         if PYDANTIC_AVAILABLE:
             try:
@@ -4618,22 +4854,22 @@ class DatasetManager:
             except Exception as e:
                 # Return validation error as GetDatasetCIDResponse
                 error_result = {
-                    "success": False, 
-                    "operation": "get_dataset_cid", 
+                    "success": False,
+                    "operation": "get_dataset_cid",
                     "timestamp": time.time(),
                     "dataset_name": name,
                     "error": f"Validation error: {str(e)}",
-                    "error_type": "ValidationError"
+                    "error_type": "ValidationError",
                 }
                 return GetDatasetCIDResponse(**error_result)
-        
+
         try:
             if name not in self.registry["datasets"]:
                 error_msg = f"Dataset '{name}' not found in registry"
                 self.logger.warning(error_msg)
                 result["error"] = error_msg
                 result["error_type"] = "NotFoundError"
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return GetDatasetCIDResponse(**result)
@@ -4652,7 +4888,7 @@ class DatasetManager:
                     self.logger.error(error_msg)
                     result["error"] = error_msg
                     result["error_type"] = type(e).__name__
-                    
+
                     # Return as Pydantic model if available
                     if PYDANTIC_AVAILABLE:
                         return GetDatasetCIDResponse(**result)
@@ -4663,7 +4899,7 @@ class DatasetManager:
                 self.logger.warning(error_msg)
                 result["error"] = error_msg
                 result["error_type"] = "NotFoundError"
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return GetDatasetCIDResponse(**result)
@@ -4671,15 +4907,10 @@ class DatasetManager:
 
             # Get the CID
             cid = self.registry["datasets"][name][version]["cid"]
-            
+
             # Update result with success information
-            result.update({
-                "success": True,
-                "dataset_name": name,
-                "version": version,
-                "cid": cid
-            })
-            
+            result.update({"success": True, "dataset_name": name, "version": version, "cid": cid})
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return GetDatasetCIDResponse(**result)
@@ -4690,38 +4921,35 @@ class DatasetManager:
             self.logger.error(error_msg)
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return GetDatasetCIDResponse(**result)
             return result
 
     def share_dataset(
-        self, 
-        name: Optional[str] = None, 
-        version: Optional[str] = None, 
-        cid: Optional[str] = None
+        self, name: Optional[str] = None, version: Optional[str] = None, cid: Optional[str] = None
     ) -> Union[Dict[str, Any], "ShareDatasetResponse"]:
         """Generate shareable link for a dataset.
-        
+
         Creates publicly accessible links for a dataset from IPFS gateways.
         The dataset can be specified either by name/version or directly by CID.
-        
+
         Args:
             name: Dataset name
             version: Dataset version (latest if not specified)
             cid: Dataset CID (alternative to name/version)
-            
+
         Returns:
             If Pydantic is available, returns ShareDatasetResponse with sharing information.
             Otherwise returns dictionary with sharing details.
-            
+
         Raises:
             No exceptions raised, errors are captured in result dictionary or response model.
         """
         # Initialize result tracking
         result = {"success": False, "operation": "share_dataset", "timestamp": time.time()}
-        
+
         # Validate request if Pydantic available
         if PYDANTIC_AVAILABLE:
             try:
@@ -4734,11 +4962,11 @@ class DatasetManager:
             except Exception as e:
                 # Return validation error as ShareDatasetResponse
                 error_result = {
-                    "success": False, 
-                    "operation": "share_dataset", 
+                    "success": False,
+                    "operation": "share_dataset",
                     "timestamp": time.time(),
                     "error": f"Validation error: {str(e)}",
-                    "error_type": "ValidationError"
+                    "error_type": "ValidationError",
                 }
                 return ShareDatasetResponse(**error_result)
 
@@ -4749,14 +4977,14 @@ class DatasetManager:
             if not dataset_cid and name:
                 # Use the updated get_dataset_cid method
                 get_result = self.get_dataset_cid(name, version)
-                
+
                 # Handle different return types from get_dataset_cid
                 if isinstance(get_result, dict):
                     if not get_result.get("success", False):
                         # Propagate error from get_dataset_cid
                         result["error"] = get_result.get("error", "Could not determine dataset CID")
                         result["error_type"] = get_result.get("error_type", "UnknownError")
-                        
+
                         # Return as Pydantic model if available
                         if PYDANTIC_AVAILABLE:
                             return ShareDatasetResponse(**result)
@@ -4765,13 +4993,13 @@ class DatasetManager:
                 else:
                     # Direct CID return (if old implementation is used)
                     dataset_cid = get_result
-                    
+
             if not dataset_cid:
                 error_msg = "Could not determine dataset CID"
                 self.logger.warning(error_msg)
                 result["error"] = error_msg
                 result["error_type"] = "ValidationError"
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return ShareDatasetResponse(**result)
@@ -4792,20 +5020,22 @@ class DatasetManager:
                 gateway_links.append(f"{gateway}{dataset_cid}")
 
             # Generate sharing info
-            result.update({
-                "success": True,
-                "cid": dataset_cid,
-                "ipfs_uri": f"ipfs://{dataset_cid}",
-                "gateway_links": gateway_links,
-                "share_command": f"ipfs cat {dataset_cid}",
-            })
+            result.update(
+                {
+                    "success": True,
+                    "cid": dataset_cid,
+                    "ipfs_uri": f"ipfs://{dataset_cid}",
+                    "gateway_links": gateway_links,
+                    "share_command": f"ipfs cat {dataset_cid}",
+                }
+            )
 
             # Add name and version if provided
             if name:
                 result["dataset_name"] = name
                 if version:
                     result["version"] = version
-            
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return ShareDatasetResponse(**result)
@@ -4816,36 +5046,34 @@ class DatasetManager:
             self.logger.exception(error_msg)
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return ShareDatasetResponse(**result)
             return result
 
     def delete_dataset(
-        self, 
-        name: str, 
-        version: Optional[str] = None
+        self, name: str, version: Optional[str] = None
     ) -> Union[Dict[str, Any], "DeleteDatasetResponse"]:
         """Delete a dataset from the registry.
-        
+
         Removes a dataset (or specific version) from the registry, unpins the content
         from IPFS if possible, and deletes any local files associated with the dataset.
-        
+
         Args:
             name: Dataset name to delete
             version: Specific version to delete (all versions if None)
-            
+
         Returns:
             If Pydantic is available, returns DeleteDatasetResponse with operation result.
             Otherwise returns dictionary with deletion details.
-            
+
         Raises:
             No exceptions raised, errors are captured in result dictionary or response model.
         """
         # Initialize result tracking
         result = {"success": False, "operation": "delete_dataset", "timestamp": time.time()}
-        
+
         # Validate request if Pydantic available
         if PYDANTIC_AVAILABLE:
             try:
@@ -4857,11 +5085,11 @@ class DatasetManager:
             except Exception as e:
                 # Return validation error as DeleteDatasetResponse
                 error_result = {
-                    "success": False, 
-                    "operation": "delete_dataset", 
+                    "success": False,
+                    "operation": "delete_dataset",
                     "timestamp": time.time(),
                     "error": f"Validation error: {str(e)}",
-                    "error_type": "ValidationError"
+                    "error_type": "ValidationError",
                 }
                 return DeleteDatasetResponse(**error_result)
 
@@ -4873,7 +5101,7 @@ class DatasetManager:
                 result["error"] = error_msg
                 result["error_type"] = "NotFoundError"
                 result["dataset_name"] = name
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return DeleteDatasetResponse(**result)
@@ -4892,24 +5120,24 @@ class DatasetManager:
                     result["error"] = error_msg
                     result["error_type"] = "NotFoundError"
                     result["dataset_name"] = name
-                    
+
                     # Return as Pydantic model if available
                     if PYDANTIC_AVAILABLE:
                         return DeleteDatasetResponse(**result)
                     return result
-                    
+
                 versions_to_delete = [version]
                 self.logger.info(f"Deleting version '{version}' of dataset '{name}'")
 
             # Delete local files and unpin from IPFS
             deleted_versions = []
             deletion_errors = []
-            
+
             for ver in versions_to_delete:
                 try:
                     # Get CID for unpinning
                     cid = self.registry["datasets"][name][ver]["cid"]
-                    
+
                     # Unpin from IPFS if client available
                     if self.ipfs and hasattr(self.ipfs, "pin_rm"):
                         try:
@@ -4934,7 +5162,7 @@ class DatasetManager:
                     # Remove from registry
                     del self.registry["datasets"][name][ver]
                     deleted_versions.append(ver)
-                    
+
                 except Exception as e:
                     error_msg = f"Error deleting version '{ver}': {str(e)}"
                     self.logger.error(error_msg)
@@ -4970,24 +5198,27 @@ class DatasetManager:
                 result["error"] = error_msg
                 result["error_type"] = "DeleteError"
                 result["dataset_name"] = name
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return DeleteDatasetResponse(**result)
                 return result
 
             # Update result with success information
-            result.update({
-                "success": True,
-                "dataset_name": name,
-                "deleted_versions": deleted_versions,
-                "all_versions_deleted": version is None or len(deleted_versions) == len(versions_to_delete),
-            })
-            
+            result.update(
+                {
+                    "success": True,
+                    "dataset_name": name,
+                    "deleted_versions": deleted_versions,
+                    "all_versions_deleted": version is None
+                    or len(deleted_versions) == len(versions_to_delete),
+                }
+            )
+
             # Add any non-critical errors as warnings
             if deletion_errors:
                 result["warnings"] = deletion_errors
-                
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return DeleteDatasetResponse(**result)
@@ -4999,7 +5230,7 @@ class DatasetManager:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             result["dataset_name"] = name
-            
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return DeleteDatasetResponse(**result)
@@ -5014,18 +5245,18 @@ class DatasetManager:
         stratify: Optional[str] = None,
         split_column: Optional[str] = None,
         format: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Union[Dict[str, Any], "TrainTestSplitResponse"]:
         """Create a train/test split for a dataset and store both parts.
-        
+
         Splits a dataset into training and testing subsets while preserving
         appropriate data distributions. The split datasets are stored in the
         registry with appropriate metadata to track their relationship.
-        
+
         Args:
             dataset: Dataset object (pandas DataFrame, numpy array) or name of
                     existing dataset in the registry to split
-            name: Base name for the split datasets (will create [name]_train and 
+            name: Base name for the split datasets (will create [name]_train and
                   [name]_test). If not provided, generates a unique name.
             test_size: Fraction of data to use for test set (0.0 to 1.0)
             random_state: Random seed for reproducibility (ensures same split
@@ -5036,12 +5267,12 @@ class DatasetManager:
                          and other values)
             format: Format to store split datasets ('csv', 'parquet', 'json', etc.)
             metadata: Additional metadata to store with both split datasets
-        
+
         Returns:
             If Pydantic is available, returns TrainTestSplitResponse with split details.
             Otherwise returns dictionary with split results including train/test dataset
             information.
-        
+
         Raises:
             ValueError: If test_size is not between 0 and 1
             TypeError: If dataset is not a supported type
@@ -5050,14 +5281,14 @@ class DatasetManager:
         """
         import time
         import uuid
-        
+
         # Initialize result tracking
         result = {
             "success": False,
             "operation": "create_train_test_split",
             "timestamp": time.time(),
         }
-        
+
         # Validate request if Pydantic available
         if PYDANTIC_AVAILABLE:
             try:
@@ -5069,7 +5300,7 @@ class DatasetManager:
                     stratify=stratify,
                     split_column=split_column,
                     format=format,
-                    metadata=metadata or {}
+                    metadata=metadata or {},
                 )
                 # Update validated values
                 name = request.name or None  # Convert empty string back to None
@@ -5082,13 +5313,15 @@ class DatasetManager:
             except Exception as e:
                 # Return validation error
                 error_result = {
-                    "success": False, 
-                    "operation": "create_train_test_split", 
+                    "success": False,
+                    "operation": "create_train_test_split",
                     "timestamp": time.time(),
                     "error": f"Validation error: {str(e)}",
-                    "error_type": "ValidationError"
+                    "error_type": "ValidationError",
                 }
-                return TrainTestSplitResponse(**error_result) if PYDANTIC_AVAILABLE else error_result
+                return (
+                    TrainTestSplitResponse(**error_result) if PYDANTIC_AVAILABLE else error_result
+                )
 
         try:
             # Validate test_size explicitly
@@ -5098,20 +5331,20 @@ class DatasetManager:
                 result["error"] = error_msg
                 result["error_type"] = "ValueError"
                 return TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
-            
+
             # Load dataset if name is provided
             if isinstance(dataset, str) and not hasattr(dataset, "shape"):
                 dataset_name = dataset
                 self.logger.info(f"Loading dataset '{dataset_name}' for splitting")
-                
+
                 try:
                     dataset, dataset_metadata = self.load_dataset(name=dataset_name)
-                    
+
                     # Use original format if not specified
                     if not format and dataset_metadata:
                         format = dataset_metadata.get("format")
                         self.logger.debug(f"Using original format: {format}")
-                    
+
                     # Use same name if not specified
                     if not name:
                         name = dataset_name
@@ -5122,7 +5355,7 @@ class DatasetManager:
                     result["error"] = error_msg
                     result["error_type"] = "LoadError"
                     return TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
-            
+
             # Verify dataset was loaded
             if dataset is None:
                 error_msg = "No dataset provided or loaded"
@@ -5138,15 +5371,16 @@ class DatasetManager:
 
             # Generate metadata if not provided
             metadata = metadata or {}
-            
+
             # Track warnings during processing
             warnings = []
             split_datasets = {}
-            
+
             # Create split
             try:
                 # Try to use scikit-learn for best splitting capabilities
                 from sklearn.model_selection import train_test_split
+
                 self.logger.debug("Using sklearn for dataset splitting")
 
                 # Handle different dataset types
@@ -5159,17 +5393,23 @@ class DatasetManager:
                             self.logger.error(error_msg)
                             result["error"] = error_msg
                             result["error_type"] = "KeyError"
-                            return TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
-                        
+                            return (
+                                TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
+                            )
+
                         # Use predefined split column
                         self.logger.info(f"Using predefined split column: {split_column}")
                         train_mask = dataset[split_column] == "train"
                         train_dataset = dataset[train_mask]
                         test_dataset = dataset[~train_mask]
-                        
+
                         # Calculate actual test size
-                        actual_test_size = len(test_dataset) / (len(train_dataset) + len(test_dataset))
-                        self.logger.info(f"Predefined split ratio: {actual_test_size:.4f} test size")
+                        actual_test_size = len(test_dataset) / (
+                            len(train_dataset) + len(test_dataset)
+                        )
+                        self.logger.info(
+                            f"Predefined split ratio: {actual_test_size:.4f} test size"
+                        )
                     else:
                         # Verify stratify column if provided
                         if stratify and stratify not in dataset.columns:
@@ -5177,8 +5417,10 @@ class DatasetManager:
                             self.logger.error(error_msg)
                             result["error"] = error_msg
                             result["error_type"] = "KeyError"
-                            return TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
-                        
+                            return (
+                                TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
+                            )
+
                         # Use sklearn's train_test_split
                         self.logger.info(f"Performing stratified split with test_size={test_size}")
                         stratify_data = dataset[stratify] if stratify else None
@@ -5216,17 +5458,17 @@ class DatasetManager:
                         warnings.append(f"Test size too small, using minimum 1 sample")
                     elif test_count >= len(dataset):
                         test_count = len(dataset) - 1
-                        warnings.append(f"Test size too large, using {len(dataset)-1} samples")
+                        warnings.append(f"Test size too large, using {len(dataset) - 1} samples")
 
                     # Get random indices for test set
                     import random
 
                     if random_state is not None:
                         random.seed(random_state)
-                    
+
                     try:
                         test_indices = random.sample(range(len(dataset)), test_count)
-                        
+
                         # Split dataset
                         test_dataset = dataset.iloc[test_indices]
                         train_dataset = dataset.drop(test_indices)
@@ -5236,7 +5478,7 @@ class DatasetManager:
                         result["error"] = error_msg
                         result["error_type"] = type(split_err).__name__
                         return TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
-                    
+
                 # Simple split for NumPy array
                 elif hasattr(dataset, "shape") and hasattr(dataset, "__getitem__"):
                     self.logger.info("Performing simple NumPy array split")
@@ -5256,8 +5498,10 @@ class DatasetManager:
                             warnings.append(f"Test size too small, using minimum 1 sample")
                         elif test_count >= len(dataset):
                             test_count = len(dataset) - 1
-                            warnings.append(f"Test size too large, using {len(dataset)-1} samples")
-                        
+                            warnings.append(
+                                f"Test size too large, using {len(dataset) - 1} samples"
+                            )
+
                         test_indices = indices[:test_count]
                         train_indices = indices[test_count:]
 
@@ -5271,14 +5515,16 @@ class DatasetManager:
                         result["error_type"] = type(split_err).__name__
                         return TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
                 else:
-                    error_msg = f"Unsupported dataset type for simple splitting: {type(dataset).__name__}"
+                    error_msg = (
+                        f"Unsupported dataset type for simple splitting: {type(dataset).__name__}"
+                    )
                     self.logger.error(error_msg)
                     result["error"] = error_msg
                     result["error_type"] = "TypeError"
                     return TrainTestSplitResponse(**result) if PYDANTIC_AVAILABLE else result
 
             # Check split was successful
-            if 'train_dataset' not in locals() or 'test_dataset' not in locals():
+            if "train_dataset" not in locals() or "test_dataset" not in locals():
                 error_msg = "Failed to create train/test split"
                 self.logger.error(error_msg)
                 result["error"] = error_msg
@@ -5288,25 +5534,33 @@ class DatasetManager:
             # Get actual split sizes for reporting
             train_size = len(train_dataset) if hasattr(train_dataset, "__len__") else 0
             test_size_actual = len(test_dataset) if hasattr(test_dataset, "__len__") else 0
-            actual_ratio = test_size_actual / (train_size + test_size_actual) if (train_size + test_size_actual) > 0 else 0
-            self.logger.info(f"Split complete: {train_size} train samples, {test_size_actual} test samples ({actual_ratio:.2f} ratio)")
+            actual_ratio = (
+                test_size_actual / (train_size + test_size_actual)
+                if (train_size + test_size_actual) > 0
+                else 0
+            )
+            self.logger.info(
+                f"Split complete: {train_size} train samples, {test_size_actual} test samples ({actual_ratio:.2f} ratio)"
+            )
 
             # Store train dataset
             self.logger.info(f"Storing train dataset as '{name}_train'")
             train_metadata = dict(metadata)
-            train_metadata.update({
-                "split": "train",
-                "split_info": {
-                    "test_size": test_size,
-                    "actual_test_ratio": actual_ratio,
-                    "random_state": random_state,
-                    "stratify": stratify,
-                    "split_column": split_column,
-                    "train_samples": train_size,
-                    "test_samples": test_size_actual,
-                    "paired_dataset": f"{name}_test"
-                },
-            })
+            train_metadata.update(
+                {
+                    "split": "train",
+                    "split_info": {
+                        "test_size": test_size,
+                        "actual_test_ratio": actual_ratio,
+                        "random_state": random_state,
+                        "stratify": stratify,
+                        "split_column": split_column,
+                        "train_samples": train_size,
+                        "test_samples": test_size_actual,
+                        "paired_dataset": f"{name}_test",
+                    },
+                }
+            )
 
             train_result = self.store_dataset(
                 dataset=train_dataset,
@@ -5315,9 +5569,11 @@ class DatasetManager:
                 format=format,
                 metadata=train_metadata,
             )
-            
+
             if not train_result.get("success", False):
-                error_msg = f"Failed to store train dataset: {train_result.get('error', 'Unknown error')}"
+                error_msg = (
+                    f"Failed to store train dataset: {train_result.get('error', 'Unknown error')}"
+                )
                 self.logger.error(error_msg)
                 result["error"] = error_msg
                 result["error_type"] = "StorageError"
@@ -5327,19 +5583,21 @@ class DatasetManager:
             # Store test dataset
             self.logger.info(f"Storing test dataset as '{name}_test'")
             test_metadata = dict(metadata)
-            test_metadata.update({
-                "split": "test",
-                "split_info": {
-                    "test_size": test_size,
-                    "actual_test_ratio": actual_ratio,
-                    "random_state": random_state,
-                    "stratify": stratify,
-                    "split_column": split_column,
-                    "train_samples": train_size,
-                    "test_samples": test_size_actual,
-                    "paired_dataset": f"{name}_train"
-                },
-            })
+            test_metadata.update(
+                {
+                    "split": "test",
+                    "split_info": {
+                        "test_size": test_size,
+                        "actual_test_ratio": actual_ratio,
+                        "random_state": random_state,
+                        "stratify": stratify,
+                        "split_column": split_column,
+                        "train_samples": train_size,
+                        "test_samples": test_size_actual,
+                        "paired_dataset": f"{name}_train",
+                    },
+                }
+            )
 
             test_result = self.store_dataset(
                 dataset=test_dataset,
@@ -5348,9 +5606,11 @@ class DatasetManager:
                 format=format,
                 metadata=test_metadata,
             )
-            
+
             if not test_result.get("success", False):
-                error_msg = f"Failed to store test dataset: {test_result.get('error', 'Unknown error')}"
+                error_msg = (
+                    f"Failed to store test dataset: {test_result.get('error', 'Unknown error')}"
+                )
                 self.logger.error(error_msg)
                 result["error"] = error_msg
                 result["error_type"] = "StorageError"
@@ -5359,35 +5619,37 @@ class DatasetManager:
                 warnings.append(error_msg)
 
             # Return success with split information
-            result.update({
-                "success": True,
-                "train_dataset": {
-                    "name": f"{name}_train",
-                    "cid": train_result.get("cid"),
-                    "samples": train_size,
-                    "format": format,
-                },
-                "test_dataset": {
-                    "name": f"{name}_test",
-                    "cid": test_result.get("cid"),
-                    "samples": test_size_actual,
-                    "format": format,
-                },
-                "split_params": {
-                    "test_size": test_size,
-                    "actual_test_ratio": actual_ratio,
-                    "random_state": random_state,
-                    "stratify": stratify,
-                    "split_column": split_column,
-                },
-            })
-            
+            result.update(
+                {
+                    "success": True,
+                    "train_dataset": {
+                        "name": f"{name}_train",
+                        "cid": train_result.get("cid"),
+                        "samples": train_size,
+                        "format": format,
+                    },
+                    "test_dataset": {
+                        "name": f"{name}_test",
+                        "cid": test_result.get("cid"),
+                        "samples": test_size_actual,
+                        "format": format,
+                    },
+                    "split_params": {
+                        "test_size": test_size,
+                        "actual_test_ratio": actual_ratio,
+                        "random_state": random_state,
+                        "stratify": stratify,
+                        "split_column": split_column,
+                    },
+                }
+            )
+
             # Add warnings if any
             if warnings:
                 result["warnings"] = warnings
-            
+
             self.logger.info(f"Train/test split complete: {train_size}/{test_size_actual} samples")
-            
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return TrainTestSplitResponse(**result)
@@ -5398,7 +5660,7 @@ class DatasetManager:
             self.logger.exception(error_msg)
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return TrainTestSplitResponse(**result)
@@ -5452,10 +5714,10 @@ class LangchainIntegration:
 
     def _save_registry(self) -> None:
         """Save the registry to disk.
-        
+
         This internal method persists the current state of the registry to the filesystem.
         The registry contains metadata about stored documents, chains, and vector stores.
-        
+
         Returns:
             None
         """
@@ -5463,8 +5725,10 @@ class LangchainIntegration:
             json.dump(self.registry, f, indent=2)
 
     if PYDANTIC_AVAILABLE:
+
         class CheckAvailabilityResponse(BaseModel):
             """Response model for dependency availability check."""
+
             success: bool = Field(True, description="Operation success status")
             operation: str = Field("check_availability", description="Operation name")
             timestamp: float = Field(..., description="Operation timestamp")
@@ -5474,21 +5738,23 @@ class LangchainIntegration:
             tiktoken_available: bool = Field(..., description="Whether tiktoken is available")
             pydantic_available: bool = Field(..., description="Whether Pydantic is available")
             llama_index_available: bool = Field(..., description="Whether LlamaIndex is available")
-            message: str = Field("Langchain integration status check completed", description="Status message")
+            message: str = Field(
+                "Langchain integration status check completed", description="Status message"
+            )
 
     def check_availability(self) -> Union[Dict[str, Any], "CheckAvailabilityResponse"]:
         """Check if Langchain and related dependencies are available.
-        
+
         This method checks the availability of Langchain and its common dependencies,
         which is useful for determining what functionality will work in the current
         environment. It verifies the presence of key packages like NumPy, scikit-learn,
         tiktoken (for tokenization), Pydantic, and LlamaIndex.
-        
+
         Returns:
             Union[Dict[str, Any], CheckAvailabilityResponse]: A dictionary or Pydantic model containing
                 availability information for various dependencies. The response includes boolean flags
                 for each dependency, indicating whether it's available in the current environment.
-                
+
         Example:
             >>> status = langchain_integration.check_availability()
             >>> if status["langchain_available"]:
@@ -5503,6 +5769,7 @@ class LangchainIntegration:
         # Check for numpy which is required for most operations
         try:
             import numpy
+
             numpy_available = True
         except ImportError:
             numpy_available = False
@@ -5510,6 +5777,7 @@ class LangchainIntegration:
         # Check for common langchain dependencies
         try:
             import tiktoken
+
             tiktoken_available = True
         except ImportError:
             tiktoken_available = False
@@ -5527,35 +5795,42 @@ class LangchainIntegration:
             "llama_index_available": LLAMA_INDEX_AVAILABLE,
             "message": "Langchain integration status check completed",
         }
-        
+
         # Return as Pydantic model if available
         if PYDANTIC_AVAILABLE:
             return CheckAvailabilityResponse(**result)
         return result
 
     if PYDANTIC_AVAILABLE:
+
         class LoadDocumentsRequest(BaseModel):
             """Request model for loading documents from IPFS or local path."""
+
             cid: Optional[str] = Field(None, description="IPFS Content Identifier for documents")
             path: Optional[str] = Field(None, description="Local path to documents")
-            metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata to attach to documents")
-            
+            metadata: Optional[Dict[str, Any]] = Field(
+                None, description="Additional metadata to attach to documents"
+            )
+
         class LoadDocumentsResponse(BaseModel):
             """Response model for document loading operation."""
+
             success: bool = Field(..., description="Operation success status")
             operation: str = Field("load_documents", description="Operation name")
             timestamp: float = Field(..., description="Operation timestamp")
             document_count: Optional[int] = Field(None, description="Number of documents loaded")
             source_id: Optional[str] = Field(None, description="Identifier for the document source")
-            documents: Optional[List[Any]] = Field(None, description="The loaded documents if successful")
+            documents: Optional[List[Any]] = Field(
+                None, description="The loaded documents if successful"
+            )
             error: Optional[str] = Field(None, description="Error message if operation failed")
             error_type: Optional[str] = Field(None, description="Type of error if operation failed")
 
     def load_documents(
-        self, 
-        cid: Optional[str] = None, 
-        path: Optional[str] = None, 
-        metadata: Optional[Dict[str, Any]] = None
+        self,
+        cid: Optional[str] = None,
+        path: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Union[List[Any], Dict[str, Any], "LoadDocumentsResponse"]:
         """Load documents from IPFS or local path.
 
@@ -5569,7 +5844,7 @@ class LangchainIntegration:
             metadata: Additional metadata to attach to all loaded documents.
 
         Returns:
-            Union[List[Any], Dict[str, Any], LoadDocumentsResponse]: 
+            Union[List[Any], Dict[str, Any], LoadDocumentsResponse]:
                 - On success: List of loaded Document objects (or LoadDocumentsResponse if Pydantic is available)
                 - On failure: Error dictionary with details (or LoadDocumentsResponse if Pydantic is available)
 
@@ -5577,25 +5852,23 @@ class LangchainIntegration:
             >>> # Load documents from IPFS CID
             >>> documents = langchain_integration.load_documents(cid="QmY9Ej...")
             >>> print(f"Loaded {len(documents)} documents")
-            
+
             >>> # Load documents from local path with metadata
             >>> documents = langchain_integration.load_documents(
             ...     path="/path/to/documents",
             ...     metadata={"source": "local_collection", "author": "John Doe"}
             ... )
         """
-        result = {
-            "success": False, 
-            "operation": "load_documents", 
-            "timestamp": time.time()
-        }
+        result = {"success": False, "operation": "load_documents", "timestamp": time.time()}
 
         try:
             if not LANGCHAIN_AVAILABLE:
-                result["error"] = "Langchain is not available. Please install with 'pip install langchain'"
+                result["error"] = (
+                    "Langchain is not available. Please install with 'pip install langchain'"
+                )
                 result["error_type"] = "dependency_error"
                 self.logger.error(result["error"])
-                
+
                 if PYDANTIC_AVAILABLE:
                     return LoadDocumentsResponse(**result)
                 return result
@@ -5611,7 +5884,7 @@ class LangchainIntegration:
                 result["error"] = "Either cid or path must be specified"
                 result["error_type"] = "parameter_error"
                 self.logger.error(result["error"])
-                
+
                 if PYDANTIC_AVAILABLE:
                     return LoadDocumentsResponse(**result)
                 return result
@@ -5644,35 +5917,35 @@ class LangchainIntegration:
                 # Special handling for documents which might not be serializable
                 response.documents = documents
                 return response
-            
+
             return documents
 
         except Exception as e:
             result["error"] = f"Error loading documents: {str(e)}"
             result["error_type"] = "processing_error"
             self.logger.exception(f"Error in load_documents: {e}")
-            
+
             if PYDANTIC_AVAILABLE:
                 return LoadDocumentsResponse(**result)
             return result
 
     def create_vector_store(
-        self, 
-        documents: List[Union[Dict[str, Any], str, Any]], 
-        embedding_model: Optional[Union[str, Any]] = None, 
+        self,
+        documents: List[Union[Dict[str, Any], str, Any]],
+        embedding_model: Optional[Union[str, Any]] = None,
         collection_name: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Union[Any, Dict[str, Any], "CreateVectorStoreResponse"]:
         """Create a vector store from documents with smart embedding model handling.
-        
-        Creates a vector store (embedding database) from a collection of documents. 
+
+        Creates a vector store (embedding database) from a collection of documents.
         This method handles various document formats and embedding models, providing
         intelligent fallbacks and automated document processing.
-        
+
         The vector store enables semantic search capabilities, allowing retrieval by meaning
-        rather than exact keyword matches. It serves as a foundation for RAG (Retrieval 
+        rather than exact keyword matches. It serves as a foundation for RAG (Retrieval
         Augmented Generation) applications by providing relevant context for LLMs.
-        
+
         Args:
             documents: Collection of documents to vectorize and store. Accepts:
                 - Dictionaries with "content" or "text" keys and optional "metadata"
@@ -5685,46 +5958,46 @@ class LangchainIntegration:
                 - None (uses mock embeddings for testing)
             collection_name: Unique name for this vector collection (auto-generated if not provided)
             metadata: Additional metadata to store with the vector store
-            
+
         Returns:
             If Pydantic is available and error occurs, returns CreateVectorStoreResponse with error details.
             If successful, returns the vector store object for further operations.
             If error occurs without Pydantic, returns error dictionary.
-            
+
         Raises:
             No exceptions raised directly; errors are captured in result dictionary or response model.
-            
+
         Examples:
             # Create vector store with default embeddings
             >>> docs = ["Document 1 text", "Document 2 text", "Document 3 text"]
             >>> vector_store = dataset_manager.create_vector_store(docs, collection_name="my_docs")
-            
+
             # Using structured documents with metadata
             >>> docs = [
             ...     {"text": "Content of doc 1", "metadata": {"source": "file1.txt"}},
             ...     {"text": "Content of doc 2", "metadata": {"source": "file2.txt"}},
             ... ]
             >>> vector_store = dataset_manager.create_vector_store(
-            ...     docs, 
+            ...     docs,
             ...     embedding_model="sentence-transformers/all-mpnet-base-v2",
             ...     collection_name="text_collection"
             ... )
-            
+
             # Use the vector store for semantic search
             >>> results = vector_store.similarity_search("query text", k=3)
         """
         import time
         import uuid
         from typing import List, Dict, Any, Optional, Union, Tuple
-        
+
         # Initialize result tracking
         result = {
-            "success": False, 
-            "operation": "create_vector_store", 
+            "success": False,
+            "operation": "create_vector_store",
             "timestamp": time.time(),
-            "warnings": []
+            "warnings": [],
         }
-        
+
         # Validate request if Pydantic available
         if PYDANTIC_AVAILABLE:
             try:
@@ -5733,7 +6006,7 @@ class LangchainIntegration:
                     documents=documents,
                     embedding_model=embedding_model if isinstance(embedding_model, str) else None,
                     collection_name=collection_name,
-                    metadata=metadata or {}
+                    metadata=metadata or {},
                 )
                 # Update validated values
                 if isinstance(embedding_model, str):
@@ -5743,22 +6016,24 @@ class LangchainIntegration:
             except Exception as e:
                 # Return validation error as CreateVectorStoreResponse
                 error_result = {
-                    "success": False, 
-                    "operation": "create_vector_store", 
+                    "success": False,
+                    "operation": "create_vector_store",
                     "timestamp": time.time(),
                     "error": f"Validation error: {str(e)}",
-                    "error_type": "ValidationError"
+                    "error_type": "ValidationError",
                 }
                 return CreateVectorStoreResponse(**error_result)
 
         try:
             # Verify Langchain is available
             if not LANGCHAIN_AVAILABLE:
-                error_msg = "Langchain is not available. Please install with 'pip install langchain'"
+                error_msg = (
+                    "Langchain is not available. Please install with 'pip install langchain'"
+                )
                 self.logger.error(error_msg)
                 result["error"] = error_msg
                 result["error_type"] = "DependencyError"
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return CreateVectorStoreResponse(**result)
@@ -5767,16 +6042,17 @@ class LangchainIntegration:
             # Handle embedding model
             embedding_function = None
             embedding_model_name = None
-            
+
             self.logger.debug(f"Setting up embedding model: {embedding_model}")
             if isinstance(embedding_model, str):
                 # Store name for registry
                 embedding_model_name = embedding_model
-                
+
                 # Try to load the specified embedding model
                 if embedding_model.lower() in ["text-embedding-ada-002", "openai"]:
                     try:
                         from langchain.embeddings import OpenAIEmbeddings
+
                         self.logger.info(f"Loading OpenAI embedding model: {embedding_model}")
                         embedding_function = OpenAIEmbeddings(model=embedding_model)
                     except (ImportError, Exception) as e:
@@ -5791,6 +6067,7 @@ class LangchainIntegration:
                 ):
                     try:
                         from langchain.embeddings import HuggingFaceEmbeddings
+
                         self.logger.info(f"Loading HuggingFace embedding model: {embedding_model}")
                         embedding_function = HuggingFaceEmbeddings(model_name=embedding_model)
                     except (ImportError, Exception) as e:
@@ -5799,12 +6076,16 @@ class LangchainIntegration:
                         result["warnings"].append(warning_msg)
                         embedding_function = self._create_mock_embedding_function()
                 else:
-                    warning_msg = f"Unknown embedding model: {embedding_model}, using mock embeddings"
+                    warning_msg = (
+                        f"Unknown embedding model: {embedding_model}, using mock embeddings"
+                    )
                     self.logger.warning(warning_msg)
                     result["warnings"].append(warning_msg)
                     embedding_function = self._create_mock_embedding_function()
-            elif embedding_model is not None and hasattr(embedding_model, "embed_documents") and hasattr(
-                embedding_model, "embed_query"
+            elif (
+                embedding_model is not None
+                and hasattr(embedding_model, "embed_documents")
+                and hasattr(embedding_model, "embed_query")
             ):
                 # It's already an embedding function
                 self.logger.debug("Using provided embedding function")
@@ -5817,7 +6098,7 @@ class LangchainIntegration:
                 result["warnings"].append(warning_msg)
                 embedding_function = self._create_mock_embedding_function()
                 embedding_model_name = "mock_embeddings"
-            
+
             # Generate a unique collection name if not provided
             collection_id = collection_name or f"collection_{uuid.uuid4().hex[:8]}"
             self.logger.debug(f"Creating vector store with collection name: {collection_id}")
@@ -5827,7 +6108,7 @@ class LangchainIntegration:
                 embedding_function=embedding_function,
                 collection_name=collection_id,
             )
-            
+
             # Track start time for performance metrics
             start_time = time.time()
 
@@ -5835,14 +6116,14 @@ class LangchainIntegration:
             texts = []
             metadatas = []
             document_types = set()
-            
+
             # Handle the case when documents is a single item
             if not isinstance(documents, (list, tuple)):
                 documents = [documents]
-            
+
             for doc in documents:
                 document_types.add(type(doc).__name__)
-                
+
                 if isinstance(doc, dict) and "content" in doc:
                     texts.append(doc["content"])
                     metadatas.append(doc.get("metadata", {}))
@@ -5859,59 +6140,65 @@ class LangchainIntegration:
                     metadatas.append({})
 
             # Log document processing results
-            self.logger.info(f"Processed {len(texts)} documents of types: {', '.join(document_types)}")
+            self.logger.info(
+                f"Processed {len(texts)} documents of types: {', '.join(document_types)}"
+            )
 
             # Add texts to vector store
             if texts:
                 self.logger.debug(f"Adding {len(texts)} texts to vector store")
                 vector_store.add_texts(texts, metadatas=metadatas)
-                
+
                 # Calculate processing time
                 processing_time = time.time() - start_time
-                
+
                 # Register in registry
                 store_info = {
                     "document_count": len(texts),
                     "embedding_model": embedding_model_name,
                     "timestamp": time.time(),
                     "document_types": list(document_types),
-                    "processing_time_seconds": processing_time
+                    "processing_time_seconds": processing_time,
                 }
-                
+
                 # Add metadata if provided
                 if metadata:
                     store_info["metadata"] = metadata
-                
+
                 # Add to registry
                 if "vector_stores" not in self.registry:
                     self.registry["vector_stores"] = {}
-                    
+
                 self.registry["vector_stores"][collection_id] = store_info
                 self._save_registry()
-                
-                self.logger.info(f"Created vector store '{collection_id}' with {len(texts)} documents")
+
+                self.logger.info(
+                    f"Created vector store '{collection_id}' with {len(texts)} documents"
+                )
 
                 # Update result with success information
-                result.update({
-                    "success": True,
-                    "vector_store": vector_store,
-                    "vector_store_id": collection_id,
-                    "document_count": len(texts),
-                    "embedding_model": embedding_model_name,
-                    "processing_time_seconds": processing_time
-                })
-                
+                result.update(
+                    {
+                        "success": True,
+                        "vector_store": vector_store,
+                        "vector_store_id": collection_id,
+                        "document_count": len(texts),
+                        "embedding_model": embedding_model_name,
+                        "processing_time_seconds": processing_time,
+                    }
+                )
+
                 # Return Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return CreateVectorStoreResponse(**result)
-                    
+
                 return vector_store
             else:
                 error_msg = "No valid documents found to add to vector store"
                 self.logger.warning(error_msg)
                 result["error"] = error_msg
                 result["error_type"] = "ValidationError"
-                
+
                 # Return as Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     return CreateVectorStoreResponse(**result)
@@ -5922,7 +6209,7 @@ class LangchainIntegration:
             self.logger.exception(error_msg)
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
-            
+
             # Return as Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return CreateVectorStoreResponse(**result)
@@ -5930,72 +6217,82 @@ class LangchainIntegration:
 
     def _create_mock_embedding_function(self) -> Any:
         """Create a mock embedding function for testing and fallback scenarios.
-        
+
         This method creates a mock embedding function that generates random embeddings
         of dimension 384. This is useful when real embedding models are not available
         or for testing purposes. The mock function implements the standard embedding
         interface with embed_documents and embed_query methods.
-        
+
         Returns:
             Any: A mock embedding function object with the standard interface:
                 - embed_documents(texts: List[str]) -> List[ndarray]
                 - embed_query(text: str) -> ndarray
-                
+
         Note:
-            The generated embeddings are random 384-dimensional vectors and won't 
+            The generated embeddings are random 384-dimensional vectors and won't
             provide meaningful semantic relationships, but they allow the system to
             function for testing and demonstration purposes.
         """
+
         class MockEmbeddingFunction:
             def embed_documents(self, texts: List[str]) -> List[np.ndarray]:
                 """Generate random embeddings for a list of documents.
-                
+
                 Args:
                     texts: List of text strings to embed
-                    
+
                 Returns:
                     List of random 384-dimensional numpy arrays
                 """
                 import numpy as np
+
                 # Create random embeddings of dimension 384
                 return [np.random.rand(384).astype(np.float32) for _ in texts]
 
             def embed_query(self, text: str) -> np.ndarray:
                 """Generate random embedding for a query string.
-                
+
                 Args:
                     text: Query text to embed
-                    
+
                 Returns:
                     Random 384-dimensional numpy array
                 """
                 import numpy as np
+
                 # Create random embedding of dimension 384
                 return np.random.rand(384).astype(np.float32)
 
         return MockEmbeddingFunction()
 
     if PYDANTIC_AVAILABLE:
+
         class CreateIPFSVectorStoreRequest(BaseModel):
             """Request model for creating an IPFS-backed vector store."""
+
             embedding_function: Any = Field(..., description="Function to generate embeddings")
-            collection_name: Optional[str] = Field(None, description="Name for the vector collection")
+            collection_name: Optional[str] = Field(
+                None, description="Name for the vector collection"
+            )
 
         class CreateIPFSVectorStoreResponse(BaseModel):
             """Response model for IPFS vector store creation operations."""
+
             success: bool = Field(..., description="Operation success status")
             operation: str = Field("create_ipfs_vectorstore", description="Operation name")
             timestamp: float = Field(..., description="Operation timestamp")
             vector_store: Optional[Any] = Field(None, description="The created vector store object")
-            collection_name: Optional[str] = Field(None, description="Name of the vector collection")
-            embedding_type: Optional[str] = Field(None, description="Type of embedding function used")
+            collection_name: Optional[str] = Field(
+                None, description="Name of the vector collection"
+            )
+            embedding_type: Optional[str] = Field(
+                None, description="Type of embedding function used"
+            )
             error: Optional[str] = Field(None, description="Error message if operation failed")
             error_type: Optional[str] = Field(None, description="Type of error if operation failed")
 
     def create_ipfs_vectorstore(
-        self, 
-        embedding_function: Any, 
-        collection_name: Optional[str] = None
+        self, embedding_function: Any, collection_name: Optional[str] = None
     ) -> Union[Dict[str, Any], Any, "CreateIPFSVectorStoreResponse"]:
         """Create a Langchain vector store backed by IPFS storage.
 
@@ -6033,27 +6330,33 @@ class LangchainIntegration:
         result = {
             "success": False,
             "operation": "create_ipfs_vectorstore",
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
-        
+
         try:
             if not LANGCHAIN_AVAILABLE:
-                result["error"] = "Langchain is not available. Please install with 'pip install langchain'"
+                result["error"] = (
+                    "Langchain is not available. Please install with 'pip install langchain'"
+                )
                 result["error_type"] = "dependency_error"
                 self.logger.error(f"Failed to create IPFS vector store: {result['error']}")
-                
+
                 if PYDANTIC_AVAILABLE:
                     # return CreateIPFSVectorStoreResponse(**result) # Commented out due to SyntaxError: 'return' outside function
-                    pass # Added pass to avoid empty block error
+                    pass  # Added pass to avoid empty block error
                 return result
 
             # Validate embedding function
-            if not hasattr(embedding_function, "embed_documents") or not hasattr(embedding_function, "embed_query"):
-                error_msg = "Invalid embedding function. Must have embed_documents and embed_query methods."
+            if not hasattr(embedding_function, "embed_documents") or not hasattr(
+                embedding_function, "embed_query"
+            ):
+                error_msg = (
+                    "Invalid embedding function. Must have embed_documents and embed_query methods."
+                )
                 result["error"] = error_msg
                 result["error_type"] = "validation_error"
                 self.logger.error(f"Failed to create IPFS vector store: {error_msg}")
-                
+
                 if PYDANTIC_AVAILABLE:
                     return CreateIPFSVectorStoreResponse(**result)
                 return result
@@ -6065,7 +6368,7 @@ class LangchainIntegration:
                 "error": f"Unexpected error: {str(e)}",
                 "error_type": type(e).__name__,
                 "operation": "create_vector_store",
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
             if PYDANTIC_AVAILABLE:
                 return CreateIPFSVectorStoreResponse(**result)
@@ -6262,22 +6565,26 @@ class LangchainIntegration:
             "timestamp": time.time(),
             "vector_store": vector_store,
             "collection_name": collection_name or "default_collection",
-            "embedding_type": embedding_type
+            "embedding_type": embedding_type,
         }
 
         # Return appropriate response type
         if PYDANTIC_AVAILABLE:
             return CreateIPFSVectorStoreResponse(**result)
         return vector_store
+
     # End of create_ipfs_vectorstore method
 
     if PYDANTIC_AVAILABLE:
+
         class CreateDocumentLoaderRequest(BaseModel):
             """Request model for creating a document loader."""
+
             path_or_cid: str = Field(..., description="Path or CID to load documents from")
 
         class CreateDocumentLoaderResponse(BaseModel):
             """Response model for document loader creation operations."""
+
             success: bool = Field(..., description="Operation success status")
             operation: str = Field("create_document_loader", description="Operation name")
             timestamp: float = Field(..., description="Operation timestamp")
@@ -6287,16 +6594,15 @@ class LangchainIntegration:
             error_type: Optional[str] = Field(None, description="Type of error if operation failed")
 
     def create_document_loader(
-        self, 
-        path_or_cid: str
+        self, path_or_cid: str
     ) -> Union[Dict[str, Any], Any, "CreateDocumentLoaderResponse"]:
         """Create a document loader for IPFS and local content.
-        
-        This method creates a Langchain-compatible document loader that can load 
+
+        This method creates a Langchain-compatible document loader that can load
         documents from either IPFS content (specified by CID) or a local path.
-        The loader supports loading from both files and directories, handling text 
+        The loader supports loading from both files and directories, handling text
         content appropriately based on the source.
-        
+
         When a CID is provided, the content is first retrieved from IPFS and saved to a
         temporary directory before processing. When a local path is provided, the content
         is accessed directly.
@@ -6309,7 +6615,7 @@ class LangchainIntegration:
         Returns:
             If Pydantic is available: A CreateDocumentLoaderResponse object
             Otherwise: Either a document loader object (on success) or an error dictionary (on failure)
-            
+
         Example:
             >>> # Create a document loader for an IPFS CID
             >>> loader = langchain_integration.create_document_loader("QmZ4tDuvesekSs4qM5ZBKpXiZGun7S2CYtEZRB3DYXkjGx")
@@ -6324,25 +6630,27 @@ class LangchainIntegration:
             "success": False,
             "operation": "create_document_loader",
             "timestamp": time.time(),
-            "path_or_cid": path_or_cid
+            "path_or_cid": path_or_cid,
         }
-        
+
         try:
             if not LANGCHAIN_AVAILABLE:
-                result["error"] = "Langchain is not available. Please install with 'pip install langchain'"
+                result["error"] = (
+                    "Langchain is not available. Please install with 'pip install langchain'"
+                )
                 result["error_type"] = "dependency_error"
                 self.logger.error(f"Failed to create document loader: {result['error']}")
-                
+
                 if PYDANTIC_AVAILABLE:
                     return CreateDocumentLoaderResponse(**result)
                 return result
-                
+
             # Validate input
             if not path_or_cid:
                 result["error"] = "Path or CID cannot be empty"
                 result["error_type"] = "validation_error"
                 self.logger.error(f"Failed to create document loader: {result['error']}")
-                
+
                 if PYDANTIC_AVAILABLE:
                     return CreateDocumentLoaderResponse(**result)
                 return result
@@ -6354,7 +6662,7 @@ class LangchainIntegration:
                 "error": f"Unexpected error: {str(e)}",
                 "error_type": type(e).__name__,
                 "operation": "create_document_loader",
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
             if PYDANTIC_AVAILABLE:
                 return CreateDocumentLoaderResponse(**result)
@@ -6438,24 +6746,26 @@ class LangchainIntegration:
 
         # Create the document loader
         loader = IPFSDocumentLoader(ipfs_client=self.ipfs, path_or_cid=path_or_cid)
-        
+
         # Create successful result
         result = {
             "success": True,
             "operation": "create_document_loader",
             "timestamp": time.time(),
             "loader": loader,
-            "path_or_cid": path_or_cid
+            "path_or_cid": path_or_cid,
         }
-        
+
         # Return appropriate response type
         if PYDANTIC_AVAILABLE:
             return CreateDocumentLoaderResponse(**result)
         return loader
 
     if PYDANTIC_AVAILABLE:
+
         class StoreChainRequest(BaseModel):
             """Request model for storing a Langchain chain in IPFS."""
+
             chain: Any = Field(..., description="Langchain chain to store")
             name: str = Field(..., description="Name for the chain")
             version: str = Field("1.0.0", description="Version string")
@@ -6463,6 +6773,7 @@ class LangchainIntegration:
 
         class StoreChainResponse(BaseModel):
             """Response model for chain storage operations."""
+
             success: bool = Field(..., description="Operation success status")
             operation: str = Field("store_chain", description="Operation name")
             timestamp: float = Field(..., description="Operation timestamp")
@@ -6476,11 +6787,11 @@ class LangchainIntegration:
             error_details: Optional[str] = Field(None, description="Additional error details")
 
     def store_chain(
-        self, 
-        chain: Any, 
-        name: str, 
-        version: str = "1.0.0", 
-        metadata: Optional[Dict[str, Any]] = None
+        self,
+        chain: Any,
+        name: str,
+        version: str = "1.0.0",
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Union[Dict[str, Any], "StoreChainResponse"]:
         """Store a Langchain chain in IPFS for persistence and sharing.
 
@@ -6633,29 +6944,34 @@ class LangchainIntegration:
         # Add the chain type to the result if available
         if chain is not None:
             result["chain_type"] = type(chain).__name__
-            
+
         # Return appropriate response type
         if PYDANTIC_AVAILABLE:
             return StoreChainResponse(**result)
         return result
 
     if PYDANTIC_AVAILABLE:
+
         class LoadChainRequest(BaseModel):
             """Request model for loading a Langchain chain from IPFS."""
+
             name: Optional[str] = Field(None, description="Name of the chain to load")
             version: Optional[str] = Field(None, description="Version of the chain to load")
             cid: Optional[str] = Field(None, description="CID of the chain to load directly")
-            
-            @validator('name', 'cid', mode='before')  # mode='before' for compatibility with field_validator
+
+            @validator(
+                "name", "cid", mode="before"
+            )  # mode='before' for compatibility with field_validator
             def validate_name_or_cid(cls, v, info):
                 """Validate that either name or cid is provided."""
-                values = info.data if hasattr(info, 'data') else info
-                if not v and 'name' not in values and 'cid' not in values:
+                values = info.data if hasattr(info, "data") else info
+                if not v and "name" not in values and "cid" not in values:
                     raise ValueError("Either name or cid must be provided")
                 return v
 
         class LoadChainResponse(BaseModel):
             """Response model for chain loading operations."""
+
             success: bool = Field(..., description="Operation success status")
             operation: str = Field("load_chain", description="Operation name")
             timestamp: float = Field(..., description="Operation timestamp")
@@ -6664,17 +6980,18 @@ class LangchainIntegration:
             version: Optional[str] = Field(None, description="Version of the loaded chain")
             cid: Optional[str] = Field(None, description="CID of the loaded chain")
             chain_type: Optional[str] = Field(None, description="Type of the loaded chain")
-            metadata: Optional[Dict[str, Any]] = Field(None, description="Chain metadata if available")
-            config: Optional[Dict[str, Any]] = Field(None, description="Chain configuration if available")
+            metadata: Optional[Dict[str, Any]] = Field(
+                None, description="Chain metadata if available"
+            )
+            config: Optional[Dict[str, Any]] = Field(
+                None, description="Chain configuration if available"
+            )
             warning: Optional[str] = Field(None, description="Warning message if any")
             error: Optional[str] = Field(None, description="Error message if operation failed")
             error_type: Optional[str] = Field(None, description="Type of error if operation failed")
 
     def load_chain(
-        self, 
-        name: Optional[str] = None, 
-        version: Optional[str] = None, 
-        cid: Optional[str] = None
+        self, name: Optional[str] = None, version: Optional[str] = None, cid: Optional[str] = None
     ) -> Union[Dict[str, Any], Any, "LoadChainResponse"]:
         """Load a Langchain chain from IPFS by name, version, or CID.
 
@@ -6711,12 +7028,12 @@ class LangchainIntegration:
             ...     print(result)
         """
         result = {
-            "success": False, 
-            "operation": "load_chain", 
+            "success": False,
+            "operation": "load_chain",
             "timestamp": time.time(),
             "name": name,
             "version": version,
-            "cid": cid
+            "cid": cid,
         }
 
         if not LANGCHAIN_AVAILABLE:
@@ -6735,7 +7052,7 @@ class LangchainIntegration:
                 if chain_key not in self.registry["chains"]:
                     result["error"] = f"Chain {name}:{version} not found in registry"
                     result["error_type"] = "not_found_error"
-                    
+
                     if PYDANTIC_AVAILABLE:
                         return LoadChainResponse(**result)
                     return result
@@ -6750,7 +7067,7 @@ class LangchainIntegration:
                 if not versions:
                     result["error"] = f"Chain {name} not found in registry"
                     result["error_type"] = "not_found_error"
-                    
+
                     if PYDANTIC_AVAILABLE:
                         return LoadChainResponse(**result)
                     return result
@@ -6774,7 +7091,7 @@ class LangchainIntegration:
                             f"Failed to get chain from IPFS: {get_result.get('error', 'Unknown error')}"
                         )
                         result["error_type"] = "ipfs_error"
-                        
+
                         if PYDANTIC_AVAILABLE:
                             return LoadChainResponse(**result)
                         return result
@@ -6802,7 +7119,7 @@ class LangchainIntegration:
                     result["success"] = True
                     result["chain"] = chain
                     result["chain_type"] = type(chain).__name__
-                    
+
                     # Return appropriate response type
                     if PYDANTIC_AVAILABLE:
                         return LoadChainResponse(**result)
@@ -6816,18 +7133,22 @@ class LangchainIntegration:
 
                     # Try to reconstruct chain from config
                     if "chain_type" in metadata:
-                        result["error"] = f"Chain could not be reconstructed from config (type: {metadata['chain_type']})"
+                        result["error"] = (
+                            f"Chain could not be reconstructed from config (type: {metadata['chain_type']})"
+                        )
                         result["error_type"] = "reconstruction_error"
                         result["config"] = config
-                        
+
                         if PYDANTIC_AVAILABLE:
                             return LoadChainResponse(**result)
                         return result
                     else:
-                        result["error"] = "Chain could not be reconstructed from config (unknown type)"
+                        result["error"] = (
+                            "Chain could not be reconstructed from config (unknown type)"
+                        )
                         result["error_type"] = "reconstruction_error"
                         result["config"] = config
-                        
+
                         if PYDANTIC_AVAILABLE:
                             return LoadChainResponse(**result)
                         return result
@@ -6835,7 +7156,7 @@ class LangchainIntegration:
                 # Neither pickle nor config found
                 result["error"] = "No chain data found in IPFS content"
                 result["error_type"] = "data_missing_error"
-                
+
                 if PYDANTIC_AVAILABLE:
                     return LoadChainResponse(**result)
                 return result
@@ -6844,7 +7165,7 @@ class LangchainIntegration:
                 result["error"] = f"Error loading chain: {str(e)}"
                 result["error_type"] = type(e).__name__
                 self.logger.exception(f"Error in load_chain: {e}")
-                
+
                 if PYDANTIC_AVAILABLE:
                     return LoadChainResponse(**result)
                 return result
@@ -6857,7 +7178,7 @@ class LangchainIntegration:
             result["error"] = f"Error in load_chain: {str(e)}"
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error in load_chain: {e}")
-            
+
             if PYDANTIC_AVAILABLE:
                 return LoadChainResponse(**result)
             return result
@@ -6876,7 +7197,7 @@ class LlamaIndexIntegration:
 
     def __init__(self, ipfs_client: Optional[Any] = None, **kwargs: Any) -> None:
         """Initialize the LlamaIndex integration.
-        
+
         This method sets up the LlamaIndex integration with IPFS, initializing
         directory structures, logging, and the registry system for tracking
         indices, documents, and query engines.
@@ -6909,10 +7230,10 @@ class LlamaIndexIntegration:
 
     def _save_registry(self) -> None:
         """Save the registry to disk.
-        
+
         This internal method persists the current state of the registry to the filesystem.
         The registry contains metadata about stored documents, chains, and vector stores.
-        
+
         Returns:
             None
         """
@@ -6920,8 +7241,10 @@ class LlamaIndexIntegration:
             json.dump(self.registry, f, indent=2)
 
     if PYDANTIC_AVAILABLE:
+
         class LlamaIndexAvailabilityResponse(BaseModel):
             """Response model for LlamaIndex dependency availability check."""
+
             success: bool = Field(True, description="Operation success status")
             operation: str = Field("check_availability", description="Operation name")
             timestamp: float = Field(..., description="Operation timestamp")
@@ -6930,21 +7253,23 @@ class LlamaIndexIntegration:
             nltk_available: bool = Field(..., description="Whether NLTK is available")
             pydantic_available: bool = Field(..., description="Whether Pydantic is available")
             langchain_available: bool = Field(..., description="Whether Langchain is available")
-            message: str = Field("LlamaIndex integration status check completed", description="Status message")
+            message: str = Field(
+                "LlamaIndex integration status check completed", description="Status message"
+            )
 
     def check_availability(self) -> Union[Dict[str, Any], "LlamaIndexAvailabilityResponse"]:
         """Check if LlamaIndex and related dependencies are available.
-        
+
         This method checks the availability of LlamaIndex and its common dependencies,
         which is useful for determining what functionality will work in the current
         environment. It verifies the presence of key packages like NumPy and NLTK
         that are necessary for various LlamaIndex operations.
-        
+
         Returns:
             Union[Dict[str, Any], LlamaIndexAvailabilityResponse]: A dictionary or Pydantic model containing
                 availability information for various dependencies. The response includes boolean flags
                 for each dependency, indicating whether it's available in the current environment.
-                
+
         Example:
             >>> status = llamaindex_integration.check_availability()
             >>> if status["llama_index_available"]:
@@ -6959,6 +7284,7 @@ class LlamaIndexIntegration:
         # Check for numpy which is required for most operations
         try:
             import numpy
+
             numpy_available = True
         except ImportError:
             numpy_available = False
@@ -6966,6 +7292,7 @@ class LlamaIndexIntegration:
         # Check for common LlamaIndex dependencies
         try:
             import nltk
+
             nltk_available = True
         except ImportError:
             nltk_available = False
@@ -6982,35 +7309,42 @@ class LlamaIndexIntegration:
             "langchain_available": LANGCHAIN_AVAILABLE,
             "message": "LlamaIndex integration status check completed",
         }
-        
+
         # Return as Pydantic model if available
         if PYDANTIC_AVAILABLE:
             return LlamaIndexAvailabilityResponse(**result)
         return result
 
     if PYDANTIC_AVAILABLE:
+
         class LoadLlamaIndexDocumentsRequest(BaseModel):
             """Request model for loading documents from IPFS or local path."""
+
             cid: Optional[str] = Field(None, description="IPFS Content Identifier for documents")
             path: Optional[str] = Field(None, description="Local path to documents")
-            metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata to attach to documents")
-            
+            metadata: Optional[Dict[str, Any]] = Field(
+                None, description="Additional metadata to attach to documents"
+            )
+
         class LoadLlamaIndexDocumentsResponse(BaseModel):
             """Response model for document loading operation."""
+
             success: bool = Field(..., description="Operation success status")
             operation: str = Field("load_documents", description="Operation name")
             timestamp: float = Field(..., description="Operation timestamp")
             document_count: Optional[int] = Field(None, description="Number of documents loaded")
             source_id: Optional[str] = Field(None, description="Identifier for the document source")
-            documents: Optional[List[Any]] = Field(None, description="The loaded documents if successful")
+            documents: Optional[List[Any]] = Field(
+                None, description="The loaded documents if successful"
+            )
             error: Optional[str] = Field(None, description="Error message if operation failed")
             error_type: Optional[str] = Field(None, description="Type of error if operation failed")
 
     def load_documents(
-        self, 
-        cid: Optional[str] = None, 
-        path: Optional[str] = None, 
-        metadata: Optional[Dict[str, Any]] = None
+        self,
+        cid: Optional[str] = None,
+        path: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Union[List[Any], Dict[str, Any], "LoadLlamaIndexDocumentsResponse"]:
         """Load documents from IPFS or local path.
 
@@ -7024,7 +7358,7 @@ class LlamaIndexIntegration:
             metadata: Additional metadata to attach to all loaded documents.
 
         Returns:
-            Union[List[Any], Dict[str, Any], LoadLlamaIndexDocumentsResponse]: 
+            Union[List[Any], Dict[str, Any], LoadLlamaIndexDocumentsResponse]:
                 - On success: List of loaded Document objects (or LoadLlamaIndexDocumentsResponse if Pydantic is available)
                 - On failure: Error dictionary with details (or LoadLlamaIndexDocumentsResponse if Pydantic is available)
 
@@ -7032,25 +7366,23 @@ class LlamaIndexIntegration:
             >>> # Load documents from IPFS CID
             >>> documents = llamaindex_integration.load_documents(cid="QmY9Ej...")
             >>> print(f"Loaded {len(documents)} documents")
-            
+
             >>> # Load documents from local path with metadata
             >>> documents = llamaindex_integration.load_documents(
             ...     path="/path/to/documents",
             ...     metadata={"source": "local_collection", "author": "John Doe"}
             ... )
         """
-        result = {
-            "success": False, 
-            "operation": "load_documents", 
-            "timestamp": time.time()
-        }
+        result = {"success": False, "operation": "load_documents", "timestamp": time.time()}
 
         try:
             if not LLAMA_INDEX_AVAILABLE:
-                result["error"] = "LlamaIndex is not available. Please install with 'pip install llama-index'"
+                result["error"] = (
+                    "LlamaIndex is not available. Please install with 'pip install llama-index'"
+                )
                 result["error_type"] = "dependency_error"
                 self.logger.error(result["error"])
-                
+
                 if PYDANTIC_AVAILABLE:
                     return LoadLlamaIndexDocumentsResponse(**result)
                 return result
@@ -7066,7 +7398,7 @@ class LlamaIndexIntegration:
                 result["error"] = "Either cid or path must be specified"
                 result["error_type"] = "parameter_error"
                 self.logger.error(result["error"])
-                
+
                 if PYDANTIC_AVAILABLE:
                     return LoadLlamaIndexDocumentsResponse(**result)
                 return result
@@ -7102,41 +7434,50 @@ class LlamaIndexIntegration:
                 # Special handling for documents which might not be serializable
                 response.documents = documents
                 return response
-            
+
             return documents
 
         except Exception as e:
             result["error"] = f"Error loading documents: {str(e)}"
             result["error_type"] = "processing_error"
             self.logger.exception(f"Error in load_documents: {e}")
-            
+
             if PYDANTIC_AVAILABLE:
                 return LoadLlamaIndexDocumentsResponse(**result)
             return result
 
     if PYDANTIC_AVAILABLE:
+
         class CreateDocumentReaderRequest(BaseModel):
             """Request model for creating an IPFS document reader."""
+
             path_or_cid: str = Field(..., description="Path or CID to load documents from")
-        
+
         class CreateDocumentReaderResponse(BaseModel):
             """Response model for document reader creation."""
+
             success: bool = Field(..., description="Operation success status")
             operation: str = Field("create_document_reader", description="Operation name")
             timestamp: float = Field(..., description="Operation timestamp")
-            reader: Optional[Any] = Field(None, description="The document reader object if successful")
+            reader: Optional[Any] = Field(
+                None, description="The document reader object if successful"
+            )
             path_or_cid: str = Field(..., description="Path or CID used to create the reader")
             error: Optional[str] = Field(None, description="Error message if operation failed")
             error_type: Optional[str] = Field(None, description="Type of error if operation failed")
-            simulation_note: Optional[str] = Field(None, description="Additional information about simulated operations")
-    
-    def create_ipfs_document_reader(self, path_or_cid: str) -> Union[Dict[str, Any], Any, "CreateDocumentReaderResponse"]:
+            simulation_note: Optional[str] = Field(
+                None, description="Additional information about simulated operations"
+            )
+
+    def create_ipfs_document_reader(
+        self, path_or_cid: str
+    ) -> Union[Dict[str, Any], Any, "CreateDocumentReaderResponse"]:
         """Create a document reader for IPFS content.
 
-        This method creates a document reader capable of loading and processing content 
-        from either a local path or an IPFS CID. The reader can handle both single files 
+        This method creates a document reader capable of loading and processing content
+        from either a local path or an IPFS CID. The reader can handle both single files
         and directories of files, automatically extracting text content when possible.
-        
+
         The returned reader has methods for:
         - Loading documents (`load_data()`)
         - Creating vector indices from documents (`create_index()`)
@@ -7168,14 +7509,16 @@ class LlamaIndexIntegration:
             "success": False,
             "operation": "create_document_reader",
             "timestamp": time.time(),
-            "path_or_cid": path_or_cid
+            "path_or_cid": path_or_cid,
         }
-        
+
         if not LLAMA_INDEX_AVAILABLE:
-            result["error"] = "LlamaIndex is not available. Please install with 'pip install llama-index'"
+            result["error"] = (
+                "LlamaIndex is not available. Please install with 'pip install llama-index'"
+            )
             result["error_type"] = "dependency_error"
             result["simulation_note"] = "This is a simulated error, no document reader was created"
-            
+
             if PYDANTIC_AVAILABLE:
                 return CreateDocumentReaderResponse(**result)
             return result
@@ -7494,7 +7837,7 @@ class LlamaIndexIntegration:
                                 doc_text[:200] + "..." if len(doc_text) > 200 else doc_text
                             )
                             response_text += (
-                                f"Source {i+1} (score: {doc['score']:.2f}):\n{doc_preview}\n\n"
+                                f"Source {i + 1} (score: {doc['score']:.2f}):\n{doc_preview}\n\n"
                             )
 
                     # Create response object
@@ -7512,14 +7855,21 @@ class LlamaIndexIntegration:
         return reader
 
     if PYDANTIC_AVAILABLE:
+
         class CreateIndexRequest(BaseModel):
             """Request model for creating an index from documents."""
+
             documents: List[Any] = Field(..., description="List of documents to index")
-            index_type: str = Field("vector", description="Type of index to create (vector, list, etc.)")
-            service_context: Optional[Any] = Field(None, description="Service context for LlamaIndex")
-        
+            index_type: str = Field(
+                "vector", description="Type of index to create (vector, list, etc.)"
+            )
+            service_context: Optional[Any] = Field(
+                None, description="Service context for LlamaIndex"
+            )
+
         class CreateIndexResponse(BaseModel):
             """Response model for index creation operation."""
+
             success: bool = Field(..., description="Operation success status")
             operation: str = Field("create_index", description="Operation name")
             timestamp: float = Field(..., description="Operation timestamp")
@@ -7528,20 +7878,20 @@ class LlamaIndexIntegration:
             index_type: Optional[str] = Field(None, description="Type of index created")
             error: Optional[str] = Field(None, description="Error message if operation failed")
             error_type: Optional[str] = Field(None, description="Type of error if operation failed")
-    
+
     def create_index(
-        self, 
-        documents: List[Any], 
-        index_type: str = "vector", 
-        service_context: Optional[Any] = None
+        self,
+        documents: List[Any],
+        index_type: str = "vector",
+        service_context: Optional[Any] = None,
     ) -> Union[Any, Dict[str, Any], "CreateIndexResponse"]:
         """Create an index from documents.
-        
+
         This method creates a LlamaIndex index from a list of documents. It supports
         different index types and allows customization through a service context.
         The index can be used for semantic search, RAG (Retrieval Augmented Generation),
         and other operations that require efficient document retrieval.
-        
+
         Args:
             documents: List of documents to index. These can be Document objects from
                 LlamaIndex or raw text/dictionary objects that will be converted.
@@ -7557,17 +7907,17 @@ class LlamaIndexIntegration:
                 - Node parsers
                 - Prompt helpers
                 - etc.
-        
+
         Returns:
-            Union[Any, Dict[str, Any], CreateIndexResponse]: 
+            Union[Any, Dict[str, Any], CreateIndexResponse]:
                 - On success: The created index object (or CreateIndexResponse if Pydantic is available)
                 - On failure: Error dictionary with details (or CreateIndexResponse if Pydantic is available)
-        
+
         Examples:
             >>> # Create a basic vector index
             >>> documents = llamaindex_integration.load_documents(path="/path/to/docs")
             >>> index = llamaindex_integration.create_index(documents)
-            >>> 
+            >>>
             >>> # Create a custom index with specific parameters
             >>> from llama_index import ServiceContext
             >>> service_context = ServiceContext.from_defaults(
@@ -7581,18 +7931,20 @@ class LlamaIndexIntegration:
             ... )
         """
         result = {
-            "success": False, 
-            "operation": "create_index", 
+            "success": False,
+            "operation": "create_index",
             "timestamp": time.time(),
-            "index_type": index_type
+            "index_type": index_type,
         }
 
         try:
             if not LLAMA_INDEX_AVAILABLE:
-                result["error"] = "LlamaIndex is not available. Please install with 'pip install llama-index'"
+                result["error"] = (
+                    "LlamaIndex is not available. Please install with 'pip install llama-index'"
+                )
                 result["error_type"] = "dependency_error"
                 self.logger.error(result["error"])
-                
+
                 if PYDANTIC_AVAILABLE:
                     return CreateIndexResponse(**result)
                 return result
@@ -7614,7 +7966,7 @@ class LlamaIndexIntegration:
             if index is None:
                 result["error"] = "Failed to create index"
                 result["error_type"] = "processing_error"
-                
+
                 if PYDANTIC_AVAILABLE:
                     return CreateIndexResponse(**result)
                 return result
@@ -7629,21 +7981,23 @@ class LlamaIndexIntegration:
                 # Special handling for index object which isn't serializable
                 response.index = index
                 return response
-            
+
             return index
 
         except Exception as e:
             result["error"] = f"Error creating index: {str(e)}"
             result["error_type"] = "processing_error"
             self.logger.exception(f"Error in create_index: {e}")
-            
+
             if PYDANTIC_AVAILABLE:
                 return CreateIndexResponse(**result)
             return result
 
     if PYDANTIC_AVAILABLE:
+
         class StoreIndexRequest(BaseModel):
             """Request model for storing a LlamaIndex index in IPFS."""
+
             index: Any = Field(..., description="LlamaIndex index to store")
             name: str = Field(..., description="Name for the index")
             version: str = Field("1.0.0", description="Version string")
@@ -7651,6 +8005,7 @@ class LlamaIndexIntegration:
 
         class StoreIndexResponse(BaseModel):
             """Response model for index storage operations."""
+
             success: bool = Field(..., description="Operation success status")
             operation: str = Field("store_index", description="Operation name")
             timestamp: float = Field(..., description="Operation timestamp")
@@ -7664,11 +8019,11 @@ class LlamaIndexIntegration:
             error_details: Optional[str] = Field(None, description="Additional error details")
 
     def store_index(
-        self, 
-        index: Any, 
-        name: str, 
-        version: str = "1.0.0", 
-        metadata: Optional[Dict[str, Any]] = None
+        self,
+        index: Any,
+        name: str,
+        version: str = "1.0.0",
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Union[Dict[str, Any], "StoreIndexResponse"]:
         """Store a LlamaIndex index in IPFS for persistence and sharing.
 
@@ -7744,7 +8099,7 @@ class LlamaIndexIntegration:
                 result["error_type"] = "ipfs_error"
                 if "error" in ipfs_result:
                     result["error_details"] = ipfs_result["error"]
-                
+
                 if PYDANTIC_AVAILABLE:
                     return StoreIndexResponse(**result)
                 return result
@@ -7754,7 +8109,7 @@ class LlamaIndexIntegration:
             if not cid:
                 result["error"] = "No CID returned from IPFS"
                 result["error_type"] = "missing_cid_error"
-                
+
                 if PYDANTIC_AVAILABLE:
                     return StoreIndexResponse(**result)
                 return result
@@ -7788,28 +8143,33 @@ class LlamaIndexIntegration:
             result["error"] = f"Error storing index: {str(e)}"
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error in store_index: {e}")
-            
+
             if PYDANTIC_AVAILABLE:
                 return StoreIndexResponse(**result)
             return result
 
     if PYDANTIC_AVAILABLE:
+
         class LoadIndexRequest(BaseModel):
             """Request model for loading a LlamaIndex index from IPFS."""
+
             name: Optional[str] = Field(None, description="Name of the index to load")
             version: Optional[str] = Field(None, description="Version of the index to load")
             cid: Optional[str] = Field(None, description="CID of the index to load directly")
-            
-            @validator('name', 'cid', mode='before')  # mode='before' for compatibility with field_validator
+
+            @validator(
+                "name", "cid", mode="before"
+            )  # mode='before' for compatibility with field_validator
             def validate_name_or_cid(cls, v, info):
                 """Validate that either name or cid is provided."""
-                values = info.data if hasattr(info, 'data') else info
-                if not v and 'name' not in values and 'cid' not in values:
+                values = info.data if hasattr(info, "data") else info
+                if not v and "name" not in values and "cid" not in values:
                     raise ValueError("Either name or cid must be provided")
                 return v
 
         class LoadIndexResponse(BaseModel):
             """Response model for index loading operations."""
+
             success: bool = Field(..., description="Operation success status")
             operation: str = Field("load_index", description="Operation name")
             timestamp: float = Field(..., description="Operation timestamp")
@@ -7818,15 +8178,14 @@ class LlamaIndexIntegration:
             version: Optional[str] = Field(None, description="Version of the loaded index")
             cid: Optional[str] = Field(None, description="CID of the loaded index")
             index_type: Optional[str] = Field(None, description="Type of the loaded index")
-            metadata: Optional[Dict[str, Any]] = Field(None, description="Index metadata if available")
+            metadata: Optional[Dict[str, Any]] = Field(
+                None, description="Index metadata if available"
+            )
             error: Optional[str] = Field(None, description="Error message if operation failed")
             error_type: Optional[str] = Field(None, description="Type of error if operation failed")
 
     def load_index(
-        self, 
-        name: Optional[str] = None, 
-        version: Optional[str] = None, 
-        cid: Optional[str] = None
+        self, name: Optional[str] = None, version: Optional[str] = None, cid: Optional[str] = None
     ) -> Union[Dict[str, Any], Any, "LoadIndexResponse"]:
         """Load a LlamaIndex index from IPFS by name, version, or CID.
 
@@ -7861,19 +8220,21 @@ class LlamaIndexIntegration:
             ...     print(response)
         """
         result = {
-            "success": False, 
-            "operation": "load_index", 
+            "success": False,
+            "operation": "load_index",
             "timestamp": time.time(),
             "name": name,
             "version": version,
-            "cid": cid
+            "cid": cid,
         }
 
         if not LLAMA_INDEX_AVAILABLE:
-            result["error"] = "LlamaIndex is not available. Please install with 'pip install llama-index'"
+            result["error"] = (
+                "LlamaIndex is not available. Please install with 'pip install llama-index'"
+            )
             result["error_type"] = "dependency_error"
             self.logger.error(result["error"])
-            
+
             if PYDANTIC_AVAILABLE:
                 return LoadIndexResponse(**result)
             return result
@@ -7887,7 +8248,7 @@ class LlamaIndexIntegration:
                 if index_key not in self.registry["indices"]:
                     result["error"] = f"Index {name}:{version} not found in registry"
                     result["error_type"] = "not_found_error"
-                    
+
                     if PYDANTIC_AVAILABLE:
                         return LoadIndexResponse(**result)
                     return result
@@ -7902,7 +8263,7 @@ class LlamaIndexIntegration:
                 if not versions:
                     result["error"] = f"Index {name} not found in registry"
                     result["error_type"] = "not_found_error"
-                    
+
                     if PYDANTIC_AVAILABLE:
                         return LoadIndexResponse(**result)
                     return result
@@ -7913,7 +8274,7 @@ class LlamaIndexIntegration:
             else:
                 result["error"] = "Either name or cid must be specified"
                 result["error_type"] = "parameter_error"
-                
+
                 if PYDANTIC_AVAILABLE:
                     return LoadIndexResponse(**result)
                 return result
@@ -7926,16 +8287,18 @@ class LlamaIndexIntegration:
                 if hasattr(self.ipfs, "get"):
                     get_result = self.ipfs.get(index_cid, temp_dir)
                     if not get_result.get("success", False):
-                        result["error"] = f"Failed to get index from IPFS: {get_result.get('error', 'Unknown error')}"
+                        result["error"] = (
+                            f"Failed to get index from IPFS: {get_result.get('error', 'Unknown error')}"
+                        )
                         result["error_type"] = "ipfs_error"
-                        
+
                         if PYDANTIC_AVAILABLE:
                             return LoadIndexResponse(**result)
                         return result
                 else:
                     result["error"] = "IPFS client does not support get operation"
                     result["error_type"] = "client_capability_error"
-                    
+
                     if PYDANTIC_AVAILABLE:
                         return LoadIndexResponse(**result)
                     return result
@@ -7951,7 +8314,7 @@ class LlamaIndexIntegration:
                 if not os.path.exists(documents_path) or not os.path.exists(embeddings_path):
                     result["error"] = "Index data is incomplete"
                     result["error_type"] = "data_missing_error"
-                    
+
                     if PYDANTIC_AVAILABLE:
                         return LoadIndexResponse(**result)
                     return result
@@ -7988,20 +8351,20 @@ class LlamaIndexIntegration:
                 result["metadata"] = metadata
                 result["cid"] = index_cid
                 result["index_type"] = index_cls.__name__
-                
+
                 if PYDANTIC_AVAILABLE:
                     response = LoadIndexResponse(**result)
                     # Special handling for index field which isn't serializable
                     response.index = index
                     return response
-                    
+
                 return index
 
             except Exception as e:
                 result["error"] = f"Error loading index: {str(e)}"
                 result["error_type"] = type(e).__name__
                 self.logger.exception(f"Error loading index: {e}")
-                
+
                 if PYDANTIC_AVAILABLE:
                     return LoadIndexResponse(**result)
                 return result
@@ -8014,15 +8377,17 @@ class LlamaIndexIntegration:
             result["error"] = f"Error in load_index: {str(e)}"
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error in load_index: {e}")
-            
+
             if PYDANTIC_AVAILABLE:
                 return LoadIndexResponse(**result)
             return result
 
 
 if PYDANTIC_AVAILABLE:
+
     class IPFSDataLoaderConfig(BaseModel):
         """Configuration model for IPFSDataLoader class."""
+
         batch_size: int = Field(32, description="Number of samples per batch")
         shuffle: bool = Field(True, description="Whether to shuffle the dataset")
         prefetch: int = Field(2, description="Number of batches to prefetch")
@@ -8030,8 +8395,11 @@ if PYDANTIC_AVAILABLE:
         max_cache_size: Optional[int] = Field(None, description="Maximum cache size in bytes")
         timeout: float = Field(30.0, description="Timeout for IPFS operations in seconds")
         retry_count: int = Field(3, description="Number of retries for failed operations")
-        max_retries: int = Field(3, description="Maximum number of retry attempts for failed operations")
+        max_retries: int = Field(
+            3, description="Maximum number of retry attempts for failed operations"
+        )
         backoff_factor: float = Field(0.5, description="Exponential backoff factor for retries")
+
 
 class IPFSDataLoader:
     """IPFS data loader class for machine learning datasets.
@@ -8052,19 +8420,19 @@ class IPFSDataLoader:
     """
 
     def __init__(
-        self, 
-        ipfs_client: Optional[Any] = None, 
-        batch_size: int = 32, 
-        shuffle: bool = True, 
-        prefetch: int = 2, 
-        metrics: Optional[Any] = None, 
-        **kwargs: Any
+        self,
+        ipfs_client: Optional[Any] = None,
+        batch_size: int = 32,
+        shuffle: bool = True,
+        prefetch: int = 2,
+        metrics: Optional[Any] = None,
+        **kwargs: Any,
     ) -> None:
         """Initialize data loader with IPFS client and configuration.
 
-        This method configures the IPFSDataLoader with the specified parameters for 
+        This method configures the IPFSDataLoader with the specified parameters for
         efficient batch loading of datasets from IPFS. The data loader provides background
-        prefetching for improved performance and seamless integration with popular 
+        prefetching for improved performance and seamless integration with popular
         ML frameworks.
 
         Args:
@@ -8091,14 +8459,13 @@ class IPFSDataLoader:
         # Apply configuration from Pydantic model if available
         if PYDANTIC_AVAILABLE:
             # Extract all kwargs that match our config model
-            config_kwargs = {k: v for k, v in kwargs.items() 
-                           if k in IPFSDataLoaderConfig.__fields__}
+            config_kwargs = {
+                k: v for k, v in kwargs.items() if k in IPFSDataLoaderConfig.__fields__
+            }
             # Add the standard parameters
-            config_kwargs.update({
-                "batch_size": batch_size,
-                "shuffle": shuffle,
-                "prefetch": prefetch
-            })
+            config_kwargs.update(
+                {"batch_size": batch_size, "shuffle": shuffle, "prefetch": prefetch}
+            )
             # Validate with Pydantic
             config = IPFSDataLoaderConfig(**config_kwargs)
             # Apply validated config to instance
@@ -8148,28 +8515,23 @@ class IPFSDataLoader:
             "load_times": [],
             "batch_times": [],
             "total_prefetch_time": 0,
-            
             # Cache metrics
             "cache_hits": 0,
             "cache_misses": 0,
             "cache_evictions": 0,
-            
             # Error metrics
             "parse_errors": 0,
             "timeout_errors": 0,
             "key_errors": 0,
             "other_errors": 0,
-            
             # Sample processing metrics
             "samples_processed": 0,
-            
             # Prefetch worker metrics
             "prefetch_thread_count": 1,
             "prefetch_errors": 0,
             "prefetch_worker_exceptions": 0,
             "prefetch_queue_full_events": 0,
             "prefetch_threads_stopped": 0,
-            
             # Thread adjustment metrics
             "thread_count_adjustments": 0,
             "thread_adjustment_reasons": {},
@@ -8182,11 +8544,11 @@ class IPFSDataLoader:
         self.prefetch_queue = queue.Queue(maxsize=prefetch)
         self.prefetch_threads = []
         self.stop_prefetch = threading.Event()
-        
+
         # Thread-safety locks
         self._metrics_lock = threading.RLock()
         self._prefetch_state_lock = threading.RLock()
-        
+
         # Prefetch state tracking
         self.prefetch_state = {
             "active_threads": 0,
@@ -8195,29 +8557,46 @@ class IPFSDataLoader:
             "current_prefetch_rate": 0.0,
             "adaptive_thread_count": 1,  # Start with 1 thread, adjust based on load
         }
-        
+
         # Track last thread adjustment time for adaptive prefetching
         self._last_thread_adjustment = time.time()
 
     if PYDANTIC_AVAILABLE:
+
         class LoadDatasetRequest(BaseModel):
             """Request model for loading a dataset from IPFS."""
+
             dataset_cid: str = Field(..., description="Content Identifier of the dataset to load")
-        
+
         class LoadDatasetResponse(BaseModel):
             """Response model for dataset loading operation."""
+
             success: bool = Field(..., description="Operation success status")
             operation: str = Field("load_dataset", description="Operation name")
             timestamp: float = Field(..., description="Operation timestamp")
             dataset_cid: str = Field(..., description="Content Identifier of the dataset")
-            total_samples: Optional[int] = Field(None, description="Total number of samples in the dataset")
-            format: Optional[str] = Field(None, description="Format of the dataset (embedded, referenced, etc.)")
-            sharded: Optional[bool] = Field(None, description="Whether the dataset is sharded across multiple CIDs")
-            total_shards: Optional[int] = Field(None, description="Total number of shards if sharded")
-            loaded_shard: Optional[int] = Field(None, description="Index of loaded shard if sharded")
+            total_samples: Optional[int] = Field(
+                None, description="Total number of samples in the dataset"
+            )
+            format: Optional[str] = Field(
+                None, description="Format of the dataset (embedded, referenced, etc.)"
+            )
+            sharded: Optional[bool] = Field(
+                None, description="Whether the dataset is sharded across multiple CIDs"
+            )
+            total_shards: Optional[int] = Field(
+                None, description="Total number of shards if sharded"
+            )
+            loaded_shard: Optional[int] = Field(
+                None, description="Index of loaded shard if sharded"
+            )
             metadata: Optional[Dict[str, Any]] = Field(None, description="Dataset metadata")
-            mocked: Optional[bool] = Field(None, description="Whether this is a mock dataset due to missing IPFS client")
-            load_time_ms: Optional[float] = Field(None, description="Time taken to load the dataset in milliseconds")
+            mocked: Optional[bool] = Field(
+                None, description="Whether this is a mock dataset due to missing IPFS client"
+            )
+            load_time_ms: Optional[float] = Field(
+                None, description="Time taken to load the dataset in milliseconds"
+            )
             error: Optional[str] = Field(None, description="Error message if operation failed")
             error_type: Optional[str] = Field(None, description="Type of error if operation failed")
 
@@ -8228,7 +8607,7 @@ class IPFSDataLoader:
         and sets up the data loader for iterating through the dataset samples. It automatically
         detects the dataset format (embedded, referenced, or sharded) and configures the
         appropriate loading strategy.
-        
+
         The dataset should follow one of these formats:
         1. Embedded: Dataset document contains actual data samples in a "data" field
         2. Referenced: Dataset document contains CIDs to individual samples in a "samples" field
@@ -8246,7 +8625,7 @@ class IPFSDataLoader:
                 - metadata: Additional dataset metadata
                 - error: Error message if loading failed
                 - load_time_ms: Time taken to load in milliseconds
-                
+
         Examples:
             >>> # Load a dataset by CID
             >>> result = data_loader.load_dataset("QmYourDatasetCID")
@@ -8273,7 +8652,7 @@ class IPFSDataLoader:
             "success": False,
             "operation": "load_dataset",
             "timestamp": time.time(),
-            "dataset_cid": dataset_cid
+            "dataset_cid": dataset_cid,
         }
 
         with context:
@@ -8330,30 +8709,32 @@ class IPFSDataLoader:
                         if len(dataset_info["shards"]) > 0:
                             first_shard_cid = dataset_info["shards"][0]
                             shard_result = self.load_dataset(first_shard_cid)
-                            
+
                             # Check if result is a Pydantic model or dict
                             if hasattr(shard_result, "success"):
                                 shard_success = shard_result.success
                             else:
                                 shard_success = shard_result.get("success", False)
-                                
+
                             if shard_success:
                                 # Return success but indicate this is a sharded dataset
-                                result.update({
-                                    "success": True,
-                                    "total_samples": self.total_samples,
-                                    "sharded": True,
-                                    "total_shards": len(dataset_info["shards"]),
-                                    "loaded_shard": 0,
-                                    "metadata": {
-                                        "name": dataset_info.get("name", "Unknown"),
-                                        "format": dataset_info.get("format", "Unknown"),
-                                        "version": dataset_info.get("version", "1.0.0"),
-                                    },
-                                    "format": "sharded",
-                                    "load_time_ms": (time.time() - start_time) * 1000,
-                                })
-                                
+                                result.update(
+                                    {
+                                        "success": True,
+                                        "total_samples": self.total_samples,
+                                        "sharded": True,
+                                        "total_shards": len(dataset_info["shards"]),
+                                        "loaded_shard": 0,
+                                        "metadata": {
+                                            "name": dataset_info.get("name", "Unknown"),
+                                            "format": dataset_info.get("format", "Unknown"),
+                                            "version": dataset_info.get("version", "1.0.0"),
+                                        },
+                                        "format": "sharded",
+                                        "load_time_ms": (time.time() - start_time) * 1000,
+                                    }
+                                )
+
                                 if PYDANTIC_AVAILABLE:
                                     return LoadDatasetResponse(**result)
                                 return result
@@ -8362,11 +8743,13 @@ class IPFSDataLoader:
                                     return shard_result
                                 return shard_result
                         else:
-                            result.update({
-                                "error": "Sharded dataset contains no shards",
-                                "error_type": "empty_shards_error"
-                            })
-                            
+                            result.update(
+                                {
+                                    "error": "Sharded dataset contains no shards",
+                                    "error_type": "empty_shards_error",
+                                }
+                            )
+
                             if PYDANTIC_AVAILABLE:
                                 return LoadDatasetResponse(**result)
                             return result
@@ -8379,11 +8762,13 @@ class IPFSDataLoader:
                             self.dataset_format = "embedded"
                         else:
                             # No samples found
-                            result.update({
-                                "error": "Dataset does not contain samples or data",
-                                "error_type": "missing_samples_error"
-                            })
-                            
+                            result.update(
+                                {
+                                    "error": "Dataset does not contain samples or data",
+                                    "error_type": "missing_samples_error",
+                                }
+                            )
+
                             if PYDANTIC_AVAILABLE:
                                 return LoadDatasetResponse(**result)
                             return result
@@ -8392,17 +8777,19 @@ class IPFSDataLoader:
                     self._start_prefetch()
 
                     # Update success result
-                    result.update({
-                        "success": True,
-                        "total_samples": self.total_samples,
-                        "format": self.dataset_format,
-                        "metadata": {
-                            "name": dataset_info.get("name", "Unknown"),
-                            "format": dataset_info.get("format", "Unknown"),
-                            "version": dataset_info.get("version", "1.0.0"),
-                        },
-                        "load_time_ms": (time.time() - start_time) * 1000,
-                    })
+                    result.update(
+                        {
+                            "success": True,
+                            "total_samples": self.total_samples,
+                            "format": self.dataset_format,
+                            "metadata": {
+                                "name": dataset_info.get("name", "Unknown"),
+                                "format": dataset_info.get("format", "Unknown"),
+                                "version": dataset_info.get("version", "1.0.0"),
+                            },
+                            "load_time_ms": (time.time() - start_time) * 1000,
+                        }
+                    )
 
                     # Record in performance metrics
                     self.performance_metrics["load_times"].append((time.time() - start_time) * 1000)
@@ -8430,14 +8817,16 @@ class IPFSDataLoader:
                     self._start_prefetch()
 
                     # Update success result with mock data
-                    result.update({
-                        "success": True,
-                        "total_samples": self.total_samples,
-                        "format": self.dataset_format,
-                        "metadata": self.dataset_metadata,
-                        "mocked": True,
-                        "load_time_ms": (time.time() - start_time) * 1000,
-                    })
+                    result.update(
+                        {
+                            "success": True,
+                            "total_samples": self.total_samples,
+                            "format": self.dataset_format,
+                            "metadata": self.dataset_metadata,
+                            "mocked": True,
+                            "load_time_ms": (time.time() - start_time) * 1000,
+                        }
+                    )
 
                     # Record in performance metrics
                     self.performance_metrics["load_times"].append((time.time() - start_time) * 1000)
@@ -8448,53 +8837,37 @@ class IPFSDataLoader:
 
             except Exception as e:
                 self.logger.error(f"Error loading dataset {dataset_cid}: {str(e)}")
-                result.update({
-                    "error": str(e),
-                    "error_type": type(e).__name__
-                })
-                
+                result.update({"error": str(e), "error_type": type(e).__name__})
+
                 if PYDANTIC_AVAILABLE:
                     return LoadDatasetResponse(**result)
                 return result
 
     if PYDANTIC_AVAILABLE:
+
         class LoadEmbeddedDatasetRequest(BaseModel):
             """Request model for the load_embedded_dataset method."""
+
             data_array: List[Any] = Field(
-                ..., 
-                description="List of data samples to load into memory"
+                ..., description="List of data samples to load into memory"
             )
-            
+
         class LoadEmbeddedDatasetResponse(BaseModel):
             """Response model for the load_embedded_dataset method."""
-            success: bool = Field(
-                True, 
-                description="Whether the operation was successful"
-            )
-            total_samples: int = Field(
-                0, 
-                description="The total number of samples loaded"
-            )
-            format: str = Field(
-                "embedded_local", 
-                description="The format of the loaded dataset"
-            )
+
+            success: bool = Field(True, description="Whether the operation was successful")
+            total_samples: int = Field(0, description="The total number of samples loaded")
+            format: str = Field("embedded_local", description="The format of the loaded dataset")
             load_time_ms: float = Field(
-                0.0, 
-                description="The time taken to load the dataset in milliseconds"
+                0.0, description="The time taken to load the dataset in milliseconds"
             )
-            error: Optional[str] = Field(
-                None, 
-                description="Error message if operation failed"
-            )
+            error: Optional[str] = Field(None, description="Error message if operation failed")
             error_type: Optional[str] = Field(
-                None, 
-                description="Type of error that occurred if operation failed"
+                None, description="Type of error that occurred if operation failed"
             )
 
     def load_embedded_dataset(
-        self, 
-        data_array: List[Any]
+        self, data_array: List[Any]
     ) -> Union[Dict[str, Any], "LoadEmbeddedDatasetResponse"]:
         """Load an already-retrieved array of data samples into memory.
 
@@ -8525,13 +8898,13 @@ class IPFSDataLoader:
                 {"features": [4.0, 5.0, 6.0], "labels": 1},
                 {"features": [7.0, 8.0, 9.0], "labels": 0}
             ]
-            
+
             # Load the samples into the data loader
             result = data_loader.load_embedded_dataset(samples)
-            
+
             if result["success"]:
                 print(f"Loaded {result['total_samples']} samples")
-                
+
                 # Now the data loader can be used for training
                 for batch in data_loader:
                     print(f"Processing batch with {len(batch)} samples")
@@ -8544,11 +8917,11 @@ class IPFSDataLoader:
         try:
             if not isinstance(data_array, list):
                 result = {
-                    "success": False, 
+                    "success": False,
                     "error": "data_array must be a list of samples",
-                    "error_type": "parameter_error"
+                    "error_type": "parameter_error",
                 }
-                
+
                 if PYDANTIC_AVAILABLE:
                     return LoadEmbeddedDatasetResponse(**result)
                 return result
@@ -8590,12 +8963,8 @@ class IPFSDataLoader:
 
         except Exception as e:
             self.logger.error(f"Error loading embedded dataset: {str(e)}")
-            result = {
-                "success": False, 
-                "error": str(e), 
-                "error_type": type(e).__name__
-            }
-            
+            result = {"success": False, "error": str(e), "error_type": type(e).__name__}
+
             if PYDANTIC_AVAILABLE:
                 return LoadEmbeddedDatasetResponse(**result)
             return result
@@ -8604,19 +8973,19 @@ class IPFSDataLoader:
         """Start prefetching threads for parallel background batch loading."""
         import threading
         import time
-        
+
         # Initialize locks if they don't exist
-        if not hasattr(self, '_prefetch_state_lock'):
+        if not hasattr(self, "_prefetch_state_lock"):
             self._prefetch_state_lock = threading.RLock()
-        if not hasattr(self, '_metrics_lock'):
+        if not hasattr(self, "_metrics_lock"):
             self._metrics_lock = threading.RLock()
-        
+
         # Initialize thread registry for tracking worker health
-        if not hasattr(self, 'thread_registry'):
+        if not hasattr(self, "thread_registry"):
             self.thread_registry = {}
-        
+
         # Initialize batch error history for adaptive batch processing
-        if not hasattr(self, 'batch_error_history'):
+        if not hasattr(self, "batch_error_history"):
             self.batch_error_history = {}
 
         start_time = time.time()
@@ -8634,29 +9003,33 @@ class IPFSDataLoader:
 
         self.prefetch_queue = queue.Queue(maxsize=self.prefetch)
         self.stop_prefetch.clear()
-        
+
         # Reset prefetch worker state for new prefetch session
         with self._prefetch_state_lock:
-            self.prefetch_state.update({
-                "active_threads": 0,
-                "idle_threads": 0,
-                "current_prefetch_rate": 0.0,
-                "total_batches_prefetched": 0,
-                "adaptive_thread_count": self.prefetch_state.get("adaptive_thread_count", 2),
-                "last_health_check": time.time()
-            })
-        
+            self.prefetch_state.update(
+                {
+                    "active_threads": 0,
+                    "idle_threads": 0,
+                    "current_prefetch_rate": 0.0,
+                    "total_batches_prefetched": 0,
+                    "adaptive_thread_count": self.prefetch_state.get("adaptive_thread_count", 2),
+                    "last_health_check": time.time(),
+                }
+            )
+
         # Determine optimal number of prefetch threads based on workload
         thread_count = self._get_optimal_thread_count()
-        
+
         # Update metrics if threads were stopped
         if threads_stopped > 0:
             with self._metrics_lock:
-                self.performance_metrics["prefetch_threads_stopped"] = self.performance_metrics.get("prefetch_threads_stopped", 0) + threads_stopped
+                self.performance_metrics["prefetch_threads_stopped"] = (
+                    self.performance_metrics.get("prefetch_threads_stopped", 0) + threads_stopped
+                )
 
         # Clear thread registry from previous run
         self.thread_registry.clear()
-        
+
         # Reset batch error history periodically to avoid memory growth
         # But maintain some history to help prioritize batch processing
         if len(self.batch_error_history) > 1000:  # If we have too many entries
@@ -8669,128 +9042,136 @@ class IPFSDataLoader:
             thread = threading.Thread(
                 target=self._prefetch_worker,
                 name=f"prefetch-worker-{i}",
-                args=(i,)  # Pass thread index for metrics
+                args=(i,),  # Pass thread index for metrics
             )
             thread.daemon = True
             thread.start()
             self.prefetch_threads.append(thread)
-            
+
         # Update state
         with self._prefetch_state_lock:
             self.prefetch_state["active_threads"] = thread_count
-        
+
         # Record thread startup time
         with self._metrics_lock:
             self.performance_metrics["total_prefetch_time"] += time.time() - start_time
             self.performance_metrics["prefetch_thread_count"] = thread_count
-            
+
         # Schedule periodic health check if not in testing mode
         if not hasattr(self, "_testing_mode") or not self._testing_mode:
             self._schedule_health_check()
-    
+
     def _schedule_health_check(self):
         """Schedule a periodic health check for prefetch workers."""
         import threading
-        
+
         # Skip if testing or if we're shutting down
         if hasattr(self, "_testing_mode") and self._testing_mode:
             return
-        if hasattr(self, 'stop_prefetch') and self.stop_prefetch.is_set():
+        if hasattr(self, "stop_prefetch") and self.stop_prefetch.is_set():
             return
-            
+
         # Schedule health check to run every 30 seconds
         threading.Timer(30.0, self._check_worker_health).start()
-    
+
     def _check_worker_health(self):
         """Check health of prefetch workers and restart any that are stuck."""
         # Skip if we're shutting down
-        if hasattr(self, 'stop_prefetch') and self.stop_prefetch.is_set():
+        if hasattr(self, "stop_prefetch") and self.stop_prefetch.is_set():
             return
-            
+
         try:
             import threading
             import time
-            
+
             # Mark the time of this health check
             with self._prefetch_state_lock:
                 self.prefetch_state["last_health_check"] = time.time()
-            
+
             # Check each worker thread
             for worker_index, thread in enumerate(self.prefetch_threads):
                 # Skip active threads
                 if not thread.is_alive():
-                    self.logger.warning(f"Prefetch worker {worker_index} is not alive, restarting...")
-                    
+                    self.logger.warning(
+                        f"Prefetch worker {worker_index} is not alive, restarting..."
+                    )
+
                     # Start a new thread to replace the dead one
                     new_thread = threading.Thread(
                         target=self._prefetch_worker,
                         name=f"prefetch-worker-{worker_index}-restarted",
-                        args=(worker_index,)
+                        args=(worker_index,),
                     )
                     new_thread.daemon = True
                     new_thread.start()
-                    
+
                     # Replace the thread in the list
                     self.prefetch_threads[worker_index] = new_thread
-                    
+
                     # Update metrics
                     with self._metrics_lock:
-                        self.performance_metrics["prefetch_threads_restarted"] = self.performance_metrics.get("prefetch_threads_restarted", 0) + 1
-            
+                        self.performance_metrics["prefetch_threads_restarted"] = (
+                            self.performance_metrics.get("prefetch_threads_restarted", 0) + 1
+                        )
+
             # Examine thread registry for stuck workers
             for worker_id, info in self.thread_registry.items():
                 if info.get("status") == "running":
                     # Check if metrics indicate the worker is stuck (no progress)
                     metrics = info.get("metrics", {})
                     last_activity = metrics.get("last_activity", 0)
-                    
+
                     # If no activity for more than 2 minutes, consider it stuck
                     if time.time() - last_activity > 120:
                         # Worker is potentially stuck, log for now (could implement forced restart)
-                        self.logger.warning(f"Worker {worker_id} may be stuck (no activity for {time.time() - last_activity:.1f}s)")
-            
+                        self.logger.warning(
+                            f"Worker {worker_id} may be stuck (no activity for {time.time() - last_activity:.1f}s)"
+                        )
+
             # Schedule the next health check
             self._schedule_health_check()
-        
+
         except Exception as e:
             # Log but don't crash if health check fails
             self.logger.error(f"Error during prefetch worker health check: {str(e)}")
             # Try to reschedule anyway
             self._schedule_health_check()
-        
+
     def _get_optimal_thread_count(self):
         """Determine the optimal number of prefetch threads based on workload and performance."""
         # Default to single thread for small datasets or embedded data (which is fast)
         if self.embedded_samples is not None or self.total_samples < 100:
             return 1
-            
+
         # If we have recorded batch times, use them to determine thread count
-        if hasattr(self, 'performance_metrics') and self.performance_metrics.get("batch_times"):
+        if hasattr(self, "performance_metrics") and self.performance_metrics.get("batch_times"):
             # Calculate the average batch load time
-            avg_batch_time = sum(self.performance_metrics["batch_times"]) / len(self.performance_metrics["batch_times"])
-            
+            avg_batch_time = sum(self.performance_metrics["batch_times"]) / len(
+                self.performance_metrics["batch_times"]
+            )
+
             # If batch loading is fast (< 10ms), single thread is sufficient
             if avg_batch_time < 10:
                 return 1
-                
+
             # For medium load times, use 2 threads
             if avg_batch_time < 100:
                 return 2
-                
+
             # For slow loading operations, use more threads
             # but cap at a reasonable number to avoid resource contention
             return min(4, max(2, int(avg_batch_time / 50)))
-        
+
         # If we have a prefetch state with an adaptive thread count, use that
-        if hasattr(self, 'prefetch_state') and 'adaptive_thread_count' in self.prefetch_state:
+        if hasattr(self, "prefetch_state") and "adaptive_thread_count" in self.prefetch_state:
             return self.prefetch_state["adaptive_thread_count"]
-            
+
         # Default behavior - use number of prefetch slots as a guideline
         return min(4, max(1, self.prefetch // 2))
 
     def _prefetch_worker(self, worker_index=0):
         """Prefetch worker that loads batches in background.
-        
+
         Args:
             worker_index: Index of this worker thread for metrics tracking
         """
@@ -8799,7 +9180,7 @@ class IPFSDataLoader:
         import queue
         import math
         import traceback
-        
+
         # Initialize worker-specific metrics
         worker_metrics = {
             "batches_loaded": 0,
@@ -8810,52 +9191,54 @@ class IPFSDataLoader:
             "active_time": 0.0,
             "last_activity": time.time(),
             "batch_sizes": [],
-            "health_score": 1.0  # 0.0-1.0 score for worker health
+            "health_score": 1.0,  # 0.0-1.0 score for worker health
         }
 
         # Create sample indices
         indices = list(range(self.total_samples))
-        
+
         # Assign different starting points to different workers for load balancing
         # Each worker starts at a different position in the dataset
         start_offset = (worker_index * self.batch_size) % max(1, self.total_samples)
         indices = indices[start_offset:] + indices[:start_offset]
-        
+
         # Create a separate RNG for this worker for more deterministic behavior
         worker_rng = random.Random()
         # Use worker_index as part of the seed for different but consistent shuffling
         worker_rng.seed(hash(f"worker-{worker_index}-{time.time()}"))
-        
+
         # Adaptive retry parameters
         max_consecutive_errors = 0
         consecutive_errors = 0
         error_backoff_time = 0.1  # Initial backoff time after errors
-        
+
         # Mark this worker as started in thread registry if available
-        if hasattr(self, 'thread_registry'):
+        if hasattr(self, "thread_registry"):
             self.thread_registry[f"worker-{worker_index}"] = {
                 "start_time": time.time(),
                 "status": "running",
-                "metrics": worker_metrics
+                "metrics": worker_metrics,
             }
 
         # Main prefetching loop - runs until explicitly stopped
         # Main prefetch loop that checks stop signal frequently
         while not self.stop_prefetch.is_set():
             prefetch_start_time = time.time()
-            
+
             # Check stop flag again - this helps with faster exit
             if self.stop_prefetch.is_set():
                 break
-                
+
             # Mark worker as active
             try:
                 with self._prefetch_state_lock:
-                    self.prefetch_state["idle_threads"] = max(0, self.prefetch_state["idle_threads"] - 1)
+                    self.prefetch_state["idle_threads"] = max(
+                        0, self.prefetch_state["idle_threads"] - 1
+                    )
             except Exception:
                 # Don't let lock errors prevent thread from stopping
                 pass
-                
+
             active_time_start = time.time()
 
             try:
@@ -8868,59 +9251,63 @@ class IPFSDataLoader:
                 total_batches = math.ceil(self.total_samples / self.batch_size)
                 workers_count = max(1, len(self.prefetch_threads)) if self.prefetch_threads else 1
                 batches_per_worker = math.ceil(total_batches / workers_count)
-                
+
                 # Implement work stealing: if this worker is efficient, it can steal work from others
                 if worker_metrics["health_score"] > 0.9 and worker_metrics["errors"] < 3:
                     # This worker is healthy, allow it to process more batches
-                    extra_batches = min(5, batches_per_worker // 4)  # Up to 25% more work, max 5 batches
+                    extra_batches = min(
+                        5, batches_per_worker // 4
+                    )  # Up to 25% more work, max 5 batches
                     batches_per_worker += extra_batches
-                
+
                 start_batch = worker_index * batches_per_worker
                 end_batch = min(total_batches, start_batch + batches_per_worker)
-                
+
                 # Skip or prioritize batches based on previous errors
-                if hasattr(self, 'batch_error_history') and self.batch_error_history:
+                if hasattr(self, "batch_error_history") and self.batch_error_history:
                     # Sort batches to prioritize those that haven't failed recently
                     batch_indices = list(range(start_batch, end_batch))
                     batch_indices.sort(key=lambda idx: self.batch_error_history.get(idx, 0))
                 else:
                     batch_indices = list(range(start_batch, end_batch))
-                
+
                 for batch_idx in batch_indices:
                     if self.stop_prefetch.is_set():
                         break
-                        
+
                     # Calculate indices for this batch
                     start_idx = batch_idx * self.batch_size
                     end_idx = min(self.total_samples, start_idx + self.batch_size)
                     sample_indices = indices[start_idx:end_idx]
                     actual_batch_size = len(sample_indices)
-                    
+
                     # Track batch sizes for metrics
                     worker_metrics["batch_sizes"].append(actual_batch_size)
 
                     # Load samples with comprehensive error handling and retry logic
                     batch_start_time = time.time()
                     retry_count = 0
-                    max_batch_retries = min(3, self.max_retries) if hasattr(self, 'max_retries') else 3
-                    
+                    max_batch_retries = (
+                        min(3, self.max_retries) if hasattr(self, "max_retries") else 3
+                    )
+
                     while retry_count <= max_batch_retries:
                         try:
                             batch = self._load_batch(sample_indices)
                             batch_time = time.time() - batch_start_time
-                            
+
                             # Reset consecutive error counter on success
                             if consecutive_errors > 0:
                                 consecutive_errors = 0
                                 error_backoff_time = 0.1  # Reset to initial value
-                            
+
                             # Put batch in queue with timeout and retry logic
                             max_queue_attempts = 3
                             for attempt in range(max_queue_attempts):
                                 try:
                                     if self.stop_prefetch.is_set():
                                         break
-                                        
+
                                     # Use shorter timeout, and check stop flag after each second
                                     # Split the wait into smaller chunks so we can exit faster if needed
                                     try_until = time.time() + 2.0
@@ -8932,93 +9319,130 @@ class IPFSDataLoader:
                                             break  # Exit if put succeeds
                                         except queue.Full:
                                             # Check if we should stop trying
-                                            if self.stop_prefetch.is_set() or time.time() >= try_until:
+                                            if (
+                                                self.stop_prefetch.is_set()
+                                                or time.time() >= try_until
+                                            ):
                                                 raise  # Re-raise the Full exception
-                                    
+
                                     # Update metrics on success
                                     with self._metrics_lock:
-                                        self.performance_metrics["batch_times"].append(batch_time * 1000)  # ms
+                                        self.performance_metrics["batch_times"].append(
+                                            batch_time * 1000
+                                        )  # ms
                                         worker_metrics["batches_loaded"] += 1
-                                        
+
                                         # Update overall prefetch state
                                         with self._prefetch_state_lock:
                                             self.prefetch_state["total_batches_prefetched"] += 1
-                                            
+
                                             # Record batch success in history
-                                            if hasattr(self, 'batch_error_history'):
-                                                self.batch_error_history[batch_idx] = 0  # Clear error history
-                                    
+                                            if hasattr(self, "batch_error_history"):
+                                                self.batch_error_history[batch_idx] = (
+                                                    0  # Clear error history
+                                                )
+
                                     # If we needed retries but ultimately succeeded, count as recovered error
                                     if retry_count > 0:
                                         worker_metrics["recovered_errors"] += 1
-                                        
+
                                     # Successful put, break retry loop
                                     break
-                                    
+
                                 except queue.Full:
                                     # Queue is full, wait with exponential backoff before retry
-                                    if not self.stop_prefetch.is_set() and attempt < max_queue_attempts - 1:
-                                        backoff_time = 0.1 * (2 ** attempt)  # Exponential backoff: 0.1, 0.2, 0.4 seconds
+                                    if (
+                                        not self.stop_prefetch.is_set()
+                                        and attempt < max_queue_attempts - 1
+                                    ):
+                                        backoff_time = 0.1 * (
+                                            2**attempt
+                                        )  # Exponential backoff: 0.1, 0.2, 0.4 seconds
                                         time.sleep(backoff_time)
                                     else:
                                         # Last attempt failed, give up on this batch
                                         with self._metrics_lock:
-                                            self.performance_metrics["prefetch_queue_full_events"] = self.performance_metrics.get("prefetch_queue_full_events", 0) + 1
+                                            self.performance_metrics[
+                                                "prefetch_queue_full_events"
+                                            ] = (
+                                                self.performance_metrics.get(
+                                                    "prefetch_queue_full_events", 0
+                                                )
+                                                + 1
+                                            )
                                         break
-                            
+
                             # Successfully loaded and queued the batch, break the retry loop
                             break
-                            
+
                         except Exception as e:
                             retry_count += 1
                             worker_metrics["retries"] += 1
-                            
+
                             # Record this error in batch history for future reference
-                            if hasattr(self, 'batch_error_history'):
-                                self.batch_error_history[batch_idx] = self.batch_error_history.get(batch_idx, 0) + 1
-                            
+                            if hasattr(self, "batch_error_history"):
+                                self.batch_error_history[batch_idx] = (
+                                    self.batch_error_history.get(batch_idx, 0) + 1
+                                )
+
                             # Categorize errors for better handling
                             error_type = type(e).__name__
                             error_msg = str(e)
-                            
+
                             # Serious errors may need special handling
-                            critical_error = any(c in error_msg.lower() for c in [
-                                'permission denied', 'access denied', 'not found', 'connection refused',
-                                'timeout', 'broken pipe', 'connection reset'
-                            ])
-                            
+                            critical_error = any(
+                                c in error_msg.lower()
+                                for c in [
+                                    "permission denied",
+                                    "access denied",
+                                    "not found",
+                                    "connection refused",
+                                    "timeout",
+                                    "broken pipe",
+                                    "connection reset",
+                                ]
+                            )
+
                             # Decide whether to retry
                             if retry_count <= max_batch_retries and not self.stop_prefetch.is_set():
                                 # Use different backoff times based on error severity
                                 retry_delay = 0.2 * (2 ** (retry_count - 1))  # Exponential backoff
                                 if critical_error:
                                     retry_delay *= 2  # Double backoff for critical errors
-                                
-                                self.logger.info(f"Retrying batch {batch_idx} ({retry_count}/{max_batch_retries}) after error: {error_type}: {error_msg}")
+
+                                self.logger.info(
+                                    f"Retrying batch {batch_idx} ({retry_count}/{max_batch_retries}) after error: {error_type}: {error_msg}"
+                                )
                                 time.sleep(retry_delay)  # Wait before retry
                             else:
                                 # Max retries exceeded or stopped, log and continue to next batch
                                 self.logger.warning(
                                     f"Error in prefetch worker {worker_index} loading batch {batch_idx} "
-                                    f"(after {retry_count-1} retries): {error_type}: {error_msg}"
+                                    f"(after {retry_count - 1} retries): {error_type}: {error_msg}"
                                 )
-                                
+
                                 # Update error metrics
                                 worker_metrics["errors"] += 1
                                 with self._metrics_lock:
-                                    self.performance_metrics["prefetch_errors"] = self.performance_metrics.get("prefetch_errors", 0) + 1
-                                    
+                                    self.performance_metrics["prefetch_errors"] = (
+                                        self.performance_metrics.get("prefetch_errors", 0) + 1
+                                    )
+
                                     # Track error by type for analytics
                                     error_types = self.performance_metrics.get("error_types", {})
                                     error_types[error_type] = error_types.get(error_type, 0) + 1
                                     self.performance_metrics["error_types"] = error_types
-                                
+
                                 # Track consecutive errors for adaptive backoff
                                 consecutive_errors += 1
-                                max_consecutive_errors = max(max_consecutive_errors, consecutive_errors)
-                                
+                                max_consecutive_errors = max(
+                                    max_consecutive_errors, consecutive_errors
+                                )
+
                                 # Add increasing backoff for consecutive errors to prevent thrashing
-                                error_backoff_time = min(5.0, error_backoff_time * 1.5)  # Cap at 5 seconds
+                                error_backoff_time = min(
+                                    5.0, error_backoff_time * 1.5
+                                )  # Cap at 5 seconds
                                 time.sleep(error_backoff_time)
                                 break  # Move to next batch
 
@@ -9032,7 +9456,7 @@ class IPFSDataLoader:
                         break
                     except:
                         pass
-            
+
             except Exception as e:
                 # Handle any unexpected errors in the worker's main loop
                 error_str = str(e)
@@ -9043,73 +9467,85 @@ class IPFSDataLoader:
                 )
                 worker_metrics["errors"] += 1
                 with self._metrics_lock:
-                    self.performance_metrics["prefetch_worker_exceptions"] = self.performance_metrics.get("prefetch_worker_exceptions", 0) + 1
-                
+                    self.performance_metrics["prefetch_worker_exceptions"] = (
+                        self.performance_metrics.get("prefetch_worker_exceptions", 0) + 1
+                    )
+
                 # Update health score based on error
                 worker_metrics["health_score"] = max(0.1, worker_metrics["health_score"] - 0.2)
-                
+
                 # Check if worker is in a bad state and should restart
                 if consecutive_errors > 5 or worker_metrics["health_score"] < 0.3:
-                    self.logger.warning(f"Prefetch worker {worker_index} in bad state, restarting...")
+                    self.logger.warning(
+                        f"Prefetch worker {worker_index} in bad state, restarting..."
+                    )
                     # Reset state before continuing
                     consecutive_errors = 0
-                    worker_metrics["health_score"] = 0.5  # Give it another chance with medium health
-                
+                    worker_metrics["health_score"] = (
+                        0.5  # Give it another chance with medium health
+                    )
+
                 # Wait before retrying to avoid tight loops on persistent errors
                 time.sleep(min(5.0, error_backoff_time * 2))
-            
+
             finally:
                 # Update state to mark worker as idle
                 with self._prefetch_state_lock:
                     self.prefetch_state["idle_threads"] += 1
-                
+
                 worker_metrics["active_time"] += time.time() - active_time_start
-                
+
                 # Update total prefetch time
                 prefetch_time = time.time() - prefetch_start_time
                 with self._metrics_lock:
                     self.performance_metrics["total_prefetch_time"] += prefetch_time
-                
+
                 # Recalculate health score
                 if worker_metrics["batches_loaded"] > 0:
                     error_rate = worker_metrics["errors"] / worker_metrics["batches_loaded"]
-                    recovery_rate = worker_metrics["recovered_errors"] / max(1, worker_metrics["retries"])
-                    
+                    recovery_rate = worker_metrics["recovered_errors"] / max(
+                        1, worker_metrics["retries"]
+                    )
+
                     # Health is based on error rate, recovery rate, and efficiency
-                    worker_metrics["health_score"] = 1.0 - (error_rate * 0.7) + (recovery_rate * 0.3)
-                    worker_metrics["health_score"] = max(0.1, min(1.0, worker_metrics["health_score"]))
-                
+                    worker_metrics["health_score"] = (
+                        1.0 - (error_rate * 0.7) + (recovery_rate * 0.3)
+                    )
+                    worker_metrics["health_score"] = max(
+                        0.1, min(1.0, worker_metrics["health_score"])
+                    )
+
                 # Adaptively adjust thread count based on efficiency
                 self._adjust_thread_count(worker_metrics, prefetch_time)
-                
+
                 # Sleep with adaptive duration to prevent tight loops
                 # If the worker is very efficient, use a longer sleep time
                 if worker_metrics["batches_loaded"] > 0:
                     efficiency = prefetch_time / worker_metrics["batches_loaded"]
                     # More dynamic sleep calculation based on recent performance
                     sleep_time = min(0.5, max(0.01, efficiency * 0.1))  # Between 10ms and 500ms
-                    
+
                     # Reduce sleep for workers with high health scores (more reliable workers)
                     if worker_metrics["health_score"] > 0.8:
                         sleep_time *= 0.5  # Less sleep for healthy workers
                 else:
                     sleep_time = 0.1  # Default sleep time
-                    
+
                 if not self.stop_prefetch.is_set():
                     time.sleep(sleep_time)
                     worker_metrics["idle_time"] += sleep_time
-                    
+
         # Worker thread is exiting
-        if hasattr(self, 'thread_registry'):
+        if hasattr(self, "thread_registry"):
             self.thread_registry[f"worker-{worker_index}"] = {
                 "status": "stopped",
                 "stop_time": time.time(),
-                "final_metrics": worker_metrics
+                "final_metrics": worker_metrics,
             }
-                    
+
     def _adjust_thread_count(self, worker_metrics, prefetch_time):
         """Adaptively adjust the prefetch thread count based on performance metrics.
-        
+
         This method uses multiple factors to determine the optimal number of prefetch
         threads, including:
         - Worker health and efficiency
@@ -9117,13 +9553,13 @@ class IPFSDataLoader:
         - Error rates
         - Processing throughput
         - Resource utilization
-        
+
         Args:
             worker_metrics: Performance metrics for the current worker
             prefetch_time: Time taken for the last prefetch cycle
         """
         import time
-        
+
         # Ensure these keys always exist in performance_metrics
         with self._metrics_lock:
             # Initialize thread adjustment metrics if they don't exist
@@ -9131,16 +9567,16 @@ class IPFSDataLoader:
                 self.performance_metrics["thread_count_adjustments"] = 0
             if "thread_adjustment_reasons" not in self.performance_metrics:
                 self.performance_metrics["thread_adjustment_reasons"] = {}
-        
+
         # Only run this logic occasionally to let system stabilize between adjustments
-        if not hasattr(self, '_last_thread_adjustment'):
+        if not hasattr(self, "_last_thread_adjustment"):
             self._last_thread_adjustment = time.time()
             return
-            
+
         # Check if enough time has passed since last adjustment (at least 10 seconds)
         if time.time() - self._last_thread_adjustment < 10.0:
             return
-            
+
         # For testing mode, add special handling to ensure compatibility with tests
         # For tests, we still want to ensure the keys exist but we'll skip the actual adjustment
         if hasattr(self, "_testing_mode") and self._testing_mode:
@@ -9148,67 +9584,84 @@ class IPFSDataLoader:
             if hasattr(self, "_prefetch_state_lock") and hasattr(self, "_metrics_lock"):
                 with self._metrics_lock:
                     adjustment_reasons = self.performance_metrics["thread_adjustment_reasons"]
-                    adjustment_reasons["testing_mode"] = adjustment_reasons.get("testing_mode", 0) + 1
+                    adjustment_reasons["testing_mode"] = (
+                        adjustment_reasons.get("testing_mode", 0) + 1
+                    )
             return
-            
+
         # Use locks to ensure thread safety
         with self._metrics_lock:
             # Calculate metrics to determine if we need more or fewer threads
             queue_full_events = self.performance_metrics.get("prefetch_queue_full_events", 0)
             prefetch_errors = self.performance_metrics.get("prefetch_errors", 0)
-            prefetch_worker_exceptions = self.performance_metrics.get("prefetch_worker_exceptions", 0)
+            prefetch_worker_exceptions = self.performance_metrics.get(
+                "prefetch_worker_exceptions", 0
+            )
             batch_times = self.performance_metrics.get("batch_times", [])
-            
+
             # Calculate average batch time if available
-            avg_batch_time = sum(batch_times[-50:]) / len(batch_times[-50:]) if batch_times and len(batch_times) >= 50 else None
-            
+            avg_batch_time = (
+                sum(batch_times[-50:]) / len(batch_times[-50:])
+                if batch_times and len(batch_times) >= 50
+                else None
+            )
+
             # Get current queue size and capacity
-            queue_size = self.prefetch_queue.qsize() if hasattr(self.prefetch_queue, 'qsize') else 0
-            queue_capacity = self.prefetch_queue.maxsize if hasattr(self.prefetch_queue, 'maxsize') else self.prefetch
+            queue_size = self.prefetch_queue.qsize() if hasattr(self.prefetch_queue, "qsize") else 0
+            queue_capacity = (
+                self.prefetch_queue.maxsize
+                if hasattr(self.prefetch_queue, "maxsize")
+                else self.prefetch
+            )
             queue_utilization = queue_size / queue_capacity if queue_capacity > 0 else 0
-        
+
         # Adaptive logic with multiple factors
         with self._prefetch_state_lock:
             current_thread_count = len(self.prefetch_threads) if self.prefetch_threads else 1
-            
+
             # Start with current thread count
             new_thread_count = current_thread_count
             adjustment_reason = "No change needed"
-            
+
             # Check if worker's health score indicates a problem
             worker_health = worker_metrics.get("health_score", 1.0)
-            
+
             # Collect overall health metrics from all workers if available
             overall_health = 1.0
-            if hasattr(self, 'thread_registry'):
+            if hasattr(self, "thread_registry"):
                 health_scores = []
                 for worker_id, info in self.thread_registry.items():
                     if info.get("status") == "running" and "metrics" in info:
                         health_scores.append(info["metrics"].get("health_score", 1.0))
-                
+
                 if health_scores:
                     overall_health = sum(health_scores) / len(health_scores)
-            
+
             # Factor 1: Queue utilization
             if queue_utilization > 0.8 and queue_full_events > 5:
                 # Queue is consistently full, consumers can't keep up with producers
                 new_thread_count = max(1, current_thread_count - 1)
                 adjustment_reason = "High queue utilization"
-                
+
             # Factor 2: Worker utilization
-            elif worker_metrics["active_time"] > (worker_metrics["idle_time"] * 3) and queue_utilization < 0.5:
+            elif (
+                worker_metrics["active_time"] > (worker_metrics["idle_time"] * 3)
+                and queue_utilization < 0.5
+            ):
                 # Workers are very busy but queue isn't full, might need more threads
                 new_thread_count = min(8, current_thread_count + 1)
                 adjustment_reason = "High worker utilization"
-                
+
             # Factor 3: Error rates
-            elif (prefetch_errors > current_thread_count * 10 or 
-                  prefetch_worker_exceptions > current_thread_count * 2 or
-                  overall_health < 0.5) and current_thread_count > 1:
+            elif (
+                prefetch_errors > current_thread_count * 10
+                or prefetch_worker_exceptions > current_thread_count * 2
+                or overall_health < 0.5
+            ) and current_thread_count > 1:
                 # High error rates, reduce thread count to minimize errors
                 new_thread_count = max(1, current_thread_count - 1)
                 adjustment_reason = "High error rates"
-                
+
             # Factor 4: Processing speed
             elif avg_batch_time is not None:
                 if avg_batch_time < 20 and current_thread_count > 2:
@@ -9219,13 +9672,13 @@ class IPFSDataLoader:
                     # Slow processing, consider adding threads if workers are healthy
                     new_thread_count = min(8, current_thread_count + 1)
                     adjustment_reason = "Slow processing speed"
-            
+
             # Factor 5: Thread health
             elif worker_health < 0.3 and current_thread_count > 1:
                 # This worker is unhealthy, reduce overall thread count
                 new_thread_count = max(1, current_thread_count - 1)
                 adjustment_reason = "Unhealthy worker"
-            
+
             # Make the adjustment with a bias toward stability
             # Only change by at most 1 thread at a time
             if new_thread_count != current_thread_count:
@@ -9235,23 +9688,25 @@ class IPFSDataLoader:
                 )
                 self.prefetch_state["adaptive_thread_count"] = new_thread_count
                 self._last_thread_adjustment = time.time()
-                
+
                 # Record the adjustment in metrics
                 with self._metrics_lock:
                     # Ensure thread_count_adjustments exists in performance_metrics
                     if "thread_count_adjustments" not in self.performance_metrics:
                         self.performance_metrics["thread_count_adjustments"] = 0
-                    
+
                     # Increment the count
                     self.performance_metrics["thread_count_adjustments"] += 1
-                    
+
                     # Ensure thread_adjustment_reasons exists in performance_metrics
                     if "thread_adjustment_reasons" not in self.performance_metrics:
                         self.performance_metrics["thread_adjustment_reasons"] = {}
-                    
+
                     # Record reason for adjustment
                     adjustment_reasons = self.performance_metrics["thread_adjustment_reasons"]
-                    adjustment_reasons[adjustment_reason] = adjustment_reasons.get(adjustment_reason, 0) + 1
+                    adjustment_reasons[adjustment_reason] = (
+                        adjustment_reasons.get(adjustment_reason, 0) + 1
+                    )
 
     def _load_batch(self, indices):
         """Load a batch of samples by indices.
@@ -9263,7 +9718,7 @@ class IPFSDataLoader:
             List of loaded samples
         """
         batch = []
-            
+
         # Choose loading method based on dataset type
         if self.embedded_samples is not None:
             # Load from embedded samples (fast, already in memory)
@@ -9282,22 +9737,22 @@ class IPFSDataLoader:
 
                 # Get sample CID
                 sample_cid = self.sample_cids[idx]
-                
+
                 # Skip if sample_cid is not hashable (e.g., a dict)
                 if not isinstance(sample_cid, (str, bytes, int, float, bool, tuple, type(None))):
                     continue
-                    
+
                 # Check cache first
                 if sample_cid in self.sample_cache:
                     batch.append(self.sample_cache[sample_cid])
                     self.performance_metrics["cache_hits"] += 1
                     self.performance_metrics["samples_processed"] += 1
-                    
+
                     # Update access time for proper LRU behavior
-                    if not hasattr(self, 'cache_access_times'):
+                    if not hasattr(self, "cache_access_times"):
                         self.cache_access_times = {}
                     self.cache_access_times[sample_cid] = time.time()
-                    
+
                     continue
 
                 try:
@@ -9341,9 +9796,11 @@ class IPFSDataLoader:
                             # Store in cache using a more effective LRU approach
                             if len(self.sample_cache) >= self.cache_size_limit:
                                 # If we have access_time tracking, use it for a better LRU strategy
-                                if hasattr(self, 'cache_access_times') and self.cache_access_times:
+                                if hasattr(self, "cache_access_times") and self.cache_access_times:
                                     # Find the least recently used item (minimum access time)
-                                    oldest_key = min(self.cache_access_times.items(), key=lambda x: x[1])[0]
+                                    oldest_key = min(
+                                        self.cache_access_times.items(), key=lambda x: x[1]
+                                    )[0]
                                     if oldest_key in self.sample_cache:
                                         del self.sample_cache[oldest_key]
                                         # Track cache evictions
@@ -9356,12 +9813,12 @@ class IPFSDataLoader:
                                     self.sample_cache.pop(next(iter(self.sample_cache)))
                                     # Track cache evictions
                                     self.performance_metrics["cache_evictions"] += 1
-                            
+
                             # Store the item in cache
                             self.sample_cache[sample_cid] = sample
-                            
+
                             # Update access time for this item
-                            if not hasattr(self, 'cache_access_times'):
+                            if not hasattr(self, "cache_access_times"):
                                 self.cache_access_times = {}
                             self.cache_access_times[sample_cid] = time.time()
                             batch.append(sample)
@@ -9382,61 +9839,58 @@ class IPFSDataLoader:
                 except (ValueError, TypeError) as e:
                     # Handle data format or parsing errors
                     self.logger.warning(f"Format error loading sample {sample_cid}: {str(e)}")
-                    self.performance_metrics["parse_errors"] = self.performance_metrics.get("parse_errors", 0) + 1
-                
+                    self.performance_metrics["parse_errors"] = (
+                        self.performance_metrics.get("parse_errors", 0) + 1
+                    )
+
                 except TimeoutError as e:
                     # Handle timeout errors - might be recoverable later
                     self.logger.warning(f"Timeout loading sample {sample_cid}: {str(e)}")
-                    self.performance_metrics["timeout_errors"] = self.performance_metrics.get("timeout_errors", 0) + 1
-                    
+                    self.performance_metrics["timeout_errors"] = (
+                        self.performance_metrics.get("timeout_errors", 0) + 1
+                    )
+
                 except KeyError as e:
                     # Handle missing keys in response data
                     self.logger.warning(f"Missing key in sample {sample_cid}: {str(e)}")
-                    self.performance_metrics["key_errors"] = self.performance_metrics.get("key_errors", 0) + 1
-                    
+                    self.performance_metrics["key_errors"] = (
+                        self.performance_metrics.get("key_errors", 0) + 1
+                    )
+
                 except Exception as e:
                     # Catch all other exceptions
                     self.logger.warning(f"Error loading sample {sample_cid}: {str(e)}")
-                    self.performance_metrics["other_errors"] = self.performance_metrics.get("other_errors", 0) + 1
+                    self.performance_metrics["other_errors"] = (
+                        self.performance_metrics.get("other_errors", 0) + 1
+                    )
 
         return batch
 
     if PYDANTIC_AVAILABLE:
+
         class FetchImageRequest(BaseModel):
             """Request model for the fetch_image method."""
-            image_cid: str = Field(
-                ..., 
-                description="Content Identifier (CID) of the image in IPFS"
-            )
+
+            image_cid: str = Field(..., description="Content Identifier (CID) of the image in IPFS")
             transform_to_tensor: bool = Field(
-                False, 
-                description="Whether to convert the image to a PyTorch tensor"
+                False, description="Whether to convert the image to a PyTorch tensor"
             )
             image_transforms: Optional[Any] = Field(
-                None, 
-                description="Optional torchvision transforms to apply to the image"
+                None, description="Optional torchvision transforms to apply to the image"
             )
-            
+
         class FetchImageErrorResponse(BaseModel):
             """Error response model for the fetch_image method."""
-            success: bool = Field(
-                False, 
-                description="Whether the operation was successful"
-            )
-            error: str = Field(
-                "", 
-                description="Error message explaining what went wrong"
-            )
-            error_type: str = Field(
-                "", 
-                description="Type of error that occurred"
-            )
-            
+
+            success: bool = Field(False, description="Whether the operation was successful")
+            error: str = Field("", description="Error message explaining what went wrong")
+            error_type: str = Field("", description="Type of error that occurred")
+
     def fetch_image(
-        self, 
-        image_cid: str, 
-        transform_to_tensor: bool = False, 
-        image_transforms: Optional[Any] = None
+        self,
+        image_cid: str,
+        transform_to_tensor: bool = False,
+        image_transforms: Optional[Any] = None,
     ) -> Union[Any, Dict[str, Any], "FetchImageErrorResponse"]:
         """Fetch an image from IPFS and optionally convert to a PyTorch tensor.
 
@@ -9465,31 +9919,31 @@ class IPFSDataLoader:
             ```python
             # Simple usage - get PIL Image
             image = data_loader.fetch_image("QmImageCID")
-            
+
             # Convert to PyTorch tensor
             tensor = data_loader.fetch_image("QmImageCID", transform_to_tensor=True)
-            
+
             # Apply custom transformations
             from torchvision import transforms
-            
+
             preprocess = transforms.Compose([
                 transforms.Resize(256),
                 transforms.CenterCrop(224),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], 
+                transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
             ])
-            
+
             input_tensor = data_loader.fetch_image(
-                "QmImageCID", 
+                "QmImageCID",
                 transform_to_tensor=True,
                 image_transforms=preprocess
             )
-            
+
             # Use with a model
             model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
             model.eval()
-            
+
             with torch.no_grad():
                 output = model(input_tensor.unsqueeze(0))
             ```
@@ -9562,52 +10016,34 @@ class IPFSDataLoader:
 
             except Exception as e:
                 self.logger.error(f"Error fetching image {image_cid}: {str(e)}")
-                error_response = {
-                    "success": False,
-                    "error": str(e),
-                    "error_type": type(e).__name__
-                }
-                
+                error_response = {"success": False, "error": str(e), "error_type": type(e).__name__}
+
                 if PYDANTIC_AVAILABLE:
                     return FetchImageErrorResponse(**error_response)
                 return error_response
 
     if PYDANTIC_AVAILABLE:
+
         class ProcessTextRequest(BaseModel):
             """Request model for the process_text method."""
-            text: str = Field(
-                ..., 
-                description="Text string to process"
-            )
+
+            text: str = Field(..., description="Text string to process")
             tokenizer: Optional[Any] = Field(
-                None, 
-                description="Optional tokenizer to apply (e.g., from transformers)"
+                None, description="Optional tokenizer to apply (e.g., from transformers)"
             )
             max_length: Optional[int] = Field(
-                None, 
-                description="Maximum sequence length for tokenization"
+                None, description="Maximum sequence length for tokenization"
             )
-            
+
         class ProcessTextErrorResponse(BaseModel):
             """Error response model for the process_text method."""
-            success: bool = Field(
-                False, 
-                description="Whether the operation was successful"
-            )
-            error: str = Field(
-                "", 
-                description="Error message explaining what went wrong"
-            )
-            error_type: str = Field(
-                "", 
-                description="Type of error that occurred"
-            )
-            
+
+            success: bool = Field(False, description="Whether the operation was successful")
+            error: str = Field("", description="Error message explaining what went wrong")
+            error_type: str = Field("", description="Type of error that occurred")
+
     def process_text(
-        self, 
-        text: str, 
-        tokenizer: Optional[Any] = None, 
-        max_length: Optional[int] = None
+        self, text: str, tokenizer: Optional[Any] = None, max_length: Optional[int] = None
     ) -> Union[str, Any, Dict[str, Any], "ProcessTextErrorResponse"]:
         """Process text data, optionally applying tokenization for ML models.
 
@@ -9634,24 +10070,24 @@ class IPFSDataLoader:
             ```python
             # Simple usage - just return the text
             text = data_loader.process_text("Hello, world!")
-            
+
             # Using with Hugging Face Transformers tokenizer
             from transformers import AutoTokenizer
-            
+
             tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
             encoded = data_loader.process_text(
                 "Hello, world!",
                 tokenizer=tokenizer,
                 max_length=512
             )
-            
+
             # encoded is a dict with keys like 'input_ids', 'attention_mask'
             # that can be directly fed to a transformer model
-            
+
             # Using with a custom tokenizer function
             def simple_tokenizer(text):
                 return text.lower().split()
-                
+
             tokens = data_loader.process_text("Hello, world!", tokenizer=simple_tokenizer)
             # tokens = ['hello,', 'world!']
             ```
@@ -9682,57 +10118,39 @@ class IPFSDataLoader:
 
         except Exception as e:
             self.logger.error(f"Error processing text: {str(e)}")
-            error_response = {
-                "success": False,
-                "error": str(e),
-                "error_type": type(e).__name__
-            }
-            
+            error_response = {"success": False, "error": str(e), "error_type": type(e).__name__}
+
             if PYDANTIC_AVAILABLE:
                 return ProcessTextErrorResponse(**error_response)
             return error_response
 
     if PYDANTIC_AVAILABLE:
+
         class ProcessAudioRequest(BaseModel):
             """Request model for the process_audio method."""
-            audio_cid: str = Field(
-                ..., 
-                description="CID of the audio file to process"
-            )
+
+            audio_cid: str = Field(..., description="CID of the audio file to process")
             sample_rate: Optional[int] = Field(
-                None, 
-                description="Target sample rate in Hz for resampling (None for no resampling)"
+                None, description="Target sample rate in Hz for resampling (None for no resampling)"
             )
             transform_to_tensor: bool = Field(
-                False, 
-                description="Whether to convert the audio to a PyTorch tensor"
+                False, description="Whether to convert the audio to a PyTorch tensor"
             )
-            
+
         class ProcessAudioErrorResponse(BaseModel):
             """Error response model for the process_audio method."""
-            success: bool = Field(
-                False, 
-                description="Whether the operation was successful"
-            )
-            error: str = Field(
-                "", 
-                description="Error message explaining what went wrong"
-            )
-            error_type: str = Field(
-                "", 
-                description="Type of error that occurred"
-            )
-            
+
+            success: bool = Field(False, description="Whether the operation was successful")
+            error: str = Field("", description="Error message explaining what went wrong")
+            error_type: str = Field("", description="Type of error that occurred")
+
     def process_audio(
-        self, 
-        audio_cid: str, 
-        sample_rate: Optional[int] = None, 
-        transform_to_tensor: bool = False
+        self, audio_cid: str, sample_rate: Optional[int] = None, transform_to_tensor: bool = False
     ) -> Union[bytes, Any, Dict[str, Any], "ProcessAudioErrorResponse"]:
         """Process audio data from IPFS with optional tensor conversion and resampling.
 
-        This method retrieves audio data from IPFS and optionally converts it to a PyTorch 
-        tensor with resampling capabilities. It's designed to work seamlessly with audio 
+        This method retrieves audio data from IPFS and optionally converts it to a PyTorch
+        tensor with resampling capabilities. It's designed to work seamlessly with audio
         processing workflows and machine learning pipelines.
 
         Args:
@@ -9750,51 +10168,51 @@ class IPFSDataLoader:
             ValueError: If IPFS client is missing or doesn't support required operations
             ImportError: If torchaudio is needed but not available
             Exception: For any other errors during audio processing
-            
+
         Example:
             ```python
             # Basic usage - get raw audio bytes
             audio_data = data_loader.process_audio("QmAudioFileCID")
-            
+
             # Convert to PyTorch tensor with original sample rate
             audio_tensor = data_loader.process_audio(
-                "QmAudioFileCID", 
+                "QmAudioFileCID",
                 transform_to_tensor=True
             )
-            
+
             # Convert to PyTorch tensor with resampling to 16kHz
             audio_tensor = data_loader.process_audio(
-                "QmAudioFileCID", 
-                sample_rate=16000, 
+                "QmAudioFileCID",
+                sample_rate=16000,
                 transform_to_tensor=True
             )
-            
+
             # Using the audio with a PyTorch model
             import torch
-            
+
             class AudioModel(torch.nn.Module):
                 def __init__(self):
                     super().__init__()
                     self.conv = torch.nn.Conv1d(1, 16, kernel_size=3)
                     self.fc = torch.nn.Linear(16, 10)
-                    
+
                 def forward(self, x):
                     # x has shape [batch, channels, time]
                     x = self.conv(x)
                     x = torch.mean(x, dim=2)  # Global average pooling
                     return self.fc(x)
-            
+
             model = AudioModel()
             audio_tensor = data_loader.process_audio(
-                "QmAudioFileCID", 
-                sample_rate=16000, 
+                "QmAudioFileCID",
+                sample_rate=16000,
                 transform_to_tensor=True
             )
-            
+
             # Add batch dimension if needed
             if audio_tensor.dim() == 2:  # [channels, time]
                 audio_tensor = audio_tensor.unsqueeze(0)  # [1, channels, time]
-                
+
             # Process with model
             with torch.no_grad():
                 output = model(audio_tensor)
@@ -9857,26 +10275,22 @@ class IPFSDataLoader:
 
             except Exception as e:
                 self.logger.error(f"Error processing audio {audio_cid}: {str(e)}")
-                error_response = {
-                    "success": False,
-                    "error": str(e),
-                    "error_type": type(e).__name__
-                }
-                
+                error_response = {"success": False, "error": str(e), "error_type": type(e).__name__}
+
                 if PYDANTIC_AVAILABLE:
                     return ProcessAudioErrorResponse(**error_response)
                 return error_response
 
-    def __iter__(self) -> 'IPFSDataLoader':
+    def __iter__(self) -> "IPFSDataLoader":
         """Iterator interface for dataset.
-        
+
         This method allows the IPFSDataLoader to be used as an iterator in
         for-loops and other iteration contexts, making it compatible with
         standard Python iteration patterns and ML training loops.
-        
+
         Returns:
             IPFSDataLoader: Self reference to enable iteration
-            
+
         Example:
             ```python
             # Use data loader as iterator in for loop
@@ -9890,17 +10304,17 @@ class IPFSDataLoader:
 
     def __next__(self) -> List[Dict[str, Any]]:
         """Get next batch from dataset.
-        
+
         This method retrieves the next batch of samples from the prefetching
         queue when the data loader is being used as an iterator. It manages
         timeout handling and termination signals to ensure clean iteration.
-        
+
         Returns:
             List[Dict[str, Any]]: A batch of dataset samples
-            
+
         Raises:
             StopIteration: When no more batches are available or dataset is empty
-            
+
         Note:
             The timeout value is shorter (0.5s) in testing mode and longer (10s)
             in production mode to accommodate different usage patterns.
@@ -9927,21 +10341,21 @@ class IPFSDataLoader:
 
     def __len__(self) -> int:
         """Get the number of batches in the dataset.
-        
+
         This method calculates the total number of batches that will be
         generated from the dataset with the current batch size. It uses
         ceiling division to ensure partial batches are counted.
-        
+
         Returns:
             int: Number of batches in the dataset (0 if dataset is empty)
-            
+
         Example:
             ```python
             # Get number of batches for training loop
             data_loader.load_dataset("QmYourDatasetCID")
             num_batches = len(data_loader)
             print(f"Training on {num_batches} batches")
-            
+
             # Use in progress tracking
             for i, batch in enumerate(data_loader):
                 print(f"Processing batch {i+1}/{num_batches}")
@@ -9955,28 +10369,25 @@ class IPFSDataLoader:
         return (self.total_samples + self.batch_size - 1) // self.batch_size
 
     if PYDANTIC_AVAILABLE:
+
         class ClearResponse(BaseModel):
             """Response model for the clear method."""
-            success: bool = Field(
-                True, 
-                description="Whether the operation was successful"
-            )
+
+            success: bool = Field(True, description="Whether the operation was successful")
             cleared_items: Dict[str, int] = Field(
-                {}, 
-                description="Count of items cleared from different caches and stores"
+                {}, description="Count of items cleared from different caches and stores"
             )
             prefetch_reset: bool = Field(
-                False, 
-                description="Whether the prefetch mechanism was successfully reset"
+                False, description="Whether the prefetch mechanism was successfully reset"
             )
-            
+
     def clear(self) -> Union[Dict[str, Any], "ClearResponse"]:
         """Clear the current dataset from memory and reset prefetching mechanism.
 
-        This method efficiently clears the current dataset from memory without fully 
-        stopping the data loader. It resets all internal caches, queues, and dataset 
-        references while preserving the configured prefetch mechanism. This is especially 
-        useful when processing multiple datasets sequentially without recreating the 
+        This method efficiently clears the current dataset from memory without fully
+        stopping the data loader. It resets all internal caches, queues, and dataset
+        references while preserving the configured prefetch mechanism. This is especially
+        useful when processing multiple datasets sequentially without recreating the
         data loader instance.
 
         Returns:
@@ -9991,11 +10402,11 @@ class IPFSDataLoader:
             for batch in data_loader:
                 # Process batch from dataset A
                 pass
-                
+
             # Clear dataset A and load dataset B without recreating the data loader
             clear_result = data_loader.clear()
             print(f"Successfully cleared data: {clear_result['success']}")
-            
+
             # Load dataset B using the same data loader instance
             data_loader.load_dataset("QmDatasetB")
             for batch in data_loader:
@@ -10008,16 +10419,20 @@ class IPFSDataLoader:
             op_context = self.metrics.track_operation("clear")
         else:
             op_context = nullcontext()
-            
+
         with op_context:
             # Collect information about what will be cleared
             cleared_items = {
                 "dataset_metadata": 1 if self.dataset_metadata is not None else 0,
-                "sample_cids": len(self.sample_cids) if hasattr(self, "sample_cids") and self.sample_cids else 0,
-                "embedded_samples": len(self.embedded_samples) if hasattr(self, "embedded_samples") and self.embedded_samples else 0,
-                "cache_entries": len(self.sample_cache) if hasattr(self, "sample_cache") else 0
+                "sample_cids": len(self.sample_cids)
+                if hasattr(self, "sample_cids") and self.sample_cids
+                else 0,
+                "embedded_samples": len(self.embedded_samples)
+                if hasattr(self, "embedded_samples") and self.embedded_samples
+                else 0,
+                "cache_entries": len(self.sample_cache) if hasattr(self, "sample_cache") else 0,
             }
-            
+
             # Stop current prefetching
             self.stop_prefetch.set()
 
@@ -10032,11 +10447,12 @@ class IPFSDataLoader:
             self.sample_cache = {}
 
             import queue
+
             self.prefetch_queue = queue.Queue(maxsize=self.prefetch)
 
             # Reset stop event
             self.stop_prefetch.clear()
-            
+
             # Prepare response
             result = {
                 "success": True,
@@ -10044,37 +10460,26 @@ class IPFSDataLoader:
                 "timestamp": time.time(),
                 "cache_items_removed": sum(cleared_items.values()),
                 "cleared_items": cleared_items,
-                "prefetch_reset": True
+                "prefetch_reset": True,
             }
-            
+
             if PYDANTIC_AVAILABLE:
                 return ClearResponse(**result)
             return result
 
     if PYDANTIC_AVAILABLE:
+
         class ToPytorchResponse(BaseModel):
             """Response model for the to_pytorch method when PyTorch is not available."""
-            success: bool = Field(
-                False, 
-                description="Whether the operation was successful"
-            )
-            error: str = Field(
-                "", 
-                description="Error message explaining why the operation failed"
-            )
-            error_type: Optional[str] = Field(
-                None, 
-                description="Type of error that occurred"
-            )
-            message: Optional[str] = Field(
-                None, 
-                description="Additional message about the error"
-            )
+
+            success: bool = Field(False, description="Whether the operation was successful")
+            error: str = Field("", description="Error message explaining why the operation failed")
+            error_type: Optional[str] = Field(None, description="Type of error that occurred")
+            message: Optional[str] = Field(None, description="Additional message about the error")
             simulation_note: Optional[str] = Field(
-                None, 
-                description="Note about simulated errors for testing"
+                None, description="Note about simulated errors for testing"
             )
-            
+
     def to_pytorch(self) -> Union[Any, Dict[str, Any], "ToPytorchResponse"]:
         """Convert the data loader to a PyTorch DataLoader.
 
@@ -10091,7 +10496,7 @@ class IPFSDataLoader:
         and leverages its built-in prefetching for efficient data loading.
 
         Returns:
-            Union[torch.utils.data.DataLoader, Dict[str, Any], ToPytorchResponse]: 
+            Union[torch.utils.data.DataLoader, Dict[str, Any], ToPytorchResponse]:
                 - PyTorch DataLoader if successful
                 - Error dictionary if PyTorch is not available or conversion fails
 
@@ -10099,10 +10504,10 @@ class IPFSDataLoader:
             ```python
             # Load a dataset
             data_loader.load_dataset("QmYourDatasetCID")
-            
+
             # Convert to PyTorch DataLoader
             dataloader = data_loader.to_pytorch()
-            
+
             # Use in PyTorch training loop
             for epoch in range(5):
                 for features, labels in dataloader:
@@ -10112,7 +10517,7 @@ class IPFSDataLoader:
                     loss.backward()
                     optimizer.step()
             ```
-            
+
         Note:
             This method requires PyTorch to be installed. If PyTorch is not
             available, it returns an error dictionary explaining the issue.
@@ -10126,7 +10531,7 @@ class IPFSDataLoader:
                 "error_type": "dependency_error",
                 "simulation_note": "This is a simulated error, no DataLoader was created",
             }
-            
+
             if PYDANTIC_AVAILABLE:
                 return ToPytorchResponse(**result)
             return result
@@ -10217,40 +10622,29 @@ class IPFSDataLoader:
                 "error_type": type(e).__name__,
                 "message": "Failed to convert to PyTorch DataLoader",
             }
-            
+
             if PYDANTIC_AVAILABLE:
                 return ToPytorchResponse(**result)
             return result
 
     if PYDANTIC_AVAILABLE:
+
         class ToPytorchDatasetResponse(BaseModel):
             """Response model for the to_pytorch_dataset method when PyTorch is not available."""
-            success: bool = Field(
-                False, 
-                description="Whether the operation was successful"
-            )
-            error: str = Field(
-                "", 
-                description="Error message explaining why the operation failed"
-            )
-            error_type: Optional[str] = Field(
-                None, 
-                description="Type of error that occurred"
-            )
-            message: Optional[str] = Field(
-                None, 
-                description="Additional message about the error"
-            )
+
+            success: bool = Field(False, description="Whether the operation was successful")
+            error: str = Field("", description="Error message explaining why the operation failed")
+            error_type: Optional[str] = Field(None, description="Type of error that occurred")
+            message: Optional[str] = Field(None, description="Additional message about the error")
             simulation_note: Optional[str] = Field(
-                None, 
-                description="Note about simulated errors for testing"
+                None, description="Note about simulated errors for testing"
             )
-            
+
     def to_pytorch_dataset(self) -> Union[Any, Dict[str, Any], "ToPytorchDatasetResponse"]:
         """Convert to PyTorch IterableDataset (without creating a DataLoader).
 
-        This method creates and returns a PyTorch IterableDataset that wraps this 
-        IPFSDataLoader, providing more flexibility than to_pytorch() since it returns 
+        This method creates and returns a PyTorch IterableDataset that wraps this
+        IPFSDataLoader, providing more flexibility than to_pytorch() since it returns
         the dataset without creating a DataLoader. This is useful when you need:
         - Custom DataLoader parameters
         - Distributed sampling with DistributedSampler
@@ -10258,7 +10652,7 @@ class IPFSDataLoader:
         - Custom worker initialization
 
         The returned dataset automatically converts data samples to PyTorch tensors
-        with the same behavior as to_pytorch() but lets you control how those 
+        with the same behavior as to_pytorch() but lets you control how those
         tensors are batched and processed.
 
         Returns:
@@ -10270,7 +10664,7 @@ class IPFSDataLoader:
             ```python
             # Get the dataset
             dataset = data_loader.to_pytorch_dataset()
-            
+
             # Create custom DataLoader
             dataloader = torch.utils.data.DataLoader(
                 dataset,
@@ -10279,16 +10673,16 @@ class IPFSDataLoader:
                 pin_memory=True,  # Faster data transfer to GPU
                 prefetch_factor=2  # Control prefetching
             )
-            
+
             # Use in distributed training
             sampler = DistributedSampler(dataset)
             dataloader = torch.utils.data.DataLoader(
-                dataset, 
+                dataset,
                 batch_size=32,
                 sampler=sampler
             )
             ```
-            
+
         Note:
             This method requires PyTorch to be installed. If PyTorch is not
             available, it returns an error dictionary explaining the issue.
@@ -10300,7 +10694,7 @@ class IPFSDataLoader:
                 "error_type": "dependency_error",
                 "simulation_note": "This is a simulated error, no IterableDataset was created",
             }
-            
+
             if PYDANTIC_AVAILABLE:
                 return ToPytorchDatasetResponse(**result)
             return result
@@ -10380,71 +10774,60 @@ class IPFSDataLoader:
                 "error_type": type(e).__name__,
                 "message": "Failed to create PyTorch IterableDataset",
             }
-            
+
             if PYDANTIC_AVAILABLE:
                 return ToPytorchDatasetResponse(**result)
             return result
 
     if PYDANTIC_AVAILABLE:
+
         class ToTensorflowResponse(BaseModel):
             """Response model for the to_tensorflow method when TensorFlow is not available."""
-            success: bool = Field(
-                False, 
-                description="Whether the operation was successful"
-            )
-            error: str = Field(
-                "", 
-                description="Error message explaining why the operation failed"
-            )
-            error_type: Optional[str] = Field(
-                None, 
-                description="Type of error that occurred"
-            )
-            message: Optional[str] = Field(
-                None, 
-                description="Additional message about the error"
-            )
+
+            success: bool = Field(False, description="Whether the operation was successful")
+            error: str = Field("", description="Error message explaining why the operation failed")
+            error_type: Optional[str] = Field(None, description="Type of error that occurred")
+            message: Optional[str] = Field(None, description="Additional message about the error")
             simulation_note: Optional[str] = Field(
-                None, 
-                description="Note about simulated errors for testing"
+                None, description="Note about simulated errors for testing"
             )
-            
+
     def to_tensorflow(self) -> Union[Any, Dict[str, Any], "ToTensorflowResponse"]:
         """Convert the IPFSDataLoader to a TensorFlow Dataset.
-        
-        This method creates a TensorFlow Dataset from the IPFSDataLoader with 
+
+        This method creates a TensorFlow Dataset from the IPFSDataLoader with
         automatic type inference, batching, and performance optimization. The resulting
         dataset is ready to use with TensorFlow models through the tf.data API.
-        
+
         Features:
         - Automatic conversion of Python data types to appropriate TensorFlow tensors
         - Proper shape and type inference from data samples
         - Performance optimization with automatic prefetching
         - Support for different data formats in a single, unified interface
-        
+
         Supported data formats:
         1. Supervised learning format: Samples with 'features' and 'labels' keys
         2. Image datasets: Samples with 'image_cid' key referencing images in IPFS
         3. Generic datasets: Any dictionary-like samples with numeric or string values
-        
+
         The resulting dataset is optimized for TensorFlow training pipelines with:
         - Automatic batching matching the IPFSDataLoader batch size
         - Prefetching using TensorFlow's AUTOTUNE for optimal performance
         - Proper tensor shapes and types inference from data
-        
+
         Returns:
             Union[tf.data.Dataset, Dict[str, Any], ToTensorflowResponse]:
                 - TensorFlow Dataset if successful
                 - Error dictionary if TensorFlow is not available or conversion fails
-        
+
         Example:
             ```python
             # Load a dataset
             data_loader.load_dataset("QmYourDatasetCID")
-            
+
             # Convert to TensorFlow Dataset
             tf_dataset = data_loader.to_tensorflow()
-            
+
             # Use in TensorFlow training
             model = tf.keras.Sequential([
                 tf.keras.layers.Dense(128, activation='relu'),
@@ -10457,7 +10840,7 @@ class IPFSDataLoader:
             )
             model.fit(tf_dataset, epochs=5)
             ```
-            
+
         Note:
             This method requires TensorFlow to be installed. If TensorFlow is not
             available, it returns an error dictionary explaining the issue.
@@ -10471,7 +10854,7 @@ class IPFSDataLoader:
                 "error_type": "dependency_error",
                 "simulation_note": "This is a simulated error, no Dataset was created",
             }
-            
+
             if PYDANTIC_AVAILABLE:
                 return ToTensorflowResponse(**result)
             return result
@@ -10571,7 +10954,9 @@ class IPFSDataLoader:
                     label_shape = (
                         []
                         if isinstance(labels, (int, float))
-                        else [len(labels)] if isinstance(labels, list) else []
+                        else [len(labels)]
+                        if isinstance(labels, list)
+                        else []
                     )
 
                     output_types = (
@@ -10637,177 +11022,131 @@ class IPFSDataLoader:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "message": "Failed to convert to TensorFlow Dataset",
-                "timestamp": time.time()  # Add timestamp field required by the model
+                "timestamp": time.time(),  # Add timestamp field required by the model
             }
-            
+
             if PYDANTIC_AVAILABLE:
                 return ToTensorflowResponse(**result)
             return result
 
     if PYDANTIC_AVAILABLE:
+
         class PerformanceMetricsResponse(BaseModel):
             """Response model for the get_performance_metrics method."""
+
             # Cache metrics
-            cache_hits: int = Field(
-                0, 
-                description="Number of successful cache retrievals"
-            )
+            cache_hits: int = Field(0, description="Number of successful cache retrievals")
             cache_misses: int = Field(
-                0, 
-                description="Number of cache misses requiring fetches from storage"
+                0, description="Number of cache misses requiring fetches from storage"
             )
             cache_hit_rate: float = Field(
-                0.0, 
-                description="Ratio of cache hits to total access attempts"
+                0.0, description="Ratio of cache hits to total access attempts"
             )
             cache_evictions: int = Field(
-                0, 
-                description="Number of items evicted from cache due to size limits"
+                0, description="Number of items evicted from cache due to size limits"
             )
-            
+
             # Timing statistics
             batch_times: List[float] = Field(
-                [], 
-                description="List of batch loading times in milliseconds"
+                [], description="List of batch loading times in milliseconds"
             )
             load_times: List[float] = Field(
-                [], 
-                description="List of dataset loading times in milliseconds"
+                [], description="List of dataset loading times in milliseconds"
             )
             avg_batch_time_ms: Optional[float] = Field(
-                None, 
-                description="Average time to load a batch in milliseconds"
+                None, description="Average time to load a batch in milliseconds"
             )
             min_batch_time_ms: Optional[float] = Field(
-                None, 
-                description="Minimum batch loading time in milliseconds"
+                None, description="Minimum batch loading time in milliseconds"
             )
             max_batch_time_ms: Optional[float] = Field(
-                None, 
-                description="Maximum batch loading time in milliseconds"
+                None, description="Maximum batch loading time in milliseconds"
             )
             avg_load_time_ms: Optional[float] = Field(
-                None, 
-                description="Average dataset loading time in milliseconds"
+                None, description="Average dataset loading time in milliseconds"
             )
             total_prefetch_time: float = Field(
-                0.0, 
-                description="Total time spent in prefetching operations"
+                0.0, description="Total time spent in prefetching operations"
             )
-            
+
             # Dataset information
-            total_samples: int = Field(
-                0, 
-                description="Total number of samples in the dataset"
-            )
-            samples_processed: int = Field(
-                0, 
-                description="Number of samples processed so far"
-            )
-            batch_size: int = Field(
-                32, 
-                description="Current batch size setting"
-            )
-            dataset_format: Optional[str] = Field(
-                None, 
-                description="Format of the current dataset"
-            )
-            prefetch_queue_size: int = Field(
-                2, 
-                description="Current prefetch queue size setting"
-            )
-            
+            total_samples: int = Field(0, description="Total number of samples in the dataset")
+            samples_processed: int = Field(0, description="Number of samples processed so far")
+            batch_size: int = Field(32, description="Current batch size setting")
+            dataset_format: Optional[str] = Field(None, description="Format of the current dataset")
+            prefetch_queue_size: int = Field(2, description="Current prefetch queue size setting")
+
             # Additional metrics fields
             progress: Optional[float] = Field(
-                None, 
-                description="Dataset processing progress (0.0 to 1.0)"
+                None, description="Dataset processing progress (0.0 to 1.0)"
             )
-            
+
             # Error statistics
-            parse_errors: int = Field(
-                0, 
-                description="Number of parsing errors encountered"
-            )
-            timeout_errors: int = Field(
-                0, 
-                description="Number of timeout errors encountered"
-            )
-            key_errors: int = Field(
-                0, 
-                description="Number of missing key errors encountered"
-            )
-            other_errors: int = Field(
-                0, 
-                description="Number of other errors encountered"
-            )
-            
+            parse_errors: int = Field(0, description="Number of parsing errors encountered")
+            timeout_errors: int = Field(0, description="Number of timeout errors encountered")
+            key_errors: int = Field(0, description="Number of missing key errors encountered")
+            other_errors: int = Field(0, description="Number of other errors encountered")
+
             # Prefetch worker statistics
-            prefetch_thread_count: int = Field(
-                1,
-                description="Number of prefetch worker threads"
-            )
+            prefetch_thread_count: int = Field(1, description="Number of prefetch worker threads")
             prefetch_errors: int = Field(
-                0,
-                description="Number of errors encountered during prefetching"
+                0, description="Number of errors encountered during prefetching"
             )
             prefetch_worker_exceptions: int = Field(
-                0,
-                description="Number of unexpected exceptions in prefetch workers"
+                0, description="Number of unexpected exceptions in prefetch workers"
             )
             prefetch_queue_full_events: int = Field(
-                0,
-                description="Number of times the prefetch queue was full"
+                0, description="Number of times the prefetch queue was full"
             )
             prefetch_threads_stopped: int = Field(
-                0,
-                description="Number of prefetch threads that were stopped"
+                0, description="Number of prefetch threads that were stopped"
             )
-            
+
     def get_performance_metrics(self) -> Union[Dict[str, Any], "PerformanceMetricsResponse"]:
         """Get comprehensive performance metrics for this data loader.
-        
+
         This method provides detailed performance analytics for the IPFSDataLoader,
         covering cache efficiency, timing statistics, and resource utilization. These
         metrics are valuable for identifying bottlenecks, optimizing configurations,
         and monitoring performance during training or inference.
-        
+
         The metrics include:
-        
+
         Cache Efficiency:
         - Hit/miss counts and hit rate percentage
         - Cache tier utilization statistics
-        
+
         Timing Statistics:
         - Batch loading times (average, min, max)
         - Dataset loading latency
         - Prefetching overhead time
-        
+
         Data Processing:
         - Total samples and processed count
         - Format and configuration settings
         - Processing progress indication
-        
+
         Returns:
-            Union[Dict[str, Any], PerformanceMetricsResponse]: Dictionary or Pydantic model with detailed 
-            performance metrics including cache efficiency, timing statistics, and 
+            Union[Dict[str, Any], PerformanceMetricsResponse]: Dictionary or Pydantic model with detailed
+            performance metrics including cache efficiency, timing statistics, and
             dataset information.
-        
+
         Example:
             ```python
             # Get and analyze performance metrics
             metrics = data_loader.get_performance_metrics()
-            
+
             # Analyze cache efficiency
             print(f"Cache hit rate: {metrics['cache_hit_rate']:.2%}")
             print(f"Cache hits: {metrics['cache_hits']}, misses: {metrics['cache_misses']}")
-            
+
             # Analyze timing performance
             print(f"Average batch load time: {metrics['avg_batch_time_ms']:.2f} ms")
             print(f"Min/Max batch times: {metrics['min_batch_time_ms']:.2f}/{metrics['max_batch_time_ms']:.2f} ms")
-            
+
             # Track progress
             print(f"Samples processed: {metrics['samples_processed']}/{metrics['total_samples']}")
-            
+
             # Visualize performance metrics
             import matplotlib.pyplot as plt
             plt.figure(figsize=(10, 5))
@@ -10844,7 +11183,7 @@ class IPFSDataLoader:
         metrics["batch_size"] = self.batch_size
         metrics["dataset_format"] = self.dataset_format
         metrics["prefetch_queue_size"] = self.prefetch
-        
+
         # Calculate progress if possible
         if self.total_samples > 0 and "samples_processed" in metrics:
             metrics["progress"] = min(1.0, metrics["samples_processed"] / self.total_samples)
@@ -10852,57 +11191,50 @@ class IPFSDataLoader:
         if PYDANTIC_AVAILABLE:
             # Remove any metrics not in the Pydantic model to avoid validation errors
             # Handle both Pydantic v1 and v2 styles
-            if pydantic.__version__.startswith('2.'):
+            if pydantic.__version__.startswith("2."):
                 # Pydantic v2 style
                 valid_fields = set(self.PerformanceMetricsResponse.model_fields.keys())
             else:
                 # Pydantic v1 style
                 valid_fields = set(self.PerformanceMetricsResponse.__fields__.keys())
-                
+
             filtered_metrics = {k: v for k, v in metrics.items() if k in valid_fields}
             return self.PerformanceMetricsResponse(**filtered_metrics)
-        
+
         return metrics
 
     if PYDANTIC_AVAILABLE:
+
         class CloseResponse(BaseModel):
             """Response model for the close method."""
-            success: bool = Field(
-                True, 
-                description="Whether the cleanup operation was successful"
-            )
+
+            success: bool = Field(True, description="Whether the cleanup operation was successful")
             threads_stopped: int = Field(
-                0, 
-                description="Number of threads that were successfully stopped"
+                0, description="Number of threads that were successfully stopped"
             )
             queue_items_cleared: int = Field(
-                0, 
-                description="Number of items cleared from the queue"
+                0, description="Number of items cleared from the queue"
             )
-            error: Optional[str] = Field(
-                None, 
-                description="Error message if operation failed"
-            )
+            error: Optional[str] = Field(None, description="Error message if operation failed")
             error_type: Optional[str] = Field(
-                None, 
-                description="Type of error that occurred if operation failed"
+                None, description="Type of error that occurred if operation failed"
             )
 
     def close(self) -> Union[Dict[str, Any], "CloseResponse"]:
         """Clean up resources used by the data loader.
-        
-        This method properly releases all resources used by the data loader to prevent 
+
+        This method properly releases all resources used by the data loader to prevent
         memory leaks and ensure clean shutdown. It performs the following cleanup operations:
-        
+
         1. Stops all background prefetching threads
         2. Clears and releases queue resources
         3. Releases cached data and file handles
         4. Cleans up any temporary files or memory mappings
         5. Releases reference cycles that might prevent garbage collection
-        
-        Always call this method when you're done using the data loader, especially in 
+
+        Always call this method when you're done using the data loader, especially in
         long-running applications or when processing multiple datasets sequentially.
-        
+
         Returns:
             Union[Dict[str, Any], CloseResponse]: A status object containing:
                 - success: Whether all resources were properly released
@@ -10910,7 +11242,7 @@ class IPFSDataLoader:
                 - queue_items_cleared: Number of items cleared from the queue
                 - cache_items_released: Number of cache entries released
                 - error: Error message if any issues occurred during cleanup
-        
+
         Example:
             ```python
             # Using with context manager (recommended)
@@ -10918,7 +11250,7 @@ class IPFSDataLoader:
                 loader.load_dataset(dataset_cid)
                 # Use the loader...
             # Resources automatically released here
-            
+
             # Manual cleanup
             loader = kit.get_data_loader()
             try:
@@ -10931,7 +11263,7 @@ class IPFSDataLoader:
         import queue
         import gc
         import threading
-        
+
         result = {
             "success": True,
             "operation": "close",
@@ -10939,25 +11271,25 @@ class IPFSDataLoader:
             "threads_stopped": 0,
             "queue_items_cleared": 0,
             "cache_items_released": 0,
-            "resources_released": []
+            "resources_released": [],
         }
-        
+
         errors = []
-        
+
         # 1. Handle thread shutdown
         try:
             # Stop prefetching by setting stop event
-            if hasattr(self, 'stop_prefetch'):
+            if hasattr(self, "stop_prefetch"):
                 self.stop_prefetch.set()
-            
+
             # Additional safety measure: set a thread termination flag if it exists
-            if hasattr(self, 'terminate_threads'):
+            if hasattr(self, "terminate_threads"):
                 self.terminate_threads = True
                 result["resources_released"].append("thread_termination_flag")
-            
+
             # Try to clear/unblock the queue first - this helps unblock any workers
             # that might be stuck in queue.put() operations
-            if hasattr(self, 'prefetch_queue') and self.prefetch_queue is not None:
+            if hasattr(self, "prefetch_queue") and self.prefetch_queue is not None:
                 try:
                     # Clear the queue to unblock any threads waiting on queue operations
                     while not self.prefetch_queue.empty():
@@ -10966,55 +11298,69 @@ class IPFSDataLoader:
                             result["queue_items_cleared"] += 1
                         except queue.Empty:
                             break
-                    
+
                     # For test environments, increase the queue size to allow threads to complete put() operations
-                    if hasattr(self, '_testing_mode') and self._testing_mode:
+                    if hasattr(self, "_testing_mode") and self._testing_mode:
                         # Temporarily increase queue size to make room for any blocked put operations
                         self.prefetch_queue._maxsize = max(10, self.prefetch_queue._maxsize * 2)
                 except Exception as qe:
                     self.logger.debug(f"Non-critical error clearing queue: {qe}")
-    
+
             # Wait for prefetch threads to stop with increasing timeouts
             thread_count = 0
-            if hasattr(self, 'prefetch_threads'):
+            if hasattr(self, "prefetch_threads"):
                 thread_count = len(self.prefetch_threads)
                 for i, thread in enumerate(self.prefetch_threads):
                     if thread and thread.is_alive():
-                        thread_name = thread.name if hasattr(thread, 'name') else f"Thread-{i}"
-                        
+                        thread_name = thread.name if hasattr(thread, "name") else f"Thread-{i}"
+
                         # For testing environments, skip join attempt if thread is a MagicMock
-                        if hasattr(self, '_testing_mode') and self._testing_mode and hasattr(thread, '_mock_name'):
+                        if (
+                            hasattr(self, "_testing_mode")
+                            and self._testing_mode
+                            and hasattr(thread, "_mock_name")
+                        ):
                             result["threads_stopped"] += 1
-                            self.logger.debug(f"Test mode detected: mock thread {thread_name} marked as stopped")
+                            self.logger.debug(
+                                f"Test mode detected: mock thread {thread_name} marked as stopped"
+                            )
                             continue
-                        
+
                         # First try with a short timeout
                         try:
                             thread.join(timeout=0.5)
                         except Exception as e:
                             # Handle join errors in tests
-                            if hasattr(self, '_testing_mode') and self._testing_mode:
-                                self.logger.debug(f"Test mode: ignoring join error for {thread_name}: {e}")
+                            if hasattr(self, "_testing_mode") and self._testing_mode:
+                                self.logger.debug(
+                                    f"Test mode: ignoring join error for {thread_name}: {e}"
+                                )
                                 result["threads_stopped"] += 1
                                 continue
                             else:
                                 raise
-                        
+
                         # If still alive, try a longer timeout
                         if thread.is_alive():
                             # For testing environments, use a shorter timeout
-                            timeout = 1.0 if (hasattr(self, '_testing_mode') and self._testing_mode) else 5.0
+                            timeout = (
+                                1.0
+                                if (hasattr(self, "_testing_mode") and self._testing_mode)
+                                else 5.0
+                            )
                             try:
                                 thread.join(timeout=timeout)
                             except Exception as e:
                                 # Handle join errors in tests
-                                if hasattr(self, '_testing_mode') and self._testing_mode:
-                                    self.logger.debug(f"Test mode: ignoring second join error for {thread_name}: {e}")
+                                if hasattr(self, "_testing_mode") and self._testing_mode:
+                                    self.logger.debug(
+                                        f"Test mode: ignoring second join error for {thread_name}: {e}"
+                                    )
                                     result["threads_stopped"] += 1
                                     continue
                                 else:
                                     raise
-                        
+
                         # Check if thread stopped
                         if not thread.is_alive():
                             result["threads_stopped"] += 1
@@ -11022,27 +11368,29 @@ class IPFSDataLoader:
                             # Log warning about thread not stopping properly
                             self.logger.warning(f"Thread {thread_name} did not stop within timeout")
                             errors.append(f"Thread {thread_name} did not terminate")
-                            
+
                             # In test environments, we can just let the thread run
                             # In tests we're only concerned about passing the test, not fully cleaning up
-                            if hasattr(self, '_testing_mode') and self._testing_mode:
-                                self.logger.debug(f"Test mode detected: thread {thread_name} will be abandoned")
+                            if hasattr(self, "_testing_mode") and self._testing_mode:
+                                self.logger.debug(
+                                    f"Test mode detected: thread {thread_name} will be abandoned"
+                                )
                                 # Mark it as stopped anyway in test mode
                                 result["threads_stopped"] += 1
                     else:
                         result["threads_stopped"] += 1
-                
+
                 # Clear thread list to release references
                 self.prefetch_threads = []
                 result["resources_released"].append("thread_references")
         except Exception as e:
             errors.append(f"Thread shutdown error: {str(e)}")
             self.logger.error(f"Error during thread shutdown: {e}", exc_info=True)
-    
+
         # 2. Handle queue cleanup (final cleanup of queue after threads are stopped)
         try:
             additional_queue_items = 0
-            if hasattr(self, 'prefetch_queue') and self.prefetch_queue is not None:
+            if hasattr(self, "prefetch_queue") and self.prefetch_queue is not None:
                 # Clear any remaining items (there shouldn't be many since we already cleared it)
                 # Use a shorter timeout since we're just double-checking
                 try:
@@ -11055,10 +11403,10 @@ class IPFSDataLoader:
                             break
                 except Exception as e:
                     self.logger.debug(f"Non-critical error in final queue cleanup: {e}")
-                        
+
                 # Try to release the queue itself if possible
                 try:
-                    if hasattr(self.prefetch_queue, 'close'):
+                    if hasattr(self.prefetch_queue, "close"):
                         self.prefetch_queue.close()
                     # Set to None to release reference
                     self.prefetch_queue = None
@@ -11066,39 +11414,39 @@ class IPFSDataLoader:
                 except Exception as e:
                     errors.append(f"Queue release error: {str(e)}")
                     self.logger.warning(f"Error releasing queue: {e}")
-                    
+
             # Update the total count
             result["queue_items_cleared"] += additional_queue_items
         except Exception as e:
             errors.append(f"Queue cleanup error: {str(e)}")
             self.logger.error(f"Error during queue cleanup: {e}", exc_info=True)
-    
+
         # 3. Release sample cache
         try:
             cache_items = 0
-            if hasattr(self, 'sample_cache') and self.sample_cache:
+            if hasattr(self, "sample_cache") and self.sample_cache:
                 cache_items = len(self.sample_cache)
                 self.sample_cache.clear()
                 result["cache_items_released"] = cache_items
                 result["resources_released"].append("sample_cache")
-                
+
             # Clear access times tracking
-            if hasattr(self, 'cache_access_times') and self.cache_access_times:
+            if hasattr(self, "cache_access_times") and self.cache_access_times:
                 self.cache_access_times.clear()
                 result["resources_released"].append("cache_access_times")
-                
+
             # Release embedded samples if any
-            if hasattr(self, 'embedded_samples') and self.embedded_samples:
+            if hasattr(self, "embedded_samples") and self.embedded_samples:
                 self.embedded_samples = None
                 result["resources_released"].append("embedded_samples")
         except Exception as e:
             errors.append(f"Cache cleanup error: {str(e)}")
             self.logger.error(f"Error during cache cleanup: {e}", exc_info=True)
-        
+
         # 4. Release any file handles or temporary resources
         try:
             # Close and release any open file handles if they exist
-            if hasattr(self, 'file_handles') and self.file_handles:
+            if hasattr(self, "file_handles") and self.file_handles:
                 for handle in self.file_handles:
                     try:
                         handle.close()
@@ -11106,9 +11454,9 @@ class IPFSDataLoader:
                         self.logger.warning(f"Error closing file handle: {e}")
                 self.file_handles.clear()
                 result["resources_released"].append("file_handles")
-                
+
             # Release any memory-mapped files if they exist
-            if hasattr(self, 'mmap_objects') and self.mmap_objects:
+            if hasattr(self, "mmap_objects") and self.mmap_objects:
                 for mmap_obj in self.mmap_objects:
                     try:
                         mmap_obj.close()
@@ -11116,10 +11464,11 @@ class IPFSDataLoader:
                         self.logger.warning(f"Error closing memory-mapped file: {e}")
                 self.mmap_objects.clear()
                 result["resources_released"].append("mmap_objects")
-                
+
             # Clear any temporary directories if they exist
-            if hasattr(self, 'temp_dirs') and self.temp_dirs:
+            if hasattr(self, "temp_dirs") and self.temp_dirs:
                 import shutil
+
                 for temp_dir in self.temp_dirs:
                     try:
                         shutil.rmtree(temp_dir, ignore_errors=True)
@@ -11130,29 +11479,29 @@ class IPFSDataLoader:
         except Exception as e:
             errors.append(f"Resource cleanup error: {str(e)}")
             self.logger.error(f"Error during resource cleanup: {e}", exc_info=True)
-        
+
         # 5. Final cleanup and garbage collection encouragement
         try:
             # Clear dataset references to encourage garbage collection
-            if hasattr(self, 'dataset_metadata'):
+            if hasattr(self, "dataset_metadata"):
                 self.dataset_metadata = None
                 result["resources_released"].append("dataset_metadata")
-            
-            if hasattr(self, 'sample_cids'):
+
+            if hasattr(self, "sample_cids"):
                 self.sample_cids = None
                 result["resources_released"].append("sample_cids")
-                
+
             # Reset dataset state
             self.total_samples = 0
             self.dataset_cid = None
-            
+
             # Explicitly run garbage collection to reclaim memory
             gc.collect()
             result["resources_released"].append("garbage_collection_triggered")
         except Exception as e:
             errors.append(f"Final cleanup error: {str(e)}")
             self.logger.error(f"Error during final cleanup: {e}", exc_info=True)
-        
+
         # Aggregate all errors and determine success status
         if errors:
             result["success"] = False
@@ -11162,12 +11511,14 @@ class IPFSDataLoader:
                 result["error"] += f"; and {len(errors) - 3} more errors"
         else:
             result["success"] = True
-        
+
         # Check for thread termination issues
         if thread_count > 0 and result["threads_stopped"] < thread_count:
-            result["warning"] = f"Failed to stop all threads: {result['threads_stopped']}/{thread_count} stopped"
+            result["warning"] = (
+                f"Failed to stop all threads: {result['threads_stopped']}/{thread_count} stopped"
+            )
             self.logger.warning(result["warning"])
-        
+
         # Return appropriate response type
         if PYDANTIC_AVAILABLE:
             # Update the Pydantic model with the new fields
@@ -11177,43 +11528,45 @@ class IPFSDataLoader:
                 # If the model doesn't have the new fields, just return as dict
                 return result
         return result
+
+
 def ipfs_data_loader_context(
-    kit: Any, 
-    batch_size: int = 32, 
-    shuffle: bool = True, 
-    prefetch: int = 2, 
-    metrics: Optional[Any] = None
+    kit: Any,
+    batch_size: int = 32,
+    shuffle: bool = True,
+    prefetch: int = 2,
+    metrics: Optional[Any] = None,
 ) -> Any:
     """Context manager for the IPFSDataLoader to ensure proper resource cleanup.
-    
+
     This function returns a context manager that automatically creates an IPFSDataLoader
     and properly closes it when the context is exited, ensuring that all resources
     are correctly released regardless of normal execution or exceptions.
-    
+
     The context manager pattern is the recommended way to use IPFSDataLoader as it
     guarantees proper cleanup even if errors occur during processing. It handles
     thread termination, queue cleanup, and cache release automatically.
-    
+
     Args:
         kit: IPFS Kit instance with AI/ML integration enabled
         batch_size: Number of samples per batch (default: 32)
         shuffle: Whether to shuffle the dataset (default: True)
         prefetch: Number of batches to prefetch (default: 2)
         metrics: Optional metrics collector for performance tracking
-        
+
     Returns:
         A context manager that yields an IPFSDataLoader instance
-        
+
     Example:
         ```python
         # Use the context manager to automatically handle resource cleanup
         with ipfs_data_loader_context(kit, batch_size=64) as loader:
             # Load a dataset
             loader.load_dataset("QmYourDatasetCID")
-            
+
             # Convert to PyTorch DataLoader
             pytorch_loader = loader.to_pytorch()
-            
+
             # Train a model
             for epoch in range(10):
                 for features, labels in pytorch_loader:
@@ -11223,26 +11576,20 @@ def ipfs_data_loader_context(
         ```
     """
     import contextlib
-    
+
     @contextlib.contextmanager
     def _ipfs_data_loader_context():
         # Create data loader
         loader = None
         try:
             # Get data loader from kit
-            if hasattr(kit, 'get_data_loader'):
+            if hasattr(kit, "get_data_loader"):
                 loader = kit.get_data_loader(
-                    batch_size=batch_size,
-                    shuffle=shuffle,
-                    prefetch=prefetch,
-                    metrics=metrics
+                    batch_size=batch_size, shuffle=shuffle, prefetch=prefetch, metrics=metrics
                 )
-            elif hasattr(kit, 'ipfs_dataloader'):
+            elif hasattr(kit, "ipfs_dataloader"):
                 loader = kit.ipfs_dataloader(
-                    batch_size=batch_size,
-                    shuffle=shuffle,
-                    prefetch=prefetch,
-                    metrics=metrics
+                    batch_size=batch_size, shuffle=shuffle, prefetch=prefetch, metrics=metrics
                 )
             else:
                 # Direct instantiation
@@ -11251,15 +11598,15 @@ def ipfs_data_loader_context(
                     batch_size=batch_size,
                     shuffle=shuffle,
                     prefetch=prefetch,
-                    metrics=metrics
+                    metrics=metrics,
                 )
-                
+
             yield loader
         finally:
             # Ensure resources are cleaned up
             if loader is not None:
                 loader.close()
-    
+
     return _ipfs_data_loader_context()
 
 
@@ -12937,7 +13284,8 @@ class DistributedTraining:
                 model_context = None
                 if hasattr(self, "ai_ml_metrics") and self.ai_ml_metrics:
                     model_context = self.ai_ml_metrics.track_model_load(
-                        model_id=model_cid, framework="unknown"  # Will be updated after loading
+                        model_id=model_cid,
+                        framework="unknown",  # Will be updated after loading
                     )
 
                 with model_context or nullcontext() as model_tracking:
@@ -13477,7 +13825,9 @@ class DistributedTraining:
                     # Track epoch if metrics available
                     if hasattr(self, "ai_ml_metrics") and self.ai_ml_metrics:
                         epoch_context = self.ai_ml_metrics.track_training_epoch(
-                            model_id="mock_model", epoch=epoch, num_samples=100  # Mock sample count
+                            model_id="mock_model",
+                            epoch=epoch,
+                            num_samples=100,  # Mock sample count
                         )
 
                     with epoch_context or nullcontext():
@@ -13831,7 +14181,7 @@ IPFSDatasetManager = AIMLIntegration
 
 class TensorflowIntegration:
     """Integration class for TensorFlow with IPFS.
-    
+
     This class provides tools to integrate TensorFlow with IPFS, allowing for:
     - IPFS-based model saving and loading
     - Distributed model training across IPFS nodes
@@ -13840,22 +14190,22 @@ class TensorflowIntegration:
     - Efficient model sharing and distribution
     - TensorFlow Serving configuration management
     """
-    
+
     def __init__(self, ipfs_client=None, **kwargs):
         """Initialize the TensorFlow integration.
-        
+
         Args:
             ipfs_client: An initialized IPFS client
             **kwargs: Additional configuration options
         """
         import logging
         import os
-        
+
         self.ipfs = ipfs_client
         self.logger = kwargs.get("logger", logging.getLogger(__name__))
         self.cache_dir = kwargs.get("cache_dir", os.path.expanduser("~/.ipfs_kit/tensorflow_cache"))
         os.makedirs(self.cache_dir, exist_ok=True)
-        
+
         # Initialize storage directories
         self.models_dir = os.path.join(self.cache_dir, "models")
         self.datasets_dir = os.path.join(self.cache_dir, "datasets")
@@ -13863,12 +14213,12 @@ class TensorflowIntegration:
         os.makedirs(self.models_dir, exist_ok=True)
         os.makedirs(self.datasets_dir, exist_ok=True)
         os.makedirs(self.saved_model_dir, exist_ok=True)
-        
+
         # TensorFlow-specific settings
         self.serving_config = kwargs.get("serving_config", {})
         self.distributed_config = kwargs.get("distributed_config", {})
         self.mixed_precision = kwargs.get("mixed_precision", False)
-        
+
         # Initialize model registry and dataset manager if available
         self.model_registry = None
         self.dataset_manager = None
@@ -13876,26 +14226,26 @@ class TensorflowIntegration:
             self.model_registry = self.ipfs.get_model_registry()
         if hasattr(self.ipfs, "get_dataset_manager"):
             self.dataset_manager = self.ipfs.get_dataset_manager()
-        
+
         # Check if TensorFlow is available
         if not TF_AVAILABLE:
             self.logger.warning(
                 "TensorFlow is not available. Please install with 'pip install tensorflow'"
             )
-    
+
     def save_model(self, model, name, version="1.0.0", metadata=None):
         """Save a TensorFlow model to IPFS.
-        
+
         This method saves a TensorFlow model to IPFS and optionally registers it
         with the model registry. It supports both Keras models and lower-level
         TensorFlow models.
-        
+
         Args:
             model: TensorFlow model to save
             name: Name to identify the model
             version: Version string (defaults to "1.0.0")
             metadata: Additional metadata to store with the model
-            
+
         Returns:
             Dictionary with operation results including CID
         """
@@ -13913,19 +14263,19 @@ class TensorflowIntegration:
                 "operation": "save_model",
                 "timestamp": time.time(),
             }
-        
+
         import tensorflow as tf
-        
+
         result = {"success": False, "operation": "save_model", "timestamp": time.time()}
-        
+
         try:
             # Create a temporary directory for the model
             temp_dir = os.path.join(self.models_dir, f"temp_{uuid.uuid4().hex}")
             os.makedirs(temp_dir, exist_ok=True)
-            
+
             # Save the model
             model_path = os.path.join(temp_dir, "model")
-            
+
             # Different handling for different model types
             if isinstance(model, tf.keras.Model):
                 # Keras model
@@ -13944,30 +14294,32 @@ class TensorflowIntegration:
                     self.logger.error(f"Failed to save model: {e}")
                     result["error"] = f"Unsupported model type: {type(model).__name__}"
                     return result
-            
+
             # Save metadata
             metadata = metadata or {}
-            metadata.update({
-                "framework": "tensorflow",
-                "model_type": model_type,
-                "tf_version": tf.__version__,
-                "saved_at": time.time(),
-                "saved_by": os.environ.get("USER", "unknown"),
-                "inputs": getattr(model, "input_names", []),
-                "outputs": getattr(model, "output_names", []),
-            })
-            
+            metadata.update(
+                {
+                    "framework": "tensorflow",
+                    "model_type": model_type,
+                    "tf_version": tf.__version__,
+                    "saved_at": time.time(),
+                    "saved_by": os.environ.get("USER", "unknown"),
+                    "inputs": getattr(model, "input_names", []),
+                    "outputs": getattr(model, "output_names", []),
+                }
+            )
+
             # Add model architecture if available
             if hasattr(model, "to_json"):
                 try:
                     metadata["architecture"] = json.loads(model.to_json())
                 except:
                     pass
-            
+
             # Save metadata file
             with open(os.path.join(temp_dir, "metadata.json"), "w") as f:
                 json.dump(metadata, f, indent=2)
-            
+
             # Add to IPFS
             if self.ipfs:
                 # Check available methods
@@ -13978,20 +14330,20 @@ class TensorflowIntegration:
                 else:
                     result["error"] = "IPFS client does not support directory addition"
                     return result
-                
+
                 # Add directory to IPFS
                 add_result = add_func(temp_dir)
-                
+
                 if add_result.get("success", False):
                     model_cid = add_result.get("cid") or add_result.get("Hash")
-                    
+
                     # Pin the model for persistence
                     if hasattr(self.ipfs, "pin_add"):
                         try:
                             self.ipfs.pin_add(model_cid)
                         except Exception as e:
                             self.logger.warning(f"Failed to pin model: {e}")
-                    
+
                     # Register with model registry if available
                     registry_result = None
                     if self.model_registry:
@@ -14001,34 +14353,38 @@ class TensorflowIntegration:
                                 name=name,
                                 version=version,
                                 framework="tensorflow",
-                                metadata=metadata
+                                metadata=metadata,
                             )
                         except Exception as e:
                             self.logger.warning(f"Failed to register model: {e}")
-                    
+
                     # Set up permanent storage
                     perm_dir = os.path.join(self.saved_model_dir, name, version)
                     if os.path.exists(perm_dir):
                         shutil.rmtree(perm_dir)
                     shutil.copytree(temp_dir, perm_dir)
-                    
+
                     # Build result
-                    result.update({
-                        "success": True,
-                        "model_name": name,
-                        "version": version,
-                        "model_type": model_type,
-                        "cid": model_cid,
-                        "local_path": perm_dir,
-                        "registry_result": registry_result
-                    })
+                    result.update(
+                        {
+                            "success": True,
+                            "model_name": name,
+                            "version": version,
+                            "model_type": model_type,
+                            "cid": model_cid,
+                            "local_path": perm_dir,
+                            "registry_result": registry_result,
+                        }
+                    )
                 else:
-                    result["error"] = f"Failed to add model to IPFS: {add_result.get('error', 'Unknown error')}"
+                    result["error"] = (
+                        f"Failed to add model to IPFS: {add_result.get('error', 'Unknown error')}"
+                    )
             else:
                 result["error"] = "No IPFS client provided"
-            
+
             return result
-            
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
@@ -14041,104 +14397,81 @@ class TensorflowIntegration:
                     shutil.rmtree(temp_dir)
                 except:
                     pass
-    
+
     if PYDANTIC_AVAILABLE:
+
         class LoadModelRequest(BaseModel):
             """Request model for the load_model method."""
+
             cid: Optional[str] = Field(
-                None, 
-                description="CID of the TensorFlow model to load from IPFS"
+                None, description="CID of the TensorFlow model to load from IPFS"
             )
             name: Optional[str] = Field(
-                None, 
-                description="Model name when using the model registry"
+                None, description="Model name when using the model registry"
             )
             version: Optional[Union[str, int]] = Field(
-                None, 
-                description="Model version when using the model registry"
+                None, description="Model version when using the model registry"
             )
-        
+
         class LoadModelResponse(BaseModel):
             """Success response model for the load_model method."""
-            success: bool = Field(
-                True, 
-                description="Whether the operation was successful"
-            )
-            model: Any = Field(
-                ..., 
-                description="The loaded TensorFlow model"
-            )
-            metadata: Dict[str, Any] = Field(
-                {}, 
-                description="Metadata associated with the model"
-            )
+
+            success: bool = Field(True, description="Whether the operation was successful")
+            model: Any = Field(..., description="The loaded TensorFlow model")
+            metadata: Dict[str, Any] = Field({}, description="Metadata associated with the model")
             source: str = Field(
-                "ipfs", 
-                description="Source of the loaded model (ipfs, cache, registry)"
+                "ipfs", description="Source of the loaded model (ipfs, cache, registry)"
             )
             loading_time_ms: float = Field(
-                0.0, 
-                description="Time taken to load the model in milliseconds"
+                0.0, description="Time taken to load the model in milliseconds"
             )
-            
+
         class LoadModelErrorResponse(BaseModel):
             """Error response model for the load_model method."""
-            success: bool = Field(
-                False, 
-                description="Whether the operation was successful"
-            )
-            error: str = Field(
-                "", 
-                description="Error message explaining what went wrong"
-            )
-            error_type: Optional[str] = Field(
-                None, 
-                description="Type of error that occurred"
-            )
-            operation: str = Field(
-                "load_model", 
-                description="Name of the operation that failed"
-            )
-            timestamp: float = Field(
-                0.0, 
-                description="Timestamp when the error occurred"
-            )
-            
+
+            success: bool = Field(False, description="Whether the operation was successful")
+            error: str = Field("", description="Error message explaining what went wrong")
+            error_type: Optional[str] = Field(None, description="Type of error that occurred")
+            operation: str = Field("load_model", description="Name of the operation that failed")
+            timestamp: float = Field(0.0, description="Timestamp when the error occurred")
+
     def load_model(
-        self, 
-        cid: Optional[str] = None, 
-        name: Optional[str] = None, 
-        version: Optional[Union[str, int]] = None
-    ) -> Union[Tuple[Any, Dict[str, Any]], Dict[str, Any], "LoadModelResponse", "LoadModelErrorResponse"]:
+        self,
+        cid: Optional[str] = None,
+        name: Optional[str] = None,
+        version: Optional[Union[str, int]] = None,
+    ) -> Union[
+        Tuple[Any, Dict[str, Any]], Dict[str, Any], "LoadModelResponse", "LoadModelErrorResponse"
+    ]:
         """Load a TensorFlow model from IPFS or model registry.
-        
+
         This method loads a TensorFlow model from IPFS, either directly by CID
         or by looking up a model in the registry by name and version. It supports
         retrieving models from local cache for improved performance and handles
         various error conditions gracefully.
-        
+
         Args:
             cid: Content identifier for the model in IPFS
             name: Model name when using the model registry
             version: Model version when using the model registry
-            
+
         Returns:
             Union[Tuple[Any, Dict[str, Any]], Dict[str, Any], LoadModelResponse, LoadModelErrorResponse]:
                 - If successful: Either a tuple of (model, metadata) or a LoadModelResponse
                 - If failed: Dictionary with error information or LoadModelErrorResponse
-        
+
         Raises:
             ImportError: If TensorFlow is not available
             Exception: For other errors during model loading
-            
+
         Example:
             ```python
             # Load model directly by CID
             model, metadata = data_loader.load_model(cid="QmModelCID")
-            
+
             # Load from model registry by name and version
             model, metadata = data_loader.load_model(name="mnist_classifier", version="1.0")
-            
+
             # Check for successful loading
             if isinstance(result, dict) and not result.get("success", False):
                 print(f"Error loading model: {result.get('error')}")
@@ -14152,9 +14485,9 @@ class TensorflowIntegration:
         import shutil
         import tempfile
         import time
-        
+
         start_time = time.time()
-        
+
         if not TF_AVAILABLE:
             error_response = {
                 "success": False,
@@ -14163,64 +14496,68 @@ class TensorflowIntegration:
                 "operation": "load_model",
                 "timestamp": time.time(),
             }
-            
+
             if PYDANTIC_AVAILABLE:
                 return LoadModelErrorResponse(**error_response)
             return error_response
-        
+
         import tensorflow as tf
-        
+
         result = {"success": False, "operation": "load_model", "timestamp": time.time()}
-        
+
         try:
             # Determine model CID
             model_cid = cid
-            
+
             # If no CID provided, try to get from registry
             if not model_cid and name and self.model_registry:
                 try:
                     model_cid = self.model_registry.get_model_cid(name, version)
                     if not model_cid:
-                        result["error"] = f"Model '{name}' (version {version}) not found in registry"
+                        result["error"] = (
+                            f"Model '{name}' (version {version}) not found in registry"
+                        )
                         return result
                 except Exception as e:
                     result["error"] = f"Failed to get model from registry: {str(e)}"
                     return result
-            
+
             if not model_cid:
                 result["error"] = "No CID provided and model not found in registry"
                 return result
-            
+
             # Check if model exists in local cache
             local_path = None
             if name and version:
                 local_path = os.path.join(self.saved_model_dir, name, version)
                 if not os.path.exists(local_path):
                     local_path = None
-            
+
             # If not in cache, get from IPFS
             temp_dir = None
             if not local_path:
                 if not self.ipfs:
                     result["error"] = "No IPFS client provided"
                     return result
-                
+
                 # Create temporary directory
                 temp_dir = tempfile.mkdtemp(dir=self.cache_dir)
-                
+
                 # Get model from IPFS
                 if hasattr(self.ipfs, "get"):
                     get_result = self.ipfs.get(model_cid, temp_dir)
                     if not get_result.get("success", False):
-                        result["error"] = f"Failed to get model from IPFS: {get_result.get('error', 'Unknown error')}"
+                        result["error"] = (
+                            f"Failed to get model from IPFS: {get_result.get('error', 'Unknown error')}"
+                        )
                         return result
                 else:
                     result["error"] = "IPFS client does not support get operation"
                     return result
-                
+
                 # Path where model was downloaded
                 local_path = os.path.join(temp_dir, model_cid)
-                
+
                 # If model doesn't exist at the expected path, search for it
                 if not os.path.exists(os.path.join(local_path, "model")):
                     # Check if model directory is nested
@@ -14228,14 +14565,14 @@ class TensorflowIntegration:
                         if "saved_model.pb" in files or "keras_metadata.pb" in files:
                             local_path = root
                             break
-            
+
             # Load metadata
             metadata = {}
             metadata_path = os.path.join(local_path, "metadata.json")
             if os.path.exists(metadata_path):
                 with open(metadata_path, "r") as f:
                     metadata = json.load(f)
-            
+
             # Load the model
             model_path = os.path.join(local_path, "model")
             if os.path.exists(model_path):
@@ -14246,7 +14583,7 @@ class TensorflowIntegration:
             else:
                 # Try loading the parent directory if model subdirectory doesn't exist
                 model = tf.saved_model.load(local_path)
-            
+
             # If temp directory was created, copy to permanent storage
             if temp_dir and name and version:
                 perm_dir = os.path.join(self.saved_model_dir, name, version)
@@ -14254,15 +14591,15 @@ class TensorflowIntegration:
                 if os.path.exists(perm_dir):
                     shutil.rmtree(perm_dir)
                 shutil.copytree(local_path, perm_dir)
-            
+
             # Add loading info to metadata
             loading_time_ms = (time.time() - start_time) * 1000
             source = "local_cache" if not temp_dir else "ipfs"
-            
+
             metadata["_loaded_at"] = time.time()
             metadata["_loaded_from"] = source
             metadata["_loading_time_ms"] = loading_time_ms
-            
+
             # Return appropriate format based on Pydantic availability
             if PYDANTIC_AVAILABLE:
                 success_response = {
@@ -14270,22 +14607,22 @@ class TensorflowIntegration:
                     "model": model,
                     "metadata": metadata,
                     "source": source,
-                    "loading_time_ms": loading_time_ms
+                    "loading_time_ms": loading_time_ms,
                 }
                 return LoadModelResponse(**success_response)
-            
+
             # For backward compatibility, continue returning tuple
             return model, metadata
-            
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error loading model: {e}")
-            
+
             if PYDANTIC_AVAILABLE:
                 return LoadModelErrorResponse(**result)
             return result
-            
+
         finally:
             # Clean up temporary directory
             if "temp_dir" in locals() and temp_dir and os.path.exists(temp_dir):
@@ -14293,109 +14630,77 @@ class TensorflowIntegration:
                     shutil.rmtree(temp_dir)
                 except Exception:
                     pass
-    
+
     if PYDANTIC_AVAILABLE:
+
         class ExportSavedModelRequest(BaseModel):
             """Request model for the export_saved_model method."""
-            model: Any = Field(
-                ..., 
-                description="TensorFlow model to export"
-            )
+
+            model: Any = Field(..., description="TensorFlow model to export")
             export_dir: Optional[str] = Field(
-                None, 
-                description="Directory to export to (temporary directory if None)"
+                None, description="Directory to export to (temporary directory if None)"
             )
             serving_config: Optional[Dict[str, Any]] = Field(
-                None, 
-                description="TensorFlow Serving configuration"
+                None, description="TensorFlow Serving configuration"
             )
-            
+
         class ExportSavedModelResponse(BaseModel):
             """Success response model for the export_saved_model method."""
-            success: bool = Field(
-                True, 
-                description="Whether the operation was successful"
-            )
-            export_path: str = Field(
-                ..., 
-                description="Path where the model was exported"
-            )
+
+            success: bool = Field(True, description="Whether the operation was successful")
+            export_path: str = Field(..., description="Path where the model was exported")
             cid: Optional[str] = Field(
-                None, 
-                description="CID of the exported model in IPFS (if available)"
+                None, description="CID of the exported model in IPFS (if available)"
             )
             model_type: str = Field(
-                "", 
-                description="Type of TensorFlow model ('keras' or 'saved_model')"
+                "", description="Type of TensorFlow model ('keras' or 'saved_model')"
             )
-            tf_version: str = Field(
-                "", 
-                description="TensorFlow version used for export"
-            )
+            tf_version: str = Field("", description="TensorFlow version used for export")
             has_serving_config: bool = Field(
-                False, 
-                description="Whether a serving configuration was included"
+                False, description="Whether a serving configuration was included"
             )
-            operation: str = Field(
-                "export_saved_model", 
-                description="Name of the operation"
-            )
-            timestamp: float = Field(
-                0.0, 
-                description="Timestamp when the export was completed"
-            )
-            
+            operation: str = Field("export_saved_model", description="Name of the operation")
+            timestamp: float = Field(0.0, description="Timestamp when the export was completed")
+
         class ExportSavedModelErrorResponse(BaseModel):
             """Error response model for the export_saved_model method."""
-            success: bool = Field(
-                False, 
-                description="Whether the operation was successful"
-            )
-            error: str = Field(
-                "", 
-                description="Error message explaining what went wrong"
-            )
-            error_type: Optional[str] = Field(
-                None, 
-                description="Type of error that occurred"
-            )
+
+            success: bool = Field(False, description="Whether the operation was successful")
+            error: str = Field("", description="Error message explaining what went wrong")
+            error_type: Optional[str] = Field(None, description="Type of error that occurred")
             operation: str = Field(
-                "export_saved_model", 
-                description="Name of the operation that failed"
+                "export_saved_model", description="Name of the operation that failed"
             )
-            timestamp: float = Field(
-                0.0, 
-                description="Timestamp when the error occurred"
-            )
-            
+            timestamp: float = Field(0.0, description="Timestamp when the error occurred")
+
     def export_saved_model(
-        self, 
-        model: Any, 
-        export_dir: Optional[str] = None, 
-        serving_config: Optional[Dict[str, Any]] = None
+        self,
+        model: Any,
+        export_dir: Optional[str] = None,
+        serving_config: Optional[Dict[str, Any]] = None,
     ) -> Union[Dict[str, Any], "ExportSavedModelResponse", "ExportSavedModelErrorResponse"]:
         """Export a TensorFlow model in SavedModel format for deployment.
-        
+
         This method exports a TensorFlow model in the SavedModel format, which is
-        suitable for deployment with TensorFlow Serving, TensorFlow Lite conversion, 
-        or direct loading in production environments. It handles both Keras models 
+        suitable for deployment with TensorFlow Serving, TensorFlow Lite conversion,
+        or direct loading in production environments. It handles both Keras models
         and generic TensorFlow models, optionally adding serving configurations
         and storing the result in IPFS.
-        
+
         Args:
             model: TensorFlow model to export (Keras Model or SavedModel)
             export_dir: Directory to export to (uses a temporary directory if None)
             serving_config: TensorFlow Serving configuration dictionary
-            
+
         Returns:
             Union[Dict[str, Any], ExportSavedModelResponse, ExportSavedModelErrorResponse]:
                 - Dictionary with export results including the export path
                 - Pydantic model if available
-                
+
         Raises:
             ImportError: If TensorFlow is not available
             Exception: For errors during model export
-            
+
         Example:
             ```python
             # Create and train a Keras model
@@ -14405,7 +14710,7 @@ class TensorflowIntegration:
                 tf.keras.layers.Dense(1, activation='sigmoid')
             ])
             model.compile(optimizer='adam', loss='binary_crossentropy')
-            
+
             # Export the model with serving configuration
             serving_config = {
                 "model_name": "my_classifier",
@@ -14419,17 +14724,17 @@ class TensorflowIntegration:
                     }
                 }
             }
-            
+
             result = data_loader.export_saved_model(
-                model, 
-                export_dir="/tmp/my_model", 
+                model,
+                export_dir="/tmp/my_model",
                 serving_config=serving_config
             )
-            
+
             if result["success"]:
                 print(f"Model exported to {result['export_path']}")
                 print(f"IPFS CID: {result['cid']}")
-                
+
                 # The exported model can now be loaded with TensorFlow:
                 loaded_model = tf.saved_model.load(result["export_path"])
             ```
@@ -14439,9 +14744,9 @@ class TensorflowIntegration:
         import tempfile
         import time
         import uuid
-        
+
         start_time = time.time()
-        
+
         if not TF_AVAILABLE:
             error_response = {
                 "success": False,
@@ -14450,25 +14755,25 @@ class TensorflowIntegration:
                 "operation": "export_saved_model",
                 "timestamp": time.time(),
             }
-            
+
             if PYDANTIC_AVAILABLE:
                 return ExportSavedModelErrorResponse(**error_response)
             return error_response
-        
+
         import tensorflow as tf
-        
+
         result = {"success": False, "operation": "export_saved_model", "timestamp": time.time()}
-        
+
         try:
             # Use provided export directory or create temporary one
             temp_dir = None
             if not export_dir:
                 temp_dir = tempfile.mkdtemp(dir=self.cache_dir)
                 export_dir = temp_dir
-            
+
             # Ensure export directory exists
             os.makedirs(export_dir, exist_ok=True)
-            
+
             # Export model
             if isinstance(model, tf.keras.Model):
                 # Keras model
@@ -14476,115 +14781,98 @@ class TensorflowIntegration:
             else:
                 # Generic TensorFlow model
                 tf.saved_model.save(model, export_dir)
-            
+
             # Add serving configuration if provided
             if serving_config:
                 # Create serving config directory
                 serving_dir = os.path.join(export_dir, "assets.extra")
                 os.makedirs(serving_dir, exist_ok=True)
-                
+
                 # Create serving.config file
                 with open(os.path.join(serving_dir, "tf_serving_config.json"), "w") as f:
                     json.dump(serving_config, f, indent=2)
-            
+
             # Add to IPFS if client available
             cid = None
-            if self.ipfs and (hasattr(self.ipfs, "ipfs_add_path") or hasattr(self.ipfs, "add_directory")):
-                add_func = getattr(self.ipfs, "ipfs_add_path", None) or getattr(self.ipfs, "add_directory")
+            if self.ipfs and (
+                hasattr(self.ipfs, "ipfs_add_path") or hasattr(self.ipfs, "add_directory")
+            ):
+                add_func = getattr(self.ipfs, "ipfs_add_path", None) or getattr(
+                    self.ipfs, "add_directory"
+                )
                 add_result = add_func(export_dir)
-                
+
                 if add_result.get("success", False):
                     cid = add_result.get("cid") or add_result.get("Hash")
-                    
+
                     # Pin the model for persistence
                     if hasattr(self.ipfs, "pin_add"):
                         try:
                             self.ipfs.pin_add(cid)
                         except Exception as e:
                             self.logger.warning(f"Failed to pin saved model: {e}")
-            
+
             # Update result with success information
-            result.update({
-                "success": True,
-                "export_path": export_dir,
-                "cid": cid,
-                "model_type": "keras" if isinstance(model, tf.keras.Model) else "saved_model",
-                "tf_version": tf.__version__,
-                "has_serving_config": serving_config is not None,
-                "timestamp": time.time()
-            })
-            
+            result.update(
+                {
+                    "success": True,
+                    "export_path": export_dir,
+                    "cid": cid,
+                    "model_type": "keras" if isinstance(model, tf.keras.Model) else "saved_model",
+                    "tf_version": tf.__version__,
+                    "has_serving_config": serving_config is not None,
+                    "timestamp": time.time(),
+                }
+            )
+
             # Return Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return ExportSavedModelResponse(**result)
             return result
-            
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error exporting SavedModel: {e}")
-            
+
             # Return Pydantic model if available
             if PYDANTIC_AVAILABLE:
                 return ExportSavedModelErrorResponse(**result)
             return result
-    
+
     if PYDANTIC_AVAILABLE:
+
         class CreateDataLoaderRequest(BaseModel):
             """Request model for the create_data_loader method."""
+
             dataset_cid: Optional[str] = Field(
-                None, 
-                description="CID of the dataset to load from IPFS"
+                None, description="CID of the dataset to load from IPFS"
             )
-            batch_size: int = Field(
-                32, 
-                description="Batch size for the data loader"
-            )
-            shuffle: bool = Field(
-                True, 
-                description="Whether to shuffle the dataset"
-            )
-            prefetch: int = Field(
-                2, 
-                description="Number of batches to prefetch"
-            )
-            
+            batch_size: int = Field(32, description="Batch size for the data loader")
+            shuffle: bool = Field(True, description="Whether to shuffle the dataset")
+            prefetch: int = Field(2, description="Number of batches to prefetch")
+
         class CreateDataLoaderErrorResponse(BaseModel):
             """Error response model for the create_data_loader method."""
-            success: bool = Field(
-                False, 
-                description="Whether the operation was successful"
-            )
-            error: str = Field(
-                "", 
-                description="Error message explaining what went wrong"
-            )
-            error_type: Optional[str] = Field(
-                None, 
-                description="Type of error that occurred"
-            )
+
+            success: bool = Field(False, description="Whether the operation was successful")
+            error: str = Field("", description="Error message explaining what went wrong")
+            error_type: Optional[str] = Field(None, description="Type of error that occurred")
             operation: str = Field(
-                "create_data_loader", 
-                description="Name of the operation that failed"
+                "create_data_loader", description="Name of the operation that failed"
             )
-            timestamp: float = Field(
-                0.0, 
-                description="Timestamp when the error occurred"
-            )
-            
+            timestamp: float = Field(0.0, description="Timestamp when the error occurred")
+
     def create_data_loader(
-        self, 
-        dataset_cid: Optional[str] = None, 
-        batch_size: int = 32, 
-        **kwargs
+        self, dataset_cid: Optional[str] = None, batch_size: int = 32, **kwargs
     ) -> Union[Any, Dict[str, Any], "CreateDataLoaderErrorResponse"]:
         """Create a TensorFlow data loader from an IPFS dataset.
-        
-        This method creates an IPFSDataLoader instance configured for TensorFlow 
+
+        This method creates an IPFSDataLoader instance configured for TensorFlow
         integration, optionally loading a dataset from IPFS by its Content Identifier.
-        It provides a clean interface for creating data loaders with appropriate 
+        It provides a clean interface for creating data loaders with appropriate
         defaults and configuration.
-        
+
         Args:
             dataset_cid: CID of the dataset in IPFS (optional, can be loaded later)
             batch_size: Batch size for the data loader (default: 32)
@@ -14594,19 +14882,19 @@ class TensorflowIntegration:
                 - cache_dir: Directory for caching datasets (default: ~/.ipfs_cache)
                 - metrics: Metrics collection object (optional)
                 - transforms: Data transformation functions (optional)
-            
+
         Returns:
             Union[IPFSDataLoader, Dict[str, Any], CreateDataLoaderErrorResponse]:
                 - IPFSDataLoader instance configured for TensorFlow integration
                 - Error dictionary or Pydantic model if creation fails
-                
+
         Example:
             ```python
             # Create a data loader with default settings
             data_loader = tf_integration.create_data_loader(
                 dataset_cid="QmYourDatasetCID"
             )
-            
+
             # Create a data loader with custom settings
             data_loader = tf_integration.create_data_loader(
                 dataset_cid="QmYourDatasetCID",
@@ -14615,7 +14903,7 @@ class TensorflowIntegration:
                 prefetch=4,
                 cache_dir="/tmp/dataset_cache"
             )
-            
+
             # Use the data loader with TensorFlow
             for batch in data_loader:
                 # Each batch contains samples from the dataset
@@ -14624,7 +14912,7 @@ class TensorflowIntegration:
             ```
         """
         import time
-        
+
         if not self.ipfs:
             error_response = {
                 "success": False,
@@ -14633,27 +14921,23 @@ class TensorflowIntegration:
                 "operation": "create_data_loader",
                 "timestamp": time.time(),
             }
-            
+
             if PYDANTIC_AVAILABLE:
                 return CreateDataLoaderErrorResponse(**error_response)
             return error_response
-        
+
         try:
             # Create IPFSDataLoader instance
-            data_loader = IPFSDataLoader(
-                ipfs_client=self.ipfs,
-                batch_size=batch_size,
-                **kwargs
-            )
-            
+            data_loader = IPFSDataLoader(ipfs_client=self.ipfs, batch_size=batch_size, **kwargs)
+
             # Load dataset if CID provided
             if dataset_cid:
                 load_result = data_loader.load_dataset(dataset_cid)
                 if not load_result.get("success", False):
                     self.logger.warning(f"Failed to load dataset: {load_result.get('error')}")
-            
+
             return data_loader
-            
+
         except Exception as e:
             error_response = {
                 "success": False,
@@ -14662,135 +14946,115 @@ class TensorflowIntegration:
                 "operation": "create_data_loader",
                 "timestamp": time.time(),
             }
-            
+
             if PYDANTIC_AVAILABLE:
                 return CreateDataLoaderErrorResponse(**error_response)
             return error_response
-    
+
     if PYDANTIC_AVAILABLE:
+
         class OptimizeForInferenceRequest(BaseModel):
             """Request model for the optimize_for_inference method."""
-            model: Any = Field(
-                ..., 
-                description="TensorFlow model to optimize"
-            )
+
+            model: Any = Field(..., description="TensorFlow model to optimize")
             input_shapes: Optional[Dict[str, List[int]]] = Field(
-                None, 
-                description="Dictionary of input shapes for the model"
+                None, description="Dictionary of input shapes for the model"
             )
             mixed_precision: Optional[bool] = Field(
-                None, 
-                description="Whether to use mixed precision (FP16)"
+                None, description="Whether to use mixed precision (FP16)"
             )
-            
+
         class OptimizeForInferenceResponse(BaseModel):
             """Success response model for the optimize_for_inference method."""
-            success: bool = Field(
-                True, 
-                description="Whether the operation was successful"
-            )
+
+            success: bool = Field(True, description="Whether the operation was successful")
             model_type: str = Field(
-                "", 
-                description="Type of TensorFlow model ('keras' or 'saved_model')"
+                "", description="Type of TensorFlow model ('keras' or 'saved_model')"
             )
             original_trainable_params: Optional[int] = Field(
-                None, 
-                description="Number of trainable parameters in the original model"
+                None, description="Number of trainable parameters in the original model"
             )
             optimized_trainable_params: Optional[int] = Field(
-                None, 
-                description="Number of trainable parameters in the optimized model"
+                None, description="Number of trainable parameters in the optimized model"
             )
             mixed_precision: bool = Field(
-                False, 
-                description="Whether mixed precision optimization was applied"
+                False, description="Whether mixed precision optimization was applied"
             )
             concrete_function_created: bool = Field(
-                False, 
-                description="Whether a concrete function was created for specific input shapes"
+                False,
+                description="Whether a concrete function was created for specific input shapes",
             )
-            operation: str = Field(
-                "optimize_for_inference", 
-                description="Name of the operation"
-            )
+            operation: str = Field("optimize_for_inference", description="Name of the operation")
             timestamp: float = Field(
-                0.0, 
-                description="Timestamp when the optimization was completed"
+                0.0, description="Timestamp when the optimization was completed"
             )
-            
+
         class OptimizeForInferenceErrorResponse(BaseModel):
             """Error response model for the optimize_for_inference method."""
-            success: bool = Field(
-                False, 
-                description="Whether the operation was successful"
-            )
-            error: str = Field(
-                "", 
-                description="Error message explaining what went wrong"
-            )
-            error_type: Optional[str] = Field(
-                None, 
-                description="Type of error that occurred"
-            )
+
+            success: bool = Field(False, description="Whether the operation was successful")
+            error: str = Field("", description="Error message explaining what went wrong")
+            error_type: Optional[str] = Field(None, description="Type of error that occurred")
             operation: str = Field(
-                "optimize_for_inference", 
-                description="Name of the operation that failed"
+                "optimize_for_inference", description="Name of the operation that failed"
             )
-            timestamp: float = Field(
-                0.0, 
-                description="Timestamp when the error occurred"
-            )
-            
+            timestamp: float = Field(0.0, description="Timestamp when the error occurred")
+
     def optimize_for_inference(
-        self, 
-        model: Any, 
-        input_shapes: Optional[Dict[str, List[int]]] = None, 
-        mixed_precision: Optional[bool] = None
-    ) -> Union[Tuple[Any, Dict[str, Any]], Dict[str, Any], "OptimizeForInferenceResponse", "OptimizeForInferenceErrorResponse"]:
+        self,
+        model: Any,
+        input_shapes: Optional[Dict[str, List[int]]] = None,
+        mixed_precision: Optional[bool] = None,
+    ) -> Union[
+        Tuple[Any, Dict[str, Any]],
+        Dict[str, Any],
+        "OptimizeForInferenceResponse",
+        "OptimizeForInferenceErrorResponse",
+    ]:
         """Optimize a TensorFlow model for faster inference.
-        
+
         This method applies various optimizations to TensorFlow models to improve
-        inference performance, including mixed precision, operator fusion, and 
+        inference performance, including mixed precision, operator fusion, and
         concrete function compilation. It supports both Keras models and SavedModel
         objects, returning the optimized model along with optimization details.
-        
+
         Args:
             model: TensorFlow model to optimize (Keras Model or SavedModel)
             input_shapes: Dictionary of input shapes for concrete function optimization
                 (e.g., {'input_1': [1, 224, 224, 3]})
             mixed_precision: Whether to use mixed precision (FP16) optimization
                 (defaults to class setting if not specified)
-            
+
         Returns:
             Union[Tuple[Any, Dict[str, Any]], Dict[str, Any], OptimizeForInferenceResponse, OptimizeForInferenceErrorResponse]:
                 - If successful: Tuple of (optimized_model, optimization_results) or OptimizeForInferenceResponse
                 - If failed: Dictionary with error details or OptimizeForInferenceErrorResponse
-                
+
         Example:
             ```python
             # Optimize a Keras model
             model = tf.keras.applications.MobileNetV2(weights='imagenet')
-            
+
             # Optimize for specific batch size and input dimensions
             optimized_model, opt_info = data_loader.optimize_for_inference(
                 model,
                 input_shapes={'input_1': [1, 224, 224, 3]},
                 mixed_precision=True
             )
-            
+
             # Check optimization results
             print(f"Original params: {opt_info['original_trainable_params']}")
             print(f"Optimized params: {opt_info['optimized_trainable_params']}")
             print(f"Mixed precision: {opt_info['mixed_precision']}")
-            
+
             # Use optimized model for inference
             result = optimized_model.predict(sample_input)
             ```
         """
         import time
-        
+
         start_time = time.time()
-        
+
         if not TF_AVAILABLE:
             error_response = {
                 "success": False,
@@ -14799,126 +15063,132 @@ class TensorflowIntegration:
                 "operation": "optimize_for_inference",
                 "timestamp": time.time(),
             }
-            
+
             if PYDANTIC_AVAILABLE:
                 return OptimizeForInferenceErrorResponse(**error_response)
             return error_response
-        
+
         import tensorflow as tf
-        
+
         result = {"success": False, "operation": "optimize_for_inference", "timestamp": time.time()}
-        
+
         try:
             # Determine whether to use mixed precision
-            use_mixed_precision = mixed_precision if mixed_precision is not None else self.mixed_precision
-            
+            use_mixed_precision = (
+                mixed_precision if mixed_precision is not None else self.mixed_precision
+            )
+
             # Enable mixed precision if requested
             if use_mixed_precision:
                 tf.keras.mixed_precision.set_global_policy("mixed_float16")
                 result["mixed_precision"] = True
-            
+
             # For Keras models, use the TF optimization toolkit
             if isinstance(model, tf.keras.Model):
                 # Convert to inference mode
                 inference_model = tf.keras.models.clone_model(model)
-                
+
                 # If input shapes provided, optimize with specific shapes
                 if input_shapes:
                     # Create a TF function to optimize the forward pass
                     @tf.function
                     def inference_function(inputs):
                         return inference_model(inputs)
-                    
+
                     # Create concrete function with input shapes
                     input_specs = {}
                     for name, shape in input_shapes.items():
                         input_specs[name] = tf.TensorSpec(shape, tf.float32, name=name)
-                    
+
                     concrete_function = inference_function.get_concrete_function(**input_specs)
                     result["concrete_function_created"] = True
-                
+
                 # Additional optimizations
                 opt_model = inference_model
-                
+
                 # Record optimization results
-                result.update({
-                    "success": True,
-                    "model_type": "keras",
-                    "original_trainable_params": sum(
-                        tf.keras.backend.count_params(p) for p in model.trainable_weights
-                    ),
-                    "optimized_trainable_params": sum(
-                        tf.keras.backend.count_params(p) for p in opt_model.trainable_weights
-                    ),
-                    "timestamp": time.time()
-                })
-                
+                result.update(
+                    {
+                        "success": True,
+                        "model_type": "keras",
+                        "original_trainable_params": sum(
+                            tf.keras.backend.count_params(p) for p in model.trainable_weights
+                        ),
+                        "optimized_trainable_params": sum(
+                            tf.keras.backend.count_params(p) for p in opt_model.trainable_weights
+                        ),
+                        "timestamp": time.time(),
+                    }
+                )
+
                 # Return Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     pydantic_result = OptimizeForInferenceResponse(**result)
                     # We can't include the model in the Pydantic response directly
                     return opt_model, pydantic_result
-                
+
                 return opt_model, result
-                
+
             # For saved models, use SavedModel optimization
             elif isinstance(model, tf.Module):
                 # Basic optimizations for SavedModel
-                result.update({
-                    "success": True,
-                    "model_type": "saved_model",
-                    "original_size": "unknown",  # Would require serialization to measure
-                    "optimized_size": "unknown", 
-                    "timestamp": time.time()
-                })
-                
+                result.update(
+                    {
+                        "success": True,
+                        "model_type": "saved_model",
+                        "original_size": "unknown",  # Would require serialization to measure
+                        "optimized_size": "unknown",
+                        "timestamp": time.time(),
+                    }
+                )
+
                 # Return Pydantic model if available
                 if PYDANTIC_AVAILABLE:
                     pydantic_result = OptimizeForInferenceResponse(**result)
                     return model, pydantic_result
-                
+
                 return model, result  # Return original model with metadata
-                
+
             else:
                 result["error"] = f"Unsupported model type: {type(model).__name__}"
                 result["error_type"] = "unsupported_model_type"
-                
+
                 if PYDANTIC_AVAILABLE:
                     error_result = self.OptimizeForInferenceErrorResponse(**result)
                     return model, error_result
-                
+
                 return model, result  # Return original model with error
-                
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             result["timestamp"] = time.time()
             self.logger.exception(f"Error optimizing model: {e}")
-            
+
             if PYDANTIC_AVAILABLE:
                 error_result = self.OptimizeForInferenceErrorResponse(**result)
                 return model, error_result
-            
+
             return model, result  # Return original model with error
 
 
 class PyTorchIntegration:
     """Integration class for PyTorch with IPFS.
-    
+
     This class provides methods to save, load, and optimize PyTorch models
     using IPFS as the storage backend. It also includes functionality for
     creating data loaders from IPFS datasets and exporting models to ONNX format.
-    
+
     Attributes:
         ipfs_client: An instance of IPFSKit or compatible client
         model_registry: ModelRegistry instance for model management
         temp_dir: Directory for temporary files
         logger: Logger instance for tracking operations
     """
-    
+
     def __init__(self, ipfs_client=None, model_registry=None, temp_dir=None, **kwargs):
         """Initialize PyTorch integration with IPFS.
-        
+
         Args:
             ipfs_client: IPFS client for storage operations (optional)
             model_registry: ModelRegistry instance (optional)
@@ -14926,18 +15196,19 @@ class PyTorchIntegration:
             **kwargs: Additional configuration parameters
         """
         self.logger = kwargs.get("logger", logging.getLogger(__name__))
-        
+
         # Set up IPFS client
         if ipfs_client is None:
             try:
                 from ipfs_kit_py.ipfs_kit import IPFSKit
+
                 self.ipfs = IPFSKit(**kwargs)
             except ImportError:
                 self.ipfs = None
                 self.logger.warning("IPFSKit not available, limited functionality")
         else:
             self.ipfs = ipfs_client
-            
+
         # Set up model registry
         if model_registry is None:
             try:
@@ -14947,156 +15218,100 @@ class PyTorchIntegration:
                 self.logger.warning(f"Failed to initialize ModelRegistry: {e}")
         else:
             self.model_registry = model_registry
-            
+
         # Set up temporary directory
         self.temp_dir = temp_dir or tempfile.mkdtemp(prefix="pytorch_ipfs_")
         os.makedirs(self.temp_dir, exist_ok=True)
-        
+
         # Check PyTorch availability
         if not TORCH_AVAILABLE:
             self.logger.warning("PyTorch not available. Install with 'pip install torch'")
-    
+
     if PYDANTIC_AVAILABLE:
+
         class SaveModelRequest(BaseModel):
             """Request model for the save_model method."""
-            model: Any = Field(
-                ..., 
-                description="PyTorch model to save"
-            )
-            name: str = Field(
-                ..., 
-                description="Model name for registry and identification"
-            )
+
+            model: Any = Field(..., description="PyTorch model to save")
+            name: str = Field(..., description="Model name for registry and identification")
             version: str = Field(
-                "1.0.0", 
-                description="Model version string (semantic versioning recommended)"
+                "1.0.0", description="Model version string (semantic versioning recommended)"
             )
             metadata: Optional[Dict[str, Any]] = Field(
-                None, 
-                description="Additional metadata about the model"
+                None, description="Additional metadata about the model"
             )
-            trace: bool = Field(
-                True, 
-                description="Whether to trace the model with TorchScript"
-            )
+            trace: bool = Field(True, description="Whether to trace the model with TorchScript")
             example_inputs: Optional[Any] = Field(
-                None, 
-                description="Example inputs for tracing and ONNX export"
+                None, description="Example inputs for tracing and ONNX export"
             )
             use_jit: bool = Field(
-                True, 
-                description="Whether to use JIT compilation (trace vs. script)"
+                True, description="Whether to use JIT compilation (trace vs. script)"
             )
-            export_onnx: bool = Field(
-                False, 
-                description="Whether to also export to ONNX format"
-            )
-            
+            export_onnx: bool = Field(False, description="Whether to also export to ONNX format")
+
         class SaveModelResponse(BaseModel):
             """Success response model for the save_model method."""
-            success: bool = Field(
-                True, 
-                description="Whether the operation was successful"
-            )
-            operation: str = Field(
-                "save_model", 
-                description="Name of the operation"
-            )
-            model_name: str = Field(
-                "", 
-                description="Model name used for saving"
-            )
-            model_version: str = Field(
-                "", 
-                description="Model version used for saving"
-            )
+
+            success: bool = Field(True, description="Whether the operation was successful")
+            operation: str = Field("save_model", description="Name of the operation")
+            model_name: str = Field("", description="Model name used for saving")
+            model_version: str = Field("", description="Model version used for saving")
             cid: Optional[str] = Field(
-                None, 
-                description="Content identifier of the saved model in IPFS"
+                None, description="Content identifier of the saved model in IPFS"
             )
             state_dict_saved: bool = Field(
-                False, 
-                description="Whether the model state dictionary was successfully saved"
+                False, description="Whether the model state dictionary was successfully saved"
             )
             traced_model_saved: Optional[bool] = Field(
-                None, 
-                description="Whether a traced/scripted version was successfully saved"
+                None, description="Whether a traced/scripted version was successfully saved"
             )
             onnx_exported: Optional[bool] = Field(
-                None, 
-                description="Whether the model was successfully exported to ONNX"
+                None, description="Whether the model was successfully exported to ONNX"
             )
             registered: Optional[bool] = Field(
-                None, 
-                description="Whether the model was registered in the model registry"
+                None, description="Whether the model was registered in the model registry"
             )
-            trace_error: Optional[str] = Field(
-                None, 
-                description="Error message if tracing failed"
-            )
+            trace_error: Optional[str] = Field(None, description="Error message if tracing failed")
             onnx_error: Optional[str] = Field(
-                None, 
-                description="Error message if ONNX export failed"
+                None, description="Error message if ONNX export failed"
             )
             registry_error: Optional[str] = Field(
-                None, 
-                description="Error message if registry registration failed"
+                None, description="Error message if registry registration failed"
             )
-            timestamp: float = Field(
-                0.0, 
-                description="Timestamp when the save operation completed"
-            )
-            
+            timestamp: float = Field(0.0, description="Timestamp when the save operation completed")
+
         class SaveModelErrorResponse(BaseModel):
             """Error response model for the save_model method."""
-            success: bool = Field(
-                False, 
-                description="Whether the operation was successful"
-            )
-            operation: str = Field(
-                "save_model", 
-                description="Name of the operation that failed"
-            )
-            error: str = Field(
-                "", 
-                description="Error message explaining what went wrong"
-            )
-            error_type: Optional[str] = Field(
-                None, 
-                description="Type of error that occurred"
-            )
-            model_name: Optional[str] = Field(
-                None, 
-                description="Model name that was being saved"
-            )
+
+            success: bool = Field(False, description="Whether the operation was successful")
+            operation: str = Field("save_model", description="Name of the operation that failed")
+            error: str = Field("", description="Error message explaining what went wrong")
+            error_type: Optional[str] = Field(None, description="Type of error that occurred")
+            model_name: Optional[str] = Field(None, description="Model name that was being saved")
             model_version: Optional[str] = Field(
-                None, 
-                description="Model version that was being saved"
+                None, description="Model version that was being saved"
             )
-            timestamp: float = Field(
-                0.0, 
-                description="Timestamp when the error occurred"
-            )
-            
+            timestamp: float = Field(0.0, description="Timestamp when the error occurred")
+
     def save_model(
-        self, 
-        model: Any, 
-        name: str, 
-        version: str = "1.0.0", 
-        metadata: Optional[Dict[str, Any]] = None, 
-        trace: bool = True, 
-        example_inputs: Optional[Any] = None, 
-        use_jit: bool = True, 
-        export_onnx: bool = False, 
-        **kwargs
+        self,
+        model: Any,
+        name: str,
+        version: str = "1.0.0",
+        metadata: Optional[Dict[str, Any]] = None,
+        trace: bool = True,
+        example_inputs: Optional[Any] = None,
+        use_jit: bool = True,
+        export_onnx: bool = False,
+        **kwargs,
     ) -> Union[Dict[str, Any], "SaveModelResponse", "SaveModelErrorResponse"]:
         """Save a PyTorch model to IPFS with various export formats.
-        
+
         This method saves a PyTorch model to IPFS, with options for different export
         formats (state dict, traced/scripted model, ONNX). It also registers the model
         in a model registry if one is available. This provides a complete model
         versioning and storage solution leveraging content-addressing.
-        
+
         Args:
             model: PyTorch model to save (nn.Module instance)
             name: Model name for registry and identification
@@ -15111,30 +15326,30 @@ class PyTorchIntegration:
                 - input_names: Names for input tensors in ONNX
                 - output_names: Names for output tensors in ONNX
                 - dynamic_axes: Dynamic axes configuration for ONNX
-            
+
         Returns:
             Union[Dict[str, Any], SaveModelResponse, SaveModelErrorResponse]:
                 Dictionary or Pydantic model with operation results including CID
-                
+
         Example:
             ```python
             # Create a simple PyTorch model
             import torch
             import torch.nn as nn
-            
+
             class SimpleModel(nn.Module):
                 def __init__(self):
                     super().__init__()
                     self.fc = nn.Linear(10, 1)
-                    
+
                 def forward(self, x):
                     return torch.sigmoid(self.fc(x))
-            
+
             model = SimpleModel()
-            
+
             # Create example inputs for tracing
             example_inputs = torch.randn(1, 10)
-            
+
             # Save the model with various export formats
             result = pytorch_integration.save_model(
                 model=model,
@@ -15149,16 +15364,16 @@ class PyTorchIntegration:
                 example_inputs=example_inputs,
                 export_onnx=True
             )
-            
+
             if result["success"]:
                 print(f"Model saved with CID: {result['cid']}")
-                
+
                 # The model can now be loaded from IPFS:
                 loaded_model, _ = pytorch_integration.load_model(cid=result["cid"])
-                
+
                 # Or by name and version (if registry is available):
                 loaded_model, _ = pytorch_integration.load_model(
-                    name="simple_classifier", 
+                    name="simple_classifier",
                     version="1.0.0"
                 )
             ```
@@ -15168,9 +15383,9 @@ class PyTorchIntegration:
             "operation": "save_model",
             "model_name": name,
             "model_version": version,
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
-        
+
         if not TORCH_AVAILABLE:
             error_response = {
                 "success": False,
@@ -15179,78 +15394,80 @@ class PyTorchIntegration:
                 "error_type": "dependency_error",
                 "model_name": name,
                 "model_version": version,
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
-            
+
             if PYDANTIC_AVAILABLE:
                 return SaveModelErrorResponse(**error_response)
             return error_response
-            
+
         try:
             import torch
             import os
-            
+
             # Prepare metadata
             metadata = metadata or {}
-            metadata.update({
-                "framework": "pytorch",
-                "torch_version": torch.__version__,
-                "model_name": name,
-                "model_version": version,
-                "date_saved": datetime.now().isoformat(),
-                "traced": trace,
-                "jit_compiled": use_jit
-            })
-            
+            metadata.update(
+                {
+                    "framework": "pytorch",
+                    "torch_version": torch.__version__,
+                    "model_name": name,
+                    "model_version": version,
+                    "date_saved": datetime.now().isoformat(),
+                    "traced": trace,
+                    "jit_compiled": use_jit,
+                }
+            )
+
             # Add model architecture if available
             if hasattr(model, "__class__"):
                 metadata["model_type"] = model.__class__.__name__
-                
+
             # Add model parameters count
             try:
                 params_count = sum(p.numel() for p in model.parameters())
                 metadata["parameters_count"] = params_count
             except:
                 pass
-                
+
             # Create unique file path
             model_dir = os.path.join(self.temp_dir, f"{name}_{version}_{int(time.time())}")
             os.makedirs(model_dir, exist_ok=True)
-            
+
             # Save model state dictionary
             state_dict_path = os.path.join(model_dir, "model_state_dict.pt")
             torch.save(model.state_dict(), state_dict_path)
             result["state_dict_saved"] = True
-            
+
             # Try to trace the model if requested
             if trace and example_inputs is not None:
                 try:
                     # Put model in evaluation mode for tracing
                     model.eval()
-                    
+
                     # Create traced or scripted version
                     if use_jit:
                         traced_model = torch.jit.trace(model, example_inputs)
                     else:
                         traced_model = torch.jit.script(model)
-                        
+
                     # Save the traced/scripted model
                     traced_path = os.path.join(model_dir, "model_traced.pt")
                     traced_model.save(traced_path)
                     result["traced_model_saved"] = True
-                    
+
                 except Exception as e:
                     self.logger.warning(f"Failed to trace model: {e}")
                     result["trace_error"] = str(e)
-            
+
             # Export to ONNX if requested
             if export_onnx and example_inputs is not None:
                 try:
                     onnx_path = os.path.join(model_dir, "model.onnx")
-                    
+
                     # Ensure model is in eval mode
                     model.eval()
-                    
+
                     # Export to ONNX
                     torch.onnx.export(
                         model,
@@ -15261,27 +15478,27 @@ class PyTorchIntegration:
                         do_constant_folding=True,
                         input_names=kwargs.get("input_names", ["input"]),
                         output_names=kwargs.get("output_names", ["output"]),
-                        dynamic_axes=kwargs.get("dynamic_axes", None)
+                        dynamic_axes=kwargs.get("dynamic_axes", None),
                     )
-                    
+
                     result["onnx_exported"] = True
-                    
+
                 except Exception as e:
                     self.logger.warning(f"Failed to export to ONNX: {e}")
                     result["onnx_error"] = str(e)
-            
+
             # Save metadata to JSON
             metadata_path = os.path.join(model_dir, "metadata.json")
             with open(metadata_path, "w") as f:
                 json.dump(metadata, f, indent=2)
-            
+
             # Add to IPFS
             if self.ipfs:
                 add_result = self.ipfs.add_path(model_dir)
                 if add_result.get("success", False):
                     result["cid"] = add_result.get("Hash") or add_result.get("hash")
                     result["success"] = True
-                    
+
                     # Register with model registry if available
                     if self.model_registry:
                         try:
@@ -15290,7 +15507,7 @@ class PyTorchIntegration:
                                 version=version,
                                 cid=result["cid"],
                                 framework="pytorch",
-                                metadata=metadata
+                                metadata=metadata,
                             )
                             result["registered"] = registry_result.get("success", False)
                         except Exception as e:
@@ -15301,24 +15518,32 @@ class PyTorchIntegration:
             else:
                 result["error"] = "IPFS client not available"
                 result["error_type"] = "client_error"
-                
+
             if PYDANTIC_AVAILABLE:
                 if result["success"]:
                     return SaveModelResponse(**result)
                 else:
                     return SaveModelErrorResponse(**result)
             return result
-            
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error saving PyTorch model: {e}")
             return result
-    
-    def load_model(self, cid=None, name=None, version=None, module_class=None, 
-                  use_traced=True, map_location=None, **kwargs):
+
+    def load_model(
+        self,
+        cid=None,
+        name=None,
+        version=None,
+        module_class=None,
+        use_traced=True,
+        map_location=None,
+        **kwargs,
+    ):
         """Load a PyTorch model from IPFS.
-        
+
         Args:
             cid: Content identifier for the model
             name: Model name for registry lookup (if CID not provided)
@@ -15327,32 +15552,26 @@ class PyTorchIntegration:
             use_traced: Whether to load traced model if available
             map_location: Device mapping for PyTorch
             **kwargs: Additional parameters for loading
-            
+
         Returns:
             Tuple of (model, result_dict)
         """
-        result = {
-            "success": False,
-            "operation": "load_model",
-            "timestamp": time.time()
-        }
-        
+        result = {"success": False, "operation": "load_model", "timestamp": time.time()}
+
         if not TORCH_AVAILABLE:
             result["error"] = "PyTorch not available"
             return None, result
-            
+
         try:
             import torch
-            
+
             # Get CID from model registry if not provided directly
             if cid is None and name is not None:
                 if self.model_registry:
                     lookup_result = self.model_registry.get_model_cid(
-                        name=name, 
-                        version=version, 
-                        framework="pytorch"
+                        name=name, version=version, framework="pytorch"
                     )
-                    
+
                     if lookup_result.get("success", False):
                         cid = lookup_result.get("cid")
                         result["registry_lookup"] = True
@@ -15362,16 +15581,16 @@ class PyTorchIntegration:
                 else:
                     result["error"] = "Model registry not available and no CID provided"
                     return None, result
-            
+
             if cid is None:
                 result["error"] = "No CID provided and could not be retrieved from registry"
                 return None, result
-                
+
             result["cid"] = cid
-            
+
             # Create temporary directory
             model_dir = tempfile.mkdtemp(prefix="pytorch_model_")
-            
+
             # Get model files from IPFS
             if self.ipfs:
                 get_result = self.ipfs.get(cid, model_dir)
@@ -15381,14 +15600,14 @@ class PyTorchIntegration:
             else:
                 result["error"] = "IPFS client not available"
                 return None, result
-                
+
             # Find model files
             cid_subdir = os.path.join(model_dir, cid)
             if os.path.exists(cid_subdir):
                 model_base_dir = cid_subdir
             else:
                 model_base_dir = model_dir
-                
+
             # Load metadata
             metadata_path = os.path.join(model_base_dir, "metadata.json")
             metadata = {}
@@ -15396,14 +15615,14 @@ class PyTorchIntegration:
                 with open(metadata_path, "r") as f:
                     metadata = json.load(f)
                 result["metadata"] = metadata
-                
+
             # Check for traced model
             traced_path = os.path.join(model_base_dir, "model_traced.pt")
             state_dict_path = os.path.join(model_base_dir, "model_state_dict.pt")
-            
+
             # Determine which model file to load
             model = None
-            
+
             # Try to load traced model if requested and available
             if use_traced and os.path.exists(traced_path):
                 try:
@@ -15412,14 +15631,16 @@ class PyTorchIntegration:
                     result["success"] = True
                     return model, result
                 except Exception as e:
-                    self.logger.warning(f"Failed to load traced model, falling back to state dict: {e}")
+                    self.logger.warning(
+                        f"Failed to load traced model, falling back to state dict: {e}"
+                    )
                     result["traced_load_error"] = str(e)
-            
+
             # If traced model not available or not requested, try loading state dict
             if os.path.exists(state_dict_path):
                 # Load state dictionary
                 state_dict = torch.load(state_dict_path, map_location=map_location)
-                
+
                 # Create model instance if class provided
                 if module_class is not None:
                     # Instantiate model class
@@ -15428,14 +15649,14 @@ class PyTorchIntegration:
                         module_parts = module_class.split(".")
                         module_name = ".".join(module_parts[:-1])
                         class_name = module_parts[-1]
-                        
+
                         module = importlib.import_module(module_name)
                         model_class = getattr(module, class_name)
                         model = model_class(**kwargs.get("model_args", {}))
                     else:
                         # Assume module_class is an actual class
                         model = module_class(**kwargs.get("model_args", {}))
-                        
+
                     # Load state dict
                     model.load_state_dict(state_dict)
                     result["model_source"] = "state_dict"
@@ -15449,47 +15670,45 @@ class PyTorchIntegration:
             else:
                 result["error"] = "No model file found in retrieved content"
                 return None, result
-                
+
             return model, result
-            
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error loading PyTorch model: {e}")
             return None, result
-    
+
     def trace_model(self, model, example_inputs, use_script=False, **kwargs):
         """Trace a PyTorch model with TorchScript.
-        
+
         Args:
             model: PyTorch model to trace
             example_inputs: Example inputs for tracing
             use_script: Use scripting instead of tracing
             **kwargs: Additional parameters for tracing
-            
+
         Returns:
             Tuple of (traced_model, result_dict)
         """
-        result = {
-            "success": False,
-            "operation": "trace_model",
-            "timestamp": time.time()
-        }
-        
+        result = {"success": False, "operation": "trace_model", "timestamp": time.time()}
+
         if not TORCH_AVAILABLE:
             result["error"] = "PyTorch not available"
             return None, result
-            
+
         try:
             import torch
             from unittest.mock import MagicMock
-            
+
             # Check if we're in a test environment with mocked objects
-            is_test_environment = isinstance(model, MagicMock) or isinstance(example_inputs, MagicMock)
-            
+            is_test_environment = isinstance(model, MagicMock) or isinstance(
+                example_inputs, MagicMock
+            )
+
             # Set model to evaluation mode
             model.eval()
-            
+
             # Special handling for test environment
             if is_test_environment:
                 # If in test environment, just return success without actual tracing
@@ -15497,30 +15716,32 @@ class PyTorchIntegration:
                     traced_model = torch.jit.script(model)  # This should be mocked in tests
                     result["method"] = "script"
                 else:
-                    traced_model = torch.jit.trace(model, example_inputs)  # This should be mocked in tests
+                    traced_model = torch.jit.trace(
+                        model, example_inputs
+                    )  # This should be mocked in tests
                     result["method"] = "trace"
                 result["success"] = True
                 return traced_model, result
-            
+
             # Trace or script the model (real implementation)
             if use_script:
                 traced_model = torch.jit.script(model)
                 result["method"] = "script"
             else:
                 traced_model = torch.jit.trace(
-                    model, 
-                    example_inputs, 
+                    model,
+                    example_inputs,
                     check_trace=kwargs.get("check_trace", True),
-                    strict=kwargs.get("strict", True)
+                    strict=kwargs.get("strict", True),
                 )
                 result["method"] = "trace"
-                
+
             # Test the traced model
             if kwargs.get("test_trace", True):
                 with torch.no_grad():
                     original_output = model(example_inputs)
                     traced_output = traced_model(example_inputs)
-                    
+
                     # Compare outputs
                     if isinstance(original_output, torch.Tensor):
                         max_diff = torch.max(torch.abs(original_output - traced_output))
@@ -15529,19 +15750,21 @@ class PyTorchIntegration:
                     else:
                         # For more complex outputs, just note that we can't easily compare
                         result["outputs_match"] = "unknown"
-            
+
             result["success"] = True
             return traced_model, result
-            
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error tracing PyTorch model: {e}")
             return None, result
-            
-    def export_onnx(self, model, save_path, example_inputs, input_names=None, output_names=None, **kwargs):
+
+    def export_onnx(
+        self, model, save_path, example_inputs, input_names=None, output_names=None, **kwargs
+    ):
         """Export a PyTorch model to ONNX format.
-        
+
         Args:
             model: PyTorch model to export
             save_path: Path to save the ONNX model
@@ -15549,7 +15772,7 @@ class PyTorchIntegration:
             input_names: Names for input tensors (default: ["input"])
             output_names: Names for output tensors (default: ["output"])
             **kwargs: Additional parameters for ONNX export
-            
+
         Returns:
             Dictionary with export results
         """
@@ -15557,20 +15780,22 @@ class PyTorchIntegration:
             "success": False,
             "operation": "export_onnx",
             "timestamp": time.time(),
-            "save_path": save_path
+            "save_path": save_path,
         }
-        
+
         if not TORCH_AVAILABLE:
             result["error"] = "PyTorch not available"
             return result
-            
+
         try:
             import torch
             import os
-            
+
             # Check if we're in a test environment with mocked objects
-            is_test_environment = isinstance(model, MagicMock) or isinstance(example_inputs, MagicMock)
-            
+            is_test_environment = isinstance(model, MagicMock) or isinstance(
+                example_inputs, MagicMock
+            )
+
             # Special handling for test environment
             if is_test_environment:
                 # In test environment, we just need to return a successful result
@@ -15578,13 +15803,13 @@ class PyTorchIntegration:
                 result["success"] = True
                 result["file_size_bytes"] = 1024 * 1024  # Simulate a 1MB file
                 return result
-            
+
             # Ensure model is in evaluation mode
             model.eval()
-            
+
             # Create directory if it doesn't exist
             os.makedirs(os.path.dirname(os.path.abspath(save_path)), exist_ok=True)
-            
+
             # Export to ONNX
             torch.onnx.export(
                 model,
@@ -15595,17 +15820,18 @@ class PyTorchIntegration:
                 do_constant_folding=True,
                 input_names=input_names or ["input"],
                 output_names=output_names or ["output"],
-                dynamic_axes=kwargs.get("dynamic_axes", None)
+                dynamic_axes=kwargs.get("dynamic_axes", None),
             )
-            
+
             # Verify file exists and get size
             if os.path.exists(save_path):
                 result["success"] = True
                 result["file_size_bytes"] = os.path.getsize(save_path)
-                
+
                 # Get ONNX metadata if onnx package is available
                 try:
                     import onnx
+
                     onnx_model = onnx.load(save_path)
                     result["onnx_ir_version"] = onnx_model.ir_version
                     result["onnx_opset"] = onnx_model.opset_import[0].version
@@ -15614,43 +15840,39 @@ class PyTorchIntegration:
                     pass  # ONNX package not available
             else:
                 result["error"] = f"Failed to create file at {save_path}"
-                
+
             return result
-            
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error exporting to ONNX: {e}")
             return result
-            
+
     def optimize_for_inference(self, model, example_inputs=None, mixed_precision=False, **kwargs):
         """Optimize a PyTorch model for inference.
-        
+
         Args:
             model: PyTorch model to optimize
             example_inputs: Example inputs for tracing (optional)
             mixed_precision: Whether to use mixed precision (FP16)
             **kwargs: Additional optimization parameters
-            
+
         Returns:
             Tuple of (optimized_model, result_dict)
         """
-        result = {
-            "success": False,
-            "operation": "optimize_for_inference",
-            "timestamp": time.time()
-        }
-        
+        result = {"success": False, "operation": "optimize_for_inference", "timestamp": time.time()}
+
         if not TORCH_AVAILABLE:
             result["error"] = "PyTorch not available"
             return model, result
-            
+
         try:
             import torch
-            
+
             # Check if we're in a test environment with mocked objects
             is_test_environment = isinstance(model, MagicMock)
-            
+
             # Special handling for test environment
             if is_test_environment:
                 # In test environment, just return success result without actually
@@ -15661,22 +15883,22 @@ class PyTorchIntegration:
                 result["original_params_count"] = 1000  # Simulated parameter count
                 result["optimized_params_count"] = 900  # Simulated reduction
                 result["params_reduction"] = 0.1  # 10% reduction
-                
+
                 # If example inputs were provided, should have tried tracing
                 if example_inputs is not None:
                     result["jit_trace"] = True
                     result["jit_optimized"] = True
-                
+
                 return model, result
-            
+
             # Put model in evaluation mode
             model.eval()
             result["eval_mode"] = True
-            
+
             # Count original parameters
             original_params_count = sum(p.numel() for p in model.parameters())
             result["original_params_count"] = original_params_count
-            
+
             # Apply mixed precision if requested
             if mixed_precision:
                 try:
@@ -15686,18 +15908,18 @@ class PyTorchIntegration:
                 except Exception as e:
                     self.logger.warning(f"Failed to convert to half precision: {e}")
                     result["mixed_precision_error"] = str(e)
-            
+
             # Trace the model with TorchScript if example inputs provided
             if example_inputs is not None:
                 try:
                     # First convert inputs to the same precision as the model
                     if mixed_precision and isinstance(example_inputs, torch.Tensor):
                         example_inputs = example_inputs.half()
-                        
+
                     # Trace the model
                     with torch.no_grad():
                         traced_model = torch.jit.trace(model, example_inputs)
-                        
+
                     # Optimize for inference if available
                     try:
                         traced_model = torch.jit.optimize_for_inference(traced_model)
@@ -15705,14 +15927,14 @@ class PyTorchIntegration:
                     except AttributeError:
                         # optimize_for_inference may not be available in older PyTorch
                         result["jit_optimized"] = False
-                        
+
                     # Use the traced model
                     model = traced_model
                     result["jit_trace"] = True
                 except Exception as e:
                     self.logger.warning(f"Failed to trace model: {e}")
                     result["trace_error"] = str(e)
-            
+
             # Count optimized parameters if possible
             try:
                 optimized_params_count = sum(p.numel() for p in model.parameters())
@@ -15721,20 +15943,27 @@ class PyTorchIntegration:
             except:
                 # May not be able to count params for traced model
                 pass
-                
+
             result["success"] = True
             return model, result
-            
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error optimizing model: {e}")
             return model, result
-    
-    def create_data_loader(self, dataset_cid=None, dataset_name=None, 
-                          batch_size=32, shuffle=True, num_workers=0, **kwargs):
+
+    def create_data_loader(
+        self,
+        dataset_cid=None,
+        dataset_name=None,
+        batch_size=32,
+        shuffle=True,
+        num_workers=0,
+        **kwargs,
+    ):
         """Create a PyTorch data loader from an IPFS dataset.
-        
+
         Args:
             dataset_cid: CID of the dataset in IPFS
             dataset_name: Name of the dataset in registry (if CID not provided)
@@ -15742,27 +15971,23 @@ class PyTorchIntegration:
             shuffle: Whether to shuffle the dataset
             num_workers: Number of worker processes
             **kwargs: Additional parameters for data loader
-            
+
         Returns:
             Tuple of (data_loader, result_dict)
         """
-        result = {
-            "success": False,
-            "operation": "create_data_loader",
-            "timestamp": time.time()
-        }
-        
+        result = {"success": False, "operation": "create_data_loader", "timestamp": time.time()}
+
         if not TORCH_AVAILABLE:
             result["error"] = "PyTorch not available"
             return None, result
-            
+
         try:
             import torch
             import torch.utils.data
-            
+
             # Get dataset from IPFS
             dataset_result = {}
-            
+
             if dataset_cid is None and dataset_name is not None:
                 # Try to get CID from dataset manager
                 dataset_manager = kwargs.get("dataset_manager", None)
@@ -15772,7 +15997,7 @@ class PyTorchIntegration:
                     except Exception as e:
                         result["error"] = f"Could not initialize DatasetManager: {e}"
                         return None, result
-                
+
                 # Look up dataset CID
                 lookup_result = dataset_manager.get_dataset_cid(dataset_name)
                 if lookup_result.get("success", False):
@@ -15781,19 +16006,19 @@ class PyTorchIntegration:
                 else:
                     result["error"] = lookup_result.get("error", "Dataset not found in registry")
                     return None, result
-            
+
             if dataset_cid is None:
                 result["error"] = "No dataset CID provided or found in registry"
                 return None, result
-                
+
             # Get the dataset from IPFS using IPFSDataLoader
             data_loader = IPFSDataLoader(ipfs_client=self.ipfs)
             dataset_result = data_loader.load_dataset(dataset_cid)
-            
+
             if not dataset_result.get("success", False):
                 result["error"] = dataset_result.get("error", "Failed to load dataset")
                 return None, result
-                
+
             # Create PyTorch dataset from loaded data
             if "dataset_class" in kwargs:
                 # Use provided dataset class
@@ -15803,25 +16028,25 @@ class PyTorchIntegration:
                 # Try to create appropriate dataset type based on data
                 data = dataset_result["data"]
                 metadata = dataset_result.get("metadata", {})
-                
+
                 if isinstance(data, dict) and "features" in data and "labels" in data:
                     # Basic supervised learning dataset
                     features = torch.tensor(data["features"], dtype=torch.float32)
                     labels = torch.tensor(data["labels"])
-                    
+
                     class SimpleDataset(torch.utils.data.Dataset):
                         def __init__(self, features, labels):
                             self.features = features
                             self.labels = labels
-                            
+
                         def __getitem__(self, idx):
                             return self.features[idx], self.labels[idx]
-                            
+
                         def __len__(self):
                             return len(self.features)
-                    
+
                     dataset = SimpleDataset(features, labels)
-                    
+
                 elif isinstance(data, list):
                     # Assume list of samples
                     if all(isinstance(x, dict) for x in data):
@@ -15829,7 +16054,7 @@ class PyTorchIntegration:
                         class DictDataset(torch.utils.data.Dataset):
                             def __init__(self, data):
                                 self.data = data
-                                
+
                             def __getitem__(self, idx):
                                 item = self.data[idx]
                                 # Convert all values to tensors if possible
@@ -15840,26 +16065,26 @@ class PyTorchIntegration:
                                     else:
                                         result[k] = v
                                 return result
-                                
+
                             def __len__(self):
                                 return len(self.data)
-                        
+
                         dataset = DictDataset(data)
                     else:
                         # List of items - assume each is a sample
                         try:
                             tensor_data = torch.tensor(data)
-                            
+
                             class SimpleListDataset(torch.utils.data.Dataset):
                                 def __init__(self, data):
                                     self.data = data
-                                    
+
                                 def __getitem__(self, idx):
                                     return self.data[idx]
-                                    
+
                                 def __len__(self):
                                     return len(self.data)
-                            
+
                             dataset = SimpleListDataset(tensor_data)
                         except:
                             result["error"] = "Could not convert data to PyTorch tensors"
@@ -15867,81 +16092,80 @@ class PyTorchIntegration:
                 else:
                     result["error"] = "Unsupported dataset format"
                     return None, result
-            
+
             # Create the DataLoader
             loader = torch.utils.data.DataLoader(
                 dataset,
                 batch_size=batch_size,
                 shuffle=shuffle,
                 num_workers=num_workers,
-                **{k: v for k, v in kwargs.items() if k not in ["dataset_class", "dataset_args"]}
+                **{k: v for k, v in kwargs.items() if k not in ["dataset_class", "dataset_args"]},
             )
-            
+
             result["success"] = True
             result["dataset_size"] = len(dataset)
             result["batch_size"] = batch_size
             result["batches_per_epoch"] = len(loader)
-            
+
             return loader, result
-            
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error creating PyTorch data loader: {e}")
             return None, result
-    
-    def optimize_for_inference(self, model, input_shapes=None, 
-                              example_inputs=None, mixed_precision=False, **kwargs):
+
+    def optimize_for_inference(
+        self, model, input_shapes=None, example_inputs=None, mixed_precision=False, **kwargs
+    ):
         """Optimize a PyTorch model for inference.
-        
+
         Args:
             model: PyTorch model to optimize
             input_shapes: Dictionary of input shapes for optimization
             example_inputs: Example inputs for optimization
             mixed_precision: Whether to use mixed precision (FP16)
             **kwargs: Additional parameters for optimization
-            
+
         Returns:
             Tuple of (optimized_model, result_dict)
         """
-        result = {
-            "success": False,
-            "operation": "optimize_for_inference",
-            "timestamp": time.time()
-        }
-        
+        result = {"success": False, "operation": "optimize_for_inference", "timestamp": time.time()}
+
         if not TORCH_AVAILABLE:
             result["error"] = "PyTorch not available"
             return model, result
-            
+
         try:
             import torch
-            
+
             # Set model to evaluation mode
             model.eval()
             result["eval_mode"] = True
-            
+
             # Record original model parameters count
             original_params = sum(p.numel() for p in model.parameters())
             result["original_params_count"] = original_params
-            
+
             # Apply mixed precision if requested
             if mixed_precision:
                 try:
                     # Convert model to half precision
                     optimized_model = model.half()
                     result["mixed_precision"] = True
-                    
+
                     # Test model with example inputs if provided
                     if example_inputs is not None:
                         if isinstance(example_inputs, torch.Tensor):
                             half_inputs = example_inputs.half()
                         elif isinstance(example_inputs, (list, tuple)):
-                            half_inputs = [x.half() if isinstance(x, torch.Tensor) else x 
-                                          for x in example_inputs]
+                            half_inputs = [
+                                x.half() if isinstance(x, torch.Tensor) else x
+                                for x in example_inputs
+                            ]
                         else:
                             half_inputs = example_inputs
-                            
+
                         with torch.no_grad():
                             _ = optimized_model(half_inputs)
                             result["inference_test"] = "passed"
@@ -15951,7 +16175,7 @@ class PyTorchIntegration:
                     result["mixed_precision_error"] = str(e)
             else:
                 optimized_model = model
-                
+
             # Trace and optimize with TorchScript if requested
             if kwargs.get("use_torchscript", True) and example_inputs is not None:
                 try:
@@ -15962,26 +16186,34 @@ class PyTorchIntegration:
                 except Exception as e:
                     self.logger.warning(f"Failed to optimize with TorchScript: {e}")
                     result["torchscript_error"] = str(e)
-                    
+
             # Remove gradient information to save memory
             for param in optimized_model.parameters():
                 param.requires_grad_(False)
-            
+
             result["success"] = True
             result["optimized_params_count"] = sum(p.numel() for p in optimized_model.parameters())
-            
+
             return optimized_model, result
-            
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__
             self.logger.exception(f"Error optimizing PyTorch model: {e}")
             return model, result
-    
-    def export_onnx(self, model, save_path, example_inputs, input_names=None, 
-                   output_names=None, dynamic_axes=None, **kwargs):
+
+    def export_onnx(
+        self,
+        model,
+        save_path,
+        example_inputs,
+        input_names=None,
+        output_names=None,
+        dynamic_axes=None,
+        **kwargs,
+    ):
         """Export a PyTorch model to ONNX format.
-        
+
         Args:
             model: PyTorch model to export
             save_path: Path to save the ONNX model
@@ -15990,7 +16222,7 @@ class PyTorchIntegration:
             output_names: Names of output tensors
             dynamic_axes: Dynamic axes for variable input dimensions
             **kwargs: Additional parameters for export
-            
+
         Returns:
             Dictionary with operation results
         """
@@ -15998,27 +16230,27 @@ class PyTorchIntegration:
             "success": False,
             "operation": "export_onnx",
             "timestamp": time.time(),
-            "save_path": save_path
+            "save_path": save_path,
         }
-        
+
         if not TORCH_AVAILABLE:
             result["error"] = "PyTorch not available"
             return result
-            
+
         try:
             import torch
-            
+
             # Set model to evaluation mode
             model.eval()
-            
+
             # Ensure directory exists
             os.makedirs(os.path.dirname(os.path.abspath(save_path)), exist_ok=True)
-            
+
             # Default parameters if not provided
             input_names = input_names or ["input"]
             output_names = output_names or ["output"]
             opset_version = kwargs.get("opset_version", 12)
-            
+
             # Export model to ONNX
             torch.onnx.export(
                 model,
@@ -16030,22 +16262,23 @@ class PyTorchIntegration:
                 input_names=input_names,
                 output_names=output_names,
                 dynamic_axes=dynamic_axes,
-                verbose=kwargs.get("verbose", False)
+                verbose=kwargs.get("verbose", False),
             )
-            
+
             # Verify the model
             if kwargs.get("verify", True):
                 try:
                     import onnx
+
                     # Load and check ONNX model
                     onnx_model = onnx.load(save_path)
                     onnx.checker.check_model(onnx_model)
                     result["verification"] = "passed"
-                    
+
                     # Get metadata about the model
                     result["input_info"] = []
                     result["output_info"] = []
-                    
+
                     for input_info in onnx_model.graph.input:
                         shape_info = []
                         for dim in input_info.type.tensor_type.shape.dim:
@@ -16053,11 +16286,8 @@ class PyTorchIntegration:
                                 shape_info.append(dim.dim_param)
                             else:
                                 shape_info.append(dim.dim_value)
-                        result["input_info"].append({
-                            "name": input_info.name,
-                            "shape": shape_info
-                        })
-                    
+                        result["input_info"].append({"name": input_info.name, "shape": shape_info})
+
                     for output_info in onnx_model.graph.output:
                         shape_info = []
                         for dim in output_info.type.tensor_type.shape.dim:
@@ -16065,30 +16295,29 @@ class PyTorchIntegration:
                                 shape_info.append(dim.dim_param)
                             else:
                                 shape_info.append(dim.dim_value)
-                        result["output_info"].append({
-                            "name": output_info.name,
-                            "shape": shape_info
-                        })
-                    
+                        result["output_info"].append(
+                            {"name": output_info.name, "shape": shape_info}
+                        )
+
                 except ImportError:
                     result["verification"] = "skipped (onnx package not installed)"
                 except Exception as e:
                     result["verification"] = f"failed: {str(e)}"
-            
+
             # Check file size
             result["file_size_bytes"] = os.path.getsize(save_path)
-            
+
             # Add to IPFS if requested
             if kwargs.get("add_to_ipfs", False) and self.ipfs:
                 add_result = self.ipfs.add_file(save_path)
                 if add_result.get("success", False):
                     result["cid"] = add_result.get("Hash") or add_result.get("hash")
-                    
+
                     # Register with model registry if available
                     if self.model_registry and kwargs.get("register", False):
                         model_name = kwargs.get("model_name")
                         model_version = kwargs.get("model_version", "1.0.0")
-                        
+
                         if model_name:
                             registry_result = self.model_registry.register_model(
                                 name=model_name,
@@ -16100,14 +16329,14 @@ class PyTorchIntegration:
                                     "opset_version": opset_version,
                                     "input_names": input_names,
                                     "output_names": output_names,
-                                    "file_size_bytes": result["file_size_bytes"]
-                                }
+                                    "file_size_bytes": result["file_size_bytes"],
+                                },
                             )
                             result["registered"] = registry_result.get("success", False)
-            
+
             result["success"] = True
             return result
-            
+
         except Exception as e:
             result["error"] = str(e)
             result["error_type"] = type(e).__name__

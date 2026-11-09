@@ -5,6 +5,7 @@ Test VFS Replication Features
 
 Comprehensive test of the enhanced VFS replication capabilities.
 """
+
 import sys
 import tempfile
 import json
@@ -16,12 +17,14 @@ import pytest
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
+
 def test_replication_features():
     """Test the comprehensive replication features."""
     print("🔄 Testing VFS Replication Features")
     print("=" * 50)
-    
+
     import ipfs_kit_py.ipfs_fsspec as ipfs_fsspec
+
     if not hasattr(ipfs_fsspec, "get_vfs"):
         pytest.skip("ipfs_fsspec.get_vfs not available")
 
@@ -32,10 +35,11 @@ def test_replication_features():
 
     # Test 1: Set up multiple backends for replication
     print("\n1. Setting up multiple backends:")
-    with tempfile.TemporaryDirectory() as primary_dir, \
-         tempfile.TemporaryDirectory() as backup1_dir, \
-         tempfile.TemporaryDirectory() as backup2_dir:
-
+    with (
+        tempfile.TemporaryDirectory() as primary_dir,
+        tempfile.TemporaryDirectory() as backup1_dir,
+        tempfile.TemporaryDirectory() as backup2_dir,
+    ):
         # Mount multiple backends
         vfs.mount("/primary", "local", primary_dir, read_only=False)
         vfs.mount("/backup1", "local", backup1_dir, read_only=False)
@@ -95,7 +99,9 @@ def test_replication_features():
         print("\n4. Testing manual replication:")
 
         # Write file without auto-replication
-        manual_write = vfs.write("/primary/manual.txt", "Manual replication test", auto_replicate=False)
+        manual_write = vfs.write(
+            "/primary/manual.txt", "Manual replication test", auto_replicate=False
+        )
         _assert_success_if_present(manual_write, context="manual file write")
 
         # Manually replicate
@@ -148,7 +154,7 @@ def test_replication_features():
         vfs.unmount("/backup1")
         vfs.unmount("/backup2")
         vfs.unmount("/memory")
-        
+
         print("\n✅ All replication tests completed successfully!")
 
 
@@ -157,12 +163,14 @@ def _assert_success_if_present(result: object, *, context: str) -> None:
     if "success" in result:
         assert bool(result.get("success")), f"{context}: success=false ({result})"
 
+
 def test_cache_features():
     """Test enhanced cache features."""
     print("\n💾 Testing VFS Cache Features")
     print("=" * 50)
-    
+
     import ipfs_kit_py.ipfs_fsspec as ipfs_fsspec
+
     if not hasattr(ipfs_fsspec, "get_vfs"):
         pytest.skip("ipfs_fsspec.get_vfs not available")
 
@@ -204,12 +212,14 @@ def test_cache_features():
 
     print("\n✅ Cache tests completed successfully!")
 
+
 def test_error_handling():
     """Test error handling in replication scenarios."""
     print("\n⚠️  Testing Error Handling")
     print("=" * 50)
-    
+
     import ipfs_kit_py.ipfs_fsspec as ipfs_fsspec
+
     if not hasattr(ipfs_fsspec, "get_vfs"):
         pytest.skip("ipfs_fsspec.get_vfs not available")
 
@@ -242,7 +252,7 @@ def test_error_handling():
 if __name__ == "__main__":
     print("🚀 VFS Replication and Cache Testing Suite")
     print("=" * 60)
-    
+
     success = True
 
     try:
@@ -252,7 +262,7 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ Some VFS tests failed: {e}")
         success = False
-    
+
     print("\n" + "=" * 60)
     if success:
         print("🎉 All VFS replication and cache tests passed!")
@@ -267,5 +277,5 @@ if __name__ == "__main__":
         print("  ✓ Cross-backend file operations")
     else:
         print("❌ Some VFS tests failed!")
-    
+
     sys.exit(0 if success else 1)

@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class BackendStatus(Enum):
     """Status of a storage backend."""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -29,6 +30,7 @@ class BackendStatus(Enum):
 
 class OperationType(Enum):
     """Types of operations for performance tracking."""
+
     STORE = "store"
     RETRIEVE = "retrieve"
     DELETE = "delete"
@@ -43,6 +45,7 @@ class MonitoringSystem:
     Tracks health, performance, and reliability metrics for
     all storage backends in the unified storage system.
     """
+
     def __init__(self, storage_manager, options: Optional[Dict[str, Any]] = None):
         """
         Initialize the monitoring system.
@@ -118,7 +121,8 @@ class MonitoringSystem:
 
             # Initialize success rates
             self.success_rates[backend_type.value] = {
-                op_type.value: 1.0 for op_type in OperationType  # Start optimistic
+                op_type.value: 1.0
+                for op_type in OperationType  # Start optimistic
             }
 
             # Initialize capacity metrics
@@ -586,13 +590,15 @@ class MonitoringSystem:
 
         return {"capacity_metrics": results, "timestamp": time.time()}
 
-    def get_backend_vital_stats(self, backend_type: Union[StorageBackendType, str]) -> Dict[str, Any]:
+    def get_backend_vital_stats(
+        self, backend_type: Union[StorageBackendType, str]
+    ) -> Dict[str, Any]:
         """
         Get comprehensive vital statistics for a backend.
-        
+
         Args:
             backend_type: Backend type to get stats for
-            
+
         Returns:
             Dictionary with vital backend statistics
         """
@@ -601,13 +607,13 @@ class MonitoringSystem:
                 backend_type = StorageBackendType(backend_type)
             except ValueError:
                 return {"error": f"Unknown backend type: {backend_type}"}
-        
+
         if backend_type not in self.storage_manager.backends:
             return {"error": f"Backend {backend_type.value} not found"}
-        
+
         backend = self.storage_manager.backends[backend_type]
         backend_key = backend_type.value
-        
+
         # Collect comprehensive statistics
         stats = {
             "backend_id": backend_key,
@@ -615,7 +621,6 @@ class MonitoringSystem:
             "status": self.backend_status.get(backend_key, BackendStatus.UNKNOWN.value),
             "last_health_check": self.last_health_check.get(backend_key, 0),
             "uptime": time.time() - self.last_health_check.get(backend_key, time.time()),
-            
             # Capacity and Storage
             "storage": {
                 "total_space": self.capacity_metrics.get(backend_key, {}).get("total", 0),
@@ -625,25 +630,23 @@ class MonitoringSystem:
                 "files_count": self.capacity_metrics.get(backend_key, {}).get("files_count", 0),
                 "largest_file": self.capacity_metrics.get(backend_key, {}).get("largest_file", 0),
             },
-            
             # Quota Information
             "quota": {
                 "limit": self.capacity_metrics.get(backend_key, {}).get("quota_limit", 0),
                 "used": self.capacity_metrics.get(backend_key, {}).get("quota_used", 0),
                 "remaining": self.capacity_metrics.get(backend_key, {}).get("quota_remaining", 0),
                 "usage_percent": (
-                    self.capacity_metrics.get(backend_key, {}).get("quota_used", 0) / 
-                    max(self.capacity_metrics.get(backend_key, {}).get("quota_limit", 1), 1) * 100
+                    self.capacity_metrics.get(backend_key, {}).get("quota_used", 0)
+                    / max(self.capacity_metrics.get(backend_key, {}).get("quota_limit", 1), 1)
+                    * 100
                 ),
             },
-            
             # Performance Metrics
             "performance": {
                 "operations": {},
                 "success_rates": self.success_rates.get(backend_key, {}),
                 "error_counts": self.error_counts.get(backend_key, {}),
             },
-            
             # Connection and Health
             "health": {
                 "last_successful_operation": 0,
@@ -651,10 +654,9 @@ class MonitoringSystem:
                 "avg_response_time": 0,
                 "connection_status": "unknown",
             },
-            
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
-        
+
         # Calculate detailed performance metrics
         operation_times = self.operation_times.get(backend_key, {})
         for op_type, op_stats in operation_times.items():
@@ -667,28 +669,28 @@ class MonitoringSystem:
                 "success_rate": self.success_rates.get(backend_key, {}).get(op_type, 0),
                 "error_count": self.error_counts.get(backend_key, {}).get(op_type, 0),
             }
-        
+
         # Calculate overall health metrics
         total_operations = sum(op_stats.get("count", 0) for op_stats in operation_times.values())
         total_time = sum(op_stats.get("total_time", 0) for op_stats in operation_times.values())
-        
+
         if total_operations > 0:
             stats["health"]["avg_response_time"] = total_time / total_operations
-        
+
         # Try to get additional backend-specific stats
-        if hasattr(backend, 'get_vital_stats'):
+        if hasattr(backend, "get_vital_stats"):
             try:
                 backend_specific_stats = backend.get_vital_stats()
                 stats["backend_specific"] = backend_specific_stats
             except Exception as e:
                 logger.warning(f"Failed to get backend-specific stats for {backend_key}: {e}")
-        
+
         return stats
 
     def get_all_backend_stats(self) -> Dict[str, Any]:
         """
         Get vital statistics for all backends.
-        
+
         Returns:
             Dictionary with stats for all backends
         """
@@ -701,14 +703,14 @@ class MonitoringSystem:
             "total_storage_used": 0,
             "total_files": 0,
         }
-        
+
         for backend_type in self.storage_manager.backends:
             backend_stats = self.get_backend_vital_stats(backend_type)
             all_stats[backend_type.value] = backend_stats
-            
+
             # Update summary
             summary["total_backends"] += 1
-            
+
             status = backend_stats.get("status", "unknown")
             if status == BackendStatus.HEALTHY.value:
                 summary["healthy_backends"] += 1
@@ -716,17 +718,13 @@ class MonitoringSystem:
                 summary["degraded_backends"] += 1
             elif status == BackendStatus.UNHEALTHY.value:
                 summary["unhealthy_backends"] += 1
-                
+
             # Add storage usage
             storage_info = backend_stats.get("storage", {})
             summary["total_storage_used"] += storage_info.get("used_space", 0)
             summary["total_files"] += storage_info.get("files_count", 0)
-        
-        return {
-            "summary": summary,
-            "backends": all_stats,
-            "timestamp": time.time()
-        }
+
+        return {"summary": summary, "backends": all_stats, "timestamp": time.time()}
 
     def get_performance_metrics(
         self,

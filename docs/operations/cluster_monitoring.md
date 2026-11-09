@@ -39,30 +39,55 @@ Monitoring and dashboard features are configured under `cluster.monitoring` and 
 ```python
 # Example configuration snippet
 config = {
-    'cluster': {
-        'monitoring': {
-            'enabled': True,
-            'collection_interval_seconds': 60,
-            'metrics_history_duration_hours': 24,
-            'alerts': [
-                {'metric': 'node.disk_usage_percent', 'threshold': 90, 'operator': '>=', 'severity': 'warning', 'action': 'run_gc'},
-                {'metric': 'node.memory_usage_percent', 'threshold': 95, 'operator': '>=', 'severity': 'critical', 'action': 'notify_admin'},
-                {'metric': 'node.status', 'threshold': 'Offline', 'operator': '==', 'severity': 'critical', 'duration_minutes': 5, 'action': 'reallocate_pins'},
+    "cluster": {
+        "monitoring": {
+            "enabled": True,
+            "collection_interval_seconds": 60,
+            "metrics_history_duration_hours": 24,
+            "alerts": [
+                {
+                    "metric": "node.disk_usage_percent",
+                    "threshold": 90,
+                    "operator": ">=",
+                    "severity": "warning",
+                    "action": "run_gc",
+                },
+                {
+                    "metric": "node.memory_usage_percent",
+                    "threshold": 95,
+                    "operator": ">=",
+                    "severity": "critical",
+                    "action": "notify_admin",
+                },
+                {
+                    "metric": "node.status",
+                    "threshold": "Offline",
+                    "operator": "==",
+                    "severity": "critical",
+                    "duration_minutes": 5,
+                    "action": "reallocate_pins",
+                },
                 # Add more alerts based on available metrics
             ],
-            'recovery_actions': { # Define how actions are executed
-                'run_gc': {'command': 'ipfs repo gc', 'target': 'alerting_node'},
-                'reallocate_pins': {'method': 'cluster_manager.reallocate_pins', 'target': 'alerting_node'},
-                'notify_admin': {'script': '/path/to/notify_script.sh', 'args': ['{node_id}', '{details}']}
-            }
+            "recovery_actions": {  # Define how actions are executed
+                "run_gc": {"command": "ipfs repo gc", "target": "alerting_node"},
+                "reallocate_pins": {
+                    "method": "cluster_manager.reallocate_pins",
+                    "target": "alerting_node",
+                },
+                "notify_admin": {
+                    "script": "/path/to/notify_script.sh",
+                    "args": ["{node_id}", "{details}"],
+                },
+            },
         },
-        'dashboard': {
-            'enabled': True,
-            'refresh_interval_seconds': 30,
+        "dashboard": {
+            "enabled": True,
+            "refresh_interval_seconds": 30,
             # Potentially host/port if running standalone server
             # 'host': '0.0.0.0',
             # 'port': 9091
-        }
+        },
         # ... other cluster config
     }
     # ... other ipfs-kit-py config

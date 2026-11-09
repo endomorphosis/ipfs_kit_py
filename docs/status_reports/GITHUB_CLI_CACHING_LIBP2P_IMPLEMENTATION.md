@@ -157,14 +157,14 @@ def _query_p2p_cache(self, cache_key: str) -> Optional[str]:
     """Query connected peers for cache entry."""
     if not self.enable_p2p or not self.peer_manager:
         return None
-    
+
     # Query peers via LibP2P
     for peer in self.peer_manager.get_connected_peers():
         result = peer_manager.request_cache(peer, cache_key)
         if result:
-            self.stats['p2p_hits'] += 1
+            self.stats["p2p_hits"] += 1
             return result
-    
+
     return None
 ```
 
@@ -175,11 +175,11 @@ def _get_from_ipfs(self, cache_key: str) -> Optional[str]:
     """Retrieve content from IPFS by CID."""
     if cache_key in self.index:
         cache_entry = self.index[cache_key]
-        if 'ipfs_cid' in cache_entry:
-            cid = cache_entry['ipfs_cid']
+        if "ipfs_cid" in cache_entry:
+            cid = cache_entry["ipfs_cid"]
             content = self.ipfs_client.cat_str(cid)
             if content:
-                self.stats['ipfs_hits'] += 1
+                self.stats["ipfs_hits"] += 1
                 return content
     return None
 ```
@@ -191,17 +191,17 @@ def _announce_cache_entry(self, cache_key: str, ipfs_cid: Optional[str]):
     """Announce cache availability via GossipSub."""
     if not self.enable_p2p:
         return
-    
+
     announcement = {
-        'type': 'gh_cache_available',
-        'cache_key': cache_key,
-        'ipfs_cid': ipfs_cid,
-        'timestamp': datetime.now().isoformat(),
-        'ttl': self.index[cache_key]['ttl']
+        "type": "gh_cache_available",
+        "cache_key": cache_key,
+        "ipfs_cid": ipfs_cid,
+        "timestamp": datetime.now().isoformat(),
+        "ttl": self.index[cache_key]["ttl"],
     }
-    
+
     # Publish to gh-cache-announce topic
-    await self.gossipsub.publish('gh-cache-announce', announcement)
+    await self.gossipsub.publish("gh-cache-announce", announcement)
 ```
 
 ### Multi-Tier Retrieval
@@ -209,28 +209,28 @@ def _announce_cache_entry(self, cache_key: str, ipfs_cid: Optional[str]):
 ```python
 def _get_from_cache(self, cache_key: str) -> Optional[str]:
     """Three-tier cache retrieval strategy."""
-    
+
     # Tier 1: Local cache (fastest)
     if cache_key in self.index and self._is_cache_valid(self.index[cache_key]):
         content = self._read_local_cache(cache_key)
         if content:
-            self.stats['local_hits'] += 1
+            self.stats["local_hits"] += 1
             return content
-    
+
     # Tier 2: P2P peers (fast, distributed)
     if self.enable_p2p:
         p2p_result = self._query_p2p_cache(cache_key)
         if p2p_result:
-            self.stats['p2p_hits'] += 1
+            self.stats["p2p_hits"] += 1
             return p2p_result
-    
+
     # Tier 3: IPFS network (reliable, global)
     if self.enable_ipfs:
         ipfs_result = self._get_from_ipfs(cache_key)
         if ipfs_result:
-            self.stats['ipfs_hits'] += 1
+            self.stats["ipfs_hits"] += 1
             return ipfs_result
-    
+
     # Tier 4: API call (slowest, fallback)
     return None
 ```
@@ -257,7 +257,7 @@ from ipfs_kit_py.gh_cache import GHCache
 # Full P2P + IPFS caching
 cache = GHCache(
     enable_ipfs=True,
-    enable_p2p=True  # NEW!
+    enable_p2p=True,  # NEW!
 )
 ```
 
@@ -329,7 +329,7 @@ from ipfs_kit_py.gh_cache import GHCache
 cache = GHCache(enable_ipfs=True, enable_p2p=True)
 
 # Run with distributed caching
-code, stdout, stderr = cache.run(['gh', 'repo', 'list'])
+code, stdout, stderr = cache.run(["gh", "repo", "list"])
 
 # View statistics
 cache.print_stats()

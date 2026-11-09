@@ -23,20 +23,20 @@ import subprocess
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename='logs/fixed_mcp_server.log'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    filename="logs/fixed_mcp_server.log",
 )
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
-console.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-logging.getLogger('').addHandler(console)
+console.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+logging.getLogger("").addHandler(console)
 logger = logging.getLogger(__name__)
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Fixed MCP Server')
-parser.add_argument('--port', type=int, default=9998, help='Port to run server on')
-parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to bind to')
-parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+parser = argparse.ArgumentParser(description="Fixed MCP Server")
+parser.add_argument("--port", type=int, default=9998, help="Port to run server on")
+parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind to")
+parser.add_argument("--debug", action="store_true", help="Enable debug mode")
 args = parser.parse_args()
 
 # Configuration
@@ -46,21 +46,24 @@ API_PREFIX = "/api/v0"
 DEBUG_MODE = args.debug
 SERVER_ID = str(uuid.uuid4())
 
+
 # Source environment variables from mcp_credentials.sh if it exists
 def source_credentials():
     """Source credentials from mcp_credentials.sh script if it exists."""
-    credentials_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mcp_credentials.sh")
+    credentials_file = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "mcp_credentials.sh"
+    )
     if os.path.exists(credentials_file):
         logger.info(f"Sourcing credentials from {credentials_file}")
-        with open(credentials_file, 'r') as f:
+        with open(credentials_file, "r") as f:
             for line in f:
-                if line.strip() and not line.strip().startswith('#'):
+                if line.strip() and not line.strip().startswith("#"):
                     try:
                         # Extract environment variables
-                        if 'export' in line:
-                            var_part = line.replace('export', '').strip()
-                            if '=' in var_part:
-                                var_name, var_value = var_part.split('=', 1)
+                        if "export" in line:
+                            var_part = line.replace("export", "").strip()
+                            if "=" in var_part:
+                                var_name, var_value = var_part.split("=", 1)
                                 # Clean up quotes if present
                                 var_value = var_value.strip('"').strip("'")
                                 # Set the environment variable
@@ -69,27 +72,28 @@ def source_credentials():
                     except Exception as e:
                         logger.warning(f"Error processing credential line: {e}")
 
+
 # IPFS daemon management
 def check_ipfs_daemon():
     """Check if IPFS daemon is running."""
     try:
-        result = subprocess.run(["ipfs", "version"],
-                              capture_output=True,
-                              text=True,
-                              timeout=5)
+        result = subprocess.run(["ipfs", "version"], capture_output=True, text=True, timeout=5)
         return result.returncode == 0
     except Exception as e:
         logger.error(f"Error checking IPFS daemon: {e}")
         return False
+
 
 def start_ipfs_daemon():
     """Start the IPFS daemon if not running."""
     if not check_ipfs_daemon():
         try:
             # Start daemon in background
-            subprocess.Popen(["ipfs", "daemon", "--routing=dhtclient"],
-                           stdout=subprocess.PIPE,
-                           stderr=subprocess.PIPE)
+            subprocess.Popen(
+                ["ipfs", "daemon", "--routing=dhtclient"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
             # Wait a moment for it to initialize
             time.sleep(2)
             return check_ipfs_daemon()
@@ -98,25 +102,24 @@ def start_ipfs_daemon():
             return False
     return True
 
+
 def run_ipfs_command(command, input_data=None):
     """Run an IPFS command and return the result."""
     try:
         full_command = ["ipfs"] + command
         if input_data:
-            result = subprocess.run(full_command,
-                                  input=input_data,
-                                  capture_output=True)
+            result = subprocess.run(full_command, input=input_data, capture_output=True)
         else:
-            result = subprocess.run(full_command,
-                                  capture_output=True)
+            result = subprocess.run(full_command, capture_output=True)
 
         if result.returncode == 0:
             return {"success": True, "output": result.stdout}
         else:
-            return {"success": False, "error": result.stderr.decode('utf-8', errors='replace')}
+            return {"success": False, "error": result.stderr.decode("utf-8", errors="replace")}
     except Exception as e:
         logger.error(f"Error running IPFS command {command}: {e}")
         return {"success": False, "error": str(e)}
+
 
 # Storage backend status tracking
 storage_backends = {
@@ -126,15 +129,16 @@ storage_backends = {
     "s3": {"available": False, "simulation": True, "mock": False},
     "filecoin": {"available": False, "simulation": True, "mock": False},
     "storacha": {"available": False, "simulation": True, "mock": False},
-    "lassie": {"available": False, "simulation": True, "mock": False}
+    "lassie": {"available": False, "simulation": True, "mock": False},
 }
 
 # Create FastAPI app
 app = FastAPI(
     title="Fixed MCP Server",
     description="Model-Controller-Persistence Server for IPFS Kit with working storage backends",
-    version="1.0.0"
+    version="1.0.0",
 )
+
 
 # Root endpoint
 @app.get("/")
@@ -154,7 +158,7 @@ async def root():
                 f"{API_PREFIX}/ipfs/cat",
                 f"{API_PREFIX}/ipfs/version",
                 f"{API_PREFIX}/ipfs/pin/add",
-                f"{API_PREFIX}/ipfs/pin/ls"
+                f"{API_PREFIX}/ipfs/pin/ls",
             ],
             "storage": [
                 f"{API_PREFIX}/storage/health",
@@ -171,14 +175,16 @@ async def root():
                 f"{API_PREFIX}/storacha/from_ipfs",
                 f"{API_PREFIX}/storacha/to_ipfs",
                 f"{API_PREFIX}/lassie/status",
-                f"{API_PREFIX}/lassie/retrieve"
+                f"{API_PREFIX}/lassie/retrieve",
             ],
-            "health": f"{API_PREFIX}/health"
-        }
+            "health": f"{API_PREFIX}/health",
+        },
     }
+
 
 # Create API router for /api/v0 prefix
 router = APIRouter()
+
 
 # Health endpoint
 @router.get("/health")
@@ -189,6 +195,7 @@ async def health():
         # Import extension integration module
         sys.path.append(os.path.dirname(os.path.abspath(__file__)))
         import mcp_extensions
+
         # Update storage backends with real status
         mcp_extensions.update_storage_backends(storage_backends)
     except Exception as e:
@@ -203,14 +210,12 @@ async def health():
         "server_id": SERVER_ID,
         "debug_mode": DEBUG_MODE,
         "ipfs_daemon_running": ipfs_running,
-        "controllers": {
-            "ipfs": True,
-            "storage": True
-        },
-        "storage_backends": storage_backends
+        "controllers": {"ipfs": True, "storage": True},
+        "storage_backends": storage_backends,
     }
 
     return health_info
+
 
 # Storage health endpoint
 @router.get("/storage/health")
@@ -221,6 +226,7 @@ async def storage_health():
         # Import extension integration module
         sys.path.append(os.path.dirname(os.path.abspath(__file__)))
         import mcp_extensions
+
         # Update storage backends with real status
         mcp_extensions.update_storage_backends(storage_backends)
     except Exception as e:
@@ -229,10 +235,11 @@ async def storage_health():
     return {
         "success": True,
         "timestamp": time.time(),
-        "mode": "hybrid_storage", # real, mock, or simulation as needed
+        "mode": "hybrid_storage",  # real, mock, or simulation as needed
         "components": storage_backends,
-        "overall_status": "healthy"
+        "overall_status": "healthy",
     }
+
 
 # IPFS Version endpoint
 @router.get("/ipfs/version")
@@ -244,13 +251,14 @@ async def ipfs_version():
     result = run_ipfs_command(["version"])
     if result["success"]:
         try:
-            version_str = result["output"].decode('utf-8').strip()
+            version_str = result["output"].decode("utf-8").strip()
             return {"success": True, "version": version_str}
         except Exception as e:
             logger.error(f"Error parsing IPFS version: {e}")
             return {"success": False, "error": str(e)}
     else:
         return {"success": False, "error": result["error"]}
+
 
 # IPFS Add endpoint
 @router.post("/ipfs/add")
@@ -274,19 +282,15 @@ async def ipfs_add(file: UploadFile = File(...)):
         os.unlink(temp_file_path)
 
         if result["success"]:
-            cid = result["output"].decode('utf-8').strip()
-            return {
-                "success": True,
-                "cid": cid,
-                "size": len(content),
-                "name": file.filename
-            }
+            cid = result["output"].decode("utf-8").strip()
+            return {"success": True, "cid": cid, "size": len(content), "name": file.filename}
         else:
             return {"success": False, "error": result["error"]}
 
     except Exception as e:
         logger.error(f"Error adding file to IPFS: {e}")
         return {"success": False, "error": str(e)}
+
 
 # IPFS Cat endpoint
 @router.get("/ipfs/cat/{cid}")
@@ -301,12 +305,10 @@ async def ipfs_cat(cid: str):
         async def content_generator():
             yield result["output"]
 
-        return StreamingResponse(
-            content_generator(),
-            media_type="application/octet-stream"
-        )
+        return StreamingResponse(content_generator(), media_type="application/octet-stream")
     else:
         raise HTTPException(status_code=404, detail=f"Content not found: {result['error']}")
+
 
 # IPFS Pin Add endpoint
 @router.post("/ipfs/pin/add")
@@ -321,6 +323,7 @@ async def ipfs_pin_add(cid: str = Form(...)):
     else:
         return {"success": False, "error": result["error"]}
 
+
 # IPFS Pin List endpoint
 @router.get("/ipfs/pin/ls")
 async def ipfs_pin_list():
@@ -331,12 +334,12 @@ async def ipfs_pin_list():
     result = run_ipfs_command(["pin", "ls", "--type=recursive"])
     if result["success"]:
         try:
-            output = result["output"].decode('utf-8').strip()
+            output = result["output"].decode("utf-8").strip()
             pins = {}
 
-            for line in output.split('\n'):
+            for line in output.split("\n"):
                 if line:
-                    parts = line.split(' ')
+                    parts = line.split(" ")
                     if len(parts) >= 2:
                         cid = parts[0]
                         pins[cid] = {"type": "recursive"}
@@ -348,8 +351,10 @@ async def ipfs_pin_list():
     else:
         return {"success": False, "error": result["error"]}
 
+
 # Register the basic router
 app.include_router(router, prefix=API_PREFIX)
+
 
 # Create mock routers for backends that might not work
 def create_mock_router(backend_name, api_prefix):
@@ -365,7 +370,7 @@ def create_mock_router(backend_name, api_prefix):
             "simulation": False,
             "mock": True,
             "message": f"Using mock {backend_name} implementation",
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
 
     @mock_router.post("/from_ipfs")
@@ -378,7 +383,11 @@ def create_mock_router(backend_name, api_prefix):
         # Get content from IPFS
         result = run_ipfs_command(["cat", cid])
         if not result["success"]:
-            return {"success": False, "mock": True, "error": f"Failed to get content from IPFS: {result['error']}"}
+            return {
+                "success": False,
+                "mock": True,
+                "error": f"Failed to get content from IPFS: {result['error']}",
+            }
 
         # Save to mock storage
         file_path = path or f"ipfs/{cid}"
@@ -394,7 +403,7 @@ def create_mock_router(backend_name, api_prefix):
             "message": f"Content stored in mock {backend_name} storage",
             "url": f"file://{full_path}",
             "cid": cid,
-            "path": file_path
+            "path": file_path,
         }
 
     @mock_router.post("/to_ipfs")
@@ -413,20 +422,25 @@ def create_mock_router(backend_name, api_prefix):
         # Add to IPFS
         result = run_ipfs_command(["add", "-q", mock_file_path])
         if not result["success"]:
-            return {"success": False, "mock": True, "error": f"Failed to add to IPFS: {result['error']}"}
+            return {
+                "success": False,
+                "mock": True,
+                "error": f"Failed to add to IPFS: {result['error']}",
+            }
 
-        new_cid = result["output"].decode('utf-8').strip()
+        new_cid = result["output"].decode("utf-8").strip()
 
         return {
             "success": True,
             "mock": True,
             "message": f"Added content from mock {backend_name} storage to IPFS",
             "cid": new_cid,
-            "source": f"mock_{backend_name}:{file_path}"
+            "source": f"mock_{backend_name}:{file_path}",
         }
 
     # Special case for Lassie which has a different API
     if backend_name == "lassie":
+
         @mock_router.post("/retrieve")
         async def retrieve(cid: str = Form(...), path: Optional[str] = Form(None)):
             """Retrieve content using Lassie."""
@@ -437,7 +451,11 @@ def create_mock_router(backend_name, api_prefix):
             # Get content from IPFS as a fallback
             result = run_ipfs_command(["cat", cid])
             if not result["success"]:
-                return {"success": False, "mock": True, "error": f"Failed to get content from IPFS: {result['error']}"}
+                return {
+                    "success": False,
+                    "mock": True,
+                    "error": f"Failed to get content from IPFS: {result['error']}",
+                }
 
             # Save to mock storage
             file_path = path or f"retrieved/{cid}"
@@ -453,10 +471,11 @@ def create_mock_router(backend_name, api_prefix):
                 "message": "Content retrieved using mock Lassie implementation",
                 "path": full_path,
                 "cid": cid,
-                "size": len(result["output"])
+                "size": len(result["output"]),
             }
 
     return mock_router
+
 
 # Add extension routers
 try:
@@ -507,9 +526,4 @@ if __name__ == "__main__":
     logger.info(f"Debug mode: {DEBUG_MODE}")
     logger.info(f"Server ID: {SERVER_ID}")
 
-    uvicorn.run(
-        "fixed_mcp_server:app",
-        host=HOST,
-        port=PORT,
-        reload=False
-    )
+    uvicorn.run("fixed_mcp_server:app", host=HOST, port=PORT, reload=False)

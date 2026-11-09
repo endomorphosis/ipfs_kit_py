@@ -33,12 +33,12 @@ The use of Arrow-based state might be enabled via configuration:
 ```python
 # Example configuration snippet
 config = {
-    'cluster': {
-        'state_management': {
-            'type': 'arrow', # Explicitly select Arrow state
-            'persist_path': '~/.ipfs_kit/cluster_state',
-            'persist_interval_seconds': 60,
-            'persist_format': 'feather' # or 'parquet'
+    "cluster": {
+        "state_management": {
+            "type": "arrow",  # Explicitly select Arrow state
+            "persist_path": "~/.ipfs_kit/cluster_state",
+            "persist_interval_seconds": 60,
+            "persist_format": "feather",  # or 'parquet'
         }
         # ... other cluster config
     }

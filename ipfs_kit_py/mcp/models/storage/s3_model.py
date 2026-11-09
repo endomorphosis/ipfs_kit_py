@@ -23,12 +23,13 @@ class S3Model(BaseStorageModel):
     It provides methods for uploading, downloading, listing, and deleting objects in S3,
     as well as bridge operations to transfer content between IPFS and S3.
     """
+
     def __init__(
-        self, # Added missing comma
-        s3_kit_instance = None,
-        ipfs_model = None,
-        cache_manager = None,
-        credential_manager = None
+        self,  # Added missing comma
+        s3_kit_instance=None,
+        ipfs_model=None,
+        cache_manager=None,
+        credential_manager=None,
     ):
         """Initialize S3 model with dependencies.
 
@@ -208,7 +209,9 @@ class S3Model(BaseStorageModel):
                     result["objects"] = s3_result.get("files", [])
                     result["count"] = len(result["objects"])
                 else:
-                    result["error"] = s3_result.get("error", "Unknown error during S3 list operation")
+                    result["error"] = s3_result.get(
+                        "error", "Unknown error during S3 list operation"
+                    )
                     result["error_type"] = s3_result.get("error_type", "S3ListError")
             else:
                 result["error"] = "S3 kit not available"
@@ -257,7 +260,9 @@ class S3Model(BaseStorageModel):
                     result["size_bytes"] = s3_result.get("size")
                     result["last_modified"] = s3_result.get("last_modified")
                 else:
-                    result["error"] = s3_result.get("error", "Unknown error during S3 delete operation")
+                    result["error"] = s3_result.get(
+                        "error", "Unknown error during S3 delete operation"
+                    )
                     result["error_type"] = s3_result.get("error_type", "S3DeleteError")
             else:
                 result["error"] = "S3 kit not available"
@@ -320,7 +325,9 @@ class S3Model(BaseStorageModel):
                 ipfs_result = self.ipfs_model.get_content(cid)
 
                 if not ipfs_result.get("success", False):
-                    result["error"] = ipfs_result.get("error", "Failed to retrieve content from IPFS")
+                    result["error"] = ipfs_result.get(
+                        "error", "Failed to retrieve content from IPFS"
+                    )
                     result["error_type"] = ipfs_result.get("error_type", "IPFSGetError")
                     result["ipfs_result"] = ipfs_result
                     os.unlink(temp_path)
@@ -416,7 +423,9 @@ class S3Model(BaseStorageModel):
                     result["buckets"] = s3_result.get("buckets", [])
                     result["count"] = len(result["buckets"])
                 else:
-                    result["error"] = s3_result.get("error", "Unknown error during S3 list buckets operation")
+                    result["error"] = s3_result.get(
+                        "error", "Unknown error during S3 list buckets operation"
+                    )
                     result["error_type"] = s3_result.get("error_type", "S3ListBucketsError")
             except AttributeError:
                 result["error"] = "Method s3_list_buckets not available in S3 kit"
@@ -472,7 +481,9 @@ class S3Model(BaseStorageModel):
                 download_result = self.download_file(bucket, key, temp_path)
 
                 if not download_result.get("success", False):
-                    result["error"] = download_result.get("error", "Failed to download content from S3")
+                    result["error"] = download_result.get(
+                        "error", "Failed to download content from S3"
+                    )
                     result["error_type"] = download_result.get("error_type", "S3DownloadError")
                     result["download_result"] = download_result
                     os.unlink(temp_path)

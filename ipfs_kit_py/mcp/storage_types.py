@@ -9,6 +9,7 @@ from typing import Dict, Any, Optional, List, Union
 
 class StorageBackendType(str, Enum):
     """Storage backend type enumeration"""
+
     IPFS = "ipfs"
     S3 = "s3"
     HUGGINGFACE = "huggingface"
@@ -22,6 +23,7 @@ class StorageBackendType(str, Enum):
 
 class StorageOperation(str, Enum):
     """Enumeration of storage operations."""
+
     ADD = "add"
     GET = "get"
     PIN = "pin"
@@ -36,6 +38,7 @@ class StorageOperation(str, Enum):
 
 class StorageStatus(str, Enum):
     """Enumeration of storage operation statuses."""
+
     SUCCESS = "success"
     PENDING = "pending"
     FAILED = "failed"

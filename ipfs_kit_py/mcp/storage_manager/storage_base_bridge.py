@@ -12,10 +12,12 @@ from .storage_types import StorageBackendType
 class BackendStorage(ABC):
     """Abstract base class for all storage backends."""
 
-    def __init__(self, backend_type: StorageBackendType, resources: Dict[str, Any], metadata: Dict[str, Any]):
+    def __init__(
+        self, backend_type: StorageBackendType, resources: Dict[str, Any], metadata: Dict[str, Any]
+    ):
         """
         Initialize the backend.
-        
+
         Args:
             backend_type: Type of the storage backend
             resources: Resources needed by the backend (e.g., API URL, credentials)
@@ -44,13 +46,13 @@ class BackendStorage(ABC):
     ) -> Dict[str, Any]:
         """
         Store data in the backend.
-        
+
         Args:
             data: Data to store (bytes, file-like object, or string)
             container: Optional container/bucket name
             path: Optional path/key within the container
             options: Backend-specific options
-            
+
         Returns:
             Dictionary with operation result
         """
@@ -65,12 +67,12 @@ class BackendStorage(ABC):
     ) -> Dict[str, Any]:
         """
         Retrieve data from the backend.
-        
+
         Args:
             identifier: Content identifier
             container: Optional container/bucket name
             options: Backend-specific options
-            
+
         Returns:
             Dictionary with operation result and data
         """
@@ -85,12 +87,12 @@ class BackendStorage(ABC):
     ) -> Dict[str, Any]:
         """
         Delete data from the backend.
-        
+
         Args:
             identifier: Content identifier
             container: Optional container/bucket name
             options: Backend-specific options
-            
+
         Returns:
             Dictionary with operation result
         """
@@ -105,12 +107,12 @@ class BackendStorage(ABC):
     ) -> Dict[str, Any]:
         """
         List items in the backend.
-        
+
         Args:
             container: Optional container/bucket name
             prefix: Optional prefix to filter items
             options: Backend-specific options
-            
+
         Returns:
             Dictionary with operation result and items
         """
@@ -125,12 +127,12 @@ class BackendStorage(ABC):
     ) -> bool:
         """
         Check if content exists in the backend.
-        
+
         Args:
             identifier: Content identifier
             container: Optional container/bucket name
             options: Backend-specific options
-            
+
         Returns:
             True if content exists, False otherwise
         """
@@ -145,12 +147,12 @@ class BackendStorage(ABC):
     ) -> Dict[str, Any]:
         """
         Get metadata for content.
-        
+
         Args:
             identifier: Content identifier
             container: Optional container/bucket name
             options: Backend-specific options
-            
+
         Returns:
             Dictionary with operation result and metadata
         """
@@ -166,13 +168,13 @@ class BackendStorage(ABC):
     ) -> Dict[str, Any]:
         """
         Update metadata for content.
-        
+
         Args:
             identifier: Content identifier
             metadata: Metadata to update
             container: Optional container/bucket name
             options: Backend-specific options
-            
+
         Returns:
             Dictionary with operation result
         """

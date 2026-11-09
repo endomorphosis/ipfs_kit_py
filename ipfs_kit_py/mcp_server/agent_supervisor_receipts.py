@@ -22,9 +22,16 @@ CAPABILITY_ID = "supervisor.receipts.read"
 OWNER = "ipfs_kit_py"
 MAX_LIMIT = 500
 _PAYLOAD_KEYS = frozenset({"receipt_ids", "limit", "cursor", "status", "target_id"})
-_ENVELOPE_KEYS = frozenset({
-    "owner", "capability_id", "method", "access", "policy_class", "correlation_id",
-})
+_ENVELOPE_KEYS = frozenset(
+    {
+        "owner",
+        "capability_id",
+        "method",
+        "access",
+        "policy_class",
+        "correlation_id",
+    }
+)
 
 
 class AgentSupervisorReceiptResolver:
@@ -44,7 +51,8 @@ class AgentSupervisorReceiptResolver:
         request = _payload(raw)
         if request is None:
             return _denied(
-                "scope_not_allowed", "Receipt resolution payload must be an object",
+                "scope_not_allowed",
+                "Receipt resolution payload must be an object",
                 correlation_id=correlation_id,
             )
         unknown = sorted(set(request).difference(_PAYLOAD_KEYS))
@@ -59,12 +67,16 @@ class AgentSupervisorReceiptResolver:
             not isinstance(requested, Sequence) or isinstance(requested, (str, bytes))
         ):
             return _denied(
-                "scope_not_allowed", "receipt_ids must be an array of receipt IDs or CIDs",
+                "scope_not_allowed",
+                "receipt_ids must be an array of receipt IDs or CIDs",
                 correlation_id=correlation_id,
             )
-        if requested is not None and any(not isinstance(value, str) or not value.strip() for value in requested):
+        if requested is not None and any(
+            not isinstance(value, str) or not value.strip() for value in requested
+        ):
             return _denied(
-                "scope_not_allowed", "receipt_ids entries must be non-empty strings",
+                "scope_not_allowed",
+                "receipt_ids entries must be non-empty strings",
                 correlation_id=correlation_id,
             )
 
@@ -153,7 +165,9 @@ class AgentSupervisorReceiptResolver:
         rows: list[tuple[str, dict[str, Any], int]] = []
         for row in indexed:
             try:
-                rows.append((str(row["cid"]), self.store.get(str(row["cid"])), int(row["stored_at_ms"])))
+                rows.append(
+                    (str(row["cid"]), self.store.get(str(row["cid"])), int(row["stored_at_ms"]))
+                )
             except (ArtifactNotFound, ArtifactIntegrityError, ValueError):
                 # Corrupt or missing immutable evidence is never reported as a
                 # successfully resolved receipt.
@@ -312,7 +326,11 @@ def _created_at(artifact: Mapping[str, Any], stored_at_ms: int) -> str | None:
         return str(value)
     millis = artifact.get("created_at_ms", stored_at_ms)
     try:
-        return datetime.fromtimestamp(int(millis) / 1000, timezone.utc).isoformat() if int(millis) else None
+        return (
+            datetime.fromtimestamp(int(millis) / 1000, timezone.utc).isoformat()
+            if int(millis)
+            else None
+        )
     except (TypeError, ValueError, OverflowError):
         return None
 
@@ -349,4 +367,11 @@ def _denied(reason: str, message: str, *, correlation_id: Any = None) -> dict[st
     return result
 
 
-__all__ = ["AgentSupervisorReceiptResolver", "CAPABILITY_ID", "MAX_LIMIT", "METHOD", "OWNER", "descriptor"]
+__all__ = [
+    "AgentSupervisorReceiptResolver",
+    "CAPABILITY_ID",
+    "MAX_LIMIT",
+    "METHOD",
+    "OWNER",
+    "descriptor",
+]

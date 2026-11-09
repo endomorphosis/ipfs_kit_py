@@ -8,9 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs" / "iroh"
-DOCUMENTS = {
-    name: DOCS / f"{name}.md" for name in ("operations", "security", "recovery")
-}
+DOCUMENTS = {name: DOCS / f"{name}.md" for name in ("operations", "security", "recovery")}
 
 
 def _read(name: str) -> str:

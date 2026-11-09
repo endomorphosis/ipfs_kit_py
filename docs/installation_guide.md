@@ -135,9 +135,9 @@ Refer to the documentation for specific components (e.g., `Tiered Cache`, `Clust
 from ipfs_kit_py.high_level_api import IPFSSimpleAPI
 
 config = {
-    'ipfs': {
-        'api_host': '127.0.0.1',
-        'api_port': 5001
+    "ipfs": {
+        "api_host": "127.0.0.1",
+        "api_port": 5001,
         # Add other settings like timeouts, retries etc.
     }
     # Add configurations for other components like cache, cluster, ai_ml...
@@ -151,13 +151,15 @@ kit = IPFSSimpleAPI(config=config)
 1.  **Python Library**:
     ```python
     import ipfs_kit_py
+
     print(f"ipfs-kit-py version: {ipfs_kit_py.__version__}")
     from ipfs_kit_py.high_level_api import IPFSSimpleAPI
+
     try:
         kit = IPFSSimpleAPI()
         print("IPFS Kit initialized successfully.")
         # Optional: Check connection to IPFS daemon
-        version_info = kit.ipfs_version() # Assuming an ipfs_version method exists
+        version_info = kit.ipfs_version()  # Assuming an ipfs_version method exists
         print(f"Connected to IPFS version: {version_info}")
     except Exception as e:
         print(f"Error initializing IPFS Kit or connecting to daemon: {e}")

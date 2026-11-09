@@ -57,8 +57,8 @@ server = EnhancedMCPServer(
     host="127.0.0.1",
     port=8001,
     enable_dataset_storage=True,  # Enable ipfs_datasets_py
-    dataset_batch_size=100,       # Operations per batch
-    ipfs_client=your_ipfs_client  # Optional IPFS client
+    dataset_batch_size=100,  # Operations per batch
+    ipfs_client=your_ipfs_client,  # Optional IPFS client
 )
 
 # All MCP commands are automatically tracked!
@@ -70,11 +70,7 @@ server = EnhancedMCPServer(
 ```python
 from ipfs_kit_py.mcp.ai.framework_integration import HuggingFaceIntegration, HuggingFaceConfig
 
-config = HuggingFaceConfig(
-    name="my-model",
-    model_id="gpt2",
-    use_local=True
-)
+config = HuggingFaceConfig(name="my-model", model_id="gpt2", use_local=True)
 
 integration = HuggingFaceIntegration(config)
 integration.initialize()
@@ -91,9 +87,9 @@ from ipfs_kit_py.bucket_vfs_manager import BucketVFSManager
 
 manager = BucketVFSManager(
     base_path="~/.ipfs_kit/vfs",
-    enable_dataset_storage=True,   # Track operations as datasets
-    enable_compute_layer=True,     # Use acceleration if available
-    dataset_batch_size=100
+    enable_dataset_storage=True,  # Track operations as datasets
+    enable_compute_layer=True,  # Use acceleration if available
+    dataset_batch_size=100,
 )
 
 # Create bucket - operation tracked automatically
@@ -110,17 +106,10 @@ manager.add_file_to_bucket("my-bucket", "file.txt", b"content")
 ```python
 from ipfs_kit_py.log_manager import LogManager
 
-log_mgr = LogManager(
-    enable_dataset_storage=True,
-    ipfs_client=ipfs_client,
-    dataset_batch_size=50
-)
+log_mgr = LogManager(enable_dataset_storage=True, ipfs_client=ipfs_client, dataset_batch_size=50)
 
 # Store logs as versioned datasets
-result = log_mgr.store_logs_as_dataset(
-    component="my-service",
-    version="1.0.0"
-)
+result = log_mgr.store_logs_as_dataset(component="my-service", version="1.0.0")
 
 print(f"Logs stored with CID: {result['cid']}")
 ```
@@ -153,7 +142,7 @@ logger = AuditLogger(
     log_file="/var/log/audit.log",
     enable_dataset_storage=True,
     ipfs_client=ipfs_client,
-    dataset_batch_size=100
+    dataset_batch_size=100,
 )
 
 # Log authentication events
@@ -173,7 +162,7 @@ telemetry = WALTelemetry(
     wal=wal_instance,
     metrics_path="~/.ipfs_kit/metrics",
     enable_dataset_storage=True,
-    dataset_batch_size=200
+    dataset_batch_size=200,
 )
 
 # Metrics automatically stored as time-series datasets
@@ -186,16 +175,12 @@ telemetry = WALTelemetry(
 from ipfs_kit_py.vfs_version_tracker import VFSVersionTracker
 
 tracker = VFSVersionTracker(
-    base_path="~/.ipfs_kit/versions",
-    enable_dataset_storage=True,
-    ipfs_client=ipfs_client
+    base_path="~/.ipfs_kit/versions", enable_dataset_storage=True, ipfs_client=ipfs_client
 )
 
 # Create version snapshot
 version = tracker.create_version_snapshot(
-    bucket_name="my-bucket",
-    version_id="v1.0.0",
-    metadata={"author": "alice"}
+    bucket_name="my-bucket", version_id="v1.0.0", metadata={"author": "alice"}
 )
 
 # All versions stored as datasets with complete provenance
@@ -208,14 +193,12 @@ from ipfs_kit_py.mcp.ai.distributed_training import DistributedTrainingManager
 
 manager = DistributedTrainingManager(
     storage_path="/path/to/storage",
-    enable_compute_layer=True  # Use acceleration
+    enable_compute_layer=True,  # Use acceleration
 )
 
 # Create training job
 job = manager.create_job(
-    name="model-training",
-    config={"lr": 0.001, "epochs": 10},
-    framework="pytorch"
+    name="model-training", config={"lr": 0.001, "epochs": 10}, framework="pytorch"
 )
 
 # Start job with accelerated compute
@@ -230,8 +213,9 @@ manager.start_job(job.job_id)
 **Check if ipfs_datasets_py is available:**
 ```python
 from ipfs_kit_py.mcp.ai.utils import check_dependencies
+
 deps = check_dependencies()
-if not deps['ipfs_datasets_py']:
+if not deps["ipfs_datasets_py"]:
     print("ipfs_datasets_py not installed")
     print("Install with: pip install ipfs_datasets_py")
 ```
@@ -243,7 +227,7 @@ if not deps['ipfs_datasets_py']:
 **Check if ipfs_accelerate_py is available:**
 ```python
 deps = check_dependencies()
-if not deps['ipfs_accelerate_py']:
+if not deps["ipfs_accelerate_py"]:
     print("ipfs_accelerate_py not available")
     print("Initialize with: git submodule update --init external/ipfs_accelerate_py")
 ```
@@ -271,6 +255,7 @@ python -m pytest tests/ -v
 **Verify acceleration is active:**
 ```python
 from ipfs_kit_py.mcp.ai.framework_integration import HAS_ACCELERATE
+
 print(f"Acceleration available: {HAS_ACCELERATE}")
 ```
 
@@ -279,7 +264,7 @@ print(f"Acceleration available: {HAS_ACCELERATE}")
 # In your code initialization
 integration = HuggingFaceIntegration(
     config,
-    enable_compute_layer=True  # Make sure this is True
+    enable_compute_layer=True,  # Make sure this is True
 )
 ```
 
@@ -297,19 +282,19 @@ Dataset storage uses batching for performance:
 # Small batch - more frequent storage, less memory
 manager = Manager(
     enable_dataset_storage=True,
-    dataset_batch_size=50  # Good for: real-time tracking, low memory
+    dataset_batch_size=50,  # Good for: real-time tracking, low memory
 )
 
 # Medium batch - balanced
 manager = Manager(
     enable_dataset_storage=True,
-    dataset_batch_size=100  # Good for: most use cases (DEFAULT)
+    dataset_batch_size=100,  # Good for: most use cases (DEFAULT)
 )
 
 # Large batch - less frequent storage, more memory
 manager = Manager(
     enable_dataset_storage=True,
-    dataset_batch_size=500  # Good for: high-throughput, batch operations
+    dataset_batch_size=500,  # Good for: high-throughput, batch operations
 )
 ```
 
@@ -349,17 +334,17 @@ if current_buffer > 500:
 # Use persistent IPFS client
 import ipfshttpclient
 
-ipfs_client = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001')
+ipfs_client = ipfshttpclient.connect("/ip4/127.0.0.1/tcp/5001")
 
 # Reuse across all integrations
 server = EnhancedMCPServer(
     enable_dataset_storage=True,
-    ipfs_client=ipfs_client  # Reuse connection
+    ipfs_client=ipfs_client,  # Reuse connection
 )
 
 logger = AuditLogger(
     enable_dataset_storage=True,
-    ipfs_client=ipfs_client  # Same connection
+    ipfs_client=ipfs_client,  # Same connection
 )
 ```
 

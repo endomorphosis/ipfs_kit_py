@@ -11,12 +11,16 @@ import time
 import re
 
 # Configure logging
-logging.basicConfig(level=logging.INFO,
-                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("fix_webrtc_anyio")
 
 # File path
-WEBRTC_CONTROLLER_PATH = "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/webrtc_controller_anyio.py"
+WEBRTC_CONTROLLER_PATH = (
+    "/home/barberb/ipfs_kit_py/ipfs_kit_py/mcp/controllers/webrtc_controller_anyio.py"
+)
+
 
 # Make a backup
 def backup_file(file_path):
@@ -29,6 +33,7 @@ def backup_file(file_path):
         logger.error(f"File not found: {file_path}")
         return False
 
+
 # Fix the check_dependencies method
 def fix_check_dependencies():
     logger.info("Fixing WebRTC controller's check_dependencies method...")
@@ -38,11 +43,11 @@ def fix_check_dependencies():
 
     try:
         # Read the file
-        with open(WEBRTC_CONTROLLER_PATH, 'r') as f:
+        with open(WEBRTC_CONTROLLER_PATH, "r") as f:
             content = f.read()
 
         # Find and update the method
-        pattern = r'async def check_dependencies.*?\n    # Add your AnyIO-compatible controller methods here'
+        pattern = r"async def check_dependencies.*?\n    # Add your AnyIO-compatible controller methods here"
         replacement = '''async def check_dependencies(self):
         """
         Check if all required WebRTC dependencies are available.
@@ -92,7 +97,7 @@ def fix_check_dependencies():
         new_content = re.sub(pattern, replacement, content, flags=re.DOTALL)
 
         # Write the updated content
-        with open(WEBRTC_CONTROLLER_PATH, 'w') as f:
+        with open(WEBRTC_CONTROLLER_PATH, "w") as f:
             f.write(new_content)
 
         logger.info("✅ Successfully fixed check_dependencies method")
@@ -101,6 +106,7 @@ def fix_check_dependencies():
     except Exception as e:
         logger.error(f"Error fixing check_dependencies method: {e}")
         return False
+
 
 def main():
     logger.info("Running WebRTC AnyIO controller fix...")
@@ -112,6 +118,7 @@ def main():
     else:
         logger.error("❌ Failed to fix WebRTC AnyIO controller")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

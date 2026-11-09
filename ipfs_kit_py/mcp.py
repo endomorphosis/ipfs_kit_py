@@ -1,10 +1,12 @@
 import anyio
 
+
 class Message:
     def __init__(self, sender, command, args):
         self.sender = sender
         self.command = command
         self.args = args
+
 
 class MCP:
     def __init__(self):
@@ -19,6 +21,7 @@ class MCP:
     async def send(self, recipient, message):
         if recipient in self.peers:
             await self.peers[recipient].send(message)
+
 
 class Server:
     def __init__(self, host="0.0.0.0", port=8888):
@@ -38,7 +41,7 @@ class Server:
         # Get socket info
         sock = self.listener.extra(anyio.abc.SocketAttribute.raw_socket)
         addr = sock.getsockname()
-        print(f'Serving on {addr}')
+        print(f"Serving on {addr}")
         async with self.listener:
             await self.listener.serve(self.handler)
 

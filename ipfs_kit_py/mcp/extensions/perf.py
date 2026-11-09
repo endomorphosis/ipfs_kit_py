@@ -17,14 +17,12 @@ import logging
 import random
 import hashlib
 from typing import Dict, List, Any, Optional
-from fastapi import (
-    APIRouter,
-    Request,
-    Response)
+from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel
 
 # Import anyio with fallback
 import anyio
+
 # NOTE: Background tasks should be started via AnyIO.
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -97,6 +95,7 @@ active_connections = {}
 # Data models
 class CacheConfig(BaseModel):
     """Cache configuration."""
+
     enabled: bool = True
     max_cache_size_mb: int = 1024
     default_ttl_seconds: int = 3600
@@ -104,6 +103,7 @@ class CacheConfig(BaseModel):
 
 class LoadBalancingConfig(BaseModel):
     """Load balancing configuration."""
+
     enabled: bool = True
     strategy: str = "adaptive"
     backend_weights: Dict[str, int] = {}
@@ -111,12 +111,14 @@ class LoadBalancingConfig(BaseModel):
 
 class ConnectionConfig(BaseModel):
     """Connection management configuration."""
+
     enabled: bool = True
     max_connections_per_backend: int = 20
 
 
 class PerformanceStats(BaseModel):
     """Performance statistics."""
+
     cache_hits: int
     cache_misses: int
     cache_hit_ratio: float
@@ -573,9 +575,9 @@ def create_performance_router(api_prefix: str) -> APIRouter:
     async def update_connection_config(conn_config: ConnectionConfig):
         """Update connection management configuration."""
         config["connection_management"]["enabled"] = conn_config.enabled
-        config["connection_management"][
-            "max_connections_per_backend"
-        ] = conn_config.max_connections_per_backend
+        config["connection_management"]["max_connections_per_backend"] = (
+            conn_config.max_connections_per_backend
+        )
 
         save_config()
 
@@ -847,6 +849,7 @@ async def periodic_stats_save():
 # Start background tasks
 def start_background_tasks(app):
     """Start background tasks for the performance extension."""
+
     @app.on_event("startup")
     async def startup_event():
         # Start periodic stats save

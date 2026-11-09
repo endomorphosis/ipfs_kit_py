@@ -1,8 +1,9 @@
 from fastapi.testclient import TestClient
 from ipfs_kit_py.mcp.dashboard.consolidated_mcp_dashboard import ConsolidatedMCPDashboard
 
+
 def test_deprecations_endpoint_lists_overview():
-    inst = ConsolidatedMCPDashboard({"port":0})
+    inst = ConsolidatedMCPDashboard({"port": 0})
     client = TestClient(inst.app)
     r = client.get("/api/system/deprecations")
     assert r.status_code == 200

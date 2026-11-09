@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class Aria2Model:
     """Model for Aria2 operations in MCP server."""
 
-    def __init__(self, aria2_kit_instance = None, cache_manager = None, credential_manager = None):
+    def __init__(self, aria2_kit_instance=None, cache_manager=None, credential_manager=None):
         """
         Initialize the Aria2 model.
 
@@ -60,7 +60,7 @@ class Aria2Model:
 
         logger.info("Aria2 model initialized")
 
-    def add_uri(self, uris, filename = None, options = None):
+    def add_uri(self, uris, filename=None, options=None):
         """
         Add a download by URI.
 
@@ -85,7 +85,7 @@ class Aria2Model:
 
         return result
 
-    def add_torrent(self, torrent, options = None):
+    def add_torrent(self, torrent, options=None):
         """
         Add a download by torrent file.
 
@@ -109,7 +109,7 @@ class Aria2Model:
 
         return result
 
-    def add_metalink(self, metalink, options = None):
+    def add_metalink(self, metalink, options=None):
         """
         Add a download by metalink file.
 
@@ -327,7 +327,7 @@ class Aria2Model:
 
         return result
 
-    def start_daemon(self, options = None):
+    def start_daemon(self, options=None):
         """
         Start the Aria2 daemon.
 

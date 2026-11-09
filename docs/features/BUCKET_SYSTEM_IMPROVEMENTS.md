@@ -54,7 +54,7 @@ pool = ConnectionPool(
     min_size=2,
     max_size=10,
     max_idle_time=300,
-    max_connection_lifetime=3600
+    max_connection_lifetime=3600,
 )
 
 # Acquire and use connection
@@ -93,21 +93,19 @@ wal = DurableWAL(
     base_path="~/.ipfs_kit/wal",
     fsync_mode="batch",  # Options: always, batch, periodic
     batch_size=100,
-    checkpoint_interval=1000
+    checkpoint_interval=1000,
 )
 
 # Append operations
-seq_num = wal.append({
-    'operation': 'pin',
-    'cid': 'QmXxx...',
-    'backend': 'ipfs'
-})
+seq_num = wal.append({"operation": "pin", "cid": "QmXxx...", "backend": "ipfs"})
 
 # Batch append for efficiency
-seq_nums = wal.append_batch([
-    {'operation': 'add', 'path': '/data/file1'},
-    {'operation': 'add', 'path': '/data/file2'},
-])
+seq_nums = wal.append_batch(
+    [
+        {"operation": "add", "path": "/data/file1"},
+        {"operation": "add", "path": "/data/file2"},
+    ]
+)
 
 # Recover after crash
 recovered_ops = wal.recover()
@@ -138,23 +136,26 @@ from ipfs_kit_py.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
 
 # Create circuit breaker
 config = CircuitBreakerConfig(
-    failure_threshold=5,      # Open after 5 failures
-    success_threshold=2,       # Close after 2 successes in half-open
-    timeout=60.0,              # Wait 60s before testing recovery
-    failure_rate_threshold=0.5 # Open at 50% failure rate
+    failure_threshold=5,  # Open after 5 failures
+    success_threshold=2,  # Close after 2 successes in half-open
+    timeout=60.0,  # Wait 60s before testing recovery
+    failure_rate_threshold=0.5,  # Open at 50% failure rate
 )
 
 breaker = CircuitBreaker("ipfs_backend", config)
 
+
 # Use circuit breaker
 def fetch_from_ipfs(cid):
     return ipfs_client.cat(cid)
+
 
 try:
     result = breaker.call(fetch_from_ipfs, "QmXxx...")
 except CircuitBreakerOpenError:
     # Circuit is open, use fallback
     result = fetch_from_cache(cid)
+
 
 # Or use as decorator
 @circuit_breaker("s3_backend")
@@ -181,8 +182,11 @@ def upload_to_s3(data):
 **Usage Example:**
 ```python
 from ipfs_kit_py.retry_strategy import (
-    RetryStrategy, RetryConfig, BackoffStrategy,
-    with_retry, get_retry_policy
+    RetryStrategy,
+    RetryConfig,
+    BackoffStrategy,
+    with_retry,
+    get_retry_policy,
 )
 
 # Basic retry with exponential backoff + jitter
@@ -192,22 +196,24 @@ config = RetryConfig(
     max_delay=60.0,
     backoff_strategy=BackoffStrategy.EXPONENTIAL_JITTER,
     backoff_multiplier=2.0,
-    jitter_range=0.3  # 30% jitter
+    jitter_range=0.3,  # 30% jitter
 )
 
 strategy = RetryStrategy(config)
 result = strategy.execute(flaky_operation, arg1, arg2)
+
 
 # Use as decorator
 @with_retry(RetryConfig(max_attempts=3))
 def download_file(cid):
     return ipfs.cat(cid)
 
+
 # Operation-specific policies
 policy = get_retry_policy()
-result = policy.execute_with_policy('pin', pin_cid, cid="QmXxx...")
+result = policy.execute_with_policy("pin", pin_cid, cid="QmXxx...")
 # Read operations: 5 attempts, 0.5s initial delay
-# Write operations: 3 attempts, 2s initial delay  
+# Write operations: 3 attempts, 2s initial delay
 # Pin operations: 10 attempts, 5s initial delay
 ```
 
@@ -230,15 +236,13 @@ result = policy.execute_with_policy('pin', pin_cid, cid="QmXxx...")
 
 **Usage Example:**
 ```python
-from ipfs_kit_py.enhanced_secrets_manager import (
-    EnhancedSecretManager, SecretType
-)
+from ipfs_kit_py.enhanced_secrets_manager import EnhancedSecretManager, SecretType
 
 # Initialize manager
 manager = EnhancedSecretManager(
     storage_path="~/.ipfs_kit/secrets",
     enable_auto_rotation=True,
-    default_rotation_interval=86400 * 30  # 30 days
+    default_rotation_interval=86400 * 30,  # 30 days
 )
 
 # Store a secret
@@ -247,7 +251,7 @@ secret_id = manager.store_secret(
     secret_value="your-api-key-here",
     secret_type=SecretType.API_KEY,
     expires_in=86400 * 90,  # 90 days
-    rotation_interval=86400 * 30  # Rotate every 30 days
+    rotation_interval=86400 * 30,  # Rotate every 30 days
 )
 
 # Retrieve secret
@@ -255,9 +259,7 @@ api_key = manager.retrieve_secret(secret_id)
 
 # Rotate secret
 manager.rotate_secret(
-    secret_id,
-    new_value="new-api-key",
-    on_rotate=lambda old, new: update_backend_credential(new)
+    secret_id, new_value="new-api-key", on_rotate=lambda old, new: update_backend_credential(new)
 )
 
 # Check expiring secrets
@@ -270,10 +272,7 @@ stats = manager.get_statistics()
 print(f"Secrets needing rotation: {stats['secrets_needing_rotation']}")
 
 # View audit log
-recent_accesses = manager.audit_log.get_recent_accesses(
-    secret_id=secret_id,
-    limit=10
-)
+recent_accesses = manager.audit_log.get_recent_accesses(secret_id=secret_id, limit=10)
 ```
 
 **Security Improvements:**
@@ -291,10 +290,11 @@ recent_accesses = manager.audit_log.get_recent_accesses(
 from ipfs_kit_py.backends.ipfs_backend import IPFSBackendAdapter
 from ipfs_kit_py.connection_pool import get_global_pool_manager
 
+
 class EnhancedIPFSBackend(IPFSBackendAdapter):
     def __init__(self, backend_name, config_manager=None):
         super().__init__(backend_name, config_manager)
-        
+
         # Get or create connection pool
         pool_manager = get_global_pool_manager()
         self.pool = pool_manager.get_or_create_pool(
@@ -303,11 +303,12 @@ class EnhancedIPFSBackend(IPFSBackendAdapter):
             min_size=2,
             max_size=10,
         )
-    
+
     def _create_ipfs_client(self):
         import ipfshttpclient
+
         return ipfshttpclient.connect(self.api_url)
-    
+
     async def add_file(self, filepath):
         conn = self.pool.acquire(timeout=5.0)
         try:
@@ -324,27 +325,27 @@ from ipfs_kit_py.circuit_breaker import get_global_circuit_breaker_manager
 from ipfs_kit_py.retry_strategy import get_retry_policy
 from ipfs_kit_py.connection_pool import get_global_pool_manager
 
+
 class ResilientBackend:
     def __init__(self, backend_name):
         self.backend_name = backend_name
-        
+
         # Get connection pool
         pool_manager = get_global_pool_manager()
         self.pool = pool_manager.get_or_create_pool(
-            backend_name,
-            connection_factory=self._create_connection,
-            min_size=2, max_size=10
+            backend_name, connection_factory=self._create_connection, min_size=2, max_size=10
         )
-        
+
         # Get circuit breaker
         cb_manager = get_global_circuit_breaker_manager()
         self.circuit_breaker = cb_manager.get_or_create(backend_name)
-        
+
         # Get retry policy
         self.retry_policy = get_retry_policy()
-    
+
     def pin_content(self, cid):
         """Pin with full resilience: retry + circuit breaker + pooling."""
+
         def _pin():
             conn = self.pool.acquire(timeout=5.0)
             try:
@@ -353,9 +354,9 @@ class ResilientBackend:
                 return result
             finally:
                 self.pool.release(conn)
-        
+
         # Use operation-specific retry policy
-        return self.retry_policy.execute_with_policy('pin', _pin)
+        return self.retry_policy.execute_with_policy("pin", _pin)
 ```
 
 ### Enhanced WAL Integration
@@ -364,39 +365,37 @@ class ResilientBackend:
 from ipfs_kit_py.enhanced_wal_durability import DurableWAL
 from ipfs_kit_py.tiered_cache_manager import TieredCacheManager
 
+
 class CacheWithDurableWAL(TieredCacheManager):
     def __init__(self, config=None):
         super().__init__(config)
-        
+
         # Add durable WAL
         self.wal = DurableWAL(
             base_path="~/.ipfs_kit/cache_wal",
             fsync_mode="batch",
             batch_size=100,
-            checkpoint_interval=1000
+            checkpoint_interval=1000,
         )
-    
+
     def put(self, key, value):
         # Log to WAL first
-        self.wal.append({
-            'operation': 'cache_put',
-            'key': key,
-            'size': len(value),
-            'timestamp': time.time()
-        })
-        
+        self.wal.append(
+            {"operation": "cache_put", "key": key, "size": len(value), "timestamp": time.time()}
+        )
+
         # Then perform cache operation
         return super().put(key, value)
-    
+
     def recover_from_wal(self):
         """Recover cache state from WAL."""
         operations = self.wal.recover()
-        
+
         for op in operations:
-            if op['operation'] == 'cache_put':
+            if op["operation"] == "cache_put":
                 # Replay operation
                 try:
-                    self.put(op['key'], self._fetch_from_backend(op['key']))
+                    self.put(op["key"], self._fetch_from_backend(op["key"]))
                 except Exception as e:
                     logger.error(f"Failed to replay: {e}")
 ```
@@ -447,18 +446,10 @@ class CacheWithDurableWAL(TieredCacheManager):
 
 ```python
 # Conservative (for critical backends)
-conservative = CircuitBreakerConfig(
-    failure_threshold=3,
-    timeout=120.0,
-    success_threshold=3
-)
+conservative = CircuitBreakerConfig(failure_threshold=3, timeout=120.0, success_threshold=3)
 
 # Aggressive (for optional backends)
-aggressive = CircuitBreakerConfig(
-    failure_threshold=10,
-    timeout=30.0,
-    success_threshold=2
-)
+aggressive = CircuitBreakerConfig(failure_threshold=10, timeout=30.0, success_threshold=2)
 ```
 
 ### 3. Connection Pool Sizing
@@ -466,13 +457,14 @@ aggressive = CircuitBreakerConfig(
 ```python
 # Formula: min_size = 2 * num_cores, max_size = 10 * num_cores
 import os
+
 num_cores = os.cpu_count()
 
 pool_config = {
-    'min_size': max(2, num_cores * 2),
-    'max_size': max(10, num_cores * 10),
-    'max_idle_time': 300,
-    'max_connection_lifetime': 3600,
+    "min_size": max(2, num_cores * 2),
+    "max_size": max(10, num_cores * 10),
+    "max_idle_time": 300,
+    "max_connection_lifetime": 3600,
 }
 ```
 
@@ -481,17 +473,11 @@ pool_config = {
 ```python
 # I/O-bound operations: Use exponential backoff with jitter
 io_config = RetryConfig(
-    backoff_strategy=BackoffStrategy.EXPONENTIAL_JITTER,
-    max_attempts=5,
-    initial_delay=0.5
+    backoff_strategy=BackoffStrategy.EXPONENTIAL_JITTER, max_attempts=5, initial_delay=0.5
 )
 
 # CPU-bound operations: Use linear backoff
-cpu_config = RetryConfig(
-    backoff_strategy=BackoffStrategy.LINEAR,
-    max_attempts=3,
-    initial_delay=1.0
-)
+cpu_config = RetryConfig(backoff_strategy=BackoffStrategy.LINEAR, max_attempts=3, initial_delay=1.0)
 ```
 
 ## Monitoring and Observability

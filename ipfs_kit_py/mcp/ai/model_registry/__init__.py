@@ -46,31 +46,29 @@ from ipfs_kit_py.mcp.ai.model_registry.registry import (
     ModelFormat,
     ModelFramework,
     ModelType,
-    ModelStatus
+    ModelStatus,
 )
 
 from ipfs_kit_py.mcp.ai.model_registry.router import (
     router as model_registry_router,
-    initialize_model_registry
+    initialize_model_registry,
 )
 
 __all__ = [
     # Core registry classes
-    'ModelRegistry',
-    'Model',
-    'ModelVersion',
-    'ModelMetrics',
-    'ModelDependency',
-    'ModelDeploymentConfig',
-    
+    "ModelRegistry",
+    "Model",
+    "ModelVersion",
+    "ModelMetrics",
+    "ModelDependency",
+    "ModelDeploymentConfig",
     # Enums for model metadata
-    'ModelFormat',
-    'ModelFramework',
-    'ModelType',
-    'ModelStatus',
-    
+    "ModelFormat",
+    "ModelFramework",
+    "ModelType",
+    "ModelStatus",
     # Router and initialization
-    'model_registry_router',
-    'initialize_model_registry',
-    'HAS_ACCELERATE'
+    "model_registry_router",
+    "initialize_model_registry",
+    "HAS_ACCELERATE",
 ]

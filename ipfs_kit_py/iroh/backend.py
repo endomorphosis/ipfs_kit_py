@@ -71,9 +71,15 @@ def _scan_inline_secrets(value: Any, path: str = "config") -> None:
         for key, item in value.items():
             child = f"{path}.{key}"
             if _SECRET_KEY_RE.search(str(key)):
-                if str(key).endswith("_ref") and isinstance(item, str) and _SECRET_REF_RE.fullmatch(item):
+                if (
+                    str(key).endswith("_ref")
+                    and isinstance(item, str)
+                    and _SECRET_REF_RE.fullmatch(item)
+                ):
                     continue
-                raise BackendConfigError(f"{child} must contain an approved secret reference, not secret material")
+                raise BackendConfigError(
+                    f"{child} must contain an approved secret reference, not secret material"
+                )
             _scan_inline_secrets(item, child)
     elif isinstance(value, list):
         for index, item in enumerate(value):
@@ -96,7 +102,9 @@ def _local_endpoint(value: Any) -> str:
         return value
     if re.fullmatch(r"npipe:////\./pipe/[A-Za-z0-9._-]{1,128}", value):
         return value
-    raise BackendConfigError("service.rpc_endpoint must use an absolute Unix socket or local named pipe")
+    raise BackendConfigError(
+        "service.rpc_endpoint must use an absolute Unix socket or local named pipe"
+    )
 
 
 def _timeout(value: Any, label: str) -> int | float:
@@ -115,7 +123,9 @@ def validate_iroh_backend_config(config: Mapping[str, Any]) -> dict[str, Any]:
     _scan_inline_secrets(value)
     _only(value, _TOP_LEVEL, "Iroh backend configuration")
     _required(value, _TOP_LEVEL - {"$schema"}, "Iroh backend configuration")
-    if value["schema_version"] != IROH_BACKEND_SCHEMA_VERSION or isinstance(value["schema_version"], bool):
+    if value["schema_version"] != IROH_BACKEND_SCHEMA_VERSION or isinstance(
+        value["schema_version"], bool
+    ):
         raise BackendConfigError("Iroh backend schema_version must be 1")
     validate_backend_name(value["name"])
     if value["type"] != "iroh":
@@ -149,7 +159,9 @@ def validate_iroh_backend_config(config: Mapping[str, Any]) -> dict[str, Any]:
     for field, reference in credentials.items():
         credentials[field] = _secret_ref(reference, f"credentials.{field}")
     if namespace["access"] == "read-write" and "write_capability_ref" not in credentials:
-        raise BackendConfigError("read-write Iroh backends require credentials.write_capability_ref")
+        raise BackendConfigError(
+            "read-write Iroh backends require credentials.write_capability_ref"
+        )
 
     timeouts = _mapping(value["timeouts"], "timeouts")
     timeout_fields = {"connect_seconds", "operation_seconds", "shutdown_seconds"}
@@ -206,16 +218,39 @@ def migrate_iroh_backend_config(config: Mapping[str, Any]) -> dict[str, Any]:
         )
         migrated.setdefault(
             "sync",
-            {"enabled": False, "on_open": False, "read_consistency": "local", "conflict_policy": "fail"},
+            {
+                "enabled": False,
+                "on_open": False,
+                "read_consistency": "local",
+                "conflict_policy": "fail",
+            },
         )
         return validate_iroh_backend_config(migrated)
 
     allowed = {
-        "$schema", "schema_version", "name", "type", "enabled", "namespace_id",
-        "namespace", "access", "read_only", "instance", "managed", "endpoint",
-        "rpc_endpoint", "node_key_ref", "write_capability_ref", "read_ticket_ref",
-        "connect_timeout", "operation_timeout", "shutdown_timeout", "sync_enabled",
-        "sync_on_open", "read_consistency", "conflict_policy",
+        "$schema",
+        "schema_version",
+        "name",
+        "type",
+        "enabled",
+        "namespace_id",
+        "namespace",
+        "access",
+        "read_only",
+        "instance",
+        "managed",
+        "endpoint",
+        "rpc_endpoint",
+        "node_key_ref",
+        "write_capability_ref",
+        "read_ticket_ref",
+        "connect_timeout",
+        "operation_timeout",
+        "shutdown_timeout",
+        "sync_enabled",
+        "sync_on_open",
+        "read_consistency",
+        "conflict_policy",
     }
     _only(source, allowed, "legacy Iroh backend configuration")
     _required(source, {"name", "type"}, "legacy Iroh backend configuration")

@@ -27,8 +27,9 @@ Someone adds a test that uses `requests` library, but doesn't add it to the depe
 # tests/test_api.py
 import requests  # Not in dependencies!
 
+
 def test_api_call():
-    response = requests.get('https://api.example.com/status')
+    response = requests.get("https://api.example.com/status")
     assert response.status_code == 200
 ```
 

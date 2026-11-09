@@ -14,6 +14,7 @@ from .graphrag import GraphRAGSearchEngine
 
 logger = logging.getLogger(__name__)
 
+
 class MCPToolManager:
     """Manages and executes all available MCP tools."""
 
@@ -32,14 +33,14 @@ class MCPToolManager:
             "daemon_status": {
                 "description": "Get the status of the IPFS daemon.",
                 "handler": self.daemon_manager.get_status,
-                "parameters": []
+                "parameters": [],
             },
             "ipfs_command": {
                 "description": "Execute a raw IPFS command.",
                 "handler": self.daemon_manager.execute_ipfs_operation,
                 "parameters": [
                     {"name": "operation", "type": "string", "required": True},
-                ]
+                ],
             },
             # VFS Tools
             "vfs_operation": {
@@ -47,7 +48,7 @@ class MCPToolManager:
                 "handler": self.vfs_manager.execute_vfs_operation,
                 "parameters": [
                     {"name": "operation", "type": "string", "required": True},
-                ]
+                ],
             },
             # GraphRAG Tools
             "index_content": {
@@ -57,15 +58,20 @@ class MCPToolManager:
                     {"name": "cid", "type": "string", "required": True},
                     {"name": "path", "type": "string", "required": True},
                     {"name": "content", "type": "string", "required": True},
-                ]
+                ],
             },
             "search": {
                 "description": "Search indexed content.",
                 "handler": self.graphrag_engine.search,
                 "parameters": [
                     {"name": "query", "type": "string", "required": True},
-                    {"name": "search_type", "type": "string", "required": False, "default": "hybrid"},
-                ]
+                    {
+                        "name": "search_type",
+                        "type": "string",
+                        "required": False,
+                        "default": "hybrid",
+                    },
+                ],
             },
         }
         return tools
@@ -74,14 +80,18 @@ class MCPToolManager:
         """Get a list of available tools for MCP."""
         tool_list = []
         for name, tool_info in self._tools.items():
-            tool_list.append({
-                "name": name,
-                "description": tool_info["description"],
-                "parameters": tool_info["parameters"]
-            })
+            tool_list.append(
+                {
+                    "name": name,
+                    "description": tool_info["description"],
+                    "parameters": tool_info["parameters"],
+                }
+            )
         return tool_list
 
-    async def handle_tool_request(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_tool_request(
+        self, tool_name: str, arguments: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Handle a request to call an MCP tool."""
         if tool_name not in self._tools:
             return {"success": False, "error": f"Tool '{tool_name}' not found."}
@@ -101,10 +111,10 @@ class MCPToolManager:
     def cleanup(self):
         """Cleanup all managed components."""
         logger.info("Cleaning up MCPToolManager...")
-        if hasattr(self, 'daemon_manager') and self.daemon_manager:
+        if hasattr(self, "daemon_manager") and self.daemon_manager:
             self.daemon_manager.cleanup()
-        if hasattr(self, 'vfs_manager') and self.vfs_manager:
+        if hasattr(self, "vfs_manager") and self.vfs_manager:
             self.vfs_manager.cleanup()
-        if hasattr(self, 'graphrag_engine') and self.graphrag_engine:
+        if hasattr(self, "graphrag_engine") and self.graphrag_engine:
             self.graphrag_engine.cleanup()
         logger.info("✓ MCPToolManager cleaned up.")

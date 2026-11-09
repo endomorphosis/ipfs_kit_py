@@ -73,12 +73,15 @@ async_io.create_task(periodic_stats_save())
 # After:
 if HAS_ANYIO:
     import anyio
+
     # Note: anyio task groups need to be used in async context
     # For FastAPI startup, async_io.create_task is still used
     import async_io
+
     async_io.create_task(periodic_stats_save())
 else:
     import async_io
+
     async_io.create_task(periodic_stats_save())
 ```
 

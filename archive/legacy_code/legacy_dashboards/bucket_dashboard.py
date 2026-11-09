@@ -25,16 +25,17 @@ import uvicorn
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class BucketDashboard:
     def __init__(self, data_dir: str = "~/.ipfs_kit", port: int = 8004):
         self.data_dir = Path(data_dir).expanduser()
         self.port = port
         self.app = FastAPI(title="Bucket Dashboard")
-        
+
         # Create data directories
         self.buckets_dir = self.data_dir / "buckets"
         self.buckets_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Setup CORS
         self.app.add_middleware(
             CORSMiddleware,
@@ -43,31 +44,25 @@ class BucketDashboard:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-        
+
         self.setup_routes()
-    
+
     def setup_routes(self):
         """Setup all API routes."""
-        
+
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard():
             return self.get_dashboard_html()
-        
+
         @self.app.get("/api/buckets")
         async def get_buckets():
             try:
                 buckets = await self.list_buckets()
-                return JSONResponse(content={
-                    "success": True,
-                    "data": {"buckets": buckets}
-                })
+                return JSONResponse(content={"success": True, "data": {"buckets": buckets}})
             except Exception as e:
                 logger.error(f"Error getting buckets: {e}")
-                return JSONResponse(
-                    status_code=500,
-                    content={"success": False, "error": str(e)}
-                )
-        
+                return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
         @self.app.post("/api/buckets")
         async def create_bucket(request: Request):
             try:
@@ -76,11 +71,8 @@ class BucketDashboard:
                 return JSONResponse(content=result)
             except Exception as e:
                 logger.error(f"Error creating bucket: {e}")
-                return JSONResponse(
-                    status_code=500,
-                    content={"success": False, "error": str(e)}
-                )
-        
+                return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
         @self.app.delete("/api/buckets/{bucket_name}")
         async def delete_bucket(bucket_name: str):
             try:
@@ -88,107 +80,76 @@ class BucketDashboard:
                 return JSONResponse(content=result)
             except Exception as e:
                 logger.error(f"Error deleting bucket: {e}")
-                return JSONResponse(
-                    status_code=500,
-                    content={"success": False, "error": str(e)}
-                )
-        
+                return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
         @self.app.get("/api/buckets/{bucket_name}")
         async def get_bucket_details(bucket_name: str):
             try:
                 result = await self.get_bucket_details(bucket_name)
-                return JSONResponse(content={
-                    "success": True,
-                    "data": result
-                })
+                return JSONResponse(content={"success": True, "data": result})
             except Exception as e:
                 logger.error(f"Error getting bucket details: {e}")
-                return JSONResponse(
-                    status_code=500,
-                    content={"success": False, "error": str(e)}
-                )
-        
+                return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
         @self.app.get("/api/buckets/{bucket_name}/files")
         async def list_bucket_files(bucket_name: str):
             try:
                 result = await self.list_bucket_files(bucket_name)
-                return JSONResponse(content={
-                    "success": True,
-                    "data": result
-                })
+                return JSONResponse(content={"success": True, "data": result})
             except Exception as e:
                 logger.error(f"Error listing bucket files: {e}")
-                return JSONResponse(
-                    status_code=500,
-                    content={"success": False, "error": str(e)}
-                )
-        
+                return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
         @self.app.post("/api/buckets/{bucket_name}/upload")
         async def upload_file_to_bucket(
-            bucket_name: str,
-            file: UploadFile = File(...),
-            path: str = Form("")
+            bucket_name: str, file: UploadFile = File(...), path: str = Form("")
         ):
             try:
                 result = await self.upload_file(bucket_name, file, path)
                 return JSONResponse(content=result)
             except Exception as e:
                 logger.error(f"Error uploading file: {e}")
-                return JSONResponse(
-                    status_code=500,
-                    content={"success": False, "error": str(e)}
-                )
-        
+                return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
         @self.app.post("/api/buckets/import-car")
-        async def import_car_to_bucket(
-            bucket_name: str = Form(...),
-            file: UploadFile = File(...)
-        ):
+        async def import_car_to_bucket(bucket_name: str = Form(...), file: UploadFile = File(...)):
             try:
                 result = await self.import_car_file(bucket_name, file)
                 return JSONResponse(content=result)
             except Exception as e:
                 logger.error(f"Error importing CAR file: {e}")
-                return JSONResponse(
-                    status_code=500,
-                    content={"success": False, "error": str(e)}
-                )
-        
+                return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
         @self.app.post("/api/buckets/import-car-cid")
-        async def import_car_from_cid(
-            bucket_name: str = Form(...),
-            cid: str = Form(...)
-        ):
+        async def import_car_from_cid(bucket_name: str = Form(...), cid: str = Form(...)):
             try:
                 result = await self.import_car_from_cid(bucket_name, cid)
                 return JSONResponse(content=result)
             except Exception as e:
                 logger.error(f"Error importing CAR from CID: {e}")
-                return JSONResponse(
-                    status_code=500,
-                    content={"success": False, "error": str(e)}
-                )
-        
+                return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
         @self.app.get("/api/buckets/{bucket_name}/download/{file_path:path}")
         async def download_file_from_bucket(bucket_name: str, file_path: str):
             try:
                 bucket_dir = self.buckets_dir / bucket_name
                 if not bucket_dir.exists():
                     raise HTTPException(status_code=404, detail="Bucket not found")
-                
+
                 full_path = bucket_dir / file_path
                 if not full_path.exists() or not full_path.is_file():
                     raise HTTPException(status_code=404, detail="File not found")
-                
+
                 return FileResponse(
                     path=str(full_path),
                     filename=full_path.name,
-                    media_type=mimetypes.guess_type(str(full_path))[0] or 'application/octet-stream'
+                    media_type=mimetypes.guess_type(str(full_path))[0]
+                    or "application/octet-stream",
                 )
             except Exception as e:
                 logger.error(f"Error downloading file: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
-        
+
         @self.app.delete("/api/buckets/{bucket_name}/files/{file_path:path}")
         async def delete_file_from_bucket(bucket_name: str, file_path: str):
             try:
@@ -196,31 +157,23 @@ class BucketDashboard:
                 return JSONResponse(content=result)
             except Exception as e:
                 logger.error(f"Error deleting file: {e}")
-                return JSONResponse(
-                    status_code=500,
-                    content={"success": False, "error": str(e)}
-                )
-        
+                return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
         @self.app.put("/api/buckets/{bucket_name}/files/{file_path:path}")
         async def rename_file_in_bucket(
-            bucket_name: str,
-            file_path: str,
-            new_file_path: str = Form(...)
+            bucket_name: str, file_path: str, new_file_path: str = Form(...)
         ):
             try:
                 result = await self.rename_file(bucket_name, file_path, new_file_path)
                 return JSONResponse(content=result)
             except Exception as e:
                 logger.error(f"Error renaming file: {e}")
-                return JSONResponse(
-                    status_code=500,
-                    content={"success": False, "error": str(e)}
-                )
-    
+                return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
     async def list_buckets(self) -> List[Dict[str, Any]]:
         """List all buckets."""
         buckets = []
-        
+
         if self.buckets_dir.exists():
             for bucket_dir in self.buckets_dir.iterdir():
                 if bucket_dir.is_dir():
@@ -228,176 +181,191 @@ class BucketDashboard:
                     metadata_file = bucket_dir / "metadata.json"
                     if metadata_file.exists():
                         try:
-                            with open(metadata_file, 'r') as f:
+                            with open(metadata_file, "r") as f:
                                 bucket_info = json.load(f)
                         except:
                             bucket_info = {"name": bucket_dir.name, "type": "unknown"}
                     else:
                         bucket_info = {"name": bucket_dir.name, "type": "filesystem"}
-                    
+
                     # Add file count and size
-                    files = [f for f in bucket_dir.rglob("*") if f.is_file() and f.name != "metadata.json"]
+                    files = [
+                        f
+                        for f in bucket_dir.rglob("*")
+                        if f.is_file() and f.name != "metadata.json"
+                    ]
                     bucket_info["file_count"] = len(files)
                     bucket_info["total_size"] = sum(f.stat().st_size for f in files)
                     bucket_info["created_at"] = bucket_dir.stat().st_ctime
                     bucket_info["last_modified"] = bucket_dir.stat().st_mtime
-                    
+
                     buckets.append(bucket_info)
-        
+
         return buckets
-    
+
     async def create_bucket(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new bucket."""
         bucket_name = data.get("bucket_name")
         bucket_type = data.get("bucket_type", "general")
         metadata = data.get("metadata", {})
-        
+
         if not bucket_name:
             return {"success": False, "error": "bucket_name is required"}
-        
+
         bucket_dir = self.buckets_dir / bucket_name
         if bucket_dir.exists():
             return {"success": False, "error": f"Bucket '{bucket_name}' already exists"}
-        
+
         # Create bucket directory
         bucket_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Save metadata
         metadata_file = bucket_dir / "metadata.json"
         bucket_metadata = {
             "name": bucket_name,
             "type": bucket_type,
             "created_at": datetime.now().isoformat(),
-            "metadata": metadata
+            "metadata": metadata,
         }
-        
-        with open(metadata_file, 'w') as f:
+
+        with open(metadata_file, "w") as f:
             json.dump(bucket_metadata, f, indent=2)
-        
+
         return {
             "success": True,
             "data": {
                 "bucket_name": bucket_name,
                 "type": bucket_type,
-                "created_at": bucket_metadata["created_at"]
-            }
+                "created_at": bucket_metadata["created_at"],
+            },
         }
-    
+
     async def delete_bucket(self, bucket_name: str) -> Dict[str, Any]:
         """Delete a bucket."""
         if not bucket_name:
             return {"success": False, "error": "bucket_name is required"}
-        
+
         bucket_dir = self.buckets_dir / bucket_name
         if not bucket_dir.exists():
             return {"success": False, "error": f"Bucket '{bucket_name}' does not exist"}
-        
+
         # Remove bucket directory and contents
         shutil.rmtree(bucket_dir)
-        
+
         return {
             "success": True,
             "data": {
                 "bucket_name": bucket_name,
-                "message": f"Bucket '{bucket_name}' deleted successfully"
-            }
+                "message": f"Bucket '{bucket_name}' deleted successfully",
+            },
         }
-    
+
     async def get_bucket_details(self, bucket_name: str) -> Dict[str, Any]:
         """Get detailed information about a bucket."""
         bucket_dir = self.buckets_dir / bucket_name
         if not bucket_dir.exists():
             raise HTTPException(status_code=404, detail="Bucket not found")
-        
+
         # Read metadata
         metadata_file = bucket_dir / "metadata.json"
         if metadata_file.exists():
-            with open(metadata_file, 'r') as f:
+            with open(metadata_file, "r") as f:
                 metadata = json.load(f)
         else:
             metadata = {"name": bucket_name, "type": "filesystem"}
-        
+
         # Get files
         files = []
         for file_path in bucket_dir.rglob("*"):
             if file_path.is_file() and file_path.name != "metadata.json":
                 rel_path = file_path.relative_to(bucket_dir)
-                files.append({
-                    "path": str(rel_path),
-                    "name": file_path.name,
-                    "size": file_path.stat().st_size,
-                    "modified": file_path.stat().st_mtime,
-                    "type": mimetypes.guess_type(str(file_path))[0] or 'application/octet-stream'
-                })
-        
+                files.append(
+                    {
+                        "path": str(rel_path),
+                        "name": file_path.name,
+                        "size": file_path.stat().st_size,
+                        "modified": file_path.stat().st_mtime,
+                        "type": mimetypes.guess_type(str(file_path))[0]
+                        or "application/octet-stream",
+                    }
+                )
+
         return {
             "metadata": metadata,
             "files": files,
             "file_count": len(files),
-            "total_size": sum(f["size"] for f in files)
+            "total_size": sum(f["size"] for f in files),
         }
-    
+
     async def list_bucket_files(self, bucket_name: str) -> Dict[str, Any]:
         """List files in a bucket."""
         bucket_dir = self.buckets_dir / bucket_name
         if not bucket_dir.exists():
             return {"files": [], "total_count": 0}
-        
+
         files = []
         for file_path in bucket_dir.rglob("*"):
             if file_path.is_file() and file_path.name != "metadata.json":
                 rel_path = file_path.relative_to(bucket_dir)
-                files.append({
-                    "path": str(rel_path),
-                    "name": file_path.name,
-                    "size": file_path.stat().st_size,
-                    "modified": file_path.stat().st_mtime,
-                    "type": mimetypes.guess_type(str(file_path))[0] or 'application/octet-stream'
-                })
-        
+                files.append(
+                    {
+                        "path": str(rel_path),
+                        "name": file_path.name,
+                        "size": file_path.stat().st_size,
+                        "modified": file_path.stat().st_mtime,
+                        "type": mimetypes.guess_type(str(file_path))[0]
+                        or "application/octet-stream",
+                    }
+                )
+
         return {"files": files, "total_count": len(files)}
-    
-    async def upload_file(self, bucket_name: str, file: UploadFile, path: str = "") -> Dict[str, Any]:
+
+    async def upload_file(
+        self, bucket_name: str, file: UploadFile, path: str = ""
+    ) -> Dict[str, Any]:
         """Upload a file to a bucket."""
         bucket_dir = self.buckets_dir / bucket_name
         if not bucket_dir.exists():
             return {"success": False, "error": f"Bucket '{bucket_name}' does not exist"}
-        
+
         # Determine file path
         if path:
             file_path = bucket_dir / path / file.filename
             file_path.parent.mkdir(parents=True, exist_ok=True)
         else:
             file_path = bucket_dir / file.filename
-        
+
         # Save file
         try:
-            with open(file_path, 'wb') as f:
+            with open(file_path, "wb") as f:
                 content = await file.read()
                 f.write(content)
-            
+
             return {
                 "success": True,
                 "data": {
                     "file_name": file.filename,
                     "file_path": str(file_path.relative_to(bucket_dir)),
                     "file_size": len(content),
-                    "bucket_name": bucket_name
-                }
+                    "bucket_name": bucket_name,
+                },
             }
         except Exception as e:
             return {"success": False, "error": f"Failed to upload file: {str(e)}"}
-    
+
     async def delete_file(self, bucket_name: str, file_path: str) -> Dict[str, Any]:
         """Delete a file from a bucket."""
         bucket_dir = self.buckets_dir / bucket_name
         if not bucket_dir.exists():
             return {"success": False, "error": f"Bucket '{bucket_name}' does not exist"}
-        
+
         full_path = bucket_dir / file_path
         if not full_path.exists():
-            return {"success": False, "error": f"File '{file_path}' not found in bucket '{bucket_name}'"}
-        
+            return {
+                "success": False,
+                "error": f"File '{file_path}' not found in bucket '{bucket_name}'",
+            }
+
         try:
             if full_path.is_file():
                 os.remove(full_path)
@@ -405,35 +373,53 @@ class BucketDashboard:
                 shutil.rmtree(full_path)
             else:
                 return {"success": False, "error": f"Path '{file_path}' is not a file or directory"}
-            
-            return {"success": True, "data": {"message": f"File/directory '{file_path}' deleted successfully from bucket '{bucket_name}'"}}
+
+            return {
+                "success": True,
+                "data": {
+                    "message": f"File/directory '{file_path}' deleted successfully from bucket '{bucket_name}'"
+                },
+            }
         except Exception as e:
             return {"success": False, "error": f"Failed to delete file/directory: {str(e)}"}
-    
-    async def rename_file(self, bucket_name: str, old_file_path: str, new_file_path: str) -> Dict[str, Any]:
+
+    async def rename_file(
+        self, bucket_name: str, old_file_path: str, new_file_path: str
+    ) -> Dict[str, Any]:
         """Rename or move a file/directory within a bucket."""
         bucket_dir = self.buckets_dir / bucket_name
         if not bucket_dir.exists():
             return {"success": False, "error": f"Bucket '{bucket_name}' does not exist"}
-        
+
         full_old_path = bucket_dir / old_file_path
         full_new_path = bucket_dir / new_file_path
 
         if not full_old_path.exists():
-            return {"success": False, "error": f"Source file/directory '{old_file_path}' not found in bucket '{bucket_name}'"}
-        
+            return {
+                "success": False,
+                "error": f"Source file/directory '{old_file_path}' not found in bucket '{bucket_name}'",
+            }
+
         if full_new_path.exists():
-            return {"success": False, "error": f"Destination '{new_file_path}' already exists in bucket '{bucket_name}'"}
+            return {
+                "success": False,
+                "error": f"Destination '{new_file_path}' already exists in bucket '{bucket_name}'",
+            }
 
         try:
             # Ensure parent directory for new path exists
             full_new_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(full_old_path, full_new_path)
-            
-            return {"success": True, "data": {"message": f"File/directory '{old_file_path}' renamed/moved to '{new_file_path}' successfully"}}
+
+            return {
+                "success": True,
+                "data": {
+                    "message": f"File/directory '{old_file_path}' renamed/moved to '{new_file_path}' successfully"
+                },
+            }
         except Exception as e:
             return {"success": False, "error": f"Failed to rename/move file/directory: {str(e)}"}
-    
+
     async def import_car_file(self, bucket_name: str, car_file: UploadFile) -> Dict[str, Any]:
         """Import a CAR file into a bucket."""
         bucket_dir = self.buckets_dir / bucket_name
@@ -447,16 +433,21 @@ class BucketDashboard:
             with open(car_path, "wb") as f:
                 content = await car_file.read()
                 f.write(content)
-            
+
             # Here you would integrate with a CAR parsing library (e.g., pycar)
             # and extract files into the bucket_dir
             # For now, this is a placeholder:
             logger.info(f"Simulating CAR file import from {car_path} to {bucket_dir}")
             # Example: extract_car(car_path, bucket_dir)
 
-            os.remove(car_path) # Clean up temp file
-            
-            return {"success": True, "data": {"message": f"CAR file '{car_file.filename}' imported to bucket '{bucket_name}'"}}
+            os.remove(car_path)  # Clean up temp file
+
+            return {
+                "success": True,
+                "data": {
+                    "message": f"CAR file '{car_file.filename}' imported to bucket '{bucket_name}'"
+                },
+            }
         except Exception as e:
             return {"success": False, "error": f"Failed to import CAR file: {str(e)}"}
 
@@ -473,7 +464,10 @@ class BucketDashboard:
             logger.info(f"Simulating CAR import from CID {cid} to {bucket_dir}")
             # Example: fetch_car_from_ipfs(cid, bucket_dir)
 
-            return {"success": True, "data": {"message": f"CAR from CID '{cid}' imported to bucket '{bucket_name}'"}}
+            return {
+                "success": True,
+                "data": {"message": f"CAR from CID '{cid}' imported to bucket '{bucket_name}'"},
+            }
         except Exception as e:
             return {"success": False, "error": f"Failed to import CAR from CID: {str(e)}"}
 
@@ -1040,13 +1034,8 @@ class BucketDashboard:
         logger.info(f"🚀 Starting Bucket Dashboard on port {self.port}")
         logger.info(f"📁 Data directory: {self.data_dir}")
         logger.info(f"🪣 Buckets directory: {self.buckets_dir}")
-        
-        config = uvicorn.Config(
-            app=self.app,
-            host="127.0.0.1",
-            port=self.port,
-            log_level="info"
-        )
+
+        config = uvicorn.Config(app=self.app, host="127.0.0.1", port=self.port, log_level="info")
         server = uvicorn.Server(config)
         await server.serve()
 
@@ -1054,13 +1043,13 @@ class BucketDashboard:
 async def main():
     """Main entry point."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Bucket Dashboard")
     parser.add_argument("--port", type=int, default=8004, help="Port to run the dashboard on")
     parser.add_argument("--data-dir", default="~/.ipfs_kit", help="Data directory")
-    
+
     args = parser.parse_args()
-    
+
     dashboard = BucketDashboard(data_dir=args.data_dir, port=args.port)
     await dashboard.start()
 

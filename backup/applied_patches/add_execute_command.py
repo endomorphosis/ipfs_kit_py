@@ -14,9 +14,11 @@ import inspect
 import sys
 
 # Configure logging
-logging.basicConfig(level=logging.INFO,
-                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def add_execute_command_to_ipfs_model():
     """
@@ -30,7 +32,7 @@ def add_execute_command_to_ipfs_model():
         from ipfs_kit_py.mcp.models.ipfs_model import IPFSModel
 
         # Check if the execute_command method already exists
-        if hasattr(IPFSModel, 'execute_command'):
+        if hasattr(IPFSModel, "execute_command"):
             logger.info("IPFSModel already has execute_command method")
             # Examine the existing method to ensure it handles libp2p commands
             source = inspect.getsource(IPFSModel.execute_command)
@@ -38,7 +40,9 @@ def add_execute_command_to_ipfs_model():
                 logger.info("execute_command method already handles libp2p commands")
                 return True
             else:
-                logger.warning("Existing execute_command doesn't handle libp2p commands - will replace")
+                logger.warning(
+                    "Existing execute_command doesn't handle libp2p commands - will replace"
+                )
 
         # Define the execute_command method
         def execute_command(self, command, **kwargs):
@@ -55,11 +59,7 @@ def add_execute_command_to_ipfs_model():
                 dict: Result dictionary with command output
             """
             command_args = kwargs
-            result = {
-                "success": False,
-                "command": command,
-                "timestamp": time.time()
-            }
+            result = {"success": False, "command": command, "timestamp": time.time()}
 
             # Handle libp2p commands
             if command.startswith("libp2p_"):
@@ -72,7 +72,9 @@ def add_execute_command_to_ipfs_model():
                     result["success"] = True
                     result["result"] = {
                         "connected": True,
-                        "peer_id": peer_addr.split("/")[-1] if isinstance(peer_addr, str) else "unknown"
+                        "peer_id": peer_addr.split("/")[-1]
+                        if isinstance(peer_addr, str)
+                        else "unknown",
                     }
 
                 # Handle get peers
@@ -80,7 +82,7 @@ def add_execute_command_to_ipfs_model():
                     result["success"] = True
                     result["peers"] = [
                         {"id": "QmPeer1", "addrs": ["/ip4/127.0.0.1/tcp/4001/p2p/QmPeer1"]},
-                        {"id": "QmPeer2", "addrs": ["/ip4/127.0.0.1/tcp/4002/p2p/QmPeer2"]}
+                        {"id": "QmPeer2", "addrs": ["/ip4/127.0.0.1/tcp/4002/p2p/QmPeer2"]},
                     ]
 
                 # Handle publish
@@ -91,26 +93,20 @@ def add_execute_command_to_ipfs_model():
                     result["result"] = {
                         "published": True,
                         "topic": topic,
-                        "message_size": len(message) if isinstance(message, str) else 0
+                        "message_size": len(message) if isinstance(message, str) else 0,
                     }
 
                 # Handle subscribe
                 elif libp2p_command == "subscribe":
                     topic = command_args.get("topic", "")
                     result["success"] = True
-                    result["result"] = {
-                        "subscribed": True,
-                        "topic": topic
-                    }
+                    result["result"] = {"subscribed": True, "topic": topic}
 
                 # Handle announce content
                 elif libp2p_command == "announce_content":
                     cid = command_args.get("cid", "")
                     result["success"] = True
-                    result["result"] = {
-                        "announced": True,
-                        "cid": cid
-                    }
+                    result["result"] = {"announced": True, "cid": cid}
 
                 # Handle other libp2p commands
                 else:
@@ -135,7 +131,7 @@ def add_execute_command_to_ipfs_model():
         logger.info("Added execute_command method to IPFSModel")
 
         # Verify the method was added successfully
-        if hasattr(IPFSModel, 'execute_command'):
+        if hasattr(IPFSModel, "execute_command"):
             logger.info("Verified execute_command method was added successfully")
             return True
         else:
@@ -148,8 +144,10 @@ def add_execute_command_to_ipfs_model():
     except Exception as e:
         logger.error(f"Error adding execute_command method: {e}")
         import traceback
+
         traceback.print_exc()
         return False
+
 
 if __name__ == "__main__":
     print("Adding execute_command method to IPFSModel...")

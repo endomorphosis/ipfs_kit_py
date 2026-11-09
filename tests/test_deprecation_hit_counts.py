@@ -1,8 +1,9 @@
 from fastapi.testclient import TestClient
 from ipfs_kit_py.mcp.dashboard.consolidated_mcp_dashboard import ConsolidatedMCPDashboard
 
+
 def test_deprecation_hit_counts_increment():
-    inst = ConsolidatedMCPDashboard({"port":0})
+    inst = ConsolidatedMCPDashboard({"port": 0})
     client = TestClient(inst.app)
     # Call deprecated endpoint multiple times
     for _ in range(3):

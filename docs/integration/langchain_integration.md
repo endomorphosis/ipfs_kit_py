@@ -42,12 +42,13 @@ logging.basicConfig(level=logging.INFO)
 # Ensure IPFS daemon is running or API is configured
 # Ensure OPENAI_API_KEY environment variable is set for embeddings/LLM
 try:
-    kit = IPFSSimpleAPI() # Assumes default IPFS connection works
-    langchain_integration = kit.ai_langchain # Access via high-level API attribute
+    kit = IPFSSimpleAPI()  # Assumes default IPFS connection works
+    langchain_integration = kit.ai_langchain  # Access via high-level API attribute
     if not langchain_integration:
-         # Fallback if direct attribute access isn't the way
-         from ipfs_kit_py.ai_ml_integration import LangchainIntegration
-         langchain_integration = LangchainIntegration(ipfs_client=kit)
+        # Fallback if direct attribute access isn't the way
+        from ipfs_kit_py.ai_ml_integration import LangchainIntegration
+
+        langchain_integration = LangchainIntegration(ipfs_client=kit)
 
 except Exception as e:
     logging.error(f"Failed to initialize IPFS Kit or LangchainIntegration: {e}")
@@ -59,7 +60,7 @@ try:
     # Add a dummy text file to IPFS first
     doc_content = "IPFS stands for InterPlanetary File System. It is a peer-to-peer hypermedia protocol designed to make the web faster, safer, and more open."
     add_result = kit.add_bytes(doc_content.encode())
-    doc_cid = add_result.get('Hash') if isinstance(add_result, dict) else None
+    doc_cid = add_result.get("Hash") if isinstance(add_result, dict) else None
 
     if not doc_cid:
         logging.error("Failed to add dummy document to IPFS.")
@@ -69,7 +70,9 @@ try:
     # Load documents using the integration
     logging.info(f"Loading documents from CID: {doc_cid}")
     documents = langchain_integration.load_documents(cid_or_path=doc_cid)
-    logging.info(f"Loaded {len(documents)} document(s). Content snippet: '{documents[0].page_content[:50]}...'")
+    logging.info(
+        f"Loaded {len(documents)} document(s). Content snippet: '{documents[0].page_content[:50]}...'"
+    )
 
 except Exception as e:
     logging.error(f"Error loading documents: {e}")
@@ -80,20 +83,21 @@ try:
     logging.info("Creating IPFS Vector Store...")
     # Requires an embedding model. Using OpenAI here.
     from langchain.embeddings import OpenAIEmbeddings
-    embeddings = OpenAIEmbeddings() # Assumes OPENAI_API_KEY is set
+
+    embeddings = OpenAIEmbeddings()  # Assumes OPENAI_API_KEY is set
 
     vector_store_result = langchain_integration.create_vector_store(
         documents=documents,
         embedding_model=embeddings,
-        collection_name="ipfs_docs_example" # Optional name for the collection
+        collection_name="ipfs_docs_example",  # Optional name for the collection
     )
 
     if not vector_store_result.get("success"):
-         logging.error(f"Failed to create vector store: {vector_store_result.get('error')}")
-         exit()
+        logging.error(f"Failed to create vector store: {vector_store_result.get('error')}")
+        exit()
 
-    vector_store = vector_store_result.get("vector_store") # Get the VectorStore object
-    vector_store_cid = vector_store_result.get("cid") # CID of the stored vector index
+    vector_store = vector_store_result.get("vector_store")  # Get the VectorStore object
+    vector_store_cid = vector_store_result.get("cid")  # CID of the stored vector index
     logging.info(f"IPFS Vector Store created. Index CID: {vector_store_cid}")
 
     # Test similarity search
@@ -119,9 +123,9 @@ try:
 
     # Create the QA chain
     qa_chain = RetrievalQA.from_chain_type(
-        llm=OpenAI(), # Assumes OPENAI_API_KEY is set
+        llm=OpenAI(),  # Assumes OPENAI_API_KEY is set
         chain_type="stuff",
-        retriever=retriever
+        retriever=retriever,
     )
     logging.info("RetrievalQA chain created.")
 
@@ -143,7 +147,7 @@ try:
         chain=qa_chain,
         name=chain_name,
         version=chain_version,
-        metadata={"description": "QA chain for IPFS documents"}
+        metadata={"description": "QA chain for IPFS documents"},
     )
 
     if not store_result.get("success"):
@@ -155,10 +159,7 @@ try:
 
     # Load the chain back from IPFS
     logging.info(f"Loading chain '{chain_name}' v{chain_version} from IPFS...")
-    load_result = langchain_integration.load_chain(
-        name=chain_name,
-        version=chain_version
-    )
+    load_result = langchain_integration.load_chain(name=chain_name, version=chain_version)
 
     if not load_result.get("success"):
         logging.error(f"Failed to load chain: {load_result.get('error')}")
@@ -176,7 +177,6 @@ except Exception as e:
     logging.error(f"Error storing or loading the chain: {e}")
 
 logging.info("Langchain integration example finished.")
-
 ```
 
 ## Benefits

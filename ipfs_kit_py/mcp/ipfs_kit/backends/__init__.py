@@ -11,28 +11,28 @@ from .backend_manager import BackendManager
 from .log_manager import BackendLogManager
 from .backend_clients import (
     IPFSClient,
-    IPFSClusterClient, 
+    IPFSClusterClient,
     LotusClient,
     StorachaClient,
     GDriveClient,
     SynapseClient,
     S3Client,
     HuggingFaceClient,
-    ParquetClient
+    ParquetClient,
 )
 
 __all__ = [
     "BackendHealthMonitor",
-    "VFSObservabilityManager", 
+    "VFSObservabilityManager",
     "BackendManager",
     "BackendLogManager",
     "IPFSClient",
     "IPFSClusterClient",
-    "LotusClient", 
+    "LotusClient",
     "StorachaClient",
     "GDriveClient",
     "SynapseClient",
     "S3Client",
     "HuggingFaceClient",
-    "ParquetClient"
+    "ParquetClient",
 ]

@@ -15,11 +15,13 @@ import importlib
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def ensure_directory(path):
     """Ensure a directory exists."""
     if not os.path.exists(path):
         os.makedirs(path, exist_ok=True)
         logger.info(f"Created directory: {path}")
+
 
 def fix_storage_backends():
     """
@@ -45,6 +47,7 @@ def fix_storage_backends():
     # Fix HuggingFace backend
     try:
         from huggingface_storage import HuggingFaceStorage
+
         hf = HuggingFaceStorage()
         if not hf.mock_mode and not hf.api:
             # Force mock mode
@@ -58,6 +61,7 @@ def fix_storage_backends():
     # Fix S3 backend
     try:
         from s3_storage import S3Storage
+
         s3 = S3Storage()
         if not s3.mock_mode and not s3.s3_client:
             # Force mock mode
@@ -71,6 +75,7 @@ def fix_storage_backends():
     # Fix Filecoin backend
     try:
         from filecoin_storage import FilecoinStorage
+
         filecoin = FilecoinStorage()
         # Force mock mode
         filecoin.mock_mode = True
@@ -83,6 +88,7 @@ def fix_storage_backends():
     # Fix Storacha backend
     try:
         from storacha_storage import StorachaStorage
+
         storacha = StorachaStorage()
         # Force mock mode
         storacha.mock_mode = True
@@ -95,6 +101,7 @@ def fix_storage_backends():
     # Fix Lassie backend
     try:
         from lassie_storage import LassieStorage
+
         lassie = LassieStorage()
         # Force mock mode
         lassie.mock_mode = True
@@ -105,6 +112,7 @@ def fix_storage_backends():
         logger.warning("Lassie storage backend not available")
 
     return backends
+
 
 def fix_extensions():
     """
@@ -120,6 +128,7 @@ def fix_extensions():
             # HuggingFace
             try:
                 from mcp_extensions.huggingface_extension import update_huggingface_status
+
                 update_huggingface_status(storage_backends)
                 # Force mock mode if not available
                 if not storage_backends.get("huggingface", {}).get("available", False):
@@ -127,7 +136,7 @@ def fix_extensions():
                         "available": True,
                         "simulation": False,
                         "mock": True,
-                        "message": "Running in mock mode (fixed)"
+                        "message": "Running in mock mode (fixed)",
                     }
             except Exception as e:
                 logger.error(f"Failed to update HuggingFace status: {e}")
@@ -136,12 +145,13 @@ def fix_extensions():
                     "available": True,
                     "simulation": False,
                     "mock": True,
-                    "message": "Running in mock mode (fixed)"
+                    "message": "Running in mock mode (fixed)",
                 }
 
             # S3
             try:
                 from mcp_extensions.s3_extension import update_s3_status
+
                 update_s3_status(storage_backends)
                 # Force mock mode if not available
                 if not storage_backends.get("s3", {}).get("available", False):
@@ -151,7 +161,7 @@ def fix_extensions():
                         "mock": True,
                         "message": "Running in mock mode (fixed)",
                         "bucket": "ipfs-storage-demo",
-                        "region": "us-east-1"
+                        "region": "us-east-1",
                     }
             except Exception as e:
                 logger.error(f"Failed to update S3 status: {e}")
@@ -162,12 +172,13 @@ def fix_extensions():
                     "mock": True,
                     "message": "Running in mock mode (fixed)",
                     "bucket": "ipfs-storage-demo",
-                    "region": "us-east-1"
+                    "region": "us-east-1",
                 }
 
             # Filecoin
             try:
                 from mcp_extensions.filecoin_extension import update_filecoin_status
+
                 update_filecoin_status(storage_backends)
                 # Force mock mode if not available
                 if not storage_backends.get("filecoin", {}).get("available", False):
@@ -175,7 +186,7 @@ def fix_extensions():
                         "available": True,
                         "simulation": False,
                         "mock": True,
-                        "message": "Running in mock mode (fixed)"
+                        "message": "Running in mock mode (fixed)",
                     }
             except Exception as e:
                 logger.error(f"Failed to update Filecoin status: {e}")
@@ -184,12 +195,13 @@ def fix_extensions():
                     "available": True,
                     "simulation": False,
                     "mock": True,
-                    "message": "Running in mock mode (fixed)"
+                    "message": "Running in mock mode (fixed)",
                 }
 
             # Storacha
             try:
                 from mcp_extensions.storacha_extension import update_storacha_status
+
                 update_storacha_status(storage_backends)
                 # Force mock mode if not available
                 if not storage_backends.get("storacha", {}).get("available", False):
@@ -197,7 +209,7 @@ def fix_extensions():
                         "available": True,
                         "simulation": False,
                         "mock": True,
-                        "message": "Running in mock mode (fixed)"
+                        "message": "Running in mock mode (fixed)",
                     }
             except Exception as e:
                 logger.error(f"Failed to update Storacha status: {e}")
@@ -206,12 +218,13 @@ def fix_extensions():
                     "available": True,
                     "simulation": False,
                     "mock": True,
-                    "message": "Running in mock mode (fixed)"
+                    "message": "Running in mock mode (fixed)",
                 }
 
             # Lassie
             try:
                 from mcp_extensions.lassie_extension import update_lassie_status
+
                 update_lassie_status(storage_backends)
                 # Force mock mode if not available
                 if not storage_backends.get("lassie", {}).get("available", False):
@@ -219,7 +232,7 @@ def fix_extensions():
                         "available": True,
                         "simulation": False,
                         "mock": True,
-                        "message": "Running in mock mode (fixed)"
+                        "message": "Running in mock mode (fixed)",
                     }
             except Exception as e:
                 logger.error(f"Failed to update Lassie status: {e}")
@@ -228,7 +241,7 @@ def fix_extensions():
                     "available": True,
                     "simulation": False,
                     "mock": True,
-                    "message": "Running in mock mode (fixed)"
+                    "message": "Running in mock mode (fixed)",
                 }
         except Exception as e:
             logger.error(f"Error in patched update_storage_backends: {e}")
@@ -251,6 +264,7 @@ def fix_extensions():
         logger.error("Failed to import mcp_extensions module")
         return None
 
+
 if __name__ == "__main__":
     # Fix backends
     backends = fix_storage_backends()
@@ -270,7 +284,7 @@ if __name__ == "__main__":
             "s3": {"available": False, "simulation": True},
             "filecoin": {"available": False, "simulation": True},
             "storacha": {"available": False, "simulation": True},
-            "lassie": {"available": False, "simulation": True}
+            "lassie": {"available": False, "simulation": True},
         }
 
         # Update with patched function

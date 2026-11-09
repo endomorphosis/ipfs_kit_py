@@ -16,43 +16,44 @@ import threading
 import time
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
 
 class DashboardHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         logger.info(f"{self.address_string()} - {format % args}")
-    
+
     def do_GET(self):
         """Handle GET requests"""
-        path = self.path.split('?')[0]  # Remove query parameters
-        
-        if path == '/':
+        path = self.path.split("?")[0]  # Remove query parameters
+
+        if path == "/":
             self.serve_dashboard()
-        elif path == '/api/buckets':
+        elif path == "/api/buckets":
             self.serve_buckets_api()
-        elif path.startswith('/api/buckets/') and path.endswith('/files'):
-            bucket_name = path.split('/')[3]
+        elif path.startswith("/api/buckets/") and path.endswith("/files"):
+            bucket_name = path.split("/")[3]
             self.serve_bucket_files_api(bucket_name)
-        elif path == '/api/system/overview':
+        elif path == "/api/system/overview":
             self.serve_overview_api()
-        elif path == '/static/js/test-dashboard.js':
+        elif path == "/static/js/test-dashboard.js":
             self.serve_js()
         else:
             self.send_error(404, "Not Found")
-    
+
     def do_POST(self):
         """Handle POST requests"""
-        path = self.path.split('?')[0]
-        
-        if path == '/api/buckets':
+        path = self.path.split("?")[0]
+
+        if path == "/api/buckets":
             self.handle_create_bucket()
-        elif path.startswith('/api/buckets/') and path.endswith('/upload'):
-            bucket_name = path.split('/')[3]
+        elif path.startswith("/api/buckets/") and path.endswith("/upload"):
+            bucket_name = path.split("/")[3]
             self.handle_upload_file(bucket_name)
         else:
             self.send_error(404, "Not Found")
-    
+
     def serve_dashboard(self):
         """Serve the main dashboard HTML"""
         html = """
@@ -144,10 +145,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
 </html>
 """
         self.send_response(200)
-        self.send_header('Content-Type', 'text/html')
+        self.send_header("Content-Type", "text/html")
         self.end_headers()
-        self.wfile.write(html.encode('utf-8'))
-    
+        self.wfile.write(html.encode("utf-8"))
+
     def serve_js(self):
         """Serve the dashboard JavaScript"""
         js = """
@@ -459,204 +460,208 @@ function showMessage(message, type = 'info') {
 }
 """
         self.send_response(200)
-        self.send_header('Content-Type', 'application/javascript')
+        self.send_header("Content-Type", "application/javascript")
         self.end_headers()
-        self.wfile.write(js.encode('utf-8'))
-    
+        self.wfile.write(js.encode("utf-8"))
+
     def serve_buckets_api(self):
         """Serve buckets API"""
         # Create sample data
         data_dir = Path.home() / ".ipfs_kit"
         buckets_dir = data_dir / "buckets"
-        
+
         buckets = []
         if buckets_dir.exists():
             for bucket_path in buckets_dir.iterdir():
                 if bucket_path.is_dir():
-                    file_count = len(list(bucket_path.glob('*')))
-                    buckets.append({
-                        "name": bucket_path.name,
-                        "backend": "local",
-                        "description": f"Local bucket {bucket_path.name}",
-                        "file_count": file_count,
-                        "storage_used": 0,
-                        "created_at": datetime.now().isoformat()
-                    })
-        
+                    file_count = len(list(bucket_path.glob("*")))
+                    buckets.append(
+                        {
+                            "name": bucket_path.name,
+                            "backend": "local",
+                            "description": f"Local bucket {bucket_path.name}",
+                            "file_count": file_count,
+                            "storage_used": 0,
+                            "created_at": datetime.now().isoformat(),
+                        }
+                    )
+
         # Add a sample bucket if none exist
         if not buckets:
-            buckets = [{
-                "name": "sample-bucket",
-                "backend": "local", 
-                "description": "Sample bucket for testing",
-                "file_count": 0,
-                "storage_used": 0,
-                "created_at": datetime.now().isoformat()
-            }]
-        
+            buckets = [
+                {
+                    "name": "sample-bucket",
+                    "backend": "local",
+                    "description": "Sample bucket for testing",
+                    "file_count": 0,
+                    "storage_used": 0,
+                    "created_at": datetime.now().isoformat(),
+                }
+            ]
+
         response_data = {"buckets": buckets}
         self.send_json_response(response_data)
-    
+
     def serve_bucket_files_api(self, bucket_name):
         """Serve bucket files API"""
         data_dir = Path.home() / ".ipfs_kit"
         bucket_path = data_dir / "buckets" / bucket_name
-        
+
         files = []
         if bucket_path.exists() and bucket_path.is_dir():
             for file_path in bucket_path.iterdir():
                 if file_path.is_file():
                     stat = file_path.stat()
-                    files.append({
-                        "name": file_path.name,
-                        "size": stat.st_size,
-                        "last_modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                        "path": file_path.name,
-                        "type": "file"
-                    })
-        
+                    files.append(
+                        {
+                            "name": file_path.name,
+                            "size": stat.st_size,
+                            "last_modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                            "path": file_path.name,
+                            "type": "file",
+                        }
+                    )
+
         response_data = {"success": True, "files": files}
         self.send_json_response(response_data)
-    
+
     def serve_overview_api(self):
         """Serve system overview API"""
-        response_data = {
-            "data": {
-                "counts": {
-                    "services_active": 1,
-                    "backends": 1,
-                    "buckets": 1
-                }
-            }
-        }
+        response_data = {"data": {"counts": {"services_active": 1, "backends": 1, "buckets": 1}}}
         self.send_json_response(response_data)
-    
+
     def handle_create_bucket(self):
         """Handle bucket creation"""
-        content_length = int(self.headers['Content-Length'])
+        content_length = int(self.headers["Content-Length"])
         post_data = self.rfile.read(content_length)
-        
+
         try:
-            data = json.loads(post_data.decode('utf-8'))
-            bucket_name = data.get('name')
-            description = data.get('description', '')
-            
+            data = json.loads(post_data.decode("utf-8"))
+            bucket_name = data.get("name")
+            description = data.get("description", "")
+
             if not bucket_name:
                 self.send_json_response({"success": False, "error": "Bucket name required"}, 400)
                 return
-            
+
             # Create bucket directory
             data_dir = Path.home() / ".ipfs_kit"
             bucket_path = data_dir / "buckets" / bucket_name
             bucket_path.mkdir(parents=True, exist_ok=True)
-            
+
             # Create bucket config
             config_dir = data_dir / "bucket_configs"
             config_dir.mkdir(parents=True, exist_ok=True)
-            
+
             bucket_config = {
                 "name": bucket_name,
                 "description": description,
                 "backend": "local",
-                "created_at": datetime.now().isoformat()
+                "created_at": datetime.now().isoformat(),
             }
-            
+
             config_file = config_dir / f"{bucket_name}.json"
-            with open(config_file, 'w') as f:
+            with open(config_file, "w") as f:
                 json.dump(bucket_config, f, indent=2)
-            
+
             logger.info(f"Created bucket: {bucket_name}")
-            self.send_json_response({
-                "success": True, 
-                "message": f"Bucket '{bucket_name}' created successfully",
-                "bucket": bucket_config
-            })
-            
+            self.send_json_response(
+                {
+                    "success": True,
+                    "message": f"Bucket '{bucket_name}' created successfully",
+                    "bucket": bucket_config,
+                }
+            )
+
         except Exception as e:
             logger.error(f"Error creating bucket: {e}")
             self.send_json_response({"success": False, "error": str(e)}, 500)
-    
+
     def handle_upload_file(self, bucket_name):
         """Handle file upload"""
         try:
             # Parse multipart form data (simplified)
-            content_type = self.headers.get('Content-Type', '')
-            if not content_type.startswith('multipart/form-data'):
-                self.send_json_response({"success": False, "error": "Multipart form data required"}, 400)
+            content_type = self.headers.get("Content-Type", "")
+            if not content_type.startswith("multipart/form-data"):
+                self.send_json_response(
+                    {"success": False, "error": "Multipart form data required"}, 400
+                )
                 return
-            
+
             # This is a simplified multipart parser - in production use proper library
-            content_length = int(self.headers['Content-Length'])
+            content_length = int(self.headers["Content-Length"])
             post_data = self.rfile.read(content_length)
-            
+
             # Extract boundary
-            boundary = content_type.split('boundary=')[1].encode()
-            parts = post_data.split(b'--' + boundary)
-            
+            boundary = content_type.split("boundary=")[1].encode()
+            parts = post_data.split(b"--" + boundary)
+
             for part in parts:
-                if b'Content-Disposition: form-data' in part and b'filename=' in part:
+                if b"Content-Disposition: form-data" in part and b"filename=" in part:
                     # Extract filename
-                    lines = part.split(b'\r\n')
+                    lines = part.split(b"\r\n")
                     filename = None
                     content_start = 0
-                    
+
                     for i, line in enumerate(lines):
-                        if b'filename=' in line:
+                        if b"filename=" in line:
                             filename_match = line.decode().split('filename="')[1].split('"')[0]
                             filename = filename_match
-                        elif line == b'':
+                        elif line == b"":
                             content_start = i + 1
                             break
-                    
+
                     if filename and content_start > 0:
                         # Extract file content
-                        file_content = b'\r\n'.join(lines[content_start:])
+                        file_content = b"\r\n".join(lines[content_start:])
                         # Remove trailing boundary data
-                        if file_content.endswith(b'\r\n'):
+                        if file_content.endswith(b"\r\n"):
                             file_content = file_content[:-2]
-                        
+
                         # Save file
                         data_dir = Path.home() / ".ipfs_kit"
                         bucket_path = data_dir / "buckets" / bucket_name
                         bucket_path.mkdir(parents=True, exist_ok=True)
-                        
+
                         file_path = bucket_path / filename
-                        with open(file_path, 'wb') as f:
+                        with open(file_path, "wb") as f:
                             f.write(file_content)
-                        
+
                         logger.info(f"Uploaded file: {filename} to bucket: {bucket_name}")
-                        self.send_json_response({
-                            "success": True,
-                            "message": f"File '{filename}' uploaded successfully",
-                            "file": {
-                                "name": filename,
-                                "size": len(file_content),
-                                "uploaded_at": datetime.now().isoformat()
+                        self.send_json_response(
+                            {
+                                "success": True,
+                                "message": f"File '{filename}' uploaded successfully",
+                                "file": {
+                                    "name": filename,
+                                    "size": len(file_content),
+                                    "uploaded_at": datetime.now().isoformat(),
+                                },
                             }
-                        })
+                        )
                         return
-            
+
             self.send_json_response({"success": False, "error": "No file found in upload"}, 400)
-            
+
         except Exception as e:
             logger.error(f"Error uploading file: {e}")
             self.send_json_response({"success": False, "error": str(e)}, 500)
-    
+
     def send_json_response(self, data, status=200):
         """Send JSON response"""
         self.send_response(status)
-        self.send_header('Content-Type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
-        self.wfile.write(json.dumps(data, indent=2).encode('utf-8'))
+        self.wfile.write(json.dumps(data, indent=2).encode("utf-8"))
 
 
-def run_dashboard(host='127.0.0.1', port=8004):
+def run_dashboard(host="127.0.0.1", port=8004):
     """Run the test dashboard"""
     logger.info(f"Starting test dashboard on http://{host}:{port}")
-    
+
     try:
         server = HTTPServer((host, port), DashboardHandler)
         logger.info(f"Dashboard running on http://{host}:{port}")

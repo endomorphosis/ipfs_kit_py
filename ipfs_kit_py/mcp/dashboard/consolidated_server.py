@@ -13,6 +13,7 @@ module docstring causing the original import section to be lost and producing a
 cascade of "name is not defined" errors. This docstring has been reduced and the
 imports + helpers restored below.
 """
+
 import anyio
 import anyio.abc
 import os, sys, json, time, logging, socket, signal, tarfile, shutil, subprocess, inspect, atexit, threading
@@ -26,12 +27,14 @@ from types import SimpleNamespace
 # Import comprehensive service manager
 try:
     from ipfs_kit_py.mcp.services.comprehensive_service_manager import ComprehensiveServiceManager
+
     COMPREHENSIVE_SERVICE_MANAGER_AVAILABLE = True
 except ImportError:
     COMPREHENSIVE_SERVICE_MANAGER_AVAILABLE = False
     ComprehensiveServiceManager = None
 
 import uvicorn  # server
+
 try:
     import psutil  # type: ignore
 except Exception:
@@ -41,67 +44,78 @@ try:
 except Exception:
     yaml = None  # type: ignore
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends, UploadFile, File, Form
-from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse, Response, JSONResponse, FileResponse
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+    Depends,
+    UploadFile,
+    File,
+    Form,
+)
+from fastapi.responses import (
+    HTMLResponse,
+    PlainTextResponse,
+    StreamingResponse,
+    Response,
+    JSONResponse,
+    FileResponse,
+)
 from fastapi.middleware.cors import CORSMiddleware
 import mimetypes
 
 UTC = timezone.utc
+
 
 class InMemoryLogHandler(logging.Handler):
     def __init__(self, maxlen: int = 4000):
         super().__init__()
         self.maxlen = maxlen
         self._items: List[Dict[str, Any]] = []
+
     def emit(self, record: logging.LogRecord) -> None:  # pragma: no cover
         try:
-            self._items.append({
-                "timestamp": datetime.fromtimestamp(record.created, UTC).isoformat(),
-                "level": record.levelname,
-                "logger": record.name,
-                "message": self.format(record),
-            })
+            self._items.append(
+                {
+                    "timestamp": datetime.fromtimestamp(record.created, UTC).isoformat(),
+                    "level": record.levelname,
+                    "logger": record.name,
+                    "message": self.format(record),
+                }
+            )
             if len(self._items) > self.maxlen:
                 trim = max(1, int(self.maxlen * 0.1))
                 self._items = self._items[trim:]
         except Exception:
             pass
+
     def get(self, limit: int = 200) -> List[Dict[str, Any]]:
         if limit and limit > 0:
             return self._items[-limit:]
         return list(self._items)
+
     def clear(self) -> None:
         self._items.clear()
+
 
 def create_default_backends():
     """Create default backend configurations for testing and demonstration."""
     now = datetime.now(UTC).isoformat()
-    
+
     return {
         "local_fs": {
             "type": "local_storage",
             "description": "Local filesystem storage backend",
             "status": "enabled",
-            "config": {
-                "path": "/tmp/ipfs_kit_storage",
-                "max_size": "10GB",
-                "compression": True
-            },
+            "config": {"path": "/tmp/ipfs_kit_storage", "max_size": "10GB", "compression": True},
             "created_at": now,
             "last_check": now,
             "health": "healthy",
             "category": "storage",
-            "policy": {
-                "quota": "10GB",
-                "replication": 1,
-                "retention": "30d",
-                "cache": "enabled"
-            },
-            "stats": {
-                "size": "2.1GB",
-                "files": 1247,
-                "last_sync": now
-            }
+            "policy": {"quota": "10GB", "replication": 1, "retention": "30d", "cache": "enabled"},
+            "stats": {"size": "2.1GB", "files": 1247, "last_sync": now},
         },
         "ipfs_local": {
             "type": "ipfs",
@@ -110,7 +124,7 @@ def create_default_backends():
             "config": {
                 "api_url": "http://127.0.0.1:5001",
                 "gateway_url": "http://127.0.0.1:8080",
-                "pinning": True
+                "pinning": True,
             },
             "created_at": now,
             "last_check": now,
@@ -120,13 +134,9 @@ def create_default_backends():
                 "quota": "unlimited",
                 "replication": 3,
                 "retention": "permanent",
-                "cache": "enabled"
+                "cache": "enabled",
             },
-            "stats": {
-                "peers": 42,
-                "pins": 156,
-                "last_sync": now
-            }
+            "stats": {"peers": 42, "pins": 156, "last_sync": now},
         },
         "s3_demo": {
             "type": "s3",
@@ -137,23 +147,14 @@ def create_default_backends():
                 "bucket": "ipfs-kit-demo",
                 "region": "us-east-1",
                 "access_key": "demo-key",
-                "secret_key": "demo-secret"
+                "secret_key": "demo-secret",
             },
             "created_at": now,
             "last_check": now,
             "health": "healthy",
             "category": "storage",
-            "policy": {
-                "quota": "100GB",
-                "replication": 3,
-                "retention": "90d",
-                "cache": "enabled"
-            },
-            "stats": {
-                "objects": 3421,
-                "size": "45.2GB",
-                "last_sync": now
-            }
+            "policy": {"quota": "100GB", "replication": 3, "retention": "90d", "cache": "enabled"},
+            "stats": {"objects": 3421, "size": "45.2GB", "last_sync": now},
         },
         "parquet_meta": {
             "type": "parquet",
@@ -162,23 +163,14 @@ def create_default_backends():
             "config": {
                 "path": "/tmp/ipfs_kit_parquet",
                 "compression": "snappy",
-                "schema_version": "1.0"
+                "schema_version": "1.0",
             },
             "created_at": now,
             "last_check": now,
             "health": "healthy",
             "category": "analytics",
-            "policy": {
-                "quota": "50GB",
-                "replication": 2,
-                "retention": "365d",
-                "cache": "enabled"
-            },
-            "stats": {
-                "tables": 12,
-                "rows": 98765,
-                "last_sync": now
-            }
+            "policy": {"quota": "50GB", "replication": 2, "retention": "365d", "cache": "enabled"},
+            "stats": {"tables": 12, "rows": 98765, "last_sync": now},
         },
         "github": {
             "type": "git",
@@ -187,23 +179,14 @@ def create_default_backends():
             "config": {
                 "repo_url": "https://github.com/user/repo.git",
                 "branch": "main",
-                "auth_token": "demo-token"
+                "auth_token": "demo-token",
             },
             "created_at": now,
             "last_check": now,
             "health": "healthy",
             "category": "storage",
-            "policy": {
-                "quota": "5GB",
-                "replication": 1,
-                "retention": "365d",
-                "cache": "enabled"
-            },
-            "stats": {
-                "commits": 245,
-                "branches": 3,
-                "last_sync": now
-            }
+            "policy": {"quota": "5GB", "replication": 1, "retention": "365d", "cache": "enabled"},
+            "stats": {"commits": 245, "branches": 3, "last_sync": now},
         },
         "cluster": {
             "type": "ipfs_cluster",
@@ -212,7 +195,7 @@ def create_default_backends():
             "config": {
                 "cluster_api": "http://127.0.0.1:9094",
                 "peer_id": "12D3KooWDemo...",
-                "secret": "demo-secret"
+                "secret": "demo-secret",
             },
             "created_at": now,
             "last_check": now,
@@ -222,62 +205,66 @@ def create_default_backends():
                 "quota": "unlimited",
                 "replication": 5,
                 "retention": "permanent",
-                "cache": "enabled"
+                "cache": "enabled",
             },
-            "stats": {
-                "nodes": 5,
-                "pins": 892,
-                "last_sync": now
-            }
-        }
+            "stats": {"nodes": 5, "pins": 892, "last_sync": now},
+        },
     }
+
 
 def ensure_paths(data_dir: Optional[str]):
     base = Path(data_dir or os.path.expanduser("~/.ipfs_kit"))
     data_dir_path = base
     data_dir_path.mkdir(parents=True, exist_ok=True)
-    car_store = data_dir_path / "car_store"; car_store.mkdir(exist_ok=True)
-    vfs_root = data_dir_path / "vfs"; vfs_root.mkdir(exist_ok=True)
-    bucket_configs = data_dir_path / "bucket_configs"; bucket_configs.mkdir(exist_ok=True)
+    car_store = data_dir_path / "car_store"
+    car_store.mkdir(exist_ok=True)
+    vfs_root = data_dir_path / "vfs"
+    vfs_root.mkdir(exist_ok=True)
+    bucket_configs = data_dir_path / "bucket_configs"
+    bucket_configs.mkdir(exist_ok=True)
     backends_file = data_dir_path / "backends.json"
     buckets_file = data_dir_path / "buckets.json"
     pins_file = data_dir_path / "pins.json"
-    
+
     # Initialize with default backends if file doesn't exist or is empty
     if not backends_file.exists() or backends_file.stat().st_size == 0:
         with suppress(Exception):
-            with backends_file.open('w', encoding='utf-8') as fh:
+            with backends_file.open("w", encoding="utf-8") as fh:
                 json.dump(create_default_backends(), fh, indent=2)
-    
+
     # Check if backends.json has old format and upgrade it
     try:
-        with backends_file.open('r', encoding='utf-8') as fh:
+        with backends_file.open("r", encoding="utf-8") as fh:
             existing_backends = json.load(fh)
-        
+
         # Check if any backend is in old format (missing required fields)
         needs_upgrade = False
         for name, config in existing_backends.items():
-            if not isinstance(config, dict) or 'description' not in config or 'created_at' not in config:
+            if (
+                not isinstance(config, dict)
+                or "description" not in config
+                or "created_at" not in config
+            ):
                 needs_upgrade = True
                 break
-        
+
         if needs_upgrade:
             # Upgrade to new format with defaults
             default_backends = create_default_backends()
-            with backends_file.open('w', encoding='utf-8') as fh:
+            with backends_file.open("w", encoding="utf-8") as fh:
                 json.dump(default_backends, fh, indent=2)
     except Exception:
         # If there's any error reading, create defaults
         with suppress(Exception):
-            with backends_file.open('w', encoding='utf-8') as fh:
+            with backends_file.open("w", encoding="utf-8") as fh:
                 json.dump(create_default_backends(), fh, indent=2)
-    
+
     for f, default in [(buckets_file, []), (pins_file, [])]:
         if not f.exists():
             with suppress(Exception):
-                with f.open('w', encoding='utf-8') as fh:
+                with f.open("w", encoding="utf-8") as fh:
                     json.dump(default, fh)
-    
+
     return SimpleNamespace(
         base=base,
         data_dir=data_dir_path,
@@ -293,23 +280,27 @@ def ensure_paths(data_dir: Optional[str]):
 # ---- JSON helpers (restored) ----
 def _read_json(path: Path, default):
     try:
-        with path.open('r', encoding='utf-8') as f:
+        with path.open("r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return default
 
+
 def _atomic_write_json(path: Path, data) -> None:
     try:
-        tmp = path.with_suffix(path.suffix + '.tmp')
-        with tmp.open('w', encoding='utf-8') as f:
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        with tmp.open("w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, sort_keys=True)
         tmp.replace(path)
     except Exception:
         pass
 
+
 def _which(bin_name: str) -> Optional[str]:
     from shutil import which
+
     return which(bin_name)
+
 
 def _port_open(host: str, port: int, timeout: float = 0.25) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -319,12 +310,14 @@ def _port_open(host: str, port: int, timeout: float = 0.25) -> bool:
         except Exception:
             return False
 
+
 def _run_cmd(cmd: List[str], timeout: float = 10.0) -> Dict[str, Any]:
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         return {"code": proc.returncode, "out": proc.stdout, "err": proc.stderr}
     except Exception as e:
         return {"code": -1, "error": str(e)}
+
 
 def _normalize_buckets(items):
     if not isinstance(items, list):
@@ -333,18 +326,26 @@ def _normalize_buckets(items):
     for it in items:
         if not isinstance(it, dict):
             continue
-        name = it.get('name') or it.get('id')
+        name = it.get("name") or it.get("id")
         if not name:
             continue
         # Normalize embedded policy with defaults
-        pol = it.get('policy') or {}
+        pol = it.get("policy") or {}
         norm_policy = {
-            'replication_factor': int(pol.get('replication_factor', 1) or 1),
-            'cache_policy': pol.get('cache_policy', 'none') or 'none',
-            'retention_days': int(pol.get('retention_days', 0) or 0),
+            "replication_factor": int(pol.get("replication_factor", 1) or 1),
+            "cache_policy": pol.get("cache_policy", "none") or "none",
+            "retention_days": int(pol.get("retention_days", 0) or 0),
         }
-        out.append({"name": name, "backend": it.get('backend'), "meta": it.get('meta', {}), "policy": norm_policy})
+        out.append(
+            {
+                "name": name,
+                "backend": it.get("backend"),
+                "meta": it.get("meta", {}),
+                "policy": norm_policy,
+            }
+        )
     return out
+
 
 def _normalize_pins(items):
     if not isinstance(items, list):
@@ -353,11 +354,12 @@ def _normalize_pins(items):
     for it in items:
         if not isinstance(it, dict):
             continue
-        cid = it.get('cid') or it.get('hash')
+        cid = it.get("cid") or it.get("hash")
         if not cid:
             continue
-        out.append({"cid": cid, "name": it.get('name')})
+        out.append({"cid": cid, "name": it.get("name")})
     return out
+
 
 def _normalize_backends(items):
     """Normalize backend items ensuring required fields are present."""
@@ -376,17 +378,16 @@ def _normalize_backends(items):
                 "tier": it.get("tier", "standard"),
                 "description": it.get("description", f"{it.get('type', 'unknown')} backend"),
                 "config": it.get("config", {}),
-                "policy": it.get("policy", {
-                    "replication_factor": 1,
-                    "cache_policy": "none", 
-                    "retention_days": 0
-                }),
+                "policy": it.get(
+                    "policy", {"replication_factor": 1, "cache_policy": "none", "retention_days": 0}
+                ),
                 "enabled": it.get("enabled", False),
                 "created_at": it.get("created_at"),
-                "last_updated": it.get("last_updated")
+                "last_updated": it.get("last_updated"),
             }
             out.append(backend)
     return out
+
 
 def _safe_vfs_path(root: Path, user_path: str) -> Path:
     # prevent directory traversal
@@ -394,6 +395,7 @@ def _safe_vfs_path(root: Path, user_path: str) -> Path:
     if not str(p).startswith(str(root.resolve())):
         raise ValueError("invalid path")
     return p
+
 
 def _run_cmd_bytes(cmd: List[str], timeout: float = 30.0) -> Dict[str, Any]:
     """Run command returning dict with raw bytes; mirrors shape of _run_cmd.
@@ -406,7 +408,7 @@ def _run_cmd_bytes(cmd: List[str], timeout: float = 30.0) -> Dict[str, Any]:
             "ok": proc.returncode == 0,
             "code": proc.returncode,
             "out_bytes": proc.stdout if proc.returncode == 0 else b"",
-            "err": proc.stderr.decode('utf-8', 'ignore'),
+            "err": proc.stderr.decode("utf-8", "ignore"),
         }
     except Exception as e:  # pragma: no cover
         return {"ok": False, "code": -1, "out_bytes": b"", "err": str(e)}
@@ -415,6 +417,7 @@ def _run_cmd_bytes(cmd: List[str], timeout: float = 30.0) -> Dict[str, Any]:
 # -----------------------------
 # Main dashboard class
 # -----------------------------
+
 
 class ConsolidatedMCPDashboard:
     def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
@@ -446,6 +449,7 @@ class ConsolidatedMCPDashboard:
                     _atomic_write_json(self._hits_file, self.endpoint_hits)
             except Exception:
                 pass
+
         with suppress(Exception):
             signal.signal(signal.SIGTERM, lambda *_: (_persist_hits(), sys.exit(0)))
         with suppress(Exception):
@@ -461,7 +465,9 @@ class ConsolidatedMCPDashboard:
                 if self._hits_file.exists():
                     data = _read_json(self._hits_file, {})
                     if isinstance(data, dict):
-                        self.endpoint_hits.update({k: int(v) for k, v in data.items() if isinstance(k, str)})
+                        self.endpoint_hits.update(
+                            {k: int(v) for k, v in data.items() if isinstance(k, str)}
+                        )
             with suppress(Exception):
                 if self._realtime_task_group is None:
                     self._realtime_task_group = anyio.create_task_group()
@@ -673,10 +679,15 @@ class ConsolidatedMCPDashboard:
             {"name": "list_buckets"},
             {"name": "create_bucket"},
             {"name": "delete_bucket"},
-            {"name": "list_files"}, {"name": "files_list"},
-            {"name": "read_file"}, {"name": "files_read"},
-            {"name": "write_file"}, {"name": "files_write"},
-            {"name": "list_pins"}, {"name": "create_pin"}, {"name": "delete_pin"},
+            {"name": "list_files"},
+            {"name": "files_list"},
+            {"name": "read_file"},
+            {"name": "files_read"},
+            {"name": "write_file"},
+            {"name": "files_write"},
+            {"name": "list_pins"},
+            {"name": "create_pin"},
+            {"name": "delete_pin"},
             {"name": "get_logs"},
             {"name": "service_status"},
             {"name": "ipfs_version"},
@@ -737,19 +748,34 @@ class ConsolidatedMCPDashboard:
                     if isinstance(it, dict):
                         nm = it.get("name") or it.get("id")
                         if nm:
-                            norm_items.append({
-                                "name": nm,
-                                "backend": it.get("backend"),
-                                "created_at": it.get("created_at"),
-                                "policy": (it.get("policy") or {"replication_factor": 1, "cache_policy": "none", "retention_days": 0})
-                            })
+                            norm_items.append(
+                                {
+                                    "name": nm,
+                                    "backend": it.get("backend"),
+                                    "created_at": it.get("created_at"),
+                                    "policy": (
+                                        it.get("policy")
+                                        or {
+                                            "replication_factor": 1,
+                                            "cache_policy": "none",
+                                            "retention_days": 0,
+                                        }
+                                    ),
+                                }
+                            )
                     elif isinstance(it, str):
-                        norm_items.append({
-                            "name": it,
-                            "backend": None,
-                            "created_at": None,
-                            "policy": {"replication_factor": 1, "cache_policy": "none", "retention_days": 0}
-                        })
+                        norm_items.append(
+                            {
+                                "name": it,
+                                "backend": None,
+                                "created_at": None,
+                                "policy": {
+                                    "replication_factor": 1,
+                                    "cache_policy": "none",
+                                    "retention_days": 0,
+                                },
+                            }
+                        )
             # Optionally write back normalized format for future consistency
             try:
                 _atomic_write_json(self.paths.buckets_file, norm_items)
@@ -768,18 +794,28 @@ class ConsolidatedMCPDashboard:
                         if it.get("name"):
                             items_existing.append(it)
                     elif isinstance(it, str):
-                        items_existing.append({
-                            "name": it,
-                            "backend": None,
-                            "created_at": None,
-                            "policy": {"replication_factor": 1, "cache_policy": "none", "retention_days": 0}
-                        })
+                        items_existing.append(
+                            {
+                                "name": it,
+                                "backend": None,
+                                "created_at": None,
+                                "policy": {
+                                    "replication_factor": 1,
+                                    "cache_policy": "none",
+                                    "retention_days": 0,
+                                },
+                            }
+                        )
             if not any(b.get("name") == bucket for b in items_existing):
                 entry = {
                     "name": bucket,
                     "backend": (args or {}).get("backend"),
                     "created_at": datetime.now(UTC).isoformat(),
-                    "policy": {"replication_factor": 1, "cache_policy": "none", "retention_days": 0}
+                    "policy": {
+                        "replication_factor": 1,
+                        "cache_policy": "none",
+                        "retention_days": 0,
+                    },
                 }
                 items_existing.append(entry)
                 _atomic_write_json(self.paths.buckets_file, items_existing)
@@ -799,6 +835,7 @@ class ConsolidatedMCPDashboard:
             if len(new_items) != len(items):
                 _atomic_write_json(self.paths.buckets_file, new_items)
             return {"deleted": bucket, "total": len(new_items)}
+
         # Files storage under data_dir/files or per-bucket
         def _files_root(bucket: Optional[str] = None) -> Path:
             root = self.paths.data_dir / ("storage" if bucket else "files")
@@ -806,6 +843,7 @@ class ConsolidatedMCPDashboard:
                 root = root / bucket
             root.mkdir(parents=True, exist_ok=True)
             return root
+
         if name in ("list_files", "files_list"):
             bucket = (args or {}).get("bucket")
             path = (args or {}).get("path") or "."
@@ -889,9 +927,12 @@ class ConsolidatedMCPDashboard:
         """Get or initialize the service manager."""
         if self._service_manager is None:
             try:
-                from ipfs_kit_py.mcp.services.comprehensive_service_manager import ComprehensiveServiceManager
+                from ipfs_kit_py.mcp.services.comprehensive_service_manager import (
+                    ComprehensiveServiceManager,
+                )
+
                 self._service_manager = ComprehensiveServiceManager(self.paths.base)
-                
+
                 # Auto-enable detectable services
                 try:
                     result = self._service_manager.auto_enable_detectable_services()
@@ -899,7 +940,7 @@ class ConsolidatedMCPDashboard:
                         self.log.info(f"Auto-enabled services: {result['enabled_services']}")
                 except Exception as e:
                     self.log.warning(f"Failed to auto-enable services: {e}")
-                
+
                 self.log.info("Initialized ComprehensiveServiceManager")
             except ImportError as e:
                 self.log.error(f"Failed to import ComprehensiveServiceManager: {e}")
@@ -919,73 +960,92 @@ class ConsolidatedMCPDashboard:
         if self._peer_manager is None:
             try:
                 from ipfs_kit_py.peer_manager import PeerManager  # type: ignore
+
                 self._peer_manager = PeerManager()
             except Exception as e:  # pragma: no cover
                 self.log.warning(f"PeerManager unavailable: {e}")
                 self._peer_manager = None
         return self._peer_manager
-    
+
     async def _list_all_services(self, service_manager):
         """List all services (enabled and disabled) for comprehensive dashboard view."""
         services = []
-        
+
         # Get all daemon services
         for daemon_id, config in service_manager.services_config.get("daemons", {}).items():
             if config.get("enabled", False):
                 status = await service_manager._check_daemon_status(daemon_id, config)
                 actions = service_manager._get_available_actions(daemon_id, status["status"])
             else:
-                # For disabled services, show as "not_enabled" 
+                # For disabled services, show as "not_enabled"
                 status = {
                     "status": "not_enabled",
                     "last_check": None,
-                    "details": {"reason": "Service not enabled"}
+                    "details": {"reason": "Service not enabled"},
                 }
                 actions = ["configure", "enable"]  # Allow enabling and configuration
-            
-            services.append({
-                "id": daemon_id,
-                "name": config["name"],
-                "type": config["type"],
-                "description": config["description"],
-                "status": status["status"],
-                "port": config.get("port"),
-                "actions": actions,
-                "last_check": status.get("last_check"),
-                "details": status.get("details", {}),
-                "enabled": config.get("enabled", False)
-            })
-        
-        # Get all storage backend services  
-        for backend_id, config in service_manager.services_config.get("storage_backends", {}).items():
+
+            services.append(
+                {
+                    "id": daemon_id,
+                    "name": config["name"],
+                    "type": config["type"],
+                    "description": config["description"],
+                    "status": status["status"],
+                    "port": config.get("port"),
+                    "actions": actions,
+                    "last_check": status.get("last_check"),
+                    "details": status.get("details", {}),
+                    "enabled": config.get("enabled", False),
+                }
+            )
+
+        # Get all storage backend services
+        for backend_id, config in service_manager.services_config.get(
+            "storage_backends", {}
+        ).items():
             if config.get("enabled", False):
                 status = await service_manager._check_storage_backend_status(backend_id, config)
                 actions = service_manager._get_available_actions(backend_id, status["status"])
             else:
                 # For disabled services, show as "not_configured" since most require credentials
                 status = {
-                    "status": "not_configured" if config.get("requires_credentials") else "not_enabled",
+                    "status": "not_configured"
+                    if config.get("requires_credentials")
+                    else "not_enabled",
                     "last_check": None,
-                    "details": {"reason": "Credentials not configured" if config.get("requires_credentials") else "Service not enabled"}
+                    "details": {
+                        "reason": "Credentials not configured"
+                        if config.get("requires_credentials")
+                        else "Service not enabled"
+                    },
                 }
                 # Provide configure action for credentialed services, enable for others
-                actions = ["configure", "enable"] if config.get("requires_credentials") else ["enable", "configure"]
-            
-            services.append({
-                "id": backend_id,
-                "name": config["name"],
-                "type": config["type"],
-                "description": config["description"],
-                "status": status["status"],
-                "requires_credentials": config.get("requires_credentials", False),
-                "actions": actions,
-                "last_check": status.get("last_check"),
-                "details": status.get("details", {}),
-                "enabled": config.get("enabled", False)
-            })
-        
+                actions = (
+                    ["configure", "enable"]
+                    if config.get("requires_credentials")
+                    else ["enable", "configure"]
+                )
+
+            services.append(
+                {
+                    "id": backend_id,
+                    "name": config["name"],
+                    "type": config["type"],
+                    "description": config["description"],
+                    "status": status["status"],
+                    "requires_credentials": config.get("requires_credentials", False),
+                    "actions": actions,
+                    "last_check": status.get("last_check"),
+                    "details": status.get("details", {}),
+                    "enabled": config.get("enabled", False),
+                }
+            )
+
         # Get all network services
-        for service_id, config in service_manager.services_config.get("network_services", {}).items():
+        for service_id, config in service_manager.services_config.get(
+            "network_services", {}
+        ).items():
             if config.get("enabled", False):
                 status = await service_manager._check_network_service_status(service_id, config)
                 actions = service_manager._get_available_actions(service_id, status["status"])
@@ -993,23 +1053,25 @@ class ConsolidatedMCPDashboard:
                 status = {
                     "status": "not_enabled",
                     "last_check": None,
-                    "details": {"reason": "Service not enabled"}
+                    "details": {"reason": "Service not enabled"},
                 }
                 actions = ["configure", "enable"]
-            
-            services.append({
-                "id": service_id,
-                "name": config["name"],
-                "type": config["type"],
-                "description": config["description"],
-                "status": status["status"],
-                "port": config.get("port"),
-                "actions": actions,
-                "last_check": status.get("last_check"),
-                "details": status.get("details", {}),
-                "enabled": config.get("enabled", False)
-            })
-        
+
+            services.append(
+                {
+                    "id": service_id,
+                    "name": config["name"],
+                    "type": config["type"],
+                    "description": config["description"],
+                    "status": status["status"],
+                    "port": config.get("port"),
+                    "actions": actions,
+                    "last_check": status.get("last_check"),
+                    "details": status.get("details", {}),
+                    "enabled": config.get("enabled", False),
+                }
+            )
+
         return {
             "services": services,
             "total": len(services),
@@ -1019,14 +1081,16 @@ class ConsolidatedMCPDashboard:
                 "error": len([s for s in services if s["status"] == "error"]),
                 "configured": len([s for s in services if s["status"] == "configured"]),
                 "not_configured": len([s for s in services if s["status"] == "not_configured"]),
-                "not_enabled": len([s for s in services if s["status"] == "not_enabled"])
-            }
+                "not_enabled": len([s for s in services if s["status"] == "not_enabled"]),
+            },
         }
 
     # --- Run helpers (restored) ---
     async def run(self) -> None:
         """Run the dashboard with uvicorn."""
-        config = uvicorn.Config(self.app, host=self.host, port=self.port, log_level="info", reload=False)
+        config = uvicorn.Config(
+            self.app, host=self.host, port=self.port, log_level="info", reload=False
+        )
         server = uvicorn.Server(config)
         await server.serve()
 
@@ -1048,7 +1112,7 @@ class ConsolidatedMCPDashboard:
         # Disk
         with suppress(Exception):
             du = shutil.disk_usage(str(self.paths.data_dir))
-            snap["disk"] = round(du.used/du.total*100, 2) if du.total else None
+            snap["disk"] = round(du.used / du.total * 100, 2) if du.total else None
         # Network delta (simple aggregate rx/tx bytes across interfaces)
         # NOTE: Original implementation may have used psutil.net_io_counters; restored lightweight placeholder if psutil present.
         if psutil:
@@ -1064,16 +1128,22 @@ class ConsolidatedMCPDashboard:
                             snap["tx_bps"] = (tx - self._net_last.get("tx", tx)) / dt
                     self._net_last = {"ts": snap["ts"], "rx": rx, "tx": tx}
         # Append to histories (ensure keys present for tests even if None yet)
-        self._net_history.append({
-            "ts": snap.get("ts"),
-            "rx_bps": snap.get("rx_bps"),
-            "tx_bps": snap.get("tx_bps"),
-        })
-        self._sys_history.append({k: snap.get(k) for k in ("ts", "cpu", "mem", "disk") if k in snap})
+        self._net_history.append(
+            {
+                "ts": snap.get("ts"),
+                "rx_bps": snap.get("rx_bps"),
+                "tx_bps": snap.get("tx_bps"),
+            }
+        )
+        self._sys_history.append(
+            {k: snap.get(k) for k in ("ts", "cpu", "mem", "disk") if k in snap}
+        )
+
         # Rolling averages (5 most recent points with values)
         def _avg(seq: Iterable[Optional[float]]) -> Optional[float]:
             vals = [v for v in seq if isinstance(v, (int, float))]
-            return round(sum(vals)/len(vals), 2) if vals else None
+            return round(sum(vals) / len(vals), 2) if vals else None
+
         last_net = list(self._net_history)[-5:]
         last_sys = list(self._sys_history)[-5:]
         snap["avg_rx_bps"] = _avg(p.get("rx_bps") for p in last_net)
@@ -1104,15 +1174,20 @@ class ConsolidatedMCPDashboard:
     def _register_routes(self) -> None:
         app = self.app
         dashboard = self
+
         # --- auth dependency ---
         def _auth_dep(request: Request):
             token = dashboard.api_token
             if not token:
                 return True
             supplied = (
-                request.headers.get("x-api-token") or
-                (request.headers.get("authorization", " ").split(" ")[1] if request.headers.get("authorization", " ").lower().startswith("bearer ") else None) or
-                request.query_params.get("token")
+                request.headers.get("x-api-token")
+                or (
+                    request.headers.get("authorization", " ").split(" ")[1]
+                    if request.headers.get("authorization", " ").lower().startswith("bearer ")
+                    else None
+                )
+                or request.query_params.get("token")
             )
             if supplied != token:
                 raise HTTPException(401, "Unauthorized")
@@ -1123,11 +1198,14 @@ class ConsolidatedMCPDashboard:
         # It is kept temporarily to support older polling clients/tests. It now also includes
         # a metrics snapshot for convenience. Remove after next minor release.
         self._overview_warning_emitted = False  # one-time log flag
+
         @app.get("/api/system/overview")
         async def system_overview() -> Response:  # type: ignore
             if not getattr(self, "_overview_warning_emitted", False):
                 with suppress(Exception):
-                    self.log.warning("/api/system/overview is deprecated; use /api/system/health and /api/mcp/status")
+                    self.log.warning(
+                        "/api/system/overview is deprecated; use /api/system/health and /api/mcp/status"
+                    )
                 self._overview_warning_emitted = True
             # Gather components
             health = await system_health()
@@ -1143,10 +1221,16 @@ class ConsolidatedMCPDashboard:
                 "migration": {
                     "health": "/api/system/health",
                     "status": "/api/mcp/status",
-                    "metrics": "/api/metrics/system"
-                }
+                    "metrics": "/api/metrics/system",
+                },
             }
-            return JSONResponse(payload, headers={"X-Deprecated": "true", "Link": '</api/system/health>; rel="health", </api/mcp/status>; rel="status"'})
+            return JSONResponse(
+                payload,
+                headers={
+                    "X-Deprecated": "true",
+                    "Link": '</api/system/health>; rel="health", </api/mcp/status>; rel="status"',
+                },
+            )
 
         # Basic pages
         @app.get("/", response_class=HTMLResponse)
@@ -1166,12 +1250,20 @@ class ConsolidatedMCPDashboard:
 
         @app.get("/app.js", response_class=PlainTextResponse)
         async def app_js() -> Response:
-            return Response(self._app_js(), media_type="application/javascript; charset=utf-8", headers={"Cache-Control": "no-store"})
+            return Response(
+                self._app_js(),
+                media_type="application/javascript; charset=utf-8",
+                headers={"Cache-Control": "no-store"},
+            )
 
         @app.get("/mcp-client.js", response_class=PlainTextResponse)
         async def mcp_client_js() -> Response:
             body = self._mcp_client_js()
-            return Response(body, media_type="application/javascript; charset=utf-8", headers={"Cache-Control": "no-store", "X-MCP-SDK-Source": "inline"})
+            return Response(
+                body,
+                media_type="application/javascript; charset=utf-8",
+                headers={"Cache-Control": "no-store", "X-MCP-SDK-Source": "inline"},
+            )
 
         # Add route for /static/mcp-sdk.js to fix dashboard loading
         @app.get("/static/mcp-sdk.js", response_class=PlainTextResponse)
@@ -1189,23 +1281,23 @@ class ConsolidatedMCPDashboard:
                     Path(__file__).parent / "mcp" / "dashboard" / "static" / file_path,
                     Path(__file__).parent.parent / "static" / file_path,
                 ]
-                
+
                 for static_path in static_locations:
                     if static_path.exists() and static_path.is_file():
                         # Determine content type
                         content_type, _ = mimetypes.guess_type(str(static_path))
                         if not content_type:
                             content_type = "application/octet-stream"
-                        
+
                         return FileResponse(
                             path=str(static_path),
                             media_type=content_type,
-                            headers={"Cache-Control": "no-store"}
+                            headers={"Cache-Control": "no-store"},
                         )
-                
+
                 # If file not found, return 404
                 raise HTTPException(status_code=404, detail=f"Static file not found: {file_path}")
-                
+
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"Error serving static file: {str(e)}")
 
@@ -1215,10 +1307,19 @@ class ConsolidatedMCPDashboard:
             try:
                 backend = request.query_params.get("backend")
                 time_range = request.query_params.get("range", "1h")
-                include_history = request.query_params.get("history", "true").lower() in ("1","true","yes","y")
+                include_history = request.query_params.get("history", "true").lower() in (
+                    "1",
+                    "true",
+                    "yes",
+                    "y",
+                )
                 res = self._handle_backends(
                     name="get_backend_performance_metrics",
-                    args={"backend_name": backend, "time_range": time_range, "include_history": include_history},
+                    args={
+                        "backend_name": backend,
+                        "time_range": time_range,
+                        "include_history": include_history,
+                    },
                 )
                 if res is None:
                     raise HTTPException(404, "metrics handler unavailable")
@@ -1250,7 +1351,9 @@ class ConsolidatedMCPDashboard:
         async def api_config_write(filename: str, request: Request) -> JSONResponse:
             body = await request.json()
             content = body.get("content", "")
-            res = self._handle_config("write_config_file", {"filename": filename, "content": content})
+            res = self._handle_config(
+                "write_config_file", {"filename": filename, "content": content}
+            )
             if res is None:
                 raise HTTPException(404, "config write unavailable")
             if "error" in res:
@@ -1263,7 +1366,7 @@ class ConsolidatedMCPDashboard:
         _client_error_rate_limit = {}
         _rate_limit_window = 60  # 1 minute window
         _rate_limit_max_requests = 10  # Max 10 requests per minute per IP
-        
+
         @app.post("/api/auto-heal/report-client-error")
         async def report_client_error(request: Request) -> JSONResponse:
             """Receive and process client-side error reports for auto-healing."""
@@ -1271,48 +1374,54 @@ class ConsolidatedMCPDashboard:
                 # Rate limiting check
                 client_ip = request.client.host if request.client else "unknown"
                 current_time = time.time()
-                
+
                 # Clean old entries
                 _client_error_rate_limit[client_ip] = [
-                    ts for ts in _client_error_rate_limit.get(client_ip, [])
+                    ts
+                    for ts in _client_error_rate_limit.get(client_ip, [])
                     if current_time - ts < _rate_limit_window
                 ]
-                
+
                 # Check rate limit
                 if len(_client_error_rate_limit.get(client_ip, [])) >= _rate_limit_max_requests:
-                    logging.warning(f"Rate limit exceeded for client error reporting from {client_ip}")
-                    return JSONResponse({
-                        "status": "error",
-                        "message": "Rate limit exceeded. Please try again later."
-                    }, status_code=429)
-                
+                    logging.warning(
+                        f"Rate limit exceeded for client error reporting from {client_ip}"
+                    )
+                    return JSONResponse(
+                        {
+                            "status": "error",
+                            "message": "Rate limit exceeded. Please try again later.",
+                        },
+                        status_code=429,
+                    )
+
                 # Record this request
                 if client_ip not in _client_error_rate_limit:
                     _client_error_rate_limit[client_ip] = []
                 _client_error_rate_limit[client_ip].append(current_time)
-                
+
                 error_data = await request.json()
-                
+
                 # Sanitize client data
                 error_data = _sanitize_client_error_data(error_data)
-                
+
                 # Import the client error reporter
                 from ipfs_kit_py.auto_heal.client_error_reporter import get_client_error_reporter
-                
+
                 # Get the reporter instance
                 reporter = get_client_error_reporter()
-                
+
                 # Process the error
                 result = await reporter.report_client_error(error_data)
-                
+
                 return JSONResponse(result)
             except Exception as e:
                 logging.error(f"Failed to process client error report: {e}")
-                return JSONResponse({
-                    "status": "error",
-                    "message": f"Failed to process error report: {str(e)}"
-                }, status_code=500)
-        
+                return JSONResponse(
+                    {"status": "error", "message": f"Failed to process error report: {str(e)}"},
+                    status_code=500,
+                )
+
         def _sanitize_client_error_data(raw_error_data: Any) -> Dict[str, Any]:
             """
             Sanitize client-provided error data to prevent injection attacks and
@@ -1402,6 +1511,7 @@ class ConsolidatedMCPDashboard:
         @app.get("/favicon.ico")
         async def favicon() -> Response:  # type: ignore
             return Response(status_code=204, headers={"Cache-Control": "public, max-age=3600"})
+
         @app.head("/favicon.ico")
         async def favicon_head() -> Response:  # type: ignore
             return Response(status_code=204, headers={"Cache-Control": "public, max-age=3600"})
@@ -1410,6 +1520,7 @@ class ConsolidatedMCPDashboard:
         @app.get("/healthz")
         async def healthz() -> Response:  # type: ignore
             return PlainTextResponse("ok", headers={"Cache-Control": "no-store"})
+
         @app.head("/healthz")
         async def healthz_head() -> Response:  # type: ignore
             return Response(status_code=200, headers={"Cache-Control": "no-store"})
@@ -1440,17 +1551,19 @@ class ConsolidatedMCPDashboard:
                     migration = {
                         "health": "/api/system/health",
                         "status": "/api/mcp/status",
-                        "metrics": "/api/metrics/system"
+                        "metrics": "/api/metrics/system",
                     }
-                items.append({
-                    "endpoint": ep,
-                    "remove_in": remove_in,
-                    "migration": migration,
-                    "hits": self.endpoint_hits.get(ep, 0),
-                })
+                items.append(
+                    {
+                        "endpoint": ep,
+                        "remove_in": remove_in,
+                        "migration": migration,
+                        "hits": self.endpoint_hits.get(ep, 0),
+                    }
+                )
             return {"deprecated": items}
 
-    # (Removed duplicate legacy overview endpoint definition above after enhancement)
+        # (Removed duplicate legacy overview endpoint definition above after enhancement)
 
         # System metrics
         @app.get("/api/metrics/system")
@@ -1464,7 +1577,11 @@ class ConsolidatedMCPDashboard:
                     out["memory"] = {"used": vm.used, "total": vm.total, "percent": vm.percent}
             with suppress(Exception):
                 du = shutil.disk_usage(str(self.paths.data_dir))
-                out["disk"] = {"used": du.used, "total": du.total, "percent": round(du.used/du.total*100,2) if du.total else None}
+                out["disk"] = {
+                    "used": du.used,
+                    "total": du.total,
+                    "percent": round(du.used / du.total * 100, 2) if du.total else None,
+                }
             with suppress(Exception):
                 out["uptime_sec"] = time.time() - self._start_time
             return out
@@ -1473,26 +1590,26 @@ class ConsolidatedMCPDashboard:
         async def metrics_system_history(request: Request) -> Dict[str, Any]:
             seconds_param: Optional[float] = None
             with suppress(Exception):
-                raw = request.query_params.get('seconds')
+                raw = request.query_params.get("seconds")
                 if raw:
                     seconds_param = float(raw)
             pts = list(self._sys_history)
             if seconds_param is not None:
                 cutoff = time.time() - seconds_param
-                pts = [p for p in pts if p.get('ts', 0) >= cutoff]
+                pts = [p for p in pts if p.get("ts", 0) >= cutoff]
             return {"interval": 1.0, "points": pts}
 
         @app.get("/api/metrics/network")
         async def metrics_network(request: Request) -> Dict[str, Any]:
             seconds_param: Optional[float] = None
             with suppress(Exception):
-                raw = request.query_params.get('seconds')
+                raw = request.query_params.get("seconds")
                 if raw:
                     seconds_param = float(raw)
             pts = list(self._net_history)
             if seconds_param is not None:
                 cutoff = time.time() - seconds_param
-                pts = [p for p in pts if p.get('ts', 0) >= cutoff]
+                pts = [p for p in pts if p.get("ts", 0) >= cutoff]
             return {"interval": 1.0, "points": pts}
 
         # MCP tool endpoints for browser SDK shim
@@ -1520,7 +1637,13 @@ class ConsolidatedMCPDashboard:
             if not name:
                 raise HTTPException(400, "Missing tool name")
             result = self._dispatch_tool(name, args)
-            return JSONResponse({"jsonrpc": "2.0", "result": result, "id": data.get("id", 1) if isinstance(data, dict) else 1})
+            return JSONResponse(
+                {
+                    "jsonrpc": "2.0",
+                    "result": result,
+                    "id": data.get("id", 1) if isinstance(data, dict) else 1,
+                }
+            )
 
         @app.get("/api/analytics/summary")
         async def analytics_summary() -> Dict[str, Any]:
@@ -1530,7 +1653,7 @@ class ConsolidatedMCPDashboard:
                 system_metrics = {}
                 with suppress(Exception):
                     system_metrics = await metrics_system()
-                
+
                 # Get service counts with error handling
                 services_count = 0
                 active_services = 0
@@ -1539,131 +1662,161 @@ class ConsolidatedMCPDashboard:
                     if service_manager:
                         services = await self._list_all_services(service_manager)
                         services_count = len(services)
-                        active_services = len([s for s in services if isinstance(s, dict) and s.get("status") in ("running", "healthy")])
-                
+                        active_services = len(
+                            [
+                                s
+                                for s in services
+                                if isinstance(s, dict) and s.get("status") in ("running", "healthy")
+                            ]
+                        )
+
                 # Get backend and bucket counts with error handling
                 backends_count = 0
                 with suppress(Exception):
                     backends = _read_json(self.paths.backends_file, {})
-                    backends_count = len(backends.get("backends", []) if isinstance(backends, dict) else backends) if backends else 0
-                
+                    backends_count = (
+                        len(
+                            backends.get("backends", []) if isinstance(backends, dict) else backends
+                        )
+                        if backends
+                        else 0
+                    )
+
                 buckets_count = 0
                 with suppress(Exception):
                     buckets = _read_json(self.paths.buckets_file, [])
-                    buckets_count = len(buckets) if isinstance(buckets, list) else len(buckets.get("items", [])) if isinstance(buckets, dict) else 0
-                
+                    buckets_count = (
+                        len(buckets)
+                        if isinstance(buckets, list)
+                        else len(buckets.get("items", []))
+                        if isinstance(buckets, dict)
+                        else 0
+                    )
+
                 pins_count = 0
                 with suppress(Exception):
                     pins = _read_json(self.paths.pins_file, [])
                     pins_count = len(pins) if isinstance(pins, list) else 0
-                
+
                 # Calculate request metrics with error handling
-                total_requests = getattr(self, 'request_count', 0)
+                total_requests = getattr(self, "request_count", 0)
                 popular_endpoints = []
                 with suppress(Exception):
-                    endpoint_hits = getattr(self, 'endpoint_hits', {})
-                    popular_endpoints = sorted(endpoint_hits.items(), key=lambda x: x[1], reverse=True)[:10]
-                
+                    endpoint_hits = getattr(self, "endpoint_hits", {})
+                    popular_endpoints = sorted(
+                        endpoint_hits.items(), key=lambda x: x[1], reverse=True
+                    )[:10]
+
                 # Build response with safe defaults
                 response_data = {
                     "system": {
                         "cpu_percent": system_metrics.get("cpu_percent", 0.0),
                         "memory_percent": system_metrics.get("memory", {}).get("percent", 0.0),
                         "disk_percent": system_metrics.get("disk", {}).get("percent", 0.0),
-                        "uptime_hours": system_metrics.get("uptime_sec", 0) / 3600.0
+                        "uptime_hours": system_metrics.get("uptime_sec", 0) / 3600.0,
                     },
                     "services": {
                         "total": services_count,
                         "active": active_services,
-                        "inactive": max(0, services_count - active_services)
+                        "inactive": max(0, services_count - active_services),
                     },
                     "storage": {
                         "backends": backends_count,
                         "buckets": buckets_count,
-                        "pins": pins_count
+                        "pins": pins_count,
                     },
-                    "requests": {
-                        "total": total_requests,
-                        "popular_endpoints": popular_endpoints
-                    },
+                    "requests": {"total": total_requests, "popular_endpoints": popular_endpoints},
                     "logs": {
-                        "total": len(self.memlog.get(limit=0)) if hasattr(self, 'memlog') else 0,
-                        "recent": len(self.memlog.get(limit=100)) if hasattr(self, 'memlog') else 0
-                    }
+                        "total": len(self.memlog.get(limit=0)) if hasattr(self, "memlog") else 0,
+                        "recent": len(self.memlog.get(limit=100)) if hasattr(self, "memlog") else 0,
+                    },
                 }
-                
+
                 return response_data
-                
+
             except Exception as e:
                 self.log.error(f"Error in analytics summary: {e}")
                 # Return safe default structure to prevent frontend errors
                 return {
-                    "system": {"cpu_percent": 0.0, "memory_percent": 0.0, "disk_percent": 0.0, "uptime_hours": 0.0},
+                    "system": {
+                        "cpu_percent": 0.0,
+                        "memory_percent": 0.0,
+                        "disk_percent": 0.0,
+                        "uptime_hours": 0.0,
+                    },
                     "services": {"total": 0, "active": 0, "inactive": 0},
                     "storage": {"backends": 0, "buckets": 0, "pins": 0},
                     "requests": {"total": 0, "popular_endpoints": []},
-                    "logs": {"total": 0, "recent": 0}
+                    "logs": {"total": 0, "recent": 0},
                 }
 
         @app.get("/api/config/files")
         async def config_files() -> Dict[str, Any]:
             """Get configuration files information."""
             config_files = []
-            
+
             # Check main config files
             config_paths = [
                 ("backends.json", self.paths.backends_file),
-                ("buckets.json", self.paths.buckets_file), 
-                ("pins.json", self.paths.pins_file)
+                ("buckets.json", self.paths.buckets_file),
+                ("pins.json", self.paths.pins_file),
             ]
-            
+
             for name, path in config_paths:
                 try:
                     if path.exists():
                         stat_info = path.stat()
-                        with path.open('r') as f:
+                        with path.open("r") as f:
                             content = json.load(f)
-                        
-                        config_files.append({
-                            "name": name,
-                            "path": str(path),
-                            "size": stat_info.st_size,
-                            "modified": datetime.fromtimestamp(stat_info.st_mtime, UTC).isoformat(),
-                            "entries": len(content) if isinstance(content, (list, dict)) else 0,
-                            "readable": True
-                        })
+
+                        config_files.append(
+                            {
+                                "name": name,
+                                "path": str(path),
+                                "size": stat_info.st_size,
+                                "modified": datetime.fromtimestamp(
+                                    stat_info.st_mtime, UTC
+                                ).isoformat(),
+                                "entries": len(content) if isinstance(content, (list, dict)) else 0,
+                                "readable": True,
+                            }
+                        )
                     else:
-                        config_files.append({
+                        config_files.append(
+                            {
+                                "name": name,
+                                "path": str(path),
+                                "size": 0,
+                                "modified": None,
+                                "entries": 0,
+                                "readable": False,
+                                "status": "missing",
+                            }
+                        )
+                except Exception as e:
+                    config_files.append(
+                        {
                             "name": name,
                             "path": str(path),
                             "size": 0,
                             "modified": None,
                             "entries": 0,
                             "readable": False,
-                            "status": "missing"
-                        })
-                except Exception as e:
-                    config_files.append({
-                        "name": name,
-                        "path": str(path),
-                        "size": 0,
-                        "modified": None,
-                        "entries": 0,
-                        "readable": False,
-                        "error": str(e)
-                    })
-            
+                            "error": str(e),
+                        }
+                    )
+
             return {
                 "files": config_files,
                 "data_dir": str(self.paths.data_dir),
-                "total_files": len(config_files)
+                "total_files": len(config_files),
             }
 
         @app.get("/api/mcp/status")
         async def mcp_status() -> Dict[str, Any]:
             tools_defs = self._tools_list()["result"]["tools"]
             tool_names = [t["name"] for t in tools_defs]
-            
+
             # Use enhanced backend manager if available
             backend_count = 0
             bm = getattr(self, "backend_manager", None)
@@ -1679,10 +1832,10 @@ class ConsolidatedMCPDashboard:
             else:
                 backends = _read_json(self.paths.backends_file, default={})
                 backend_count = len(backends.keys()) if isinstance(backends, dict) else 0
-            
+
             buckets = _read_json(self.paths.buckets_file, default=[])
             pins = _read_json(self.paths.pins_file, default=[])
-            
+
             # Get comprehensive service count
             services_active = 0
             try:
@@ -1735,31 +1888,30 @@ class ConsolidatedMCPDashboard:
                             yield f"data: {data}\n\n"
                         last = len(logs)
                     await anyio.sleep(0.5)
+
             return StreamingResponse(event_gen(), media_type="text/event-stream")
 
         # Logs API endpoint for dashboard
         @app.get("/api/logs")
-        async def api_logs(component: str = "all", level: str = "all", limit: int = 100) -> Dict[str, Any]:
+        async def api_logs(
+            component: str = "all", level: str = "all", limit: int = 100
+        ) -> Dict[str, Any]:
             """Get logs with filtering options."""
             logs = self.memlog.get(limit=limit)
-            
+
             # Filter by component if specified
             if component != "all":
                 logs = [log for log in logs if component.lower() in log.get("logger", "").lower()]
-            
+
             # Filter by level if specified
             if level != "all":
                 level_filter = level.upper()
                 logs = [log for log in logs if log.get("level", "").upper() == level_filter]
-            
+
             return {
                 "logs": logs,
                 "total": len(logs),
-                "filters": {
-                    "component": component,
-                    "level": level,
-                    "limit": limit
-                }
+                "filters": {"component": component, "level": level, "limit": limit},
             }
 
         # WebSocket realtime
@@ -1774,17 +1926,30 @@ class ConsolidatedMCPDashboard:
                 for ep, remove_in in self.DEPRECATED_ENDPOINTS.items():
                     migration = None
                     if ep == "/api/system/overview":
-                        migration = {"health": "/api/system/health", "status": "/api/mcp/status", "metrics": "/api/metrics/system"}
-                    deps.append({"endpoint": ep, "remove_in": remove_in, "migration": migration, "hits": self.endpoint_hits.get(ep, 0)})
-                await ws.send_json({"type": "system_update", "data": status_payload, "deprecations": deps})
+                        migration = {
+                            "health": "/api/system/health",
+                            "status": "/api/mcp/status",
+                            "metrics": "/api/metrics/system",
+                        }
+                    deps.append(
+                        {
+                            "endpoint": ep,
+                            "remove_in": remove_in,
+                            "migration": migration,
+                            "hits": self.endpoint_hits.get(ep, 0),
+                        }
+                    )
+                await ws.send_json(
+                    {"type": "system_update", "data": status_payload, "deprecations": deps}
+                )
                 with suppress(Exception):
                     snap = self._gather_metrics_snapshot()
-                    snap['type'] = 'metrics'
-                    for k in ('cpu','mem','disk','rx_bps','tx_bps'):
+                    snap["type"] = "metrics"
+                    for k in ("cpu", "mem", "disk", "rx_bps", "tx_bps"):
                         v = snap.get(k)
-                        if isinstance(v,(int,float)):
-                            snap[f'avg_{k if k not in ("rx_bps","tx_bps") else k}'] = v
-                    for name in ('avg_cpu','avg_mem','avg_disk','avg_rx_bps','avg_tx_bps'):
+                        if isinstance(v, (int, float)):
+                            snap[f"avg_{k if k not in ('rx_bps', 'tx_bps') else k}"] = v
+                    for name in ("avg_cpu", "avg_mem", "avg_disk", "avg_rx_bps", "avg_tx_bps"):
                         snap.setdefault(name, None)
                     await ws.send_json(snap)
                 await anyio.sleep(0)
@@ -1802,6 +1967,7 @@ class ConsolidatedMCPDashboard:
         # Initialize enhanced backend manager
         try:
             from ipfs_kit_py.enhanced_backend_manager import EnhancedBackendManager
+
             self.backend_manager = EnhancedBackendManager(str(self.paths.data_dir))
             self.log.info("✓ Enhanced backend manager initialized")
         except ImportError:
@@ -1825,15 +1991,17 @@ class ConsolidatedMCPDashboard:
             return await list_backends()
 
         @app.post("/api/state/backends")
-        async def create_backend(payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+        async def create_backend(
+            payload: Dict[str, Any], _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
             name = payload.get("name")
             backend_type = payload.get("type", "local")
             config = payload.get("config", {})
             tier = payload.get("tier", "standard")
-            
+
             if not name:
                 raise HTTPException(400, "Missing backend name")
-                
+
             if bm := getattr(self, "backend_manager", None):
                 # Use enhanced manager
                 try:
@@ -1843,23 +2011,25 @@ class ConsolidatedMCPDashboard:
                         "description": f"{backend_type.title()} storage backend",
                         "config": config,
                         "status": "enabled",
-                        "tier": tier
+                        "tier": tier,
                     }
 
                     config_path = bm._get_backend_config_path(name)  # type: ignore[attr-defined]
                     if config_path.exists():
                         raise HTTPException(409, "Backend already exists")
 
-                    with open(config_path, 'w') as f:
+                    with open(config_path, "w") as f:
                         yaml.safe_dump(backend_config, f)  # type: ignore[attr-defined]
 
                     # Create default policy (use enhanced manager instance consistently)
                     policy_set = bm._generate_policy_for_backend(name, backend_type, tier)  # type: ignore[attr-defined]
                     policy_path = bm._get_policy_config_path(name)  # type: ignore[attr-defined]
-                    policy_payload: Any = policy_set.model_dump() if hasattr(policy_set, "model_dump") else (
-                        policy_set.dict() if hasattr(policy_set, "dict") else policy_set
+                    policy_payload: Any = (
+                        policy_set.model_dump()
+                        if hasattr(policy_set, "model_dump")
+                        else (policy_set.dict() if hasattr(policy_set, "dict") else policy_set)
                     )
-                    with open(policy_path, 'w') as f:
+                    with open(policy_path, "w") as f:
                         json.dump(policy_payload, f, indent=2)
 
                     return {"ok": True, "name": name, "type": backend_type, "tier": tier}
@@ -1880,11 +2050,11 @@ class ConsolidatedMCPDashboard:
                 backend = bm.get_backend_with_policies(name)  # type: ignore[attr-defined]
                 if not backend:
                     raise HTTPException(404, "Backend not found")
-                
+
                 # Add current stats
                 stats = bm.get_backend_stats(name)  # type: ignore[attr-defined]
                 backend["stats"] = stats
-                
+
                 return backend
             else:
                 # Fallback to original implementation
@@ -1894,20 +2064,24 @@ class ConsolidatedMCPDashboard:
                 return {"name": name, "config": data[name]}
 
         @app.post("/api/state/backends/{name}")
-        async def update_backend(name: str, payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+        async def update_backend(
+            name: str, payload: Dict[str, Any], _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
             if bm := getattr(self, "backend_manager", None):
                 backend = bm.get_backend_with_policies(name)  # type: ignore[attr-defined]
                 if not backend:
                     raise HTTPException(404, "Backend not found")
-                    
+
                 # Update backend config
                 config_path = bm._get_backend_config_path(name)  # type: ignore[attr-defined]
-                with open(config_path, 'r') as f:
+                with open(config_path, "r") as f:
                     current_config = yaml.safe_load(f)  # type: ignore[attr-defined]
-                    
+
                 # Apply updates
                 if "config" in payload:
-                    if "config" not in current_config or not isinstance(current_config.get("config"), dict):
+                    if "config" not in current_config or not isinstance(
+                        current_config.get("config"), dict
+                    ):
                         current_config["config"] = {}
                     current_config["config"].update(payload["config"])
                 if "tier" in payload:
@@ -1916,14 +2090,14 @@ class ConsolidatedMCPDashboard:
                     current_config["status"] = payload["status"]
                 if "description" in payload:
                     current_config["description"] = payload["description"]
-                    
-                with open(config_path, 'w') as f:
+
+                with open(config_path, "w") as f:
                     yaml.safe_dump(current_config, f)  # type: ignore[attr-defined]
-                    
+
                 # Update policies if provided
                 if "policy" in payload and bm is not None:
                     bm.update_backend_policy(name, payload["policy"])  # type: ignore[attr-defined]
-                    
+
                 return {"ok": True}
             else:
                 # Fallback to original implementation
@@ -1940,10 +2114,10 @@ class ConsolidatedMCPDashboard:
             if bm := getattr(self, "backend_manager", None):
                 config_path = bm._get_backend_config_path(name)  # type: ignore[attr-defined]
                 policy_path = bm._get_policy_config_path(name)  # type: ignore[attr-defined]
-                
+
                 if not config_path.exists():
                     raise HTTPException(404, "Backend not found")
-                    
+
                 try:
                     config_path.unlink()
                     if policy_path.exists():
@@ -1966,14 +2140,14 @@ class ConsolidatedMCPDashboard:
                 backend = bm.get_backend_with_policies(name)  # type: ignore[attr-defined]
                 if not backend:
                     raise HTTPException(404, "Backend not found")
-                    
+
                 backend_type = backend.get("type", "unknown")
                 stats = bm.get_backend_stats(name)  # type: ignore[attr-defined]
-                
+
                 # Simple reachability test based on backend type
                 reachable = True  # Default to true for demo
                 test_result = "ok"
-                
+
                 if backend_type == "ipfs":
                     # Test IPFS connectivity
                     ipfs_bin = _which("ipfs")
@@ -1983,19 +2157,19 @@ class ConsolidatedMCPDashboard:
                     # Could test S3 connectivity here
                     test_result = "s3 endpoint reachable"
                 elif backend_type == "local":
-                    # Test local path accessibility  
+                    # Test local path accessibility
                     path = backend.get("config", {}).get("path")
                     if path:
                         reachable = Path(path).exists()
                         test_result = "path accessible" if reachable else "path not found"
-                
+
                 return {
-                    "name": name, 
-                    "type": backend_type, 
-                    "reachable": reachable, 
+                    "name": name,
+                    "type": backend_type,
+                    "reachable": reachable,
                     "test_result": test_result,
                     "stats": stats,
-                    "availability": stats.get("availability", 1.0)
+                    "availability": stats.get("availability", 1.0),
                 }
             else:
                 # Fallback to original implementation
@@ -2005,7 +2179,7 @@ class ConsolidatedMCPDashboard:
                 ipfs_bin = _which("ipfs")
                 reachable = bool(ipfs_bin)
                 return {"name": name, "type": kind, "reachable": reachable, "ipfs_bin": ipfs_bin}
-                
+
         @app.get("/api/state/backends/{name}/stats")
         async def get_backend_stats(name: str) -> Dict[str, Any]:
             """Get detailed statistics for a specific backend."""
@@ -2017,7 +2191,7 @@ class ConsolidatedMCPDashboard:
                 return {"name": name, "stats": stats}
             else:
                 raise HTTPException(501, "Backend statistics not available")
-                
+
         @app.get("/api/state/backends/{name}/policy")
         async def get_backend_policy(name: str) -> Dict[str, Any]:
             """Get policy configuration for a specific backend."""
@@ -2025,19 +2199,21 @@ class ConsolidatedMCPDashboard:
                 backend = bm.get_backend_with_policies(name)  # type: ignore[attr-defined]
                 if not backend:
                     raise HTTPException(404, "Backend not found")
-                    
+
                 return {"name": name, "policy": backend.get("policy", {})}
             else:
                 raise HTTPException(501, "Backend policies not available")
-                
+
         @app.post("/api/state/backends/{name}/policy")
-        async def update_backend_policy(name: str, payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+        async def update_backend_policy(
+            name: str, payload: Dict[str, Any], _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
             """Update policy configuration for a specific backend."""
             if bm := getattr(self, "backend_manager", None):
                 backend = bm.get_backend_with_policies(name)  # type: ignore[attr-defined]
                 if not backend:
                     raise HTTPException(404, "Backend not found")
-                    
+
                 policy_updates = payload.get("policy", {})
                 if bm.update_backend_policy(name, policy_updates):  # type: ignore[attr-defined]
                     return {"ok": True, "message": "Policy updated successfully"}
@@ -2066,49 +2242,60 @@ class ConsolidatedMCPDashboard:
                             "port": service.get("port"),
                             "actions": service.get("actions", []),
                             "last_check": service.get("last_check"),
-                            "details": service.get("details", {})
+                            "details": service.get("details", {}),
                         }
                     return {"services": services}
                 else:
                     # Fallback to basic service detection if service manager fails
                     services = {}
-                    
+
                     # IPFS daemon detection
                     ipfs_detected = _which("ipfs") is not None
                     ipfs_api_open = _port_open("127.0.0.1", 5001)
                     services["ipfs"] = {
                         "name": "IPFS Daemon",
                         "type": "daemon",
-                        "status": "running" if (ipfs_detected and ipfs_api_open) else ("stopped" if ipfs_detected else "missing"),
+                        "status": "running"
+                        if (ipfs_detected and ipfs_api_open)
+                        else ("stopped" if ipfs_detected else "missing"),
                         "description": "InterPlanetary File System daemon",
                         "bin": _which("ipfs"),
                         "api_port_open": ipfs_api_open,
-                        "actions": ["start", "stop", "restart"] if ipfs_detected else []
+                        "actions": ["start", "stop", "restart"] if ipfs_detected else [],
                     }
-                    
+
                     # Check for other common daemons
                     daemon_checks = [
                         ("lotus", "Lotus Client", "Filecoin Lotus client", 1234),
                         ("aria2c", "Aria2 Daemon", "High-speed download daemon", 6800),
-                        ("ipfs-cluster-service", "IPFS Cluster", "IPFS Cluster coordination service", 9094)
+                        (
+                            "ipfs-cluster-service",
+                            "IPFS Cluster",
+                            "IPFS Cluster coordination service",
+                            9094,
+                        ),
                     ]
-                    
+
                     for binary_name, service_name, description, port in daemon_checks:
                         binary_path = _which(binary_name)
                         if binary_path:
-                            service_id = binary_name.replace('-', '_').replace('c', '') if binary_name == 'aria2c' else binary_name.replace('-', '_')
+                            service_id = (
+                                binary_name.replace("-", "_").replace("c", "")
+                                if binary_name == "aria2c"
+                                else binary_name.replace("-", "_")
+                            )
                             port_open = _port_open("127.0.0.1", port)
                             services[service_id] = {
                                 "name": service_name,
-                                "type": "daemon", 
+                                "type": "daemon",
                                 "status": "running" if port_open else "stopped",
                                 "description": description,
                                 "bin": binary_path,
                                 "port": port,
                                 "api_port_open": port_open,
-                                "actions": ["start", "stop", "restart"]
+                                "actions": ["start", "stop", "restart"],
                             }
-                    
+
                     return {"services": services}
             except Exception as e:
                 self.log.error(f"Error listing services: {e}")
@@ -2116,11 +2303,11 @@ class ConsolidatedMCPDashboard:
                 return {
                     "services": {
                         "ipfs": {
-                            "name": "IPFS Daemon", 
+                            "name": "IPFS Daemon",
                             "type": "daemon",
                             "status": "unknown",
                             "description": "InterPlanetary File System daemon",
-                            "actions": ["start", "stop"]
+                            "actions": ["start", "stop"],
                         }
                     }
                 }
@@ -2133,10 +2320,10 @@ class ConsolidatedMCPDashboard:
                 _auth_dep(request)
             except HTTPException:
                 raise
-            
+
             if action not in ("start", "stop", "restart", "enable", "disable", "health_check"):
                 raise HTTPException(status_code=400, detail="Invalid action")
-            
+
             try:
                 service_manager = self._get_service_manager()
                 if service_manager:
@@ -2149,7 +2336,7 @@ class ConsolidatedMCPDashboard:
                             "service": name,
                             "action": action,
                             "status": result.get("status", "unknown"),
-                            "message": f"Service {name} {action} completed successfully"
+                            "message": f"Service {name} {action} completed successfully",
                         }
                     else:
                         return {
@@ -2157,29 +2344,29 @@ class ConsolidatedMCPDashboard:
                             "success": False,
                             "service": name,
                             "action": action,
-                            "error": result.get("error", f"Failed to {action} service {name}")
+                            "error": result.get("error", f"Failed to {action} service {name}"),
                         }
                 else:
                     # Fallback: basic daemon control for detected services
                     supported_services = ["ipfs", "lotus", "aria2", "ipfs_cluster"]
                     if name not in supported_services:
                         raise HTTPException(status_code=400, detail="Service not available")
-                    
+
                     # Simulate service state change for basic implementation
                     success = False
                     status = "unknown"
-                    
+
                     try:
                         # Map service names to their binary names and processes
                         service_binaries = {
                             "ipfs": ("ipfs", "ipfs daemon"),
                             "lotus": ("lotus", "lotus daemon"),
                             "aria2": ("aria2c", "aria2c"),
-                            "ipfs_cluster": ("ipfs-cluster-service", "ipfs-cluster-service")
+                            "ipfs_cluster": ("ipfs-cluster-service", "ipfs-cluster-service"),
                         }
-                        
+
                         binary_name, process_name = service_binaries.get(name, (name, name))
-                        
+
                         if action == "start":
                             status = "starting"
                             # Note: In production, this would actually start the daemon
@@ -2204,25 +2391,25 @@ class ConsolidatedMCPDashboard:
                             else:
                                 success = False
                                 status = "missing"
-                        
+
                         return {
                             "ok": success,
                             "success": success,
                             "service": name,
                             "action": action,
                             "status": status,
-                            "message": f"Service {name} {action} {'completed' if success else 'failed'}"
+                            "message": f"Service {name} {action} {'completed' if success else 'failed'}",
                         }
-                            
+
                     except Exception as e:
                         return {
                             "ok": False,
                             "success": False,
                             "service": name,
                             "action": action,
-                            "error": f"Error during {action}: {str(e)}"
+                            "error": f"Error during {action}: {str(e)}",
                         }
-                        
+
             except Exception as e:
                 self.log.error(f"Error performing service action {action} on {name}: {e}")
                 return {
@@ -2230,7 +2417,7 @@ class ConsolidatedMCPDashboard:
                     "success": False,
                     "service": name,
                     "action": action,
-                    "error": str(e)
+                    "error": str(e),
                 }
 
         @app.post("/api/services/{name}/configure")
@@ -2240,41 +2427,41 @@ class ConsolidatedMCPDashboard:
                 _auth_dep(request)
             except HTTPException:
                 raise
-            
+
             try:
                 data = await request.json()
                 config = data.get("config", {})
-                
+
                 # Enhanced configuration with multi-instance support
                 enhanced_config = {
                     "basic": {
                         "instance_name": config.get("instance_name", name),
                         "service_type": config.get("service_type", name),
                         "description": config.get("description", f"Instance of {name}"),
-                        "enabled": config.get("enabled", True)
+                        "enabled": config.get("enabled", True),
                     },
                     "cache": {
                         "cache_policy": config.get("cache_policy", "none"),
                         "cache_size_mb": int(config.get("cache_size_mb", 1024)),
-                        "cache_ttl_seconds": int(config.get("cache_ttl_seconds", 3600))
+                        "cache_ttl_seconds": int(config.get("cache_ttl_seconds", 3600)),
                     },
                     "storage": {
                         "storage_quota_gb": float(config.get("storage_quota_gb", 100)),
                         "max_files": int(config.get("max_files", 10000)),
-                        "max_file_size_mb": int(config.get("max_file_size_mb", 500))
+                        "max_file_size_mb": int(config.get("max_file_size_mb", 500)),
                     },
                     "retention": {
                         "retention_days": int(config.get("retention_days", 365)),
                         "auto_cleanup": config.get("auto_cleanup", False),
-                        "versioning": config.get("versioning", False)
+                        "versioning": config.get("versioning", False),
                     },
                     "replication": {
                         "replication_factor": int(config.get("replication_factor", 3)),
-                        "sync_strategy": config.get("sync_strategy", "immediate")
+                        "sync_strategy": config.get("sync_strategy", "immediate"),
                     },
-                    "service_specific": config.get("service_specific", {})
+                    "service_specific": config.get("service_specific", {}),
                 }
-                
+
                 service_manager = self._get_service_manager()
                 if service_manager:
                     # Use comprehensive service manager for service configuration
@@ -2285,30 +2472,42 @@ class ConsolidatedMCPDashboard:
                             "service": name,
                             "message": f"Service {name} configured successfully with enhanced settings",
                             "config_saved": True,
-                            "config": enhanced_config
+                            "config": enhanced_config,
                         }
                     else:
                         return {
                             "success": False,
                             "service": name,
-                            "error": result.get("error", f"Failed to configure service {name}")
+                            "error": result.get("error", f"Failed to configure service {name}"),
                         }
                 else:
                     # Enhanced fallback with backend configuration support
                     config_dir = self.paths.data_dir / "service_configs"
                     config_dir.mkdir(exist_ok=True)
-                    
+
                     # Save instance-specific configuration
                     instance_name = enhanced_config["basic"]["instance_name"]
                     config_file = config_dir / f"{instance_name}_config.json"
-                    
-                    with open(config_file, 'w') as f:
+
+                    with open(config_file, "w") as f:
                         json.dump(enhanced_config, f, indent=2)
-                    
+
                     # Update backends configuration for storage services
-                    if enhanced_config["basic"]["service_type"] in ["s3", "github", "ipfs_cluster", "huggingface", "gdrive", "ftp", "sshfs", "apache_arrow", "parquet"]:
-                        backends = _normalize_backends(_read_json(self.paths.backends_file, default=[]))
-                        
+                    if enhanced_config["basic"]["service_type"] in [
+                        "s3",
+                        "github",
+                        "ipfs_cluster",
+                        "huggingface",
+                        "gdrive",
+                        "ftp",
+                        "sshfs",
+                        "apache_arrow",
+                        "parquet",
+                    ]:
+                        backends = _normalize_backends(
+                            _read_json(self.paths.backends_file, default=[])
+                        )
+
                         # Update or create backend entry
                         backend_found = False
                         for i, backend in enumerate(backends):
@@ -2320,51 +2519,57 @@ class ConsolidatedMCPDashboard:
                                     "description": enhanced_config["basic"]["description"],
                                     "config": enhanced_config,
                                     "policy": {
-                                        "replication_factor": enhanced_config["replication"]["replication_factor"],
+                                        "replication_factor": enhanced_config["replication"][
+                                            "replication_factor"
+                                        ],
                                         "cache_policy": enhanced_config["cache"]["cache_policy"],
-                                        "retention_days": enhanced_config["retention"]["retention_days"]
+                                        "retention_days": enhanced_config["retention"][
+                                            "retention_days"
+                                        ],
                                     },
                                     "enabled": enhanced_config["basic"]["enabled"],
-                                    "last_updated": datetime.now(UTC).isoformat()
+                                    "last_updated": datetime.now(UTC).isoformat(),
                                 }
                                 backend_found = True
                                 break
-                        
+
                         if not backend_found:
-                            backends.append({
-                                "name": instance_name,
-                                "type": enhanced_config["basic"]["service_type"],
-                                "tier": "standard", 
-                                "description": enhanced_config["basic"]["description"],
-                                "config": enhanced_config,
-                                "policy": {
-                                    "replication_factor": enhanced_config["replication"]["replication_factor"],
-                                    "cache_policy": enhanced_config["cache"]["cache_policy"],
-                                    "retention_days": enhanced_config["retention"]["retention_days"]
-                                },
-                                "enabled": enhanced_config["basic"]["enabled"],
-                                "created_at": datetime.now(UTC).isoformat(),
-                                "last_updated": datetime.now(UTC).isoformat()
-                            })
-                        
+                            backends.append(
+                                {
+                                    "name": instance_name,
+                                    "type": enhanced_config["basic"]["service_type"],
+                                    "tier": "standard",
+                                    "description": enhanced_config["basic"]["description"],
+                                    "config": enhanced_config,
+                                    "policy": {
+                                        "replication_factor": enhanced_config["replication"][
+                                            "replication_factor"
+                                        ],
+                                        "cache_policy": enhanced_config["cache"]["cache_policy"],
+                                        "retention_days": enhanced_config["retention"][
+                                            "retention_days"
+                                        ],
+                                    },
+                                    "enabled": enhanced_config["basic"]["enabled"],
+                                    "created_at": datetime.now(UTC).isoformat(),
+                                    "last_updated": datetime.now(UTC).isoformat(),
+                                }
+                            )
+
                         _atomic_write_json(self.paths.backends_file, backends)
-                    
+
                     return {
                         "success": True,
                         "service": name,
                         "instance_name": instance_name,
                         "message": f"Service {instance_name} configured successfully with enhanced backend settings",
                         "config_saved": True,
-                        "config": enhanced_config
+                        "config": enhanced_config,
                     }
-                    
+
             except Exception as e:
                 self.log.error(f"Error configuring service {name}: {e}")
-                return {
-                    "success": False,
-                    "service": name,
-                    "error": str(e)
-                }
+                return {"success": False, "service": name, "error": str(e)}
 
         @app.post("/api/services/instances")
         async def create_service_instance(request: Request) -> Dict[str, Any]:
@@ -2373,97 +2578,99 @@ class ConsolidatedMCPDashboard:
                 _auth_dep(request)
             except HTTPException:
                 raise
-            
+
             try:
                 data = await request.json()
                 service_type = data.get("service_type")
                 instance_name = data.get("instance_name")
-                
+
                 if not service_type or not instance_name:
-                    return {
-                        "success": False,
-                        "error": "Missing service_type or instance_name"
-                    }
-                
+                    return {"success": False, "error": "Missing service_type or instance_name"}
+
                 # Check if instance already exists
                 config_dir = self.paths.data_dir / "service_configs"
                 config_file = config_dir / f"{instance_name}_config.json"
-                
+
                 if config_file.exists():
-                    return {
-                        "success": False,
-                        "error": f"Instance '{instance_name}' already exists"
-                    }
-                
+                    return {"success": False, "error": f"Instance '{instance_name}' already exists"}
+
                 # Create new instance configuration
                 new_config = {
                     "basic": {
                         "instance_name": instance_name,
                         "service_type": service_type,
                         "description": data.get("description", f"Instance of {service_type}"),
-                        "enabled": True
+                        "enabled": True,
                     },
                     "cache": {
                         "cache_policy": "none",
                         "cache_size_mb": 1024,
-                        "cache_ttl_seconds": 3600
+                        "cache_ttl_seconds": 3600,
                     },
                     "storage": {
                         "storage_quota_gb": 100.0,
                         "max_files": 10000,
-                        "max_file_size_mb": 500
+                        "max_file_size_mb": 500,
                     },
                     "retention": {
                         "retention_days": 365,
                         "auto_cleanup": False,
-                        "versioning": False
+                        "versioning": False,
                     },
-                    "replication": {
-                        "replication_factor": 3,
-                        "sync_strategy": "immediate"
-                    },
-                    "service_specific": {}
+                    "replication": {"replication_factor": 3, "sync_strategy": "immediate"},
+                    "service_specific": {},
                 }
-                
+
                 # Save configuration
                 config_dir.mkdir(exist_ok=True)
-                with open(config_file, 'w') as f:
+                with open(config_file, "w") as f:
                     json.dump(new_config, f, indent=2)
-                
+
                 # Add to backends if it's a storage service
-                if service_type in ["s3", "github", "ipfs_cluster", "huggingface", "gdrive", "ftp", "sshfs", "apache_arrow", "parquet"]:
+                if service_type in [
+                    "s3",
+                    "github",
+                    "ipfs_cluster",
+                    "huggingface",
+                    "gdrive",
+                    "ftp",
+                    "sshfs",
+                    "apache_arrow",
+                    "parquet",
+                ]:
                     backends = _normalize_backends(_read_json(self.paths.backends_file, default=[]))
-                    backends.append({
-                        "name": instance_name,
-                        "type": service_type,
-                        "tier": "standard",
-                        "description": new_config["basic"]["description"],
-                        "config": new_config,
-                        "policy": {
-                            "replication_factor": new_config["replication"]["replication_factor"],
-                            "cache_policy": new_config["cache"]["cache_policy"],
-                            "retention_days": new_config["retention"]["retention_days"]
-                        },
-                        "enabled": True,
-                        "created_at": datetime.now(UTC).isoformat(),
-                        "last_updated": datetime.now(UTC).isoformat()
-                    })
+                    backends.append(
+                        {
+                            "name": instance_name,
+                            "type": service_type,
+                            "tier": "standard",
+                            "description": new_config["basic"]["description"],
+                            "config": new_config,
+                            "policy": {
+                                "replication_factor": new_config["replication"][
+                                    "replication_factor"
+                                ],
+                                "cache_policy": new_config["cache"]["cache_policy"],
+                                "retention_days": new_config["retention"]["retention_days"],
+                            },
+                            "enabled": True,
+                            "created_at": datetime.now(UTC).isoformat(),
+                            "last_updated": datetime.now(UTC).isoformat(),
+                        }
+                    )
                     _atomic_write_json(self.paths.backends_file, backends)
-                
+
                 return {
                     "success": True,
                     "instance_name": instance_name,
                     "service_type": service_type,
                     "message": f"Service instance '{instance_name}' created successfully",
-                    "config": new_config
+                    "config": new_config,
                 }
-                
+
             except Exception as e:
                 self.log.error(f"Error creating service instance: {e}")
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                return {"success": False, "error": str(e)}
 
         # Buckets
         @app.get("/api/state/buckets")
@@ -2477,7 +2684,9 @@ class ConsolidatedMCPDashboard:
             return await list_buckets()
 
         @app.post("/api/state/buckets")
-        async def create_bucket(payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+        async def create_bucket(
+            payload: Dict[str, Any], _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
             name = payload.get("name")
             backend = payload.get("backend")
             if not name:
@@ -2485,7 +2694,12 @@ class ConsolidatedMCPDashboard:
             items = _normalize_buckets(_read_json(self.paths.buckets_file, default=[]))
             if any(b.get("name") == name for b in items):
                 raise HTTPException(409, "Bucket exists")
-            entry = {"name": name, "backend": backend, "created_at": datetime.now(UTC).isoformat(), "policy": {"replication_factor": 1, "cache_policy": "none", "retention_days": 0}}
+            entry = {
+                "name": name,
+                "backend": backend,
+                "created_at": datetime.now(UTC).isoformat(),
+                "policy": {"replication_factor": 1, "cache_policy": "none", "retention_days": 0},
+            }
             items.append(entry)
             _atomic_write_json(self.paths.buckets_file, items)
             if yaml is not None:
@@ -2504,12 +2718,26 @@ class ConsolidatedMCPDashboard:
             raise HTTPException(404, "Not found")
 
         @app.post("/api/state/buckets/{name}/policy")
-        async def update_bucket_policy(name: str, payload: Dict[str, Any], _auth=Depends(_auth_dep)) -> Dict[str, Any]:
+        async def update_bucket_policy(
+            name: str, payload: Dict[str, Any], _auth=Depends(_auth_dep)
+        ) -> Dict[str, Any]:
             # Accept either flat keys or nested { policy: { ... } }
             pol_in = payload.get("policy") if isinstance(payload.get("policy"), dict) else None
-            rf = payload.get("replication_factor") if payload.get("replication_factor") is not None else (pol_in or {}).get("replication_factor")
-            cp = payload.get("cache_policy") if payload.get("cache_policy") is not None else (pol_in or {}).get("cache_policy")
-            rd = payload.get("retention_days") if payload.get("retention_days") is not None else (pol_in or {}).get("retention_days")
+            rf = (
+                payload.get("replication_factor")
+                if payload.get("replication_factor") is not None
+                else (pol_in or {}).get("replication_factor")
+            )
+            cp = (
+                payload.get("cache_policy")
+                if payload.get("cache_policy") is not None
+                else (pol_in or {}).get("cache_policy")
+            )
+            rd = (
+                payload.get("retention_days")
+                if payload.get("retention_days") is not None
+                else (pol_in or {}).get("retention_days")
+            )
             if rf is not None:
                 try:
                     rf = int(rf)

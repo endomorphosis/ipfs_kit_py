@@ -11,7 +11,11 @@ DOCS_DASHBOARD_DIR = DOCS_DIR / "dashboard"
 ARCHIVE_TMP_DIR = ROOT / "archive" / "tmp_root"
 ARCHIVE_MISC_DIR = ROOT / "archive" / "root_misc"
 
-MD_TO_DASHBOARD = re.compile(r"^(ENHANCED_|DASHBOARD_|MCP_START_|DASHBOARD_JS_FIX|DASHBOARD_STANDALONE|DASHBOARD_FEATURE|DASHBOARD_IMPLEMENTATION|ENHANCED_MCP)", re.I)
+MD_TO_DASHBOARD = re.compile(
+    r"^(ENHANCED_|DASHBOARD_|MCP_START_|DASHBOARD_JS_FIX|DASHBOARD_STANDALONE|DASHBOARD_FEATURE|DASHBOARD_IMPLEMENTATION|ENHANCED_MCP)",
+    re.I,
+)
+
 
 def plan_moves():
     moves = []
@@ -30,20 +34,22 @@ def plan_moves():
             moves.append((f, ARCHIVE_TMP_DIR / f.name))
 
     # 3) Stray JS/python helpers in root (archive them)
-    for f in [ROOT / "app_generated.js",
-              ROOT / "analyze_root_organization.py"]:
+    for f in [ROOT / "app_generated.js", ROOT / "analyze_root_organization.py"]:
         if f.exists():
             moves.append((f, ARCHIVE_MISC_DIR / f.name))
 
     return moves
 
+
 def ensure_dirs(paths):
     for p in paths:
         p.mkdir(parents=True, exist_ok=True)
 
+
 def do_move(src, dst):
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(src), str(dst))
+
 
 def main():
     parser = argparse.ArgumentParser(description="Reorganize loose root files safely.")
@@ -71,6 +77,7 @@ def main():
 
     print("\nReorganization complete.")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

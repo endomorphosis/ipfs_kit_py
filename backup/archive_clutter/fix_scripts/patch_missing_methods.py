@@ -15,7 +15,8 @@ from typing import Any, Dict, Optional, Union, List, Callable, TypeVar, Type
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 def patch_class(cls: Type[T], method_name: str, method: Callable) -> bool:
     """
@@ -41,6 +42,7 @@ def patch_class(cls: Type[T], method_name: str, method: Callable) -> bool:
         logger.error(f"Failed to patch method {method_name} on {cls.__name__}: {e}")
         return False
 
+
 def safe_import(module_path, fallback=None):
     """
     Safely import a module, returning a fallback value if the import fails.
@@ -57,6 +59,7 @@ def safe_import(module_path, fallback=None):
     except (ImportError, ModuleNotFoundError) as e:
         logger.warning(f"Failed to import {module_path}: {e}")
         return fallback
+
 
 def mock_module(name):
     """
@@ -76,14 +79,15 @@ def mock_module(name):
     sys.modules[name] = module
 
     # If it's a submodule, make sure parent modules exist too
-    parts = name.split('.')
+    parts = name.split(".")
     if len(parts) > 1:
-        parent_name = '.'.join(parts[:-1])
+        parent_name = ".".join(parts[:-1])
         parent = mock_module(parent_name)
         setattr(parent, parts[-1], module)
 
     logger.info(f"Created mock module: {name}")
     return module
+
 
 def patch_ipfs_kit():
     """
@@ -94,7 +98,7 @@ def patch_ipfs_kit():
 
         def init_with_auto_start(self, *args, **kwargs):
             # Extract auto_start_daemons from kwargs and handle it if needed
-            auto_start_daemons = kwargs.pop('auto_start_daemons', None)
+            auto_start_daemons = kwargs.pop("auto_start_daemons", None)
 
             # Call original init
             original_init = self.__class__.__original_init__
@@ -108,7 +112,7 @@ def patch_ipfs_kit():
                 self.start_daemons()
 
         # Save original init
-        if not hasattr(IPFSKit, '__original_init__'):
+        if not hasattr(IPFSKit, "__original_init__"):
             IPFSKit.__original_init__ = IPFSKit.__init__
 
             # Replace init with our version that handles auto_start_daemons
@@ -116,17 +120,20 @@ def patch_ipfs_kit():
             logger.info("Patched IPFSKit.__init__ to handle auto_start_daemons")
 
         # Add daemon_start method if missing
-        if not hasattr(IPFSKit, 'daemon_start'):
+        if not hasattr(IPFSKit, "daemon_start"):
+
             def daemon_start(self, daemon_name=None):
                 """Start a daemon by name or all daemons if daemon_name is None."""
-                logger.info(f"Patched daemon_start called for {daemon_name if daemon_name else 'all daemons'}")
+                logger.info(
+                    f"Patched daemon_start called for {daemon_name if daemon_name else 'all daemons'}"
+                )
 
-                if hasattr(self, 'start_daemons'):
+                if hasattr(self, "start_daemons"):
                     if daemon_name is None:
                         return self.start_daemons()
                     else:
-                        if hasattr(self, f'start_{daemon_name}'):
-                            method = getattr(self, f'start_{daemon_name}')
+                        if hasattr(self, f"start_{daemon_name}"):
+                            method = getattr(self, f"start_{daemon_name}")
                             return method()
 
                 return True
@@ -135,17 +142,20 @@ def patch_ipfs_kit():
             logger.info("Patched IPFSKit.daemon_start method")
 
         # Add daemon_stop method if missing
-        if not hasattr(IPFSKit, 'daemon_stop'):
+        if not hasattr(IPFSKit, "daemon_stop"):
+
             def daemon_stop(self, daemon_name=None):
                 """Stop a daemon by name or all daemons if daemon_name is None."""
-                logger.info(f"Patched daemon_stop called for {daemon_name if daemon_name else 'all daemons'}")
+                logger.info(
+                    f"Patched daemon_stop called for {daemon_name if daemon_name else 'all daemons'}"
+                )
 
-                if hasattr(self, 'stop_daemons'):
+                if hasattr(self, "stop_daemons"):
                     if daemon_name is None:
                         return self.stop_daemons()
                     else:
-                        if hasattr(self, f'stop_{daemon_name}'):
-                            method = getattr(self, f'stop_{daemon_name}')
+                        if hasattr(self, f"stop_{daemon_name}"):
+                            method = getattr(self, f"stop_{daemon_name}")
                             return method()
 
                 return True
@@ -154,7 +164,8 @@ def patch_ipfs_kit():
             logger.info("Patched IPFSKit.daemon_stop method")
 
         # Add start_daemons if missing
-        if not hasattr(IPFSKit, 'start_daemons'):
+        if not hasattr(IPFSKit, "start_daemons"):
+
             def start_daemons(self):
                 """Start all required daemons."""
                 logger.info("Patched start_daemons called")
@@ -164,7 +175,8 @@ def patch_ipfs_kit():
             logger.info("Patched IPFSKit.start_daemons method")
 
         # Add stop_daemons if missing
-        if not hasattr(IPFSKit, 'stop_daemons'):
+        if not hasattr(IPFSKit, "stop_daemons"):
+
             def stop_daemons(self):
                 """Stop all running daemons."""
                 logger.info("Patched stop_daemons called")
@@ -174,7 +186,8 @@ def patch_ipfs_kit():
             logger.info("Patched IPFSKit.stop_daemons method")
 
         # Add initialize method if missing
-        if not hasattr(IPFSKit, 'initialize'):
+        if not hasattr(IPFSKit, "initialize"):
+
             def initialize(self, start_daemons=False):
                 """Initialize the IPFS kit."""
                 logger.info(f"Patched initialize called with start_daemons={start_daemons}")
@@ -190,6 +203,7 @@ def patch_ipfs_kit():
         logger.error("Could not import IPFSKit class, skipping patches")
     except Exception as e:
         logger.error(f"Error patching IPFSKit: {e}")
+
 
 def patch_mcp_server():
     """
@@ -209,11 +223,11 @@ def patch_mcp_server():
 
         # Add debug_mode handling to __init__ if not present
         def init_with_debug_mode(self, *args, **kwargs):
-            debug_mode = kwargs.pop('debug_mode', False)
+            debug_mode = kwargs.pop("debug_mode", False)
 
             # Convert debug_mode to loglevel
-            if 'loglevel' not in kwargs:
-                kwargs['loglevel'] = 'debug' if debug_mode else 'info'
+            if "loglevel" not in kwargs:
+                kwargs["loglevel"] = "debug" if debug_mode else "info"
 
             # Call original init
             original_init = self.__class__.__original_init__
@@ -226,7 +240,7 @@ def patch_mcp_server():
                 logger.info(f"MCPServer initialized in debug mode")
 
         # Save original init
-        if not hasattr(MCPServer, '__original_init__'):
+        if not hasattr(MCPServer, "__original_init__"):
             MCPServer.__original_init__ = MCPServer.__init__
 
             # Replace init with our version that handles debug_mode
@@ -236,6 +250,7 @@ def patch_mcp_server():
         logger.info("Successfully patched MCPServer class")
     except Exception as e:
         logger.error(f"Error patching MCPServer: {e}")
+
 
 def patch_filecoin_model():
     """
@@ -254,7 +269,8 @@ def patch_filecoin_model():
                 return
 
         # Add check_connection method if missing
-        if not hasattr(FilecoinModel, 'check_connection'):
+        if not hasattr(FilecoinModel, "check_connection"):
+
             def check_connection(self):
                 """Check connection to the Filecoin API."""
                 logger.info("Patched check_connection called for FilecoinModel")
@@ -267,6 +283,7 @@ def patch_filecoin_model():
         logger.info("Successfully patched FilecoinModel class")
     except Exception as e:
         logger.error(f"Error patching FilecoinModel: {e}")
+
 
 def patch_ipfs_py():
     """
@@ -287,7 +304,11 @@ def patch_ipfs_py():
         def patched_init(self, resources=None, metadata=None, *args, **kwargs):
             """Initialize ipfs_py with default values for resources and metadata."""
             if resources is None:
-                resources = {"max_memory": 1024*1024*100, "max_storage": 1024*1024*1000, "role": "leecher"}
+                resources = {
+                    "max_memory": 1024 * 1024 * 100,
+                    "max_storage": 1024 * 1024 * 1000,
+                    "role": "leecher",
+                }
             if metadata is None:
                 metadata = {"version": "0.1.0", "name": "mock_ipfs_py"}
 
@@ -295,12 +316,13 @@ def patch_ipfs_py():
             original_init(self, resources, metadata, *args, **kwargs)
 
         # Apply patch if not already patched
-        if not hasattr(ipfs_py, '__original_init__'):
+        if not hasattr(ipfs_py, "__original_init__"):
             ipfs_py.__original_init__ = original_init
             ipfs_py.__init__ = patched_init
             logger.info("Successfully patched ipfs_py.__init__")
     except Exception as e:
         logger.error(f"Error patching ipfs_py: {e}")
+
 
 def create_missing_modules():
     """
@@ -328,7 +350,7 @@ def create_missing_modules():
         "ipfs_kit_py.mcp_server.utils.method_normalizer",
         "test_discovery.enhanced_mcp_discovery_test",
         "test_mcp_dht_operations",
-        "test_mcp_block_operations"
+        "test_mcp_block_operations",
     ]
 
     # Create each missing module
@@ -340,8 +362,10 @@ def create_missing_modules():
         # Add MockIPFSFileSystem to tools.test_utils.test_fsspec_simple
         mock = sys.modules.get("tools.test_utils.test_fsspec_simple")
         if mock:
+
             class MockIPFSFileSystem:
                 """Mock IPFS filesystem for testing."""
+
                 def __init__(self, *args, **kwargs):
                     self.args = args
                     self.kwargs = kwargs
@@ -364,8 +388,10 @@ def create_missing_modules():
         # Add specific imports to ipfs_kit_py.mcp_server.utils.method_normalizer
         mock = sys.modules.get("ipfs_kit_py.mcp_server.utils.method_normalizer")
         if mock:
+
             class IPFSMethodAdapter:
                 """Adapter for IPFS methods."""
+
                 pass
 
             def normalize_instance(obj):
@@ -377,17 +403,22 @@ def create_missing_modules():
             mock.IPFSMethodAdapter = IPFSMethodAdapter
             mock.normalize_instance = normalize_instance
             mock.SIMULATION_FUNCTIONS = SIMULATION_FUNCTIONS
-            logger.info("Added required attributes to ipfs_kit_py.mcp_server.utils.method_normalizer")
+            logger.info(
+                "Added required attributes to ipfs_kit_py.mcp_server.utils.method_normalizer"
+            )
 
         # Add required classes to ipfs_dag_operations
         mock = sys.modules.get("ipfs_dag_operations")
         if mock:
+
             class DAGOperations:
                 """Mock DAG operations."""
+
                 pass
 
             class IPLDFormat:
                 """Mock IPLD format."""
+
                 JSON = "json"
                 CBOR = "cbor"
                 RAW = "raw"
@@ -399,12 +430,15 @@ def create_missing_modules():
         # Add required classes to ipfs_dht_operations
         mock = sys.modules.get("ipfs_dht_operations")
         if mock:
+
             class DHTOperations:
                 """Mock DHT operations."""
+
                 pass
 
             class DHTRecord:
                 """Mock DHT record."""
+
                 pass
 
             mock.DHTOperations = DHTOperations
@@ -414,12 +448,15 @@ def create_missing_modules():
         # Add required classes to ipfs_ipns_operations
         mock = sys.modules.get("ipfs_ipns_operations")
         if mock:
+
             class IPNSOperations:
                 """Mock IPNS operations."""
+
                 pass
 
             class IPNSEntry:
                 """Mock IPNS entry."""
+
                 pass
 
             mock.IPNSOperations = IPNSOperations
@@ -429,6 +466,7 @@ def create_missing_modules():
     except Exception as e:
         logger.error(f"Error adding classes to mock modules: {e}")
 
+
 def fix_fastapi_imports():
     """
     Create a mock fastapi module if it doesn't exist.
@@ -437,11 +475,12 @@ def fix_fastapi_imports():
         import fastapi
     except ImportError:
         # Create mock fastapi module
-        fastapi = mock_module('fastapi')
+        fastapi = mock_module("fastapi")
 
         # Add required classes
         class FastAPI:
             """Mock FastAPI class."""
+
             def __init__(self, *args, **kwargs):
                 pass
 
@@ -451,6 +490,7 @@ def fix_fastapi_imports():
 
         class APIRouter:
             """Mock APIRouter class."""
+
             def __init__(self, *args, **kwargs):
                 pass
 
@@ -464,18 +504,23 @@ def fix_fastapi_imports():
 
             def get(self, path, **kwargs):
                 """GET decorator."""
+
                 def decorator(func):
                     return func
+
                 return decorator
 
             def post(self, path, **kwargs):
                 """POST decorator."""
+
                 def decorator(func):
                     return func
+
                 return decorator
 
         class WebSocket:
             """Mock WebSocket class."""
+
             def __init__(self, *args, **kwargs):
                 pass
 
@@ -502,6 +547,7 @@ def fix_fastapi_imports():
 
         logger.info("Created mock fastapi module with required classes")
 
+
 def apply_all_patches():
     """
     Apply all patches to fix missing methods in ipfs_kit_py.
@@ -521,6 +567,7 @@ def apply_all_patches():
     patch_ipfs_py()
 
     logger.info("All patches have been applied")
+
 
 # Apply patches when module is imported
 apply_all_patches()

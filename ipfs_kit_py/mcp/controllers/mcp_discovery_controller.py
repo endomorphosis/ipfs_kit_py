@@ -23,13 +23,14 @@ logger = logging.getLogger(__name__)
 # Define Pydantic models for requests and responses
 class MCPDiscoveryResponse(BaseModel):
     """
-import sys
-import os
-# Add the parent directory to sys.path to allow importing mcp_error_handling
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-import mcp_error_handling
+    import sys
+    import os
+    # Add the parent directory to sys.path to allow importing mcp_error_handling
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+    import mcp_error_handling
 
-Base response model for MCP discovery operations."""
+    Base response model for MCP discovery operations."""
+
     success: bool = Field(..., description="Whether the operation was successful")
     operation_id: Optional[str] = Field(None, description="Unique identifier for this operation")
     timestamp: float = Field(..., description="Operation timestamp")
@@ -37,18 +38,21 @@ Base response model for MCP discovery operations."""
 
 class ServerInfoResponse(MCPDiscoveryResponse):
     """Response model for server info."""
+
     server_info: Dict[str, Any] = Field(..., description="Server information")
     is_local: bool = Field(..., description="Whether this is the local server")
 
 
 class ServerListResponse(MCPDiscoveryResponse):
     """Response model for server list."""
+
     servers: List[Dict[str, Any]] = Field(default=[], description="List of servers")
     server_count: int = Field(0, description="Number of servers")
 
 
 class AnnounceRequest(BaseModel):
     """Request model for announcing a server."""
+
     additional_metadata: Optional[Dict[str, Any]] = Field(
         None, description="Additional metadata to include"
     )
@@ -56,11 +60,13 @@ class AnnounceRequest(BaseModel):
 
 class RegisterServerRequest(BaseModel):
     """Request model for registering a server."""
+
     server_info: Dict[str, Any] = Field(..., description="Server information")
 
 
 class UpdateServerRequest(BaseModel):
     """Request model for updating server properties."""
+
     role: Optional[str] = Field(None, description="Server role")
     features: Optional[List[str]] = Field(None, description="Server features")
     api_endpoint: Optional[str] = Field(None, description="HTTP API endpoint")
@@ -70,6 +76,7 @@ class UpdateServerRequest(BaseModel):
 
 class DiscoverServersRequest(BaseModel):
     """Request model for discovering servers."""
+
     methods: Optional[List[str]] = Field(None, description="Discovery methods to use")
     compatible_only: bool = Field(True, description="Only return compatible servers")
     feature_requirements: Optional[List[str]] = Field(None, description="Required features")
@@ -77,6 +84,7 @@ class DiscoverServersRequest(BaseModel):
 
 class DispatchTaskRequest(BaseModel):
     """Request model for dispatching tasks."""
+
     task_type: str = Field(..., description="Type of task to dispatch")
     task_data: Any = Field(..., description="Data for the task")
     required_features: Optional[List[str]] = Field(
@@ -91,6 +99,7 @@ class MCPDiscoveryController:
 
     Exposes HTTP API endpoints for MCP server discovery and collaboration.
     """
+
     def __init__(self, discovery_model: MCPDiscoveryModel):
         """
         Initialize the MCP discovery controller.
@@ -461,11 +470,11 @@ class MCPDiscoveryController:
         # If server not found, raise 404
         if not server_info["success"]:
             mcp_error_handling.raise_http_exception(
-        code="CONTENT_NOT_FOUND",
-        message_override=f"Server not found: {server_id}",
-        endpoint="/api/v0/mcp_discovery",
-        doc_category="api"
-    )
+                code="CONTENT_NOT_FOUND",
+                message_override=f"Server not found: {server_id}",
+                endpoint="/api/v0/mcp_discovery",
+                doc_category="api",
+            )
 
         # Convert to response format
         return {
@@ -517,11 +526,11 @@ class MCPDiscoveryController:
             and remove_result.get("error") == f"Server not found: {server_id}"
         ):
             mcp_error_handling.raise_http_exception(
-        code="CONTENT_NOT_FOUND",
-        message_override=f"Server not found: {server_id}",
-        endpoint="/api/v0/mcp_discovery",
-        doc_category="api"
-    )
+                code="CONTENT_NOT_FOUND",
+                message_override=f"Server not found: {server_id}",
+                endpoint="/api/v0/mcp_discovery",
+                doc_category="api",
+            )
 
         # Convert to response format
         return {
@@ -571,11 +580,11 @@ class MCPDiscoveryController:
             "Server not found"
         ):
             mcp_error_handling.raise_http_exception(
-        code="CONTENT_NOT_FOUND",
-        message_override=f"Server not found: {server_id}",
-        endpoint="/api/v0/mcp_discovery",
-        doc_category="api"
-    )
+                code="CONTENT_NOT_FOUND",
+                message_override=f"Server not found: {server_id}",
+                endpoint="/api/v0/mcp_discovery",
+                doc_category="api",
+            )
 
         # Convert to response format
         return {
@@ -683,6 +692,7 @@ class MCPDiscoveryController:
                 if HAS_ANYIO:
                     try:
                         import sniffio
+
                         sniffio.current_async_library()
                         await anyio.to_thread.run_sync(self.discovery_model.sync_shutdown)
                     except Exception as e:

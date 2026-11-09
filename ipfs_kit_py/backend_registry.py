@@ -95,7 +95,9 @@ def redact_backend_config(value: Any) -> Any:
 
     def redact(item: Any, key: str | None = None) -> Any:
         if isinstance(item, Mapping):
-            return {str(child_key): redact(child, str(child_key)) for child_key, child in item.items()}
+            return {
+                str(child_key): redact(child, str(child_key)) for child_key, child in item.items()
+            }
         if isinstance(item, list):
             return [redact(child) for child in item]
         if isinstance(item, tuple):

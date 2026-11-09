@@ -19,13 +19,11 @@ from typing import Dict, Any, List, Optional, Tuple
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler("mcp_compatibility_fix.log")
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(), logging.FileHandler("mcp_compatibility_fix.log")],
 )
 logger = logging.getLogger("mcp_compatibility")
+
 
 def check_imports() -> Tuple[bool, List[str]]:
     """
@@ -50,7 +48,7 @@ def check_imports() -> Tuple[bool, List[str]]:
         "ipfs_kit_py.mcp.models.libp2p_model",
         "ipfs_kit_py.mcp.controllers.webrtc_controller",
         "ipfs_kit_py.mcp.models.webrtc_model",
-        "ipfs_kit_py.run_mcp_server_real_storage"
+        "ipfs_kit_py.run_mcp_server_real_storage",
     ]
 
     for import_path in import_paths:
@@ -63,6 +61,7 @@ def check_imports() -> Tuple[bool, List[str]]:
             failed_imports.append(import_path)
 
     return success, failed_imports
+
 
 def fix_import_issues(failed_imports: List[str]) -> bool:
     """
@@ -109,7 +108,7 @@ import sys
 from importlib import import_module
 
 # Get the correct new path
-new_path = "{import_path.replace('mcp_server', 'mcp')}"
+new_path = "{import_path.replace("mcp_server", "mcp")}"
 
 try:
     # Import the actual module
@@ -130,6 +129,7 @@ except ImportError as e:
 
     return True
 
+
 def check_server_bridge_compatibility() -> bool:
     """
     Check if server_bridge.py compatibility is correctly set up.
@@ -145,6 +145,7 @@ def check_server_bridge_compatibility() -> bool:
 
     try:
         from ipfs_kit_py.mcp_server.server_bridge import MCPServer as OldMCPServer
+
         old_imported = True
         logger.info("Successfully imported from mcp_server.server_bridge")
     except ImportError as e:
@@ -152,6 +153,7 @@ def check_server_bridge_compatibility() -> bool:
 
     try:
         from ipfs_kit_py.mcp.server_bridge import MCPServer as NewMCPServer
+
         new_imported = True
         logger.info("Successfully imported from mcp.server_bridge")
     except ImportError as e:
@@ -207,6 +209,7 @@ except ImportError as e:
 
     return False
 
+
 def patch_mcp_compatibility() -> bool:
     """
     Apply compatibility patches to ensure MCP server works correctly.
@@ -227,6 +230,7 @@ def patch_mcp_compatibility() -> bool:
         try:
             # Import from the new location
             from ipfs_kit_py.mcp.server_bridge import MCPServer
+
             mcp_compatibility.patch_mcp_server(MCPServer)
             logger.info("Patched MCPServer class")
 
@@ -310,6 +314,7 @@ def patch_mcp_compatibility() -> bool:
 
     return success
 
+
 def check_server_startup() -> bool:
     """
     Check if MCP server can start correctly.
@@ -329,7 +334,7 @@ def check_server_startup() -> bool:
             ["./start_mcp_server.sh", "--foreground", "--port=9995", "--log-file=mcp_test.log"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
         )
 
         # Wait for a few seconds to let the server start
@@ -349,6 +354,7 @@ def check_server_startup() -> bool:
     except Exception as e:
         logger.error(f"Error checking server startup: {e}")
         return False
+
 
 def fix_server_launcher() -> bool:
     """
@@ -377,7 +383,7 @@ def fix_server_launcher() -> bool:
             "        from ipfs_kit_py.run_mcp_server_real_storage import app, create_app\n"
             "    except ImportError:\n"
             "        # Try alternative import path\n"
-            "        from ipfs_kit_py.mcp.run_mcp_server_real_storage import app, create_app"
+            "        from ipfs_kit_py.mcp.run_mcp_server_real_storage import app, create_app",
         )
 
         with open("run_mcp_server.py", "w") as f:
@@ -388,6 +394,7 @@ def fix_server_launcher() -> bool:
     except Exception as e:
         logger.error(f"Failed to fix server launcher: {e}")
         return False
+
 
 def test_cline_integration() -> bool:
     """
@@ -424,6 +431,7 @@ def test_cline_integration() -> bool:
     except Exception as e:
         logger.error(f"Failed to read MCP settings file: {e}")
         return False
+
 
 def main():
     """
@@ -475,6 +483,7 @@ def main():
     logger.info("MCP compatibility verification and fixes completed")
     print("\nMCP compatibility verification and fixes completed")
     print("Check mcp_compatibility_fix.log for details")
+
 
 if __name__ == "__main__":
     main()

@@ -41,7 +41,9 @@ class FastCLI:
         self.parser = self._create_parser()
 
     def _create_parser(self) -> argparse.ArgumentParser:
-        parser = argparse.ArgumentParser(description="IPFS-Kit CLI", formatter_class=argparse.RawTextHelpFormatter)
+        parser = argparse.ArgumentParser(
+            description="IPFS-Kit CLI", formatter_class=argparse.RawTextHelpFormatter
+        )
         sub = parser.add_subparsers(dest="command")
 
         # MCP Dashboard commands
@@ -98,11 +100,11 @@ class FastCLI:
             default=None,
             help="Filter out entries with hits below this threshold",
         )
-        
+
         # Daemon API commands
         daemon = sub.add_parser("daemon", help="IPFS-Kit daemon API server")
         daemon_sub = daemon.add_subparsers(dest="daemon_action")
-        
+
         d_start = daemon_sub.add_parser("start", help="Start daemon API server")
         d_start.add_argument("--port", type=int, default=9999)
         d_start.add_argument("--host", default="0.0.0.0")
@@ -130,35 +132,38 @@ class FastCLI:
         s_status = services_sub.add_parser("status", help="Show filesystem service status")
         s_status.add_argument("--service", choices=["ipfs", "lotus", "all"], default="all")
         s_status.add_argument("--json", action="store_true", help="Emit raw JSON")
-        
+
         # Auto-heal configuration commands
         autoheal = sub.add_parser("autoheal", help="Configure auto-healing feature")
         autoheal_sub = autoheal.add_subparsers(dest="autoheal_action")
-        
+
         ah_enable = autoheal_sub.add_parser("enable", help="Enable auto-healing")
         ah_enable.add_argument("--github-token", help="GitHub personal access token")
         ah_enable.add_argument("--github-repo", help="GitHub repository (owner/repo)")
-        
+
         ah_disable = autoheal_sub.add_parser("disable", help="Disable auto-healing")
-        
+
         ah_status = autoheal_sub.add_parser("status", help="Show auto-healing status")
         ah_status.add_argument("--json", action="store_true", help="Emit raw JSON")
-        
+
         ah_config = autoheal_sub.add_parser("config", help="Show/edit auto-healing configuration")
-        ah_config.add_argument("--set", nargs=2, metavar=('KEY', 'VALUE'), help="Set configuration value")
-        ah_config.add_argument("--get", metavar='KEY', help="Get configuration value")
-        
+        ah_config.add_argument(
+            "--set", nargs=2, metavar=("KEY", "VALUE"), help="Set configuration value"
+        )
+        ah_config.add_argument("--get", metavar="KEY", help="Get configuration value")
+
         # Integrate unified CLI commands
         self._add_unified_commands(sub)
-        
+
         return parser
-    
+
     def _add_unified_commands(self, subparsers):
         """Add unified CLI commands from unified_cli_dispatcher."""
         try:
             from ipfs_kit_py.unified_cli_dispatcher import UnifiedCLIDispatcher
+
             unified = UnifiedCLIDispatcher()
-            
+
             # Add bucket commands
             unified._add_bucket_commands(subparsers)
             # Add VFS commands
@@ -179,7 +184,8 @@ class FastCLI:
     async def run(self) -> None:
         args = self.parser.parse_args()
         if not args.command:
-            self.parser.print_help(); sys.exit(2)
+            self.parser.print_help()
+            sys.exit(2)
 
         # Some optional dependencies emit stdout at import/runtime. For JSON-only
         # CLI modes, keep stdout machine-readable by capturing any incidental
@@ -200,17 +206,19 @@ class FastCLI:
         if not skip_backend_init:
             try:
                 from ipfs_kit_py.backend_config import initialize_backend_config
+
                 initialize_backend_config(log_status=False)
             except Exception:
                 pass
-        
+
         # Handle both mcp_action and daemon_action
         unified_commands = {"bucket", "vfs", "wal", "pin", "backend", "journal", "state"}
-        
+
         if args.command in unified_commands:
             # Route to unified CLI dispatcher
             try:
                 from ipfs_kit_py.unified_cli_dispatcher import UnifiedCLIDispatcher
+
                 dispatcher = UnifiedCLIDispatcher()
                 await dispatcher.dispatch(args)
                 return
@@ -232,9 +240,10 @@ class FastCLI:
             handler = getattr(self, f"handle_autoheal_{sub_action}", None) if sub_action else None
         else:
             handler = getattr(self, f"handle_{args.command}", None)
-        
+
         if handler is None:
-            print("Unknown command"); sys.exit(2)
+            print("Unknown command")
+            sys.exit(2)
 
         if not json_safe_mode:
             await handler(args)
@@ -357,22 +366,29 @@ class FastCLI:
             print(f"Starting MCP dashboard (foreground) using: {server_file}")
             spec = importlib.util.spec_from_file_location(server_file.stem, str(server_file))
             if spec is None or spec.loader is None:
-                print("Failed to load server module spec"); sys.exit(2)
+                print("Failed to load server module spec")
+                sys.exit(2)
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)  # type: ignore[attr-defined]
             DashboardClass = getattr(mod, "ConsolidatedMCPDashboard", None)
             if DashboardClass is None:
                 for n, obj in vars(mod).items():
                     if n.endswith("Dashboard") and callable(getattr(obj, "__init__", None)):
-                        DashboardClass = obj; break
+                        DashboardClass = obj
+                        break
             if DashboardClass is None:
-                print("No Dashboard class found in server file"); sys.exit(2)
-            app = DashboardClass({"host": host, "port": port, "data_dir": str(data_dir), "debug": debug})
+                print("No Dashboard class found in server file")
+                sys.exit(2)
+            app = DashboardClass(
+                {"host": host, "port": port, "data_dir": str(data_dir), "debug": debug}
+            )
             run_method = getattr(app, "run", None)
             if run_method is None:
-                print("No run() method found on Dashboard class"); sys.exit(2)
+                print("No run() method found on Dashboard class")
+                sys.exit(2)
             # Support both async and sync run() implementations
             import inspect
+
             if inspect.iscoroutinefunction(run_method):
                 await run_method()
             else:
@@ -382,7 +398,20 @@ class FastCLI:
         # background
         print(f"Starting MCP dashboard (background) using: {server_file}")
         log_file = data_dir / f"mcp_{port}.log"
-        cmd = [sys.executable, "-m", "ipfs_kit_py.cli", "mcp", "start", "--host", host, "--port", str(port), "--data-dir", str(data_dir), "--foreground"]
+        cmd = [
+            sys.executable,
+            "-m",
+            "ipfs_kit_py.cli",
+            "mcp",
+            "start",
+            "--host",
+            host,
+            "--port",
+            str(port),
+            "--data-dir",
+            str(data_dir),
+            "--foreground",
+        ]
         if debug:
             cmd.append("--debug")
         env = os.environ.copy()
@@ -408,7 +437,8 @@ class FastCLI:
                     env=env,
                 )
         except Exception as e:
-            print(f"Failed to launch: {e}"); sys.exit(1)
+            print(f"Failed to launch: {e}")
+            sys.exit(1)
         # Immediately write our own pid file for management
         try:
             pid_file.write_text(str(proc.pid), encoding="utf-8")
@@ -472,6 +502,7 @@ class FastCLI:
                 info["pid"] = int(pid_file.read_text().strip())
         # HTTP probe
         import urllib.request
+
         try:
             with urllib.request.urlopen(f"http://{host}:{port}/api/mcp/status", timeout=2.5) as r:
                 raw = r.read().decode("utf-8", "ignore")
@@ -543,7 +574,8 @@ class FastCLI:
 
         # Migration enforcement (optional)
         migration_violations = [
-            e for e in entries
+            e
+            for e in entries
             if isinstance(e, dict) and e.get("endpoint") and not (e.get("migration") or {})
         ]
         migration_status = "skipped"
@@ -563,11 +595,13 @@ class FastCLI:
                 hits = int(e.get("hits") or 0)
                 if hits > int(hits_threshold):
                     hits_status = "violation"
-                    hits_violations.append({
-                        "endpoint": e.get("endpoint"),
-                        "hits": hits,
-                        "threshold": int(hits_threshold),
-                    })
+                    hits_violations.append(
+                        {
+                            "endpoint": e.get("endpoint"),
+                            "hits": hits,
+                            "threshold": int(hits_threshold),
+                        }
+                    )
 
         policy_block = {
             "hits_enforcement": {
@@ -627,7 +661,11 @@ class FastCLI:
                 endpoint = (item or {}).get("endpoint")
                 remove_in = (item or {}).get("remove_in")
                 note = (item or {}).get("note")
-                parts = [p for p in [endpoint, f"remove_in={remove_in}" if remove_in else None, note] if p]
+                parts = [
+                    p
+                    for p in [endpoint, f"remove_in={remove_in}" if remove_in else None, note]
+                    if p
+                ]
                 print(" - " + " | ".join(parts))
             if fail_missing and migration_status == "violation":
                 raise SystemExit(4)
@@ -646,7 +684,7 @@ class FastCLI:
         debug = bool(getattr(args, "debug", False))
         config_dir = str(getattr(args, "config_dir", "/tmp/ipfs_kit_config"))
         data_dir = str(getattr(args, "data_dir", str(Path.home() / ".ipfs_kit")))
-        
+
         # Import and start the daemon
         try:
             try:
@@ -659,6 +697,7 @@ class FastCLI:
             # Adjust logging if requested
             if debug:
                 import logging
+
                 logging.getLogger().setLevel(logging.DEBUG)
             await daemon.start()
         except ImportError as e:
@@ -682,11 +721,15 @@ class FastCLI:
 
         if "ipfs" in services:
             from ipfs_kit_py.enhanced_daemon_manager import EnhancedDaemonManager
+
             manager = EnhancedDaemonManager()
-            results["ipfs"] = manager.start_daemon(detach=bool(getattr(args, "detach", False)), init_if_needed=True)
+            results["ipfs"] = manager.start_daemon(
+                detach=bool(getattr(args, "detach", False)), init_if_needed=True
+            )
 
         if "lotus" in services:
             from ipfs_kit_py.lotus_daemon import lotus_daemon
+
             daemon = lotus_daemon()
             results["lotus"] = daemon.daemon_start()
 
@@ -699,11 +742,13 @@ class FastCLI:
 
         if "ipfs" in services:
             from ipfs_kit_py.enhanced_daemon_manager import EnhancedDaemonManager
+
             manager = EnhancedDaemonManager()
             results["ipfs"] = manager.stop_daemon()
 
         if "lotus" in services:
             from ipfs_kit_py.lotus_daemon import lotus_daemon
+
             daemon = lotus_daemon()
             results["lotus"] = daemon.daemon_stop(force=force)
 
@@ -716,12 +761,16 @@ class FastCLI:
 
         if "ipfs" in services:
             from ipfs_kit_py.enhanced_daemon_manager import EnhancedDaemonManager
+
             manager = EnhancedDaemonManager()
             manager.stop_daemon()
-            results["ipfs"] = manager.start_daemon(detach=bool(getattr(args, "detach", False)), init_if_needed=True)
+            results["ipfs"] = manager.start_daemon(
+                detach=bool(getattr(args, "detach", False)), init_if_needed=True
+            )
 
         if "lotus" in services:
             from ipfs_kit_py.lotus_daemon import lotus_daemon
+
             daemon = lotus_daemon()
             daemon.daemon_stop(force=force)
             results["lotus"] = daemon.daemon_start()
@@ -735,11 +784,13 @@ class FastCLI:
 
         if "ipfs" in services:
             from ipfs_kit_py.enhanced_daemon_manager import EnhancedDaemonManager
+
             manager = EnhancedDaemonManager()
             results["ipfs"] = manager.check_daemon_status()
 
         if "lotus" in services:
             from ipfs_kit_py.lotus_daemon import lotus_daemon
+
             daemon = lotus_daemon()
             results["lotus"] = daemon.daemon_status()
 
@@ -747,35 +798,39 @@ class FastCLI:
             print(json.dumps(results, indent=2))
         else:
             print(json.dumps(results, indent=2))
-    
+
     # ---- Auto-Heal ----
     async def handle_autoheal_enable(self, args) -> None:
         """Enable auto-healing feature."""
         from ipfs_kit_py.auto_heal.config import AutoHealConfig
-        
+
         config = AutoHealConfig.from_file()
         config.enabled = True
-        
+
         # Set GitHub token if provided
-        if hasattr(args, 'github_token') and args.github_token:
+        if hasattr(args, "github_token") and args.github_token:
             config.github_token = args.github_token
-        
+
         # Set GitHub repo if provided
-        if hasattr(args, 'github_repo') and args.github_repo:
+        if hasattr(args, "github_repo") and args.github_repo:
             config.github_repo = args.github_repo
-        
+
         # Save configuration
         config.save_to_file()
-        
+
         print("✓ Auto-healing enabled")
-        
+
         # Check if properly configured
         if config.is_configured():
             print(f"✓ Configuration complete")
             print(f"  Repository: {config.github_repo}")
             # Safe token display - handle None and short tokens
             if config.github_token:
-                token_suffix = config.github_token[-4:] if len(config.github_token) >= 4 else config.github_token
+                token_suffix = (
+                    config.github_token[-4:]
+                    if len(config.github_token) >= 4
+                    else config.github_token
+                )
                 print(f"  Token: {'*' * 20}...{token_suffix}")
             else:
                 print(f"  Token: not set")
@@ -783,48 +838,50 @@ class FastCLI:
             print("⚠️  Auto-healing requires both GITHUB_TOKEN and GITHUB_REPOSITORY")
             print("   Set them via environment variables or:")
             print("   ipfs-kit autoheal enable --github-token YOUR_TOKEN --github-repo owner/repo")
-    
+
     async def handle_autoheal_disable(self, args) -> None:
         """Disable auto-healing feature."""
         from ipfs_kit_py.auto_heal.config import AutoHealConfig
-        
+
         config = AutoHealConfig.from_file()
         config.enabled = False
         config.save_to_file()
-        
+
         print("✓ Auto-healing disabled")
-    
+
     async def handle_autoheal_status(self, args) -> None:
         """Show auto-healing status including cache statistics."""
         from ipfs_kit_py.auto_heal.config import AutoHealConfig
         from ipfs_kit_py.auto_heal.github_issue_creator import GitHubIssueCreator
-        
+
         config = AutoHealConfig.from_file()
         emit_json = bool(getattr(args, "json", False))
-        
+
         status = {
-            'enabled': config.enabled,
-            'configured': config.is_configured(),
-            'github_repo': config.github_repo,
-            'has_token': config.github_token is not None,
-            'max_log_lines': config.max_log_lines,
-            'include_stack_trace': config.include_stack_trace,
-            'auto_create_issues': config.auto_create_issues,
-            'issue_labels': config.issue_labels,
+            "enabled": config.enabled,
+            "configured": config.is_configured(),
+            "github_repo": config.github_repo,
+            "has_token": config.github_token is not None,
+            "max_log_lines": config.max_log_lines,
+            "include_stack_trace": config.include_stack_trace,
+            "auto_create_issues": config.auto_create_issues,
+            "issue_labels": config.issue_labels,
         }
-        
+
         # Add cache statistics if available
         try:
             issue_creator = GitHubIssueCreator(config)
             cache_stats = issue_creator.get_cache_stats()
             if cache_stats:
-                status['github_api_cache'] = cache_stats
+                status["github_api_cache"] = cache_stats
         except Exception as e:
             logger.debug(f"Could not get cache stats: {e}")
             # Add indicator that cache stats retrieval failed
-            status['github_api_cache'] = {'enabled': False, 'error': 'Failed to retrieve cache stats'}
+            status["github_api_cache"] = {
+                "enabled": False,
+                "error": "Failed to retrieve cache stats",
+            }
 
-        
         if emit_json:
             print(json.dumps(status, indent=2))
         else:
@@ -836,39 +893,38 @@ class FastCLI:
             print(f"  Auto-create issues: {'Yes' if config.auto_create_issues else 'No'}")
             print(f"  Max log lines: {config.max_log_lines}")
             print(f"  Issue labels: {', '.join(config.issue_labels)}")
-            
+
             # Show cache status if available
-            if 'github_api_cache' in status:
-                cache_info = status['github_api_cache']
+            if "github_api_cache" in status:
+                cache_info = status["github_api_cache"]
                 print(f"\nGitHub API Cache:")
                 print(f"  Enabled: {'Yes' if cache_info.get('enabled') else 'No'}")
-                if cache_info.get('enabled'):
+                if cache_info.get("enabled"):
                     print(f"  IPFS Caching: {'Yes' if cache_info.get('ipfs_enabled') else 'No'}")
                     print(f"  P2P Caching: {'Yes' if cache_info.get('p2p_enabled') else 'No'}")
-                    if 'stats' in cache_info:
-                        stats = cache_info['stats']
+                    if "stats" in cache_info:
+                        stats = cache_info["stats"]
                         print(f"  Cache Hits: {stats.get('hits', 0)}")
                         print(f"  Cache Misses: {stats.get('misses', 0)}")
 
-    
     async def handle_autoheal_config(self, args) -> None:
         """Show or edit auto-healing configuration."""
         from ipfs_kit_py.auto_heal.config import AutoHealConfig
-        
+
         config = AutoHealConfig.from_file()
-        
+
         # Handle --set option
-        if hasattr(args, 'set') and args.set:
+        if hasattr(args, "set") and args.set:
             key, value = args.set
-            
+
             # Convert string values to appropriate types
-            if key in ['enabled', 'include_stack_trace', 'auto_create_issues']:
-                value = value.lower() in ('true', '1', 'yes')
-            elif key == 'max_log_lines':
+            if key in ["enabled", "include_stack_trace", "auto_create_issues"]:
+                value = value.lower() in ("true", "1", "yes")
+            elif key == "max_log_lines":
                 value = int(value)
-            elif key == 'issue_labels':
-                value = [v.strip() for v in value.split(',')]
-            
+            elif key == "issue_labels":
+                value = [v.strip() for v in value.split(",")]
+
             # Set the value
             if hasattr(config, key):
                 setattr(config, key, value)
@@ -877,9 +933,9 @@ class FastCLI:
             else:
                 print(f"✗ Unknown configuration key: {key}")
                 return
-        
+
         # Handle --get option
-        elif hasattr(args, 'get') and args.get:
+        elif hasattr(args, "get") and args.get:
             key = args.get
             if hasattr(config, key):
                 value = getattr(config, key)
@@ -887,7 +943,7 @@ class FastCLI:
             else:
                 print(f"✗ Unknown configuration key: {key}")
                 return
-        
+
         # Show all configuration
         else:
             print("Auto-Healing Configuration:")
@@ -902,7 +958,11 @@ class FastCLI:
 async def main() -> None:
     """Main CLI entry point with auto-healing error capture."""
     # Fast path for lightweight MCP actions to avoid heavy auto-heal imports.
-    if len(sys.argv) >= 3 and sys.argv[1] == "mcp" and sys.argv[2] in {"start", "stop", "status", "deprecations"}:
+    if (
+        len(sys.argv) >= 3
+        and sys.argv[1] == "mcp"
+        and sys.argv[2] in {"start", "stop", "status", "deprecations"}
+    ):
         cli = FastCLI()
         await cli.run()
         return
@@ -911,42 +971,48 @@ async def main() -> None:
     from ipfs_kit_py.auto_heal.config import AutoHealConfig
     from ipfs_kit_py.auto_heal.github_issue_creator import GitHubIssueCreator
     import logging
-    
+
     logger = logging.getLogger(__name__)
-    
+
     # Load auto-healing configuration
     config = AutoHealConfig.from_file()
-    
+
     # Initialize error capture
     error_capture = ErrorCapture(max_log_lines=config.max_log_lines)
-    
+
     try:
         cli = FastCLI()
         await cli.run()
     except Exception as e:
         # Capture the error
         command = f"ipfs-kit {' '.join(sys.argv[1:])}"
-        arguments = {'command': sys.argv[1] if len(sys.argv) > 1 else 'none'}
-        
+        arguments = {"command": sys.argv[1] if len(sys.argv) > 1 else "none"}
+
         captured_error = error_capture.capture_error(e, command, arguments)
-        
+
         # Log the error
         logger.error(f"CLI error: {captured_error.error_type}: {captured_error.error_message}")
-        
+
         # Create GitHub issue if auto-healing is configured
         if config.is_configured():
             try:
                 issue_creator = GitHubIssueCreator(config)
                 issue_url = issue_creator.create_issue_from_error(captured_error)
-                
+
                 if issue_url:
                     logger.info(f"Created auto-heal issue: {issue_url}")
-                    print(f"\n⚠️  An error occurred and has been automatically reported.", file=sys.stderr)
+                    print(
+                        f"\n⚠️  An error occurred and has been automatically reported.",
+                        file=sys.stderr,
+                    )
                     print(f"📋 Issue created: {issue_url}", file=sys.stderr)
-                    print(f"🤖 The auto-healing system will attempt to fix this error.\n", file=sys.stderr)
+                    print(
+                        f"🤖 The auto-healing system will attempt to fix this error.\n",
+                        file=sys.stderr,
+                    )
             except Exception as issue_error:
                 logger.error(f"Failed to create GitHub issue: {issue_error}")
-        
+
         # Re-raise the original exception to preserve CLI exit behavior
         # The CLI will exit with an error code, but the error has been reported
         raise
@@ -956,7 +1022,7 @@ def _configure_event_loop_policy() -> None:
     if os.name != "nt":
         return
     with suppress(Exception):
-        std_async = importlib.import_module("async" "io")
+        std_async = importlib.import_module("asyncio")
         policy = getattr(std_async, "WindowsSelectorEventLoopPolicy")
         std_async.set_event_loop_policy(policy())
 

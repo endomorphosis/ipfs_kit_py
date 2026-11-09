@@ -23,15 +23,15 @@ from fastapi.middleware.cors import CORSMiddleware
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename='mcp_server.log'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    filename="mcp_server.log",
 )
 logger = logging.getLogger(__name__)
 
 # Add console handler for immediate feedback
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 console.setFormatter(formatter)
 logger.addHandler(console)
 
@@ -43,26 +43,38 @@ api_prefix = os.environ.get("MCP_API_PREFIX", "/api/v0")
 
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description="Run enhanced MCP server with all extensions.")
-parser.add_argument("--port", type=int, default=int(os.environ.get("MCP_PORT", "9994")),
-                   help="Port to run the server on (default: 9994)")
-parser.add_argument("--host", type=str, default="0.0.0.0",
-                   help="Host to bind the server to (default: 0.0.0.0)")
-parser.add_argument("--debug", action="store_true", default=debug_mode,
-                   help="Enable debug mode")
-parser.add_argument("--no-debug", action="store_false", dest="debug",
-                   help="Disable debug mode")
-parser.add_argument("--isolation", action="store_true", default=isolation_mode,
-                   help="Enable isolation mode")
-parser.add_argument("--no-isolation", action="store_false", dest="isolation",
-                   help="Disable isolation mode")
-parser.add_argument("--skip-daemon", action="store_true", default=skip_daemon,
-                   help="Skip daemon initialization")
-parser.add_argument("--no-skip-daemon", action="store_false", dest="skip_daemon",
-                   help="Don't skip daemon initialization")
-parser.add_argument("--api-prefix", type=str, default=api_prefix,
-                   help="API prefix for endpoints (default: /api/v0)")
-parser.add_argument("--log-file", type=str, default="mcp_server.log",
-                   help="Log file path (default: mcp_server.log)")
+parser.add_argument(
+    "--port",
+    type=int,
+    default=int(os.environ.get("MCP_PORT", "9994")),
+    help="Port to run the server on (default: 9994)",
+)
+parser.add_argument(
+    "--host", type=str, default="0.0.0.0", help="Host to bind the server to (default: 0.0.0.0)"
+)
+parser.add_argument("--debug", action="store_true", default=debug_mode, help="Enable debug mode")
+parser.add_argument("--no-debug", action="store_false", dest="debug", help="Disable debug mode")
+parser.add_argument(
+    "--isolation", action="store_true", default=isolation_mode, help="Enable isolation mode"
+)
+parser.add_argument(
+    "--no-isolation", action="store_false", dest="isolation", help="Disable isolation mode"
+)
+parser.add_argument(
+    "--skip-daemon", action="store_true", default=skip_daemon, help="Skip daemon initialization"
+)
+parser.add_argument(
+    "--no-skip-daemon",
+    action="store_false",
+    dest="skip_daemon",
+    help="Don't skip daemon initialization",
+)
+parser.add_argument(
+    "--api-prefix", type=str, default=api_prefix, help="API prefix for endpoints (default: /api/v0)"
+)
+parser.add_argument(
+    "--log-file", type=str, default="mcp_server.log", help="Log file path (default: mcp_server.log)"
+)
 
 args = parser.parse_args()
 
@@ -75,12 +87,13 @@ logger.setLevel(getattr(logging, log_level))
 app = FastAPI(
     title="Enhanced MCP Server",
     description="Enhanced MCP Server with all extensions properly initialized",
-    version="1.0.0"
+    version="1.0.0",
 )
 
+
 # Initialize endpoint for VS Code integration
-@app.post('/api/v0/initialize', tags=["MCP"])
-@app.get('/api/v0/initialize', tags=["MCP"])
+@app.post("/api/v0/initialize", tags=["MCP"])
+@app.get("/api/v0/initialize", tags=["MCP"])
 async def initialize_endpoint():
     """Initialize endpoint for VS Code MCP protocol.
 
@@ -91,14 +104,15 @@ async def initialize_endpoint():
     return {
         "capabilities": {
             "tools": ["ipfs_add", "ipfs_cat", "ipfs_pin", "storage_transfer"],
-            "resources": ["ipfs://info", "storage://backends"]
+            "resources": ["ipfs://info", "storage://backends"],
         },
         "serverInfo": {
             "name": "IPFS Kit MCP Server",
             "version": "1.0.0",
-            "implementationName": "ipfs-kit-py"
-        }
+            "implementationName": "ipfs-kit-py",
+        },
     }
+
 
 # Add CORS middleware
 app.add_middleware(
@@ -115,6 +129,7 @@ info_router = APIRouter()
 # Generate a unique server ID
 server_id = str(uuid.uuid4())
 start_time = time.time()
+
 
 @info_router.get("/")
 async def root():
@@ -153,11 +168,13 @@ async def root():
                 f"{args.api_prefix}/lassie/retrieve",
             ],
             "health": f"{args.api_prefix}/health",
-        }
+        },
     }
+
 
 # Add the info router to the app
 app.include_router(info_router)
+
 
 # Create health endpoint directly on the app
 @app.get("/health")
@@ -169,13 +186,15 @@ async def health():
         "timestamp": time.time(),
         "server_id": server_id,
         "uptime_seconds": time.time() - start_time,
-        "debug_mode": args.debug
+        "debug_mode": args.debug,
     }
+
 
 # Create a test SSE endpoint for browser compatibility testing
 @app.get("/sse/test")
 async def sse_test():
     """Test Server-Sent Events (SSE) endpoint."""
+
     async def event_generator():
         """Generate server-sent events."""
         for i in range(5):
@@ -184,25 +203,24 @@ async def sse_test():
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
+
 # Add the main SSE endpoint that matches VS Code settings
 @app.get("/sse")
 async def sse():
     """Main SSE endpoint for MCP client connections."""
     return await api_sse()  # Reuse the API-prefixed implementation
 
+
 # Add the SSE endpoint with API prefix
 @app.get(f"{args.api_prefix}/sse")
 async def api_sse():
     """API-prefixed SSE endpoint for MCP client connections."""
+
     async def event_generator():
         """Generate server-sent events for clients."""
         try:
             # Send initial connection established event
-            event_data = {
-                "type": "connection",
-                "status": "established",
-                "timestamp": time.time()
-            }
+            event_data = {"type": "connection", "status": "established", "timestamp": time.time()}
             yield f"data: {json.dumps(event_data)}\n\n"
 
             # Send an immediate health check event
@@ -211,7 +229,7 @@ async def api_sse():
                 "status": "healthy",
                 "seq": 0,
                 "timestamp": time.time(),
-                "server_id": server_id
+                "server_id": server_id,
             }
             yield f"data: {json.dumps(event_data)}\n\n"
 
@@ -223,7 +241,7 @@ async def api_sse():
                     "status": "healthy",
                     "seq": counter,
                     "timestamp": time.time(),
-                    "server_id": server_id
+                    "server_id": server_id,
                 }
                 counter += 1
                 yield f"data: {json.dumps(event_data)}\n\n"
@@ -232,11 +250,7 @@ async def api_sse():
             logger.error(f"Error in SSE stream: {e}")
             logger.error(traceback.format_exc())
             # Send error event
-            event_data = {
-                "type": "error",
-                "message": str(e),
-                "timestamp": time.time()
-            }
+            event_data = {"type": "error", "message": str(e), "timestamp": time.time()}
             yield f"data: {json.dumps(event_data)}\n\n"
 
     return StreamingResponse(
@@ -246,9 +260,10 @@ async def api_sse():
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "Access-Control-Allow-Origin": "*",
-            "X-Accel-Buffering": "no"  # Disable Nginx buffering
-        }
+            "X-Accel-Buffering": "no",  # Disable Nginx buffering
+        },
     )
+
 
 # Add JSON-RPC endpoint for VS Code Language Server Protocol
 @app.post("/jsonrpc")
@@ -269,29 +284,41 @@ async def jsonrpc_handler(request: Request):
                 "result": {
                     "capabilities": {
                         "tools": ["ipfs_add", "ipfs_cat", "ipfs_pin", "storage_transfer"],
-                        "resources": ["ipfs://info", "storage://backends"]
+                        "resources": ["ipfs://info", "storage://backends"],
                     },
                     "serverInfo": {
                         "name": "IPFS Kit MCP Server",
                         "version": "1.0.0",
-                        "implementationName": "ipfs-kit-py"
-                    }
-                }
+                        "implementationName": "ipfs-kit-py",
+                    },
+                },
             }
             logger.info(f"Sending initialize response: {response}")
-            return JSONResponse(content=response, status_code=200, media_type="application/vscode-jsonrpc; charset=utf-8")
+            return JSONResponse(
+                content=response,
+                status_code=200,
+                media_type="application/vscode-jsonrpc; charset=utf-8",
+            )
 
         # Handle 'shutdown' request
         elif data.get("method") == "shutdown":
             logger.info("Received shutdown request from VS Code")
             response = {"jsonrpc": "2.0", "id": data.get("id"), "result": None}
-            return JSONResponse(content=response, status_code=200, media_type="application/vscode-jsonrpc; charset=utf-8")
+            return JSONResponse(
+                content=response,
+                status_code=200,
+                media_type="application/vscode-jsonrpc; charset=utf-8",
+            )
 
         # Handle 'exit' notification
         elif data.get("method") == "exit":
             logger.info("Received exit notification from VS Code")
             response = {"jsonrpc": "2.0", "id": data.get("id"), "result": None}
-            return JSONResponse(content=response, status_code=200, media_type="application/vscode-jsonrpc; charset=utf-8")
+            return JSONResponse(
+                content=response,
+                status_code=200,
+                media_type="application/vscode-jsonrpc; charset=utf-8",
+            )
 
         # For any other method, return a 'method not found' error
         else:
@@ -299,30 +326,32 @@ async def jsonrpc_handler(request: Request):
             error_resp = {
                 "jsonrpc": "2.0",
                 "id": data.get("id"),
-                "error": {
-                    "code": -32601,
-                    "message": f"Method '{data.get('method')}' not found"
-                }
+                "error": {"code": -32601, "message": f"Method '{data.get('method')}' not found"},
             }
-            return JSONResponse(content=error_resp, status_code=200, media_type="application/vscode-jsonrpc; charset=utf-8")
+            return JSONResponse(
+                content=error_resp,
+                status_code=200,
+                media_type="application/vscode-jsonrpc; charset=utf-8",
+            )
     except Exception as e:
         logger.error(f"Error handling JSON-RPC request: {e}")
         logger.error(traceback.format_exc())
         error = {
             "jsonrpc": "2.0",
             "id": None,
-            "error": {
-                "code": -32603,
-                "message": f"Internal error: {str(e)}"
-            }
+            "error": {"code": -32603, "message": f"Internal error: {str(e)}"},
         }
-        return JSONResponse(content=error, status_code=500, media_type="application/vscode-jsonrpc; charset=utf-8")
+        return JSONResponse(
+            content=error, status_code=500, media_type="application/vscode-jsonrpc; charset=utf-8"
+        )
+
 
 # Add JSON-RPC endpoint with API prefix for VS Code
 @app.post(f"{args.api_prefix}/jsonrpc")
 async def api_jsonrpc_handler(request: Request):
     """JSON-RPC endpoint at API prefix for VS Code Language Server Protocol."""
     return await jsonrpc_handler(request)
+
 
 # Global exception handler
 @app.exception_handler(Exception)
@@ -336,9 +365,10 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={
             "error": "Internal server error",
             "detail": str(exc) if not args.debug else f"{str(exc)}\n{traceback.format_exc()}",
-            "timestamp": time.time()
-        }
+            "timestamp": time.time(),
+        },
     )
+
 
 def initialize_mcp_components():
     """Initialize MCP server components and return the server instance if successful."""
@@ -349,6 +379,7 @@ def initialize_mcp_components():
         # Import the MCP server bridge
         try:
             from ipfs_kit_py.mcp.server_bridge import MCPServer
+
             logger.info("Successfully imported MCPServer from server_bridge")
 
             # Patch the MCPServer class if needed
@@ -366,11 +397,11 @@ def initialize_mcp_components():
             debug_mode=args.debug,
             log_level=log_level,
             isolation_mode=args.isolation,
-            skip_daemon=args.skip_daemon
+            skip_daemon=args.skip_daemon,
         )
 
         # Get controllers from the server if available
-        if hasattr(mcp_server, 'controllers'):
+        if hasattr(mcp_server, "controllers"):
             controllers = list(mcp_server.controllers.keys())
 
         logger.info(f"MCP server initialized with controllers: {controllers}")
@@ -378,6 +409,7 @@ def initialize_mcp_components():
         # Apply direct IPFS model fixes
         try:
             from ipfs_kit_py.mcp.models.ipfs_model_fix import apply_fixes
+
             logger.info("Applying direct IPFS model fixes")
 
             # Use apply_fixes() instead of fix_ipfs_model(None)
@@ -389,6 +421,7 @@ def initialize_mcp_components():
         # Initialize IPFS model extensions
         try:
             from ipfs_kit_py.mcp.models.ipfs_model_initializer import initialize_ipfs_model
+
             logger.info("Initializing IPFS model extensions")
             initialize_ipfs_model()
             logger.info("Successfully initialized IPFS model extensions")
@@ -398,6 +431,7 @@ def initialize_mcp_components():
         # Apply SSE and CORS fixes
         try:
             from ipfs_kit_py.mcp.sse_cors_fix import patch_mcp_server_for_sse
+
             logger.info("Applying SSE and CORS fixes")
             patch_mcp_server_for_sse()
             logger.info("Successfully applied SSE and CORS fixes")
@@ -407,6 +441,7 @@ def initialize_mcp_components():
         # Patch run_mcp_server if needed
         try:
             from ipfs_kit_py.mcp.run_mcp_server_initializer import patch_run_mcp_server
+
             logger.info("Patching run_mcp_server")
             patch_run_mcp_server()
             logger.info("Successfully patched run_mcp_server")
@@ -419,6 +454,7 @@ def initialize_mcp_components():
         return None, controllers
 
     return mcp_server, controllers
+
 
 def create_dummy_mcp_components():
     """Create and register minimal dummy components when full initialization fails."""
@@ -433,7 +469,7 @@ def create_dummy_mcp_components():
             "timestamp": time.time(),
             "server_id": server_id,
             "debug_mode": args.debug,
-            "message": "Running in minimal compatibility mode"
+            "message": "Running in minimal compatibility mode",
         }
 
     # Add minimal IPFS endpoints
@@ -442,11 +478,7 @@ def create_dummy_mcp_components():
     @ipfs_router.get("/version")
     async def ipfs_version():
         """Get IPFS version information."""
-        return {
-            "version": "0.1.0",
-            "simulation": True,
-            "message": "Running in compatibility mode"
-        }
+        return {"version": "0.1.0", "simulation": True, "message": "Running in compatibility mode"}
 
     @ipfs_router.post("/add")
     async def ipfs_add():
@@ -455,11 +487,12 @@ def create_dummy_mcp_components():
             "success": True,
             "simulation": True,
             "cid": f"Qm{uuid.uuid4().hex[:38]}",
-            "message": "Content added to IPFS (simulation)"
+            "message": "Content added to IPFS (simulation)",
         }
 
     app.include_router(ipfs_router)
     logger.info("Minimal MCP components registered")
+
 
 def patch_mcp_server():
     """Patch the MCPServer class to add missing methods."""
@@ -467,7 +500,7 @@ def patch_mcp_server():
         from ipfs_kit_py.mcp.server_bridge import MCPServer
 
         # Check if the method is missing and add it
-        if not hasattr(MCPServer, '_register_exception_handler'):
+        if not hasattr(MCPServer, "_register_exception_handler"):
             logger.info("Adding missing _register_exception_handler method to MCPServer")
 
             def _register_exception_handler(self):
@@ -488,6 +521,7 @@ def patch_mcp_server():
         logger.error(traceback.format_exc())
         return False
 
+
 def main():
     """Run the enhanced MCP server with all extensions initialized."""
     # Initialize MCP components
@@ -502,8 +536,8 @@ def main():
 
             # Get storage manager for health endpoint
             storage_manager = None
-            if hasattr(mcp_server, 'models') and 'storage_manager' in mcp_server.models:
-                storage_manager = mcp_server.models['storage_manager']
+            if hasattr(mcp_server, "models") and "storage_manager" in mcp_server.models:
+                storage_manager = mcp_server.models["storage_manager"]
 
             # Create enhanced health endpoint at API level
             @app.get(f"{args.api_prefix}/health")
@@ -517,34 +551,43 @@ def main():
                     "debug_mode": args.debug,
                     "ipfs_daemon_running": True,  # Assume it's running since we got this far
                     "controllers": {name: True for name in controllers},
-                    "storage_backends": {}
+                    "storage_backends": {},
                 }
 
                 # Add storage backend information if available
-                if storage_manager and hasattr(storage_manager, 'get_available_backends'):
+                if storage_manager and hasattr(storage_manager, "get_available_backends"):
                     try:
                         backends = storage_manager.get_available_backends()
 
                         for backend_name, is_available in backends.items():
                             health_data["storage_backends"][backend_name] = {
                                 "available": is_available,
-                                "simulation": getattr(storage_manager, 'isolation_mode', args.isolation)
+                                "simulation": getattr(
+                                    storage_manager, "isolation_mode", args.isolation
+                                ),
                             }
 
                             # Add additional info if available
-                            if is_available and hasattr(storage_manager, 'storage_models') and backend_name in storage_manager.storage_models:
+                            if (
+                                is_available
+                                and hasattr(storage_manager, "storage_models")
+                                and backend_name in storage_manager.storage_models
+                            ):
                                 model = storage_manager.storage_models[backend_name]
-                                mock_mode = getattr(model, 'simulation_mode', False)
-                                health_data["storage_backends"][backend_name].update({
-                                    "mock": mock_mode,
-                                    "token_available": True
-                                })
+                                mock_mode = getattr(model, "simulation_mode", False)
+                                health_data["storage_backends"][backend_name].update(
+                                    {"mock": mock_mode, "token_available": True}
+                                )
 
                                 # Add special info for different backends
                                 if backend_name == "lassie":
-                                    health_data["storage_backends"][backend_name]["binary_available"] = True
+                                    health_data["storage_backends"][backend_name][
+                                        "binary_available"
+                                    ] = True
                                 elif backend_name in ["huggingface", "s3"]:
-                                    health_data["storage_backends"][backend_name]["credentials_available"] = True
+                                    health_data["storage_backends"][backend_name][
+                                        "credentials_available"
+                                    ] = True
                     except Exception as e:
                         logger.error(f"Error getting backend information: {e}")
                         logger.error(traceback.format_exc())
@@ -573,18 +616,13 @@ def main():
 
         # Write PID file
         pid_path = os.path.join(os.getcwd(), "enhanced_mcp_server_real.pid")
-        with open(pid_path, 'w') as f:
+        with open(pid_path, "w") as f:
             f.write(str(os.getpid()))
         logger.info(f"PID file written to {pid_path}")
 
         # Run the server
         logger.info(f"Starting Enhanced MCP server on {args.host}:{args.port}")
-        uvicorn.run(
-            app,
-            host=args.host,
-            port=args.port,
-            log_level=log_level.lower()
-        )
+        uvicorn.run(app, host=args.host, port=args.port, log_level=log_level.lower())
     except ImportError as e:
         logger.error(f"Failed to import required modules: {e}")
         sys.exit(1)
@@ -592,6 +630,7 @@ def main():
         logger.error(f"Error starting MCP server: {e}")
         logger.error(traceback.format_exc())
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

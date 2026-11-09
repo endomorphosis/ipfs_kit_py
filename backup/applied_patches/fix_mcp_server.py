@@ -20,10 +20,11 @@ from pathlib import Path
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler()]
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
+
 
 def stop_existing_servers():
     """Stop any running MCP server processes."""
@@ -67,6 +68,7 @@ def stop_existing_servers():
     except Exception as e:
         logger.error(f"Error stopping MCP servers: {e}")
 
+
 def setup_mock_environment():
     """Set up the mock environment for storage backends."""
     logger.info("Setting up mock environment for storage backends...")
@@ -77,7 +79,7 @@ def setup_mock_environment():
         os.path.expanduser("~/.ipfs_kit/mock_s3/ipfs-storage-demo"),
         os.path.expanduser("~/.ipfs_kit/mock_filecoin/deals"),
         os.path.expanduser("~/.ipfs_kit/mock_storacha"),
-        os.path.expanduser("~/.ipfs_kit/mock_lassie")
+        os.path.expanduser("~/.ipfs_kit/mock_lassie"),
     ]
 
     for directory in mock_dirs:
@@ -97,6 +99,7 @@ def setup_mock_environment():
     os.environ["LASSIE_API_URL"] = "http://127.0.0.1:5000"
     os.environ["LASSIE_ENABLED"] = "true"
 
+
 def ensure_ipfs_daemon():
     """Ensure the IPFS daemon is running."""
     logger.info("Checking IPFS daemon...")
@@ -114,7 +117,7 @@ def ensure_ipfs_daemon():
         subprocess.Popen(
             ["ipfs", "daemon", "--routing=dhtclient"],
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            stderr=subprocess.DEVNULL,
         )
 
         # Wait for it to start
@@ -134,6 +137,7 @@ def ensure_ipfs_daemon():
         logger.error(f"Error with IPFS daemon: {e}")
         return False
 
+
 def start_enhanced_mcp_server():
     """Start the enhanced MCP server."""
     logger.info("Starting enhanced MCP server...")
@@ -146,7 +150,7 @@ def start_enhanced_mcp_server():
         server_process = subprocess.Popen(
             [sys.executable, "enhanced_mcp_server.py", "--port", "9997", "--debug"],
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stderr=subprocess.PIPE,
         )
 
         # Save PID
@@ -163,6 +167,7 @@ def start_enhanced_mcp_server():
     except Exception as e:
         logger.error(f"Error starting enhanced MCP server: {e}")
         return None
+
 
 def check_server_health(port=9997):
     """Check the health of the MCP server."""
@@ -182,14 +187,14 @@ def check_server_health(port=9997):
                     logger.info(f"Server status: {health_data.get('status', 'unknown')}")
 
                     # Check storage backends
-                    backends = health_data.get('storage_backends', {})
+                    backends = health_data.get("storage_backends", {})
                     for backend, status in backends.items():
-                        if backend in ['ipfs', 'local']:
+                        if backend in ["ipfs", "local"]:
                             continue  # Skip IPFS and local which should work by default
 
-                        available = status.get('available', False)
-                        simulation = status.get('simulation', True)
-                        mock = status.get('mock', False)
+                        available = status.get("available", False)
+                        simulation = status.get("simulation", True)
+                        mock = status.get("mock", False)
 
                         if available and not simulation:
                             if mock:
@@ -197,7 +202,7 @@ def check_server_health(port=9997):
                             else:
                                 logger.info(f"✓ {backend}: Fully functional with real connection")
                         else:
-                            error = status.get('error', 'Unknown error')
+                            error = status.get("error", "Unknown error")
                             logger.warning(f"✗ {backend}: Not functioning properly - {error}")
 
                     return health_data
@@ -206,7 +211,9 @@ def check_server_health(port=9997):
 
             except requests.RequestException as e:
                 if attempt < max_attempts - 1:
-                    logger.info(f"Retrying health check in 2 seconds... (attempt {attempt+1}/{max_attempts})")
+                    logger.info(
+                        f"Retrying health check in 2 seconds... (attempt {attempt + 1}/{max_attempts})"
+                    )
                     time.sleep(2)
                 else:
                     logger.error(f"Failed to connect to server: {e}")
@@ -219,6 +226,7 @@ def check_server_health(port=9997):
     except Exception as e:
         logger.error(f"Error checking server health: {e}")
         return None
+
 
 def main():
     """Main function to fix the MCP server."""
@@ -246,12 +254,12 @@ def main():
             logger.info("MCP server is running with the following storage backends:")
 
             # Print backends status
-            backends = health_data.get('storage_backends', {})
+            backends = health_data.get("storage_backends", {})
             all_working = True
 
             for backend, status in backends.items():
-                available = status.get('available', False)
-                simulation = status.get('simulation', True)
+                available = status.get("available", False)
+                simulation = status.get("simulation", True)
 
                 if available and not simulation:
                     logger.info(f"✓ {backend}: Working")
@@ -268,6 +276,7 @@ def main():
             logger.error("Failed to verify MCP server health")
     else:
         logger.error("Failed to start MCP server")
+
 
 if __name__ == "__main__":
     main()
